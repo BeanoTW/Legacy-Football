@@ -79,6 +79,7 @@ type Tab =
   | "cashflow"
   | "tickets"
   | "squad"
+  | "staff"
   | "stadium"
   | "fixtures"
   | "history";
