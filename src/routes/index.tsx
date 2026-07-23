@@ -16,6 +16,7 @@ import {
   YAxis,
 } from "recharts";
 import {
+  Briefcase,
   Building2,
   Calendar,
   ChevronsRight,
@@ -26,6 +27,8 @@ import {
   Save,
   Ticket,
   Trophy,
+  UserMinus,
+  UserPlus,
   Users,
   Wallet,
 } from "lucide-react";
