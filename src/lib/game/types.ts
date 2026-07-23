@@ -133,4 +133,8 @@ export interface GameState {
 
   ledger: WeekLedger[];       // most recent first-or-append: append at end
   league: LeagueRow[];
+
+  hiredStaff: Staff[];
+  staffCandidates: Staff[];
+  staffMarketRefreshedWeek: number;
 }
