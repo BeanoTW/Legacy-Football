@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 
 import { useGame } from "@/hooks/useGame";
-import type { GameState, Stand } from "@/lib/game/types";
+import type { GameState, Stand, Staff, StaffRole } from "@/lib/game/types";
 import {
   avgTicketPrice,
   fmtMoney,
