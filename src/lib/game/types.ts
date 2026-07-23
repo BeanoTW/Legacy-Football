@@ -25,6 +25,42 @@ export interface Sponsor {
   weeksLeft: number;
 }
 
+export type StaffRole =
+  | "Manager"
+  | "Assistant Manager"
+  | "Head Coach"
+  | "Goalkeeping Coach"
+  | "Fitness Coach"
+  | "Head of Youth"
+  | "Head of Transfers"
+  | "Chief Scout"
+  | "Scout"
+  | "Head Physio"
+  | "Sports Scientist";
+
+export interface StaffStats {
+  tactics: number;      // matchday impact
+  attack: number;
+  defense: number;
+  development: number;  // improves training / youth
+  scouting: number;     // finds better players
+  negotiation: number;  // cheaper transfers/contracts
+  medical: number;      // fewer injuries, faster recovery
+  motivation: number;   // morale / fan happiness lift
+}
+
+export interface Staff {
+  id: string;
+  name: string;
+  role: StaffRole;
+  age: number;
+  rating: number;         // overall 40-95
+  stats: StaffStats;
+  wage: number;           // £/week
+  contractWeeks: number;
+  reputation: number;     // 20-95 (agent leverage)
+}
+
 export interface WeekLedger {
   week: number;
   season: number;
