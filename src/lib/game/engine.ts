@@ -434,6 +434,10 @@ export function loadGame(): GameState | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as GameState;
     if (parsed.version !== 1) return null;
+    // Backwards-compat migration for saves created before staff feature
+    if (!parsed.hiredStaff) parsed.hiredStaff = [];
+    if (!parsed.staffCandidates) parsed.staffCandidates = makeCandidatePool();
+    if (parsed.staffMarketRefreshedWeek == null) parsed.staffMarketRefreshedWeek = parsed.week;
     return parsed;
   } catch { return null; }
 }
