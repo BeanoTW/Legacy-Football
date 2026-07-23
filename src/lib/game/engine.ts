@@ -77,6 +77,116 @@ function makeLeague(clubName: string): LeagueRow[] {
   }));
 }
 
+/* ---------- Staff ---------- */
+export const STAFF_ROLES: StaffRole[] = [
+  "Manager",
+  "Assistant Manager",
+  "Head Coach",
+  "Goalkeeping Coach",
+  "Fitness Coach",
+  "Head of Youth",
+  "Head of Transfers",
+  "Chief Scout",
+  "Scout",
+  "Head Physio",
+  "Sports Scientist",
+];
+
+// Which stats matter most for each role — used to weight overall rating & wage
+const ROLE_WEIGHTS: Record<StaffRole, Partial<Record<keyof StaffStats, number>>> = {
+  "Manager":            { tactics: 3, motivation: 2, attack: 1, defense: 1 },
+  "Assistant Manager":  { tactics: 2, motivation: 2, development: 1 },
+  "Head Coach":         { attack: 2, defense: 2, development: 2 },
+  "Goalkeeping Coach":  { defense: 3, development: 2 },
+  "Fitness Coach":      { medical: 2, development: 2 },
+  "Head of Youth":      { development: 3, scouting: 2 },
+  "Head of Transfers":  { negotiation: 3, scouting: 2 },
+  "Chief Scout":        { scouting: 3, negotiation: 1 },
+  "Scout":              { scouting: 2 },
+  "Head Physio":        { medical: 3 },
+  "Sports Scientist":   { medical: 2, development: 2 },
+};
+
+// Base wage £/wk multiplier per role at rating 60
+const ROLE_BASE_WAGE: Record<StaffRole, number> = {
+  "Manager": 8_500,
+  "Assistant Manager": 4_200,
+  "Head Coach": 3_600,
+  "Goalkeeping Coach": 2_400,
+  "Fitness Coach": 2_000,
+  "Head of Youth": 2_800,
+  "Head of Transfers": 4_500,
+  "Chief Scout": 2_600,
+  "Scout": 1_100,
+  "Head Physio": 2_100,
+  "Sports Scientist": 2_300,
+};
+
+function makeStaffStats(role: StaffRole, base: number): StaffStats {
+  const keys: (keyof StaffStats)[] = [
+    "tactics","attack","defense","development","scouting","negotiation","medical","motivation",
+  ];
+  const weights = ROLE_WEIGHTS[role];
+  const stats = {} as StaffStats;
+  for (const k of keys) {
+    const boosted = weights[k] ? base + rand(2, 10) * weights[k]! : base + rand(-14, 6);
+    stats[k] = Math.max(30, Math.min(95, Math.round(boosted)));
+  }
+  return stats;
+}
+
+function overallFor(role: StaffRole, stats: StaffStats): number {
+  const weights = ROLE_WEIGHTS[role];
+  let sum = 0, wsum = 0;
+  for (const [k, w] of Object.entries(weights) as [keyof StaffStats, number][]) {
+    sum += stats[k] * w; wsum += w;
+  }
+  return Math.round(sum / Math.max(1, wsum));
+}
+
+export function makeStaff(role: StaffRole, quality = 60): Staff {
+  const base = Math.max(35, Math.min(92, quality + rand(-8, 10)));
+  const stats = makeStaffStats(role, base);
+  const rating = overallFor(role, stats);
+  const wage = Math.round((ROLE_BASE_WAGE[role] * Math.pow(rating / 60, 2.4)) / 50) * 50;
+  return {
+    id: crypto.randomUUID(),
+    name: `${pick(FIRST)}. ${pick(LAST)}`,
+    role,
+    age: randInt(28, 62),
+    rating,
+    stats,
+    wage,
+    contractWeeks: randInt(38, 38 * 3),
+    reputation: Math.max(20, Math.min(95, Math.round(rating + rand(-8, 6)))),
+  };
+}
+
+function makeCandidatePool(): Staff[] {
+  const pool: Staff[] = [];
+  // Always 1 manager, 1 asst, a few scouts, a mix of specialists
+  const spec: [StaffRole, number][] = [
+    ["Manager", 2],
+    ["Assistant Manager", 2],
+    ["Head Coach", 2],
+    ["Goalkeeping Coach", 1],
+    ["Fitness Coach", 1],
+    ["Head of Youth", 1],
+    ["Head of Transfers", 1],
+    ["Chief Scout", 1],
+    ["Scout", 4],
+    ["Head Physio", 1],
+    ["Sports Scientist", 1],
+  ];
+  for (const [role, n] of spec) {
+    for (let i = 0; i < n; i++) pool.push(makeStaff(role, 55 + randInt(0, 25)));
+  }
+  return pool;
+}
+
+export const hiredStaffWagesWeekly = (s: GameState) =>
+  (s.hiredStaff ?? []).reduce((a, st) => a + st.wage, 0);
+
 /* ---------- Initial state ---------- */
 export function newGame(clubName: string, managerName: string): GameState {
   const stands: Stand[] = [
