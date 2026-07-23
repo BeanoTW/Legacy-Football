@@ -221,6 +221,9 @@ export function newGame(clubName: string, managerName: string): GameState {
     results: [],
     ledger: [],
     league: makeLeague(clubName),
+    hiredStaff: [],
+    staffCandidates: makeCandidatePool(),
+    staffMarketRefreshedWeek: 1,
   };
 }
 
