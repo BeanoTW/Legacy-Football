@@ -370,6 +370,13 @@ export function advanceWeek(prev: GameState): GameState {
   // ---- Player contracts tick ----
   for (const p of s.squad) p.contractWeeks = Math.max(0, p.contractWeeks - 1);
 
+  // ---- Staff contracts tick + auto-refresh candidate market every 4 weeks ----
+  for (const st of s.hiredStaff) st.contractWeeks = Math.max(0, st.contractWeeks - 1);
+  if (s.week - (s.staffMarketRefreshedWeek ?? 0) >= 4) {
+    s.staffCandidates = makeCandidatePool();
+    s.staffMarketRefreshedWeek = s.week;
+  }
+
   // ---- Pitch decay ----
   s.pitchCondition = Math.max(35, s.pitchCondition - (fixture?.home ? 3 : 1));
 
