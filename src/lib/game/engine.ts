@@ -298,7 +298,7 @@ export function advanceWeek(prev: GameState): GameState {
 
   // ---- Expenses (fixed weekly) ----
   ledger.expenses.playerWages = playerWagesWeekly(s);
-  ledger.expenses.staffWages  = s.staffWagesWeekly;
+  ledger.expenses.staffWages  = s.staffWagesWeekly + hiredStaffWagesWeekly(s);
   ledger.expenses.stadiumOps  = s.utilitiesWeekly;
   ledger.expenses.trainingOps = s.trainingWeeklyCost;
   ledger.expenses.maintenance = s.maintenanceWeekly;
