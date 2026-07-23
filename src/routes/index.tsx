@@ -254,6 +254,7 @@ function Game({
         {tab === "cashflow" && <CashFlow state={state} />}
         {tab === "tickets" && <Tickets state={state} update={update} />}
         {tab === "squad" && <Squad state={state} />}
+        {tab === "staff" && <StaffTab state={state} update={update} />}
         {tab === "stadium" && <StadiumTab state={state} update={update} />}
         {tab === "fixtures" && <Fixtures state={state} />}
         {tab === "history" && <History state={state} />}
