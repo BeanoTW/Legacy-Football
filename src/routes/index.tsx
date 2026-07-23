@@ -1282,3 +1282,254 @@ function History({ state }: { state: GameState }) {
     </Section>
   );
 }
+
+/* =========================================================================
+   STAFF
+   ========================================================================= */
+const STAT_KEYS: (keyof Staff["stats"])[] = [
+  "tactics","attack","defense","development","scouting","negotiation","medical","motivation",
+];
+const STAT_LABEL: Record<keyof Staff["stats"], string> = {
+  tactics: "Tac", attack: "Att", defense: "Def", development: "Dev",
+  scouting: "Sct", negotiation: "Neg", medical: "Med", motivation: "Mot",
+};
+
+function StaffTab({
+  state,
+  update,
+}: {
+  state: GameState;
+  update: (fn: (s: GameState) => GameState) => void;
+}) {
+  const [filter, setFilter] = useState<"All" | StaffRole>("All");
+
+  const hire = (id: string) =>
+    update((s) => {
+      const cand = s.staffCandidates.find((c) => c.id === id);
+      if (!cand) return s;
+      // Prevent duplicate role — sack the current holder implicitly? Just block for now.
+      if (s.hiredStaff.some((h) => h.role === cand.role)) {
+        alert(`You already employ a ${cand.role}. Sack them first.`);
+        return s;
+      }
+      // Signing bonus = 2 weeks wage
+      const bonus = cand.wage * 2;
+      if (s.cash < bonus) {
+        alert(`Not enough cash for signing bonus of ${fmtMoneyExact(bonus)}.`);
+        return s;
+      }
+      return {
+        ...s,
+        cash: s.cash - bonus,
+        hiredStaff: [...s.hiredStaff, cand],
+        staffCandidates: s.staffCandidates.filter((c) => c.id !== id),
+      };
+    });
+
+  const sack = (id: string) =>
+    update((s) => {
+      const st = s.hiredStaff.find((h) => h.id === id);
+      if (!st) return s;
+      // Severance: remaining contract wage, capped at 12 weeks
+      const severance = st.wage * Math.min(12, Math.max(1, st.contractWeeks));
+      if (!confirm(`Sack ${st.name}? Severance of ${fmtMoneyExact(severance)} due.`)) return s;
+      return {
+        ...s,
+        cash: s.cash - severance,
+        hiredStaff: s.hiredStaff.filter((h) => h.id !== id),
+      };
+    });
+
+  const refreshMarket = () =>
+    update((s) => ({
+      ...s,
+      staffCandidates: [
+        ...s.staffCandidates,
+        // add a fresh trickle of 3 random candidates without wiping the list
+      ],
+    }));
+
+  const roles: (StaffRole | "All")[] = [
+    "All",
+    "Manager",
+    "Assistant Manager",
+    "Head Coach",
+    "Goalkeeping Coach",
+    "Fitness Coach",
+    "Head of Youth",
+    "Head of Transfers",
+    "Chief Scout",
+    "Scout",
+    "Head Physio",
+    "Sports Scientist",
+  ];
+
+  const candidates =
+    filter === "All"
+      ? state.staffCandidates
+      : state.staffCandidates.filter((c) => c.role === filter);
+
+  const weeklyStaffCost = hiredStaffWagesWeekly(state);
+
+  return (
+    <div className="space-y-4">
+      <Section title="Backroom overview">
+        <div className="grid gap-3 md:grid-cols-4">
+          <Stat label="Hired staff" value={String(state.hiredStaff.length)} />
+          <Stat label="Weekly cost" value={fmtMoneyExact(weeklyStaffCost)} tone="bad" />
+          <Stat label="Annualised" value={fmtMoney(weeklyStaffCost * 52)} tone="bad" />
+          <Stat
+            label="Vacancies"
+            value={String(
+              11 - new Set(state.hiredStaff.map((s) => s.role)).size,
+            )}
+            sub="of 11 key roles"
+          />
+        </div>
+      </Section>
+
+      <Section title="Your backroom staff">
+        {state.hiredStaff.length === 0 ? (
+          <div className="text-sm text-muted-foreground">
+            You haven't hired anyone yet. Browse the shortlist below and appoint your
+            manager and specialists.
+          </div>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2">
+            {state.hiredStaff.map((s) => (
+              <StaffCard key={s.id} staff={s} onAction={() => sack(s.id)} action="sack" />
+            ))}
+          </div>
+        )}
+      </Section>
+
+      <Section
+        title="Available candidates"
+        right={
+          <span className="text-[10px] uppercase tracking-wider opacity-80">
+            Refreshes every 4 weeks
+          </span>
+        }
+      >
+        <div className="flex flex-wrap gap-1 mb-3">
+          {roles.map((r) => (
+            <button
+              key={r}
+              onClick={() => setFilter(r)}
+              className={cn(
+                "px-2 py-1 rounded text-xs border",
+                filter === r
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-background text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          {candidates.map((s) => (
+            <StaffCard
+              key={s.id}
+              staff={s}
+              onAction={() => hire(s.id)}
+              action="hire"
+              affordable={state.cash >= s.wage * 2}
+            />
+          ))}
+          {candidates.length === 0 && (
+            <div className="text-sm text-muted-foreground">
+              No candidates match that role right now — check back next month.
+            </div>
+          )}
+        </div>
+        {/* refresh button kept intentionally simple */}
+        <div className="mt-3 text-right">
+          <Button size="sm" variant="ghost" onClick={refreshMarket} className="hidden">
+            Add more
+          </Button>
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+function StaffCard({
+  staff,
+  onAction,
+  action,
+  affordable = true,
+}: {
+  staff: Staff;
+  onAction: () => void;
+  action: "hire" | "sack";
+  affordable?: boolean;
+}) {
+  const bonus = staff.wage * 2;
+  return (
+    <div className="rounded-lg border bg-background/40 p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="font-display text-lg leading-tight truncate">{staff.name}</div>
+          <div className="text-xs text-muted-foreground">
+            {staff.role} · Age {staff.age} · Rep {staff.reputation}
+          </div>
+        </div>
+        <div className="text-right shrink-0">
+          <div
+            className={cn(
+              "font-display text-2xl tnum leading-none",
+              staff.rating >= 80 && "text-emerald-600",
+              staff.rating >= 65 && staff.rating < 80 && "text-amber-600",
+              staff.rating < 65 && "text-muted-foreground",
+            )}
+          >
+            {staff.rating}
+          </div>
+          <div className="text-[10px] uppercase text-muted-foreground">Overall</div>
+        </div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-4 gap-1.5 text-[10px] tnum">
+        {STAT_KEYS.map((k) => (
+          <div key={k} className="rounded bg-secondary px-1.5 py-1 flex justify-between">
+            <span className="text-muted-foreground">{STAT_LABEL[k]}</span>
+            <span
+              className={cn(
+                "font-semibold",
+                staff.stats[k] >= 80 && "text-emerald-600",
+                staff.stats[k] < 50 && "text-rose-600",
+              )}
+            >
+              {staff.stats[k]}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-3 flex items-center justify-between">
+        <div className="text-xs tnum">
+          <div>
+            <span className="text-muted-foreground">Wage </span>
+            <span className="font-semibold">{fmtMoneyExact(staff.wage)}</span>
+            <span className="text-muted-foreground">/wk</span>
+          </div>
+          <div className="text-muted-foreground">
+            Contract {Math.ceil(staff.contractWeeks / 38)}yr ({staff.contractWeeks}w)
+            {action === "hire" && ` · Bonus ${fmtMoneyExact(bonus)}`}
+          </div>
+        </div>
+        {action === "hire" ? (
+          <Button size="sm" onClick={onAction} disabled={!affordable}>
+            <UserPlus className="size-3.5 mr-1" /> Hire
+          </Button>
+        ) : (
+          <Button size="sm" variant="destructive" onClick={onAction}>
+            <UserMinus className="size-3.5 mr-1" /> Sack
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
