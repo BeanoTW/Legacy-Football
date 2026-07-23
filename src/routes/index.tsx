@@ -595,7 +595,8 @@ function RecurringBreakdown({ state }: { state: GameState }) {
   const rows = [
     { label: "Sponsors (weekly)", v: weeklySponsorIncome(state), tone: "good" as const },
     { label: "Player wages", v: -playerWagesWeekly(state), tone: "bad" as const },
-    { label: "Staff wages", v: -state.staffWagesWeekly, tone: "bad" as const },
+    { label: "Admin staff wages", v: -state.staffWagesWeekly, tone: "bad" as const },
+    { label: "Hired staff wages", v: -hiredStaffWagesWeekly(state), tone: "bad" as const },
     { label: "Stadium utilities", v: -state.utilitiesWeekly, tone: "bad" as const },
     { label: "Training ops", v: -state.trainingWeeklyCost, tone: "bad" as const },
     { label: "Maintenance", v: -state.maintenanceWeekly, tone: "bad" as const },
