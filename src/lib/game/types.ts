@@ -121,7 +121,7 @@ export interface GameState {
   trainingRating: number; // 40-95, affects player growth
   trainingWeeklyCost: number;
 
-  staffWagesWeekly: number;   // non-player staff
+  staffWagesWeekly: number;   // baseline admin/back-office staff (non-hired)
   utilitiesWeekly: number;
   maintenanceWeekly: number;
 
