@@ -39,6 +39,7 @@ import {
   avgTicketPrice,
   fmtMoney,
   fmtMoneyExact,
+  hiredStaffWagesWeekly,
   playerWagesWeekly,
   squadRating,
   totalCapacity,
