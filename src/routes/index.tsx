@@ -154,7 +154,7 @@ function Game({
   update: (fn: (s: GameState) => GameState) => void;
   reset: () => void;
 }) {
-  const [tab, setTab] = useState<Tab>("dashboard");
+  const [tab, setTab] = useState<Tab>("hub");
 
   const kpi = useMemo(() => {
     const wIncome = weeklySponsorIncome(state); // recurring
