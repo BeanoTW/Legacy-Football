@@ -164,28 +164,74 @@ export function makeStaff(role: StaffRole, quality = 60): Staff {
 
 function makeCandidatePool(): Staff[] {
   const pool: Staff[] = [];
-  // Always 1 manager, 1 asst, a few scouts, a mix of specialists
+  // Deep talent pool with wide variance — journeymen through elite.
+  // Each role gets many candidates across the whole ability spectrum.
   const spec: [StaffRole, number][] = [
-    ["Manager", 2],
-    ["Assistant Manager", 2],
-    ["Head Coach", 2],
-    ["Goalkeeping Coach", 1],
-    ["Fitness Coach", 1],
-    ["Head of Youth", 1],
-    ["Head of Transfers", 1],
-    ["Chief Scout", 1],
-    ["Scout", 4],
-    ["Head Physio", 1],
-    ["Sports Scientist", 1],
+    ["Manager", 10],
+    ["Assistant Manager", 8],
+    ["Head Coach", 8],
+    ["Goalkeeping Coach", 6],
+    ["Fitness Coach", 6],
+    ["Head of Youth", 6],
+    ["Head of Transfers", 6],
+    ["Chief Scout", 6],
+    ["Scout", 16],
+    ["Head Physio", 6],
+    ["Sports Scientist", 6],
   ];
   for (const [role, n] of spec) {
-    for (let i = 0; i < n; i++) pool.push(makeStaff(role, 55 + randInt(0, 25)));
+    for (let i = 0; i < n; i++) {
+      // Quality skewed across the full 35-92 band for real variance
+      const q = 35 + Math.round(Math.pow(Math.random(), 0.9) * 57);
+      pool.push(makeStaff(role, q));
+    }
   }
   return pool;
 }
 
 export const hiredStaffWagesWeekly = (s: GameState) =>
   (s.hiredStaff ?? []).reduce((a, st) => a + st.wage, 0);
+
+/* ---------- Staff join terms ----------
+ * Reputation gap between staff and club drives willingness.
+ * - gap <= 5:  happy to join at listed wage
+ * - gap 6-15: will join but demands a wage premium
+ * - gap 16-25: will only entertain a big overpay
+ * - gap > 25: refuses outright — club is too small
+ */
+export interface JoinTerms {
+  willing: boolean;
+  wageDemand: number;   // £/wk they'll actually sign for
+  signingBonus: number; // upfront cash
+  premiumPct: number;   // % over listed wage (0 = none)
+  note: string;
+}
+
+export function staffJoinTerms(clubReputation: number, staff: Staff): JoinTerms {
+  const gap = staff.reputation - clubReputation;
+  let premiumPct = 0;
+  let willing = true;
+  let note = "Happy to join";
+
+  if (gap > 25) {
+    willing = false;
+    premiumPct = 1.5;
+    note = "Won't consider a club this size";
+  } else if (gap > 15) {
+    premiumPct = 0.6 + (gap - 15) * 0.05;
+    note = "Demands a huge overpay";
+  } else if (gap > 5) {
+    premiumPct = 0.15 + (gap - 5) * 0.03;
+    note = "Wants a wage premium";
+  } else if (gap < -10) {
+    premiumPct = -0.05;
+    note = "Keen — club is a step up";
+  }
+
+  const wageDemand = Math.max(200, Math.round((staff.wage * (1 + premiumPct)) / 50) * 50);
+  const signingBonus = wageDemand * 2;
+  return { willing, wageDemand, signingBonus, premiumPct, note };
+}
 
 /* ---------- Initial state ---------- */
 export function newGame(clubName: string, managerName: string): GameState {

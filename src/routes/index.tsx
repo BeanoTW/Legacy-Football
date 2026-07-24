@@ -42,6 +42,7 @@ import {
   hiredStaffWagesWeekly,
   playerWagesWeekly,
   squadRating,
+  staffJoinTerms,
   totalCapacity,
   totalWeeklyExpenses,
   weeklySponsorIncome,
@@ -1302,26 +1303,34 @@ function StaffTab({
   update: (fn: (s: GameState) => GameState) => void;
 }) {
   const [filter, setFilter] = useState<"All" | StaffRole>("All");
+  const [minRating, setMinRating] = useState(0);
+  const [maxWage, setMaxWage] = useState(0); // 0 = no cap
+  const [willingOnly, setWillingOnly] = useState(false);
+  const [sortBy, setSortBy] = useState<"rating" | "wage" | "age" | "fit">("fit");
 
   const hire = (id: string) =>
     update((s) => {
       const cand = s.staffCandidates.find((c) => c.id === id);
       if (!cand) return s;
-      // Prevent duplicate role — sack the current holder implicitly? Just block for now.
       if (s.hiredStaff.some((h) => h.role === cand.role)) {
         alert(`You already employ a ${cand.role}. Sack them first.`);
         return s;
       }
-      // Signing bonus = 2 weeks wage
-      const bonus = cand.wage * 2;
-      if (s.cash < bonus) {
-        alert(`Not enough cash for signing bonus of ${fmtMoneyExact(bonus)}.`);
+      const terms = staffJoinTerms(s.reputation, cand);
+      if (!terms.willing) {
+        alert(`${cand.name} won't join a club of this reputation.`);
         return s;
       }
+      if (s.cash < terms.signingBonus) {
+        alert(`Not enough cash for signing bonus of ${fmtMoneyExact(terms.signingBonus)}.`);
+        return s;
+      }
+      // Sign at demanded wage, not the listed one
+      const signed: Staff = { ...cand, wage: terms.wageDemand };
       return {
         ...s,
-        cash: s.cash - bonus,
-        hiredStaff: [...s.hiredStaff, cand],
+        cash: s.cash - terms.signingBonus,
+        hiredStaff: [...s.hiredStaff, signed],
         staffCandidates: s.staffCandidates.filter((c) => c.id !== id),
       };
     });
@@ -1330,7 +1339,6 @@ function StaffTab({
     update((s) => {
       const st = s.hiredStaff.find((h) => h.id === id);
       if (!st) return s;
-      // Severance: remaining contract wage, capped at 12 weeks
       const severance = st.wage * Math.min(12, Math.max(1, st.contractWeeks));
       if (!confirm(`Sack ${st.name}? Severance of ${fmtMoneyExact(severance)} due.`)) return s;
       return {
@@ -1339,15 +1347,6 @@ function StaffTab({
         hiredStaff: s.hiredStaff.filter((h) => h.id !== id),
       };
     });
-
-  const refreshMarket = () =>
-    update((s) => ({
-      ...s,
-      staffCandidates: [
-        ...s.staffCandidates,
-        // add a fresh trickle of 3 random candidates without wiping the list
-      ],
-    }));
 
   const roles: (StaffRole | "All")[] = [
     "All",
@@ -1364,12 +1363,32 @@ function StaffTab({
     "Sports Scientist",
   ];
 
-  const candidates =
-    filter === "All"
-      ? state.staffCandidates
-      : state.staffCandidates.filter((c) => c.role === filter);
+  const enriched = state.staffCandidates.map((c) => ({
+    staff: c,
+    terms: staffJoinTerms(state.reputation, c),
+  }));
+
+  const filtered = enriched
+    .filter(({ staff, terms }) => {
+      if (filter !== "All" && staff.role !== filter) return false;
+      if (staff.rating < minRating) return false;
+      if (maxWage > 0 && terms.wageDemand > maxWage) return false;
+      if (willingOnly && !terms.willing) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === "rating") return b.staff.rating - a.staff.rating;
+      if (sortBy === "wage") return a.terms.wageDemand - b.terms.wageDemand;
+      if (sortBy === "age") return a.staff.age - b.staff.age;
+      // "fit" — willing first, then closeness to club rep, then rating
+      const aw = a.terms.willing ? 0 : 1;
+      const bw = b.terms.willing ? 0 : 1;
+      if (aw !== bw) return aw - bw;
+      return b.staff.rating - a.staff.rating;
+    });
 
   const weeklyStaffCost = hiredStaffWagesWeekly(state);
+  const willingCount = enriched.filter((e) => e.terms.willing).length;
 
   return (
     <div className="space-y-4">
@@ -1377,13 +1396,11 @@ function StaffTab({
         <div className="grid gap-3 md:grid-cols-4">
           <Stat label="Hired staff" value={String(state.hiredStaff.length)} />
           <Stat label="Weekly cost" value={fmtMoneyExact(weeklyStaffCost)} tone="bad" />
-          <Stat label="Annualised" value={fmtMoney(weeklyStaffCost * 52)} tone="bad" />
+          <Stat label="Club reputation" value={String(Math.round(state.reputation))} sub="drives who'll join" />
           <Stat
-            label="Vacancies"
-            value={String(
-              11 - new Set(state.hiredStaff.map((s) => s.role)).size,
-            )}
-            sub="of 11 key roles"
+            label="Willing candidates"
+            value={`${willingCount} / ${enriched.length}`}
+            sub="at your level or below"
           />
         </div>
       </Section>
@@ -1407,10 +1424,11 @@ function StaffTab({
         title="Available candidates"
         right={
           <span className="text-[10px] uppercase tracking-wider opacity-80">
-            Refreshes every 4 weeks
+            {filtered.length} shown · refreshes every 4 weeks
           </span>
         }
       >
+        {/* Role chips */}
         <div className="flex flex-wrap gap-1 mb-3">
           {roles.map((r) => (
             <button
@@ -1427,27 +1445,76 @@ function StaffTab({
             </button>
           ))}
         </div>
+
+        {/* Filters row */}
+        <div className="grid gap-3 md:grid-cols-4 mb-3 text-xs">
+          <div>
+            <Label className="text-[10px] uppercase text-muted-foreground">
+              Min rating: {minRating}
+            </Label>
+            <Slider
+              value={[minRating]}
+              min={0}
+              max={95}
+              step={5}
+              onValueChange={(v) => setMinRating(v[0])}
+              className="mt-2"
+            />
+          </div>
+          <div>
+            <Label className="text-[10px] uppercase text-muted-foreground">
+              Max wage £/wk (0 = any)
+            </Label>
+            <Input
+              type="number"
+              value={maxWage}
+              min={0}
+              step={500}
+              onChange={(e) => setMaxWage(Number(e.target.value) || 0)}
+              className="mt-1 h-8"
+            />
+          </div>
+          <div>
+            <Label className="text-[10px] uppercase text-muted-foreground">Sort by</Label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+              className="mt-1 h-8 w-full rounded border bg-background px-2 text-xs"
+            >
+              <option value="fit">Best fit</option>
+              <option value="rating">Highest rated</option>
+              <option value="wage">Cheapest demand</option>
+              <option value="age">Youngest</option>
+            </select>
+          </div>
+          <div className="flex items-end">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={willingOnly}
+                onChange={(e) => setWillingOnly(e.target.checked)}
+              />
+              <span>Willing to join only</span>
+            </label>
+          </div>
+        </div>
+
         <div className="grid gap-3 md:grid-cols-2">
-          {candidates.map((s) => (
+          {filtered.map(({ staff, terms }) => (
             <StaffCard
-              key={s.id}
-              staff={s}
-              onAction={() => hire(s.id)}
+              key={staff.id}
+              staff={staff}
+              terms={terms}
+              onAction={() => hire(staff.id)}
               action="hire"
-              affordable={state.cash >= s.wage * 2}
+              affordable={state.cash >= terms.signingBonus}
             />
           ))}
-          {candidates.length === 0 && (
+          {filtered.length === 0 && (
             <div className="text-sm text-muted-foreground">
-              No candidates match that role right now — check back next month.
+              No candidates match those filters — loosen them or wait for the next refresh.
             </div>
           )}
-        </div>
-        {/* refresh button kept intentionally simple */}
-        <div className="mt-3 text-right">
-          <Button size="sm" variant="ghost" onClick={refreshMarket} className="hidden">
-            Add more
-          </Button>
         </div>
       </Section>
     </div>
@@ -1459,15 +1526,25 @@ function StaffCard({
   onAction,
   action,
   affordable = true,
+  terms,
 }: {
   staff: Staff;
   onAction: () => void;
   action: "hire" | "sack";
   affordable?: boolean;
+  terms?: ReturnType<typeof staffJoinTerms>;
 }) {
-  const bonus = staff.wage * 2;
+  const wage = terms ? terms.wageDemand : staff.wage;
+  const bonus = terms ? terms.signingBonus : staff.wage * 2;
+  const premiumPct = terms ? Math.round(terms.premiumPct * 100) : 0;
+  const canHire = action === "hire" ? affordable && (!terms || terms.willing) : true;
   return (
-    <div className="rounded-lg border bg-background/40 p-3">
+    <div
+      className={cn(
+        "rounded-lg border bg-background/40 p-3",
+        terms && !terms.willing && "opacity-70",
+      )}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="font-display text-lg leading-tight truncate">{staff.name}</div>
@@ -1507,12 +1584,33 @@ function StaffCard({
         ))}
       </div>
 
+      {terms && (
+        <div
+          className={cn(
+            "mt-2 text-[11px] rounded px-2 py-1",
+            !terms.willing && "bg-rose-500/10 text-rose-600",
+            terms.willing && premiumPct > 15 && "bg-amber-500/10 text-amber-700",
+            terms.willing && premiumPct <= 15 && premiumPct > 0 && "bg-amber-500/5 text-amber-700",
+            terms.willing && premiumPct <= 0 && "bg-emerald-500/10 text-emerald-700",
+          )}
+        >
+          {terms.note}
+          {premiumPct > 0 && ` · +${premiumPct}% wage`}
+          {premiumPct < 0 && ` · ${premiumPct}% wage`}
+        </div>
+      )}
+
       <div className="mt-3 flex items-center justify-between">
         <div className="text-xs tnum">
           <div>
             <span className="text-muted-foreground">Wage </span>
-            <span className="font-semibold">{fmtMoneyExact(staff.wage)}</span>
+            <span className="font-semibold">{fmtMoneyExact(wage)}</span>
             <span className="text-muted-foreground">/wk</span>
+            {terms && premiumPct > 0 && (
+              <span className="text-muted-foreground">
+                {" "}(listed {fmtMoneyExact(staff.wage)})
+              </span>
+            )}
           </div>
           <div className="text-muted-foreground">
             Contract {Math.ceil(staff.contractWeeks / 38)}yr ({staff.contractWeeks}w)
@@ -1520,7 +1618,7 @@ function StaffCard({
           </div>
         </div>
         {action === "hire" ? (
-          <Button size="sm" onClick={onAction} disabled={!affordable}>
+          <Button size="sm" onClick={onAction} disabled={!canHire}>
             <UserPlus className="size-3.5 mr-1" /> Hire
           </Button>
         ) : (
@@ -1532,4 +1630,5 @@ function StaffCard({
     </div>
   );
 }
+
 
