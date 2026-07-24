@@ -222,22 +222,26 @@ function Game({
             label="Bank balance"
             value={fmtMoneyExact(kpi.cash)}
             tone={kpi.cash >= 0 ? "good" : "bad"}
+            info="Cash in the club's bank account. Everything — wages, upgrades, transfers — comes out of this. Go far below zero and the board loses patience."
           />
           <Kpi
             icon={<CircleDollarSign className="size-4" />}
             label="Weekly net (fixed)"
             value={fmtMoney(kpi.weeklyNetRecurring)}
             tone={kpi.weeklyNetRecurring >= 0 ? "good" : "bad"}
+            info="Recurring sponsor income minus fixed weekly outgoings (player + staff wages, utilities, maintenance, training). Match income and one-offs come on top."
           />
           <Kpi
             icon={<Users className="size-4" />}
             label="Squad rating"
             value={kpi.rating.toFixed(1)}
+            info="Average rating of your top 16 players — a rough gauge of your matchday strength."
           />
           <Kpi
             icon={<Ticket className="size-4" />}
             label="Avg ticket"
             value={`£${kpi.avgTicket.toFixed(2)}`}
+            info="Capacity-weighted average of ticket prices across all four stands. Fans compare this against a market reference set by your reputation."
           />
         </div>
       </div>
