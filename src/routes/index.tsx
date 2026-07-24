@@ -253,6 +253,7 @@ function Game({
       </nav>
 
       <main className="mx-auto max-w-6xl px-3 py-5">
+        {tab === "hub" && <ClubHub state={state} advance={advance} setTab={setTab} />}
         {tab === "dashboard" && <Dashboard state={state} />}
         {tab === "cashflow" && <CashFlow state={state} />}
         {tab === "tickets" && <Tickets state={state} update={update} />}
