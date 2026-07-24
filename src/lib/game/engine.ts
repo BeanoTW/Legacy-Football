@@ -423,6 +423,24 @@ export function advanceWeek(prev: GameState): GameState {
     s.staffMarketRefreshedWeek = s.week;
   }
 
+  // ---- Ticket price backlash ----
+  // Fans compare average ticket price against a market reference driven by
+  // club reputation. Push more than 25% above and happiness ticks down; more
+  // than 50% above and reputation itself starts to slide.
+  const refPriceNow = 15 + s.reputation * 0.4;
+  const avgPriceNow = avgTicketPrice(s);
+  const overRatio = avgPriceNow / refPriceNow;
+  if (overRatio > 1.25) {
+    const excess = overRatio - 1.25;
+    s.fanHappiness = Math.max(5, Math.round(s.fanHappiness - Math.min(6, excess * 12)));
+    if (overRatio > 1.5) {
+      s.reputation = Math.max(20, s.reputation - Math.min(0.6, (overRatio - 1.5) * 0.8));
+    }
+  } else if (overRatio < 0.75 && s.fanHappiness < 100) {
+    // Bargain pricing — small happiness boost
+    s.fanHappiness = Math.min(100, s.fanHappiness + 1);
+  }
+
   // ---- Pitch decay ----
   s.pitchCondition = Math.max(35, s.pitchCondition - (fixture?.home ? 3 : 1));
 
