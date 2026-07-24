@@ -337,17 +337,22 @@ function Kpi({
   label,
   value,
   tone,
+  info,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   tone?: "good" | "bad";
+  info?: React.ReactNode;
 }) {
   return (
     <div className="flex items-center gap-3 rounded-md bg-black/10 px-3 py-2">
       <div className="opacity-80">{icon}</div>
       <div className="min-w-0">
-        <div className="text-[10px] uppercase tracking-wider opacity-70">{label}</div>
+        <div className="text-[10px] uppercase tracking-wider opacity-70 flex items-center gap-1">
+          <span className="truncate">{label}</span>
+          {info && <InfoTip label={label}>{info}</InfoTip>}
+        </div>
         <div
           className={cn(
             "font-display text-lg leading-tight",
@@ -366,15 +371,20 @@ function Section({
   title,
   children,
   right,
+  info,
 }: {
   title: string;
   children: React.ReactNode;
   right?: React.ReactNode;
+  info?: React.ReactNode;
 }) {
   return (
     <section className="rounded-xl border bg-card shadow-sm overflow-hidden mb-4">
       <div className="banner-strip px-3 py-2 text-xs flex items-center justify-between">
-        <span>{title}</span>
+        <span className="flex items-center gap-1.5">
+          {title}
+          {info && <InfoTip label={title}>{info}</InfoTip>}
+        </span>
         {right}
       </div>
       <div className="p-4">{children}</div>
@@ -387,16 +397,19 @@ function Stat({
   value,
   sub,
   tone,
+  info,
 }: {
   label: string;
   value: string;
   sub?: string;
   tone?: "good" | "bad" | "muted";
+  info?: React.ReactNode;
 }) {
   return (
     <div className="rounded-md border bg-background/50 p-3">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-        {label}
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+        <span>{label}</span>
+        {info && <InfoTip label={label}>{info}</InfoTip>}
       </div>
       <div
         className={cn(
