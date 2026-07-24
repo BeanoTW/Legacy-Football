@@ -222,6 +222,7 @@ function Game({
           <ul className="flex gap-1 text-sm">
             {(
               [
+                ["hub", "Club", Trophy],
                 ["dashboard", "Overview", LineIcon],
                 ["cashflow", "Cash flow", CircleDollarSign],
                 ["tickets", "Tickets", Ticket],
