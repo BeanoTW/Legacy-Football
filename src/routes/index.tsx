@@ -16,15 +16,18 @@ import {
   YAxis,
 } from "recharts";
 import {
+  ArrowRight,
   Briefcase,
   Building2,
   Calendar,
   ChevronsRight,
   CircleDollarSign,
+  Heart,
   LineChart as LineIcon,
   Play,
   RotateCcw,
   Save,
+  ShieldCheck,
   Ticket,
   Trophy,
   UserMinus,
