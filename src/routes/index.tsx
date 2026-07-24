@@ -42,6 +42,7 @@ import {
   hiredStaffWagesWeekly,
   playerWagesWeekly,
   squadRating,
+  staffJoinTerms,
   totalCapacity,
   totalWeeklyExpenses,
   weeklySponsorIncome,
