@@ -57,6 +57,27 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+function InfoTip({ children, label }: { children: React.ReactNode; label?: string }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={label ?? "More info"}
+          onClick={(e) => e.stopPropagation()}
+          className="inline-flex items-center justify-center size-4 rounded-full text-muted-foreground/70 hover:text-foreground hover:bg-muted transition-colors align-middle"
+        >
+          <Info className="size-3.5" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent side="top" align="center" className="w-64 text-xs leading-relaxed">
+        {children}
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export const Route = createFileRoute("/")({
   head: () => ({
