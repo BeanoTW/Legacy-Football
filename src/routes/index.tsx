@@ -76,6 +76,7 @@ export const Route = createFileRoute("/")({
 });
 
 type Tab =
+  | "hub"
   | "dashboard"
   | "cashflow"
   | "tickets"
