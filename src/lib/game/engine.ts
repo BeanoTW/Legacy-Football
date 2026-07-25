@@ -999,8 +999,19 @@ export function cancelLiveMatch(s: GameState): GameState {
   return { ...s, liveMatch: null };
 }
 
-export function setTransferBudget(s: GameState, amount: number): GameState {
-  return { ...s, transferBudget: Math.max(0, Math.round(amount)) };
+export function setTransferBudget(
+  s: GameState,
+  amount: number,
+): { state: GameState; ok: boolean; reason?: string } {
+  const target = Math.max(0, Math.round(amount));
+  const delta = target - s.transferBudget;
+  if (delta > 0 && delta > s.cash) {
+    return { state: s, ok: false, reason: "Not enough spendable cash to allocate" };
+  }
+  return {
+    state: { ...s, transferBudget: target, cash: s.cash - delta },
+    ok: true,
+  };
 }
 export function setWageBudget(s: GameState, amount: number): GameState {
   return { ...s, wageBudgetWeekly: Math.max(0, Math.round(amount)) };
