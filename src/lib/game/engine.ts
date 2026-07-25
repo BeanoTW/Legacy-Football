@@ -68,13 +68,15 @@ function makeSquad(quality: number): Player[] {
 function makeFixtures(clubName: string): { week: number; opponent: string; home: boolean }[] {
   const opponents = CLUBS.filter((c) => c !== clubName).slice(0, 19);
   const fx: { week: number; opponent: string; home: boolean }[] = [];
-  let w = 1;
-  for (const o of opponents) {
-    fx.push({ week: w++, opponent: o, home: true });
-  }
-  for (const o of opponents) {
-    fx.push({ week: w++, opponent: o, home: false });
-  }
+  // Season calendar (see CALENDAR below):
+  //   Weeks 1-4:   Pre-season (transfer window open, friendlies only)
+  //   Weeks 5-23:  First half of league season (19 home fixtures)
+  //   Weeks 24-27: Mid-season transfer window (no league games)
+  //   Weeks 28-46: Second half of league season (19 away fixtures)
+  let w = 5;
+  for (const o of opponents) fx.push({ week: w++, opponent: o, home: true });
+  w = 28;
+  for (const o of opponents) fx.push({ week: w++, opponent: o, home: false });
   return fx;
 }
 
@@ -419,6 +421,29 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
       else { my.d++; my.pts += 1; opp.d++; opp.pts += 1; }
     }
     ledger.matchdayNote = `${fixture.home ? "H" : "A"} vs ${fixture.opponent} — ${gf}-${ga} ${result}`;
+  } else if (!override && FRIENDLY_WEEKS.has(s.week)) {
+    // ---- Friendly (pre-season / mid-season windows) ----
+    const opp = pick(CLUBS.filter((c) => c !== s.clubName));
+    const oppStrength = 50 + Math.random() * 25;
+    const myStrength = squadRating(s);
+    const gf = simGoals(myStrength + 2, oppStrength);
+    const ga = simGoals(oppStrength, myStrength + 2);
+    // Friendly attendance is a fraction of a league day
+    const cap = totalCapacity(s);
+    const attendance = Math.round(cap * (0.28 + Math.random() * 0.18) * (0.6 + s.fanHappiness / 200));
+    const gate = Math.round(attendance * avgTicketPrice(s) * 0.7);
+    const matchdayOps = Math.round(4_200 + attendance * 0.3);
+    ledger.income.gate = gate;
+    ledger.expenses.matchday = matchdayOps;
+    const result: "W" | "D" | "L" = gf > ga ? "W" : gf === ga ? "D" : "L";
+    // Friendlies don't touch the league table; tiny happiness swing only
+    s.fanHappiness = Math.max(5, Math.min(100, s.fanHappiness + (result === "W" ? 1 : result === "L" ? -1 : 0)));
+    fxResult = {
+      week: s.week, opponent: `${opp} (friendly)`, home: true,
+      goalsFor: gf, goalsAgainst: ga, attendance,
+      gateReceipts: gate, tvIncome: 0, result,
+    };
+    ledger.matchdayNote = `Friendly vs ${opp} — ${gf}-${ga} ${result}`;
   }
 
   // ---- Transfers: staff scouting + incoming bids (window only) ----
@@ -442,16 +467,19 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
 
 
 
-  // ---- Simulate other league games (light) ----
-  const others = s.league.filter((r) => r.team !== s.clubName);
-  for (let i = 0; i < 4; i++) {
-    const a = pick(others), b = pick(others);
-    if (a === b) continue;
-    const ag = randInt(0, 3), bg = randInt(0, 3);
-    a.p++; b.p++; a.gf += ag; a.ga += bg; b.gf += bg; b.ga += ag;
-    if (ag > bg) { a.w++; a.pts += 3; b.l++; }
-    else if (ag < bg) { b.w++; b.pts += 3; a.l++; }
-    else { a.d++; b.d++; a.pts++; b.pts++; }
+  // ---- Simulate other league games (light) — only during league weeks ----
+  const inLeague = phaseOf(s.week) === "firstHalf" || phaseOf(s.week) === "secondHalf";
+  if (inLeague) {
+    const others = s.league.filter((r) => r.team !== s.clubName);
+    for (let i = 0; i < 4; i++) {
+      const a = pick(others), b = pick(others);
+      if (a === b) continue;
+      const ag = randInt(0, 3), bg = randInt(0, 3);
+      a.p++; b.p++; a.gf += ag; a.ga += bg; b.gf += bg; b.ga += ag;
+      if (ag > bg) { a.w++; a.pts += 3; b.l++; }
+      else if (ag < bg) { b.w++; b.pts += 3; a.l++; }
+      else { a.d++; b.d++; a.pts++; b.pts++; }
+    }
   }
 
   // ---- Sponsors tick ----
@@ -499,7 +527,7 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
 
   // ---- Advance clock ----
   s.week += 1;
-  if (s.week > 38) {
+  if (s.week > SEASON_END_WEEK) {
     // end of season: prize money based on league position
     const sorted = [...s.league].sort((a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga));
     const pos = sorted.findIndex((r) => r.team === s.clubName) + 1;
@@ -507,7 +535,7 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     s.cash += prize;
     // record as own ledger entry
     s.ledger.push({
-      week: 38, season: s.season,
+      week: SEASON_END_WEEK, season: s.season,
       income: { gate: 0, tv: 0, sponsor: 0, merchandise: 0, prize, transfers: 0, other: 0 },
       expenses: { playerWages: 0, staffWages: 0, stadiumOps: 0, trainingOps: 0, maintenance: 0, matchday: 0, transfers: 0, other: 0 },
       net: prize, balance: s.cash,
@@ -586,11 +614,37 @@ export const fmtMoneyExact = (n: number) => {
 /* =========================================================================
    TRANSFER WINDOWS + SCOUTING
    ========================================================================= */
-export const WINDOW_PRESEASON_END = 4;
-export const WINDOW_MIDSEASON = 20;
+export const CALENDAR = {
+  preSeasonStart: 1,
+  preSeasonEnd: 4,        // weeks 1-4: pre-season window open, friendlies
+  firstHalfStart: 5,
+  firstHalfEnd: 23,       // weeks 5-23: league round 1 (19 home)
+  midSeasonStart: 24,
+  midSeasonEnd: 27,       // weeks 24-27: mid-season window open, friendlies
+  secondHalfStart: 28,
+  secondHalfEnd: 46,      // weeks 28-46: league round 2 (19 away)
+  seasonEnd: 46,
+} as const;
+
+export const SEASON_END_WEEK = CALENDAR.seasonEnd;
+// Legacy exports kept for compatibility
+export const WINDOW_PRESEASON_END = CALENDAR.preSeasonEnd;
+export const WINDOW_MIDSEASON = CALENDAR.midSeasonStart;
+
+// Weeks within pre/mid windows that stage a friendly (small gate, no league impact)
+const FRIENDLY_WEEKS = new Set<number>([2, 4, 25, 27]);
+
+export type SeasonPhase = "preseason" | "firstHalf" | "midseason" | "secondHalf";
+export function phaseOf(week: number): SeasonPhase {
+  if (week <= CALENDAR.preSeasonEnd) return "preseason";
+  if (week <= CALENDAR.firstHalfEnd) return "firstHalf";
+  if (week <= CALENDAR.midSeasonEnd) return "midseason";
+  return "secondHalf";
+}
 
 export function isTransferWindowOpen(s: GameState): boolean {
-  return s.week <= WINDOW_PRESEASON_END || s.week === WINDOW_MIDSEASON;
+  const p = phaseOf(s.week);
+  return p === "preseason" || p === "midseason";
 }
 
 export function windowStatus(s: GameState): {
@@ -598,27 +652,32 @@ export function windowStatus(s: GameState): {
   label: string;
   detail: string;
 } {
-  if (s.week <= WINDOW_PRESEASON_END) {
+  const p = phaseOf(s.week);
+  if (p === "preseason") {
     return {
       open: true,
       label: "Pre-season window OPEN",
-      detail: `Closes end of week ${WINDOW_PRESEASON_END} · ${WINDOW_PRESEASON_END - s.week + 1}w left`,
+      detail: `Closes end of week ${CALENDAR.preSeasonEnd} · ${CALENDAR.preSeasonEnd - s.week + 1}w left · friendlies in progress`,
     };
   }
-  if (s.week === WINDOW_MIDSEASON) {
-    return { open: true, label: "Mid-season window OPEN", detail: "This week only" };
+  if (p === "midseason") {
+    return {
+      open: true,
+      label: "Mid-season window OPEN",
+      detail: `Closes end of week ${CALENDAR.midSeasonEnd} · ${CALENDAR.midSeasonEnd - s.week + 1}w left`,
+    };
   }
-  if (s.week < WINDOW_MIDSEASON) {
+  if (p === "firstHalf") {
     return {
       open: false,
-      label: "Window closed",
-      detail: `Mid-season window opens week ${WINDOW_MIDSEASON} (${WINDOW_MIDSEASON - s.week}w)`,
+      label: "Window closed — league in play",
+      detail: `Mid-season window opens week ${CALENDAR.midSeasonStart} (${CALENDAR.midSeasonStart - s.week}w)`,
     };
   }
   return {
     open: false,
-    label: "Window closed",
-    detail: `Pre-season window opens next season (${38 - s.week + 1}w)`,
+    label: "Window closed — league in play",
+    detail: `Pre-season window opens next season (${CALENDAR.seasonEnd - s.week + 1}w)`,
   };
 }
 

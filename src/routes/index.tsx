@@ -62,6 +62,8 @@ import {
   weeklySponsorIncome,
   isTransferWindowOpen,
   windowStatus,
+  phaseOf,
+  CALENDAR,
   approveTransferTarget,
   rejectTransferTarget,
   respondToBid,
@@ -308,7 +310,7 @@ function Game({
     <div className="min-h-screen bg-background">
       <TopBar
         title={state.clubName}
-        subtitle={`${state.managerName} · Season ${state.season} · Week ${state.week}/38`}
+        subtitle={`${state.managerName} · Season ${state.season} · Week ${state.week}/${CALENDAR.seasonEnd} · ${({preseason:"Pre-season",firstHalf:"League — 1st half",midseason:"Mid-season break",secondHalf:"League — 2nd half"} as const)[phaseOf(state.week)]}`}
         right={
           <div className="flex items-center gap-2">
             <Button size="sm" variant="secondary" onClick={() => advance(1)}>
@@ -2010,7 +2012,7 @@ function ClubHub({
             <div className="min-w-0">
               <div className="font-display text-2xl leading-none truncate">{state.clubName}</div>
               <div className="text-xs opacity-80 mt-1">
-                {myIdx >= 0 ? `${myIdx + 1}${ord(myIdx + 1)}` : "—"} · Season {state.season} · Week {state.week}/38
+                {myIdx >= 0 ? `${myIdx + 1}${ord(myIdx + 1)}` : "—"} · Season {state.season} · Week {state.week}/{CALENDAR.seasonEnd}
               </div>
             </div>
           </div>
@@ -2129,7 +2131,14 @@ function ClubHub({
           </div>
         ) : (
           <div className="p-4 text-sm text-muted-foreground">
-            No fixture this week. Advance to continue the season.
+            {(() => {
+              const p = phaseOf(state.week);
+              if (p === "preseason")
+                return `Pre-season week ${state.week} of ${CALENDAR.preSeasonEnd}. Transfer window OPEN — build your squad. League kicks off week ${CALENDAR.firstHalfStart}.`;
+              if (p === "midseason")
+                return `Mid-season break (week ${state.week} of ${CALENDAR.midSeasonEnd}). Transfer window OPEN. League resumes week ${CALENDAR.secondHalfStart}.`;
+              return "No fixture this week. Advance to continue the season.";
+            })()}
           </div>
         )}
       </section>
