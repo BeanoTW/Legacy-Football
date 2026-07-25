@@ -1340,7 +1340,7 @@ function StadiumTab({
 /* =========================================================================
    FIXTURES
    ========================================================================= */
-function Fixtures({ state }: { state: GameState }) {
+function Fixtures({ state, update }: { state: GameState; update: (fn: (s: GameState) => GameState) => void }) {
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <Section title="Fixtures">
