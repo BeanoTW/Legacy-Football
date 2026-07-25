@@ -310,7 +310,7 @@ function Game({
     <div className="min-h-screen bg-background">
       <TopBar
         title={state.clubName}
-        subtitle={`${state.managerName} · Season ${state.season} · Week ${state.week}/38`}
+        subtitle={`${state.managerName} · Season ${state.season} · Week ${state.week}/${CALENDAR.seasonEnd} · ${({preseason:"Pre-season",firstHalf:"League — 1st half",midseason:"Mid-season break",secondHalf:"League — 2nd half"} as const)[phaseOf(state.week)]}`}
         right={
           <div className="flex items-center gap-2">
             <Button size="sm" variant="secondary" onClick={() => advance(1)}>
