@@ -301,16 +301,20 @@ function Game({
       </nav>
 
       <main className="mx-auto max-w-6xl px-3 py-5">
-        {tab === "hub" && <ClubHub state={state} advance={advance} setTab={setTab} />}
+        {tab === "hub" && <ClubHub state={state} advance={advance} update={update} setTab={setTab} />}
         {tab === "dashboard" && <Dashboard state={state} />}
         {tab === "cashflow" && <CashFlow state={state} />}
         {tab === "tickets" && <Tickets state={state} update={update} />}
         {tab === "squad" && <Squad state={state} />}
+        {tab === "transfers" && <Transfers state={state} update={update} />}
         {tab === "staff" && <StaffTab state={state} update={update} />}
         {tab === "stadium" && <StadiumTab state={state} update={update} />}
-        {tab === "fixtures" && <Fixtures state={state} />}
+        {tab === "fixtures" && <Fixtures state={state} update={update} />}
         {tab === "history" && <History state={state} />}
       </main>
+
+      {state.liveMatch && <MatchDayOverlay state={state} update={update} />}
+
 
       <footer className="border-t bg-card">
         <div className="mx-auto max-w-6xl px-3 py-4 flex flex-wrap gap-2 items-center justify-between text-sm text-muted-foreground">
