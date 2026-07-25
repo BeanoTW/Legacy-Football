@@ -524,7 +524,7 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
 
   // ---- Advance clock ----
   s.week += 1;
-  if (s.week > 38) {
+  if (s.week > SEASON_END_WEEK) {
     // end of season: prize money based on league position
     const sorted = [...s.league].sort((a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga));
     const pos = sorted.findIndex((r) => r.team === s.clubName) + 1;
@@ -532,7 +532,7 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     s.cash += prize;
     // record as own ledger entry
     s.ledger.push({
-      week: 38, season: s.season,
+      week: SEASON_END_WEEK, season: s.season,
       income: { gate: 0, tv: 0, sponsor: 0, merchandise: 0, prize, transfers: 0, other: 0 },
       expenses: { playerWages: 0, staffWages: 0, stadiumOps: 0, trainingOps: 0, maintenance: 0, matchday: 0, transfers: 0, other: 0 },
       net: prize, balance: s.cash,
