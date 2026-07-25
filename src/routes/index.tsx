@@ -136,6 +136,88 @@ type Tab =
   | "fixtures"
   | "history";
 
+type TabDef = [Tab, string, typeof LineIcon];
+
+const ALL_TABS: TabDef[] = [
+  ["hub", "Club", Trophy],
+  ["dashboard", "Overview", LineIcon],
+  ["cashflow", "Cash flow", CircleDollarSign],
+  ["tickets", "Tickets", Ticket],
+  ["squad", "Squad", Users],
+  ["transfers", "Transfers", ArrowRight],
+  ["staff", "Staff", Briefcase],
+  ["stadium", "Stadium", Building2],
+  ["fixtures", "Fixtures", Calendar],
+  ["history", "Ledger", Save],
+];
+
+const PRIMARY_TAB_IDS: Tab[] = ["hub", "squad", "transfers", "fixtures"];
+
+function MobileNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
+  const [open, setOpen] = useState(false);
+  const primary = ALL_TABS.filter(([id]) => PRIMARY_TAB_IDS.includes(id));
+  return (
+    <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 pb-[env(safe-area-inset-bottom)]">
+      <ul className="grid grid-cols-5">
+        {primary.map(([id, label, Icon]) => (
+          <li key={id}>
+            <button
+              onClick={() => setTab(id)}
+              className={cn(
+                "w-full flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors",
+                tab === id ? "text-primary" : "text-muted-foreground",
+              )}
+            >
+              <Icon className="size-5" />
+              {label}
+            </button>
+          </li>
+        ))}
+        <li>
+          <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger asChild>
+              <button
+                className={cn(
+                  "w-full flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium",
+                  !PRIMARY_TAB_IDS.includes(tab) ? "text-primary" : "text-muted-foreground",
+                )}
+              >
+                <Menu className="size-5" />
+                More
+              </button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="rounded-t-2xl">
+              <SheetHeader>
+                <SheetTitle>Navigate</SheetTitle>
+              </SheetHeader>
+              <div className="grid grid-cols-3 gap-2 mt-4">
+                {ALL_TABS.map(([id, label, Icon]) => (
+                  <SheetClose asChild key={id}>
+                    <button
+                      onClick={() => setTab(id)}
+                      className={cn(
+                        "flex flex-col items-center justify-center gap-1 rounded-lg border p-3 text-xs font-medium transition-colors",
+                        tab === id
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-card hover:bg-muted",
+                      )}
+                    >
+                      <Icon className="size-5" />
+                      {label}
+                    </button>
+                  </SheetClose>
+                ))}
+              </div>
+            </SheetContent>
+          </Sheet>
+        </li>
+      </ul>
+    </nav>
+  );
+}
+
+
+
 
 function Page() {
   const { state, hydrated, start, advance, update, reset } = useGame();
