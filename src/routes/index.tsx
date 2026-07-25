@@ -25,6 +25,7 @@ import {
   Heart,
   Info,
   LineChart as LineIcon,
+  Menu,
   Play,
   RotateCcw,
   Save,
@@ -37,6 +38,14 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  SheetClose,
+} from "@/components/ui/sheet";
 
 import { useGame } from "@/hooks/useGame";
 import type { GameState, Stand, Staff, StaffRole, Priority, Position, TransferTarget, IncomingBid } from "@/lib/game/types";
