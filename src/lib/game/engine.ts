@@ -467,16 +467,19 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
 
 
 
-  // ---- Simulate other league games (light) ----
-  const others = s.league.filter((r) => r.team !== s.clubName);
-  for (let i = 0; i < 4; i++) {
-    const a = pick(others), b = pick(others);
-    if (a === b) continue;
-    const ag = randInt(0, 3), bg = randInt(0, 3);
-    a.p++; b.p++; a.gf += ag; a.ga += bg; b.gf += bg; b.ga += ag;
-    if (ag > bg) { a.w++; a.pts += 3; b.l++; }
-    else if (ag < bg) { b.w++; b.pts += 3; a.l++; }
-    else { a.d++; b.d++; a.pts++; b.pts++; }
+  // ---- Simulate other league games (light) — only during league weeks ----
+  const inLeague = phaseOf(s.week) === "firstHalf" || phaseOf(s.week) === "secondHalf";
+  if (inLeague) {
+    const others = s.league.filter((r) => r.team !== s.clubName);
+    for (let i = 0; i < 4; i++) {
+      const a = pick(others), b = pick(others);
+      if (a === b) continue;
+      const ag = randInt(0, 3), bg = randInt(0, 3);
+      a.p++; b.p++; a.gf += ag; a.ga += bg; b.gf += bg; b.ga += ag;
+      if (ag > bg) { a.w++; a.pts += 3; b.l++; }
+      else if (ag < bg) { b.w++; b.pts += 3; a.l++; }
+      else { a.d++; b.d++; a.pts++; b.pts++; }
+    }
   }
 
   // ---- Sponsors tick ----
