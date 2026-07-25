@@ -2012,7 +2012,7 @@ function ClubHub({
             <div className="min-w-0">
               <div className="font-display text-2xl leading-none truncate">{state.clubName}</div>
               <div className="text-xs opacity-80 mt-1">
-                {myIdx >= 0 ? `${myIdx + 1}${ord(myIdx + 1)}` : "—"} · Season {state.season} · Week {state.week}/38
+                {myIdx >= 0 ? `${myIdx + 1}${ord(myIdx + 1)}` : "—"} · Season {state.season} · Week {state.week}/{CALENDAR.seasonEnd}
               </div>
             </div>
           </div>
