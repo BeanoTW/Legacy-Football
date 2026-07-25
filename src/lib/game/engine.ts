@@ -542,11 +542,20 @@ export function loadGame(): GameState | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as GameState;
     if (parsed.version !== 1) return null;
-    // Backwards-compat migration for saves created before staff feature
+    // Backwards-compat migration for saves created before newer features
     if (!parsed.hiredStaff) parsed.hiredStaff = [];
     if (!parsed.staffCandidates) parsed.staffCandidates = makeCandidatePool();
     if (parsed.staffMarketRefreshedWeek == null) parsed.staffMarketRefreshedWeek = parsed.week;
+    if (parsed.transferBudget == null) parsed.transferBudget = 500_000;
+    if (parsed.wageBudgetWeekly == null) parsed.wageBudgetWeekly = 5_000;
+    if (!parsed.positionPriorities)
+      parsed.positionPriorities = { GK: "medium", DEF: "medium", MID: "medium", FWD: "medium" };
+    if (!parsed.transferTargets) parsed.transferTargets = [];
+    if (!parsed.incomingBids) parsed.incomingBids = [];
+    if (!parsed.completedTransfers) parsed.completedTransfers = [];
+    if (parsed.liveMatch === undefined) parsed.liveMatch = null;
     return parsed;
+
   } catch { return null; }
 }
 
