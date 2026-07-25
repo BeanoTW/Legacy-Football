@@ -2131,7 +2131,14 @@ function ClubHub({
           </div>
         ) : (
           <div className="p-4 text-sm text-muted-foreground">
-            No fixture this week. Advance to continue the season.
+            {(() => {
+              const p = phaseOf(state.week);
+              if (p === "preseason")
+                return `Pre-season week ${state.week} of ${CALENDAR.preSeasonEnd}. Transfer window OPEN — build your squad. League kicks off week ${CALENDAR.firstHalfStart}.`;
+              if (p === "midseason")
+                return `Mid-season break (week ${state.week} of ${CALENDAR.midSeasonEnd}). Transfer window OPEN. League resumes week ${CALENDAR.secondHalfStart}.`;
+              return "No fixture this week. Advance to continue the season.";
+            })()}
           </div>
         )}
       </section>
