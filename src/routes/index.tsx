@@ -2037,9 +2037,10 @@ function ClubHub({
                 self={!nextFixture.home}
               />
             </div>
-            <Button size="sm" onClick={() => advance(1)}>
+            <Button size="sm" onClick={() => update((s) => startMatchDay(s))}>
               <ChevronsRight className="size-4 mr-1" /> Play
             </Button>
+
           </div>
         ) : (
           <div className="p-4 text-sm text-muted-foreground">
