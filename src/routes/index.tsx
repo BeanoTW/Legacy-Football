@@ -2463,7 +2463,7 @@ function TargetCard({
   onApprove: () => void;
   onReject: () => void;
 }) {
-  const canAffordFee = target.askingFee <= state.transferBudget && target.askingFee <= state.cash;
+  const canAffordFee = target.askingFee <= state.transferBudget;
   const canAffordWage = target.wageDemand <= state.wageBudgetWeekly;
   return (
     <div className="rounded-lg border p-3 flex flex-col sm:flex-row sm:items-center gap-3">
