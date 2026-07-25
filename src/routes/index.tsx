@@ -2179,3 +2179,534 @@ function MatchSide({ name, sub, self }: { name: string; sub: string; self: boole
     </div>
   );
 }
+
+/* =========================================================================
+   TRANSFERS TAB
+   ========================================================================= */
+function Transfers({
+  state,
+  update,
+}: {
+  state: GameState;
+  update: (fn: (s: GameState) => GameState) => void;
+}) {
+  const win = windowStatus(state);
+  const posList: Position[] = ["GK", "DEF", "MID", "FWD"];
+  const posLabel: Record<Position, string> = {
+    GK: "Goalkeepers",
+    DEF: "Defenders",
+    MID: "Midfielders",
+    FWD: "Forwards",
+  };
+  const [budgetInput, setBudgetInput] = useState<string>(String(state.transferBudget));
+  const [wageInput, setWageInput] = useState<string>(String(state.wageBudgetWeekly));
+  return (
+    <div className="space-y-4">
+      {/* Window banner */}
+      <div
+        className={cn(
+          "rounded-xl border p-4 flex items-start gap-3",
+          win.open
+            ? "bg-[color:var(--color-income)]/10 border-[color:var(--color-income)]/40"
+            : "bg-muted/40",
+        )}
+      >
+        <Calendar className="size-5 mt-0.5" />
+        <div className="flex-1">
+          <div className="font-semibold">{win.label}</div>
+          <div className="text-xs text-muted-foreground mt-0.5">{win.detail}</div>
+        </div>
+      </div>
+
+      {/* Budget + priorities */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <Section
+          title="Budgets"
+          info="Set aside what the club can spend on transfer fees and how much weekly wage capacity is available. Your Head of Transfers won't sign anyone that breaks either limit."
+        >
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="tbud" className="flex items-center gap-2">
+                Transfer budget (fees)
+                <InfoTip>
+                  One-off cash pot for fees. Depletes when signings complete. Grows again from
+                  sales.
+                </InfoTip>
+              </Label>
+              <div className="flex gap-2 mt-1">
+                <Input
+                  id="tbud"
+                  value={budgetInput}
+                  onChange={(e) => setBudgetInput(e.target.value.replace(/[^0-9]/g, ""))}
+                  className="tnum"
+                />
+                <Button
+                  variant="secondary"
+                  onClick={() =>
+                    update((s) => setTransferBudget(s, Number(budgetInput) || 0))
+                  }
+                >
+                  Set
+                </Button>
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                Current: {fmtMoneyExact(state.transferBudget)} · Cash {fmtMoney(state.cash)}
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="wbud" className="flex items-center gap-2">
+                Weekly wage headroom
+                <InfoTip>
+                  How much new weekly wage the club can take on. Signings deduct from this;
+                  sales free it up again.
+                </InfoTip>
+              </Label>
+              <div className="flex gap-2 mt-1">
+                <Input
+                  id="wbud"
+                  value={wageInput}
+                  onChange={(e) => setWageInput(e.target.value.replace(/[^0-9]/g, ""))}
+                  className="tnum"
+                />
+                <Button
+                  variant="secondary"
+                  onClick={() => update((s) => setWageBudget(s, Number(wageInput) || 0))}
+                >
+                  Set
+                </Button>
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                Current: {fmtMoneyExact(state.wageBudgetWeekly)}/wk
+              </div>
+            </div>
+          </div>
+        </Section>
+
+        <Section
+          title="Position priorities"
+          info="Guides which positions your scouts and Head of Transfers focus on. High priority positions get more shortlisted targets."
+        >
+          <div className="space-y-2">
+            {posList.map((pos) => (
+              <div key={pos} className="flex items-center justify-between gap-3">
+                <div className="flex-1">
+                  <div className="font-medium">{posLabel[pos]}</div>
+                  <div className="text-xs text-muted-foreground">
+                    Squad: {state.squad.filter((p) => p.position === pos).length}
+                  </div>
+                </div>
+                <div className="flex gap-1">
+                  {(["low", "medium", "high"] as Priority[]).map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => update((s) => setPositionPriority(s, pos, p))}
+                      className={cn(
+                        "text-xs px-2 py-1 rounded border capitalize",
+                        state.positionPriorities[pos] === p
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-card hover:bg-muted",
+                      )}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Section>
+      </div>
+
+      {/* Shortlist */}
+      <Section
+        title={`Shortlist (${state.transferTargets.length})`}
+        info="Players your Head of Transfers and scouts have brought to your desk. Approve to sign, reject to move on. New names arrive each week the window is open."
+      >
+        {state.transferTargets.length === 0 ? (
+          <div className="text-sm text-muted-foreground py-6 text-center">
+            {win.open
+              ? "No shortlisted players yet. Advance a week and let the staff work."
+              : "Window is closed. Signings only happen during the transfer windows."}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {state.transferTargets.map((t) => (
+              <TargetCard
+                key={t.id}
+                target={t}
+                state={state}
+                onApprove={() =>
+                  update((s) => {
+                    const r = approveTransferTarget(s, t.id);
+                    if (!r.ok) alert(r.reason ?? "Signing failed");
+                    return r.state;
+                  })
+                }
+                onReject={() => update((s) => rejectTransferTarget(s, t.id))}
+              />
+            ))}
+          </div>
+        )}
+      </Section>
+
+      {/* Incoming bids */}
+      <Section
+        title={`Incoming bids (${state.incomingBids.length})`}
+        info="Other clubs sniffing round your best players. Accepting frees up wages and adds cash to the transfer budget; rejecting keeps them for now."
+      >
+        {state.incomingBids.length === 0 ? (
+          <div className="text-sm text-muted-foreground py-4 text-center">
+            No approaches this week.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {state.incomingBids.map((b) => (
+              <BidCard
+                key={b.id}
+                bid={b}
+                state={state}
+                onAccept={() => update((s) => respondToBid(s, b.id, true))}
+                onReject={() => update((s) => respondToBid(s, b.id, false))}
+              />
+            ))}
+          </div>
+        )}
+      </Section>
+
+      {/* Recent transfers */}
+      <Section title="Recent transfers">
+        {state.completedTransfers.length === 0 ? (
+          <div className="text-sm text-muted-foreground py-4 text-center">
+            No completed transfers yet.
+          </div>
+        ) : (
+          <div className="text-sm divide-y">
+            {state.completedTransfers
+              .slice()
+              .reverse()
+              .slice(0, 12)
+              .map((t, i) => (
+                <div key={i} className="py-2 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      className={cn(
+                        "text-[10px] font-bold px-1.5 py-0.5 rounded",
+                        t.direction === "in"
+                          ? "bg-[color:var(--color-income)]/20 text-[color:var(--color-income)]"
+                          : "bg-[color:var(--color-expense)]/20 text-[color:var(--color-expense)]",
+                      )}
+                    >
+                      {t.direction === "in" ? "IN" : "OUT"}
+                    </span>
+                    <span className="truncate">
+                      {t.playerName} <span className="text-muted-foreground">({t.position})</span>
+                    </span>
+                  </div>
+                  <div className="text-xs tnum text-muted-foreground shrink-0">
+                    S{t.season} W{t.week} · {fmtMoney(t.fee)}
+                    {t.direction === "in" ? ` · ${fmtMoney(t.wage)}/wk` : ""}
+                  </div>
+                </div>
+              ))}
+          </div>
+        )}
+      </Section>
+    </div>
+  );
+}
+
+function TargetCard({
+  target,
+  state,
+  onApprove,
+  onReject,
+}: {
+  target: TransferTarget;
+  state: GameState;
+  onApprove: () => void;
+  onReject: () => void;
+}) {
+  const canAffordFee = target.askingFee <= state.transferBudget && target.askingFee <= state.cash;
+  const canAffordWage = target.wageDemand <= state.wageBudgetWeekly;
+  return (
+    <div className="rounded-lg border p-3 flex flex-col sm:flex-row sm:items-center gap-3">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-semibold">{target.player.name}</span>
+          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-muted">
+            {target.player.position}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            {target.player.age}y · Rating {target.player.rating}
+          </span>
+          {target.positionPriority === "high" && (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/20 text-primary">
+              PRIORITY
+            </span>
+          )}
+        </div>
+        <div className="text-xs text-muted-foreground mt-1">{target.note}</div>
+        <div className="text-[11px] text-muted-foreground mt-1 italic">
+          Scouted by {target.scoutedByName} · {target.scoutedByRole}
+        </div>
+      </div>
+      <div className="flex sm:flex-col gap-2 sm:gap-0 sm:text-right tnum text-sm">
+        <div className={cn(!canAffordFee && "text-[color:var(--color-expense)]")}>
+          Fee {fmtMoney(target.askingFee)}
+        </div>
+        <div className={cn("text-xs", !canAffordWage && "text-[color:var(--color-expense)]")}>
+          {fmtMoney(target.wageDemand)}/wk
+        </div>
+      </div>
+      <div className="flex gap-2 shrink-0">
+        <Button
+          size="sm"
+          onClick={onApprove}
+          disabled={!canAffordFee || !canAffordWage}
+        >
+          <UserPlus className="size-4 mr-1" /> Sign
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onReject}>
+          Pass
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function BidCard({
+  bid,
+  state,
+  onAccept,
+  onReject,
+}: {
+  bid: IncomingBid;
+  state: GameState;
+  onAccept: () => void;
+  onReject: () => void;
+}) {
+  const p = state.squad.find((x) => x.id === bid.playerId);
+  return (
+    <div className="rounded-lg border p-3 flex flex-col sm:flex-row sm:items-center gap-3">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-semibold">{bid.playerName}</span>
+          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-muted">
+            {bid.position}
+          </span>
+          {p && (
+            <span className="text-xs text-muted-foreground">
+              Rating {p.rating} · Value {fmtMoney(p.value)}
+            </span>
+          )}
+        </div>
+        <div className="text-xs text-muted-foreground mt-1">
+          Approach from <span className="font-medium">{bid.fromClub}</span>
+        </div>
+      </div>
+      <div className="text-right tnum">
+        <div className="font-semibold text-[color:var(--color-income)]">
+          {fmtMoney(bid.fee)}
+        </div>
+        {p && (
+          <div className="text-xs text-muted-foreground">
+            Frees {fmtMoney(p.wage)}/wk
+          </div>
+        )}
+      </div>
+      <div className="flex gap-2 shrink-0">
+        <Button size="sm" onClick={onAccept}>
+          Accept
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onReject}>
+          Reject
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   MATCH DAY OVERLAY
+   ========================================================================= */
+function MatchDayOverlay({
+  state,
+  update,
+}: {
+  state: GameState;
+  update: (fn: (s: GameState) => GameState) => void;
+}) {
+  const lm = state.liveMatch!;
+  const usName = state.clubName;
+  const themName = lm.fixture.opponent;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm overflow-y-auto">
+      <div className="mx-auto max-w-3xl px-3 py-6">
+        <div className="rounded-xl border bg-card shadow-lg overflow-hidden">
+          <div className="banner-strip px-4 py-2 text-sm flex items-center justify-between">
+            <span>
+              Matchday · Week {lm.fixture.week} · {lm.fixture.home ? "Home" : "Away"}
+            </span>
+            <button
+              className="text-xs opacity-80 hover:opacity-100"
+              onClick={() => {
+                if (confirm("Abandon the match? Progress this fixture will be lost."))
+                  update((s) => cancelLiveMatch(s));
+              }}
+            >
+              Close
+            </button>
+          </div>
+
+          {/* Scoreline */}
+          <div className="p-5 grid grid-cols-3 items-center gap-3 text-center">
+            <div>
+              <div className="font-display text-xl truncate">{lm.fixture.home ? usName : themName}</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                {lm.fixture.home ? "Home" : "Away"}
+              </div>
+            </div>
+            <div className="font-display text-5xl tnum">
+              {lm.fixture.home ? lm.ourGoals : lm.theirGoals}
+              <span className="text-muted-foreground mx-2">–</span>
+              {lm.fixture.home ? lm.theirGoals : lm.ourGoals}
+            </div>
+            <div>
+              <div className="font-display text-xl truncate">{lm.fixture.home ? themName : usName}</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                {lm.fixture.home ? "Away" : "Home"}
+              </div>
+            </div>
+          </div>
+
+          {/* Brief */}
+          {lm.status === "brief" && (
+            <div className="p-4 border-t space-y-3">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <Info2 label="Weather" value={lm.weather} />
+                <Info2
+                  label="Projected gate"
+                  value={
+                    lm.fixture.home
+                      ? `${lm.projectedAttendance.toLocaleString()} fans`
+                      : "Away — no gate"
+                  }
+                />
+                <Info2 label="Board expects" value={lm.boardExpectation} />
+                <Info2 label="Form" value={lm.formGuide} />
+                <Info2 label="Us" value={`Str ${Math.round(lm.ourStrength)}`} />
+                <Info2 label="Them" value={`Str ${Math.round(lm.oppStrength)}`} />
+              </div>
+              <Button className="w-full" onClick={() => update((s) => kickoff(s))}>
+                Kick off
+              </Button>
+            </div>
+          )}
+
+          {/* Half time */}
+          {lm.status === "halfTime" && lm.halfTimeOptions && (
+            <div className="p-4 border-t space-y-3">
+              <div className="text-sm font-semibold">Half time — your call</div>
+              <div className="grid gap-2">
+                {lm.halfTimeOptions.map((o) => (
+                  <button
+                    key={o.id}
+                    onClick={() => update((s) => applyHalfTimeChoice(s, o.id))}
+                    className="text-left rounded-lg border p-3 hover:bg-muted transition-colors"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium">{o.label}</span>
+                      {o.winBonusCost > 0 && (
+                        <span className="text-xs text-[color:var(--color-expense)] tnum">
+                          Bonus if win: {fmtMoney(o.winBonusCost)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{o.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Full time */}
+          {lm.status === "fullTime" && (
+            <div className="p-4 border-t space-y-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm tnum">
+                <Info2 label="Attendance" value={lm.attendance.toLocaleString()} />
+                <Info2 label="Gate" value={fmtMoney(lm.gateReceipts)} />
+                <Info2 label="TV" value={fmtMoney(lm.tvIncome)} />
+                <Info2
+                  label="Matchday ops"
+                  value={`-${fmtMoney(lm.matchdayOps)}`}
+                  tone="bad"
+                />
+                {lm.winBonus > 0 && (
+                  <Info2 label="Win bonus" value={`-${fmtMoney(lm.winBonus)}`} tone="bad" />
+                )}
+              </div>
+              <Button className="w-full" onClick={() => update((s) => commitLiveMatchAndAdvance(s))}>
+                Confirm & advance week <ChevronsRight className="size-4 ml-1" />
+              </Button>
+            </div>
+          )}
+
+          {/* Ticker */}
+          <div className="border-t bg-muted/30 max-h-64 overflow-y-auto">
+            {lm.events.length === 0 ? (
+              <div className="p-3 text-sm text-muted-foreground text-center">
+                {lm.status === "brief" ? "Pre-match — ready to kick off." : "No events yet."}
+              </div>
+            ) : (
+              <ul className="text-sm divide-y">
+                {lm.events.map((e, i) => (
+                  <li key={i} className="px-3 py-2 flex items-center gap-3">
+                    <span className="text-xs w-8 text-muted-foreground tnum">{e.minute}'</span>
+                    <span
+                      className={cn(
+                        "text-[10px] font-bold px-1.5 py-0.5 rounded",
+                        e.type === "goal"
+                          ? "bg-[color:var(--color-income)]/20 text-[color:var(--color-income)]"
+                          : e.type === "card"
+                            ? "bg-yellow-500/20 text-yellow-700"
+                            : "bg-muted",
+                      )}
+                    >
+                      {e.type.toUpperCase()}
+                    </span>
+                    <span
+                      className={cn(
+                        "flex-1 text-sm",
+                        e.side === "us" ? "text-foreground" : "text-muted-foreground",
+                      )}
+                    >
+                      {e.text}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Info2({ label, value, tone }: { label: string; value: string; tone?: "bad" | "good" }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div
+        className={cn(
+          "font-display text-base",
+          tone === "bad" && "text-[color:var(--color-expense)]",
+          tone === "good" && "text-[color:var(--color-income)]",
+        )}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
