@@ -273,7 +273,9 @@ function Game({
                 ["cashflow", "Cash flow", CircleDollarSign],
                 ["tickets", "Tickets", Ticket],
                 ["squad", "Squad & wages", Users],
+                ["transfers", "Transfers", ArrowRight],
                 ["staff", "Staff", Briefcase],
+
                 ["stadium", "Stadium", Building2],
                 ["fixtures", "Fixtures", Calendar],
                 ["history", "Ledger", Save],
