@@ -1881,12 +1881,15 @@ function fanbaseEstimate(state: GameState): number {
 function ClubHub({
   state,
   advance,
+  update,
   setTab,
 }: {
   state: GameState;
   advance: (w?: number) => void;
+  update: (fn: (s: GameState) => GameState) => void;
   setTab: (t: Tab) => void;
 }) {
+
   const nextFixture = state.fixtures.find((f) => f.week === state.week);
   const health = financialHealth(state);
   const fanbase = fanbaseEstimate(state);
