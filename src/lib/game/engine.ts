@@ -721,12 +721,11 @@ export function approveTransferTarget(
     return { state: s, ok: false, reason: "Fee exceeds allocated transfer budget" };
   if (t.wageDemand > s.wageBudgetWeekly)
     return { state: s, ok: false, reason: "Wage exceeds weekly wage cap" };
-  if (t.askingFee > s.cash)
-    return { state: s, ok: false, reason: "Not enough cash in the bank" };
   const ns: GameState = structuredClone(s);
+  // Fee comes out of the ring-fenced transfer pot only. Cash was moved
+  // into that pot when the budget was allocated.
   ns.transferBudget -= t.askingFee;
   ns.wageBudgetWeekly -= t.wageDemand;
-  ns.cash -= t.askingFee;
   const signed: Player = { ...t.player, id: crypto.randomUUID(), wage: t.wageDemand };
   ns.squad.push(signed);
   ns.transferTargets = ns.transferTargets.filter((x) => x.id !== id);
