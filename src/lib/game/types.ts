@@ -1,4 +1,5 @@
 export type Position = "GK" | "DEF" | "MID" | "FWD";
+export type Priority = "low" | "medium" | "high";
 
 export interface Player {
   id: string;
@@ -39,14 +40,14 @@ export type StaffRole =
   | "Sports Scientist";
 
 export interface StaffStats {
-  tactics: number;      // matchday impact
+  tactics: number;
   attack: number;
   defense: number;
-  development: number;  // improves training / youth
-  scouting: number;     // finds better players
-  negotiation: number;  // cheaper transfers/contracts
-  medical: number;      // fewer injuries, faster recovery
-  motivation: number;   // morale / fan happiness lift
+  development: number;
+  scouting: number;
+  negotiation: number;
+  medical: number;
+  motivation: number;
 }
 
 export interface Staff {
@@ -54,11 +55,11 @@ export interface Staff {
   name: string;
   role: StaffRole;
   age: number;
-  rating: number;         // overall 40-95
+  rating: number;
   stats: StaffStats;
-  wage: number;           // £/week
+  wage: number;
   contractWeeks: number;
-  reputation: number;     // 20-95 (agent leverage)
+  reputation: number;
 }
 
 export interface WeekLedger {
@@ -106,22 +107,99 @@ export interface LeagueRow {
   gf: number; ga: number; pts: number;
 }
 
+/* -------- Transfers -------- */
+export interface TransferTarget {
+  id: string;
+  player: Player;
+  askingFee: number;
+  wageDemand: number;
+  scoutedByName: string;
+  scoutedByRole: StaffRole;
+  scoutRating: number;
+  note: string;
+  positionPriority: Priority;
+  createdWeek: number;
+  createdSeason: number;
+}
+
+export interface IncomingBid {
+  id: string;
+  playerId: string;
+  playerName: string;
+  position: Position;
+  fromClub: string;
+  fee: number;
+  createdWeek: number;
+  createdSeason: number;
+}
+
+export interface CompletedTransfer {
+  week: number;
+  season: number;
+  direction: "in" | "out";
+  playerName: string;
+  position: Position;
+  fee: number;
+  wage: number;
+  otherClub: string;
+  handledBy?: string;
+}
+
+/* -------- Match day -------- */
+export interface MatchEvent {
+  minute: number;
+  type: "goal" | "chance" | "card" | "info" | "sub" | "injury";
+  side: "us" | "them" | "neutral";
+  text: string;
+}
+
+export interface HalfTimeOption {
+  id: string;
+  label: string;
+  desc: string;
+  attackMod: number;
+  defenseMod: number;
+  fanMod: number;
+  winBonusCost: number;
+}
+
+export interface LiveMatch {
+  fixture: { week: number; opponent: string; home: boolean };
+  weather: "Clear" | "Overcast" | "Wet" | "Windy";
+  projectedAttendance: number;
+  boardExpectation: "Win" | "Avoid defeat" | "Any result";
+  ourStrength: number;
+  oppStrength: number;
+  formGuide: string;
+  events: MatchEvent[];
+  ourGoals: number;
+  theirGoals: number;
+  status: "brief" | "halfTime" | "fullTime";
+  halfTimeOptions?: HalfTimeOption[];
+  chosenNudgeId?: string;
+  attendance: number;
+  gateReceipts: number;
+  tvIncome: number;
+  matchdayOps: number;
+  winBonus: number;
+}
+
 export interface GameState {
   version: 1;
   clubName: string;
   managerName: string;
-  season: number;      // e.g. 1
-  week: number;        // 1..38
+  season: number;
+  week: number;
   cash: number;
-  reputation: number;  // 1-100, affects sponsors/fans
-  fanHappiness: number;// 0-100
+  reputation: number;
+  fanHappiness: number;
 
   stands: Stand[];
   pitchCondition: number;
-  trainingRating: number; // 40-95, affects player growth
+  trainingRating: number;
   trainingWeeklyCost: number;
 
-  staffWagesWeekly: number;   // baseline admin/back-office staff (non-hired)
+  staffWagesWeekly: number;
   utilitiesWeekly: number;
   maintenanceWeekly: number;
 
@@ -131,10 +209,21 @@ export interface GameState {
   fixtures: { week: number; opponent: string; home: boolean }[];
   results: FixtureResult[];
 
-  ledger: WeekLedger[];       // most recent first-or-append: append at end
+  ledger: WeekLedger[];
   league: LeagueRow[];
 
   hiredStaff: Staff[];
   staffCandidates: Staff[];
   staffMarketRefreshedWeek: number;
+
+  // Transfers
+  transferBudget: number;
+  wageBudgetWeekly: number;
+  positionPriorities: Record<Position, Priority>;
+  transferTargets: TransferTarget[];
+  incomingBids: IncomingBid[];
+  completedTransfers: CompletedTransfer[];
+
+  // Match day
+  liveMatch: LiveMatch | null;
 }

@@ -2,6 +2,7 @@ import type {
   GameState,
   Player,
   Position,
+  Priority,
   Stand,
   Staff,
   StaffRole,
@@ -9,7 +10,13 @@ import type {
   WeekLedger,
   FixtureResult,
   LeagueRow,
+  TransferTarget,
+  IncomingBid,
+  LiveMatch,
+  MatchEvent,
+  HalfTimeOption,
 } from "./types";
+
 
 const STORAGE_KEY = "chairman.save.v1";
 
