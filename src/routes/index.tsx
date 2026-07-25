@@ -121,10 +121,12 @@ type Tab =
   | "cashflow"
   | "tickets"
   | "squad"
+  | "transfers"
   | "staff"
   | "stadium"
   | "fixtures"
   | "history";
+
 
 function Page() {
   const { state, hydrated, start, advance, update, reset } = useGame();
