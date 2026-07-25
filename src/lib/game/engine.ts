@@ -779,7 +779,8 @@ export function respondToBid(s: GameState, id: string, accept: boolean): GameSta
     const p = ns.squad.find((x) => x.id === b.playerId);
     if (p) {
       ns.cash += b.fee;
-      ns.transferBudget += b.fee;
+      // Sale proceeds land in spendable cash — reallocate to the transfer
+      // pot manually if you want to reinvest.
       ns.wageBudgetWeekly += p.wage;
       ns.squad = ns.squad.filter((x) => x.id !== b.playerId);
       ns.completedTransfers.push({
