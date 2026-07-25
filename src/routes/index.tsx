@@ -39,7 +39,7 @@ import {
 } from "lucide-react";
 
 import { useGame } from "@/hooks/useGame";
-import type { GameState, Stand, Staff, StaffRole } from "@/lib/game/types";
+import type { GameState, Stand, Staff, StaffRole, Priority, Position, TransferTarget, IncomingBid } from "@/lib/game/types";
 import {
   avgTicketPrice,
   fmtMoney,
@@ -51,7 +51,21 @@ import {
   totalCapacity,
   totalWeeklyExpenses,
   weeklySponsorIncome,
+  isTransferWindowOpen,
+  windowStatus,
+  approveTransferTarget,
+  rejectTransferTarget,
+  respondToBid,
+  setTransferBudget,
+  setWageBudget,
+  setPositionPriority,
+  startMatchDay,
+  kickoff,
+  applyHalfTimeChoice,
+  commitLiveMatchAndAdvance,
+  cancelLiveMatch,
 } from "@/lib/game/engine";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
