@@ -277,8 +277,16 @@ export function newGame(clubName: string, managerName: string): GameState {
     hiredStaff: [],
     staffCandidates: makeCandidatePool(),
     staffMarketRefreshedWeek: 1,
+    transferBudget: 500_000,
+    wageBudgetWeekly: 5_000,
+    positionPriorities: { GK: "medium", DEF: "medium", MID: "medium", FWD: "medium" },
+    transferTargets: [],
+    incomingBids: [],
+    completedTransfers: [],
+    liveMatch: null,
   };
 }
+
 
 /* ---------- Derived ---------- */
 export const totalCapacity = (s: GameState) =>
