@@ -271,25 +271,11 @@ function Game({
         </div>
       </div>
 
-      {/* Tabs */}
-      <nav className="border-b bg-card sticky top-0 z-10">
+      {/* Desktop tabs */}
+      <nav className="border-b bg-card sticky top-0 z-10 hidden md:block">
         <div className="mx-auto max-w-6xl px-2 overflow-x-auto">
           <ul className="flex gap-1 text-sm">
-            {(
-              [
-                ["hub", "Club", Trophy],
-                ["dashboard", "Overview", LineIcon],
-                ["cashflow", "Cash flow", CircleDollarSign],
-                ["tickets", "Tickets", Ticket],
-                ["squad", "Squad & wages", Users],
-                ["transfers", "Transfers", ArrowRight],
-                ["staff", "Staff", Briefcase],
-
-                ["stadium", "Stadium", Building2],
-                ["fixtures", "Fixtures", Calendar],
-                ["history", "Ledger", Save],
-              ] as [Tab, string, typeof LineIcon][]
-            ).map(([id, label, Icon]) => (
+            {ALL_TABS.map(([id, label, Icon]) => (
               <li key={id}>
                 <button
                   onClick={() => setTab(id)}
@@ -309,7 +295,7 @@ function Game({
         </div>
       </nav>
 
-      <main className="mx-auto max-w-6xl px-3 py-5">
+      <main className="mx-auto max-w-6xl px-3 py-5 pb-24 md:pb-5">
         {tab === "hub" && <ClubHub state={state} advance={advance} update={update} setTab={setTab} />}
         {tab === "dashboard" && <Dashboard state={state} />}
         {tab === "cashflow" && <CashFlow state={state} />}
@@ -321,6 +307,10 @@ function Game({
         {tab === "fixtures" && <Fixtures state={state} update={update} />}
         {tab === "history" && <History state={state} />}
       </main>
+
+      {/* Mobile bottom nav */}
+      <MobileNav tab={tab} setTab={setTab} />
+
 
       {state.liveMatch && <MatchDayOverlay state={state} update={update} />}
 
