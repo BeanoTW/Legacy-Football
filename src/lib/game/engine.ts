@@ -342,7 +342,13 @@ function simGoals(strength: number, oppStrength: number): number {
 }
 
 /* ---------- Weekly advance ---------- */
-export function advanceWeek(prev: GameState): GameState {
+export interface MatchOverride {
+  gf: number; ga: number; attendance: number;
+  gate: number; tv: number; matchdayOps: number;
+  winBonus: number;
+}
+
+export function advanceWeek(prev: GameState, override?: MatchOverride): GameState {
   const s: GameState = structuredClone(prev);
   const fixture = s.fixtures.find((f) => f.week === s.week);
   const ledger: WeekLedger = {
@@ -371,20 +377,25 @@ export function advanceWeek(prev: GameState): GameState {
   // ---- Matchday ----
   let fxResult: FixtureResult | null = null;
   if (fixture) {
-    const myStrength = squadRating(s);
-    const oppStrength = 55 + Math.random() * 20;
-    const gf = simGoals(myStrength + (fixture.home ? 3 : 0), oppStrength);
-    const ga = simGoals(oppStrength, myStrength + (fixture.home ? 3 : 0));
-    const attendance = simAttendance(s, fixture.home, oppStrength);
-    // weighted avg ticket price
-    const avgPrice = avgTicketPrice(s);
-    const gate = Math.round(attendance * avgPrice);
-    const tv = 22_000 + Math.round(Math.random() * 8000);
-    const matchdayOps = fixture.home ? Math.round(6_500 + attendance * 0.4) : 3_200;
+    let gf: number, ga: number, attendance: number, gate: number, tv: number, matchdayOps: number;
+    if (override) {
+      ({ gf, ga, attendance, gate, tv, matchdayOps } = override);
+    } else {
+      const myStrength = squadRating(s);
+      const oppStrength = 55 + Math.random() * 20;
+      gf = simGoals(myStrength + (fixture.home ? 3 : 0), oppStrength);
+      ga = simGoals(oppStrength, myStrength + (fixture.home ? 3 : 0));
+      attendance = simAttendance(s, fixture.home, oppStrength);
+      const avgPrice = avgTicketPrice(s);
+      gate = Math.round(attendance * avgPrice);
+      tv = 22_000 + Math.round(Math.random() * 8000);
+      matchdayOps = fixture.home ? Math.round(6_500 + attendance * 0.4) : 3_200;
+    }
 
     ledger.income.gate = gate;
     ledger.income.tv = tv;
     ledger.expenses.matchday = matchdayOps;
+    if (override?.winBonus) ledger.expenses.other += override.winBonus;
 
     const result: "W" | "D" | "L" = gf > ga ? "W" : gf === ga ? "D" : "L";
     fxResult = {
@@ -393,13 +404,10 @@ export function advanceWeek(prev: GameState): GameState {
       gateReceipts: gate, tvIncome: tv, result,
     };
 
-    // fan happiness update
     const swing = result === "W" ? 4 : result === "D" ? 0 : -5;
     s.fanHappiness = Math.max(5, Math.min(100, s.fanHappiness + swing));
-    // reputation drifts
     s.reputation = Math.max(20, Math.min(95, s.reputation + (result === "W" ? 0.4 : result === "L" ? -0.3 : 0)));
 
-    // league update
     const my = s.league.find((r) => r.team === s.clubName)!;
     const opp = s.league.find((r) => r.team === fixture.opponent)!;
     if (my && opp) {
@@ -412,6 +420,27 @@ export function advanceWeek(prev: GameState): GameState {
     }
     ledger.matchdayNote = `${fixture.home ? "H" : "A"} vs ${fixture.opponent} — ${gf}-${ga} ${result}`;
   }
+
+  // ---- Transfers: staff scouting + incoming bids (window only) ----
+  if (isTransferWindowOpen(s)) {
+    // top up shortlist (cap at 6 pending)
+    const slots = Math.max(0, 6 - s.transferTargets.length);
+    const bringN = Math.min(slots, 1 + randInt(0, 2));
+    if (bringN > 0) s.transferTargets.push(...generateTransferTargets(s, bringN));
+    // incoming bid chance rises with squad quality
+    if (Math.random() < 0.35) {
+      const bid = generateIncomingBid(s);
+      if (bid) s.incomingBids.push(bid);
+    }
+  } else {
+    // between windows, drop any lingering targets/bids so they don't feel stale
+    if (s.transferTargets.length > 0 || s.incomingBids.length > 0) {
+      s.transferTargets = [];
+      s.incomingBids = [];
+    }
+  }
+
+
 
   // ---- Simulate other league games (light) ----
   const others = s.league.filter((r) => r.team !== s.clubName);
