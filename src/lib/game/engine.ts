@@ -421,6 +421,29 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
       else { my.d++; my.pts += 1; opp.d++; opp.pts += 1; }
     }
     ledger.matchdayNote = `${fixture.home ? "H" : "A"} vs ${fixture.opponent} — ${gf}-${ga} ${result}`;
+  } else if (!override && FRIENDLY_WEEKS.has(s.week)) {
+    // ---- Friendly (pre-season / mid-season windows) ----
+    const opp = pick(CLUBS.filter((c) => c !== s.clubName));
+    const oppStrength = 50 + Math.random() * 25;
+    const myStrength = squadRating(s);
+    const gf = simGoals(myStrength + 2, oppStrength);
+    const ga = simGoals(oppStrength, myStrength + 2);
+    // Friendly attendance is a fraction of a league day
+    const cap = totalCapacity(s);
+    const attendance = Math.round(cap * (0.28 + Math.random() * 0.18) * (0.6 + s.fanHappiness / 200));
+    const gate = Math.round(attendance * avgTicketPrice(s) * 0.7);
+    const matchdayOps = Math.round(4_200 + attendance * 0.3);
+    ledger.income.gate = gate;
+    ledger.expenses.matchday = matchdayOps;
+    const result: "W" | "D" | "L" = gf > ga ? "W" : gf === ga ? "D" : "L";
+    // Friendlies don't touch the league table; tiny happiness swing only
+    s.fanHappiness = Math.max(5, Math.min(100, s.fanHappiness + (result === "W" ? 1 : result === "L" ? -1 : 0)));
+    fxResult = {
+      week: s.week, opponent: `${opp} (friendly)`, home: true,
+      goalsFor: gf, goalsAgainst: ga, attendance,
+      gateReceipts: gate, tvIncome: 0, result,
+    };
+    ledger.matchdayNote = `Friendly vs ${opp} — ${gf}-${ga} ${result}`;
   }
 
   // ---- Transfers: staff scouting + incoming bids (window only) ----
