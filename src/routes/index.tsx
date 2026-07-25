@@ -1379,10 +1379,14 @@ function Fixtures({ state, update }: { state: GameState; update: (fn: (s: GameSt
                     {result.goalsFor}-{result.goalsAgainst}
                   </span>
                 ) : isNext ? (
-                  <span className="text-xs font-semibold text-accent-foreground bg-accent px-2 py-0.5 rounded">
-                    Next
-                  </span>
+                  <button
+                    onClick={() => update((s) => startMatchDay(s))}
+                    className="text-xs font-semibold text-accent-foreground bg-accent hover:brightness-95 px-2 py-0.5 rounded"
+                  >
+                    Play →
+                  </button>
                 ) : (
+
                   <span className="text-xs text-muted-foreground">—</span>
                 )}
               </div>
