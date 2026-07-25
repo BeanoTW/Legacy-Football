@@ -2229,8 +2229,9 @@ function Transfers({
               <Label htmlFor="tbud" className="flex items-center gap-2">
                 Transfer budget (fees)
                 <InfoTip>
-                  One-off cash pot for fees. Depletes when signings complete. Grows again from
-                  sales.
+                  A ring-fenced pot for fees. Allocating money moves it out of spendable cash
+                  and locks it in. Signings draw from this pot only. Reduce it to move cash
+                  back to the bank. Player sales land in cash — reinvest by allocating again.
                 </InfoTip>
               </Label>
               <div className="flex gap-2 mt-1">
@@ -2243,16 +2244,52 @@ function Transfers({
                 <Button
                   variant="secondary"
                   onClick={() =>
-                    update((s) => setTransferBudget(s, Number(budgetInput) || 0))
+                    update((s) => {
+                      const r = setTransferBudget(s, Number(budgetInput) || 0);
+                      if (!r.ok) alert(r.reason ?? "Could not set budget");
+                      return r.state;
+                    })
                   }
                 >
                   Set
                 </Button>
               </div>
-              <div className="text-xs text-muted-foreground mt-1">
-                Current: {fmtMoneyExact(state.transferBudget)} · Cash {fmtMoney(state.cash)}
+              <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-x-3">
+                <span>Pot: <span className="tnum">{fmtMoneyExact(state.transferBudget)}</span></span>
+                <span>Spendable cash: <span className="tnum">{fmtMoneyExact(state.cash)}</span></span>
+              </div>
+              <div className="flex gap-1 mt-2 flex-wrap">
+                {[50_000, 250_000, 1_000_000].map((delta) => (
+                  <button
+                    key={delta}
+                    onClick={() =>
+                      update((s) => {
+                        const r = setTransferBudget(s, s.transferBudget + delta);
+                        if (!r.ok) alert(r.reason ?? "Not enough cash");
+                        setBudgetInput(String(r.state.transferBudget));
+                        return r.state;
+                      })
+                    }
+                    className="text-[11px] px-2 py-1 rounded border hover:bg-muted"
+                  >
+                    +{fmtMoney(delta)}
+                  </button>
+                ))}
+                <button
+                  onClick={() =>
+                    update((s) => {
+                      const r = setTransferBudget(s, 0);
+                      setBudgetInput("0");
+                      return r.state;
+                    })
+                  }
+                  className="text-[11px] px-2 py-1 rounded border hover:bg-muted"
+                >
+                  Return to cash
+                </button>
               </div>
             </div>
+
             <div>
               <Label htmlFor="wbud" className="flex items-center gap-2">
                 Weekly wage headroom
