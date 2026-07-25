@@ -68,13 +68,15 @@ function makeSquad(quality: number): Player[] {
 function makeFixtures(clubName: string): { week: number; opponent: string; home: boolean }[] {
   const opponents = CLUBS.filter((c) => c !== clubName).slice(0, 19);
   const fx: { week: number; opponent: string; home: boolean }[] = [];
-  let w = 1;
-  for (const o of opponents) {
-    fx.push({ week: w++, opponent: o, home: true });
-  }
-  for (const o of opponents) {
-    fx.push({ week: w++, opponent: o, home: false });
-  }
+  // Season calendar (see CALENDAR below):
+  //   Weeks 1-4:   Pre-season (transfer window open, friendlies only)
+  //   Weeks 5-23:  First half of league season (19 home fixtures)
+  //   Weeks 24-27: Mid-season transfer window (no league games)
+  //   Weeks 28-46: Second half of league season (19 away fixtures)
+  let w = 5;
+  for (const o of opponents) fx.push({ week: w++, opponent: o, home: true });
+  w = 28;
+  for (const o of opponents) fx.push({ week: w++, opponent: o, home: false });
   return fx;
 }
 
