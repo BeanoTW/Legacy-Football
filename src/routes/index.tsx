@@ -25,6 +25,7 @@ import {
   Heart,
   Info,
   LineChart as LineIcon,
+  Menu,
   Play,
   RotateCcw,
   Save,
@@ -37,6 +38,14 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  SheetClose,
+} from "@/components/ui/sheet";
 
 import { useGame } from "@/hooks/useGame";
 import type { GameState, Stand, Staff, StaffRole, Priority, Position, TransferTarget, IncomingBid } from "@/lib/game/types";
@@ -126,6 +135,88 @@ type Tab =
   | "stadium"
   | "fixtures"
   | "history";
+
+type TabDef = [Tab, string, typeof LineIcon];
+
+const ALL_TABS: TabDef[] = [
+  ["hub", "Club", Trophy],
+  ["dashboard", "Overview", LineIcon],
+  ["cashflow", "Cash flow", CircleDollarSign],
+  ["tickets", "Tickets", Ticket],
+  ["squad", "Squad", Users],
+  ["transfers", "Transfers", ArrowRight],
+  ["staff", "Staff", Briefcase],
+  ["stadium", "Stadium", Building2],
+  ["fixtures", "Fixtures", Calendar],
+  ["history", "Ledger", Save],
+];
+
+const PRIMARY_TAB_IDS: Tab[] = ["hub", "squad", "transfers", "fixtures"];
+
+function MobileNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
+  const [open, setOpen] = useState(false);
+  const primary = ALL_TABS.filter(([id]) => PRIMARY_TAB_IDS.includes(id));
+  return (
+    <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 pb-[env(safe-area-inset-bottom)]">
+      <ul className="grid grid-cols-5">
+        {primary.map(([id, label, Icon]) => (
+          <li key={id}>
+            <button
+              onClick={() => setTab(id)}
+              className={cn(
+                "w-full flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors",
+                tab === id ? "text-primary" : "text-muted-foreground",
+              )}
+            >
+              <Icon className="size-5" />
+              {label}
+            </button>
+          </li>
+        ))}
+        <li>
+          <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger asChild>
+              <button
+                className={cn(
+                  "w-full flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium",
+                  !PRIMARY_TAB_IDS.includes(tab) ? "text-primary" : "text-muted-foreground",
+                )}
+              >
+                <Menu className="size-5" />
+                More
+              </button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="rounded-t-2xl">
+              <SheetHeader>
+                <SheetTitle>Navigate</SheetTitle>
+              </SheetHeader>
+              <div className="grid grid-cols-3 gap-2 mt-4">
+                {ALL_TABS.map(([id, label, Icon]) => (
+                  <SheetClose asChild key={id}>
+                    <button
+                      onClick={() => setTab(id)}
+                      className={cn(
+                        "flex flex-col items-center justify-center gap-1 rounded-lg border p-3 text-xs font-medium transition-colors",
+                        tab === id
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-card hover:bg-muted",
+                      )}
+                    >
+                      <Icon className="size-5" />
+                      {label}
+                    </button>
+                  </SheetClose>
+                ))}
+              </div>
+            </SheetContent>
+          </Sheet>
+        </li>
+      </ul>
+    </nav>
+  );
+}
+
+
 
 
 function Page() {
@@ -262,25 +353,11 @@ function Game({
         </div>
       </div>
 
-      {/* Tabs */}
-      <nav className="border-b bg-card sticky top-0 z-10">
+      {/* Desktop tabs */}
+      <nav className="border-b bg-card sticky top-0 z-10 hidden md:block">
         <div className="mx-auto max-w-6xl px-2 overflow-x-auto">
           <ul className="flex gap-1 text-sm">
-            {(
-              [
-                ["hub", "Club", Trophy],
-                ["dashboard", "Overview", LineIcon],
-                ["cashflow", "Cash flow", CircleDollarSign],
-                ["tickets", "Tickets", Ticket],
-                ["squad", "Squad & wages", Users],
-                ["transfers", "Transfers", ArrowRight],
-                ["staff", "Staff", Briefcase],
-
-                ["stadium", "Stadium", Building2],
-                ["fixtures", "Fixtures", Calendar],
-                ["history", "Ledger", Save],
-              ] as [Tab, string, typeof LineIcon][]
-            ).map(([id, label, Icon]) => (
+            {ALL_TABS.map(([id, label, Icon]) => (
               <li key={id}>
                 <button
                   onClick={() => setTab(id)}
@@ -300,7 +377,7 @@ function Game({
         </div>
       </nav>
 
-      <main className="mx-auto max-w-6xl px-3 py-5">
+      <main className="mx-auto max-w-6xl px-3 py-5 pb-24 md:pb-5">
         {tab === "hub" && <ClubHub state={state} advance={advance} update={update} setTab={setTab} />}
         {tab === "dashboard" && <Dashboard state={state} />}
         {tab === "cashflow" && <CashFlow state={state} />}
@@ -312,6 +389,10 @@ function Game({
         {tab === "fixtures" && <Fixtures state={state} update={update} />}
         {tab === "history" && <History state={state} />}
       </main>
+
+      {/* Mobile bottom nav */}
+      <MobileNav tab={tab} setTab={setTab} />
+
 
       {state.liveMatch && <MatchDayOverlay state={state} update={update} />}
 
@@ -2229,8 +2310,9 @@ function Transfers({
               <Label htmlFor="tbud" className="flex items-center gap-2">
                 Transfer budget (fees)
                 <InfoTip>
-                  One-off cash pot for fees. Depletes when signings complete. Grows again from
-                  sales.
+                  A ring-fenced pot for fees. Allocating money moves it out of spendable cash
+                  and locks it in. Signings draw from this pot only. Reduce it to move cash
+                  back to the bank. Player sales land in cash — reinvest by allocating again.
                 </InfoTip>
               </Label>
               <div className="flex gap-2 mt-1">
@@ -2243,16 +2325,52 @@ function Transfers({
                 <Button
                   variant="secondary"
                   onClick={() =>
-                    update((s) => setTransferBudget(s, Number(budgetInput) || 0))
+                    update((s) => {
+                      const r = setTransferBudget(s, Number(budgetInput) || 0);
+                      if (!r.ok) alert(r.reason ?? "Could not set budget");
+                      return r.state;
+                    })
                   }
                 >
                   Set
                 </Button>
               </div>
-              <div className="text-xs text-muted-foreground mt-1">
-                Current: {fmtMoneyExact(state.transferBudget)} · Cash {fmtMoney(state.cash)}
+              <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-x-3">
+                <span>Pot: <span className="tnum">{fmtMoneyExact(state.transferBudget)}</span></span>
+                <span>Spendable cash: <span className="tnum">{fmtMoneyExact(state.cash)}</span></span>
+              </div>
+              <div className="flex gap-1 mt-2 flex-wrap">
+                {[50_000, 250_000, 1_000_000].map((delta) => (
+                  <button
+                    key={delta}
+                    onClick={() =>
+                      update((s) => {
+                        const r = setTransferBudget(s, s.transferBudget + delta);
+                        if (!r.ok) alert(r.reason ?? "Not enough cash");
+                        setBudgetInput(String(r.state.transferBudget));
+                        return r.state;
+                      })
+                    }
+                    className="text-[11px] px-2 py-1 rounded border hover:bg-muted"
+                  >
+                    +{fmtMoney(delta)}
+                  </button>
+                ))}
+                <button
+                  onClick={() =>
+                    update((s) => {
+                      const r = setTransferBudget(s, 0);
+                      setBudgetInput("0");
+                      return r.state;
+                    })
+                  }
+                  className="text-[11px] px-2 py-1 rounded border hover:bg-muted"
+                >
+                  Return to cash
+                </button>
               </div>
             </div>
+
             <div>
               <Label htmlFor="wbud" className="flex items-center gap-2">
                 Weekly wage headroom
@@ -2426,7 +2544,7 @@ function TargetCard({
   onApprove: () => void;
   onReject: () => void;
 }) {
-  const canAffordFee = target.askingFee <= state.transferBudget && target.askingFee <= state.cash;
+  const canAffordFee = target.askingFee <= state.transferBudget;
   const canAffordWage = target.wageDemand <= state.wageBudgetWeekly;
   return (
     <div className="rounded-lg border p-3 flex flex-col sm:flex-row sm:items-center gap-3">

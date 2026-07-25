@@ -721,12 +721,11 @@ export function approveTransferTarget(
     return { state: s, ok: false, reason: "Fee exceeds allocated transfer budget" };
   if (t.wageDemand > s.wageBudgetWeekly)
     return { state: s, ok: false, reason: "Wage exceeds weekly wage cap" };
-  if (t.askingFee > s.cash)
-    return { state: s, ok: false, reason: "Not enough cash in the bank" };
   const ns: GameState = structuredClone(s);
+  // Fee comes out of the ring-fenced transfer pot only. Cash was moved
+  // into that pot when the budget was allocated.
   ns.transferBudget -= t.askingFee;
   ns.wageBudgetWeekly -= t.wageDemand;
-  ns.cash -= t.askingFee;
   const signed: Player = { ...t.player, id: crypto.randomUUID(), wage: t.wageDemand };
   ns.squad.push(signed);
   ns.transferTargets = ns.transferTargets.filter((x) => x.id !== id);
@@ -780,7 +779,8 @@ export function respondToBid(s: GameState, id: string, accept: boolean): GameSta
     const p = ns.squad.find((x) => x.id === b.playerId);
     if (p) {
       ns.cash += b.fee;
-      ns.transferBudget += b.fee;
+      // Sale proceeds land in spendable cash — reallocate to the transfer
+      // pot manually if you want to reinvest.
       ns.wageBudgetWeekly += p.wage;
       ns.squad = ns.squad.filter((x) => x.id !== b.playerId);
       ns.completedTransfers.push({
@@ -1000,8 +1000,19 @@ export function cancelLiveMatch(s: GameState): GameState {
   return { ...s, liveMatch: null };
 }
 
-export function setTransferBudget(s: GameState, amount: number): GameState {
-  return { ...s, transferBudget: Math.max(0, Math.round(amount)) };
+export function setTransferBudget(
+  s: GameState,
+  amount: number,
+): { state: GameState; ok: boolean; reason?: string } {
+  const target = Math.max(0, Math.round(amount));
+  const delta = target - s.transferBudget;
+  if (delta > 0 && delta > s.cash) {
+    return { state: s, ok: false, reason: "Not enough spendable cash to allocate" };
+  }
+  return {
+    state: { ...s, transferBudget: target, cash: s.cash - delta },
+    ok: true,
+  };
 }
 export function setWageBudget(s: GameState, amount: number): GameState {
   return { ...s, wageBudgetWeekly: Math.max(0, Math.round(amount)) };
