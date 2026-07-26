@@ -727,6 +727,18 @@ export function migrateSave(parsed: Record<string, unknown>): GameState {
     p.version = 2;
   }
 
+  // v2 → v3: league simulation foundation.
+  //
+  // Completed history is never rewritten. A v2 save has no full division
+  // schedule and no match records, so its CURRENT season stays on the legacy
+  // user-only path (existing table and results are left exactly as they are).
+  // The full schedule + AI simulation switch on at the next season rollover.
+  if (p.version < 3) {
+    if (!Array.isArray(p.matchRecords)) p.matchRecords = [];
+    if (!Array.isArray(p.leagueSchedule)) p.leagueSchedule = [];
+    p.version = 3;
+  }
+
   return p as GameState;
 }
 
@@ -745,7 +757,7 @@ export function loadGame(): GameState | null {
     const v = (parsed as { version?: number }).version;
     // Missing version = pre-versioning save, treat as v1. Only refuse saves
     // written by a FUTURE schema we don't understand.
-    if (typeof v === "number" && v > 2) return null;
+    if (typeof v === "number" && v > 3) return null;
     const legacyV = typeof v === "number" && v >= 1 ? v : 1;
     const migrated = migrateSave(parsed);
     // If this save had no inbox at all (older than v2 introduction), seed it.
