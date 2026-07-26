@@ -17,6 +17,7 @@ import type {
   HalfTimeOption,
 } from "./types";
 import { runWeeklyGenerators } from "./inbox";
+import { buildSeasonSchedule, clubFixtures } from "./fixtures";
 
 
 const STORAGE_KEY = "chairman.save.v1";
@@ -259,6 +260,7 @@ export function newGame(clubName: string, managerName: string): GameState {
 }
 
 function _newGameSeed(clubName: string, managerName: string): GameState {
+  const saveSeed = `${clubName}|${managerName}|${Date.now().toString(36)}`;
 
   const stands: Stand[] = [
     { key: "N", name: "North Stand", capacity: 6000, condition: 92, ticketPrice: 22 },
@@ -268,7 +270,7 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
   ];
   return {
     version: 2,
-    saveSeed: `${clubName}|${managerName}|${Date.now().toString(36)}`,
+    saveSeed,
     clubName,
     managerName,
     season: 1,
@@ -290,7 +292,7 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
       { name: "Stadium Naming",   weekly: 5_000,  weeksLeft: 38 * 3 },
       { name: "Training Wear",    weekly: 2_200,  weeksLeft: 20 },
     ],
-    fixtures: makeFixtures(clubName),
+    fixtures: makeFixtures(clubName, `${saveSeed}|season1`),
     results: [],
     ledger: [],
     league: makeLeague(clubName),
@@ -566,7 +568,7 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     // reset
     s.season += 1;
     s.week = 1;
-    s.fixtures = makeFixtures(s.clubName);
+    s.fixtures = makeFixtures(s.clubName, `${s.saveSeed}|season${s.season}`);
     s.results = [];
     s.league = makeLeague(s.clubName);
     // age players + minor rating drift
