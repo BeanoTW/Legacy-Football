@@ -67,20 +67,28 @@ function makeSquad(quality: number): Player[] {
   return s;
 }
 
-function makeFixtures(clubName: string): { week: number; opponent: string; home: boolean }[] {
-  const opponents = CLUBS.filter((c) => c !== clubName).slice(0, 19);
-  const fx: { week: number; opponent: string; home: boolean }[] = [];
-  // Season calendar (see CALENDAR below):
-  //   Weeks 1-4:   Pre-season (transfer window open, friendlies only)
-  //   Weeks 5-23:  First half of league season (19 home fixtures)
-  //   Weeks 24-27: Mid-season transfer window (no league games)
-  //   Weeks 28-46: Second half of league season (19 away fixtures)
-  let w = 5;
-  for (const o of opponents) fx.push({ week: w++, opponent: o, home: true });
-  w = 28;
-  for (const o of opponents) fx.push({ week: w++, opponent: o, home: false });
-  return fx;
+/** Rounds 1-19 -> weeks 5-23, rounds 20-38 -> weeks 28-46. */
+export function weekForLeagueRound(round: number): number {
+  return round <= 19 ? 4 + round : 27 + (round - 19);
 }
+
+export function leagueTeams(clubName: string): string[] {
+  return [clubName, ...CLUBS.filter((c) => c !== clubName).slice(0, 19)];
+}
+
+/**
+ * Deterministic double round-robin (circle method + home/away rebalancing).
+ * Same seed + same participants => identical schedule.
+ */
+export function makeFixtures(
+  clubName: string,
+  seed: string,
+): { week: number; opponent: string; home: boolean }[] {
+  const teams = leagueTeams(clubName);
+  const schedule = buildSeasonSchedule(teams, seed);
+  return clubFixtures(schedule, clubName, weekForLeagueRound);
+}
+
 
 function makeLeague(clubName: string): LeagueRow[] {
   return [clubName, ...CLUBS.filter((c) => c !== clubName).slice(0, 19)].map((team) => ({
