@@ -860,6 +860,22 @@ export function migrateSave(parsed: Record<string, unknown>): GameState {
     }
   }
 
+  // v5 → v6: Board of Directors.
+  //
+  // Purely additive. Directors are generated deterministically from the
+  // save's own seed, so an existing save gets a stable boardroom that never
+  // changes on reload. Objectives are built from the CURRENT season's stored
+  // projection; no historical season is rewritten and no review is
+  // back-filled — the board starts judging from the next review window.
+  if (p.version < 6) {
+    const st = p as unknown as GameState;
+    if (!st.board || !Array.isArray(st.board.directors) || st.board.directors.length === 0) {
+      st.board = makeBoard(p.saveSeed, p.clubName);
+    }
+    ensureBoard(st);
+    p.version = 6;
+  }
+
   return p as GameState;
 }
 
@@ -878,7 +894,7 @@ export function loadGame(): GameState | null {
     const v = (parsed as { version?: number }).version;
     // Missing version = pre-versioning save, treat as v1. Only refuse saves
     // written by a FUTURE schema we don't understand.
-    if (typeof v === "number" && v > 5) return null;
+    if (typeof v === "number" && v > 6) return null;
     const legacyV = typeof v === "number" && v >= 1 ? v : 1;
     const migrated = migrateSave(parsed);
     // If this save had no inbox at all (older than v2 introduction), seed it.

@@ -31,12 +31,12 @@ function legacy(overrides: Record<string, unknown> = {}): Record<string, unknown
 console.log("\n[M1] Version handling");
 safe("missing version", () => {
   const m = migrateSave(legacy());
-  check("missing version migrates to current schema", (m.version as number) === 5);
+  check("missing version migrates to current schema", (m.version as number) === 6);
   check("missing version backfills saveSeed", typeof m.saveSeed === "string" && m.saveSeed.length > 0);
 });
 safe("version 1", () => {
   const m = migrateSave(legacy({ version: 1 }));
-  check("v1 migrates to current schema", (m.version as number) === 5);
+  check("v1 migrates to current schema", (m.version as number) === 6);
 });
 safe("version 2 idempotent", () => {
   const src = { ...legacy({ version: 2 }), saveSeed: "KEEP_ME" };
@@ -48,7 +48,7 @@ safe("version 2 idempotent", () => {
     Array.isArray(m.leagueSchedule) && m.leagueSchedule.length === 0 &&
     Array.isArray(m.matchRecords) && m.matchRecords.length === 0);
   const again = migrateSave(m as unknown as Record<string, unknown>);
-  check("migration is idempotent", again.saveSeed === "KEEP_ME" && (again.version as number) === 5);
+  check("migration is idempotent", again.saveSeed === "KEEP_ME" && (again.version as number) === 6);
 });
 
 console.log("\n[M2] Missing optional collections must not throw");
