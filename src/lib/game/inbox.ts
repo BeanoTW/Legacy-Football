@@ -406,6 +406,18 @@ const G_FAN_WARN: Generator = {
     const last = Number(s.inboxFlags[cooldownKey] ?? 0);
     if (s.fanHappiness >= 45) return [];
     if (nowAbs - last < 8) return [];
+    // The cooldown flag is only written when the player picks a choice, so an
+    // ignored warning would otherwise re-emit every week under a new eventKey.
+    // Suppress while an earlier warning is still awaiting the chairman.
+    if (
+      s.inbox.some(
+        (i) =>
+          i.generatorId === "fans-happiness-warning" &&
+          (i.status === "unread" || i.status === "awaitingDecision"),
+      )
+    )
+      return [];
+
     return [
       mk(s, "fans-happiness-warning", {
         eventKey: `fans-happiness-warning:abs${nowAbs}`,
@@ -632,8 +644,11 @@ const G_MEDIA_MATCH: Generator = {
     const prevAbs = absoluteWeek(s.season, s.week) - 1;
     if (prevAbs < 1) return [];
     const prev = fromAbsoluteWeek(prevAbs);
-    // Match results only carry (week) — filter by season via the ledger row
-    // so we don't cross-season a stale result.
+    // FixtureResult carries no season field. Cross-season leakage is prevented
+    // by the engine clearing `s.results` at the season rollover, NOT by any
+    // lookup-side check here. If results ever become season-persistent, this
+    // find() must be given an explicit season filter.
+
     const r = s.results.find((x) => x.week === prev.week);
     if (!r) return [];
     const eventKey = `media-post-match:s${prev.season}:w${prev.week}`;
