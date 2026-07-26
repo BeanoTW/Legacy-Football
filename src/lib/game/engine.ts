@@ -625,13 +625,14 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   // ---- Pitch decay ----
   s.pitchCondition = Math.max(35, s.pitchCondition - (fixture?.home ? 3 : 1));
 
-  // ---- Roll up ledger ----
-  const inc = Object.values(ledger.income).reduce((a, b) => a + b, 0);
-  const exp = Object.values(ledger.expenses).reduce((a, b) => a + b, 0);
-  ledger.net = inc - exp;
-  s.cash = Math.round(s.cash + ledger.net);
-  ledger.balance = s.cash;
-  s.ledger.push(ledger);
+  // ---- Weekly roll-up ----
+  // Cash was already moved by the finance ledger; the legacy WeekLedger row
+  // is a projection of this week's entries, rebuilt on every post.
+  syncWeekLedger(s, s.season, s.week);
+  if (matchdayNote) {
+    const row = s.ledger.find((l) => l.season === s.season && l.week === s.week);
+    if (row) row.matchdayNote = matchdayNote;
+  }
   if (fxResult) s.results.push(fxResult);
 
   // ---- Resolve any remaining AI fixtures for this round, then project table ----
@@ -647,20 +648,30 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     syncTable(s);
     // Atomic pyramid rollover: finalise every division, write immutable
     // history, then move promoted/relegated clubs. Guarded against replays.
+    const closingSeason = s.season;
+    const closingLeagueId = playerLeagueId(s);
+    const closingLeague = findLeague(s, closingLeagueId);
     const rollover = applySeasonRollover(s);
-    // end of season: prize money based on league position
+    // End of season: configuration-driven league prize money, awarded exactly
+    // once (guarded by a ledger dedupe key, not by the calendar).
     const sorted = [...s.league].sort((a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga));
     const pos = sorted.findIndex((r) => r.team === s.clubName) + 1;
-    const prize = Math.round(4_000_000 * Math.max(0.15, (21 - pos) / 20));
-    s.cash += prize;
-    // record as own ledger entry
-    s.ledger.push({
-      week: SEASON_END_WEEK, season: s.season,
-      income: { gate: 0, tv: 0, sponsor: 0, merchandise: 0, prize, transfers: 0, other: 0 },
-      expenses: { playerWages: 0, staffWages: 0, stadiumOps: 0, trainingOps: 0, maintenance: 0, matchday: 0, transfers: 0, other: 0 },
-      net: prize, balance: s.cash,
-      matchdayNote: `SEASON END — Finished ${pos}${ordinal(pos)}. Prize £${prize.toLocaleString()}`,
-    });
+    if (closingLeague && pos > 0) {
+      const award = awardPrizeMoney(s, closingSeason, closingLeague, pos);
+      if (award) {
+        const row = s.ledger.find((l) => l.season === closingSeason && l.week === SEASON_END_WEEK);
+        if (row) {
+          row.matchdayNote =
+            `SEASON END — Finished ${pos}${ordinal(pos)}. Prize £${award.total.toLocaleString()}`;
+        }
+      }
+    }
+    // Board's final judgement on the season just completed. Must run before
+    // the season counter moves so it is filed against the correct season.
+    runEndOfSeasonReview(s);
+    // Immutable financial record of the season just closed.
+    closeSeasonFinance(s, closingSeason, closingLeagueId);
+
     // Board's final judgement on the season just completed. Must run before
     // the season counter moves so it is filed against the correct season.
     runEndOfSeasonReview(s);
