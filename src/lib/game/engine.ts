@@ -422,28 +422,15 @@ export interface MatchOverride {
 export function advanceWeek(prev: GameState, override?: MatchOverride): GameState {
   const s: GameState = structuredClone(prev);
   const fixture = s.fixtures.find((f) => f.week === s.week);
-  const ledger: WeekLedger = {
-    week: s.week,
-    season: s.season,
-    income: { gate: 0, tv: 0, sponsor: 0, merchandise: 0, prize: 0, transfers: 0, other: 0 },
-    expenses: {
-      playerWages: 0, staffWages: 0, stadiumOps: 0, trainingOps: 0,
-      maintenance: 0, matchday: 0, transfers: 0, other: 0,
-    },
-    net: 0,
-    balance: 0,
-  };
+  ensureFinance(s);
 
-  // ---- Expenses (fixed weekly) ----
-  ledger.expenses.playerWages = playerWagesWeekly(s);
-  ledger.expenses.staffWages  = s.staffWagesWeekly + hiredStaffWagesWeekly(s);
-  ledger.expenses.stadiumOps  = s.utilitiesWeekly;
-  ledger.expenses.trainingOps = s.trainingWeeklyCost;
-  ledger.expenses.maintenance = s.maintenanceWeekly;
+  // ---- Recurring income + expenditure ----
+  // Wages, operations, maintenance, admin, commercial and the league
+  // distribution. Every stream is posted through the finance ledger with a
+  // per-week dedupe key, so replaying a week cannot double-charge.
+  postRecurringWeek(s);
 
-  // ---- Recurring income ----
-  ledger.income.sponsor = weeklySponsorIncome(s);
-  ledger.income.merchandise = Math.round(400 + s.reputation * 90 + s.fanHappiness * 30);
+  let matchdayNote: string | undefined;
 
   // ---- Matchday ----
   let fxResult: FixtureResult | null = null;
@@ -482,16 +469,20 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
       matchdayOps = fixture.home ? Math.round(6_500 + attendance * 0.4) : 3_200;
     }
 
-    ledger.income.gate = gate;
-    ledger.income.tv = tv;
-    ledger.expenses.matchday = matchdayOps;
-    if (override?.winBonus) ledger.expenses.other += override.winBonus;
+    // Single matchday-finance path shared by auto-resolved and live matches.
+    // Away fixtures book no gate, hospitality or concessions.
+    postMatchdayFinance(s, {
+      season: s.season, week: s.week,
+      opponent: fixture.opponent, home: fixture.home,
+      attendance, gate, tv, matchdayOps,
+      winBonus: override?.winBonus ?? 0,
+    });
 
     const result: "W" | "D" | "L" = gf > ga ? "W" : gf === ga ? "D" : "L";
     fxResult = {
       week: s.week, opponent: fixture.opponent, home: fixture.home,
-      goalsFor: gf, goalsAgainst: ga, attendance,
-      gateReceipts: gate, tvIncome: tv, result,
+      goalsFor: gf, goalsAgainst: ga, attendance: fixture.home ? attendance : 0,
+      gateReceipts: fixture.home ? gate : 0, tvIncome: tv, result,
     };
 
     const swing = result === "W" ? 4 : result === "D" ? 0 : -5;
@@ -531,7 +522,7 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
         else { my.d++; my.pts += 1; opp.d++; opp.pts += 1; }
       }
     }
-    ledger.matchdayNote = `${fixture.home ? "H" : "A"} vs ${fixture.opponent} — ${gf}-${ga} ${result}`;
+    matchdayNote = `${fixture.home ? "H" : "A"} vs ${fixture.opponent} — ${gf}-${ga} ${result}`;
   } else if (!override && FRIENDLY_WEEKS.has(s.week)) {
     // ---- Friendly (pre-season / mid-season windows) ----
     const opp = pick(CLUBS.filter((c) => c !== s.clubName));
@@ -544,8 +535,11 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     const attendance = Math.round(cap * (0.28 + Math.random() * 0.18) * (0.6 + s.fanHappiness / 200));
     const gate = Math.round(attendance * avgTicketPrice(s) * 0.7);
     const matchdayOps = Math.round(4_200 + attendance * 0.3);
-    ledger.income.gate = gate;
-    ledger.expenses.matchday = matchdayOps;
+    postMatchdayFinance(s, {
+      season: s.season, week: s.week,
+      opponent: `${opp} (friendly)`, home: true,
+      attendance, gate, tv: 0, matchdayOps,
+    });
     const result: "W" | "D" | "L" = gf > ga ? "W" : gf === ga ? "D" : "L";
     // Friendlies don't touch the league table; tiny happiness swing only
     s.fanHappiness = Math.max(5, Math.min(100, s.fanHappiness + (result === "W" ? 1 : result === "L" ? -1 : 0)));
@@ -554,8 +548,9 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
       goalsFor: gf, goalsAgainst: ga, attendance,
       gateReceipts: gate, tvIncome: 0, result,
     };
-    ledger.matchdayNote = `Friendly vs ${opp} — ${gf}-${ga} ${result}`;
+    matchdayNote = `Friendly vs ${opp} — ${gf}-${ga} ${result}`;
   }
+
 
   // ---- Transfers: staff scouting + incoming bids (window only) ----
   if (isTransferWindowOpen(s)) {
