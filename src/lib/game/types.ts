@@ -1,6 +1,72 @@
 export type Position = "GK" | "DEF" | "MID" | "FWD";
 export type Priority = "low" | "medium" | "high";
 
+/* ---------------- Inbox / Communication framework ----------------
+   Backbone every department uses to talk to the player. Generators
+   live in src/lib/game/inbox.ts and are registered in a single array
+   — adding a new department = adding a generator. Effects are atomic
+   and applied through applyEffects; no generator mutates state directly.
+------------------------------------------------------------------- */
+
+export type InboxCategory =
+  | "information" | "decision" | "warning" | "opportunity"
+  | "financial" | "staff" | "facilities" | "transfers"
+  | "board" | "fans" | "league" | "media";
+
+export type InboxDepartment =
+  | "Board of Directors" | "Manager" | "Director of Football"
+  | "Finance" | "Commercial" | "Head Scout" | "Medical"
+  | "Groundskeeper" | "Fan Liaison" | "Sponsors"
+  | "League" | "Media" | "Club";
+
+export type InboxPriority = "low" | "normal" | "high" | "urgent";
+export type InboxStatus =
+  | "unread" | "read" | "awaitingDecision" | "completed" | "expired";
+
+export type InboxEffect =
+  | { kind: "cash"; amount: number; note?: string }
+  | { kind: "fanHappiness"; delta: number }
+  | { kind: "reputation"; delta: number }
+  | { kind: "pitch"; delta: number }
+  | { kind: "standCondition"; standKey: "N" | "E" | "S" | "W"; delta: number }
+  | { kind: "sponsorExtend"; sponsorName: string; addWeeks: number; newWeekly?: number }
+  | { kind: "flag"; key: string; value: string | number | boolean }
+  | { kind: "scheduleGenerator"; generatorId: string; inWeeks: number };
+
+export interface InboxChoice {
+  id: string;
+  label: string;
+  hint?: string;
+  effects: InboxEffect[];
+}
+
+export interface InboxItem {
+  id: string;
+  generatorId: string;
+  sender: string;
+  department: InboxDepartment;
+  category: InboxCategory;
+  subject: string;
+  body: string;
+  priority: InboxPriority;
+  week: number;
+  season: number;
+  status: InboxStatus;
+  choices?: InboxChoice[];
+  chosenChoiceId?: string;
+  expiresWeek?: number;
+  reward?: string;
+  consequenceOnExpire?: InboxEffect[];
+}
+
+export interface ScheduledGenerator {
+  generatorId: string;
+  dueWeek: number;
+  dueSeason: number;
+  payload?: Record<string, string | number | boolean>;
+}
+
+
 
 export interface Player {
   id: string;
@@ -226,5 +292,12 @@ export interface GameState {
   completedTransfers: CompletedTransfer[];
 
   // Match day
+  // Match day
   liveMatch: LiveMatch | null;
+
+  // Inbox / communication backbone
+  inbox: InboxItem[];
+  inboxFlags: Record<string, string | number | boolean>;
+  scheduledGenerators: ScheduledGenerator[];
 }
+

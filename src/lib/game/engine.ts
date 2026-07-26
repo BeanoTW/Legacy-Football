@@ -16,9 +16,11 @@ import type {
   MatchEvent,
   HalfTimeOption,
 } from "./types";
+import { runWeeklyGenerators } from "./inbox";
 
 
 const STORAGE_KEY = "chairman.save.v1";
+
 
 /* ---------- RNG (seedable via Math.random for v1) ---------- */
 const rand = (min: number, max: number) => min + Math.random() * (max - min);
@@ -244,6 +246,12 @@ export function staffJoinTerms(clubReputation: number, staff: Staff): JoinTerms 
 
 /* ---------- Initial state ---------- */
 export function newGame(clubName: string, managerName: string): GameState {
+  const base = _newGameSeed(clubName, managerName);
+  return runWeeklyGenerators(base);
+}
+
+function _newGameSeed(clubName: string, managerName: string): GameState {
+
   const stands: Stand[] = [
     { key: "N", name: "North Stand", capacity: 6000, condition: 92, ticketPrice: 22 },
     { key: "E", name: "East Stand",  capacity: 5000, condition: 88, ticketPrice: 26 },
@@ -286,7 +294,11 @@ export function newGame(clubName: string, managerName: string): GameState {
     incomingBids: [],
     completedTransfers: [],
     liveMatch: null,
+    inbox: [],
+    inboxFlags: {},
+    scheduledGenerators: [],
   };
+
 }
 
 
@@ -554,8 +566,9 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
       else if (p.age < 25) p.rating = Math.min(93, p.rating + randInt(0, 1));
     }
   }
-  return s;
+  return runWeeklyGenerators(s);
 }
+
 
 function ordinal(n: number): string {
   const s = ["th", "st", "nd", "rd"], v = n % 100;
@@ -582,7 +595,13 @@ export function loadGame(): GameState | null {
     if (!parsed.incomingBids) parsed.incomingBids = [];
     if (!parsed.completedTransfers) parsed.completedTransfers = [];
     if (parsed.liveMatch === undefined) parsed.liveMatch = null;
-    return parsed;
+    const needsSeed = !parsed.inbox;
+    if (!parsed.inbox) parsed.inbox = [];
+    if (!parsed.inboxFlags) parsed.inboxFlags = {};
+    if (!parsed.scheduledGenerators) parsed.scheduledGenerators = [];
+    return needsSeed ? runWeeklyGenerators(parsed) : parsed;
+
+
 
   } catch { return null; }
 }
