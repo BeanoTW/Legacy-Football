@@ -288,8 +288,10 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
     { key: "S", name: "South Stand", capacity: 6000, condition: 90, ticketPrice: 22 },
     { key: "W", name: "West Stand",  capacity: 7000, condition: 94, ticketPrice: 30 },
   ];
+  const leagues = makeLeagues(clubName);
+  const leagueSchedule = makePyramidSchedule(leagues, `${saveSeed}|season1`);
   return {
-    version: 3,
+    version: 4,
     saveSeed,
     clubName,
     managerName,
@@ -312,12 +314,16 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
       { name: "Stadium Naming",   weekly: 5_000,  weeksLeft: 38 * 3 },
       { name: "Training Wear",    weekly: 2_200,  weeksLeft: 20 },
     ],
-    fixtures: makeFixtures(clubName, `${saveSeed}|season1`),
-    leagueSchedule: makeLeagueSchedule(clubName, `${saveSeed}|season1`),
+    fixtures: fixturesForClub(leagueSchedule, clubName),
+    leagues,
+    playerLeagueId: DIVISION_ONE,
+    leagueSchedule,
     matchRecords: [],
+    seasonHistory: [],
+    clubRecords: makeClubRecords(leagues),
     results: [],
     ledger: [],
-    league: makeLeague(clubName),
+    league: makeLeague(leagues[0].clubIds),
     hiredStaff: [],
     staffCandidates: makeCandidatePool(),
     staffMarketRefreshedWeek: 1,
@@ -611,6 +617,9 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     // Any fixture still outstanding (e.g. a skipped week) is resolved first.
     resolveRemainingSeason(s);
     syncTable(s);
+    // Atomic pyramid rollover: finalise every division, write immutable
+    // history, then move promoted/relegated clubs. Guarded against replays.
+    const rollover = applySeasonRollover(s);
     // end of season: prize money based on league position
     const sorted = [...s.league].sort((a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga));
     const pos = sorted.findIndex((r) => r.team === s.clubName) + 1;
@@ -627,11 +636,21 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     // reset
     s.season += 1;
     s.week = 1;
-    s.fixtures = makeFixtures(s.clubName, `${s.saveSeed}|season${s.season}`);
-    s.leagueSchedule = makeLeagueSchedule(s.clubName, `${s.saveSeed}|season${s.season}`);
-    // matchRecords are permanent history — never cleared.
+    if (s.leagues?.length) {
+      s.leagueSchedule = makePyramidSchedule(s.leagues, `${s.saveSeed}|season${s.season}`);
+      s.fixtures = fixturesForClub(s.leagueSchedule, s.clubName);
+      s.league = makeLeague(userLeagueTeams(s));
+    } else {
+      s.fixtures = makeFixtures(s.clubName, `${s.saveSeed}|season${s.season}`);
+      s.leagueSchedule = [];
+      s.league = makeLeague(leagueTeams(s.clubName));
+    }
+    // matchRecords and seasonHistory are permanent — never cleared.
     s.results = [];
-    s.league = makeLeague(s.clubName);
+    // Season-outcome mail (announcement only — no financial effects yet).
+    for (const it of rollover.items) {
+      if (!s.inbox.some((x) => x.eventKey === it.eventKey)) s.inbox.push({ ...it, week: 1, season: s.season });
+    }
     // age players + minor rating drift
     for (const p of s.squad) {
       p.age += 1;
