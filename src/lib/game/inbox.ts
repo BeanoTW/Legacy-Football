@@ -2,17 +2,22 @@
    Inbox / Communication Framework
    -------------------------------------------------------------------------
    Every department in the club communicates with the player through here.
-   To wire a new system into the inbox:
 
-     1. Add a Generator object to GENERATORS below (or in its own file and
-        re-export). It receives a snapshot of the state, may read flags,
-        and returns any new InboxItems to append. Generators are pure —
-        they never mutate state and never apply effects directly.
-     2. Choices carry InboxEffect[] atoms; applyEffects() is the only
-        thing that mutates state. Add a new effect kind by extending the
-        InboxEffect union in types.ts and adding a case here.
-     3. Chained follow-ups use { kind: "scheduleGenerator", ... } or an
-        inboxFlags value that a future generator's run() inspects.
+   Contract for a generator:
+
+     1. Pure function of GameState. Never mutate state, never call
+        Date.now(), Math.random() or crypto.randomUUID(). Use `seededRng`
+        with (state.saveSeed, generatorId, subjectId, season, week) for
+        any randomness that affects gameplay or persisted values.
+     2. Emit InboxItems with a stable `eventKey`. runWeeklyGenerators
+        drops duplicates so a generator can be called every week without
+        having to remember whether it fired already.
+     3. Follow-ups are scheduled via `scheduleGenerator` (payload
+        optional). The follow-up generator receives the scheduled entries
+        via its `run(state, dueEntries)` argument.
+     4. Deadlines and cooldowns live on the absolute-week axis
+        (`absoluteWeek(season, week)`). Do not compare week-of-season
+        values across a season rollover.
 
    The engine runs runWeeklyGenerators() at the end of advanceWeek() so
    the player wakes up each Monday to a fresh Inbox.
@@ -22,18 +27,16 @@ import type {
   GameState,
   InboxItem,
   InboxEffect,
-  InboxChoice,
   InboxDepartment,
   InboxCategory,
   InboxPriority,
+  ScheduledGenerator,
   Sponsor,
 } from "./types";
+import { absoluteWeek, fromAbsoluteWeek } from "./time";
+import { hashString, seededRng } from "./rng";
 
-/* ---------- id + helpers ---------- */
-let __counter = 0;
-const nextId = (prefix: string) =>
-  `${prefix}-${Date.now().toString(36)}-${(++__counter).toString(36)}`;
-
+/* ---------- Helpers ---------- */
 const money = (n: number) => {
   const s = n < 0 ? "-" : "";
   const a = Math.abs(n);
@@ -42,6 +45,28 @@ const money = (n: number) => {
   return `${s}£${a.toFixed(0)}`;
 };
 
+const sponsorId = (name: string) => name.replace(/\s+/g, "-").toLowerCase();
+
+/* Every id derived from eventKey is stable across reloads. */
+const idForEventKey = (eventKey: string) =>
+  `inbox-${hashString(eventKey).toString(36)}`;
+
+/* ---------- Registry validation ----------
+ * Any scheduleGenerator effect must target a generator that is actually
+ * registered below. We validate at effect-application time so bugs surface
+ * loudly in dev instead of silently dropping a follow-up.
+ */
+const KNOWN_GENERATOR_IDS = new Set<string>();
+export function assertGeneratorRegistered(id: string): void {
+  if (KNOWN_GENERATOR_IDS.size === 0) return; // registry not populated yet
+  if (!KNOWN_GENERATOR_IDS.has(id)) {
+    const msg = `[inbox] scheduleGenerator references unknown generatorId "${id}"`;
+    if (import.meta.env?.DEV) throw new Error(msg);
+    // eslint-disable-next-line no-console
+    console.warn(msg);
+  }
+}
+
 /* ---------- Effect application (the ONLY state mutator) ---------- */
 export function applyEffects(state: GameState, effects: InboxEffect[]): GameState {
   const s = structuredClone(state);
@@ -49,15 +74,14 @@ export function applyEffects(state: GameState, effects: InboxEffect[]): GameStat
     switch (e.kind) {
       case "cash":
         s.cash = Math.round(s.cash + e.amount);
-        // Fold into current week's ledger if present, else append a synthetic one
         {
           const last = s.ledger[s.ledger.length - 1];
-          const bucket = e.amount >= 0 ? "other" : "other";
           if (last && last.week === s.week && last.season === s.season) {
-            if (e.amount >= 0) last.income[bucket] += e.amount;
-            else last.expenses[bucket] += -e.amount;
-            last.net = Object.values(last.income).reduce((a, b) => a + b, 0)
-                     - Object.values(last.expenses).reduce((a, b) => a + b, 0);
+            if (e.amount >= 0) last.income.other += e.amount;
+            else last.expenses.other += -e.amount;
+            last.net =
+              Object.values(last.income).reduce((a, b) => a + b, 0) -
+              Object.values(last.expenses).reduce((a, b) => a + b, 0);
             last.balance = s.cash;
           }
         }
@@ -87,13 +111,19 @@ export function applyEffects(state: GameState, effects: InboxEffect[]): GameStat
       case "flag":
         s.inboxFlags[e.key] = e.value;
         break;
-      case "scheduleGenerator":
+      case "scheduleGenerator": {
+        assertGeneratorRegistered(e.generatorId);
+        const dueAbs = absoluteWeek(s.season, s.week) + e.inWeeks;
+        const derived = fromAbsoluteWeek(dueAbs);
         s.scheduledGenerators.push({
           generatorId: e.generatorId,
-          dueWeek: ((s.week + e.inWeeks - 1) % 46) + 1,
-          dueSeason: s.season + Math.floor((s.week + e.inWeeks - 1) / 46),
+          dueAtAbsoluteWeek: dueAbs,
+          dueWeek: derived.week,
+          dueSeason: derived.season,
+          payload: e.payload,
         });
         break;
+      }
     }
   }
   return s;
@@ -112,7 +142,7 @@ export function handleInboxChoice(s: GameState, itemId: string, choiceId: string
   if (!item || !item.choices) return s;
   const choice = item.choices.find((c) => c.id === choiceId);
   if (!choice) return s;
-  let ns = applyEffects(s, choice.effects);
+  const ns = applyEffects(s, choice.effects);
   ns.inbox = ns.inbox.map((i) =>
     i.id === itemId ? { ...i, status: "completed", chosenChoiceId: choiceId } : i,
   );
@@ -139,31 +169,47 @@ export const unreadCount = (s: GameState) =>
 
 /* =========================================================================
    Generators
-   -------------------------------------------------------------------------
-   Each generator: pure function of state. Return items to append. Use
-   inboxFlags to avoid re-emitting the same message. Use scheduledGenerators
-   for time-delayed follow-ups (checked at the top of runWeeklyGenerators).
 ========================================================================= */
 
 interface Generator {
   id: string;
-  run: (s: GameState, dueNow: boolean) => InboxItem[];
+  /**
+   * @param state       current game state (already ticked to the new week)
+   * @param dueEntries  scheduled entries whose dueAtAbsoluteWeek has arrived
+   *                    and whose generatorId matches this generator.
+   */
+  run: (state: GameState, dueEntries: ScheduledGenerator[]) => InboxItem[];
 }
 
-const mk = (
-  s: GameState,
-  generatorId: string,
-  partial: Omit<InboxItem,
-    "id" | "generatorId" | "week" | "season" | "status"
-  > & { status?: InboxItem["status"] },
-): InboxItem => ({
-  id: nextId(generatorId),
-  generatorId,
-  week: s.week,
-  season: s.season,
-  status: partial.choices ? "unread" : "unread",
-  ...partial,
-});
+type InboxItemDraft = Omit<
+  InboxItem,
+  "id" | "generatorId" | "week" | "season" | "status" | "expiresWeek"
+> & {
+  status?: InboxItem["status"];
+  /** Optional deadline in weeks-from-now. Converted to absolute at emit time. */
+  expiresInWeeks?: number;
+};
+
+function mk(s: GameState, generatorId: string, draft: InboxItemDraft): InboxItem {
+  let expiresAtAbsoluteWeek = draft.expiresAtAbsoluteWeek;
+  if (expiresAtAbsoluteWeek == null && draft.expiresInWeeks != null) {
+    expiresAtAbsoluteWeek = absoluteWeek(s.season, s.week) + draft.expiresInWeeks;
+  }
+  const expiresWeek =
+    expiresAtAbsoluteWeek != null ? fromAbsoluteWeek(expiresAtAbsoluteWeek).week : undefined;
+  const { expiresInWeeks: _drop, ...rest } = draft;
+  void _drop;
+  return {
+    id: idForEventKey(draft.eventKey),
+    generatorId,
+    week: s.week,
+    season: s.season,
+    status: "unread",
+    ...rest,
+    expiresAtAbsoluteWeek,
+    expiresWeek,
+  };
+}
 
 /* -- 1. Welcome from the Board -- */
 const G_WELCOME: Generator = {
@@ -172,6 +218,7 @@ const G_WELCOME: Generator = {
     if (s.inboxFlags["welcomed"]) return [];
     return [
       mk(s, "board-welcome", {
+        eventKey: "board-welcome",
         sender: "Bill Roberts",
         department: "Board of Directors",
         category: "board",
@@ -183,8 +230,6 @@ const G_WELCOME: Generator = {
           `groundskeeping, sponsors, the league, all of it.\n\n` +
           `We expect a mid-table finish this season. Keep the books healthy ` +
           `and the fans on side and we'll leave you to it.`,
-        // The welcome carries a one-time flag-setting "acknowledge" so it
-        // never fires again.
         choices: [
           {
             id: "ack",
@@ -198,25 +243,29 @@ const G_WELCOME: Generator = {
   },
 };
 
-/* -- 2. Weekly Finance report (from the previous week's ledger) -- */
+/* -- 2. Weekly Finance report (from the previous week's ledger) --
+ * Uses the absolute-week axis so the season-1 → season-2 rollover still
+ * finds the previous week's ledger row.
+ */
 const G_FINANCE_WEEKLY: Generator = {
   id: "finance-weekly",
   run: (s) => {
-    // Report the ledger row that was just closed = previous week
-    const prevW = s.week - 1;
-    if (prevW < 1) return [];
-    const row = s.ledger.find((l) => l.season === s.season && l.week === prevW);
+    const prevAbs = absoluteWeek(s.season, s.week) - 1;
+    if (prevAbs < 1) return [];
+    const prev = fromAbsoluteWeek(prevAbs);
+    const row = s.ledger.find((l) => l.season === prev.season && l.week === prev.week);
     if (!row) return [];
     const inc = Object.values(row.income).reduce((a, b) => a + b, 0);
     const exp = Object.values(row.expenses).reduce((a, b) => a + b, 0);
     const tone: InboxPriority = row.net < -50_000 ? "high" : "low";
     return [
       mk(s, "finance-weekly", {
+        eventKey: `finance-weekly:s${prev.season}:w${prev.week}`,
         sender: "Margaret Doyle",
         department: "Finance",
         category: "financial",
         priority: tone,
-        subject: `Week ${prevW} P&L — net ${money(row.net)}`,
+        subject: `Week ${prev.week} P&L — net ${money(row.net)}`,
         body:
           `Income:  ${money(inc)}\n` +
           `  Gate .......... ${money(row.income.gate)}\n` +
@@ -248,6 +297,7 @@ const G_ROOF: Generator = {
     if (!(s.week === 3 && s.season === 1)) return [];
     return [
       mk(s, "grounds-south-roof", {
+        eventKey: "grounds-south-roof:s1",
         sender: "Eddie Kerr",
         department: "Groundskeeper",
         category: "facilities",
@@ -258,7 +308,7 @@ const G_ROOF: Generator = {
           `before autumn storms, we're looking at leaks over ~800 seats and ` +
           `an emergency closure at worst.\n\n` +
           `Full repair now: £120k. Cosmetic patch: £40k. Leave it: your call.`,
-        expiresWeek: 8,
+        expiresInWeeks: 5,
         consequenceOnExpire: [
           { kind: "flag", key: "roofHandled", value: "ignored" },
           { kind: "standCondition", standKey: "S", delta: -12 },
@@ -306,10 +356,11 @@ const G_ROOF: Generator = {
 /* -- 3b. Roof follow-up if patched (scheduled from the patch choice) -- */
 const G_ROOF_FOLLOWUP: Generator = {
   id: "grounds-south-roof-followup",
-  run: (s, dueNow) => {
-    if (!dueNow) return [];
+  run: (s, due) => {
+    if (due.length === 0) return [];
     return [
       mk(s, "grounds-south-roof-followup", {
+        eventKey: `grounds-south-roof-followup:s${s.season}:w${s.week}`,
         sender: "Eddie Kerr",
         department: "Groundskeeper",
         category: "facilities",
@@ -343,16 +394,21 @@ const G_ROOF_FOLLOWUP: Generator = {
   },
 };
 
-/* -- 4. Fan Liaison warning when happiness drops -- */
+/* -- 4. Fan Liaison warning when happiness drops --
+ * Cooldown is stored on the absolute-week axis so end-of-season rollover
+ * doesn't spuriously re-trigger the warning.
+ */
 const G_FAN_WARN: Generator = {
   id: "fans-happiness-warning",
   run: (s) => {
-    const cooldownKey = "fansWarnedAtWeek";
+    const cooldownKey = "fansWarnedAtAbsoluteWeek";
+    const nowAbs = absoluteWeek(s.season, s.week);
     const last = Number(s.inboxFlags[cooldownKey] ?? 0);
     if (s.fanHappiness >= 45) return [];
-    if (s.week - last < 8) return [];
+    if (nowAbs - last < 8) return [];
     return [
       mk(s, "fans-happiness-warning", {
+        eventKey: `fans-happiness-warning:abs${nowAbs}`,
         sender: "Priya Bhatt",
         department: "Fan Liaison",
         category: "warning",
@@ -371,7 +427,7 @@ const G_FAN_WARN: Generator = {
             effects: [
               { kind: "cash", amount: -25_000 },
               { kind: "fanHappiness", delta: 8 },
-              { kind: "flag", key: cooldownKey, value: s.week },
+              { kind: "flag", key: cooldownKey, value: nowAbs },
             ],
           },
           {
@@ -380,7 +436,7 @@ const G_FAN_WARN: Generator = {
             hint: "+2 happiness, no cost, unconvincing.",
             effects: [
               { kind: "fanHappiness", delta: 2 },
-              { kind: "flag", key: cooldownKey, value: s.week },
+              { kind: "flag", key: cooldownKey, value: nowAbs },
             ],
           },
           {
@@ -390,7 +446,7 @@ const G_FAN_WARN: Generator = {
             effects: [
               { kind: "fanHappiness", delta: -3 },
               { kind: "reputation", delta: -1 },
-              { kind: "flag", key: cooldownKey, value: s.week },
+              { kind: "flag", key: cooldownKey, value: nowAbs },
             ],
           },
         ],
@@ -399,19 +455,25 @@ const G_FAN_WARN: Generator = {
   },
 };
 
-/* -- 5. Sponsor renewal opportunity when a sponsor is nearly out -- */
+/* -- 5. Sponsor renewal opportunity when a sponsor is nearly out --
+ * Deterministic uplift and bonus (seeded rng), stable eventKey per
+ * (sponsor, season). Once emitted, the eventKey dedup in the runner
+ * prevents duplicates in any state — the offer stays pending as long
+ * as the item is unread/awaiting/expired for that (sponsor, season).
+ */
 const G_SPONSOR_RENEW: Generator = {
   id: "commercial-sponsor-renewal",
   run: (s) => {
     const items: InboxItem[] = [];
     for (const sp of s.sponsors) {
       if (sp.weeksLeft <= 0 || sp.weeksLeft > 6) continue;
-      const key = `sponsorOffered-${sp.name}-s${s.season}-w${s.week}`;
-      if (s.inboxFlags[`sponsorOffered-${sp.name}-s${s.season}`]) continue;
-      const uplift = Math.round(sp.weekly * (0.95 + Math.random() * 0.25));
+      const eventKey = `commercial-sponsor-renewal:${sponsorId(sp.name)}:s${s.season}`;
+      const rng = seededRng(s.saveSeed, "commercial-sponsor-renewal", sp.name, s.season);
+      const uplift = Math.round(sp.weekly * (0.95 + rng() * 0.25));
       const bonus = Math.round(sp.weekly * 8);
       items.push(
         mk(s, "commercial-sponsor-renewal", {
+          eventKey,
           sender: "Sam Iyer",
           department: "Commercial",
           category: "opportunity",
@@ -422,7 +484,7 @@ const G_SPONSOR_RENEW: Generator = {
             `for 2 seasons, plus a ${money(bonus)} signing bonus.\n\n` +
             `We can push for more — they may walk.`,
           reward: `+${money(bonus)} now, +${money(uplift)}/wk`,
-          expiresWeek: s.week + 4,
+          expiresInWeeks: 4,
           consequenceOnExpire: [
             { kind: "flag", key: `sponsorOffered-${sp.name}-s${s.season}`, value: "expired" },
           ],
@@ -442,7 +504,12 @@ const G_SPONSOR_RENEW: Generator = {
               hint: "50/50: better deal, or they walk.",
               effects: [
                 { kind: "flag", key: `sponsorOffered-${sp.name}-s${s.season}`, value: "pushed" },
-                { kind: "scheduleGenerator", generatorId: "commercial-sponsor-pushback", inWeeks: 1 },
+                {
+                  kind: "scheduleGenerator",
+                  generatorId: "commercial-sponsor-pushback",
+                  inWeeks: 1,
+                  payload: { sponsorName: sp.name, currentWeekly: sp.weekly, offered: uplift },
+                },
               ],
             },
             {
@@ -456,8 +523,103 @@ const G_SPONSOR_RENEW: Generator = {
           ],
         }),
       );
-      // guard the loop id key
-      void key;
+    }
+    return items;
+  },
+};
+
+/* -- 5b. Sponsor pushback follow-up --
+ * Deterministic outcome from (saveSeed, sponsorName, season). Head of
+ * Transfers negotiation nudges the odds. Two outcomes:
+ *   - success: sponsor accepts +15%; player may accept or reject.
+ *   - failure: sponsor withdraws; the original terms are gone too.
+ */
+const G_SPONSOR_PUSHBACK: Generator = {
+  id: "commercial-sponsor-pushback",
+  run: (s, due) => {
+    const items: InboxItem[] = [];
+    for (const entry of due) {
+      const p = entry.payload ?? {};
+      const sponsorName = String(p.sponsorName ?? "");
+      const offered = Number(p.offered ?? 0);
+      if (!sponsorName || offered <= 0) continue;
+
+      const hot = s.hiredStaff.find((x) => x.role === "Head of Transfers");
+      const negotiation = hot?.stats.negotiation ?? 40;
+      // Deterministic 0..1 draw seeded from stable inputs.
+      const rng = seededRng(s.saveSeed, "commercial-sponsor-pushback", sponsorName, s.season);
+      const draw = rng();
+      // 50% baseline + up to +30% swing from negotiator quality.
+      const successThreshold = 0.5 + Math.min(0.3, (negotiation - 40) / 200);
+      const success = draw < successThreshold;
+
+      const eventKey = `commercial-sponsor-pushback:${sponsorId(sponsorName)}:s${s.season}`;
+
+      if (success) {
+        const bumped = Math.round(offered * 1.15);
+        const bonus = Math.round(bumped * 8);
+        items.push(
+          mk(s, "commercial-sponsor-pushback", {
+            eventKey,
+            sender: "Sam Iyer",
+            department: "Commercial",
+            category: "opportunity",
+            priority: "high",
+            subject: `${sponsorName} blinked — improved offer`,
+            body:
+              `They came back with the +15%. New terms: ${money(bumped)}/week ` +
+              `for 2 seasons plus a ${money(bonus)} signing bonus. Your call.`,
+            reward: `+${money(bonus)} now, +${money(bumped)}/wk`,
+            expiresInWeeks: 3,
+            consequenceOnExpire: [
+              { kind: "flag", key: `sponsorPushback-${sponsorName}-s${s.season}`, value: "lapsed" },
+            ],
+            choices: [
+              {
+                id: "accept",
+                label: `Accept improved — ${money(bonus)} + ${money(bumped)}/wk`,
+                effects: [
+                  { kind: "cash", amount: bonus, note: "Sponsor bonus (improved)" },
+                  { kind: "sponsorExtend", sponsorName, addWeeks: 76, newWeekly: bumped },
+                  { kind: "flag", key: `sponsorPushback-${sponsorName}-s${s.season}`, value: "accepted" },
+                ],
+              },
+              {
+                id: "reject",
+                label: "Reject — walk away",
+                hint: "No deal. Sponsor lapses when weeks run out.",
+                effects: [
+                  { kind: "flag", key: `sponsorPushback-${sponsorName}-s${s.season}`, value: "rejected" },
+                ],
+              },
+            ],
+          }),
+        );
+      } else {
+        items.push(
+          mk(s, "commercial-sponsor-pushback", {
+            eventKey,
+            sender: "Sam Iyer",
+            department: "Commercial",
+            category: "warning",
+            priority: "normal",
+            subject: `${sponsorName} walked away`,
+            body:
+              `They wouldn't budge. When we pushed for +15% they pulled the ` +
+              `original offer off the table entirely. The contract will now ` +
+              `lapse at the end of its current term.`,
+            choices: [
+              {
+                id: "ack",
+                label: "Noted",
+                effects: [
+                  { kind: "flag", key: `sponsorPushback-${sponsorName}-s${s.season}`, value: "withdrawn" },
+                ],
+              },
+            ],
+          }),
+        );
+      }
     }
     return items;
   },
@@ -467,11 +629,14 @@ const G_SPONSOR_RENEW: Generator = {
 const G_MEDIA_MATCH: Generator = {
   id: "media-post-match",
   run: (s) => {
-    const prevW = s.week - 1;
-    const r = s.results.find((x) => x.week === prevW);
+    const prevAbs = absoluteWeek(s.season, s.week) - 1;
+    if (prevAbs < 1) return [];
+    const prev = fromAbsoluteWeek(prevAbs);
+    // Match results only carry (week) — filter by season via the ledger row
+    // so we don't cross-season a stale result.
+    const r = s.results.find((x) => x.week === prev.week);
     if (!r) return [];
-    const key = `mediaShown-s${s.season}-w${prevW}`;
-    if (s.inboxFlags[key]) return [];
+    const eventKey = `media-post-match:s${prev.season}:w${prev.week}`;
     const label = r.result === "W" ? "Ecstatic" : r.result === "D" ? "Measured" : "Damning";
     const body =
       r.result === "W"
@@ -481,6 +646,7 @@ const G_MEDIA_MATCH: Generator = {
         : `Poor ${r.goalsFor}-${r.goalsAgainst} defeat to ${r.opponent}. Local paper calls for "clarity from the boardroom".`;
     return [
       mk(s, "media-post-match", {
+        eventKey,
         sender: "Chronicle sport desk",
         department: "Media",
         category: "media",
@@ -491,7 +657,9 @@ const G_MEDIA_MATCH: Generator = {
           {
             id: "noted",
             label: "Read and file",
-            effects: [{ kind: "flag", key, value: true }],
+            effects: [
+              { kind: "flag", key: `mediaShown-s${prev.season}-w${prev.week}`, value: true },
+            ],
           },
         ],
       }),
@@ -507,20 +675,34 @@ const GENERATORS: Generator[] = [
   G_ROOF_FOLLOWUP,
   G_FAN_WARN,
   G_SPONSOR_RENEW,
+  G_SPONSOR_PUSHBACK,
   G_MEDIA_MATCH,
 ];
+for (const g of GENERATORS) KNOWN_GENERATOR_IDS.add(g.id);
 
-/* ---------- Weekly runner ---------- */
+export function isKnownGeneratorId(id: string): boolean {
+  return KNOWN_GENERATOR_IDS.has(id);
+}
+
+/* ---------- Weekly runner ----------
+ * - Expires any past-deadline items (absolute-week comparison).
+ * - Runs every generator; passes each the scheduled entries whose
+ *   dueAtAbsoluteWeek has arrived and whose generatorId matches.
+ * - Deduplicates by eventKey across ALL existing inbox items so a
+ *   pending/awaiting/completed/expired event can't be re-emitted.
+ */
 export function runWeeklyGenerators(prev: GameState): GameState {
   const s = structuredClone(prev);
+  const nowAbs = absoluteWeek(s.season, s.week);
 
-  // Expire timed-out items first
+  // 1. Expire timed-out items on the absolute axis.
   for (const it of s.inbox) {
+    const deadline = it.expiresAtAbsoluteWeek;
     if (
-      it.expiresWeek != null &&
+      deadline != null &&
       it.status !== "completed" &&
       it.status !== "expired" &&
-      (s.season > it.season || s.week > it.expiresWeek)
+      nowAbs > deadline
     ) {
       it.status = "expired";
       if (it.consequenceOnExpire) {
@@ -529,23 +711,35 @@ export function runWeeklyGenerators(prev: GameState): GameState {
     }
   }
 
-  // Compute which scheduled generators are due this week
-  const dueIds = new Set<string>();
+  // 2. Pull scheduled entries that are due now, grouped by generatorId.
+  const dueByGenerator = new Map<string, ScheduledGenerator[]>();
   s.scheduledGenerators = s.scheduledGenerators.filter((g) => {
-    const due = g.dueSeason < s.season || (g.dueSeason === s.season && g.dueWeek <= s.week);
-    if (due) dueIds.add(g.generatorId);
+    const dueAbs = g.dueAtAbsoluteWeek;
+    const due = dueAbs != null && dueAbs <= nowAbs;
+    if (due) {
+      const arr = dueByGenerator.get(g.generatorId) ?? [];
+      arr.push(g);
+      dueByGenerator.set(g.generatorId, arr);
+    }
     return !due;
   });
 
-  // Run every generator; each decides whether to emit
+  // 3. Build a fast lookup of existing eventKeys so we never emit duplicates.
+  const existingKeys = new Set(s.inbox.map((i) => i.eventKey));
+
+  // 4. Run every generator; dedup on eventKey before appending.
   for (const g of GENERATORS) {
-    const items = g.run(s, dueIds.has(g.id));
-    for (const it of items) s.inbox.push(it);
+    const due = dueByGenerator.get(g.id) ?? [];
+    const items = g.run(s, due);
+    for (const it of items) {
+      if (existingKeys.has(it.eventKey)) continue;
+      existingKeys.add(it.eventKey);
+      s.inbox.push(it);
+    }
   }
 
-  // Cap history to keep localStorage sane
+  // 5. Cap history to keep localStorage sane.
   if (s.inbox.length > 200) {
-    // keep all unread/awaiting + most recent 150 others
     const keep: InboxItem[] = [];
     const others: InboxItem[] = [];
     for (const it of s.inbox) {
