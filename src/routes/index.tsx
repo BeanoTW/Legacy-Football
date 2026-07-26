@@ -82,6 +82,8 @@ import {
   unreadCount,
   markInboxRead,
   handleInboxChoice,
+  evaluateChoice,
+
   dismissInboxItem,
   clearReadInbox,
   CATEGORY_META,
