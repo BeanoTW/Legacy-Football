@@ -233,8 +233,18 @@ export function weeklyIncomeEstimate(s: GameState): number {
     );
     return total / recent.length;
   }
+  // No banked weeks yet (fresh save): project the recurring streams instead of
+  // guessing, otherwise the wage ratio reads as several hundred percent in
+  // pre-season and every director opens the season furious about nothing.
   const sponsor = (s.sponsors ?? []).reduce((a, x) => a + (x.weeksLeft > 0 ? x.weekly : 0), 0);
-  return Math.max(1, sponsor + 20_000);
+  const merchandise = 400 + (s.reputation ?? 50) * 90 + (s.fanHappiness ?? 60) * 30;
+  const capacity = (s.stands ?? []).reduce((a, b) => a + b.capacity, 0);
+  const avgPrice = capacity
+    ? (s.stands ?? []).reduce((a, b) => a + b.ticketPrice * b.capacity, 0) / capacity
+    : 0;
+  // 19 home league games spread across a 46-week season, ~65% occupancy.
+  const matchday = avgPrice * capacity * 0.65 * (19 / 46);
+  return Math.max(1, sponsor + merchandise + matchday);
 }
 
 /** Wage bill as a percentage of recurring income. Lower is healthier. */
