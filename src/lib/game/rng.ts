@@ -10,7 +10,7 @@
      - Two independent evaluations of the same generator with the same
        state agree on IDs, monetary values and choice outcomes.
 
-   Do NOT use Math.random(), Date.now() or crypto.randomUUID() for any
+   Do NOT use unseeded randomness or wall-clock time, or crypto.randomUUID() for any
    value that is persisted into an InboxItem or that determines a
    follow-up outcome.
 ========================================================================= */

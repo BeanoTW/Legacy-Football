@@ -229,6 +229,32 @@ export interface FixtureResult {
   result: "W" | "D" | "L";
 }
 
+/** Immutable historical record of one completed league fixture. */
+export interface MatchRecord {
+  /** Stable fixture identity: league|season|round|home>away */
+  id: string;
+  league: string;
+  season: number;
+  week: number;
+  round: number;
+  home: string;
+  away: string;
+  homeGoals: number;
+  awayGoals: number;
+  outcome: "home" | "away" | "draw";
+  /** Seed string used for AI simulation (absent for user-played matches). */
+  seed?: string;
+  userInvolved: boolean;
+}
+
+/** One scheduled league fixture (all clubs, not just the user's). */
+export interface ScheduledFixture {
+  round: number;
+  week: number;
+  home: string;
+  away: string;
+}
+
 export interface LeagueRow {
   team: string;
   p: number; w: number; d: number; l: number;
@@ -314,7 +340,7 @@ export interface LiveMatch {
 
 export interface GameState {
   /** Save schema version. Bump + add a migration in loadGame when persisted shape changes. */
-  version: 2;
+  version: 3;
   /** Stable per-save seed. Used for deterministic inbox generation. */
   saveSeed: string;
   clubName: string;
@@ -340,6 +366,11 @@ export interface GameState {
 
   fixtures: { week: number; opponent: string; home: boolean }[];
   results: FixtureResult[];
+
+  /** Full division schedule for the current season (all clubs). */
+  leagueSchedule: ScheduledFixture[];
+  /** Permanent history of every completed fixture, all seasons. */
+  matchRecords: MatchRecord[];
 
   ledger: WeekLedger[];
   league: LeagueRow[];

@@ -15,9 +15,15 @@ import type {
   LiveMatch,
   MatchEvent,
   HalfTimeOption,
+  ScheduledFixture,
+  MatchRecord,
 } from "./types";
 import { runWeeklyGenerators } from "./inbox";
 import { buildSeasonSchedule, clubFixtures } from "./fixtures";
+import {
+  makeRecord, resolveWeek, resolveRemainingSeason, syncTable, hasFullSchedule,
+  isSeasonComplete, buildTable, fixtureId,
+} from "./league";
 
 
 const STORAGE_KEY = "chairman.save.v1";
@@ -81,6 +87,19 @@ export function leagueTeams(clubName: string): string[] {
  * Deterministic double round-robin (circle method + home/away rebalancing).
  * Same seed + same participants => identical schedule.
  */
+/** Full division schedule (all clubs) for one season, mapped onto weeks. */
+export function makeLeagueSchedule(clubName: string, seed: string): ScheduledFixture[] {
+  const teams = leagueTeams(clubName);
+  return buildSeasonSchedule(teams, seed).flatMap((round, idx) =>
+    round.map((m) => ({
+      round: idx + 1,
+      week: weekForLeagueRound(idx + 1),
+      home: m.home,
+      away: m.away,
+    })),
+  );
+}
+
 export function makeFixtures(
   clubName: string,
   seed: string,
@@ -269,7 +288,7 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
     { key: "W", name: "West Stand",  capacity: 7000, condition: 94, ticketPrice: 30 },
   ];
   return {
-    version: 2,
+    version: 3,
     saveSeed,
     clubName,
     managerName,
@@ -293,6 +312,8 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
       { name: "Training Wear",    weekly: 2_200,  weeksLeft: 20 },
     ],
     fixtures: makeFixtures(clubName, `${saveSeed}|season1`),
+    leagueSchedule: makeLeagueSchedule(clubName, `${saveSeed}|season1`),
+    matchRecords: [],
     results: [],
     ledger: [],
     league: makeLeague(clubName),
@@ -434,15 +455,41 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     s.fanHappiness = Math.max(5, Math.min(100, s.fanHappiness + swing));
     s.reputation = Math.max(20, Math.min(95, s.reputation + (result === "W" ? 0.4 : result === "L" ? -0.3 : 0)));
 
-    const my = s.league.find((r) => r.team === s.clubName)!;
-    const opp = s.league.find((r) => r.team === fixture.opponent)!;
-    if (my && opp) {
-      my.p++; opp.p++;
-      my.gf += gf; my.ga += ga;
-      opp.gf += ga; opp.ga += gf;
-      if (result === "W") { my.w++; my.pts += 3; opp.l++; }
-      else if (result === "L") { my.l++; opp.w++; opp.pts += 3; }
-      else { my.d++; my.pts += 1; opp.d++; opp.pts += 1; }
+    if (hasFullSchedule(s)) {
+      // Record-driven league: store the user's fixture, resolve every AI
+      // fixture in the same round, then project the table from records.
+      const sched = s.leagueSchedule.find(
+        (f) => f.week === s.week &&
+          ((f.home === s.clubName && f.away === fixture.opponent) ||
+           (f.away === s.clubName && f.home === fixture.opponent)),
+      );
+      if (sched) {
+        const home = fixture.home ? s.clubName : fixture.opponent;
+        const away = fixture.home ? fixture.opponent : s.clubName;
+        const id = fixtureId(s.season, sched.round, home, away);
+        const already = s.matchRecords.some((r) => r.id === id);
+        const userRecord: MatchRecord | undefined = already ? undefined : makeRecord({
+          season: s.season, week: s.week, round: sched.round,
+          home, away,
+          homeGoals: fixture.home ? gf : ga,
+          awayGoals: fixture.home ? ga : gf,
+          userInvolved: true,
+        });
+        resolveWeek(s, s.week, userRecord);
+      }
+    } else {
+      // Legacy (pre-v3) in-progress season: no full schedule, keep the old
+      // incremental two-club update so existing saves stay consistent.
+      const my = s.league.find((r) => r.team === s.clubName)!;
+      const opp = s.league.find((r) => r.team === fixture.opponent)!;
+      if (my && opp) {
+        my.p++; opp.p++;
+        my.gf += gf; my.ga += ga;
+        opp.gf += ga; opp.ga += gf;
+        if (result === "W") { my.w++; my.pts += 3; opp.l++; }
+        else if (result === "L") { my.l++; opp.w++; opp.pts += 3; }
+        else { my.d++; my.pts += 1; opp.d++; opp.pts += 1; }
+      }
     }
     ledger.matchdayNote = `${fixture.home ? "H" : "A"} vs ${fixture.opponent} — ${gf}-${ga} ${result}`;
   } else if (!override && FRIENDLY_WEEKS.has(s.week)) {
@@ -491,9 +538,12 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
 
 
 
-  // ---- Simulate other league games (light) — only during league weeks ----
+  // ---- Legacy fallback only ----
+  // Pre-v3 saves have no full division schedule, so the old "sprinkle four
+  // random AI results" hack keeps their table moving. Schedule-backed saves
+  // resolve every real fixture in resolveWeek() instead.
   const inLeague = phaseOf(s.week) === "firstHalf" || phaseOf(s.week) === "secondHalf";
-  if (inLeague) {
+  if (inLeague && !hasFullSchedule(s)) {
     const others = s.league.filter((r) => r.team !== s.clubName);
     for (let i = 0; i < 4; i++) {
       const a = pick(others), b = pick(others);
@@ -549,9 +599,17 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   s.ledger.push(ledger);
   if (fxResult) s.results.push(fxResult);
 
+  // ---- Resolve any remaining AI fixtures for this round, then project table ----
+  resolveWeek(s, s.week);
+  syncTable(s);
+
   // ---- Advance clock ----
   s.week += 1;
   if (s.week > SEASON_END_WEEK) {
+    // Season completion is defined by fixtures resolved, not by the calendar.
+    // Any fixture still outstanding (e.g. a skipped week) is resolved first.
+    resolveRemainingSeason(s);
+    syncTable(s);
     // end of season: prize money based on league position
     const sorted = [...s.league].sort((a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga));
     const pos = sorted.findIndex((r) => r.team === s.clubName) + 1;
@@ -569,6 +627,8 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     s.season += 1;
     s.week = 1;
     s.fixtures = makeFixtures(s.clubName, `${s.saveSeed}|season${s.season}`);
+    s.leagueSchedule = makeLeagueSchedule(s.clubName, `${s.saveSeed}|season${s.season}`);
+    // matchRecords are permanent history — never cleared.
     s.results = [];
     s.league = makeLeague(s.clubName);
     // age players + minor rating drift
@@ -670,6 +730,18 @@ export function migrateSave(parsed: Record<string, unknown>): GameState {
     p.version = 2;
   }
 
+  // v2 → v3: league simulation foundation.
+  //
+  // Completed history is never rewritten. A v2 save has no full division
+  // schedule and no match records, so its CURRENT season stays on the legacy
+  // user-only path (existing table and results are left exactly as they are).
+  // The full schedule + AI simulation switch on at the next season rollover.
+  if (p.version < 3) {
+    if (!Array.isArray(p.matchRecords)) p.matchRecords = [];
+    if (!Array.isArray(p.leagueSchedule)) p.leagueSchedule = [];
+    p.version = 3;
+  }
+
   return p as GameState;
 }
 
@@ -688,7 +760,7 @@ export function loadGame(): GameState | null {
     const v = (parsed as { version?: number }).version;
     // Missing version = pre-versioning save, treat as v1. Only refuse saves
     // written by a FUTURE schema we don't understand.
-    if (typeof v === "number" && v > 2) return null;
+    if (typeof v === "number" && v > 3) return null;
     const legacyV = typeof v === "number" && v >= 1 ? v : 1;
     const migrated = migrateSave(parsed);
     // If this save had no inbox at all (older than v2 introduction), seed it.
