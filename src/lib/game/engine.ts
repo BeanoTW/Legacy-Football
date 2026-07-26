@@ -38,7 +38,7 @@ import {
   rollBoardToNewSeason,
 } from "./board";
 import {
-  ensureFinance, initFinance, migrateLegacyLedger, postRecurringWeek,
+  ensureFinance, initFinance, postEntry, migrateLegacyLedger, postRecurringWeek,
   postMatchdayFinance, syncWeekLedger, awardPrizeMoney,
   closeSeasonFinance, openSeasonFinance,
 } from "./finance";
@@ -1158,9 +1158,8 @@ export function approveTransferTarget(
     otherClub: "Scouted",
     handledBy: t.scoutedByName,
   });
-  // record fee on the current week's ledger too (running week)
-  const cur = ns.ledger[ns.ledger.length - 1];
-  if (cur && cur.week === ns.week) cur.expenses.transfers += t.askingFee;
+  // Cash already left the club when the pot was allocated, so the fee is a
+  // movement inside the ring-fenced transfer budget, not a new cash outflow.
   return { state: ns, ok: true };
 }
 
@@ -1196,7 +1195,16 @@ export function respondToBid(s: GameState, id: string, accept: boolean): GameSta
   if (accept) {
     const p = ns.squad.find((x) => x.id === b.playerId);
     if (p) {
-      ns.cash += b.fee;
+      postEntry(ns, {
+        category: "Transfers",
+        subcategory: "Player sale",
+        description: `${p.name} sold to ${b.fromClub}`,
+        amount: b.fee,
+        direction: "income",
+        sourceSystem: "transfers",
+        linkedEntityId: b.id,
+        dedupeKey: `transfer-in:${b.id}`,
+      });
       // Sale proceeds land in spendable cash — reallocate to the transfer
       // pot manually if you want to reinvest.
       ns.wageBudgetWeekly += p.wage;
@@ -1211,8 +1219,6 @@ export function respondToBid(s: GameState, id: string, accept: boolean): GameSta
         wage: 0,
         otherClub: b.fromClub,
       });
-      const cur = ns.ledger[ns.ledger.length - 1];
-      if (cur && cur.week === ns.week) cur.income.transfers += b.fee;
     }
   }
   return ns;
@@ -1427,10 +1433,24 @@ export function setTransferBudget(
   if (delta > 0 && delta > s.cash) {
     return { state: s, ok: false, reason: "Not enough spendable cash to allocate" };
   }
-  return {
-    state: { ...s, transferBudget: target, cash: s.cash - delta },
-    ok: true,
-  };
+  // The pot is real money: allocating moves cash out of the club's spendable
+  // balance, releasing puts it back. Both legs are booked so the books
+  // reconcile against cash at all times.
+  const ns: GameState = structuredClone(s);
+  ns.transferBudget = target;
+  if (delta !== 0) {
+    postEntry(ns, {
+      category: "Transfers",
+      subcategory: delta > 0 ? "Budget ring-fence" : "Budget release",
+      description: delta > 0
+        ? "Cash ring-fenced into the transfer budget"
+        : "Unused transfer budget returned to spendable cash",
+      amount: Math.abs(delta),
+      direction: delta > 0 ? "expenditure" : "income",
+      sourceSystem: "transfers",
+    });
+  }
+  return { state: ns, ok: true };
 }
 export function setWageBudget(s: GameState, amount: number): GameState {
   return { ...s, wageBudgetWeekly: Math.max(0, Math.round(amount)) };
