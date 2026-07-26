@@ -562,9 +562,141 @@ export interface LiveMatch {
   winBonus: number;
 }
 
+/* =========================================================================
+   CLUB FINANCE
+   -------------------------------------------------------------------------
+   Every pound that moves creates exactly one FinanceEntry. The entry log is
+   append-only and reconciles to GameState.cash at all times:
+
+       cash === sum(income entries) - sum(expense entries)
+
+   All stored currency values are integers in pounds sterling.
+========================================================================= */
+
+export type FinanceDirection = "income" | "expense";
+
+export type FinanceCategory =
+  | "Matchday" | "Wages" | "Prize Money" | "Commercial" | "Facilities"
+  | "Operations" | "Board" | "Staff" | "Transfers" | "Miscellaneous";
+
+/** Which system authored the movement. Used for ledger filtering + audits. */
+export type FinanceSource =
+  | "engine.opening" | "engine.recurring" | "engine.matchday" | "engine.prize"
+  | "inbox" | "transfers" | "staff" | "board" | "migration";
+
+export interface FinanceEntry {
+  id: string;
+  season: number;
+  /** Week of season the movement was booked in. */
+  week: number;
+  /** Canonical position on the absolute timeline. */
+  absoluteWeek: number;
+  category: FinanceCategory;
+  subcategory: string;
+  description: string;
+  /** Always a positive integer. Direction carries the sign. */
+  amount: number;
+  direction: FinanceDirection;
+  sourceSystem: FinanceSource;
+  /** Fixture id, sponsor name, staff id, inbox item id … */
+  linkedEntityId?: string;
+  /** Cash balance immediately after this entry was posted. */
+  balanceAfter: number;
+  recurring: boolean;
+  /** Stable identity for exactly-once posting. Replays are ignored. */
+  dedupeKey?: string;
+  metadata?: Record<string, string | number | boolean>;
+}
+
+export type BoardSpendingPolicy =
+  | "Aggressive Investment" | "Controlled Growth" | "Balanced"
+  | "Cautious" | "Emergency Cost Control";
+
+export type FinancialRiskLevel =
+  | "Secure" | "Stable" | "Watch" | "High Risk" | "Critical";
+
+/** Board-approved authorisation limits. Budgets never create cash. */
+export type BudgetKey = "wages" | "transfers" | "facilities" | "commercial" | "contingency";
+
+export interface FinanceState {
+  /** Cash held at the first week of the current season. */
+  openingSeasonBalance: number;
+  /** Season the opening balance belongs to. */
+  openingSeasonNumber: number;
+  /** Cash the board expects to remain untouched. Derived from policy. */
+  minimumCashReserve: number;
+  boardSpendingPolicy: BoardSpendingPolicy;
+  /** Season the current policy + budgets were approved for. */
+  policySeason: number;
+  /** Authorisation limits. `wages` is £/week; the rest are seasonal £ pots. */
+  budgets: Record<BudgetKey, number>;
+  /** Monotonic counter used for deterministic ledger ids. */
+  nextEntryId: number;
+}
+
+/** Immutable close-of-season financial record. Never rewritten. */
+export interface SeasonFinancialSummary {
+  season: number;
+  leagueId: string;
+  openingBalance: number;
+  totalIncome: number;
+  totalExpenditure: number;
+  operatingProfit: number;
+  closingBalance: number;
+  wageCost: number;
+  matchdayIncome: number;
+  prizeMoney: number;
+  averageAttendance: number;
+  financialRiskAtClose: FinancialRiskLevel;
+  boardPolicy: BoardSpendingPolicy;
+  budgetPerformance: { key: BudgetKey; approved: number; committed: number }[];
+}
+
+export type AffordabilityVerdict =
+  | "affordable" | "affordableButRisky" | "requiresBoardApproval" | "unaffordable";
+
+export interface AffordabilityResult {
+  verdict: AffordabilityVerdict;
+  /** True only for "affordable" and "affordableButRisky". */
+  allowed: boolean;
+  amount: number;
+  cashNow: number;
+  cashAfter: number;
+  minimumReserve: number;
+  projectedSeasonEndBalance: number;
+  projectedAfterSpend: number;
+  reason: string;
+}
+
+export interface CashFlowForecast {
+  season: number;
+  fromWeek: number;
+  weeksRemaining: number;
+  currentBalance: number;
+  expectedRecurringIncome: number;
+  expectedRecurringExpenditure: number;
+  expectedMatchdayIncome: number;
+  scheduledKnownPayments: number;
+  prizeMoneyAssumption: number;
+  projectedSeasonEndBalance: number;
+  /** Always true — forecasts are deterministic estimates, never promises. */
+  estimate: true;
+}
+
+export interface WageSummary {
+  playerWagesWeekly: number;
+  staffWagesWeekly: number;
+  totalWeekly: number;
+  annualised: number;
+  budgetWeekly: number;
+  utilisationPct: number;
+  wageToRevenuePct: number;
+}
+
 export interface GameState {
   /** Save schema version. Bump + add a migration in loadGame when persisted shape changes. */
-  version: 6;
+  version: 7;
+
   /** Stable per-save seed. Used for deterministic inbox generation. */
   saveSeed: string;
   clubName: string;
