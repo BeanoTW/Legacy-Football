@@ -259,11 +259,13 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
     { key: "W", name: "West Stand",  capacity: 7000, condition: 94, ticketPrice: 30 },
   ];
   return {
-    version: 1,
+    version: 2,
+    saveSeed: `${clubName}|${managerName}|${Date.now().toString(36)}`,
     clubName,
     managerName,
     season: 1,
     week: 1,
+
     cash: 2_500_000,
     reputation: 55,
     fanHappiness: 70,
@@ -576,35 +578,98 @@ function ordinal(n: number): string {
 }
 
 /* ---------- Storage ---------- */
+/**
+ * Save schema migrations.
+ *
+ * v1 → v2 (Inbox Stabilisation Pass 1)
+ *   Added:
+ *     - GameState.saveSeed             — stable per-save seed for deterministic RNG
+ *     - InboxItem.eventKey             — stable dedup key
+ *     - InboxItem.expiresAtAbsoluteWeek — canonical deadline on absolute axis
+ *     - ScheduledGenerator.dueAtAbsoluteWeek — canonical due time on absolute axis
+ *   Converted:
+ *     - ScheduledGenerator.{dueWeek, dueSeason} → dueAtAbsoluteWeek
+ *     - InboxItem.expiresWeek → expiresAtAbsoluteWeek (assumed within saved season)
+ *     - inboxFlags.fansWarnedAtWeek → fansWarnedAtAbsoluteWeek (using saved season)
+ *   Fallback: any unrecognised legacy scheduled entry is dropped; any legacy
+ *   inbox item missing an eventKey is assigned one derived from its id.
+ */
+function migrateSave(parsed: Record<string, unknown>): GameState {
+  const p = parsed as unknown as GameState & { version: number };
+
+  if (!p.hiredStaff) p.hiredStaff = [];
+  if (!p.staffCandidates) p.staffCandidates = makeCandidatePool();
+  if (p.staffMarketRefreshedWeek == null) p.staffMarketRefreshedWeek = p.week;
+  if (p.transferBudget == null) p.transferBudget = 500_000;
+  if (p.wageBudgetWeekly == null) p.wageBudgetWeekly = 5_000;
+  if (!p.positionPriorities)
+    p.positionPriorities = { GK: "medium", DEF: "medium", MID: "medium", FWD: "medium" };
+  if (!p.transferTargets) p.transferTargets = [];
+  if (!p.incomingBids) p.incomingBids = [];
+  if (!p.completedTransfers) p.completedTransfers = [];
+  if (p.liveMatch === undefined) p.liveMatch = null;
+  if (!p.inbox) p.inbox = [];
+  if (!p.inboxFlags) p.inboxFlags = {};
+  if (!p.scheduledGenerators) p.scheduledGenerators = [];
+
+  // v1 → v2
+  if (p.version < 2) {
+    if (!p.saveSeed) p.saveSeed = `${p.clubName}|${p.managerName}|legacy-v1`;
+
+    // Inbox items: fill eventKey + convert expiresWeek → expiresAtAbsoluteWeek
+    for (const it of p.inbox) {
+      if (!it.eventKey) it.eventKey = `legacy:${it.generatorId}:${it.id}`;
+      if (it.expiresAtAbsoluteWeek == null && it.expiresWeek != null) {
+        // Legacy expiresWeek was week-of-season within the item's own season.
+        it.expiresAtAbsoluteWeek = absoluteWeekLocal(it.season, it.expiresWeek);
+      }
+    }
+
+    // Scheduled generators: convert (dueSeason, dueWeek) → dueAtAbsoluteWeek
+    p.scheduledGenerators = p.scheduledGenerators
+      .map((g) => {
+        if (g.dueAtAbsoluteWeek != null) return g;
+        if (g.dueSeason != null && g.dueWeek != null) {
+          return { ...g, dueAtAbsoluteWeek: absoluteWeekLocal(g.dueSeason, g.dueWeek) };
+        }
+        return null; // unrecognised legacy entry — drop
+      })
+      .filter((g): g is NonNullable<typeof g> => g !== null);
+
+    // Cooldown flag: convert week-of-season → absolute (using saved season)
+    const legacyWarn = p.inboxFlags["fansWarnedAtWeek"];
+    if (legacyWarn != null && p.inboxFlags["fansWarnedAtAbsoluteWeek"] == null) {
+      p.inboxFlags["fansWarnedAtAbsoluteWeek"] = absoluteWeekLocal(p.season, Number(legacyWarn));
+      delete p.inboxFlags["fansWarnedAtWeek"];
+    }
+
+    p.version = 2;
+  }
+
+  return p as GameState;
+}
+
+// Local copy to avoid a circular import (time.ts is imported by inbox.ts,
+// which is imported by engine.ts).
+function absoluteWeekLocal(season: number, week: number): number {
+  return (season - 1) * 46 + week;
+}
+
 export function loadGame(): GameState | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as GameState;
-    if (parsed.version !== 1) return null;
-    // Backwards-compat migration for saves created before newer features
-    if (!parsed.hiredStaff) parsed.hiredStaff = [];
-    if (!parsed.staffCandidates) parsed.staffCandidates = makeCandidatePool();
-    if (parsed.staffMarketRefreshedWeek == null) parsed.staffMarketRefreshedWeek = parsed.week;
-    if (parsed.transferBudget == null) parsed.transferBudget = 500_000;
-    if (parsed.wageBudgetWeekly == null) parsed.wageBudgetWeekly = 5_000;
-    if (!parsed.positionPriorities)
-      parsed.positionPriorities = { GK: "medium", DEF: "medium", MID: "medium", FWD: "medium" };
-    if (!parsed.transferTargets) parsed.transferTargets = [];
-    if (!parsed.incomingBids) parsed.incomingBids = [];
-    if (!parsed.completedTransfers) parsed.completedTransfers = [];
-    if (parsed.liveMatch === undefined) parsed.liveMatch = null;
-    const needsSeed = !parsed.inbox;
-    if (!parsed.inbox) parsed.inbox = [];
-    if (!parsed.inboxFlags) parsed.inboxFlags = {};
-    if (!parsed.scheduledGenerators) parsed.scheduledGenerators = [];
-    return needsSeed ? runWeeklyGenerators(parsed) : parsed;
-
-
-
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const v = (parsed as { version?: number }).version;
+    if (typeof v !== "number" || v < 1 || v > 2) return null;
+    const migrated = migrateSave(parsed);
+    // If this save had no inbox at all (older than v2 introduction), seed it.
+    const needsSeed = migrated.inbox.length === 0 && v < 2;
+    return needsSeed ? runWeeklyGenerators(migrated) : migrated;
   } catch { return null; }
 }
+
 
 export function saveGame(state: GameState) {
   if (typeof window === "undefined") return;
