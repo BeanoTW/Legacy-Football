@@ -11,6 +11,7 @@
 
 import type { GameState, LeagueRow, MatchRecord, ScheduledFixture } from "./types";
 import { mulberry32, hashString } from "./rng";
+import { clubStrengthFor } from "./reputation";
 
 /** Tier-1 division id. Also the id every pre-v4 record/fixture belongs to. */
 export const LEAGUE_ID = "league-1";
@@ -213,7 +214,7 @@ export function resolveWeek(s: GameState, week: number, userRecord?: MatchRecord
       if (userRecord && userRecord.id === id) s.matchRecords.push(userRecord);
       continue; // user fixture without a result stays Scheduled
     }
-    const sim = simulateAiFixture(s.saveSeed, s.season, f.round, f.home, f.away, lid);
+    const sim = simulateAiFixture(s, s.season, f.round, f.home, f.away, lid);
     s.matchRecords.push(
       makeRecord({
         leagueId: lid,
