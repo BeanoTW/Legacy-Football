@@ -40,7 +40,7 @@ function expiringItem(s: GameState, cost: number): InboxItem {
     week: s.week,
     season: s.season,
     status: "awaitingDecision",
-    expiresAtAbsoluteWeek: absoluteWeek(s.season, s.week),
+    expiresAtAbsoluteWeek: absoluteWeek(s.season, s.week) - 1,
     choices: [{ id: "pay", label: "Pay", effects: [{ kind: "cash", amount: -cost }] }],
     consequenceOnExpire: [
       { kind: "cash", amount: -cost, note: "Missed deadline penalty", expenseCategory: "other" },
