@@ -666,6 +666,9 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
       net: prize, balance: s.cash,
       matchdayNote: `SEASON END — Finished ${pos}${ordinal(pos)}. Prize £${prize.toLocaleString()}`,
     });
+    // Board's final judgement on the season just completed. Must run before
+    // the season counter moves so it is filed against the correct season.
+    runEndOfSeasonReview(s);
     // reset
     s.season += 1;
     s.week = 1;
@@ -690,7 +693,14 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
       if (p.age > 30) p.rating = Math.max(45, p.rating - randInt(0, 2));
       else if (p.age < 25) p.rating = Math.min(93, p.rating + randInt(0, 1));
     }
+    // New season objectives, derived from the freshly stored projection.
+    rollBoardToNewSeason(s);
   }
+
+  // Mid-season board checkpoint (exactly once per season).
+  ensureBoard(s);
+  maybeRunMidSeasonReview(s);
+
   return runWeeklyGenerators(s);
 }
 
