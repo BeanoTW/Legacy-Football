@@ -473,9 +473,11 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
       if (sched) {
         const home = fixture.home ? s.clubName : fixture.opponent;
         const away = fixture.home ? fixture.opponent : s.clubName;
-        const id = fixtureId(s.season, sched.round, home, away);
+        const lid = leagueOf(sched);
+        const id = fixtureId(s.season, sched.round, home, away, lid);
         const already = s.matchRecords.some((r) => r.id === id);
         const userRecord: MatchRecord | undefined = already ? undefined : makeRecord({
+          leagueId: lid,
           season: s.season, week: s.week, round: sched.round,
           home, away,
           homeGoals: fixture.home ? gf : ga,

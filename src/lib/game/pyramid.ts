@@ -23,6 +23,7 @@ import { CLUBS } from "./clubs";
 import { buildSeasonSchedule } from "./fixtures";
 import {
   LEAGUE_ID, leagueOf, sortTable, buildTable, resolveRemainingSeason, hasFullSchedule,
+  isLeagueSeasonComplete,
 } from "./league";
 import { hashString } from "./rng";
 
@@ -147,6 +148,9 @@ export function applySeasonRollover(s: GameState): { outcomes: LeagueOutcome[]; 
 
   // 1. every league finishes its fixtures
   resolveRemainingSeason(s);
+  // Second guard: a reload that lands here mid-season (no fixtures resolvable
+  // yet, e.g. straight after a rollover) must not finalise anything.
+  if (!s.leagues.every((l) => isLeagueSeasonComplete(s, l.id))) return { outcomes: [], items: [] };
 
   // 2. finalise standings
   const outcomes = s.leagues.map((l) => finaliseLeague(s, l));

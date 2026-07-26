@@ -226,8 +226,11 @@ console.log("\n[9] v3 save migration");
   delete g.playerLeagueId;
   delete g.seasonHistory;
   delete g.clubRecords;
-  const one = g.leagues as unknown;
-  void one;
+  // A real v3 save only ever had the single top-division schedule, with no
+  // `league` field on its fixtures.
+  g.leagueSchedule = (g.leagueSchedule as { league?: string }[])
+    .filter((f) => f.league === DIVISION_ONE)
+    .map(({ league, ...rest }) => rest);
   const m = migrateSave(g);
   check("migrated to v4", (m.version as number) === 4);
   check("pyramid created", m.leagues.length === 2 &&
