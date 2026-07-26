@@ -35,6 +35,7 @@ import {
   Ticket,
   TriangleAlert,
   Trophy,
+  Gavel,
   UserMinus,
   UserPlus,
   Users,
