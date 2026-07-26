@@ -406,6 +406,18 @@ const G_FAN_WARN: Generator = {
     const last = Number(s.inboxFlags[cooldownKey] ?? 0);
     if (s.fanHappiness >= 45) return [];
     if (nowAbs - last < 8) return [];
+    // The cooldown flag is only written when the player picks a choice, so an
+    // ignored warning would otherwise re-emit every week under a new eventKey.
+    // Suppress while an earlier warning is still awaiting the chairman.
+    if (
+      s.inbox.some(
+        (i) =>
+          i.generatorId === "fans-happiness-warning" &&
+          (i.status === "unread" || i.status === "awaitingDecision"),
+      )
+    )
+      return [];
+
     return [
       mk(s, "fans-happiness-warning", {
         eventKey: `fans-happiness-warning:abs${nowAbs}`,
@@ -632,8 +644,11 @@ const G_MEDIA_MATCH: Generator = {
     const prevAbs = absoluteWeek(s.season, s.week) - 1;
     if (prevAbs < 1) return [];
     const prev = fromAbsoluteWeek(prevAbs);
-    // Match results only carry (week) — filter by season via the ledger row
-    // so we don't cross-season a stale result.
+    // FixtureResult carries no season field. Cross-season leakage is prevented
+    // by the engine clearing `s.results` at the season rollover, NOT by any
+    // lookup-side check here. If results ever become season-persistent, this
+    // find() must be given an explicit season filter.
+
     const r = s.results.find((x) => x.week === prev.week);
     if (!r) return [];
     const eventKey = `media-post-match:s${prev.season}:w${prev.week}`;
@@ -712,10 +727,12 @@ export function runWeeklyGenerators(prev: GameState): GameState {
   }
 
   // 2. Pull scheduled entries that are due now, grouped by generatorId.
+  //    Entries with a missing/NaN due time are treated as due immediately
+  //    rather than being stranded in the queue forever.
   const dueByGenerator = new Map<string, ScheduledGenerator[]>();
   s.scheduledGenerators = s.scheduledGenerators.filter((g) => {
     const dueAbs = g.dueAtAbsoluteWeek;
-    const due = dueAbs != null && dueAbs <= nowAbs;
+    const due = !Number.isFinite(dueAbs) || (dueAbs as number) <= nowAbs;
     if (due) {
       const arr = dueByGenerator.get(g.generatorId) ?? [];
       arr.push(g);
@@ -728,8 +745,10 @@ export function runWeeklyGenerators(prev: GameState): GameState {
   const existingKeys = new Set(s.inbox.map((i) => i.eventKey));
 
   // 4. Run every generator; dedup on eventKey before appending.
+  const consumed = new Set<string>();
   for (const g of GENERATORS) {
     const due = dueByGenerator.get(g.id) ?? [];
+    if (due.length) consumed.add(g.id);
     const items = g.run(s, due);
     for (const it of items) {
       if (existingKeys.has(it.eventKey)) continue;
@@ -737,6 +756,18 @@ export function runWeeklyGenerators(prev: GameState): GameState {
       s.inbox.push(it);
     }
   }
+
+  // 4b. A due entry pointing at an unregistered generator would vanish
+  //     silently. Surface it loudly instead of losing the follow-up.
+  for (const id of dueByGenerator.keys()) {
+    if (!consumed.has(id)) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[inbox] dropped ${dueByGenerator.get(id)!.length} scheduled entr(y/ies) for unregistered generatorId "${id}"`,
+      );
+    }
+  }
+
 
   // 5. Cap history to keep localStorage sane.
   if (s.inbox.length > 200) {

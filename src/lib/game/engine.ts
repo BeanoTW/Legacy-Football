@@ -594,25 +594,34 @@ function ordinal(n: number): string {
  *   Fallback: any unrecognised legacy scheduled entry is dropped; any legacy
  *   inbox item missing an eventKey is assigned one derived from its id.
  */
-function migrateSave(parsed: Record<string, unknown>): GameState {
-  const p = parsed as unknown as GameState & { version: number };
+export function migrateSave(parsed: Record<string, unknown>): GameState {
+  const p = parsed as unknown as Omit<GameState, "version"> & { version: number };
 
-  if (!p.hiredStaff) p.hiredStaff = [];
-  if (!p.staffCandidates) p.staffCandidates = makeCandidatePool();
+  // Treat a save with no version field as v1 (versioning was introduced late,
+  // so pre-versioning saves must still migrate rather than be discarded).
+  if (typeof p.version !== "number" || !Number.isFinite(p.version)) p.version = 1;
+
+  const arr = <T,>(v: unknown, fallback: T[]): T[] => (Array.isArray(v) ? (v as T[]) : fallback);
+
+  p.hiredStaff = arr(p.hiredStaff, []);
+  if (!Array.isArray(p.staffCandidates)) p.staffCandidates = makeCandidatePool();
   if (p.staffMarketRefreshedWeek == null) p.staffMarketRefreshedWeek = p.week;
   if (p.transferBudget == null) p.transferBudget = 500_000;
   if (p.wageBudgetWeekly == null) p.wageBudgetWeekly = 5_000;
   if (!p.positionPriorities)
     p.positionPriorities = { GK: "medium", DEF: "medium", MID: "medium", FWD: "medium" };
-  if (!p.transferTargets) p.transferTargets = [];
-  if (!p.incomingBids) p.incomingBids = [];
-  if (!p.completedTransfers) p.completedTransfers = [];
+  p.transferTargets = arr(p.transferTargets, []);
+  p.incomingBids = arr(p.incomingBids, []);
+  p.completedTransfers = arr(p.completedTransfers, []);
+  p.ledger = arr(p.ledger, []);
+  p.results = arr(p.results, []);
   if (p.liveMatch === undefined) p.liveMatch = null;
-  if (!p.inbox) p.inbox = [];
-  if (!p.inboxFlags) p.inboxFlags = {};
-  if (!p.scheduledGenerators) p.scheduledGenerators = [];
+  p.inbox = arr(p.inbox, []);
+  if (!p.inboxFlags || typeof p.inboxFlags !== "object") p.inboxFlags = {};
+  p.scheduledGenerators = arr(p.scheduledGenerators, []);
 
   // v1 → v2
+
   if (p.version < 2) {
     if (!p.saveSeed) p.saveSeed = `${p.clubName}|${p.managerName}|legacy-v1`;
 
@@ -625,16 +634,21 @@ function migrateSave(parsed: Record<string, unknown>): GameState {
       }
     }
 
-    // Scheduled generators: convert (dueSeason, dueWeek) → dueAtAbsoluteWeek
+    // Scheduled generators: convert (dueSeason, dueWeek) → dueAtAbsoluteWeek.
+    // A malformed entry must not silently disappear — if we can't recover a
+    // due time we make it due immediately so the follow-up still fires.
+    const nowAbs = absoluteWeekLocal(p.season, p.week);
     p.scheduledGenerators = p.scheduledGenerators
+      .filter((g) => g && typeof g === "object" && typeof g.generatorId === "string")
       .map((g) => {
-        if (g.dueAtAbsoluteWeek != null) return g;
+        if (typeof g.dueAtAbsoluteWeek === "number" && Number.isFinite(g.dueAtAbsoluteWeek))
+          return g;
         if (g.dueSeason != null && g.dueWeek != null) {
           return { ...g, dueAtAbsoluteWeek: absoluteWeekLocal(g.dueSeason, g.dueWeek) };
         }
-        return null; // unrecognised legacy entry — drop
-      })
-      .filter((g): g is NonNullable<typeof g> => g !== null);
+        return { ...g, dueAtAbsoluteWeek: nowAbs };
+      });
+
 
     // Cooldown flag: convert week-of-season → absolute (using saved season)
     const legacyWarn = p.inboxFlags["fansWarnedAtWeek"];
@@ -662,10 +676,14 @@ export function loadGame(): GameState | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     const v = (parsed as { version?: number }).version;
-    if (typeof v !== "number" || v < 1 || v > 2) return null;
+    // Missing version = pre-versioning save, treat as v1. Only refuse saves
+    // written by a FUTURE schema we don't understand.
+    if (typeof v === "number" && v > 2) return null;
+    const legacyV = typeof v === "number" && v >= 1 ? v : 1;
     const migrated = migrateSave(parsed);
     // If this save had no inbox at all (older than v2 introduction), seed it.
-    const needsSeed = migrated.inbox.length === 0 && v < 2;
+    const needsSeed = migrated.inbox.length === 0 && legacyV < 2;
+
     return needsSeed ? runWeeklyGenerators(migrated) : migrated;
   } catch { return null; }
 }
