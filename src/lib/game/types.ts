@@ -247,12 +247,58 @@ export interface MatchRecord {
   userInvolved: boolean;
 }
 
-/** One scheduled league fixture (all clubs, not just the user's). */
+/** One scheduled league fixture (all clubs, all divisions). */
 export interface ScheduledFixture {
+  /** Owning league id. Absent on pre-v4 saves = tier-1 division. */
+  league?: string;
   round: number;
   week: number;
   home: string;
   away: string;
+}
+
+/* -------- Football pyramid -------- */
+
+/** A division. Membership changes only at season rollover. */
+export interface League {
+  id: string;
+  name: string;
+  /** 1 = top division. */
+  tier: number;
+  /** Clubs contesting the CURRENT season, in no particular order. */
+  clubIds: string[];
+  /** Top N clubs promoted to the league one tier above (0 for the top tier). */
+  promotionPlaces: number;
+  /** Bottom N clubs relegated to the league one tier below (0 for the lowest). */
+  relegationPlaces: number;
+  /** Placeholder — financial scaling is not implemented yet. */
+  prizeMoney: number;
+  /** Placeholder — [min, max] club reputation typical of this tier. */
+  reputationRange: [number, number];
+}
+
+/** Immutable record of one completed league season. Never overwritten. */
+export interface SeasonHistoryEntry {
+  season: number;
+  leagueId: string;
+  leagueName: string;
+  tier: number;
+  champion: string;
+  runnerUp: string | null;
+  promoted: string[];
+  relegated: string[];
+  /** Final standings, already sorted 1st → last. */
+  finalTable: LeagueRow[];
+}
+
+/** Per-club permanent pyramid record. */
+export interface ClubRecord {
+  club: string;
+  currentLeagueId: string;
+  promotions: number;
+  relegations: number;
+  /** One entry per completed season. */
+  leagueHistory: { season: number; leagueId: string; position: number }[];
 }
 
 export interface LeagueRow {
@@ -340,7 +386,7 @@ export interface LiveMatch {
 
 export interface GameState {
   /** Save schema version. Bump + add a migration in loadGame when persisted shape changes. */
-  version: 3;
+  version: 4;
   /** Stable per-save seed. Used for deterministic inbox generation. */
   saveSeed: string;
   clubName: string;
@@ -367,8 +413,16 @@ export interface GameState {
   fixtures: { week: number; opponent: string; home: boolean }[];
   results: FixtureResult[];
 
-  /** Full division schedule for the current season (all clubs). */
+  /** All divisions in the pyramid. */
+  leagues: League[];
+  /** League the user's club competes in this season. */
+  playerLeagueId: string;
+  /** Full schedule for the current season — every division, every club. */
   leagueSchedule: ScheduledFixture[];
+  /** Permanent per-season league history. Append-only. */
+  seasonHistory: SeasonHistoryEntry[];
+  /** Permanent per-club pyramid record, keyed by club name. */
+  clubRecords: Record<string, ClubRecord>;
   /** Permanent history of every completed fixture, all seasons. */
   matchRecords: MatchRecord[];
 
