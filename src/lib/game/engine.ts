@@ -286,7 +286,11 @@ export function newGame(clubName: string, managerName: string): GameState {
     incomingBids: [],
     completedTransfers: [],
     liveMatch: null,
+    inbox: [],
+    inboxFlags: {},
+    scheduledGenerators: [],
   };
+
 }
 
 
