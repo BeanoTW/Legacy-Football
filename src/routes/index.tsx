@@ -160,7 +160,7 @@ const ALL_TABS: TabDef[] = [
 const PRIMARY_TAB_IDS: Tab[] = ["inbox", "hub", "squad", "transfers"];
 
 
-function MobileNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
+function MobileNav({ tab, setTab, unread }: { tab: Tab; setTab: (t: Tab) => void; unread: number }) {
   const [open, setOpen] = useState(false);
   const primary = ALL_TABS.filter(([id]) => PRIMARY_TAB_IDS.includes(id));
   return (
@@ -171,15 +171,21 @@ function MobileNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
             <button
               onClick={() => setTab(id)}
               className={cn(
-                "w-full flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors",
+                "relative w-full flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors",
                 tab === id ? "text-primary" : "text-muted-foreground",
               )}
             >
               <Icon className="size-5" />
               {label}
+              {id === "inbox" && unread > 0 && (
+                <span className="absolute top-1 right-[calc(50%-18px)] min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] leading-4 text-center font-semibold">
+                  {unread > 9 ? "9+" : unread}
+                </span>
+              )}
             </button>
           </li>
         ))}
+
         <li>
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
