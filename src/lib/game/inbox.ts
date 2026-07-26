@@ -26,13 +26,16 @@
 import type {
   GameState,
   InboxItem,
+  InboxChoice,
   InboxEffect,
   InboxDepartment,
   InboxCategory,
   InboxPriority,
   ScheduledGenerator,
   Sponsor,
+  WeekLedger,
 } from "./types";
+
 import { absoluteWeek, fromAbsoluteWeek } from "./time";
 import { hashString, seededRng } from "./rng";
 
