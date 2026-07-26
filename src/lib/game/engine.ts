@@ -17,6 +17,7 @@ import type {
   HalfTimeOption,
   ScheduledFixture,
   MatchRecord,
+  League,
 } from "./types";
 import { runWeeklyGenerators } from "./inbox";
 import { CLUBS } from "./clubs";
@@ -26,7 +27,7 @@ import {
 } from "./league";
 import {
   makeLeagues, makePyramidSchedule, makeClubRecords, applySeasonRollover,
-  weekForLeagueRound, DIVISION_ONE, findLeague,
+  weekForLeagueRound, DIVISION_ONE, findLeague, scheduleForLeague,
 } from "./pyramid";
 
 
@@ -75,16 +76,25 @@ function makeSquad(quality: number): Player[] {
 
 export { weekForLeagueRound };
 
+/** Default tier-1 membership for a club (new games / legacy helpers). */
+export function leagueTeams(clubName: string): string[] {
+  return makeLeagues(clubName)[0].clubIds;
+}
+
 /** Clubs in the user's division this season. */
-export function leagueTeams(s: Pick<GameState, "leagues" | "playerLeagueId" | "league">): string[] {
-  const lid = s.playerLeagueId ?? DIVISION_ONE;
-  const lg = (s.leagues ?? []).find((l) => l.id === lid);
-  return lg ? lg.clubIds : s.league.map((r) => r.team);
+export function userLeagueTeams(s: GameState): string[] {
+  return leagueClubs(s, playerLeagueId(s));
 }
 
 /** Whole-pyramid schedule for a season. */
-export function makeLeagueSchedule(state: GameState, seed: string): ScheduledFixture[] {
-  return makePyramidSchedule(state.leagues, seed);
+export function makeLeagueSchedule(leagues: League[], seed: string): ScheduledFixture[] {
+  return makePyramidSchedule(leagues, seed);
+}
+
+/** User-club fixtures for a fresh tier-1 season (kept for legacy callers/tests). */
+export function makeFixtures(clubName: string, seed: string) {
+  const leagues = makeLeagues(clubName);
+  return fixturesForClub(scheduleForLeague(leagues[0], seed), clubName);
 }
 
 /** The user's own fixture list, derived from the pyramid schedule so it can
