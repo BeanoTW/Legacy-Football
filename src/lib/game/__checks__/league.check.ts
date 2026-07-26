@@ -2,6 +2,7 @@
    Run with:  bun src/lib/game/__checks__/league.check.ts
 */
 import { newGame, advanceWeek, makeLeagueSchedule, leagueTeams, migrateSave } from "../engine";
+import { DIVISION_ONE, DIVISION_TWO } from "../pyramid";
 import {
   buildTable, sortTable, simulateAiFixture, isSeasonComplete, seasonCompletedCount,
   seasonFixtureCount, fixtureId, LEAGUE_ID, hasFullSchedule,
@@ -19,7 +20,7 @@ function fresh(): GameState {
   const g = newGame("Dalton Town", "Test Boss");
   g.saveSeed = "LEAGUE_SEED_1";
   // Rebuild the schedule under the fixed test seed so runs are reproducible.
-  g.leagueSchedule = makeLeagueSchedule(g.clubName, `${g.saveSeed}|season1`);
+  g.leagueSchedule = makeLeagueSchedule(g.leagues, `${g.saveSeed}|season1`);
   g.fixtures = g.leagueSchedule
     .filter((f) => f.home === g.clubName || f.away === g.clubName)
     .map((f) => ({ week: f.week, opponent: f.home === g.clubName ? f.away : f.home, home: f.home === g.clubName }))
@@ -42,14 +43,15 @@ function playSeason(g0: GameState): GameState {
 console.log("\n[1] Schedule + state shape");
 {
   const g = fresh();
-  check("save version is 3", (g.version as number) === 3);
-  check("full division schedule present (380 fixtures)", g.leagueSchedule.length === 380,
+  check("save version is 4", (g.version as number) === 4);
+  check("top division schedule present (380 fixtures)",
+    g.leagueSchedule.filter((f) => f.league === DIVISION_ONE).length === 380,
     String(g.leagueSchedule.length));
   check("matchRecords starts empty", g.matchRecords.length === 0);
   check("hasFullSchedule true for new games", hasFullSchedule(g));
-  check("every round has 10 fixtures",
+  check("every round has 10 fixtures per division",
     [...new Set(g.leagueSchedule.map((f) => f.round))].every(
-      (r) => g.leagueSchedule.filter((f) => f.round === r).length === 10));
+      (r) => g.leagueSchedule.filter((f) => f.round === r && f.league === DIVISION_ONE).length === 10));
 }
 
 console.log("\n[2] One week resolves the entire round");
@@ -64,18 +66,20 @@ console.log("\n[2] One week resolves the entire round");
     t = fx ? advanceWeek(t, { gf: 1, ga: 0, attendance: 9000, gate: 180000, tv: 22000, matchdayOps: 9000, winBonus: 0 })
            : advanceWeek(t);
   }
-  check("after first league week, 10 records exist", t.matchRecords.length === 10,
+  check("after first league week, 10 records exist in the top division",
+    t.matchRecords.filter((r) => r.league === DIVISION_ONE).length === 10,
     String(t.matchRecords.length));
   check("user match included exactly once",
     t.matchRecords.filter((r) => r.userInvolved).length === 1);
-  check("every club played once", new Set(t.matchRecords.flatMap((r) => [r.home, r.away])).size === 20);
+  check("every club in the division played once",
+    new Set(t.matchRecords.filter((r) => r.league === DIVISION_ONE).flatMap((r) => [r.home, r.away])).size === 20);
   check("table shows P=1 for all clubs", t.league.every((r) => r.p === 1));
 }
 
 console.log("\n[3] No fixture resolves twice (idempotency / reload replay)");
 {
   const t = playSeason(fresh());
-  const ids = t.matchRecords.filter((r) => r.season === 1).map((r) => r.id);
+  const ids = t.matchRecords.filter((r) => r.season === 1 && r.league === DIVISION_ONE).map((r) => r.id);
   check("no duplicate fixture ids", new Set(ids).size === ids.length,
     `${ids.length} records, ${new Set(ids).size} unique`);
   check("exactly 380 records for season 1", ids.length === 380, String(ids.length));
@@ -114,8 +118,8 @@ console.log("\n[5] Table is a pure projection of records");
 {
   const t = playSeason(fresh());
   const teams = leagueTeams(t.clubName);
-  const rebuilt = buildTable(teams, t.matchRecords, 1);
-  const stored = t.season === 1 ? t.league : buildTable(teams, t.matchRecords, 1);
+  const rebuilt = buildTable(teams, t.matchRecords, 1, DIVISION_ONE);
+  const stored = t.season === 1 ? t.league : rebuilt;
   check("stored table equals rebuild from records",
     JSON.stringify(sortTable(stored)) === JSON.stringify(sortTable(rebuilt)) || t.season > 1);
   const rows = rebuilt;
@@ -136,17 +140,17 @@ console.log("\n[6] Fixture identity + historical records");
   const t = playSeason(fresh());
   const rec = t.matchRecords[0];
   check("record id matches fixtureId()",
-    rec.id === fixtureId(rec.season, rec.round, rec.home, rec.away));
+    rec.id === fixtureId(rec.season, rec.round, rec.home, rec.away, rec.league));
   check("records carry league/season/week/round", t.matchRecords.every(
-    (r) => r.league === LEAGUE_ID && r.season >= 1 && r.week >= 5 && r.round >= 1));
+    (r) => (r.league === LEAGUE_ID || r.league === DIVISION_TWO) && r.season >= 1 && r.week >= 5 && r.round >= 1));
   check("outcome agrees with score", t.matchRecords.every((r) =>
     r.outcome === (r.homeGoals > r.awayGoals ? "home" : r.homeGoals < r.awayGoals ? "away" : "draw")));
   check("AI records store their simulation seed",
     t.matchRecords.filter((r) => !r.userInvolved).every((r) => typeof r.seed === "string"));
   check("history survives the season rollover",
-    t.season === 2 && t.matchRecords.filter((r) => r.season === 1).length === 380);
+    t.season === 2 && t.matchRecords.filter((r) => r.season === 1 && r.league === DIVISION_ONE).length === 380);
   check("new season gets a fresh schedule", t.leagueSchedule.every((f) => f.round >= 1) &&
-    t.leagueSchedule.length === 380);
+    t.leagueSchedule.length === 760);
   check("new season table reset to zero", t.league.every((r) => r.p === 0));
 }
 
@@ -162,7 +166,7 @@ console.log("\n[7] Season completion is fixture-driven, not calendar-driven");
     `${seasonCompletedCount(s)}/${seasonFixtureCount(s)}`);
   const done = playSeason(fresh());
   check("after a full run the previous season had all 380 resolved",
-    done.matchRecords.filter((r) => r.season === 1).length === 380);
+    done.matchRecords.filter((r) => r.season === 1 && r.league === DIVISION_ONE).length === 380);
 }
 
 console.log("\n[8] Legacy (v2) save compatibility");
@@ -185,7 +189,7 @@ console.log("\n[8] Legacy (v2) save compatibility");
 console.log("\n[9] User club is not privileged");
 {
   const t = playSeason(fresh());
-  const rows = buildTable(leagueTeams(t.clubName), t.matchRecords, 1);
+  const rows = buildTable(leagueTeams(t.clubName), t.matchRecords, 1, DIVISION_ONE);
   const user = rows.find((r) => r.team === "Dalton Town")!;
   check("user club has 38 played like everyone else", user.p === 38);
   check("user club appears in exactly 38 season-1 records",
