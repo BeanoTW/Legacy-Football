@@ -594,7 +594,7 @@ function ordinal(n: number): string {
  *   Fallback: any unrecognised legacy scheduled entry is dropped; any legacy
  *   inbox item missing an eventKey is assigned one derived from its id.
  */
-function migrateSave(parsed: Record<string, unknown>): GameState {
+export function migrateSave(parsed: Record<string, unknown>): GameState {
   const p = parsed as unknown as Omit<GameState, "version"> & { version: number };
 
   // Treat a save with no version field as v1 (versioning was introduced late,
@@ -676,10 +676,14 @@ export function loadGame(): GameState | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     const v = (parsed as { version?: number }).version;
-    if (typeof v !== "number" || v < 1 || v > 2) return null;
+    // Missing version = pre-versioning save, treat as v1. Only refuse saves
+    // written by a FUTURE schema we don't understand.
+    if (typeof v === "number" && v > 2) return null;
+    const legacyV = typeof v === "number" && v >= 1 ? v : 1;
     const migrated = migrateSave(parsed);
     // If this save had no inbox at all (older than v2 introduction), seed it.
-    const needsSeed = migrated.inbox.length === 0 && v < 2;
+    const needsSeed = migrated.inbox.length === 0 && legacyV < 2;
+
     return needsSeed ? runWeeklyGenerators(migrated) : migrated;
   } catch { return null; }
 }
