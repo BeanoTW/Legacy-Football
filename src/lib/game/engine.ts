@@ -19,11 +19,15 @@ import type {
   MatchRecord,
 } from "./types";
 import { runWeeklyGenerators } from "./inbox";
-import { buildSeasonSchedule, clubFixtures } from "./fixtures";
+import { CLUBS } from "./clubs";
 import {
   makeRecord, resolveWeek, resolveRemainingSeason, syncTable, hasFullSchedule,
-  isSeasonComplete, buildTable, fixtureId,
+  isSeasonComplete, buildTable, fixtureId, leagueOf, playerLeagueId, leagueClubs,
 } from "./league";
+import {
+  makeLeagues, makePyramidSchedule, makeClubRecords, applySeasonRollover,
+  weekForLeagueRound, DIVISION_ONE, findLeague,
+} from "./pyramid";
 
 
 const STORAGE_KEY = "chairman.save.v1";
@@ -40,11 +44,6 @@ const LAST = [
   "Cahill","Potter","Hughes","Morris","Ellis","Brooks","Reid","Walsh","Ward","Kane",
   "Bailey","Fraser","Ainsley","Palmer","Foden","Rice","Saka","Gordon","Watkins","Bowen",
   "Clarke","Owen","Sterling","Grealish","Maddison","Toney","Isak","Nunes","Fabian","Onana",
-];
-const CLUBS = [
-  "Dalton Town","Ashford City","Millbrook","Northfield","Redwood FC","Kingsbridge","Halewood United",
-  "Stanmoor","Fairwind","Portlee","Blackrock Athletic","Silverdale","Whitby Rangers","Broadmarsh",
-  "Ravencliff","Elmshire","Highgate","Marston Vale","Kingsley","Sandborough","Oakhaven","Ridgeport",
 ];
 
 /* ---------- Generation ---------- */
@@ -74,46 +73,38 @@ function makeSquad(quality: number): Player[] {
   return s;
 }
 
-/** Rounds 1-19 -> weeks 5-23, rounds 20-38 -> weeks 28-46. */
-export function weekForLeagueRound(round: number): number {
-  return round <= 19 ? 4 + round : 27 + (round - 19);
+export { weekForLeagueRound };
+
+/** Clubs in the user's division this season. */
+export function leagueTeams(s: Pick<GameState, "leagues" | "playerLeagueId" | "league">): string[] {
+  const lid = s.playerLeagueId ?? DIVISION_ONE;
+  const lg = (s.leagues ?? []).find((l) => l.id === lid);
+  return lg ? lg.clubIds : s.league.map((r) => r.team);
 }
 
-export function leagueTeams(clubName: string): string[] {
-  return [clubName, ...CLUBS.filter((c) => c !== clubName).slice(0, 19)];
+/** Whole-pyramid schedule for a season. */
+export function makeLeagueSchedule(state: GameState, seed: string): ScheduledFixture[] {
+  return makePyramidSchedule(state.leagues, seed);
 }
 
-/**
- * Deterministic double round-robin (circle method + home/away rebalancing).
- * Same seed + same participants => identical schedule.
- */
-/** Full division schedule (all clubs) for one season, mapped onto weeks. */
-export function makeLeagueSchedule(clubName: string, seed: string): ScheduledFixture[] {
-  const teams = leagueTeams(clubName);
-  return buildSeasonSchedule(teams, seed).flatMap((round, idx) =>
-    round.map((m) => ({
-      round: idx + 1,
-      week: weekForLeagueRound(idx + 1),
-      home: m.home,
-      away: m.away,
-    })),
-  );
-}
-
-export function makeFixtures(
-  clubName: string,
-  seed: string,
+/** The user's own fixture list, derived from the pyramid schedule so it can
+ *  never drift from the division's real fixtures. */
+export function fixturesForClub(
+  schedule: ScheduledFixture[],
+  club: string,
 ): { week: number; opponent: string; home: boolean }[] {
-  const teams = leagueTeams(clubName);
-  const schedule = buildSeasonSchedule(teams, seed);
-  return clubFixtures(schedule, clubName, weekForLeagueRound);
+  return schedule
+    .filter((f) => f.home === club || f.away === club)
+    .map((f) => ({
+      week: f.week,
+      opponent: f.home === club ? f.away : f.home,
+      home: f.home === club,
+    }))
+    .sort((a, b) => a.week - b.week);
 }
 
-
-function makeLeague(clubName: string): LeagueRow[] {
-  return [clubName, ...CLUBS.filter((c) => c !== clubName).slice(0, 19)].map((team) => ({
-    team, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0,
-  }));
+function makeLeague(teams: string[]): LeagueRow[] {
+  return teams.map((team) => ({ team, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 }));
 }
 
 /* ---------- Staff ---------- */
