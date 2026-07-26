@@ -25,7 +25,9 @@ import {
   Heart,
   Info,
   LineChart as LineIcon,
+  Mail,
   Menu,
+
   Play,
   RotateCcw,
   Save,
