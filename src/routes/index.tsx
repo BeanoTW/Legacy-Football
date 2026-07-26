@@ -35,6 +35,7 @@ import {
   Ticket,
   TriangleAlert,
   Trophy,
+  Gavel,
   UserMinus,
   UserPlus,
   Users,
@@ -50,6 +51,7 @@ import {
 } from "@/components/ui/sheet";
 
 import { LeagueBrowser } from "@/components/LeagueBrowser";
+import { BoardTab } from "@/components/BoardTab";
 import { useGame } from "@/hooks/useGame";
 import type { GameState, Stand, Staff, StaffRole, Priority, Position, TransferTarget, IncomingBid } from "@/lib/game/types";
 import {
@@ -146,6 +148,7 @@ export const Route = createFileRoute("/")({
 type Tab =
   | "inbox"
   | "hub"
+  | "board"
   | "dashboard"
   | "cashflow"
   | "tickets"
@@ -162,6 +165,7 @@ type TabDef = [Tab, string, typeof LineIcon];
 const ALL_TABS: TabDef[] = [
   ["inbox", "Inbox", Mail],
   ["hub", "Club", Trophy],
+  ["board", "Board", Gavel],
   ["dashboard", "Overview", LineIcon],
   ["cashflow", "Cash flow", CircleDollarSign],
   ["tickets", "Tickets", Ticket],
@@ -425,6 +429,7 @@ function Game({
         {tab === "staff" && <StaffTab state={state} update={update} />}
         {tab === "stadium" && <StadiumTab state={state} update={update} />}
         {tab === "fixtures" && <Fixtures state={state} update={update} />}
+        {tab === "board" && <BoardTab state={state} />}
         {tab === "leagues" && <LeagueBrowser state={state} />}
         {tab === "history" && <History state={state} />}
       </main>

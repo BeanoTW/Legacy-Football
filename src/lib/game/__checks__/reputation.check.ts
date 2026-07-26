@@ -292,7 +292,7 @@ console.log("\n[R11] Save migration (v4 → v5)");
   delete g.seasonPredictions;
   delete g.clubSnapshots;
   const m = migrateSave(structuredClone(g));
-  check("migrated to v5", (m.version as number) === 5);
+  check("migrated to v6", (m.version as number) === 6);
   check("reputations backfilled for every club",
     Object.keys(m.clubReputations).length === 40 &&
     Object.values(m.clubReputations).every((v) => v >= REP_MIN && v <= REP_MAX));

@@ -33,6 +33,10 @@ import {
   makeLeagues, makePyramidSchedule, makeClubRecords, applySeasonRollover,
   weekForLeagueRound, DIVISION_ONE, findLeague, scheduleForLeague, CLUBS_PER_DIVISION,
 } from "./pyramid";
+import {
+  makeBoard, ensureBoard, maybeRunMidSeasonReview, runEndOfSeasonReview,
+  rollBoardToNewSeason,
+} from "./board";
 
 
 const STORAGE_KEY = "chairman.save.v1";
@@ -282,6 +286,7 @@ export function newGame(clubName: string, managerName: string): GameState {
   const base = _newGameSeed(clubName, managerName);
   // Pre-season projection for season 1 (derived from starting reputations).
   storePredictions(base, base.season);
+  ensureBoard(base);
   return runWeeklyGenerators(base);
 }
 
@@ -297,7 +302,7 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
   const leagues = makeLeagues(clubName);
   const leagueSchedule = makePyramidSchedule(leagues, `${saveSeed}|season1`);
   return {
-    version: 5,
+    version: 6,
     saveSeed,
     clubName,
     managerName,
@@ -346,6 +351,7 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
     inbox: [],
     inboxFlags: {},
     scheduledGenerators: [],
+    board: makeBoard(saveSeed, clubName),
   };
 
 }
@@ -660,6 +666,9 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
       net: prize, balance: s.cash,
       matchdayNote: `SEASON END — Finished ${pos}${ordinal(pos)}. Prize £${prize.toLocaleString()}`,
     });
+    // Board's final judgement on the season just completed. Must run before
+    // the season counter moves so it is filed against the correct season.
+    runEndOfSeasonReview(s);
     // reset
     s.season += 1;
     s.week = 1;
@@ -684,7 +693,14 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
       if (p.age > 30) p.rating = Math.max(45, p.rating - randInt(0, 2));
       else if (p.age < 25) p.rating = Math.min(93, p.rating + randInt(0, 1));
     }
+    // New season objectives, derived from the freshly stored projection.
+    rollBoardToNewSeason(s);
   }
+
+  // Mid-season board checkpoint (exactly once per season).
+  ensureBoard(s);
+  maybeRunMidSeasonReview(s);
+
   return runWeeklyGenerators(s);
 }
 
@@ -844,6 +860,22 @@ export function migrateSave(parsed: Record<string, unknown>): GameState {
     }
   }
 
+  // v5 → v6: Board of Directors.
+  //
+  // Purely additive. Directors are generated deterministically from the
+  // save's own seed, so an existing save gets a stable boardroom that never
+  // changes on reload. Objectives are built from the CURRENT season's stored
+  // projection; no historical season is rewritten and no review is
+  // back-filled — the board starts judging from the next review window.
+  if (p.version < 6) {
+    const st = p as unknown as GameState;
+    if (!st.board || !Array.isArray(st.board.directors) || st.board.directors.length === 0) {
+      st.board = makeBoard(p.saveSeed, p.clubName);
+    }
+    ensureBoard(st);
+    p.version = 6;
+  }
+
   return p as GameState;
 }
 
@@ -862,7 +894,7 @@ export function loadGame(): GameState | null {
     const v = (parsed as { version?: number }).version;
     // Missing version = pre-versioning save, treat as v1. Only refuse saves
     // written by a FUTURE schema we don't understand.
-    if (typeof v === "number" && v > 5) return null;
+    if (typeof v === "number" && v > 6) return null;
     const legacyV = typeof v === "number" && v >= 1 ? v : 1;
     const migrated = migrateSave(parsed);
     // If this save had no inbox at all (older than v2 introduction), seed it.
