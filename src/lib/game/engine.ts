@@ -586,7 +586,11 @@ export function loadGame(): GameState | null {
     if (!parsed.incomingBids) parsed.incomingBids = [];
     if (!parsed.completedTransfers) parsed.completedTransfers = [];
     if (parsed.liveMatch === undefined) parsed.liveMatch = null;
+    if (!parsed.inbox) parsed.inbox = [];
+    if (!parsed.inboxFlags) parsed.inboxFlags = {};
+    if (!parsed.scheduledGenerators) parsed.scheduledGenerators = [];
     return parsed;
+
 
   } catch { return null; }
 }
