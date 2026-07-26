@@ -127,6 +127,7 @@ export const Route = createFileRoute("/")({
 });
 
 type Tab =
+  | "inbox"
   | "hub"
   | "dashboard"
   | "cashflow"
@@ -141,6 +142,7 @@ type Tab =
 type TabDef = [Tab, string, typeof LineIcon];
 
 const ALL_TABS: TabDef[] = [
+  ["inbox", "Inbox", Mail],
   ["hub", "Club", Trophy],
   ["dashboard", "Overview", LineIcon],
   ["cashflow", "Cash flow", CircleDollarSign],
@@ -153,7 +155,8 @@ const ALL_TABS: TabDef[] = [
   ["history", "Ledger", Save],
 ];
 
-const PRIMARY_TAB_IDS: Tab[] = ["hub", "squad", "transfers", "fixtures"];
+const PRIMARY_TAB_IDS: Tab[] = ["inbox", "hub", "squad", "transfers"];
+
 
 function MobileNav({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
   const [open, setOpen] = useState(false);
