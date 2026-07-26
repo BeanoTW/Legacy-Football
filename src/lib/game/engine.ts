@@ -33,6 +33,10 @@ import {
   makeLeagues, makePyramidSchedule, makeClubRecords, applySeasonRollover,
   weekForLeagueRound, DIVISION_ONE, findLeague, scheduleForLeague, CLUBS_PER_DIVISION,
 } from "./pyramid";
+import {
+  makeBoard, ensureBoard, maybeRunMidSeasonReview, runEndOfSeasonReview,
+  rollBoardToNewSeason,
+} from "./board";
 
 
 const STORAGE_KEY = "chairman.save.v1";
@@ -282,6 +286,7 @@ export function newGame(clubName: string, managerName: string): GameState {
   const base = _newGameSeed(clubName, managerName);
   // Pre-season projection for season 1 (derived from starting reputations).
   storePredictions(base, base.season);
+  ensureBoard(base);
   return runWeeklyGenerators(base);
 }
 
@@ -297,7 +302,7 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
   const leagues = makeLeagues(clubName);
   const leagueSchedule = makePyramidSchedule(leagues, `${saveSeed}|season1`);
   return {
-    version: 5,
+    version: 6,
     saveSeed,
     clubName,
     managerName,
@@ -346,6 +351,7 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
     inbox: [],
     inboxFlags: {},
     scheduledGenerators: [],
+    board: makeBoard(saveSeed, clubName),
   };
 
 }
