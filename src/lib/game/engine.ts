@@ -595,7 +595,7 @@ function ordinal(n: number): string {
  *   inbox item missing an eventKey is assigned one derived from its id.
  */
 function migrateSave(parsed: Record<string, unknown>): GameState {
-  const p = parsed as unknown as GameState & { version: number };
+  const p = parsed as unknown as Omit<GameState, "version"> & { version: number };
 
   // Treat a save with no version field as v1 (versioning was introduced late,
   // so pre-versioning saves must still migrate rather than be discarded).
