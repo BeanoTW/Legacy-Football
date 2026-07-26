@@ -15,9 +15,15 @@ import type {
   LiveMatch,
   MatchEvent,
   HalfTimeOption,
+  ScheduledFixture,
+  MatchRecord,
 } from "./types";
 import { runWeeklyGenerators } from "./inbox";
 import { buildSeasonSchedule, clubFixtures } from "./fixtures";
+import {
+  makeRecord, resolveWeek, resolveRemainingSeason, syncTable, hasFullSchedule,
+  isSeasonComplete, buildTable, fixtureId,
+} from "./league";
 
 
 const STORAGE_KEY = "chairman.save.v1";
@@ -81,6 +87,19 @@ export function leagueTeams(clubName: string): string[] {
  * Deterministic double round-robin (circle method + home/away rebalancing).
  * Same seed + same participants => identical schedule.
  */
+/** Full division schedule (all clubs) for one season, mapped onto weeks. */
+export function makeLeagueSchedule(clubName: string, seed: string): ScheduledFixture[] {
+  const teams = leagueTeams(clubName);
+  return buildSeasonSchedule(teams, seed).flatMap((round, idx) =>
+    round.map((m) => ({
+      round: idx + 1,
+      week: weekForLeagueRound(idx + 1),
+      home: m.home,
+      away: m.away,
+    })),
+  );
+}
+
 export function makeFixtures(
   clubName: string,
   seed: string,
@@ -269,7 +288,7 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
     { key: "W", name: "West Stand",  capacity: 7000, condition: 94, ticketPrice: 30 },
   ];
   return {
-    version: 2,
+    version: 3,
     saveSeed,
     clubName,
     managerName,
@@ -293,6 +312,8 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
       { name: "Training Wear",    weekly: 2_200,  weeksLeft: 20 },
     ],
     fixtures: makeFixtures(clubName, `${saveSeed}|season1`),
+    leagueSchedule: makeLeagueSchedule(clubName, `${saveSeed}|season1`),
+    matchRecords: [],
     results: [],
     ledger: [],
     league: makeLeague(clubName),
@@ -434,15 +455,41 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     s.fanHappiness = Math.max(5, Math.min(100, s.fanHappiness + swing));
     s.reputation = Math.max(20, Math.min(95, s.reputation + (result === "W" ? 0.4 : result === "L" ? -0.3 : 0)));
 
-    const my = s.league.find((r) => r.team === s.clubName)!;
-    const opp = s.league.find((r) => r.team === fixture.opponent)!;
-    if (my && opp) {
-      my.p++; opp.p++;
-      my.gf += gf; my.ga += ga;
-      opp.gf += ga; opp.ga += gf;
-      if (result === "W") { my.w++; my.pts += 3; opp.l++; }
-      else if (result === "L") { my.l++; opp.w++; opp.pts += 3; }
-      else { my.d++; my.pts += 1; opp.d++; opp.pts += 1; }
+    if (hasFullSchedule(s)) {
+      // Record-driven league: store the user's fixture, resolve every AI
+      // fixture in the same round, then project the table from records.
+      const sched = s.leagueSchedule.find(
+        (f) => f.week === s.week &&
+          ((f.home === s.clubName && f.away === fixture.opponent) ||
+           (f.away === s.clubName && f.home === fixture.opponent)),
+      );
+      if (sched) {
+        const home = fixture.home ? s.clubName : fixture.opponent;
+        const away = fixture.home ? fixture.opponent : s.clubName;
+        const id = fixtureId(s.season, sched.round, home, away);
+        const already = s.matchRecords.some((r) => r.id === id);
+        const userRecord: MatchRecord | undefined = already ? undefined : makeRecord({
+          season: s.season, week: s.week, round: sched.round,
+          home, away,
+          homeGoals: fixture.home ? gf : ga,
+          awayGoals: fixture.home ? ga : gf,
+          userInvolved: true,
+        });
+        resolveWeek(s, s.week, userRecord);
+      }
+    } else {
+      // Legacy (pre-v3) in-progress season: no full schedule, keep the old
+      // incremental two-club update so existing saves stay consistent.
+      const my = s.league.find((r) => r.team === s.clubName)!;
+      const opp = s.league.find((r) => r.team === fixture.opponent)!;
+      if (my && opp) {
+        my.p++; opp.p++;
+        my.gf += gf; my.ga += ga;
+        opp.gf += ga; opp.ga += gf;
+        if (result === "W") { my.w++; my.pts += 3; opp.l++; }
+        else if (result === "L") { my.l++; opp.w++; opp.pts += 3; }
+        else { my.d++; my.pts += 1; opp.d++; opp.pts += 1; }
+      }
     }
     ledger.matchdayNote = `${fixture.home ? "H" : "A"} vs ${fixture.opponent} — ${gf}-${ga} ${result}`;
   } else if (!override && FRIENDLY_WEEKS.has(s.week)) {
