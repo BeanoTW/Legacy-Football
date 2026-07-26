@@ -270,3 +270,44 @@ export function syncTable(s: GameState): void {
   const teams = leagueClubs(s, lid);
   s.league = buildTable(teams, s.matchRecords ?? [], s.season, lid);
 }
+
+/* ---------- Read-only selectors (league browser) ----------
+   The browser UI must read directly from this state; it never keeps its own
+   copy of a table or fixture list. Every selector below is a pure read. */
+
+export interface FixtureView {
+  league: string;
+  round: number;
+  week: number;
+  home: string;
+  away: string;
+  /** Present once the fixture has been played. */
+  record?: MatchRecord;
+}
+
+/** Every fixture of a division this season, in round order, with results. */
+export function leagueFixtures(s: GameState, leagueId: string, season = s.season): FixtureView[] {
+  const byId = new Map((s.matchRecords ?? []).filter((r) => r.season === season).map((r) => [r.id, r]));
+  return (s.leagueSchedule ?? [])
+    .filter((f) => leagueOf(f) === leagueId)
+    .map((f) => ({
+      league: leagueId,
+      round: f.round,
+      week: f.week,
+      home: f.home,
+      away: f.away,
+      record: byId.get(fixtureId(season, f.round, f.home, f.away, leagueId)),
+    }))
+    .sort((a, b) => a.round - b.round || a.home.localeCompare(b.home));
+}
+
+/** Final table of a completed season, straight from immutable history. */
+export function historicalTable(s: GameState, season: number, leagueId: string): LeagueRow[] | null {
+  const h = (s.seasonHistory ?? []).find((e) => e.season === season && e.leagueId === leagueId);
+  return h ? h.finalTable : null;
+}
+
+/** Seasons that have a stored final table, newest first. */
+export function completedSeasons(s: GameState): number[] {
+  return [...new Set((s.seasonHistory ?? []).map((e) => e.season))].sort((a, b) => b - a);
+}
