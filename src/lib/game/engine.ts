@@ -1446,7 +1446,7 @@ export function setTransferBudget(
         ? "Cash ring-fenced into the transfer budget"
         : "Unused transfer budget returned to spendable cash",
       amount: Math.abs(delta),
-      direction: delta > 0 ? "expenditure" : "income",
+      direction: delta > 0 ? "expense" : "income",
       sourceSystem: "transfers",
     });
   }
