@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import type { GameState, LeagueRow } from "@/lib/game/types";
+import type { ClubPrediction, GameState, LeagueRow } from "@/lib/game/types";
 import {
   tableFor, leagueFixtures, historicalTable, completedSeasons, playerLeagueId,
 } from "@/lib/game/league";
@@ -218,7 +218,7 @@ function PredictionsView({
 }: {
   state: GameState;
   season: number;
-  clubs: { club: string; rank: number; strength: number; reputation: number; expectation: keyof typeof EXPECTATION_LABEL }[];
+  clubs: ClubPrediction[];
   champion?: string;
   onPick: (c: string) => void;
 }) {
@@ -252,7 +252,7 @@ function PredictionsView({
               <span className="text-right text-xs tnum text-muted-foreground">
                 <span className="block">Str {c.strength.toFixed(1)}</span>
                 <span className="block">
-                  {actual ? `Finished ${actual}` : `Rep ${c.reputation.toFixed(0)}`}
+                  {actual ? `Finished ${actual}` : `Rep ${clubReputation(state, c.club).toFixed(0)}`}
                 </span>
               </span>
             </button>
