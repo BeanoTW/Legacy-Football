@@ -16,9 +16,9 @@ function check(label: string, cond: boolean, extra?: string) {
   else { failed++; console.log(`  ✗ ${label}${extra ? " — " + extra : ""}`); }
 }
 
-function fresh(): GameState {
+function fresh(seed = "LEAGUE_SEED_1"): GameState {
   const g = newGame("Dalton Town", "Test Boss");
-  g.saveSeed = "LEAGUE_SEED_1";
+  g.saveSeed = seed;
   // Rebuild the schedule under the fixed test seed so runs are reproducible.
   g.leagueSchedule = makeLeagueSchedule(g.leagues, `${g.saveSeed}|season1`);
   g.fixtures = g.leagueSchedule
