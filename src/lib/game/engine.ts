@@ -246,6 +246,12 @@ export function staffJoinTerms(clubReputation: number, staff: Staff): JoinTerms 
 
 /* ---------- Initial state ---------- */
 export function newGame(clubName: string, managerName: string): GameState {
+  const base = _newGameSeed(clubName, managerName);
+  return runWeeklyGenerators(base);
+}
+
+function _newGameSeed(clubName: string, managerName: string): GameState {
+
   const stands: Stand[] = [
     { key: "N", name: "North Stand", capacity: 6000, condition: 92, ticketPrice: 22 },
     { key: "E", name: "East Stand",  capacity: 5000, condition: 88, ticketPrice: 26 },
