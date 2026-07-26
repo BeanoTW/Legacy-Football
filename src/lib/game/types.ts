@@ -31,7 +31,13 @@ export type InboxEffect =
   | { kind: "standCondition"; standKey: "N" | "E" | "S" | "W"; delta: number }
   | { kind: "sponsorExtend"; sponsorName: string; addWeeks: number; newWeekly?: number }
   | { kind: "flag"; key: string; value: string | number | boolean }
-  | { kind: "scheduleGenerator"; generatorId: string; inWeeks: number };
+  | {
+      kind: "scheduleGenerator";
+      generatorId: string;
+      inWeeks: number;
+      /** Stable payload passed to the follow-up generator. Serialised into the save. */
+      payload?: Record<string, string | number | boolean>;
+    };
 
 export interface InboxChoice {
   id: string;
@@ -42,7 +48,14 @@ export interface InboxChoice {
 
 export interface InboxItem {
   id: string;
+  /** Generator that emitted this item. Used for dedup + routing. */
   generatorId: string;
+  /**
+   * Stable, deterministic key identifying the underlying event this item
+   * represents (e.g. "commercial-sponsor-renewal:Main Kit Sponsor:s2").
+   * Used to prevent duplicate unresolved events across weeks/reloads.
+   */
+  eventKey: string;
   sender: string;
   department: InboxDepartment;
   category: InboxCategory;
@@ -54,17 +67,25 @@ export interface InboxItem {
   status: InboxStatus;
   choices?: InboxChoice[];
   chosenChoiceId?: string;
+  /** @deprecated retained for UI display of week-of-season; canonical value is expiresAtAbsoluteWeek. */
   expiresWeek?: number;
+  /** Canonical expiry deadline on the absolute timeline. */
+  expiresAtAbsoluteWeek?: number;
   reward?: string;
   consequenceOnExpire?: InboxEffect[];
 }
 
 export interface ScheduledGenerator {
   generatorId: string;
-  dueWeek: number;
-  dueSeason: number;
+  /** Canonical due time on the absolute timeline. */
+  dueAtAbsoluteWeek: number;
+  /** @deprecated retained for legacy saves; canonical value is dueAtAbsoluteWeek. */
+  dueWeek?: number;
+  /** @deprecated retained for legacy saves; canonical value is dueAtAbsoluteWeek. */
+  dueSeason?: number;
   payload?: Record<string, string | number | boolean>;
 }
+
 
 
 
@@ -252,9 +273,13 @@ export interface LiveMatch {
 }
 
 export interface GameState {
-  version: 1;
+  /** Save schema version. Bump + add a migration in loadGame when persisted shape changes. */
+  version: 2;
+  /** Stable per-save seed. Used for deterministic inbox generation. */
+  saveSeed: string;
   clubName: string;
   managerName: string;
+
   season: number;
   week: number;
   cash: number;
