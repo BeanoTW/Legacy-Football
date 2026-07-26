@@ -477,6 +477,13 @@ export interface GameState {
   /** Permanent history of every completed fixture, all seasons. */
   matchRecords: MatchRecord[];
 
+  /** Persistent club reputation (0-100), keyed by club name. Never reset. */
+  clubReputations: Record<string, number>;
+  /** Pre-season predictions, one entry per division per season. Append-only. */
+  seasonPredictions: SeasonPrediction[];
+  /** Immutable yearly per-club identity snapshots. Append-only. */
+  clubSnapshots: ClubSeasonSnapshot[];
+
   ledger: WeekLedger[];
   league: LeagueRow[];
 
