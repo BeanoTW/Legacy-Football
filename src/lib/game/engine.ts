@@ -634,16 +634,21 @@ function migrateSave(parsed: Record<string, unknown>): GameState {
       }
     }
 
-    // Scheduled generators: convert (dueSeason, dueWeek) → dueAtAbsoluteWeek
+    // Scheduled generators: convert (dueSeason, dueWeek) → dueAtAbsoluteWeek.
+    // A malformed entry must not silently disappear — if we can't recover a
+    // due time we make it due immediately so the follow-up still fires.
+    const nowAbs = absoluteWeekLocal(p.season, p.week);
     p.scheduledGenerators = p.scheduledGenerators
+      .filter((g) => g && typeof g === "object" && typeof g.generatorId === "string")
       .map((g) => {
-        if (g.dueAtAbsoluteWeek != null) return g;
+        if (typeof g.dueAtAbsoluteWeek === "number" && Number.isFinite(g.dueAtAbsoluteWeek))
+          return g;
         if (g.dueSeason != null && g.dueWeek != null) {
           return { ...g, dueAtAbsoluteWeek: absoluteWeekLocal(g.dueSeason, g.dueWeek) };
         }
-        return null; // unrecognised legacy entry — drop
-      })
-      .filter((g): g is NonNullable<typeof g> => g !== null);
+        return { ...g, dueAtAbsoluteWeek: nowAbs };
+      });
+
 
     // Cooldown flag: convert week-of-season → absolute (using saved season)
     const legacyWarn = p.inboxFlags["fansWarnedAtWeek"];
