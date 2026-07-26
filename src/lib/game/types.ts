@@ -291,6 +291,57 @@ export interface SeasonHistoryEntry {
   finalTable: LeagueRow[];
 }
 
+/* -------- Club identity: reputation, strength, predictions -------- */
+
+/** Seasonal objective handed to a club, derived from predicted strength. */
+export type ExpectationLevel =
+  | "winLeague"
+  | "promotion"
+  | "topHalf"
+  | "midTable"
+  | "avoidRelegation"
+  | "survival";
+
+/** One club's pre-season projection inside a division. */
+export interface ClubPrediction {
+  club: string;
+  /** Calculated seasonal strength at the time the prediction was made. */
+  strength: number;
+  /** Predicted finishing position, 1 = predicted champion. */
+  rank: number;
+  expectation: ExpectationLevel;
+}
+
+/** Pre-season prediction for one division in one season. */
+export interface SeasonPrediction {
+  season: number;
+  leagueId: string;
+  predictedChampion: string;
+  promotionFavourites: string[];
+  relegationFavourites: string[];
+  /** Every club in the division, sorted strongest first. */
+  clubs: ClubPrediction[];
+}
+
+/** Immutable yearly snapshot of one club's competitive identity. */
+export interface ClubSeasonSnapshot {
+  season: number;
+  club: string;
+  leagueId: string;
+  tier: number;
+  /** Reputation held at the START of the season. */
+  reputation: number;
+  /** Calculated strength used for that season. */
+  strength: number;
+  /** Predicted finishing position. */
+  expectedFinish: number;
+  expectation: ExpectationLevel;
+  /** Actual finishing position. */
+  actualFinish: number;
+  /** Reputation after the rollover adjustment. */
+  reputationAfter: number;
+}
+
 /** Per-club permanent pyramid record. */
 export interface ClubRecord {
   club: string;
