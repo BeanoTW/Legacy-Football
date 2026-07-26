@@ -6,7 +6,7 @@ import { newGame, advanceWeek, migrateSave } from "../engine";
 import {
   clubReputation, clubStrengthFor, strengthParts, predictLeague, predictSeason,
   predictionFor, expectationFor, applySeasonIdentity, reputationDelta,
-  MAX_REP_CHANGE_PER_SEASON, REP_MIN, REP_MAX, initClubReputations,
+  MAX_REP_CHANGE_PER_SEASON, REP_MIN, REP_MAX, initClubReputations, storePredictions,
 } from "../reputation";
 import {
   simulateAiFixture, tableFor, leagueFixtures, historicalTable, completedSeasons,
@@ -29,6 +29,10 @@ function fresh(seed = "REP_SEED_1"): GameState {
     .filter((f) => f.home === g.clubName || f.away === g.clubName)
     .map((f) => ({ week: f.week, opponent: f.home === g.clubName ? f.away : f.home, home: f.home === g.clubName }))
     .sort((a, b) => a.week - b.week);
+  // Re-seed the identity layer under the fixed test seed.
+  g.clubReputations = initClubReputations(g.leagues, seed);
+  g.seasonPredictions = [];
+  storePredictions(g, 1);
   return g;
 }
 

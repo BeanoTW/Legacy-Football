@@ -10,7 +10,7 @@
      * Predictions and expectations are derived from strength and stored only
        because future systems (board, media, fans) must be able to read the
        projection that was made BEFORE the season was played.
-     * No Math.random anywhere. Every varying value is seeded from saveSeed.
+     * Never uncontrolled randomness: every varying value is seeded from saveSeed.
 
    Import discipline: this module may only import ./types and ./rng, so that
    ./league and ./pyramid can both depend on it without a cycle.
@@ -30,8 +30,8 @@ export const MAX_REP_CHANGE_PER_SEASON = 8;
 
 /** Reputation a club starts with when nothing is known about it. */
 const TIER_BASE_REP: Record<number, [number, number]> = {
-  1: [58, 82],
-  2: [30, 56],
+  1: [54, 84],
+  2: [30, 60],
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -109,7 +109,7 @@ export function strengthParts(s: GameState, club: string, season: number): Stren
   const tier = tierOfClub(s, club);
 
   const base = 28 + rep * 0.52;                    // 28 - 80
-  const tierBonus = tier === 1 ? 7 : 0;
+  const tierBonus = tier === 1 ? 5 : 0;
 
   const prev = finishIn(s, club, season - 1);
   let form = 0;
@@ -127,7 +127,7 @@ export function strengthParts(s: GameState, club: string, season: number): Stren
   }
 
   const rng = mulberry32(hashString(`strength|${s.saveSeed}|${club}|s${season}`));
-  const variation = (rng() - 0.5) * 5; // ±2.5
+  const variation = (rng() - 0.5) * 6; // ±3
 
   const total = clamp(base + tierBonus + form + movement + variation, 25, 95);
   return { base, tier: tierBonus, form, movement, variation, total: Math.round(total * 100) / 100 };

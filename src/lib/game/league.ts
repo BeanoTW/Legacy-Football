@@ -285,9 +285,19 @@ export interface FixtureView {
   record?: MatchRecord;
 }
 
-/** Every fixture of a division this season, in round order, with results. */
+/**
+ * Every fixture of a division in a season, in round order, with results.
+ * The live season reads the schedule; past seasons read the immutable match
+ * records (the schedule only ever holds the current season).
+ */
 export function leagueFixtures(s: GameState, leagueId: string, season = s.season): FixtureView[] {
-  const byId = new Map((s.matchRecords ?? []).filter((r) => r.season === season).map((r) => [r.id, r]));
+  const records = (s.matchRecords ?? []).filter((r) => r.season === season && r.league === leagueId);
+  if (season !== s.season) {
+    return records
+      .map((r) => ({ league: leagueId, round: r.round, week: r.week, home: r.home, away: r.away, record: r }))
+      .sort((a, b) => a.round - b.round || a.home.localeCompare(b.home));
+  }
+  const byId = new Map(records.map((r) => [r.id, r]));
   return (s.leagueSchedule ?? [])
     .filter((f) => leagueOf(f) === leagueId)
     .map((f) => ({
