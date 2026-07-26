@@ -292,5 +292,12 @@ export interface GameState {
   completedTransfers: CompletedTransfer[];
 
   // Match day
+  // Match day
   liveMatch: LiveMatch | null;
+
+  // Inbox / communication backbone
+  inbox: InboxItem[];
+  inboxFlags: Record<string, string | number | boolean>;
+  scheduledGenerators: ScheduledGenerator[];
 }
+
