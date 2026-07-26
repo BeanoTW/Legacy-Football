@@ -6,7 +6,7 @@
    projection of those records, never an independently mutated accumulator.
 
    All randomness is seeded from (saveSeed, season, round, home, away) via
-   ./rng. No Math.random(), no Date.now().
+   ./rng — never unseeded randomness or wall-clock time.
 ========================================================================= */
 
 import type { GameState, LeagueRow, MatchRecord } from "./types";
