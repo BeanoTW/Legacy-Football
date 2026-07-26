@@ -595,10 +595,12 @@ export function loadGame(): GameState | null {
     if (!parsed.incomingBids) parsed.incomingBids = [];
     if (!parsed.completedTransfers) parsed.completedTransfers = [];
     if (parsed.liveMatch === undefined) parsed.liveMatch = null;
+    const needsSeed = !parsed.inbox;
     if (!parsed.inbox) parsed.inbox = [];
     if (!parsed.inboxFlags) parsed.inboxFlags = {};
     if (!parsed.scheduledGenerators) parsed.scheduledGenerators = [];
-    return parsed;
+    return needsSeed ? runWeeklyGenerators(parsed) : parsed;
+
 
 
   } catch { return null; }
