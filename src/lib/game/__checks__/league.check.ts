@@ -102,9 +102,11 @@ console.log("\n[3] No fixture resolves twice (idempotency / reload replay)");
 
 console.log("\n[4] Deterministic AI simulation");
 {
-  const a = simulateAiFixture("SEED_X", 1, 7, "Millbrook", "Highgate");
-  const b = simulateAiFixture("SEED_X", 1, 7, "Millbrook", "Highgate");
-  const c = simulateAiFixture("SEED_Y", 1, 7, "Millbrook", "Highgate");
+  const gx = fresh("SEED_X");
+  const gy = fresh("SEED_Y");
+  const a = simulateAiFixture(gx, 1, 7, "Millbrook", "Highgate");
+  const b = simulateAiFixture(gx, 1, 7, "Millbrook", "Highgate");
+  const c = simulateAiFixture(gy, 1, 7, "Millbrook", "Highgate");
   check("same seed/season/round/fixture => same score",
     a.homeGoals === b.homeGoals && a.awayGoals === b.awayGoals);
   check("different save seed can change the score",
