@@ -560,8 +560,9 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
       else if (p.age < 25) p.rating = Math.min(93, p.rating + randInt(0, 1));
     }
   }
-  return s;
+  return runWeeklyGenerators(s);
 }
+
 
 function ordinal(n: number): string {
   const s = ["th", "st", "nd", "rd"], v = n % 100;
