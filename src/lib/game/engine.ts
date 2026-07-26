@@ -17,6 +17,7 @@ import type {
   HalfTimeOption,
 } from "./types";
 import { runWeeklyGenerators } from "./inbox";
+import { buildSeasonSchedule, clubFixtures } from "./fixtures";
 
 
 const STORAGE_KEY = "chairman.save.v1";
@@ -67,20 +68,28 @@ function makeSquad(quality: number): Player[] {
   return s;
 }
 
-function makeFixtures(clubName: string): { week: number; opponent: string; home: boolean }[] {
-  const opponents = CLUBS.filter((c) => c !== clubName).slice(0, 19);
-  const fx: { week: number; opponent: string; home: boolean }[] = [];
-  // Season calendar (see CALENDAR below):
-  //   Weeks 1-4:   Pre-season (transfer window open, friendlies only)
-  //   Weeks 5-23:  First half of league season (19 home fixtures)
-  //   Weeks 24-27: Mid-season transfer window (no league games)
-  //   Weeks 28-46: Second half of league season (19 away fixtures)
-  let w = 5;
-  for (const o of opponents) fx.push({ week: w++, opponent: o, home: true });
-  w = 28;
-  for (const o of opponents) fx.push({ week: w++, opponent: o, home: false });
-  return fx;
+/** Rounds 1-19 -> weeks 5-23, rounds 20-38 -> weeks 28-46. */
+export function weekForLeagueRound(round: number): number {
+  return round <= 19 ? 4 + round : 27 + (round - 19);
 }
+
+export function leagueTeams(clubName: string): string[] {
+  return [clubName, ...CLUBS.filter((c) => c !== clubName).slice(0, 19)];
+}
+
+/**
+ * Deterministic double round-robin (circle method + home/away rebalancing).
+ * Same seed + same participants => identical schedule.
+ */
+export function makeFixtures(
+  clubName: string,
+  seed: string,
+): { week: number; opponent: string; home: boolean }[] {
+  const teams = leagueTeams(clubName);
+  const schedule = buildSeasonSchedule(teams, seed);
+  return clubFixtures(schedule, clubName, weekForLeagueRound);
+}
+
 
 function makeLeague(clubName: string): LeagueRow[] {
   return [clubName, ...CLUBS.filter((c) => c !== clubName).slice(0, 19)].map((team) => ({
@@ -251,6 +260,7 @@ export function newGame(clubName: string, managerName: string): GameState {
 }
 
 function _newGameSeed(clubName: string, managerName: string): GameState {
+  const saveSeed = `${clubName}|${managerName}|${Date.now().toString(36)}`;
 
   const stands: Stand[] = [
     { key: "N", name: "North Stand", capacity: 6000, condition: 92, ticketPrice: 22 },
@@ -260,7 +270,7 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
   ];
   return {
     version: 2,
-    saveSeed: `${clubName}|${managerName}|${Date.now().toString(36)}`,
+    saveSeed,
     clubName,
     managerName,
     season: 1,
@@ -282,7 +292,7 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
       { name: "Stadium Naming",   weekly: 5_000,  weeksLeft: 38 * 3 },
       { name: "Training Wear",    weekly: 2_200,  weeksLeft: 20 },
     ],
-    fixtures: makeFixtures(clubName),
+    fixtures: makeFixtures(clubName, `${saveSeed}|season1`),
     results: [],
     ledger: [],
     league: makeLeague(clubName),
@@ -558,7 +568,7 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     // reset
     s.season += 1;
     s.week = 1;
-    s.fixtures = makeFixtures(s.clubName);
+    s.fixtures = makeFixtures(s.clubName, `${s.saveSeed}|season${s.season}`);
     s.results = [];
     s.league = makeLeague(s.clubName);
     // age players + minor rating drift
