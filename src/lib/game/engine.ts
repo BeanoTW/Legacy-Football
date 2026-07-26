@@ -293,6 +293,9 @@ export function newGame(clubName: string, managerName: string): GameState {
   // Pre-season projection for season 1 (derived from starting reputations).
   storePredictions(base, base.season);
   ensureBoard(base);
+  // Opening cash is booked as a real ledger entry, so the books reconcile
+  // from the very first week.
+  initFinance(base);
   return runWeeklyGenerators(base);
 }
 
@@ -308,7 +311,7 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
   const leagues = makeLeagues(clubName);
   const leagueSchedule = makePyramidSchedule(leagues, `${saveSeed}|season1`);
   return {
-    version: 6,
+    version: 7,
     saveSeed,
     clubName,
     managerName,
@@ -358,6 +361,17 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
     inboxFlags: {},
     scheduledGenerators: [],
     board: makeBoard(saveSeed, clubName),
+    finance: {
+      openingSeasonBalance: 0,
+      openingSeasonNumber: 1,
+      minimumCashReserve: 0,
+      boardSpendingPolicy: "Balanced",
+      policySeason: 1,
+      budgets: { wages: 0, transfers: 0, facilities: 0, commercial: 0, contingency: 0 },
+      nextEntryId: 1,
+    },
+    financeLedger: [],
+    financeHistory: [],
   };
 
 }
@@ -889,6 +903,18 @@ export function migrateSave(parsed: Record<string, unknown>): GameState {
     }
     ensureBoard(st);
     p.version = 6;
+  }
+
+  // v6 → v7: club finance system.
+  //
+  // The legacy weekly ledger is converted into itemised finance entries with
+  // a balancing opening position, so the rebuilt books reconcile exactly to
+  // the save's real cash figure. No historical season summary is invented.
+  if (p.version < 7) {
+    const st = p as unknown as GameState;
+    ensureFinance(st);
+    migrateLegacyLedger(st);
+    p.version = 7;
   }
 
   return p as GameState;
