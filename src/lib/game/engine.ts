@@ -16,9 +16,11 @@ import type {
   MatchEvent,
   HalfTimeOption,
 } from "./types";
+import { runWeeklyGenerators } from "./inbox";
 
 
 const STORAGE_KEY = "chairman.save.v1";
+
 
 /* ---------- RNG (seedable via Math.random for v1) ---------- */
 const rand = (min: number, max: number) => min + Math.random() * (max - min);
