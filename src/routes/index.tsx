@@ -406,7 +406,7 @@ function Game({
       </main>
 
       {/* Mobile bottom nav */}
-      <MobileNav tab={tab} setTab={setTab} />
+      <MobileNav tab={tab} setTab={setTab} unread={unreadCount(state)} />
 
 
       {state.liveMatch && <MatchDayOverlay state={state} update={update} />}
