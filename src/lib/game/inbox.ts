@@ -37,6 +37,9 @@ import type {
 } from "./types";
 
 import { absoluteWeek, fromAbsoluteWeek } from "./time";
+import {
+  evaluateObjective, confidenceBand, BAND_LABEL, directorConcern,
+} from "./board";
 import { hashString, seededRng } from "./rng";
 
 /* ---------- Helpers ---------- */
@@ -848,6 +851,162 @@ const G_MEDIA_MATCH: Generator = {
   },
 };
 
+/* -- 9. Board: seasonal objectives handed down at the start of the season -- */
+const G_BOARD_OBJECTIVES: Generator = {
+  id: "board-objectives",
+  run: (s) => {
+    const board = s.board;
+    if (!board || board.objectivesSeason !== s.season || board.objectives.length === 0) return [];
+    if (s.week > 6) return [];
+    const chair = board.directors.find((d) => d.role === "Chairman") ?? board.directors[0];
+    if (!chair) return [];
+    const lines = board.objectives
+      .map((o) => `• ${o.label}\n   ${o.description}`)
+      .join("\n\n");
+    return [
+      mk(s, "board-objectives", {
+        eventKey: `board-objectives:s${s.season}`,
+        sender: chair.name,
+        department: "Board of Directors",
+        category: "board",
+        priority: "high",
+        subject: `Season ${s.season} objectives from the board`,
+        body:
+          `The board met this week and agreed the objectives you will be ` +
+          `measured against this season.\n\n${lines}\n\n` +
+          `We review at the midway point and again at the end of the season. ` +
+          `Each director weighs these differently — you will not please all of us ` +
+          `at once, so choose what you protect.`,
+        choices: [
+          {
+            id: "accept",
+            label: "Accept the objectives",
+            hint: "Take the board's targets as they stand.",
+            effects: [{ kind: "flag", key: `boardObjectivesSeen-s${s.season}`, value: true }],
+          },
+          {
+            id: "push-back",
+            label: "Push back on the targets",
+            hint: "Argue the projection is unfair. Risks goodwill now for slack later.",
+            effects: [
+              { kind: "flag", key: `boardObjectivesSeen-s${s.season}`, value: true },
+              { kind: "flag", key: `boardPushback-s${s.season}`, value: true },
+              { kind: "reputation", delta: -1 },
+            ],
+          },
+        ],
+      }),
+    ];
+  },
+};
+
+/* -- 10. Board: review outcomes (mid-season and end-of-season) -- */
+const G_BOARD_REVIEW: Generator = {
+  id: "board-review",
+  run: (s) => {
+    const board = s.board;
+    if (!board?.reviews?.length) return [];
+    const items: InboxItem[] = [];
+    // Only the most recent few reviews are worth surfacing; dedup by eventKey
+    // means an already-emitted review is never re-sent.
+    for (const r of board.reviews.slice(-3)) {
+      const chair = board.directors.find((d) => d.role === "Chairman") ?? board.directors[0];
+      const band = confidenceBand(r.confidenceAfter);
+      const met = r.outcomes.filter((o) => o.met).length;
+      const heading = r.type === "midSeason"
+        ? `Mid-season review — season ${r.season}`
+        : `End of season review — season ${r.season}`;
+      const body =
+        `${r.verdict}\n\n` +
+        `Board confidence: ${r.confidenceBefore}% → ${r.confidenceAfter}% (${BAND_LABEL[band]}).\n` +
+        `Objectives ${r.type === "midSeason" ? "on track" : "met"}: ${met} of ${r.outcomes.length}.\n\n` +
+        `Around the table:\n` +
+        r.lines.map((l) => `• ${l}`).join("\n");
+      items.push(
+        mk(s, "board-review", {
+          eventKey: `board-review:${r.id}`,
+          sender: chair?.name ?? "The Board",
+          department: "Board of Directors",
+          category: "board",
+          priority: r.confidenceAfter < 45 ? "urgent" : "high",
+          subject: heading,
+          body,
+          choices: [
+            {
+              id: "note",
+              label: "Note the board's position",
+              effects: [{ kind: "flag", key: `boardReviewSeen-${r.id}`, value: true }],
+            },
+          ],
+        }),
+      );
+    }
+    return items;
+  },
+};
+
+/* -- 11. Board: individual director pressure when confidence is low -- */
+const G_BOARD_PRESSURE: Generator = {
+  id: "board-pressure",
+  run: (s) => {
+    const board = s.board;
+    if (!board?.directors?.length) return [];
+    const nowAbs = absoluteWeek(s.season, s.week);
+    const last = Number(s.inboxFlags["boardPressureAtAbsoluteWeek"] ?? 0);
+    if (nowAbs - last < 8) return [];
+    // The angriest influential director speaks up.
+    const sorted = [...board.directors].sort(
+      (a, b) => (a.confidence - b.confidence) || (b.influence - a.influence),
+    );
+    const d = sorted[0];
+    if (!d || d.confidence >= 40) return [];
+    const concern = directorConcern(s, d);
+    if (!concern) return [];
+    const p = evaluateObjective(s, concern.objective);
+    return [
+      mk(s, "board-pressure", {
+        eventKey: `board-pressure:${d.id}:s${s.season}:w${s.week}`,
+        sender: d.name,
+        department: "Board of Directors",
+        category: "warning",
+        priority: "urgent",
+        subject: `${d.role} — concerns over ${concern.objective.priority}`,
+        body:
+          `I'll be blunt. My confidence in the direction of this club sits at ` +
+          `${d.confidence}%.\n\n` +
+          `${concern.objective.label}. ${p.detail}.\n\n` +
+          `I want to see movement on this before the next review, or I will be ` +
+          `raising it formally with the rest of the board.`,
+        expiresInWeeks: 4,
+        choices: [
+          {
+            id: "reassure",
+            label: "Reassure them personally",
+            hint: "Costs nothing but your word. Small, temporary goodwill.",
+            effects: [
+              { kind: "flag", key: "boardPressureAtAbsoluteWeek", value: nowAbs },
+            ],
+          },
+          {
+            id: "act",
+            label: "Commit club funds to the problem",
+            hint: "Spend £75k addressing their concern directly.",
+            effects: [
+              { kind: "cash", amount: -75_000, note: `Board directive — ${d.role}`, expenseCategory: "other" },
+              { kind: "flag", key: "boardPressureAtAbsoluteWeek", value: nowAbs },
+              { kind: "reputation", delta: 1 },
+            ],
+          },
+        ],
+        consequenceOnExpire: [
+          { kind: "flag", key: "boardPressureAtAbsoluteWeek", value: nowAbs },
+          { kind: "reputation", delta: -1 },
+        ],
+      }),
+    ];
+  },
+};
+
 /* ---------- Registry ---------- */
 const GENERATORS: Generator[] = [
   G_WELCOME,
@@ -858,6 +1017,9 @@ const GENERATORS: Generator[] = [
   G_SPONSOR_RENEW,
   G_SPONSOR_PUSHBACK,
   G_MEDIA_MATCH,
+  G_BOARD_OBJECTIVES,
+  G_BOARD_REVIEW,
+  G_BOARD_PRESSURE,
 ];
 for (const g of GENERATORS) KNOWN_GENERATOR_IDS.add(g.id);
 
