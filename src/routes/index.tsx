@@ -78,6 +78,18 @@ import {
   commitLiveMatchAndAdvance,
   cancelLiveMatch,
 } from "@/lib/game/engine";
+import {
+  unreadCount,
+  markInboxRead,
+  handleInboxChoice,
+  dismissInboxItem,
+  clearReadInbox,
+  CATEGORY_META,
+  PRIORITY_META,
+  DEPARTMENTS_ALL,
+} from "@/lib/game/inbox";
+import type { InboxItem, InboxCategory, InboxDepartment, InboxStatus } from "@/lib/game/types";
+
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
