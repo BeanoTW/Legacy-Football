@@ -37,6 +37,12 @@ import {
   makeBoard, ensureBoard, maybeRunMidSeasonReview, runEndOfSeasonReview,
   rollBoardToNewSeason,
 } from "./board";
+import {
+  ensureFinance, initFinance, postEntry, migrateLegacyLedger, postRecurringWeek,
+  postMatchdayFinance, syncWeekLedger, awardPrizeMoney,
+  closeSeasonFinance, openSeasonFinance,
+} from "./finance";
+
 
 
 const STORAGE_KEY = "chairman.save.v1";
@@ -287,6 +293,9 @@ export function newGame(clubName: string, managerName: string): GameState {
   // Pre-season projection for season 1 (derived from starting reputations).
   storePredictions(base, base.season);
   ensureBoard(base);
+  // Opening cash is booked as a real ledger entry, so the books reconcile
+  // from the very first week.
+  initFinance(base);
   return runWeeklyGenerators(base);
 }
 
@@ -302,7 +311,7 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
   const leagues = makeLeagues(clubName);
   const leagueSchedule = makePyramidSchedule(leagues, `${saveSeed}|season1`);
   return {
-    version: 6,
+    version: 7,
     saveSeed,
     clubName,
     managerName,
@@ -352,6 +361,17 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
     inboxFlags: {},
     scheduledGenerators: [],
     board: makeBoard(saveSeed, clubName),
+    finance: {
+      openingSeasonBalance: 0,
+      openingSeasonNumber: 1,
+      minimumCashReserve: 0,
+      boardSpendingPolicy: "Balanced",
+      policySeason: 1,
+      budgets: { wages: 0, transfers: 0, facilities: 0, commercial: 0, contingency: 0 },
+      nextEntryId: 1,
+    },
+    financeLedger: [],
+    financeHistory: [],
   };
 
 }
@@ -422,28 +442,15 @@ export interface MatchOverride {
 export function advanceWeek(prev: GameState, override?: MatchOverride): GameState {
   const s: GameState = structuredClone(prev);
   const fixture = s.fixtures.find((f) => f.week === s.week);
-  const ledger: WeekLedger = {
-    week: s.week,
-    season: s.season,
-    income: { gate: 0, tv: 0, sponsor: 0, merchandise: 0, prize: 0, transfers: 0, other: 0 },
-    expenses: {
-      playerWages: 0, staffWages: 0, stadiumOps: 0, trainingOps: 0,
-      maintenance: 0, matchday: 0, transfers: 0, other: 0,
-    },
-    net: 0,
-    balance: 0,
-  };
+  ensureFinance(s);
 
-  // ---- Expenses (fixed weekly) ----
-  ledger.expenses.playerWages = playerWagesWeekly(s);
-  ledger.expenses.staffWages  = s.staffWagesWeekly + hiredStaffWagesWeekly(s);
-  ledger.expenses.stadiumOps  = s.utilitiesWeekly;
-  ledger.expenses.trainingOps = s.trainingWeeklyCost;
-  ledger.expenses.maintenance = s.maintenanceWeekly;
+  // ---- Recurring income + expenditure ----
+  // Wages, operations, maintenance, admin, commercial and the league
+  // distribution. Every stream is posted through the finance ledger with a
+  // per-week dedupe key, so replaying a week cannot double-charge.
+  postRecurringWeek(s);
 
-  // ---- Recurring income ----
-  ledger.income.sponsor = weeklySponsorIncome(s);
-  ledger.income.merchandise = Math.round(400 + s.reputation * 90 + s.fanHappiness * 30);
+  let matchdayNote: string | undefined;
 
   // ---- Matchday ----
   let fxResult: FixtureResult | null = null;
@@ -482,16 +489,20 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
       matchdayOps = fixture.home ? Math.round(6_500 + attendance * 0.4) : 3_200;
     }
 
-    ledger.income.gate = gate;
-    ledger.income.tv = tv;
-    ledger.expenses.matchday = matchdayOps;
-    if (override?.winBonus) ledger.expenses.other += override.winBonus;
+    // Single matchday-finance path shared by auto-resolved and live matches.
+    // Away fixtures book no gate, hospitality or concessions.
+    postMatchdayFinance(s, {
+      season: s.season, week: s.week,
+      opponent: fixture.opponent, home: fixture.home,
+      attendance, gate, tv, matchdayOps,
+      winBonus: override?.winBonus ?? 0,
+    });
 
     const result: "W" | "D" | "L" = gf > ga ? "W" : gf === ga ? "D" : "L";
     fxResult = {
       week: s.week, opponent: fixture.opponent, home: fixture.home,
-      goalsFor: gf, goalsAgainst: ga, attendance,
-      gateReceipts: gate, tvIncome: tv, result,
+      goalsFor: gf, goalsAgainst: ga, attendance: fixture.home ? attendance : 0,
+      gateReceipts: fixture.home ? gate : 0, tvIncome: tv, result,
     };
 
     const swing = result === "W" ? 4 : result === "D" ? 0 : -5;
@@ -531,7 +542,7 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
         else { my.d++; my.pts += 1; opp.d++; opp.pts += 1; }
       }
     }
-    ledger.matchdayNote = `${fixture.home ? "H" : "A"} vs ${fixture.opponent} — ${gf}-${ga} ${result}`;
+    matchdayNote = `${fixture.home ? "H" : "A"} vs ${fixture.opponent} — ${gf}-${ga} ${result}`;
   } else if (!override && FRIENDLY_WEEKS.has(s.week)) {
     // ---- Friendly (pre-season / mid-season windows) ----
     const opp = pick(CLUBS.filter((c) => c !== s.clubName));
@@ -544,8 +555,11 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     const attendance = Math.round(cap * (0.28 + Math.random() * 0.18) * (0.6 + s.fanHappiness / 200));
     const gate = Math.round(attendance * avgTicketPrice(s) * 0.7);
     const matchdayOps = Math.round(4_200 + attendance * 0.3);
-    ledger.income.gate = gate;
-    ledger.expenses.matchday = matchdayOps;
+    postMatchdayFinance(s, {
+      season: s.season, week: s.week,
+      opponent: `${opp} (friendly)`, home: true,
+      attendance, gate, tv: 0, matchdayOps,
+    });
     const result: "W" | "D" | "L" = gf > ga ? "W" : gf === ga ? "D" : "L";
     // Friendlies don't touch the league table; tiny happiness swing only
     s.fanHappiness = Math.max(5, Math.min(100, s.fanHappiness + (result === "W" ? 1 : result === "L" ? -1 : 0)));
@@ -554,8 +568,9 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
       goalsFor: gf, goalsAgainst: ga, attendance,
       gateReceipts: gate, tvIncome: 0, result,
     };
-    ledger.matchdayNote = `Friendly vs ${opp} — ${gf}-${ga} ${result}`;
+    matchdayNote = `Friendly vs ${opp} — ${gf}-${ga} ${result}`;
   }
+
 
   // ---- Transfers: staff scouting + incoming bids (window only) ----
   if (isTransferWindowOpen(s)) {
@@ -630,13 +645,14 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   // ---- Pitch decay ----
   s.pitchCondition = Math.max(35, s.pitchCondition - (fixture?.home ? 3 : 1));
 
-  // ---- Roll up ledger ----
-  const inc = Object.values(ledger.income).reduce((a, b) => a + b, 0);
-  const exp = Object.values(ledger.expenses).reduce((a, b) => a + b, 0);
-  ledger.net = inc - exp;
-  s.cash = Math.round(s.cash + ledger.net);
-  ledger.balance = s.cash;
-  s.ledger.push(ledger);
+  // ---- Weekly roll-up ----
+  // Cash was already moved by the finance ledger; the legacy WeekLedger row
+  // is a projection of this week's entries, rebuilt on every post.
+  syncWeekLedger(s, s.season, s.week);
+  if (matchdayNote) {
+    const row = s.ledger.find((l) => l.season === s.season && l.week === s.week);
+    if (row) row.matchdayNote = matchdayNote;
+  }
   if (fxResult) s.results.push(fxResult);
 
   // ---- Resolve any remaining AI fixtures for this round, then project table ----
@@ -652,20 +668,30 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     syncTable(s);
     // Atomic pyramid rollover: finalise every division, write immutable
     // history, then move promoted/relegated clubs. Guarded against replays.
+    const closingSeason = s.season;
+    const closingLeagueId = playerLeagueId(s);
+    const closingLeague = findLeague(s, closingLeagueId);
     const rollover = applySeasonRollover(s);
-    // end of season: prize money based on league position
+    // End of season: configuration-driven league prize money, awarded exactly
+    // once (guarded by a ledger dedupe key, not by the calendar).
     const sorted = [...s.league].sort((a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga));
     const pos = sorted.findIndex((r) => r.team === s.clubName) + 1;
-    const prize = Math.round(4_000_000 * Math.max(0.15, (21 - pos) / 20));
-    s.cash += prize;
-    // record as own ledger entry
-    s.ledger.push({
-      week: SEASON_END_WEEK, season: s.season,
-      income: { gate: 0, tv: 0, sponsor: 0, merchandise: 0, prize, transfers: 0, other: 0 },
-      expenses: { playerWages: 0, staffWages: 0, stadiumOps: 0, trainingOps: 0, maintenance: 0, matchday: 0, transfers: 0, other: 0 },
-      net: prize, balance: s.cash,
-      matchdayNote: `SEASON END — Finished ${pos}${ordinal(pos)}. Prize £${prize.toLocaleString()}`,
-    });
+    if (closingLeague && pos > 0) {
+      const award = awardPrizeMoney(s, closingSeason, closingLeague, pos);
+      if (award) {
+        const row = s.ledger.find((l) => l.season === closingSeason && l.week === SEASON_END_WEEK);
+        if (row) {
+          row.matchdayNote =
+            `SEASON END — Finished ${pos}${ordinal(pos)}. Prize £${award.total.toLocaleString()}`;
+        }
+      }
+    }
+    // Board's final judgement on the season just completed. Must run before
+    // the season counter moves so it is filed against the correct season.
+    runEndOfSeasonReview(s);
+    // Immutable financial record of the season just closed.
+    closeSeasonFinance(s, closingSeason, closingLeagueId);
+
     // Board's final judgement on the season just completed. Must run before
     // the season counter moves so it is filed against the correct season.
     runEndOfSeasonReview(s);
@@ -695,7 +721,10 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     }
     // New season objectives, derived from the freshly stored projection.
     rollBoardToNewSeason(s);
+    // Open the new season's books: opening balance, policy and budgets.
+    openSeasonFinance(s, s.season);
   }
+
 
   // Mid-season board checkpoint (exactly once per season).
   ensureBoard(s);
@@ -874,6 +903,18 @@ export function migrateSave(parsed: Record<string, unknown>): GameState {
     }
     ensureBoard(st);
     p.version = 6;
+  }
+
+  // v6 → v7: club finance system.
+  //
+  // The legacy weekly ledger is converted into itemised finance entries with
+  // a balancing opening position, so the rebuilt books reconcile exactly to
+  // the save's real cash figure. No historical season summary is invented.
+  if (p.version < 7) {
+    const st = p as unknown as GameState;
+    ensureFinance(st);
+    migrateLegacyLedger(st);
+    p.version = 7;
   }
 
   return p as GameState;
@@ -1117,9 +1158,8 @@ export function approveTransferTarget(
     otherClub: "Scouted",
     handledBy: t.scoutedByName,
   });
-  // record fee on the current week's ledger too (running week)
-  const cur = ns.ledger[ns.ledger.length - 1];
-  if (cur && cur.week === ns.week) cur.expenses.transfers += t.askingFee;
+  // Cash already left the club when the pot was allocated, so the fee is a
+  // movement inside the ring-fenced transfer budget, not a new cash outflow.
   return { state: ns, ok: true };
 }
 
@@ -1155,7 +1195,16 @@ export function respondToBid(s: GameState, id: string, accept: boolean): GameSta
   if (accept) {
     const p = ns.squad.find((x) => x.id === b.playerId);
     if (p) {
-      ns.cash += b.fee;
+      postEntry(ns, {
+        category: "Transfers",
+        subcategory: "Player sale",
+        description: `${p.name} sold to ${b.fromClub}`,
+        amount: b.fee,
+        direction: "income",
+        sourceSystem: "transfers",
+        linkedEntityId: b.id,
+        dedupeKey: `transfer-in:${b.id}`,
+      });
       // Sale proceeds land in spendable cash — reallocate to the transfer
       // pot manually if you want to reinvest.
       ns.wageBudgetWeekly += p.wage;
@@ -1170,8 +1219,6 @@ export function respondToBid(s: GameState, id: string, accept: boolean): GameSta
         wage: 0,
         otherClub: b.fromClub,
       });
-      const cur = ns.ledger[ns.ledger.length - 1];
-      if (cur && cur.week === ns.week) cur.income.transfers += b.fee;
     }
   }
   return ns;
@@ -1386,10 +1433,24 @@ export function setTransferBudget(
   if (delta > 0 && delta > s.cash) {
     return { state: s, ok: false, reason: "Not enough spendable cash to allocate" };
   }
-  return {
-    state: { ...s, transferBudget: target, cash: s.cash - delta },
-    ok: true,
-  };
+  // The pot is real money: allocating moves cash out of the club's spendable
+  // balance, releasing puts it back. Both legs are booked so the books
+  // reconcile against cash at all times.
+  const ns: GameState = structuredClone(s);
+  ns.transferBudget = target;
+  if (delta !== 0) {
+    postEntry(ns, {
+      category: "Transfers",
+      subcategory: delta > 0 ? "Budget ring-fence" : "Budget release",
+      description: delta > 0
+        ? "Cash ring-fenced into the transfer budget"
+        : "Unused transfer budget returned to spendable cash",
+      amount: Math.abs(delta),
+      direction: delta > 0 ? "expense" : "income",
+      sourceSystem: "transfers",
+    });
+  }
+  return { state: ns, ok: true };
 }
 export function setWageBudget(s: GameState, amount: number): GameState {
   return { ...s, wageBudgetWeekly: Math.max(0, Math.round(amount)) };
