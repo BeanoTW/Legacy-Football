@@ -40,6 +40,7 @@ safe("version 1", () => {
 });
 safe("version 2 idempotent", () => {
   const src = { ...legacy({ version: 2 }), saveSeed: "KEEP_ME" };
+  delete src.leagueSchedule; delete src.matchRecords; // a genuine v2 save has neither
   const m = migrateSave(src);
   check("v2 upgrades to v3 keeping seed", (m.version as number) === 3 && m.saveSeed === "KEEP_ME");
   check("v2 save gets empty league schedule (legacy season preserved)",
