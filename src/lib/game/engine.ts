@@ -259,11 +259,13 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
     { key: "W", name: "West Stand",  capacity: 7000, condition: 94, ticketPrice: 30 },
   ];
   return {
-    version: 1,
+    version: 2,
+    saveSeed: `${clubName}|${managerName}|${Date.now().toString(36)}`,
     clubName,
     managerName,
     season: 1,
     week: 1,
+
     cash: 2_500_000,
     reputation: 55,
     fanHappiness: 70,
