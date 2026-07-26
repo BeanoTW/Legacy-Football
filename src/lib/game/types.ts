@@ -205,7 +205,12 @@ export interface WeekLedger {
   net: number;
   balance: number;
   matchdayNote?: string;
+  /** True when the row was created outside advanceWeek (e.g. by an inbox cash effect). */
+  synthetic?: boolean;
+  /** Human-readable notes attached by inbox effects, with their source item/event. */
+  inboxNotes?: { note: string; amount: number; sourceItemId?: string; sourceEventKey?: string }[];
 }
+
 
 export interface FixtureResult {
   week: number;
