@@ -358,6 +358,116 @@ export interface LeagueRow {
   gf: number; ga: number; pts: number;
 }
 
+/* -------- Board of Directors --------
+   The board is a group of individuals, not a single approval bar. Each
+   director owns a slice of the club, judges the chairman against the
+   objectives inside that slice, and carries their own confidence. The
+   headline board confidence is an influence-weighted blend of theirs.
+------------------------------------------------------------------------ */
+
+export type DirectorRole =
+  | "Chairman"
+  | "Finance Director"
+  | "Football Director"
+  | "Commercial Director"
+  | "Supporters' Director";
+
+export type DirectorTrait =
+  | "patient"      // slower confidence swings
+  | "ruthless"     // faster confidence swings, punishes misses hard
+  | "ambitious"    // raises objective targets
+  | "frugal"       // weights finance heavily, hates spending
+  | "pragmatic"    // rewards being on track rather than perfection
+  | "loyal"        // confidence floor is higher
+  | "populist"     // weights fans heavily
+  | "traditionalist"; // weights facilities and continuity
+
+/** The areas of the club a director can care about. */
+export type BoardPriority =
+  | "results" | "finance" | "fans" | "facilities" | "squad" | "commercial";
+
+export interface Director {
+  id: string;
+  name: string;
+  role: DirectorRole;
+  age: number;
+  traits: DirectorTrait[];
+  /** Relative weights 0-100, one per priority. Sums are not normalised. */
+  priorities: Record<BoardPriority, number>;
+  /** Share of the boardroom voice, 0-100. */
+  influence: number;
+  /** Current confidence in the chairman, 0-100. */
+  confidence: number;
+  /** How long they tolerate underperformance before confidence falls, 0-100. */
+  patience: number;
+  /** One-line characterisation shown in the UI. */
+  bio: string;
+}
+
+export type ObjectiveKind =
+  | "leaguePosition"
+  | "cashReserve"
+  | "wageControl"
+  | "fanHappiness"
+  | "stadiumCondition"
+  | "squadRating";
+
+export type ObjectiveStatus = "active" | "met" | "missed";
+
+export interface BoardObjective {
+  id: string;
+  season: number;
+  kind: ObjectiveKind;
+  priority: BoardPriority;
+  ownerRole: DirectorRole;
+  label: string;
+  description: string;
+  /** Target value. For leaguePosition this is "finish this position or better". */
+  target: number;
+  /** Importance to the board overall, 0-100. */
+  weight: number;
+  status: ObjectiveStatus;
+}
+
+/** Live evaluation of one objective. Derived — never stored. */
+export interface ObjectiveProgress {
+  objectiveId: string;
+  current: number;
+  target: number;
+  /** 0-1 satisfaction. 1 = fully met. */
+  progress: number;
+  onTrack: boolean;
+  detail: string;
+}
+
+export interface BoardReview {
+  id: string;
+  season: number;
+  week: number;
+  type: "midSeason" | "endSeason";
+  confidenceBefore: number;
+  confidenceAfter: number;
+  verdict: string;
+  lines: string[];
+  /** Confidence per director id after the review. */
+  directorConfidence: Record<string, number>;
+  /** Objective outcomes captured at review time. */
+  outcomes: { objectiveId: string; label: string; progress: number; met: boolean }[];
+}
+
+export interface BoardState {
+  directors: Director[];
+  /** Objectives for the CURRENT season. Replaced at rollover. */
+  objectives: BoardObjective[];
+  /** Season the current objectives belong to. */
+  objectivesSeason: number;
+  /** Append-only review history. */
+  reviews: BoardReview[];
+  /** Influence-weighted headline confidence, 0-100. */
+  confidence: number;
+}
+
+
 /* -------- Transfers -------- */
 export interface TransferTarget {
   id: string;
