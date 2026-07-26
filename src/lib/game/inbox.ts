@@ -877,6 +877,9 @@ export function runWeeklyGenerators(prev: GameState): GameState {
   const nowAbs = absoluteWeek(s.season, s.week);
 
   // 1. Expire timed-out items on the absolute axis.
+  //    Collect first, then apply — applying effects while iterating the same
+  //    collection is exactly the pattern that caused lost/duplicated writes.
+  const expiring: InboxItem[] = [];
   for (const it of s.inbox) {
     const deadline = it.expiresAtAbsoluteWeek;
     if (
@@ -885,12 +888,21 @@ export function runWeeklyGenerators(prev: GameState): GameState {
       it.status !== "expired" &&
       nowAbs > deadline
     ) {
-      it.status = "expired";
-      if (it.consequenceOnExpire) {
-        Object.assign(s, applyEffects(s, it.consequenceOnExpire));
-      }
+      expiring.push(it);
     }
   }
+  for (const it of expiring) {
+    it.status = "expired";
+    // Exactly-once guard: survives reloads and repeated weekly runs.
+    if (it.consequenceOnExpire && !it.consequenceApplied) {
+      it.consequenceApplied = true;
+      applyEffectsInPlace(s, it.consequenceOnExpire, {
+        sourceItemId: it.id,
+        sourceEventKey: it.eventKey,
+      });
+    }
+  }
+
 
   // 2. Pull scheduled entries that are due now, grouped by generatorId.
   //    Entries with a missing/NaN due time are treated as due immediately
