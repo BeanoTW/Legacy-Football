@@ -103,7 +103,12 @@ export interface InboxItem {
   expiresAtAbsoluteWeek?: number;
   reward?: string;
   consequenceOnExpire?: InboxEffect[];
+  /** Set once the expiry consequence has been applied. Guarantees exactly-once. */
+  consequenceApplied?: boolean;
+  /** Absolute week the player's choice was applied. Guards against double-apply. */
+  resolvedAtAbsoluteWeek?: number;
 }
+
 
 export interface ScheduledGenerator {
   generatorId: string;
