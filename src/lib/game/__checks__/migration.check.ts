@@ -31,19 +31,22 @@ function legacy(overrides: Record<string, unknown> = {}): Record<string, unknown
 console.log("\n[M1] Version handling");
 safe("missing version", () => {
   const m = migrateSave(legacy());
-  check("missing version migrates to v2", m.version === 2);
+  check("missing version migrates to current schema", (m.version as number) === 3);
   check("missing version backfills saveSeed", typeof m.saveSeed === "string" && m.saveSeed.length > 0);
 });
 safe("version 1", () => {
   const m = migrateSave(legacy({ version: 1 }));
-  check("v1 migrates to v2", m.version === 2);
+  check("v1 migrates to current schema", (m.version as number) === 3);
 });
 safe("version 2 idempotent", () => {
   const src = { ...legacy({ version: 2 }), saveSeed: "KEEP_ME" };
   const m = migrateSave(src);
-  check("v2 passes through unchanged", m.version === 2 && m.saveSeed === "KEEP_ME");
+  check("v2 upgrades to v3 keeping seed", (m.version as number) === 3 && m.saveSeed === "KEEP_ME");
+  check("v2 save gets empty league schedule (legacy season preserved)",
+    Array.isArray(m.leagueSchedule) && m.leagueSchedule.length === 0 &&
+    Array.isArray(m.matchRecords) && m.matchRecords.length === 0);
   const again = migrateSave(m as unknown as Record<string, unknown>);
-  check("migration is idempotent", again.saveSeed === "KEEP_ME" && again.version === 2);
+  check("migration is idempotent", again.saveSeed === "KEEP_ME" && (again.version as number) === 3);
 });
 
 console.log("\n[M2] Missing optional collections must not throw");
