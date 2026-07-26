@@ -128,7 +128,16 @@ function score(rounds: ScheduledMatch[][], teams: string[]): number {
  * appended verbatim, so no club gets a long home or away block.
  */
 export function buildSeasonSchedule(teams: string[], seed: string): ScheduledMatch[][] {
-  const first = circleMethod(teams);
+  const rng0 = mulberry32(hashString(`ring|${seed}|${teams.join(",")}`));
+  // Seeded permutation of the ring order. This both varies the schedule per
+  // save seed and removes any positional bias for the user's club, which is
+  // always element 0 of the incoming list.
+  const ring = [...teams];
+  for (let i = ring.length - 1; i > 0; i--) {
+    const j = Math.floor(rng0() * (i + 1));
+    [ring[i], ring[j]] = [ring[j], ring[i]];
+  }
+  const first = circleMethod(ring);
   const mirrored = first.map((round) =>
     round.map((m) => ({ round: 0, home: m.away, away: m.home })),
   );
