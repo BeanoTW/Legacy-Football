@@ -437,7 +437,7 @@ export interface LiveMatch {
 
 export interface GameState {
   /** Save schema version. Bump + add a migration in loadGame when persisted shape changes. */
-  version: 4;
+  version: 5;
   /** Stable per-save seed. Used for deterministic inbox generation. */
   saveSeed: string;
   clubName: string;
