@@ -765,9 +765,17 @@ export interface GameState {
   /** Board of Directors — objectives, confidence and reviews. */
   board: BoardState;
 
+  /** Persistent finance state: policy, budgets, opening balance. */
+  finance: FinanceState;
+  /** Append-only record of every cash movement. Reconciles to `cash`. */
+  financeLedger: FinanceEntry[];
+  /** Immutable per-season financial summaries. Append-only. */
+  financeHistory: SeasonFinancialSummary[];
+
   // Inbox / communication backbone
   inbox: InboxItem[];
   inboxFlags: Record<string, string | number | boolean>;
   scheduledGenerators: ScheduledGenerator[];
 }
+
 
