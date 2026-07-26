@@ -177,7 +177,7 @@ console.log("\n[8] Legacy (v2) save compatibility");
   delete g.leagueSchedule;
   delete g.matchRecords;
   const m = migrateSave(g);
-  check("migrated to v3", (m.version as number) === 3);
+  check("migrated to v4", (m.version as number) === 4);
   check("legacy in-progress season keeps empty schedule", m.leagueSchedule.length === 0);
   check("legacy save is not force-simulated", m.matchRecords.length === 0);
   const after = advanceWeek(m, { gf: 2, ga: 0, attendance: 900, gate: 1, tv: 1, matchdayOps: 1, winBonus: 0 });
