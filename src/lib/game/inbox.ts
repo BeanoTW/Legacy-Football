@@ -102,8 +102,9 @@ function currentLedgerRow(s: GameState, openingBalance: number): WeekLedger {
   let row = s.ledger.find((l) => l.season === s.season && l.week === s.week);
   if (!row) {
     row = EMPTY_LEDGER_ROW(s.season, s.week, openingBalance);
-    row.matchdayNote = row.matchdayNote ?? undefined;
+    row.matchdayNote = "Off-cycle adjustments (inbox decisions)";
     s.ledger.push(row);
+
   }
   return row;
 }
