@@ -267,7 +267,7 @@ export function rolloverInboxItems(s: GameState, outcomes: LeagueOutcome[]): Inb
     if (mine.promoted.includes(s.clubName)) {
       out.push(item(
         s, `club-promoted:${s.clubName}:s${season}`,
-        "The Board", "Board", "board", "high",
+        "The Board", "Board of Directors", "board", "high",
         `Promoted from ${mine.leagueName}`,
         `Congratulations — finishing ${pos}${ordinal(pos)} in ${mine.leagueName} takes us up. ` +
         `A revised budget and a higher revenue settlement will follow, and expectations rise with them. ` +
@@ -276,7 +276,7 @@ export function rolloverInboxItems(s: GameState, outcomes: LeagueOutcome[]): Inb
     } else if (mine.relegated.includes(s.clubName)) {
       out.push(item(
         s, `club-relegated:${s.clubName}:s${season}`,
-        "The Board", "Board", "board", "urgent",
+        "The Board", "Board of Directors", "board", "urgent",
         `Relegated from ${mine.leagueName}`,
         `Finishing ${pos}${ordinal(pos)} means relegation. The board is deeply disappointed. ` +
         `Central income will fall next season and the wage bill must be reviewed accordingly. ` +
@@ -284,7 +284,7 @@ export function rolloverInboxItems(s: GameState, outcomes: LeagueOutcome[]): Inb
       ));
       out.push(item(
         s, `fans-relegation:${s.clubName}:s${season}`,
-        "Supporters' Trust", "Fans", "fans", "high",
+        "Supporters' Trust", "Fan Liaison", "fans", "high",
         "Supporters seek answers after relegation",
         `The trust has requested a meeting following relegation from ${mine.leagueName}. ` +
         `Season-ticket renewals are expected to slow until the club sets out a plan.`,
@@ -292,7 +292,7 @@ export function rolloverInboxItems(s: GameState, outcomes: LeagueOutcome[]): Inb
     } else if (mine.champion === s.clubName) {
       out.push(item(
         s, `club-champions:${s.clubName}:s${season}`,
-        "The Board", "Board", "board", "high",
+        "The Board", "Board of Directors", "board", "high",
         `${mine.leagueName} champions!`,
         `We finished top of ${mine.leagueName} in season ${season}. A remarkable campaign.`,
       ));
