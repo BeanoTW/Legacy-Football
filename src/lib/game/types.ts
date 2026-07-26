@@ -23,8 +23,23 @@ export type InboxPriority = "low" | "normal" | "high" | "urgent";
 export type InboxStatus =
   | "unread" | "read" | "awaitingDecision" | "completed" | "expired";
 
+/** Ledger buckets an inbox cash effect may be booked against. */
+export type LedgerIncomeCategory =
+  | "gate" | "tv" | "sponsor" | "merchandise" | "prize" | "transfers" | "other";
+export type LedgerExpenseCategory =
+  | "playerWages" | "staffWages" | "stadiumOps" | "trainingOps"
+  | "maintenance" | "matchday" | "transfers" | "other";
+
 export type InboxEffect =
-  | { kind: "cash"; amount: number; note?: string }
+  | {
+      kind: "cash";
+      amount: number;
+      note?: string;
+      /** Income bucket when amount >= 0. Defaults to "other". */
+      incomeCategory?: LedgerIncomeCategory;
+      /** Expense bucket when amount < 0. Defaults to "other". */
+      expenseCategory?: LedgerExpenseCategory;
+    }
   | { kind: "fanHappiness"; delta: number }
   | { kind: "reputation"; delta: number }
   | { kind: "pitch"; delta: number }
@@ -39,12 +54,27 @@ export type InboxEffect =
       payload?: Record<string, string | number | boolean>;
     };
 
+/** Structured, declarative preconditions for a choice. */
+export type InboxRequirement =
+  | { kind: "cash"; amount: number }
+  | { kind: "fanHappiness"; min?: number; max?: number }
+  | { kind: "reputation"; min?: number; max?: number }
+  | { kind: "flag"; key: string; equals?: string | number | boolean }
+  | { kind: "staffRole"; role: string };
+
 export interface InboxChoice {
   id: string;
   label: string;
   hint?: string;
   effects: InboxEffect[];
+  /**
+   * Preconditions. Cash requirements are also inferred automatically from
+   * the choice's own net negative cash effects — the club has no debt or
+   * overdraft facility, so it can never spend money it does not hold.
+   */
+  requirements?: InboxRequirement[];
 }
+
 
 export interface InboxItem {
   id: string;
