@@ -82,6 +82,8 @@ import {
   unreadCount,
   markInboxRead,
   handleInboxChoice,
+  evaluateChoice,
+
   dismissInboxItem,
   clearReadInbox,
   CATEGORY_META,
@@ -3030,6 +3032,7 @@ function InboxTab({
       {open && (
         <InboxDetail
           item={open}
+          state={state}
           onClose={() => setOpenId(null)}
           onChoose={(choiceId) => {
             update((s) => handleInboxChoice(s, open.id, choiceId));
@@ -3047,15 +3050,18 @@ function InboxTab({
 
 function InboxDetail({
   item,
+  state,
   onClose,
   onChoose,
   onDismiss,
 }: {
   item: InboxItem;
+  state: GameState;
   onClose: () => void;
   onChoose: (choiceId: string) => void;
   onDismiss: () => void;
 }) {
+
   return (
     <Sheet open onOpenChange={(v) => { if (!v) onClose(); }}>
       <SheetContent side="bottom" className="rounded-t-2xl max-h-[90vh] overflow-y-auto">
@@ -3101,18 +3107,33 @@ function InboxDetail({
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
                   Decision required
                 </div>
-                {item.choices.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => onChoose(c.id)}
-                    className="w-full text-left rounded-md border p-3 hover:border-primary hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="text-sm font-medium">{c.label}</div>
-                    {c.hint && (
-                      <div className="text-xs text-muted-foreground mt-0.5">{c.hint}</div>
-                    )}
-                  </button>
-                ))}
+                {item.choices.map((c) => {
+                  const avail = evaluateChoice(state, c);
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => avail.available && onChoose(c.id)}
+                      disabled={!avail.available}
+                      className={cn(
+                        "w-full text-left rounded-md border p-3 transition-colors",
+                        avail.available
+                          ? "hover:border-primary hover:bg-muted/50"
+                          : "opacity-60 cursor-not-allowed bg-muted/30",
+                      )}
+                    >
+                      <div className="text-sm font-medium">{c.label}</div>
+                      {c.hint && (
+                        <div className="text-xs text-muted-foreground mt-0.5">{c.hint}</div>
+                      )}
+                      {!avail.available && (
+                        <div className="text-[11px] text-rose-600 mt-1">
+                          {avail.reasons.join(" ")}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+
               </>
             )}
           </div>

@@ -26,13 +26,16 @@
 import type {
   GameState,
   InboxItem,
+  InboxChoice,
   InboxEffect,
   InboxDepartment,
   InboxCategory,
   InboxPriority,
   ScheduledGenerator,
   Sponsor,
+  WeekLedger,
 } from "./types";
+
 import { absoluteWeek, fromAbsoluteWeek } from "./time";
 import { hashString, seededRng } from "./rng";
 
@@ -67,66 +70,217 @@ export function assertGeneratorRegistered(id: string): void {
   }
 }
 
-/* ---------- Effect application (the ONLY state mutator) ---------- */
-export function applyEffects(state: GameState, effects: InboxEffect[]): GameState {
-  const s = structuredClone(state);
-  for (const e of effects) {
-    switch (e.kind) {
-      case "cash":
-        s.cash = Math.round(s.cash + e.amount);
-        {
-          const last = s.ledger[s.ledger.length - 1];
-          if (last && last.week === s.week && last.season === s.season) {
-            if (e.amount >= 0) last.income.other += e.amount;
-            else last.expenses.other += -e.amount;
-            last.net =
-              Object.values(last.income).reduce((a, b) => a + b, 0) -
-              Object.values(last.expenses).reduce((a, b) => a + b, 0);
-            last.balance = s.cash;
-          }
-        }
-        break;
-      case "fanHappiness":
-        s.fanHappiness = Math.max(0, Math.min(100, s.fanHappiness + e.delta));
-        break;
-      case "reputation":
-        s.reputation = Math.max(1, Math.min(100, s.reputation + e.delta));
-        break;
-      case "pitch":
-        s.pitchCondition = Math.max(20, Math.min(100, s.pitchCondition + e.delta));
-        break;
-      case "standCondition": {
-        const st = s.stands.find((x) => x.key === e.standKey);
-        if (st) st.condition = Math.max(20, Math.min(100, st.condition + e.delta));
-        break;
+/* =========================================================================
+   Effect processing
+   -------------------------------------------------------------------------
+   One working state, mutated in place by applyEffectInPlace, cloned exactly
+   once at the entry point. Never Object.assign(s, applyEffects(s, ...)) —
+   that swaps nested collections underneath any in-flight iteration.
+========================================================================= */
+
+export interface EffectSource {
+  sourceItemId?: string;
+  sourceEventKey?: string;
+}
+
+const EMPTY_LEDGER_ROW = (season: number, week: number, balance: number): WeekLedger => ({
+  week,
+  season,
+  income: { gate: 0, tv: 0, sponsor: 0, merchandise: 0, prize: 0, transfers: 0, other: 0 },
+  expenses: {
+    playerWages: 0, staffWages: 0, stadiumOps: 0, trainingOps: 0,
+    maintenance: 0, matchday: 0, transfers: 0, other: 0,
+  },
+  net: 0,
+  balance,
+  synthetic: true,
+  inboxNotes: [],
+});
+
+/** Current-week ledger row, created (synthetic) if the week has none yet. */
+function currentLedgerRow(s: GameState, openingBalance: number): WeekLedger {
+  let row = s.ledger.find((l) => l.season === s.season && l.week === s.week);
+  if (!row) {
+    row = EMPTY_LEDGER_ROW(s.season, s.week, openingBalance);
+    row.matchdayNote = "Off-cycle adjustments (inbox decisions)";
+    s.ledger.push(row);
+
+  }
+  return row;
+}
+
+const sumValues = (o: Record<string, number>) => Object.values(o).reduce((a, b) => a + b, 0);
+
+/** Recompute net and closing balance so cash and ledger always agree. */
+function rebalanceRow(row: WeekLedger, cash: number) {
+  row.net = sumValues(row.income) - sumValues(row.expenses);
+  row.balance = cash;
+}
+
+/** Book a cash movement into the current-week ledger row. */
+function bookCash(
+  s: GameState,
+  e: Extract<InboxEffect, { kind: "cash" }>,
+  src: EffectSource,
+) {
+  const opening = s.cash;
+  s.cash = Math.round(s.cash + e.amount);
+  const row = currentLedgerRow(s, opening);
+  if (e.amount >= 0) {
+    const bucket = e.incomeCategory ?? "other";
+    row.income[bucket] += Math.round(e.amount);
+  } else {
+    const bucket = e.expenseCategory ?? "other";
+    row.expenses[bucket] += Math.round(-e.amount);
+  }
+  if (e.note) {
+    row.inboxNotes = row.inboxNotes ?? [];
+    row.inboxNotes.push({
+      note: e.note,
+      amount: Math.round(e.amount),
+      sourceItemId: src.sourceItemId,
+      sourceEventKey: src.sourceEventKey,
+    });
+  }
+  rebalanceRow(row, s.cash);
+}
+
+/** Applies ONE effect to the working state, in place. */
+function applyEffectInPlace(s: GameState, e: InboxEffect, src: EffectSource): void {
+  switch (e.kind) {
+    case "cash":
+      bookCash(s, e, src);
+      break;
+    case "fanHappiness":
+      s.fanHappiness = Math.max(0, Math.min(100, s.fanHappiness + e.delta));
+      break;
+    case "reputation":
+      s.reputation = Math.max(1, Math.min(100, s.reputation + e.delta));
+      break;
+    case "pitch":
+      s.pitchCondition = Math.max(20, Math.min(100, s.pitchCondition + e.delta));
+      break;
+    case "standCondition": {
+      const st = s.stands.find((x) => x.key === e.standKey);
+      if (st) st.condition = Math.max(20, Math.min(100, st.condition + e.delta));
+      break;
+    }
+    case "sponsorExtend": {
+      const sp = s.sponsors.find((x: Sponsor) => x.name === e.sponsorName);
+      if (sp) {
+        sp.weeksLeft += e.addWeeks;
+        if (e.newWeekly != null) sp.weekly = e.newWeekly;
       }
-      case "sponsorExtend": {
-        const sp = s.sponsors.find((x: Sponsor) => x.name === e.sponsorName);
-        if (sp) {
-          sp.weeksLeft += e.addWeeks;
-          if (e.newWeekly != null) sp.weekly = e.newWeekly;
-        }
-        break;
-      }
-      case "flag":
-        s.inboxFlags[e.key] = e.value;
-        break;
-      case "scheduleGenerator": {
-        assertGeneratorRegistered(e.generatorId);
-        const dueAbs = absoluteWeek(s.season, s.week) + e.inWeeks;
-        const derived = fromAbsoluteWeek(dueAbs);
-        s.scheduledGenerators.push({
-          generatorId: e.generatorId,
-          dueAtAbsoluteWeek: dueAbs,
-          dueWeek: derived.week,
-          dueSeason: derived.season,
-          payload: e.payload,
-        });
-        break;
-      }
+      break;
+    }
+    case "flag":
+      s.inboxFlags[e.key] = e.value;
+      break;
+    case "scheduleGenerator": {
+      assertGeneratorRegistered(e.generatorId);
+      const dueAbs = absoluteWeek(s.season, s.week) + e.inWeeks;
+      const derived = fromAbsoluteWeek(dueAbs);
+      s.scheduledGenerators.push({
+        generatorId: e.generatorId,
+        dueAtAbsoluteWeek: dueAbs,
+        dueWeek: derived.week,
+        dueSeason: derived.season,
+        payload: e.payload,
+      });
+      break;
     }
   }
+}
+
+/**
+ * Applies effects to an ALREADY-CLONED working state, in place.
+ * Internal callers that own the clone should use this.
+ */
+export function applyEffectsInPlace(
+  working: GameState,
+  effects: InboxEffect[],
+  src: EffectSource = {},
+): void {
+  for (const e of effects) applyEffectInPlace(working, e, src);
+}
+
+/** Clone once, apply sequentially, return the final state. */
+export function applyEffects(
+  state: GameState,
+  effects: InboxEffect[],
+  src: EffectSource = {},
+): GameState {
+  const s = structuredClone(state);
+  applyEffectsInPlace(s, effects, src);
   return s;
+}
+
+/* =========================================================================
+   Choice availability
+   -------------------------------------------------------------------------
+   There is no debt, overdraft or financing in this game, so a choice the
+   club cannot pay for must be unavailable rather than pushing cash negative.
+========================================================================= */
+
+export interface ChoiceAvailability {
+  available: boolean;
+  reasons: string[];
+  /** Net cash the choice costs (positive = money out). */
+  cashRequired: number;
+}
+
+/** Net cash outflow implied by a choice's own effects. */
+export function choiceCashCost(choice: InboxChoice): number {
+  const net = choice.effects.reduce(
+    (a, e) => (e.kind === "cash" ? a + e.amount : a),
+    0,
+  );
+  return net < 0 ? -net : 0;
+}
+
+export function evaluateChoice(s: GameState, choice: InboxChoice): ChoiceAvailability {
+  const reasons: string[] = [];
+  const inferred = choiceCashCost(choice);
+  let cashRequired = inferred;
+
+  for (const r of choice.requirements ?? []) {
+    switch (r.kind) {
+      case "cash":
+        cashRequired = Math.max(cashRequired, r.amount);
+        break;
+      case "fanHappiness":
+        if (r.min != null && s.fanHappiness < r.min)
+          reasons.push(`Needs fan happiness ${r.min}+ (currently ${s.fanHappiness}).`);
+        if (r.max != null && s.fanHappiness > r.max)
+          reasons.push(`Only while fan happiness is ${r.max} or below.`);
+        break;
+      case "reputation":
+        if (r.min != null && s.reputation < r.min)
+          reasons.push(`Needs club reputation ${r.min}+ (currently ${s.reputation}).`);
+        if (r.max != null && s.reputation > r.max)
+          reasons.push(`Only while reputation is ${r.max} or below.`);
+        break;
+      case "flag": {
+        const v = s.inboxFlags[r.key];
+        const ok = r.equals === undefined ? Boolean(v) : v === r.equals;
+        if (!ok) reasons.push(`Unavailable — prerequisite not met.`);
+        break;
+      }
+      case "staffRole":
+        if (!s.hiredStaff.some((x) => x.role === r.role))
+          reasons.push(`Requires a ${r.role} on the staff.`);
+        break;
+    }
+  }
+
+  if (cashRequired > 0 && s.cash < cashRequired) {
+    reasons.push(
+      `Not enough cash — needs ${money(cashRequired)}, club holds ${money(s.cash)}. ` +
+        `The club has no overdraft facility.`,
+    );
+  }
+
+  return { available: reasons.length === 0, reasons, cashRequired };
 }
 
 /* ---------- Player actions ---------- */
@@ -140,14 +294,26 @@ export function markInboxRead(s: GameState, id: string): GameState {
 export function handleInboxChoice(s: GameState, itemId: string, choiceId: string): GameState {
   const item = s.inbox.find((i) => i.id === itemId);
   if (!item || !item.choices) return s;
+  // Exactly-once: a resolved or expired item can never be re-applied, no
+  // matter how many times the UI (or a reload) replays the action.
+  if (item.status === "completed" || item.status === "expired") return s;
+  if (item.chosenChoiceId) return s;
   const choice = item.choices.find((c) => c.id === choiceId);
   if (!choice) return s;
-  const ns = applyEffects(s, choice.effects);
-  ns.inbox = ns.inbox.map((i) =>
-    i.id === itemId ? { ...i, status: "completed", chosenChoiceId: choiceId } : i,
-  );
+  if (!evaluateChoice(s, choice).available) return s;
+
+  const ns = structuredClone(s);
+  const target = ns.inbox.find((i) => i.id === itemId)!;
+  applyEffectsInPlace(ns, choice.effects, {
+    sourceItemId: item.id,
+    sourceEventKey: item.eventKey,
+  });
+  target.status = "completed";
+  target.chosenChoiceId = choiceId;
+  target.resolvedAtAbsoluteWeek = absoluteWeek(ns.season, ns.week);
   return ns;
 }
+
 
 export function dismissInboxItem(s: GameState, id: string): GameState {
   const ns = structuredClone(s);
@@ -711,6 +877,9 @@ export function runWeeklyGenerators(prev: GameState): GameState {
   const nowAbs = absoluteWeek(s.season, s.week);
 
   // 1. Expire timed-out items on the absolute axis.
+  //    Collect first, then apply — applying effects while iterating the same
+  //    collection is exactly the pattern that caused lost/duplicated writes.
+  const expiring: InboxItem[] = [];
   for (const it of s.inbox) {
     const deadline = it.expiresAtAbsoluteWeek;
     if (
@@ -719,12 +888,21 @@ export function runWeeklyGenerators(prev: GameState): GameState {
       it.status !== "expired" &&
       nowAbs > deadline
     ) {
-      it.status = "expired";
-      if (it.consequenceOnExpire) {
-        Object.assign(s, applyEffects(s, it.consequenceOnExpire));
-      }
+      expiring.push(it);
     }
   }
+  for (const it of expiring) {
+    it.status = "expired";
+    // Exactly-once guard: survives reloads and repeated weekly runs.
+    if (it.consequenceOnExpire && !it.consequenceApplied) {
+      it.consequenceApplied = true;
+      applyEffectsInPlace(s, it.consequenceOnExpire, {
+        sourceItemId: it.id,
+        sourceEventKey: it.eventKey,
+      });
+    }
+  }
+
 
   // 2. Pull scheduled entries that are due now, grouped by generatorId.
   //    Entries with a missing/NaN due time are treated as due immediately
