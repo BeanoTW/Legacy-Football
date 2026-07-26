@@ -35,16 +35,16 @@ export function matchSeed(
 }
 
 /**
- * Club strength for an AI club. Pure function of (saveSeed, club, season):
- * no hidden state, reproducible after any reload, drifts a little per season.
+ * Club strength for any club in a season. Delegates to the club-identity
+ * model (reputation + tier + last season + seeded drift) so promoted and
+ * relegated sides carry their history with them instead of being re-rolled.
  */
-export function clubStrength(saveSeed: string, season: number, club: string): number {
-  const rng = mulberry32(hashString(`strength|${saveSeed}|${club}|s${season}`));
-  return 48 + rng() * 26; // 48 - 74
+export function clubStrength(s: GameState, season: number, club: string): number {
+  return clubStrengthFor(s, club, season);
 }
 
 /** Seeded Poisson-ish goal draw — mirrors the existing simGoals shape exactly. */
-function goalsFrom(rng: () => number, strength: number, oppStrength: number): number {
+export function goalsFrom(rng: () => number, strength: number, oppStrength: number): number {
   const lambda = Math.max(0.2, 1.3 + (strength - oppStrength) / 20);
   let g = 0;
   let p = Math.exp(-lambda);
@@ -62,24 +62,41 @@ function goalsFrom(rng: () => number, strength: number, oppStrength: number): nu
 
 export const HOME_ADVANTAGE = 3;
 
+/**
+ * Deterministic scoreline for any fixture.
+ * `override` lets the caller substitute a known strength (the user's squad
+ * rating) while keeping the exact same seeded engine as AI fixtures.
+ */
+export function simulateFixture(
+  s: GameState,
+  season: number,
+  round: number,
+  home: string,
+  away: string,
+  leagueId: string = LEAGUE_ID,
+  override?: { homeStrength?: number; awayStrength?: number },
+): { homeGoals: number; awayGoals: number; seed: string } {
+  const seed = matchSeed(s.saveSeed, season, round, home, away, leagueId);
+  const rng = mulberry32(hashString(seed));
+  const hs = (override?.homeStrength ?? clubStrength(s, season, home)) + HOME_ADVANTAGE;
+  const as = override?.awayStrength ?? clubStrength(s, season, away);
+  return {
+    homeGoals: goalsFrom(rng, hs, as),
+    awayGoals: goalsFrom(rng, as, hs),
+    seed,
+  };
+}
+
 /** Deterministic AI vs AI scoreline. */
 export function simulateAiFixture(
-  saveSeed: string,
+  s: GameState,
   season: number,
   round: number,
   home: string,
   away: string,
   leagueId: string = LEAGUE_ID,
 ): { homeGoals: number; awayGoals: number; seed: string } {
-  const seed = matchSeed(saveSeed, season, round, home, away, leagueId);
-  const rng = mulberry32(hashString(seed));
-  const hs = clubStrength(saveSeed, season, home) + HOME_ADVANTAGE;
-  const as = clubStrength(saveSeed, season, away);
-  return {
-    homeGoals: goalsFrom(rng, hs, as),
-    awayGoals: goalsFrom(rng, as, hs),
-    seed,
-  };
+  return simulateFixture(s, season, round, home, away, leagueId);
 }
 
 export function outcomeOf(homeGoals: number, awayGoals: number): MatchRecord["outcome"] {
