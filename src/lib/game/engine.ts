@@ -27,7 +27,7 @@ import {
 } from "./league";
 import {
   makeLeagues, makePyramidSchedule, makeClubRecords, applySeasonRollover,
-  weekForLeagueRound, DIVISION_ONE, findLeague, scheduleForLeague,
+  weekForLeagueRound, DIVISION_ONE, findLeague, scheduleForLeague, CLUBS_PER_DIVISION,
 } from "./pyramid";
 
 
@@ -760,6 +760,40 @@ export function migrateSave(parsed: Record<string, unknown>): GameState {
     if (!Array.isArray(p.matchRecords)) p.matchRecords = [];
     if (!Array.isArray(p.leagueSchedule)) p.leagueSchedule = [];
     p.version = 3;
+  }
+
+  // v3 → v4: multi-division pyramid.
+  //
+  // The ACTIVE season is never restructured. A v3 save keeps its existing
+  // single-division schedule, table, records and results exactly as they are;
+  // the second division is created empty-of-fixtures alongside it and only
+  // starts playing at the next season rollover, when the whole pyramid is
+  // rescheduled. Existing tier-1 fixtures have no `league` field, which
+  // leagueOf() reads as the tier-1 id, so old records stay valid.
+  if (p.version < 4) {
+    if (!Array.isArray(p.seasonHistory)) p.seasonHistory = [];
+    if (!p.clubRecords || typeof p.clubRecords !== "object") p.clubRecords = {};
+    if (!Array.isArray(p.leagues) || p.leagues.length === 0) {
+      const fresh = makeLeagues(p.clubName);
+      // Preserve the save's actual tier-1 membership if it has one.
+      const existing = Array.isArray(p.league) ? p.league.map((r) => r.team) : [];
+      if (existing.length === CLUBS_PER_DIVISION) fresh[0].clubIds = existing;
+      // Tier 2 must never contain a tier-1 club.
+      const t1 = new Set(fresh[0].clubIds);
+      const pool = CLUBS.filter((c) => !t1.has(c));
+      fresh[1].clubIds = pool.slice(0, CLUBS_PER_DIVISION);
+      p.leagues = fresh;
+    }
+    if (!p.playerLeagueId) {
+      p.playerLeagueId =
+        p.leagues.find((l) => l.clubIds.includes(p.clubName))?.id ?? DIVISION_ONE;
+    }
+    if (!p.leagues.some((l) => l.clubIds.includes(p.clubName))) {
+      const home = p.leagues.find((l) => l.id === p.playerLeagueId) ?? p.leagues[0];
+      home.clubIds = [p.clubName, ...home.clubIds.slice(0, CLUBS_PER_DIVISION - 1)];
+    }
+    if (Object.keys(p.clubRecords).length === 0) p.clubRecords = makeClubRecords(p.leagues);
+    p.version = 4;
   }
 
   return p as GameState;
