@@ -31,7 +31,7 @@ export const MAX_REP_CHANGE_PER_SEASON = 8;
 /** Reputation a club starts with when nothing is known about it. */
 const TIER_BASE_REP: Record<number, [number, number]> = {
   1: [54, 84],
-  2: [30, 60],
+  2: [30, 62],
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -127,7 +127,7 @@ export function strengthParts(s: GameState, club: string, season: number): Stren
   }
 
   const rng = mulberry32(hashString(`strength|${s.saveSeed}|${club}|s${season}`));
-  const variation = (rng() - 0.5) * 6; // ±3
+  const variation = (rng() - 0.5) * 8; // ±4
 
   const total = clamp(base + tierBonus + form + movement + variation, 25, 95);
   return { base, tier: tierBonus, form, movement, variation, total: Math.round(total * 100) / 100 };
