@@ -271,11 +271,28 @@ export interface League {
   promotionPlaces: number;
   /** Bottom N clubs relegated to the league one tier below (0 for the lowest). */
   relegationPlaces: number;
-  /** Placeholder — financial scaling is not implemented yet. */
+  /** Base seasonal distribution for this division, £. See LeaguePrizeRules. */
   prizeMoney: number;
+  /** Optional per-league prize configuration. Defaults derived from tier. */
+  prizeRules?: LeaguePrizeRules;
   /** Placeholder — [min, max] club reputation typical of this tier. */
   reputationRange: [number, number];
 }
+
+/** Configurable, division-agnostic prize-money rules. Never keyed on names. */
+export interface LeaguePrizeRules {
+  /** Paid to every club in the division. */
+  basePayment: number;
+  /** Paid per place above the bottom position. */
+  positionStep: number;
+  /** Extra for finishing 1st. */
+  championBonus: number;
+  /** Extra for finishing inside the division's promotion places. */
+  promotionBonus: number;
+  /** Paid to clubs finishing inside the relegation places. */
+  relegationSupport: number;
+}
+
 
 /** Immutable record of one completed league season. Never overwritten. */
 export interface SeasonHistoryEntry {
