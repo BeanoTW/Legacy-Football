@@ -141,12 +141,16 @@ export function clubStrengthFor(s: GameState, club: string, season: number): num
 
 export function expectationFor(rank: number, league: League): ExpectationLevel {
   const size = league.clubIds.length || 20;
-  const promo = league.promotionPlaces;
   const releg = league.relegationPlaces;
-  if (rank === 1) return league.tier === 1 ? "winLeague" : "promotion";
-  if (promo > 0 && rank <= Math.max(promo, 4)) return "promotion";
-  if (league.tier === 1 && rank <= 4) return "winLeague" === "winLeague" && rank <= 2 ? "winLeague" : "topHalf";
-  if (releg > 0 && rank > size - Math.max(releg, 3)) return rank > size - releg ? "survival" : "avoidRelegation";
+  if (league.tier === 1) {
+    if (rank <= 2) return "winLeague";
+    if (releg > 0 && rank > size - releg) return "survival";
+    if (releg > 0 && rank > size - (releg + 3)) return "avoidRelegation";
+    if (rank <= size / 2) return "topHalf";
+    return "midTable";
+  }
+  if (rank <= Math.max(league.promotionPlaces, 3)) return "promotion";
+  if (releg > 0 && rank > size - releg) return "survival";
   if (rank <= size / 2) return "topHalf";
   return "midTable";
 }
