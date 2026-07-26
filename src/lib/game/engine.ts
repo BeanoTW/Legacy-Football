@@ -597,22 +597,31 @@ function ordinal(n: number): string {
 function migrateSave(parsed: Record<string, unknown>): GameState {
   const p = parsed as unknown as GameState & { version: number };
 
-  if (!p.hiredStaff) p.hiredStaff = [];
-  if (!p.staffCandidates) p.staffCandidates = makeCandidatePool();
+  // Treat a save with no version field as v1 (versioning was introduced late,
+  // so pre-versioning saves must still migrate rather than be discarded).
+  if (typeof p.version !== "number" || !Number.isFinite(p.version)) p.version = 1;
+
+  const arr = <T,>(v: unknown, fallback: T[]): T[] => (Array.isArray(v) ? (v as T[]) : fallback);
+
+  p.hiredStaff = arr(p.hiredStaff, []);
+  if (!Array.isArray(p.staffCandidates)) p.staffCandidates = makeCandidatePool();
   if (p.staffMarketRefreshedWeek == null) p.staffMarketRefreshedWeek = p.week;
   if (p.transferBudget == null) p.transferBudget = 500_000;
   if (p.wageBudgetWeekly == null) p.wageBudgetWeekly = 5_000;
   if (!p.positionPriorities)
     p.positionPriorities = { GK: "medium", DEF: "medium", MID: "medium", FWD: "medium" };
-  if (!p.transferTargets) p.transferTargets = [];
-  if (!p.incomingBids) p.incomingBids = [];
-  if (!p.completedTransfers) p.completedTransfers = [];
+  p.transferTargets = arr(p.transferTargets, []);
+  p.incomingBids = arr(p.incomingBids, []);
+  p.completedTransfers = arr(p.completedTransfers, []);
+  p.ledger = arr(p.ledger, []);
+  p.results = arr(p.results, []);
   if (p.liveMatch === undefined) p.liveMatch = null;
-  if (!p.inbox) p.inbox = [];
-  if (!p.inboxFlags) p.inboxFlags = {};
-  if (!p.scheduledGenerators) p.scheduledGenerators = [];
+  p.inbox = arr(p.inbox, []);
+  if (!p.inboxFlags || typeof p.inboxFlags !== "object") p.inboxFlags = {};
+  p.scheduledGenerators = arr(p.scheduledGenerators, []);
 
   // v1 → v2
+
   if (p.version < 2) {
     if (!p.saveSeed) p.saveSeed = `${p.clubName}|${p.managerName}|legacy-v1`;
 
