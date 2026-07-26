@@ -3030,6 +3030,7 @@ function InboxTab({
       {open && (
         <InboxDetail
           item={open}
+          state={state}
           onClose={() => setOpenId(null)}
           onChoose={(choiceId) => {
             update((s) => handleInboxChoice(s, open.id, choiceId));
@@ -3047,15 +3048,18 @@ function InboxTab({
 
 function InboxDetail({
   item,
+  state,
   onClose,
   onChoose,
   onDismiss,
 }: {
   item: InboxItem;
+  state: GameState;
   onClose: () => void;
   onChoose: (choiceId: string) => void;
   onDismiss: () => void;
 }) {
+
   return (
     <Sheet open onOpenChange={(v) => { if (!v) onClose(); }}>
       <SheetContent side="bottom" className="rounded-t-2xl max-h-[90vh] overflow-y-auto">
