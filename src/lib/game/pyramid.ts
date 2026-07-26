@@ -26,6 +26,8 @@ import {
   isLeagueSeasonComplete,
 } from "./league";
 import { hashString } from "./rng";
+import { applySeasonIdentity, storePredictions, initClubReputations } from "./reputation";
+export { initClubReputations };
 
 export const DIVISION_ONE = LEAGUE_ID;
 export const DIVISION_TWO = "league-2";
@@ -169,6 +171,14 @@ export function applySeasonRollover(s: GameState): { outcomes: LeagueOutcome[]; 
   }));
   s.seasonHistory = [...(s.seasonHistory ?? []), ...history];
 
+  // 3b. club identity: reputation movement + immutable yearly snapshots.
+  //     Runs before membership changes so positions map to the league played.
+  applySeasonIdentity(s, s.season, outcomes.map((o) => ({
+    leagueId: o.leagueId, tier: o.tier, table: o.table,
+    champion: o.champion, runnerUp: o.runnerUp,
+    promoted: o.promoted, relegated: o.relegated,
+  })));
+
   // 4. promotion / relegation — computed first, applied as one transaction
   s.clubRecords ??= {};
   const moveTo = new Map<string, string>(); // club -> destination league id
@@ -210,6 +220,10 @@ export function applySeasonRollover(s: GameState): { outcomes: LeagueOutcome[]; 
     rec.currentLeagueId = lid;
   }
   s.playerLeagueId = membership.get(s.clubName) ?? s.playerLeagueId;
+
+  // 4b. next season's pre-season predictions, from post-movement membership
+  //     and freshly updated reputations.
+  storePredictions(s, s.season + 1);
 
   // 5. inbox announcements (communication only — no financial effects yet)
   const items = rolloverInboxItems(s, outcomes);
