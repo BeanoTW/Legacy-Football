@@ -9,20 +9,29 @@
    ./rng — never unseeded randomness or wall-clock time.
 ========================================================================= */
 
-import type { GameState, LeagueRow, MatchRecord } from "./types";
+import type { GameState, LeagueRow, MatchRecord, ScheduledFixture } from "./types";
 import { mulberry32, hashString } from "./rng";
 
+/** Tier-1 division id. Also the id every pre-v4 record/fixture belongs to. */
 export const LEAGUE_ID = "league-1";
+
+/** League a fixture belongs to (pre-v4 fixtures have no league field). */
+export const leagueOf = (f: { league?: string }) => f.league ?? LEAGUE_ID;
 
 /** Stable identity for a fixture. A fixture is Scheduled until a record with
  *  this id exists, and Completed forever after. */
-export function fixtureId(season: number, round: number, home: string, away: string): string {
-  return `${LEAGUE_ID}|s${season}|r${round}|${home}>${away}`;
+export function fixtureId(
+  season: number, round: number, home: string, away: string, leagueId: string = LEAGUE_ID,
+): string {
+  return `${leagueId}|s${season}|r${round}|${home}>${away}`;
 }
 
 /** Deterministic seed string for one match simulation. */
-export function matchSeed(saveSeed: string, season: number, round: number, home: string, away: string) {
-  return `match|${saveSeed}|s${season}|r${round}|${home}>${away}`;
+export function matchSeed(
+  saveSeed: string, season: number, round: number, home: string, away: string,
+  leagueId: string = LEAGUE_ID,
+) {
+  return `match|${saveSeed}|${leagueId}|s${season}|r${round}|${home}>${away}`;
 }
 
 /**
@@ -60,8 +69,9 @@ export function simulateAiFixture(
   round: number,
   home: string,
   away: string,
+  leagueId: string = LEAGUE_ID,
 ): { homeGoals: number; awayGoals: number; seed: string } {
-  const seed = matchSeed(saveSeed, season, round, home, away);
+  const seed = matchSeed(saveSeed, season, round, home, away, leagueId);
   const rng = mulberry32(hashString(seed));
   const hs = clubStrength(saveSeed, season, home) + HOME_ADVANTAGE;
   const as = clubStrength(saveSeed, season, away);
@@ -77,6 +87,7 @@ export function outcomeOf(homeGoals: number, awayGoals: number): MatchRecord["ou
 }
 
 export function makeRecord(args: {
+  leagueId?: string;
   season: number;
   week: number;
   round: number;
@@ -87,9 +98,10 @@ export function makeRecord(args: {
   seed?: string;
   userInvolved: boolean;
 }): MatchRecord {
+  const leagueId = args.leagueId ?? LEAGUE_ID;
   return {
-    id: fixtureId(args.season, args.round, args.home, args.away),
-    league: LEAGUE_ID,
+    id: fixtureId(args.season, args.round, args.home, args.away, leagueId),
+    league: leagueId,
     season: args.season,
     week: args.week,
     round: args.round,
@@ -109,11 +121,13 @@ export function emptyRow(team: string): LeagueRow {
   return { team, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 };
 }
 
-/** Rebuild the entire table from stored records. Pure projection. */
-export function buildTable(teams: string[], records: MatchRecord[], season: number): LeagueRow[] {
+/** Rebuild one division's table from stored records. Pure projection. */
+export function buildTable(
+  teams: string[], records: MatchRecord[], season: number, leagueId: string = LEAGUE_ID,
+): LeagueRow[] {
   const rows = new Map<string, LeagueRow>(teams.map((t) => [t, emptyRow(t)]));
   for (const r of records) {
-    if (r.season !== season || r.league !== LEAGUE_ID) continue;
+    if (r.season !== season || r.league !== leagueId) continue;
     const h = rows.get(r.home);
     const a = rows.get(r.away);
     if (!h || !a) continue;
@@ -141,12 +155,26 @@ export function hasFullSchedule(s: GameState): boolean {
   return Array.isArray(s.leagueSchedule) && s.leagueSchedule.length > 0;
 }
 
-export function scheduleForWeek(s: GameState, week: number) {
-  return (s.leagueSchedule ?? []).filter((f) => f.week === week);
+export function scheduleForWeek(s: GameState, week: number, leagueId?: string): ScheduledFixture[] {
+  return (s.leagueSchedule ?? []).filter(
+    (f) => f.week === week && (leagueId === undefined || leagueOf(f) === leagueId),
+  );
 }
 
-export function isCompleted(s: GameState, season: number, round: number, home: string, away: string) {
-  const id = fixtureId(season, round, home, away);
+/** The user's division id (falls back to the tier-1 id on pre-v4 saves). */
+export const playerLeagueId = (s: GameState) => s.playerLeagueId ?? LEAGUE_ID;
+
+/** Clubs contesting a division this season. */
+export function leagueClubs(s: GameState, leagueId: string): string[] {
+  const lg = (s.leagues ?? []).find((l) => l.id === leagueId);
+  if (lg) return lg.clubIds;
+  return s.league.map((r) => r.team); // pre-v4 save: single division
+}
+
+export function isCompleted(
+  s: GameState, season: number, round: number, home: string, away: string, leagueId?: string,
+) {
+  const id = fixtureId(season, round, home, away, leagueId ?? LEAGUE_ID);
   return (s.matchRecords ?? []).some((r) => r.id === id);
 }
 
@@ -160,16 +188,18 @@ export function resolveWeek(s: GameState, week: number, userRecord?: MatchRecord
   if (!hasFullSchedule(s)) return;
   s.matchRecords ??= [];
   for (const f of scheduleForWeek(s, week)) {
-    const id = fixtureId(s.season, f.round, f.home, f.away);
+    const lid = leagueOf(f);
+    const id = fixtureId(s.season, f.round, f.home, f.away, lid);
     if (s.matchRecords.some((r) => r.id === id)) continue;
     const isUser = f.home === s.clubName || f.away === s.clubName;
     if (isUser) {
       if (userRecord && userRecord.id === id) s.matchRecords.push(userRecord);
       continue; // user fixture without a result stays Scheduled
     }
-    const sim = simulateAiFixture(s.saveSeed, s.season, f.round, f.home, f.away);
+    const sim = simulateAiFixture(s.saveSeed, s.season, f.round, f.home, f.away, lid);
     s.matchRecords.push(
       makeRecord({
+        leagueId: lid,
         season: s.season, week: f.week, round: f.round,
         home: f.home, away: f.away,
         homeGoals: sim.homeGoals, awayGoals: sim.awayGoals,
@@ -191,7 +221,16 @@ export function seasonFixtureCount(s: GameState): number {
 }
 
 export function seasonCompletedCount(s: GameState): number {
-  return (s.matchRecords ?? []).filter((r) => r.season === s.season && r.league === LEAGUE_ID).length;
+  const ids = new Set((s.leagueSchedule ?? []).map((f) => fixtureId(s.season, f.round, f.home, f.away, leagueOf(f))));
+  return (s.matchRecords ?? []).filter((r) => r.season === s.season && ids.has(r.id)).length;
+}
+
+/** Per-division completion — used by the rollover transaction. */
+export function isLeagueSeasonComplete(s: GameState, leagueId: string): boolean {
+  const fixtures = (s.leagueSchedule ?? []).filter((f) => leagueOf(f) === leagueId);
+  if (fixtures.length === 0) return false;
+  const done = new Set((s.matchRecords ?? []).filter((r) => r.season === s.season && r.league === leagueId).map((r) => r.id));
+  return fixtures.every((f) => done.has(fixtureId(s.season, f.round, f.home, f.away, leagueId)));
 }
 
 /** A season is complete only when every scheduled fixture has a record. */
@@ -200,9 +239,16 @@ export function isSeasonComplete(s: GameState): boolean {
   return seasonCompletedCount(s) >= seasonFixtureCount(s);
 }
 
-/** Refresh s.league from stored records (no-op for legacy schedule-less saves). */
+/** Build any division's live table, sorted. */
+export function tableFor(s: GameState, leagueId: string): LeagueRow[] {
+  return sortTable(buildTable(leagueClubs(s, leagueId), s.matchRecords ?? [], s.season, leagueId));
+}
+
+/** Refresh s.league (the user's division) from stored records.
+ *  No-op for legacy schedule-less saves. */
 export function syncTable(s: GameState): void {
   if (!hasFullSchedule(s)) return;
-  const teams = s.league.map((r) => r.team);
-  s.league = buildTable(teams, s.matchRecords ?? [], s.season);
+  const lid = playerLeagueId(s);
+  const teams = leagueClubs(s, lid);
+  s.league = buildTable(teams, s.matchRecords ?? [], s.season, lid);
 }

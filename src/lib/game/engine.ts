@@ -17,13 +17,18 @@ import type {
   HalfTimeOption,
   ScheduledFixture,
   MatchRecord,
+  League,
 } from "./types";
 import { runWeeklyGenerators } from "./inbox";
-import { buildSeasonSchedule, clubFixtures } from "./fixtures";
+import { CLUBS } from "./clubs";
 import {
   makeRecord, resolveWeek, resolveRemainingSeason, syncTable, hasFullSchedule,
-  isSeasonComplete, buildTable, fixtureId,
+  isSeasonComplete, buildTable, fixtureId, leagueOf, playerLeagueId, leagueClubs,
 } from "./league";
+import {
+  makeLeagues, makePyramidSchedule, makeClubRecords, applySeasonRollover,
+  weekForLeagueRound, DIVISION_ONE, findLeague, scheduleForLeague, CLUBS_PER_DIVISION,
+} from "./pyramid";
 
 
 const STORAGE_KEY = "chairman.save.v1";
@@ -40,11 +45,6 @@ const LAST = [
   "Cahill","Potter","Hughes","Morris","Ellis","Brooks","Reid","Walsh","Ward","Kane",
   "Bailey","Fraser","Ainsley","Palmer","Foden","Rice","Saka","Gordon","Watkins","Bowen",
   "Clarke","Owen","Sterling","Grealish","Maddison","Toney","Isak","Nunes","Fabian","Onana",
-];
-const CLUBS = [
-  "Dalton Town","Ashford City","Millbrook","Northfield","Redwood FC","Kingsbridge","Halewood United",
-  "Stanmoor","Fairwind","Portlee","Blackrock Athletic","Silverdale","Whitby Rangers","Broadmarsh",
-  "Ravencliff","Elmshire","Highgate","Marston Vale","Kingsley","Sandborough","Oakhaven","Ridgeport",
 ];
 
 /* ---------- Generation ---------- */
@@ -74,46 +74,47 @@ function makeSquad(quality: number): Player[] {
   return s;
 }
 
-/** Rounds 1-19 -> weeks 5-23, rounds 20-38 -> weeks 28-46. */
-export function weekForLeagueRound(round: number): number {
-  return round <= 19 ? 4 + round : 27 + (round - 19);
-}
+export { weekForLeagueRound };
 
+/** Default tier-1 membership for a club (new games / legacy helpers). */
 export function leagueTeams(clubName: string): string[] {
-  return [clubName, ...CLUBS.filter((c) => c !== clubName).slice(0, 19)];
+  return makeLeagues(clubName)[0].clubIds;
 }
 
-/**
- * Deterministic double round-robin (circle method + home/away rebalancing).
- * Same seed + same participants => identical schedule.
- */
-/** Full division schedule (all clubs) for one season, mapped onto weeks. */
-export function makeLeagueSchedule(clubName: string, seed: string): ScheduledFixture[] {
-  const teams = leagueTeams(clubName);
-  return buildSeasonSchedule(teams, seed).flatMap((round, idx) =>
-    round.map((m) => ({
-      round: idx + 1,
-      week: weekForLeagueRound(idx + 1),
-      home: m.home,
-      away: m.away,
-    })),
-  );
+/** Clubs in the user's division this season. */
+export function userLeagueTeams(s: GameState): string[] {
+  return leagueClubs(s, playerLeagueId(s));
 }
 
-export function makeFixtures(
-  clubName: string,
-  seed: string,
+/** Whole-pyramid schedule for a season. */
+export function makeLeagueSchedule(leagues: League[], seed: string): ScheduledFixture[] {
+  return makePyramidSchedule(leagues, seed);
+}
+
+/** User-club fixtures for a fresh tier-1 season (kept for legacy callers/tests). */
+export function makeFixtures(clubName: string, seed: string) {
+  const leagues = makeLeagues(clubName);
+  return fixturesForClub(scheduleForLeague(leagues[0], seed), clubName);
+}
+
+/** The user's own fixture list, derived from the pyramid schedule so it can
+ *  never drift from the division's real fixtures. */
+export function fixturesForClub(
+  schedule: ScheduledFixture[],
+  club: string,
 ): { week: number; opponent: string; home: boolean }[] {
-  const teams = leagueTeams(clubName);
-  const schedule = buildSeasonSchedule(teams, seed);
-  return clubFixtures(schedule, clubName, weekForLeagueRound);
+  return schedule
+    .filter((f) => f.home === club || f.away === club)
+    .map((f) => ({
+      week: f.week,
+      opponent: f.home === club ? f.away : f.home,
+      home: f.home === club,
+    }))
+    .sort((a, b) => a.week - b.week);
 }
 
-
-function makeLeague(clubName: string): LeagueRow[] {
-  return [clubName, ...CLUBS.filter((c) => c !== clubName).slice(0, 19)].map((team) => ({
-    team, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0,
-  }));
+function makeLeague(teams: string[]): LeagueRow[] {
+  return teams.map((team) => ({ team, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 }));
 }
 
 /* ---------- Staff ---------- */
@@ -287,8 +288,10 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
     { key: "S", name: "South Stand", capacity: 6000, condition: 90, ticketPrice: 22 },
     { key: "W", name: "West Stand",  capacity: 7000, condition: 94, ticketPrice: 30 },
   ];
+  const leagues = makeLeagues(clubName);
+  const leagueSchedule = makePyramidSchedule(leagues, `${saveSeed}|season1`);
   return {
-    version: 3,
+    version: 4,
     saveSeed,
     clubName,
     managerName,
@@ -311,12 +314,16 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
       { name: "Stadium Naming",   weekly: 5_000,  weeksLeft: 38 * 3 },
       { name: "Training Wear",    weekly: 2_200,  weeksLeft: 20 },
     ],
-    fixtures: makeFixtures(clubName, `${saveSeed}|season1`),
-    leagueSchedule: makeLeagueSchedule(clubName, `${saveSeed}|season1`),
+    fixtures: fixturesForClub(leagueSchedule, clubName),
+    leagues,
+    playerLeagueId: DIVISION_ONE,
+    leagueSchedule,
     matchRecords: [],
+    seasonHistory: [],
+    clubRecords: makeClubRecords(leagues),
     results: [],
     ledger: [],
-    league: makeLeague(clubName),
+    league: makeLeague(leagues[0].clubIds),
     hiredStaff: [],
     staffCandidates: makeCandidatePool(),
     staffMarketRefreshedWeek: 1,
@@ -466,9 +473,11 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
       if (sched) {
         const home = fixture.home ? s.clubName : fixture.opponent;
         const away = fixture.home ? fixture.opponent : s.clubName;
-        const id = fixtureId(s.season, sched.round, home, away);
+        const lid = leagueOf(sched);
+        const id = fixtureId(s.season, sched.round, home, away, lid);
         const already = s.matchRecords.some((r) => r.id === id);
         const userRecord: MatchRecord | undefined = already ? undefined : makeRecord({
+          leagueId: lid,
           season: s.season, week: s.week, round: sched.round,
           home, away,
           homeGoals: fixture.home ? gf : ga,
@@ -610,6 +619,9 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     // Any fixture still outstanding (e.g. a skipped week) is resolved first.
     resolveRemainingSeason(s);
     syncTable(s);
+    // Atomic pyramid rollover: finalise every division, write immutable
+    // history, then move promoted/relegated clubs. Guarded against replays.
+    const rollover = applySeasonRollover(s);
     // end of season: prize money based on league position
     const sorted = [...s.league].sort((a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga));
     const pos = sorted.findIndex((r) => r.team === s.clubName) + 1;
@@ -626,11 +638,21 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     // reset
     s.season += 1;
     s.week = 1;
-    s.fixtures = makeFixtures(s.clubName, `${s.saveSeed}|season${s.season}`);
-    s.leagueSchedule = makeLeagueSchedule(s.clubName, `${s.saveSeed}|season${s.season}`);
-    // matchRecords are permanent history — never cleared.
+    if (s.leagues?.length) {
+      s.leagueSchedule = makePyramidSchedule(s.leagues, `${s.saveSeed}|season${s.season}`);
+      s.fixtures = fixturesForClub(s.leagueSchedule, s.clubName);
+      s.league = makeLeague(userLeagueTeams(s));
+    } else {
+      s.fixtures = makeFixtures(s.clubName, `${s.saveSeed}|season${s.season}`);
+      s.leagueSchedule = [];
+      s.league = makeLeague(leagueTeams(s.clubName));
+    }
+    // matchRecords and seasonHistory are permanent — never cleared.
     s.results = [];
-    s.league = makeLeague(s.clubName);
+    // Season-outcome mail (announcement only — no financial effects yet).
+    for (const it of rollover.items) {
+      if (!s.inbox.some((x) => x.eventKey === it.eventKey)) s.inbox.push({ ...it, week: 1, season: s.season });
+    }
     // age players + minor rating drift
     for (const p of s.squad) {
       p.age += 1;
@@ -740,6 +762,40 @@ export function migrateSave(parsed: Record<string, unknown>): GameState {
     if (!Array.isArray(p.matchRecords)) p.matchRecords = [];
     if (!Array.isArray(p.leagueSchedule)) p.leagueSchedule = [];
     p.version = 3;
+  }
+
+  // v3 → v4: multi-division pyramid.
+  //
+  // The ACTIVE season is never restructured. A v3 save keeps its existing
+  // single-division schedule, table, records and results exactly as they are;
+  // the second division is created empty-of-fixtures alongside it and only
+  // starts playing at the next season rollover, when the whole pyramid is
+  // rescheduled. Existing tier-1 fixtures have no `league` field, which
+  // leagueOf() reads as the tier-1 id, so old records stay valid.
+  if (p.version < 4) {
+    if (!Array.isArray(p.seasonHistory)) p.seasonHistory = [];
+    if (!p.clubRecords || typeof p.clubRecords !== "object") p.clubRecords = {};
+    if (!Array.isArray(p.leagues) || p.leagues.length === 0) {
+      const fresh = makeLeagues(p.clubName);
+      // Preserve the save's actual tier-1 membership if it has one.
+      const existing = Array.isArray(p.league) ? p.league.map((r) => r.team) : [];
+      if (existing.length === CLUBS_PER_DIVISION) fresh[0].clubIds = existing;
+      // Tier 2 must never contain a tier-1 club.
+      const t1 = new Set(fresh[0].clubIds);
+      const pool = CLUBS.filter((c) => !t1.has(c));
+      fresh[1].clubIds = pool.slice(0, CLUBS_PER_DIVISION);
+      p.leagues = fresh;
+    }
+    if (!p.playerLeagueId) {
+      p.playerLeagueId =
+        p.leagues.find((l) => l.clubIds.includes(p.clubName))?.id ?? DIVISION_ONE;
+    }
+    if (!p.leagues.some((l) => l.clubIds.includes(p.clubName))) {
+      const home = p.leagues.find((l) => l.id === p.playerLeagueId) ?? p.leagues[0];
+      home.clubIds = [p.clubName, ...home.clubIds.slice(0, CLUBS_PER_DIVISION - 1)];
+    }
+    if (Object.keys(p.clubRecords).length === 0) p.clubRecords = makeClubRecords(p.leagues);
+    p.version = 4;
   }
 
   return p as GameState;
