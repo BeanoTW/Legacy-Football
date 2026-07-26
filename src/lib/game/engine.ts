@@ -538,9 +538,12 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
 
 
 
-  // ---- Simulate other league games (light) — only during league weeks ----
+  // ---- Legacy fallback only ----
+  // Pre-v3 saves have no full division schedule, so the old "sprinkle four
+  // random AI results" hack keeps their table moving. Schedule-backed saves
+  // resolve every real fixture in resolveWeek() instead.
   const inLeague = phaseOf(s.week) === "firstHalf" || phaseOf(s.week) === "secondHalf";
-  if (inLeague) {
+  if (inLeague && !hasFullSchedule(s)) {
     const others = s.league.filter((r) => r.team !== s.clubName);
     for (let i = 0; i < 4; i++) {
       const a = pick(others), b = pick(others);
