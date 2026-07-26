@@ -596,9 +596,17 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   s.ledger.push(ledger);
   if (fxResult) s.results.push(fxResult);
 
+  // ---- Resolve any remaining AI fixtures for this round, then project table ----
+  resolveWeek(s, s.week);
+  syncTable(s);
+
   // ---- Advance clock ----
   s.week += 1;
   if (s.week > SEASON_END_WEEK) {
+    // Season completion is defined by fixtures resolved, not by the calendar.
+    // Any fixture still outstanding (e.g. a skipped week) is resolved first.
+    resolveRemainingSeason(s);
+    syncTable(s);
     // end of season: prize money based on league position
     const sorted = [...s.league].sort((a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga));
     const pos = sorted.findIndex((r) => r.team === s.clubName) + 1;
@@ -616,6 +624,8 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     s.season += 1;
     s.week = 1;
     s.fixtures = makeFixtures(s.clubName, `${s.saveSeed}|season${s.season}`);
+    s.leagueSchedule = makeLeagueSchedule(s.clubName, `${s.saveSeed}|season${s.season}`);
+    // matchRecords are permanent history — never cleared.
     s.results = [];
     s.league = makeLeague(s.clubName);
     // age players + minor rating drift
