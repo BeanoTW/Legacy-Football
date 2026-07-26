@@ -383,7 +383,13 @@ function Game({
                 >
                   <Icon className="size-4" />
                   {label}
+                  {id === "inbox" && unreadCount(state) > 0 && (
+                    <span className="ml-1 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] leading-4 text-center font-semibold">
+                      {unreadCount(state)}
+                    </span>
+                  )}
                 </button>
+
               </li>
             ))}
           </ul>
