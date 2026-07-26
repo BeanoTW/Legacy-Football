@@ -385,7 +385,9 @@ function Game({
       </nav>
 
       <main className="mx-auto max-w-6xl px-3 py-5 pb-24 md:pb-5">
+        {tab === "inbox" && <InboxTab state={state} update={update} />}
         {tab === "hub" && <ClubHub state={state} advance={advance} update={update} setTab={setTab} />}
+
         {tab === "dashboard" && <Dashboard state={state} />}
         {tab === "cashflow" && <CashFlow state={state} />}
         {tab === "tickets" && <Tickets state={state} update={update} />}
