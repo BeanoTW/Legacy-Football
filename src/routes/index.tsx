@@ -49,6 +49,7 @@ import {
   SheetClose,
 } from "@/components/ui/sheet";
 
+import { LeagueBrowser } from "@/components/LeagueBrowser";
 import { useGame } from "@/hooks/useGame";
 import type { GameState, Stand, Staff, StaffRole, Priority, Position, TransferTarget, IncomingBid } from "@/lib/game/types";
 import {
@@ -153,6 +154,7 @@ type Tab =
   | "staff"
   | "stadium"
   | "fixtures"
+  | "leagues"
   | "history";
 
 type TabDef = [Tab, string, typeof LineIcon];
@@ -168,6 +170,7 @@ const ALL_TABS: TabDef[] = [
   ["staff", "Staff", Briefcase],
   ["stadium", "Stadium", Building2],
   ["fixtures", "Fixtures", Calendar],
+  ["leagues", "Leagues", Trophy],
   ["history", "Ledger", Save],
 ];
 
@@ -422,6 +425,7 @@ function Game({
         {tab === "staff" && <StaffTab state={state} update={update} />}
         {tab === "stadium" && <StadiumTab state={state} update={update} />}
         {tab === "fixtures" && <Fixtures state={state} update={update} />}
+        {tab === "leagues" && <LeagueBrowser state={state} />}
         {tab === "history" && <History state={state} />}
       </main>
 

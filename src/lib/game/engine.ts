@@ -22,9 +22,13 @@ import type {
 import { runWeeklyGenerators } from "./inbox";
 import { CLUBS } from "./clubs";
 import {
-  makeRecord, resolveWeek, resolveRemainingSeason, syncTable, hasFullSchedule,
+  makeRecord, resolveWeek, resolveRemainingSeason, syncTable, hasFullSchedule, simulateFixture,
   isSeasonComplete, buildTable, fixtureId, leagueOf, playerLeagueId, leagueClubs,
 } from "./league";
+import { mulberry32, hashString } from "./rng";
+import {
+  initClubReputations, storePredictions, clubStrengthFor,
+} from "./reputation";
 import {
   makeLeagues, makePyramidSchedule, makeClubRecords, applySeasonRollover,
   weekForLeagueRound, DIVISION_ONE, findLeague, scheduleForLeague, CLUBS_PER_DIVISION,
@@ -276,6 +280,8 @@ export function staffJoinTerms(clubReputation: number, staff: Staff): JoinTerms 
 /* ---------- Initial state ---------- */
 export function newGame(clubName: string, managerName: string): GameState {
   const base = _newGameSeed(clubName, managerName);
+  // Pre-season projection for season 1 (derived from starting reputations).
+  storePredictions(base, base.season);
   return runWeeklyGenerators(base);
 }
 
@@ -291,7 +297,7 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
   const leagues = makeLeagues(clubName);
   const leagueSchedule = makePyramidSchedule(leagues, `${saveSeed}|season1`);
   return {
-    version: 4,
+    version: 5,
     saveSeed,
     clubName,
     managerName,
@@ -321,6 +327,9 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
     matchRecords: [],
     seasonHistory: [],
     clubRecords: makeClubRecords(leagues),
+    clubReputations: initClubReputations(leagues, saveSeed),
+    seasonPredictions: [],
+    clubSnapshots: [],
     results: [],
     ledger: [],
     league: makeLeague(leagues[0].clubIds),
@@ -370,7 +379,9 @@ export const weeklySponsorIncome = (s: GameState) =>
   s.sponsors.reduce((a, sp) => a + (sp.weeksLeft > 0 ? sp.weekly : 0), 0);
 
 /* ---------- Match simulation ---------- */
-function simAttendance(s: GameState, isHome: boolean, opponentStrength: number): number {
+function simAttendance(
+  s: GameState, isHome: boolean, opponentStrength: number, rng: () => number = Math.random,
+): number {
   if (!isHome) return 0;
   const cap = totalCapacity(s);
   const avgPrice = avgTicketPrice(s);
@@ -379,7 +390,7 @@ function simAttendance(s: GameState, isHome: boolean, opponentStrength: number):
   const priceFactor = Math.max(0.15, 1 - Math.pow(Math.max(0, avgPrice - refPrice) / refPrice, 1.4));
   const happinessFactor = 0.55 + s.fanHappiness / 200;   // 0.55 - 1.05
   const opponentFactor = 0.85 + opponentStrength / 400;  // 0.85 - 1.10
-  const noise = rand(0.9, 1.05);
+  const noise = 0.9 + rng() * 0.15;
   const raw = cap * priceFactor * happinessFactor * opponentFactor * noise;
   return Math.max(500, Math.min(cap, Math.round(raw)));
 }
@@ -432,17 +443,36 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   let fxResult: FixtureResult | null = null;
   if (fixture) {
     let gf: number, ga: number, attendance: number, gate: number, tv: number, matchdayOps: number;
+    // The scheduled fixture this result belongs to (schedule-backed saves).
+    const sched = hasFullSchedule(s)
+      ? s.leagueSchedule.find(
+          (f) => f.week === s.week &&
+            ((f.home === s.clubName && f.away === fixture.opponent) ||
+             (f.away === s.clubName && f.home === fixture.opponent)),
+        )
+      : undefined;
+    const homeClub = fixture.home ? s.clubName : fixture.opponent;
+    const awayClub = fixture.home ? fixture.opponent : s.clubName;
     if (override) {
       ({ gf, ga, attendance, gate, tv, matchdayOps } = override);
     } else {
+      // Auto-resolved user match: exactly the same deterministic engine the
+      // AI fixtures use, so reloading before the week reproduces the result.
       const myStrength = squadRating(s);
-      const oppStrength = 55 + Math.random() * 20;
-      gf = simGoals(myStrength + (fixture.home ? 3 : 0), oppStrength);
-      ga = simGoals(oppStrength, myStrength + (fixture.home ? 3 : 0));
-      attendance = simAttendance(s, fixture.home, oppStrength);
+      const oppStrength = clubStrengthFor(s, fixture.opponent, s.season);
+      const round = sched?.round ?? s.week;
+      const lid = sched ? leagueOf(sched) : playerLeagueId(s);
+      const sim = simulateFixture(s, s.season, round, homeClub, awayClub, lid, {
+        homeStrength: fixture.home ? myStrength : oppStrength,
+        awayStrength: fixture.home ? oppStrength : myStrength,
+      });
+      gf = fixture.home ? sim.homeGoals : sim.awayGoals;
+      ga = fixture.home ? sim.awayGoals : sim.homeGoals;
+      const rng = mulberry32(hashString(`matchday|${sim.seed}`));
+      attendance = simAttendance(s, fixture.home, oppStrength, rng);
       const avgPrice = avgTicketPrice(s);
       gate = Math.round(attendance * avgPrice);
-      tv = 22_000 + Math.round(Math.random() * 8000);
+      tv = 22_000 + Math.round(rng() * 8000);
       matchdayOps = fixture.home ? Math.round(6_500 + attendance * 0.4) : 3_200;
     }
 
@@ -465,14 +495,9 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     if (hasFullSchedule(s)) {
       // Record-driven league: store the user's fixture, resolve every AI
       // fixture in the same round, then project the table from records.
-      const sched = s.leagueSchedule.find(
-        (f) => f.week === s.week &&
-          ((f.home === s.clubName && f.away === fixture.opponent) ||
-           (f.away === s.clubName && f.home === fixture.opponent)),
-      );
       if (sched) {
-        const home = fixture.home ? s.clubName : fixture.opponent;
-        const away = fixture.home ? fixture.opponent : s.clubName;
+        const home = homeClub;
+        const away = awayClub;
         const lid = leagueOf(sched);
         const id = fixtureId(s.season, sched.round, home, away, lid);
         const already = s.matchRecords.some((r) => r.id === id);
@@ -798,6 +823,27 @@ export function migrateSave(parsed: Record<string, unknown>): GameState {
     p.version = 4;
   }
 
+  // v4 → v5: club identity (reputation, derived strength, predictions).
+  //
+  // Only additive persistent fields. Historical seasons are never rewritten:
+  // snapshots start empty and accumulate from the next completed season.
+  // Reputation is seeded deterministically from each club's current tier, so
+  // an existing save keeps a sensible pyramid shape immediately.
+  if (p.version < 5) {
+    if (!p.clubReputations || typeof p.clubReputations !== "object") p.clubReputations = {};
+    const seeded = initClubReputations(p.leagues ?? [], p.saveSeed);
+    for (const [club, rep0] of Object.entries(seeded)) {
+      if (typeof p.clubReputations[club] !== "number") p.clubReputations[club] = rep0;
+    }
+    if (!Array.isArray(p.clubSnapshots)) p.clubSnapshots = [];
+    if (!Array.isArray(p.seasonPredictions)) p.seasonPredictions = [];
+    p.version = 5;
+    // Project the current season if it has not been projected yet.
+    if (!p.seasonPredictions.some((x) => x.season === p.season)) {
+      storePredictions(p as unknown as GameState, p.season);
+    }
+  }
+
   return p as GameState;
 }
 
@@ -816,7 +862,7 @@ export function loadGame(): GameState | null {
     const v = (parsed as { version?: number }).version;
     // Missing version = pre-versioning save, treat as v1. Only refuse saves
     // written by a FUTURE schema we don't understand.
-    if (typeof v === "number" && v > 3) return null;
+    if (typeof v === "number" && v > 5) return null;
     const legacyV = typeof v === "number" && v >= 1 ? v : 1;
     const migrated = migrateSave(parsed);
     // If this save had no inbox at all (older than v2 introduction), seed it.

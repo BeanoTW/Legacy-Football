@@ -232,7 +232,7 @@ console.log("\n[9] v3 save migration");
     .filter((f) => f.league === DIVISION_ONE)
     .map(({ league, ...rest }) => rest);
   const m = migrateSave(g);
-  check("migrated to v4", (m.version as number) === 4);
+  check("migrated to v5", (m.version as number) === 5);
   check("pyramid created", m.leagues.length === 2 &&
     m.leagues.every((l) => l.clubIds.length === CLUBS_PER_DIVISION));
   check("user club placed in exactly one league",

@@ -16,9 +16,9 @@ function check(label: string, cond: boolean, extra?: string) {
   else { failed++; console.log(`  ✗ ${label}${extra ? " — " + extra : ""}`); }
 }
 
-function fresh(): GameState {
+function fresh(seed = "LEAGUE_SEED_1"): GameState {
   const g = newGame("Dalton Town", "Test Boss");
-  g.saveSeed = "LEAGUE_SEED_1";
+  g.saveSeed = seed;
   // Rebuild the schedule under the fixed test seed so runs are reproducible.
   g.leagueSchedule = makeLeagueSchedule(g.leagues, `${g.saveSeed}|season1`);
   g.fixtures = g.leagueSchedule
@@ -43,7 +43,7 @@ function playSeason(g0: GameState): GameState {
 console.log("\n[1] Schedule + state shape");
 {
   const g = fresh();
-  check("save version is 4", (g.version as number) === 4);
+  check("save version is 5", (g.version as number) === 5);
   check("top division schedule present (380 fixtures)",
     g.leagueSchedule.filter((f) => f.league === DIVISION_ONE).length === 380,
     String(g.leagueSchedule.length));
@@ -102,9 +102,11 @@ console.log("\n[3] No fixture resolves twice (idempotency / reload replay)");
 
 console.log("\n[4] Deterministic AI simulation");
 {
-  const a = simulateAiFixture("SEED_X", 1, 7, "Millbrook", "Highgate");
-  const b = simulateAiFixture("SEED_X", 1, 7, "Millbrook", "Highgate");
-  const c = simulateAiFixture("SEED_Y", 1, 7, "Millbrook", "Highgate");
+  const gx = fresh("SEED_X");
+  const gy = fresh("SEED_Y");
+  const a = simulateAiFixture(gx, 1, 7, "Millbrook", "Highgate");
+  const b = simulateAiFixture(gx, 1, 7, "Millbrook", "Highgate");
+  const c = simulateAiFixture(gy, 1, 7, "Millbrook", "Highgate");
   check("same seed/season/round/fixture => same score",
     a.homeGoals === b.homeGoals && a.awayGoals === b.awayGoals);
   check("different save seed can change the score",
@@ -177,7 +179,7 @@ console.log("\n[8] Legacy (v2) save compatibility");
   delete g.leagueSchedule;
   delete g.matchRecords;
   const m = migrateSave(g);
-  check("migrated to v4", (m.version as number) === 4);
+  check("migrated to v5", (m.version as number) === 5);
   check("legacy in-progress season keeps empty schedule", m.leagueSchedule.length === 0);
   check("legacy save is not force-simulated", m.matchRecords.length === 0);
   const after = advanceWeek(m, { gf: 2, ga: 0, attendance: 900, gate: 1, tv: 1, matchdayOps: 1, winBonus: 0 });
