@@ -701,7 +701,10 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     }
     // New season objectives, derived from the freshly stored projection.
     rollBoardToNewSeason(s);
+    // Open the new season's books: opening balance, policy and budgets.
+    openSeasonFinance(s, s.season);
   }
+
 
   // Mid-season board checkpoint (exactly once per season).
   ensureBoard(s);
