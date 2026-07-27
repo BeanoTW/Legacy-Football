@@ -14,6 +14,9 @@ import {
 import { DIVISION_ONE, DIVISION_TWO, makePyramidSchedule } from "../pyramid";
 import type { GameState, ExpectationLevel } from "../types";
 
+/** Current save schema version — bump alongside engine migrations. */
+const CURRENT_SCHEMA = 7;
+
 let passed = 0;
 let failed = 0;
 function check(label: string, cond: boolean, extra?: string) {
@@ -292,7 +295,7 @@ console.log("\n[R11] Save migration (v4 → v5)");
   delete g.seasonPredictions;
   delete g.clubSnapshots;
   const m = migrateSave(structuredClone(g));
-  check("migrated to current schema", (m.version as number) === 6);
+  check("migrated to current schema", (m.version as number) === CURRENT_SCHEMA);
   check("reputations backfilled for every club",
     Object.keys(m.clubReputations).length === 40 &&
     Object.values(m.clubReputations).every((v) => v >= REP_MIN && v <= REP_MAX));
