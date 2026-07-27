@@ -210,6 +210,10 @@ type IncomeBucket = keyof WeekLedger["income"];
 type ExpenseBucket = keyof WeekLedger["expenses"];
 
 export function legacyIncomeBucket(e: FinanceEntry): IncomeBucket {
+  const forced = e.metadata?.legacyBucket;
+  if (typeof forced === "string" && forced in { gate: 0, tv: 0, sponsor: 0, merchandise: 0, prize: 0, transfers: 0, other: 0 }) {
+    return forced as IncomeBucket;
+  }
   if (e.category === "Matchday") return e.subcategory === "Broadcast" ? "tv" : "gate";
   if (e.category === "Prize Money") return "prize";
   if (e.category === "Transfers") return "transfers";
@@ -222,6 +226,13 @@ export function legacyIncomeBucket(e: FinanceEntry): IncomeBucket {
 }
 
 export function legacyExpenseBucket(e: FinanceEntry): ExpenseBucket {
+  const forced = e.metadata?.legacyBucket;
+  if (typeof forced === "string" && forced in {
+    playerWages: 0, staffWages: 0, stadiumOps: 0, trainingOps: 0,
+    maintenance: 0, matchday: 0, transfers: 0, other: 0,
+  }) {
+    return forced as ExpenseBucket;
+  }
   if (e.category === "Wages") return e.subcategory === "Staff wages" ? "staffWages" : "playerWages";
   if (e.category === "Staff") return "staffWages";
   if (e.category === "Matchday") return "matchday";
@@ -996,7 +1007,10 @@ export function migrateLegacyLedger(s: GameState): void {
   if (s.financeLedger.length > 0) return; // idempotent
 
   const cashTarget = int(s.cash);
-  const rows = [...(s.ledger ?? [])].sort(
+  // Deep copy: postEntry() calls syncWeekLedger(), which rewrites the legacy
+  // rows in place as projections — iterating the live array would read back
+  // our own freshly-written entries instead of the original save data.
+  const rows = (JSON.parse(JSON.stringify(s.ledger ?? [])) as typeof s.ledger).sort(
     (a, b) => absoluteWeek(a.season, a.week) - absoluteWeek(b.season, b.week),
   );
 

@@ -582,7 +582,7 @@ export type FinanceCategory =
 /** Which system authored the movement. Used for ledger filtering + audits. */
 export type FinanceSource =
   | "engine.opening" | "engine.recurring" | "engine.matchday" | "engine.prize"
-  | "inbox" | "transfers" | "staff" | "board" | "migration";
+  | "inbox" | "transfers" | "staff" | "board" | "facilities" | "migration";
 
 export interface FinanceEntry {
   id: string;

@@ -80,6 +80,12 @@ import {
   applyHalfTimeChoice,
   commitLiveMatchAndAdvance,
   cancelLiveMatch,
+  expandStand as expandStandAction,
+  upgradeTraining,
+  relayPitch,
+  hireStaffMember,
+  sackStaffMember,
+  severanceFor,
 } from "@/lib/game/engine";
 import {
   unreadCount,
@@ -1330,28 +1336,9 @@ function StadiumTab({
   update: (fn: (s: GameState) => GameState) => void;
 }) {
   const expandStand = (key: Stand["key"], addSeats: number) => {
-    const cost = addSeats * 350;
-    if (state.cash < cost) return alert("Not enough cash.");
-    update((s) => ({
-      ...s,
-      cash: s.cash - cost,
-      stands: s.stands.map((st) =>
-        st.key === key ? { ...st, capacity: st.capacity + addSeats, condition: Math.max(50, st.condition - 5) } : st,
-      ),
-      ledger: [
-        ...s.ledger,
-        {
-          week: s.week, season: s.season,
-          income: { gate: 0, tv: 0, sponsor: 0, merchandise: 0, prize: 0, transfers: 0, other: 0 },
-          expenses: {
-            playerWages: 0, staffWages: 0, stadiumOps: 0, trainingOps: 0,
-            maintenance: 0, matchday: 0, transfers: 0, other: cost,
-          },
-          net: -cost, balance: s.cash - cost,
-          matchdayNote: `Expanded ${key} stand +${addSeats} seats`,
-        },
-      ],
-    }));
+    const res = expandStandAction(state, key, addSeats);
+    if (!res.ok) return alert(res.reason ?? "Not enough cash.");
+    update(() => res.state);
   };
 
   return (
@@ -1403,27 +1390,9 @@ function StadiumTab({
           <Button
             size="sm"
             onClick={() => {
-              const cost = 250_000;
-              if (state.cash < cost) return alert("Not enough cash.");
-              update((s) => ({
-                ...s,
-                cash: s.cash - cost,
-                trainingRating: Math.min(95, s.trainingRating + 3),
-                trainingWeeklyCost: Math.round(s.trainingWeeklyCost * 1.08),
-                ledger: [
-                  ...s.ledger,
-                  {
-                    week: s.week, season: s.season,
-                    income: { gate: 0, tv: 0, sponsor: 0, merchandise: 0, prize: 0, transfers: 0, other: 0 },
-                    expenses: {
-                      playerWages: 0, staffWages: 0, stadiumOps: 0, trainingOps: 0,
-                      maintenance: 0, matchday: 0, transfers: 0, other: cost,
-                    },
-                    net: -cost, balance: s.cash - cost,
-                    matchdayNote: "Upgraded training facilities +3",
-                  },
-                ],
-              }));
+              const res = upgradeTraining(state);
+              if (!res.ok) return alert(res.reason ?? "Not enough cash.");
+              update(() => res.state);
             }}
           >
             Upgrade +3 (£250k)
@@ -1432,26 +1401,9 @@ function StadiumTab({
             size="sm"
             variant="secondary"
             onClick={() => {
-              const cost = 40_000;
-              if (state.cash < cost) return alert("Not enough cash.");
-              update((s) => ({
-                ...s,
-                cash: s.cash - cost,
-                pitchCondition: Math.min(99, s.pitchCondition + 15),
-                ledger: [
-                  ...s.ledger,
-                  {
-                    week: s.week, season: s.season,
-                    income: { gate: 0, tv: 0, sponsor: 0, merchandise: 0, prize: 0, transfers: 0, other: 0 },
-                    expenses: {
-                      playerWages: 0, staffWages: 0, stadiumOps: 0, trainingOps: 0,
-                      maintenance: cost, matchday: 0, transfers: 0, other: 0,
-                    },
-                    net: -cost, balance: s.cash - cost,
-                    matchdayNote: "Pitch relaid",
-                  },
-                ],
-              }));
+              const res = relayPitch(state);
+              if (!res.ok) return alert(res.reason ?? "Not enough cash.");
+              update(() => res.state);
             }}
           >
             Relay pitch (£40k)
@@ -1652,45 +1604,20 @@ function StaffTab({
   const [willingOnly, setWillingOnly] = useState(false);
   const [sortBy, setSortBy] = useState<"rating" | "wage" | "age" | "fit">("fit");
 
-  const hire = (id: string) =>
-    update((s) => {
-      const cand = s.staffCandidates.find((c) => c.id === id);
-      if (!cand) return s;
-      if (s.hiredStaff.some((h) => h.role === cand.role)) {
-        alert(`You already employ a ${cand.role}. Sack them first.`);
-        return s;
-      }
-      const terms = staffJoinTerms(s.reputation, cand);
-      if (!terms.willing) {
-        alert(`${cand.name} won't join a club of this reputation.`);
-        return s;
-      }
-      if (s.cash < terms.signingBonus) {
-        alert(`Not enough cash for signing bonus of ${fmtMoneyExact(terms.signingBonus)}.`);
-        return s;
-      }
-      // Sign at demanded wage, not the listed one
-      const signed: Staff = { ...cand, wage: terms.wageDemand };
-      return {
-        ...s,
-        cash: s.cash - terms.signingBonus,
-        hiredStaff: [...s.hiredStaff, signed],
-        staffCandidates: s.staffCandidates.filter((c) => c.id !== id),
-      };
-    });
+  const hire = (id: string) => {
+    const res = hireStaffMember(state, id);
+    if (!res.ok) return alert(res.reason ?? "Unable to hire.");
+    update(() => res.state);
+  };
 
-  const sack = (id: string) =>
-    update((s) => {
-      const st = s.hiredStaff.find((h) => h.id === id);
-      if (!st) return s;
-      const severance = st.wage * Math.min(12, Math.max(1, st.contractWeeks));
-      if (!confirm(`Sack ${st.name}? Severance of ${fmtMoneyExact(severance)} due.`)) return s;
-      return {
-        ...s,
-        cash: s.cash - severance,
-        hiredStaff: s.hiredStaff.filter((h) => h.id !== id),
-      };
-    });
+  const sack = (id: string) => {
+    const st = state.hiredStaff.find((h) => h.id === id);
+    if (!st) return;
+    if (!confirm(`Sack ${st.name}? Severance of ${fmtMoneyExact(severanceFor(st))} due.`)) return;
+    const res = sackStaffMember(state, id);
+    if (!res.ok) return alert(res.reason ?? "Unable to sack.");
+    update(() => res.state);
+  };
 
   const roles: (StaffRole | "All")[] = [
     "All",

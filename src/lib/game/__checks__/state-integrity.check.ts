@@ -111,6 +111,13 @@ console.log("\n[3] Ledger integrity — opening + income - expenditure = closing
 {
   let s = fixture();
   const opening = s.cash;
+  // newGame books the opening cash position as a real ledger entry, so the
+  // week-1 row already exists; measure this test's movements as deltas.
+  const rowBefore = s.ledger.find((l) => l.season === s.season && l.week === s.week);
+  const incBefore = rowBefore ? sum(rowBefore.income) : 0;
+  const expBefore = rowBefore ? sum(rowBefore.expenses) : 0;
+  const otherIncBefore = rowBefore?.income.other ?? 0;
+  const otherExpBefore = rowBefore?.expenses.other ?? 0;
   s = applyEffects(
     s,
     [
@@ -123,12 +130,13 @@ console.log("\n[3] Ledger integrity — opening + income - expenditure = closing
   check("row created", !!row);
   check("income bucket honoured", row.income.sponsor === 25_000);
   check("expense bucket honoured", row.expenses.maintenance === 7_500);
-  check("no redundant 'other' fallback used", row.income.other === 0 && row.expenses.other === 0);
+  check("no redundant 'other' fallback used",
+    row.income.other === otherIncBefore && row.expenses.other === otherExpBefore);
   check("net correct", row.net === sum(row.income) - sum(row.expenses));
   check("closing balance equals cash", row.balance === s.cash);
   check("opening + income - expenditure = closing",
-    opening + sum(row.income) - sum(row.expenses) === row.balance,
-    `${opening} + ${sum(row.income)} - ${sum(row.expenses)} !== ${row.balance}`);
+    opening + (sum(row.income) - incBefore) - (sum(row.expenses) - expBefore) === row.balance,
+    `${opening} + ${sum(row.income) - incBefore} - ${sum(row.expenses) - expBefore} !== ${row.balance}`);
   check("two notes recorded", row.inboxNotes?.length === 2);
   check("notes carry event key", row.inboxNotes?.every((n) => n.sourceEventKey === "k1") === true);
 }
@@ -136,6 +144,7 @@ console.log("\n[3] Ledger integrity — opening + income - expenditure = closing
 console.log("\n[4] Effects apply sequentially to one working state");
 {
   const s0 = fixture();
+  const rowsBefore0 = s0.ledger.length;
   const s1 = applyEffects(s0, [
     { kind: "cash", amount: -1_000 },
     { kind: "cash", amount: -1_000 },
@@ -145,9 +154,10 @@ console.log("\n[4] Effects apply sequentially to one working state");
   ]);
   check("all cash effects accumulate", s1.cash === s0.cash - 1_500);
   check("all deltas accumulate", s1.fanHappiness === Math.max(0, s0.fanHappiness - 10));
-  check("input state untouched", s0.cash !== s1.cash && s0.ledger.length === 0);
-  const row = s1.ledger[0];
-  check("single row for the week", s1.ledger.length === 1);
+  check("input state untouched", s0.cash !== s1.cash && s0.ledger.length === rowsBefore0);
+  const row = s1.ledger.find((l) => l.season === s1.season && l.week === s1.week)!;
+  check("single row for the week",
+    s1.ledger.filter((l) => l.season === s1.season && l.week === s1.week).length === 1);
   check("balance still agrees", row.balance === s1.cash);
 }
 
