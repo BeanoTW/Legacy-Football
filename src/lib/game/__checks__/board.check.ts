@@ -170,7 +170,7 @@ console.log("\n[B11] Migration from a boardless save");
   delete g.board;
   g.version = 5;
   const m = migrateSave(g);
-  check("v5 save migrates to v6", (m.version as number) === 6);
+  check("v5 save migrates to current schema", (m.version as number) === 6);
   check("migrated save has a full board", m.board.directors.length === 5);
   check("migrated save has current-season objectives",
     m.board.objectivesSeason === m.season && m.board.objectives.length > 0);

@@ -221,7 +221,7 @@ console.log("\n[R8] Auto-resolved user matches are reproducible");
     JSON.stringify(a.matchRecords.filter((r) => r.userInvolved)) ===
     JSON.stringify(b.matchRecords.filter((r) => r.userInvolved)));
   const src = require("fs").readFileSync("src/lib/game/engine.ts", "utf8");
-  const userBlock = src.slice(src.indexOf("Auto-resolved user match"), src.indexOf("ledger.income.gate = gate"));
+  const userBlock = src.slice(src.indexOf("Auto-resolved user match"), src.indexOf("Single matchday-finance path"));
   check("auto-resolve path contains no Math.random", !/Math\.random/.test(userBlock));
 }
 
@@ -292,7 +292,7 @@ console.log("\n[R11] Save migration (v4 → v5)");
   delete g.seasonPredictions;
   delete g.clubSnapshots;
   const m = migrateSave(structuredClone(g));
-  check("migrated to v6", (m.version as number) === 6);
+  check("migrated to current schema", (m.version as number) === 6);
   check("reputations backfilled for every club",
     Object.keys(m.clubReputations).length === 40 &&
     Object.values(m.clubReputations).every((v) => v >= REP_MIN && v <= REP_MAX));
