@@ -9,6 +9,9 @@ import {
 import { buildTable, isLeagueSeasonComplete, tableFor } from "../league";
 import type { GameState } from "../types";
 
+/** Current save schema version — bump alongside engine migrations. */
+const CURRENT_SCHEMA = 7;
+
 let passed = 0;
 let failed = 0;
 function check(label: string, cond: boolean, extra?: string) {
@@ -232,7 +235,7 @@ console.log("\n[9] v3 save migration");
     .filter((f) => f.league === DIVISION_ONE)
     .map(({ league, ...rest }) => rest);
   const m = migrateSave(g);
-  check("migrated to v6", (m.version as number) === 6);
+  check("migrated to current schema", (m.version as number) === CURRENT_SCHEMA);
   check("pyramid created", m.leagues.length === 2 &&
     m.leagues.every((l) => l.clubIds.length === CLUBS_PER_DIVISION));
   check("user club placed in exactly one league",

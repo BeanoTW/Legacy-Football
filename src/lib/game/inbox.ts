@@ -33,7 +33,7 @@ import type {
   InboxPriority,
   ScheduledGenerator,
   Sponsor,
-  WeekLedger,
+  FinanceCategory,
 } from "./types";
 
 import { absoluteWeek, fromAbsoluteWeek } from "./time";
@@ -41,6 +41,7 @@ import {
   evaluateObjective, confidenceBand, BAND_LABEL, directorConcern,
 } from "./board";
 import { hashString, seededRng } from "./rng";
+import { postEntry } from "./finance";
 
 /* ---------- Helpers ---------- */
 const money = (n: number) => {
@@ -86,67 +87,68 @@ export interface EffectSource {
   sourceEventKey?: string;
 }
 
-const EMPTY_LEDGER_ROW = (season: number, week: number, balance: number): WeekLedger => ({
-  week,
-  season,
-  income: { gate: 0, tv: 0, sponsor: 0, merchandise: 0, prize: 0, transfers: 0, other: 0 },
-  expenses: {
-    playerWages: 0, staffWages: 0, stadiumOps: 0, trainingOps: 0,
-    maintenance: 0, matchday: 0, transfers: 0, other: 0,
-  },
-  net: 0,
-  balance,
-  synthetic: true,
-  inboxNotes: [],
-});
 
-/** Current-week ledger row, created (synthetic) if the week has none yet. */
-function currentLedgerRow(s: GameState, openingBalance: number): WeekLedger {
-  let row = s.ledger.find((l) => l.season === s.season && l.week === s.week);
-  if (!row) {
-    row = EMPTY_LEDGER_ROW(s.season, s.week, openingBalance);
-    row.matchdayNote = "Off-cycle adjustments (inbox decisions)";
-    s.ledger.push(row);
 
-  }
-  return row;
-}
 
-const sumValues = (o: Record<string, number>) => Object.values(o).reduce((a, b) => a + b, 0);
+/** Legacy bucket → finance category, so inbox money is a real ledger entry. */
+const INCOME_CATEGORY: Record<string, FinanceCategory> = {
+  gate: "Matchday", tv: "Matchday", sponsor: "Commercial", merchandise: "Commercial",
+  prize: "Prize Money", transfers: "Transfers", other: "Miscellaneous",
+};
+const EXPENSE_CATEGORY: Record<string, FinanceCategory> = {
+  playerWages: "Wages", staffWages: "Staff", stadiumOps: "Operations",
+  trainingOps: "Facilities", maintenance: "Facilities", matchday: "Matchday",
+  transfers: "Transfers", other: "Miscellaneous",
+};
 
-/** Recompute net and closing balance so cash and ledger always agree. */
-function rebalanceRow(row: WeekLedger, cash: number) {
-  row.net = sumValues(row.income) - sumValues(row.expenses);
-  row.balance = cash;
-}
-
-/** Book a cash movement into the current-week ledger row. */
+/**
+ * Book a cash movement from an inbox effect.
+ * Goes through postEntry() — the single cash mutator — so the finance ledger
+ * stays the source of truth and GameState.ledger remains a projection.
+ */
 function bookCash(
   s: GameState,
   e: Extract<InboxEffect, { kind: "cash" }>,
   src: EffectSource,
 ) {
-  const opening = s.cash;
-  s.cash = Math.round(s.cash + e.amount);
-  const row = currentLedgerRow(s, opening);
-  if (e.amount >= 0) {
-    const bucket = e.incomeCategory ?? "other";
-    row.income[bucket] += Math.round(e.amount);
-  } else {
-    const bucket = e.expenseCategory ?? "other";
-    row.expenses[bucket] += Math.round(-e.amount);
+  const amount = Math.round(e.amount);
+  if (amount === 0) return;
+  const income = amount > 0;
+  const bucket = income ? (e.incomeCategory ?? "other") : (e.expenseCategory ?? "other");
+  const hadRow = (s.ledger ?? []).some((l) => l.season === s.season && l.week === s.week);
+
+  postEntry(s, {
+    category: income ? INCOME_CATEGORY[bucket] ?? "Miscellaneous"
+      : EXPENSE_CATEGORY[bucket] ?? "Miscellaneous",
+    subcategory: bucket,
+    description: e.note ?? "Inbox decision",
+    amount: Math.abs(amount),
+    direction: income ? "income" : "expense",
+    sourceSystem: "inbox",
+    linkedEntityId: src.sourceItemId,
+    metadata: {
+      legacyBucket: bucket,
+      ...(src.sourceEventKey ? { eventKey: src.sourceEventKey } : {}),
+    },
+  });
+
+  const row = s.ledger.find((l) => l.season === s.season && l.week === s.week);
+  if (!row) return;
+  if (!hadRow) {
+    row.synthetic = true;
+    row.matchdayNote = row.matchdayNote ?? "Off-cycle adjustments (inbox decisions)";
   }
   if (e.note) {
     row.inboxNotes = row.inboxNotes ?? [];
     row.inboxNotes.push({
       note: e.note,
-      amount: Math.round(e.amount),
+      amount,
       sourceItemId: src.sourceItemId,
       sourceEventKey: src.sourceEventKey,
     });
   }
-  rebalanceRow(row, s.cash);
 }
+
 
 /** Applies ONE effect to the working state, in place. */
 function applyEffectInPlace(s: GameState, e: InboxEffect, src: EffectSource): void {

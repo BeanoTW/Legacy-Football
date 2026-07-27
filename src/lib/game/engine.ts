@@ -1458,3 +1458,122 @@ export function setWageBudget(s: GameState, amount: number): GameState {
 export function setPositionPriority(s: GameState, pos: Position, prio: Priority): GameState {
   return { ...s, positionPriorities: { ...s.positionPriorities, [pos]: prio } };
 }
+
+/* =========================================================================
+   Facility & staff spending — every movement goes through postEntry()
+   so cash, the finance ledger and the weekly projection stay reconciled.
+========================================================================= */
+
+export interface SpendResult { state: GameState; ok: boolean; reason?: string }
+
+const STAND_SEAT_COST = 350;
+
+export function expandStand(
+  s: GameState,
+  key: Stand["key"],
+  addSeats: number,
+): SpendResult {
+  const seats = Math.max(0, Math.round(addSeats));
+  const cost = seats * STAND_SEAT_COST;
+  if (seats === 0) return { state: s, ok: false, reason: "Nothing to build" };
+  if (s.cash < cost) return { state: s, ok: false, reason: "Not enough cash" };
+  const ns: GameState = structuredClone(s);
+  ns.stands = ns.stands.map((st) =>
+    st.key === key
+      ? { ...st, capacity: st.capacity + seats, condition: Math.max(50, st.condition - 5) }
+      : st,
+  );
+  postEntry(ns, {
+    category: "Facilities",
+    subcategory: "Stadium expansion",
+    description: `Expanded ${key} stand +${seats} seats`,
+    amount: cost,
+    direction: "expense",
+    sourceSystem: "facilities",
+    linkedEntityId: key,
+  });
+  return { state: ns, ok: true };
+}
+
+export function upgradeTraining(s: GameState, cost = 250_000): SpendResult {
+  if (s.cash < cost) return { state: s, ok: false, reason: "Not enough cash" };
+  const ns: GameState = structuredClone(s);
+  ns.trainingRating = Math.min(95, ns.trainingRating + 3);
+  ns.trainingWeeklyCost = Math.round(ns.trainingWeeklyCost * 1.08);
+  postEntry(ns, {
+    category: "Facilities",
+    subcategory: "Training ground",
+    description: "Upgraded training facilities +3",
+    amount: cost,
+    direction: "expense",
+    sourceSystem: "facilities",
+  });
+  return { state: ns, ok: true };
+}
+
+export function relayPitch(s: GameState, cost = 40_000): SpendResult {
+  if (s.cash < cost) return { state: s, ok: false, reason: "Not enough cash" };
+  const ns: GameState = structuredClone(s);
+  ns.pitchCondition = Math.min(99, ns.pitchCondition + 15);
+  postEntry(ns, {
+    category: "Facilities",
+    subcategory: "Stadium maintenance",
+    description: "Pitch relaid",
+    amount: cost,
+    direction: "expense",
+    sourceSystem: "facilities",
+  });
+  return { state: ns, ok: true };
+}
+
+export function hireStaffMember(s: GameState, id: string): SpendResult {
+  const cand = s.staffCandidates.find((c) => c.id === id);
+  if (!cand) return { state: s, ok: false, reason: "Candidate no longer available" };
+  if (s.hiredStaff.some((h) => h.role === cand.role)) {
+    return { state: s, ok: false, reason: `You already employ a ${cand.role}. Sack them first.` };
+  }
+  const terms = staffJoinTerms(s.reputation, cand);
+  if (!terms.willing) {
+    return { state: s, ok: false, reason: `${cand.name} won't join a club of this reputation.` };
+  }
+  if (s.cash < terms.signingBonus) {
+    return { state: s, ok: false, reason: "Not enough cash for the signing bonus." };
+  }
+  const ns: GameState = structuredClone(s);
+  ns.hiredStaff = [...ns.hiredStaff, { ...cand, wage: terms.wageDemand }];
+  ns.staffCandidates = ns.staffCandidates.filter((c) => c.id !== id);
+  postEntry(ns, {
+    category: "Staff",
+    subcategory: "Signing bonus",
+    description: `Signing bonus — ${cand.name} (${cand.role})`,
+    amount: terms.signingBonus,
+    direction: "expense",
+    sourceSystem: "staff",
+    linkedEntityId: cand.id,
+    dedupeKey: `staff-hire:${cand.id}`,
+  });
+  return { state: ns, ok: true };
+}
+
+export function sackStaffMember(s: GameState, id: string): SpendResult {
+  const st = s.hiredStaff.find((h) => h.id === id);
+  if (!st) return { state: s, ok: false, reason: "Not on the payroll" };
+  const severance = st.wage * Math.min(12, Math.max(1, st.contractWeeks));
+  const ns: GameState = structuredClone(s);
+  ns.hiredStaff = ns.hiredStaff.filter((h) => h.id !== id);
+  postEntry(ns, {
+    category: "Staff",
+    subcategory: "Severance",
+    description: `Severance — ${st.name} (${st.role})`,
+    amount: severance,
+    direction: "expense",
+    sourceSystem: "staff",
+    linkedEntityId: st.id,
+    dedupeKey: `staff-sack:${st.id}`,
+  });
+  return { state: ns, ok: true };
+}
+
+export function severanceFor(st: Staff): number {
+  return st.wage * Math.min(12, Math.max(1, st.contractWeeks));
+}
