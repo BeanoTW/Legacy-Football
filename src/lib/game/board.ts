@@ -377,7 +377,16 @@ export function makeObjectives(s: GameState, season: number, board: BoardState):
       squadTarget,
       6,
     ),
+    mk(
+      "commercialIncome",
+      `Contracted sponsorship of £${(commercialTarget / 1000).toFixed(1)}k per week`,
+      "The commercial director wants the sponsorship book grown, not just held. " +
+        "Measured on contracted weekly payments from active partnerships.",
+      commercialTarget,
+      10,
+    ),
   ];
+
 }
 
 function ordinal(n: number): string {
