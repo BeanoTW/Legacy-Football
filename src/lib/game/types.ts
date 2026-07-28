@@ -45,7 +45,11 @@ export type InboxEffect =
   | { kind: "pitch"; delta: number }
   | { kind: "standCondition"; standKey: "N" | "E" | "S" | "W"; delta: number }
   | { kind: "sponsorExtend"; sponsorName: string; addWeeks: number; newWeekly?: number }
+  | { kind: "commercialAccept"; offerId: string }
+  | { kind: "commercialReject"; offerId: string }
+  | { kind: "commercialCounter"; offerId: string; counter: "payment" | "duration" | "bonus" }
   | { kind: "flag"; key: string; value: string | number | boolean }
+
   | {
       kind: "scheduleGenerator";
       generatorId: string;
