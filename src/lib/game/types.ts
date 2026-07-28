@@ -427,7 +427,9 @@ export type ObjectiveKind =
   | "wageControl"
   | "fanHappiness"
   | "stadiumCondition"
-  | "squadRating";
+  | "squadRating"
+  | "commercialIncome";
+
 
 export type ObjectiveStatus = "active" | "met" | "missed";
 
