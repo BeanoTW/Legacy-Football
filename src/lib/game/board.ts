@@ -271,6 +271,8 @@ const OBJ_META: Record<
   fanHappiness:     { priority: "fans",       ownerRole: "Supporters' Director", higherIsBetter: true  },
   stadiumCondition: { priority: "facilities", ownerRole: "Commercial Director",  higherIsBetter: true  },
   squadRating:      { priority: "squad",      ownerRole: "Football Director",    higherIsBetter: true  },
+  commercialIncome: { priority: "commercial", ownerRole: "Commercial Director",  higherIsBetter: true  },
+
 };
 
 /** Does the board contain an ambitious voice? Ambition tightens targets. */
