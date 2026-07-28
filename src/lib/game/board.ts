@@ -306,6 +306,13 @@ export function makeObjectives(s: GameState, season: number, board: BoardState):
   const fanTarget = Math.min(90, Math.max(55, Math.round((s.fanHappiness ?? 60) + 4)));
   const conditionTarget = Math.min(95, Math.max(70, Math.round(avgStandCondition(s))));
   const squadTarget = Math.min(90, Math.round(squadAverageRating(s) + 1));
+  // Commercial: grow contracted weekly sponsorship income on the current book.
+  const commercialNow = commercialWeeklyIncome(s);
+  const commercialTarget = Math.max(
+    2_000,
+    Math.round((commercialNow > 0 ? commercialNow * (1.15 + amb * 0.05) : 6_000) / 500) * 500,
+  );
+
 
   const mk = (
     kind: BoardObjective["kind"],
