@@ -20,6 +20,8 @@ import type {
   League,
 } from "./types";
 import { runWeeklyGenerators } from "./inbox";
+import { ensureCommercial, runCommercialWeek, closeCommercialSeason } from "./commercial";
+
 import { CLUBS } from "./clubs";
 import {
   makeRecord, resolveWeek, resolveRemainingSeason, syncTable, hasFullSchedule, simulateFixture,
@@ -293,6 +295,7 @@ export function newGame(clubName: string, managerName: string): GameState {
   // Pre-season projection for season 1 (derived from starting reputations).
   storePredictions(base, base.season);
   ensureBoard(base);
+  ensureCommercial(base);
   // Opening cash is booked as a real ledger entry, so the books reconcile
   // from the very first week.
   initFinance(base);
@@ -311,7 +314,7 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
   const leagues = makeLeagues(clubName);
   const leagueSchedule = makePyramidSchedule(leagues, `${saveSeed}|season1`);
   return {
-    version: 7,
+    version: 8,
     saveSeed,
     clubName,
     managerName,
@@ -372,6 +375,7 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
     },
     financeLedger: [],
     financeHistory: [],
+    commercial: undefined as unknown as GameState["commercial"],
   };
 
 }
@@ -449,6 +453,9 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   // distribution. Every stream is posted through the finance ledger with a
   // per-week dedupe key, so replaying a week cannot double-charge.
   postRecurringWeek(s);
+
+  // ---- Commercial department: sponsorship payments, expiries, approaches ----
+  runCommercialWeek(s);
 
   let matchdayNote: string | undefined;
 
@@ -691,6 +698,8 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     runEndOfSeasonReview(s);
     // Immutable financial record of the season just closed.
     closeSeasonFinance(s, closingSeason, closingLeagueId);
+    // Immutable commercial record of the season just closed.
+    closeCommercialSeason(s, closingSeason);
 
     // Board's final judgement on the season just completed. Must run before
     // the season counter moves so it is filed against the correct season.
@@ -917,6 +926,16 @@ export function migrateSave(parsed: Record<string, unknown>): GameState {
     p.version = 7;
   }
 
+  // v7 → v8: commercial department & sponsorship.
+  //
+  // Purely additive and deterministic: an empty department is created with a
+  // sponsor pool seeded from the save's own seed. No historic sponsorship
+  // contract is fabricated, and finance/board history is left untouched.
+  if (p.version < 8) {
+    ensureCommercial(p as unknown as GameState);
+    p.version = 8;
+  }
+
   return p as GameState;
 }
 
@@ -935,7 +954,7 @@ export function loadGame(): GameState | null {
     const v = (parsed as { version?: number }).version;
     // Missing version = pre-versioning save, treat as v1. Only refuse saves
     // written by a FUTURE schema we don't understand.
-    if (typeof v === "number" && v > 6) return null;
+    if (typeof v === "number" && v > 8) return null;
     const legacyV = typeof v === "number" && v >= 1 ? v : 1;
     const migrated = migrateSave(parsed);
     // If this save had no inbox at all (older than v2 introduction), seed it.

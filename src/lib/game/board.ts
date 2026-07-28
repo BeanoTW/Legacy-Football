@@ -31,6 +31,8 @@ import type {
 import { seededRng, rngInt } from "./rng";
 import { clubPrediction, EXPECTATION_LABEL } from "./reputation";
 import { playerLeagueId } from "./league";
+import { commercialWeeklyIncome, activeContracts } from "./commercial";
+
 
 /* ---------- Calendar anchors (kept local to avoid an engine import) ---------- */
 export const MID_SEASON_REVIEW_WEEK = 24;
@@ -271,6 +273,8 @@ const OBJ_META: Record<
   fanHappiness:     { priority: "fans",       ownerRole: "Supporters' Director", higherIsBetter: true  },
   stadiumCondition: { priority: "facilities", ownerRole: "Commercial Director",  higherIsBetter: true  },
   squadRating:      { priority: "squad",      ownerRole: "Football Director",    higherIsBetter: true  },
+  commercialIncome: { priority: "commercial", ownerRole: "Commercial Director",  higherIsBetter: true  },
+
 };
 
 /** Does the board contain an ambitious voice? Ambition tightens targets. */
@@ -302,6 +306,13 @@ export function makeObjectives(s: GameState, season: number, board: BoardState):
   const fanTarget = Math.min(90, Math.max(55, Math.round((s.fanHappiness ?? 60) + 4)));
   const conditionTarget = Math.min(95, Math.max(70, Math.round(avgStandCondition(s))));
   const squadTarget = Math.min(90, Math.round(squadAverageRating(s) + 1));
+  // Commercial: grow contracted weekly sponsorship income on the current book.
+  const commercialNow = commercialWeeklyIncome(s);
+  const commercialTarget = Math.max(
+    2_000,
+    Math.round((commercialNow > 0 ? commercialNow * (1.15 + amb * 0.05) : 6_000) / 500) * 500,
+  );
+
 
   const mk = (
     kind: BoardObjective["kind"],
@@ -366,7 +377,16 @@ export function makeObjectives(s: GameState, season: number, board: BoardState):
       squadTarget,
       6,
     ),
+    mk(
+      "commercialIncome",
+      `Contracted sponsorship of £${(commercialTarget / 1000).toFixed(1)}k per week`,
+      "The commercial director wants the sponsorship book grown, not just held. " +
+        "Measured on contracted weekly payments from active partnerships.",
+      commercialTarget,
+      10,
+    ),
   ];
+
 }
 
 function ordinal(n: number): string {
@@ -436,7 +456,14 @@ export function evaluateObjective(s: GameState, o: BoardObjective): ObjectivePro
       progress = ratioProgress(current, o.target, true);
       break;
     }
+    case "commercialIncome": {
+      current = commercialWeeklyIncome(s);
+      detail = `£${Math.round(current).toLocaleString()}/wk from ${activeContracts(s).length} partner(s)`;
+      progress = ratioProgress(current, o.target, true);
+      break;
+    }
   }
+
 
   return {
     objectiveId: o.id,
