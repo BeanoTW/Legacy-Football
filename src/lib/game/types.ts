@@ -695,9 +695,165 @@ export interface WageSummary {
   wageToRevenuePct: number;
 }
 
+/* =========================================================================
+   COMMERCIAL DEPARTMENT & SPONSORSHIP
+   -------------------------------------------------------------------------
+   Sponsors are club-agnostic entities generated deterministically from the
+   save seed. A contract binds one sponsor to one category for a fixed number
+   of seasons; every pound it moves is posted through finance.ts.
+========================================================================= */
+
+export type SponsorshipCategory =
+  | "Shirt Front" | "Shirt Sleeve" | "Training Kit"
+  | "Stadium Advertising" | "Matchday Programme" | "Club Partner";
+
+export type SponsorIndustry =
+  | "Banking" | "Insurance" | "Energy" | "Telecoms" | "Brewery"
+  | "Automotive" | "Retail" | "Airline" | "Technology" | "Construction"
+  | "Food & Drink" | "Logistics";
+
+/** How big a club the sponsor is typically comfortable backing. */
+export type SponsorScale = "local" | "regional" | "national";
+
+export interface CommercialSponsor {
+  id: string;
+  companyName: string;
+  industry: SponsorIndustry;
+  /** 0-100 brand standing. Drives the money they can commit. */
+  reputation: number;
+  /** Maximum weekly spend, £, across any single agreement. */
+  budget: number;
+  preferredClubSize: SponsorScale;
+  preferredLeagueTier: number;
+  /** Placeholder until regions exist in the world model. */
+  preferredRegions: string[];
+  /** 0-100 standing with the player's club. Persistent across contracts. */
+  relationshipScore: number;
+  /** Ids of every contract this sponsor has ever signed with any club. */
+  contractHistory: string[];
+}
+
+export type CommercialObjectiveKind =
+  | "topHalf" | "promotion" | "avoidRelegation" | "maintainAttendance";
+
+export interface CommercialObjective {
+  id: string;
+  kind: CommercialObjectiveKind;
+  label: string;
+  /** League position, or attendance figure, depending on kind. */
+  target: number;
+  /** One-off payment if met at contract close, £. */
+  bonus: number;
+  status: "active" | "met" | "missed";
+}
+
+export type CommercialContractStatus =
+  | "Active" | "Negotiating" | "Expired" | "Terminated";
+
+export interface CommercialContract {
+  id: string;
+  sponsorId: string;
+  category: SponsorshipCategory;
+  clubId: string;
+  startSeason: number;
+  startAbsoluteWeek: number;
+  /** Length in seasons. endAbsoluteWeek is the canonical deadline. */
+  durationSeasons: number;
+  endAbsoluteWeek: number;
+  weeklyPayment: number;
+  signingBonus: number;
+  /** Weeks before expiry the renewal conversation opens. */
+  renewalWindowWeeks: number;
+  objectives: CommercialObjective[];
+  /** Relationship snapshot at signing. Live value lives on the sponsor. */
+  relationshipScore: number;
+  status: CommercialContractStatus;
+  /** True once expiry has been processed. Guarantees exactly-once close. */
+  closed?: boolean;
+}
+
+export type CommercialOfferStatus =
+  | "pending" | "accepted" | "rejected" | "expired" | "withdrawn";
+
+export type CommercialCounterKind = "payment" | "duration" | "bonus";
+
+export interface CommercialOfferOutcome {
+  round: number;
+  counter: CommercialCounterKind;
+  result: "improved" | "held" | "withdrawn";
+  note: string;
+}
+
+export interface CommercialOffer {
+  id: string;
+  sponsorId: string;
+  category: SponsorshipCategory;
+  weeklyPayment: number;
+  signingBonus: number;
+  durationSeasons: number;
+  objectives: CommercialObjective[];
+  createdSeason: number;
+  createdAbsoluteWeek: number;
+  expiresAtAbsoluteWeek: number;
+  status: CommercialOfferStatus;
+  /** Number of counters already used by the player. */
+  negotiationRounds: number;
+  outcomes: CommercialOfferOutcome[];
+  /** Set when this offer renews an existing contract. */
+  renewalOfContractId?: string;
+}
+
+/** Immutable record of a finished agreement. Never rewritten. */
+export interface CommercialContractRecord {
+  contractId: string;
+  sponsorId: string;
+  sponsorName: string;
+  category: SponsorshipCategory;
+  startSeason: number;
+  endSeason: number;
+  weeksActive: number;
+  weeklyPayment: number;
+  /** Signing bonus + all weekly payments + objective bonuses actually paid. */
+  totalValue: number;
+  objectives: { label: string; met: boolean; bonus: number }[];
+  outcome: "completed" | "renewed" | "terminated";
+}
+
+export interface CommercialSeasonSummary {
+  season: number;
+  totalIncome: number;
+  newSponsors: number;
+  renewals: number;
+  lostSponsors: number;
+  commercialReputationAtClose: number;
+  activePartnersAtClose: number;
+}
+
+export interface CommercialDepartment {
+  directorName: string;
+  /** Department capability, 0-100. Improves with investment and success. */
+  rating: number;
+  /** Negotiation skill, 0-100. Improves counter-offer outcomes. */
+  negotiation: number;
+  /** Commercial standing, 0-100. Separate from footballing reputation. */
+  commercialReputation: number;
+  /** Club-agnostic sponsor universe, generated from the save seed. */
+  sponsors: CommercialSponsor[];
+  contracts: CommercialContract[];
+  offers: CommercialOffer[];
+  history: CommercialContractRecord[];
+  seasonHistory: CommercialSeasonSummary[];
+  /** Season the per-season counters below belong to. */
+  seasonCountersSeason: number;
+  newSponsorsThisSeason: number;
+  renewalsThisSeason: number;
+  lostSponsorsThisSeason: number;
+}
+
 export interface GameState {
   /** Save schema version. Bump + add a migration in loadGame when persisted shape changes. */
-  version: 7;
+  version: 8;
+
 
   /** Stable per-save seed. Used for deterministic inbox generation. */
   saveSeed: string;
