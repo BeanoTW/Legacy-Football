@@ -31,6 +31,8 @@ import type {
 import { seededRng, rngInt } from "./rng";
 import { clubPrediction, EXPECTATION_LABEL } from "./reputation";
 import { playerLeagueId } from "./league";
+import { commercialWeeklyIncome, activeContracts } from "./commercial";
+
 
 /* ---------- Calendar anchors (kept local to avoid an engine import) ---------- */
 export const MID_SEASON_REVIEW_WEEK = 24;
