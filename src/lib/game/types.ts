@@ -936,6 +936,10 @@ export interface GameState {
   inbox: InboxItem[];
   inboxFlags: Record<string, string | number | boolean>;
   scheduledGenerators: ScheduledGenerator[];
+
+  /** Commercial department: sponsors, contracts, offers and history. */
+  commercial: CommercialDepartment;
+
 }
 
 
