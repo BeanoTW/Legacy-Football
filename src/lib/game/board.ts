@@ -456,7 +456,14 @@ export function evaluateObjective(s: GameState, o: BoardObjective): ObjectivePro
       progress = ratioProgress(current, o.target, true);
       break;
     }
+    case "commercialIncome": {
+      current = commercialWeeklyIncome(s);
+      detail = `£${Math.round(current).toLocaleString()}/wk from ${activeContracts(s).length} partner(s)`;
+      progress = ratioProgress(current, o.target, true);
+      break;
+    }
   }
+
 
   return {
     objectiveId: o.id,
