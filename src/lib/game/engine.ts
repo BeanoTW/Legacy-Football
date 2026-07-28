@@ -20,6 +20,8 @@ import type {
   League,
 } from "./types";
 import { runWeeklyGenerators } from "./inbox";
+import { ensureCommercial, runCommercialWeek, closeCommercialSeason } from "./commercial";
+
 import { CLUBS } from "./clubs";
 import {
   makeRecord, resolveWeek, resolveRemainingSeason, syncTable, hasFullSchedule, simulateFixture,
