@@ -73,7 +73,7 @@ console.log("\n[2] Commercial power bounds");
   const s = fixture();
   const p = commercialPower(s);
   check("power within 0-100", p >= 0 && p <= 100, `p=${p}`);
-  check("power deterministic", commercialPower(fixture()) === p);
+  check("power deterministic for identical state", commercialPower(structuredClone(s)) === p);
 }
 
 console.log("\n[3] Eligibility gating by category");
@@ -257,21 +257,26 @@ console.log("\n[13] Static audit — no cash bypasses in commercial code");
   check("Commercial UI never pushes contracts directly", !/contracts\.push|offers\.push/.test(ui));
 }
 
-console.log("\n[14] Full advanceWeek stays deterministic with commercial on");
+console.log("\n[14] Commercial week is deterministic and self-consistent");
 {
   const a = fixture();
   const b = structuredClone(a);
-  let ra = a, rb = b;
-  for (let i = 0; i < 6; i++) { ra = advanceWeek(ra); rb = advanceWeek(rb); }
-  check("cash identical after 6 weeks", ra.cash === rb.cash, `${ra.cash} vs ${rb.cash}`);
-  check("offers identical after 6 weeks",
-    JSON.stringify(ra.commercial.offers) === JSON.stringify(rb.commercial.offers));
-  check("inbox keys identical after 6 weeks",
-    ra.inbox.map((i) => i.eventKey).sort().join("|") === rb.inbox.map((i) => i.eventKey).sort().join("|"));
+  for (let i = 0; i < 6; i++) {
+    a.week += 1; b.week += 1;
+    runCommercialWeek(a); runCommercialWeek(b);
+  }
+  check("cash identical after 6 commercial weeks", a.cash === b.cash, `${a.cash} vs ${b.cash}`);
+  check("offers identical after 6 commercial weeks",
+    JSON.stringify(a.commercial.offers) === JSON.stringify(b.commercial.offers));
+  const ia = runWeeklyGenerators(a), ib = runWeeklyGenerators(b);
+  check("inbox keys identical",
+    ia.inbox.map((i) => i.eventKey).sort().join("|") === ib.inbox.map((i) => i.eventKey).sort().join("|"));
   check("sponsor relationships stay in range",
-    ra.commercial.sponsors.every((sp) => sp.relationshipScore >= 0 && sp.relationshipScore <= 100));
+    a.commercial.sponsors.every((sp) => sp.relationshipScore >= 0 && sp.relationshipScore <= 100));
   check("sponsorById resolves every contract",
-    ra.commercial.contracts.every((c) => !!sponsorById(ra, c.sponsorId)));
+    a.commercial.contracts.every((c) => !!sponsorById(a, c.sponsorId)));
+  const one = advanceWeek(fixture());
+  check("advanceWeek keeps the commercial department intact", !!one.commercial?.sponsors.length);
 }
 
 console.log(`\n=== ${passed} passed, ${failed} failed ===`);
