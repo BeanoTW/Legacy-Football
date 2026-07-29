@@ -36,6 +36,7 @@ import {
   TriangleAlert,
   Trophy,
   Gavel,
+  Handshake,
   UserMinus,
   UserPlus,
   Users,
@@ -52,6 +53,7 @@ import {
 
 import { LeagueBrowser } from "@/components/LeagueBrowser";
 import { BoardTab } from "@/components/BoardTab";
+import { CommercialTab } from "@/components/CommercialTab";
 import { useGame } from "@/hooks/useGame";
 import type { GameState, Stand, Staff, StaffRole, Priority, Position, TransferTarget, IncomingBid } from "@/lib/game/types";
 import {
@@ -155,6 +157,7 @@ type Tab =
   | "inbox"
   | "hub"
   | "board"
+  | "commercial"
   | "dashboard"
   | "cashflow"
   | "tickets"
@@ -172,6 +175,7 @@ const ALL_TABS: TabDef[] = [
   ["inbox", "Inbox", Mail],
   ["hub", "Club", Trophy],
   ["board", "Board", Gavel],
+  ["commercial", "Commercial", Handshake],
   ["dashboard", "Overview", LineIcon],
   ["cashflow", "Cash flow", CircleDollarSign],
   ["tickets", "Tickets", Ticket],
@@ -436,6 +440,7 @@ function Game({
         {tab === "stadium" && <StadiumTab state={state} update={update} />}
         {tab === "fixtures" && <Fixtures state={state} update={update} />}
         {tab === "board" && <BoardTab state={state} />}
+        {tab === "commercial" && <CommercialTab state={state} update={update} />}
         {tab === "leagues" && <LeagueBrowser state={state} />}
         {tab === "history" && <History state={state} />}
       </main>

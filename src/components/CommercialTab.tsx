@@ -340,7 +340,7 @@ function OfferCard({
         </Btn>
         {canCounter && (
           <>
-            <Btn onClick={() => act((s) => counterOffer(s, offer.id, "payment").state && wrap(counterOffer(s, offer.id, "payment")))}>
+            <Btn onClick={() => act((s) => wrap(counterOffer(s, offer.id, "payment")))}>
               Push fee
             </Btn>
             <Btn onClick={() => act((s) => wrap(counterOffer(s, offer.id, "duration")))}>
