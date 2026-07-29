@@ -34,7 +34,14 @@ import type {
   ScheduledGenerator,
   Sponsor,
   FinanceCategory,
+  CommercialOffer,
 } from "./types";
+
+import {
+  MAX_NEGOTIATION_ROUNDS, SEASON_WEEKS, acceptOfferInPlace, counterOfferInPlace,
+  offerById, rejectOfferInPlace, relationshipLabel, sponsorById, sponsorName,
+  weeksRemaining,
+} from "./commercial";
 
 import { absoluteWeek, fromAbsoluteWeek } from "./time";
 import {
@@ -181,6 +188,22 @@ function applyEffectInPlace(s: GameState, e: InboxEffect, src: EffectSource): vo
     case "flag":
       s.inboxFlags[e.key] = e.value;
       break;
+    case "commercialAccept":
+      acceptOfferInPlace(s, e.offerId);
+      break;
+    case "commercialReject":
+      rejectOfferInPlace(s, e.offerId);
+      break;
+    case "commercialCounter": {
+      const res = counterOfferInPlace(s, e.offerId, e.counter);
+      if (res.ok) {
+        // Surface the answer immediately rather than waiting for the next week.
+        const offer = offerById(s, e.offerId);
+        const item = offer ? counterOutcomeItem(s, offer) : null;
+        if (item && !s.inbox.some((i) => i.eventKey === item.eventKey)) s.inbox.push(item);
+      }
+      break;
+    }
     case "scheduleGenerator": {
       assertGeneratorRegistered(e.generatorId);
       const dueAbs = absoluteWeek(s.season, s.week) + e.inWeeks;
@@ -1267,6 +1290,11 @@ const GENERATORS: Generator[] = [
   G_BOARD_OBJECTIVES,
   G_BOARD_REVIEW,
   G_BOARD_PRESSURE,
+  G_COMMERCIAL_OFFER,
+  G_COMMERCIAL_RENEWAL,
+  G_COMMERCIAL_COUNTER_OUTCOME,
+  G_COMMERCIAL_EXPIRY_WARNING,
+  G_COMMERCIAL_EXPIRED,
 ];
 for (const g of GENERATORS) KNOWN_GENERATOR_IDS.add(g.id);
 
