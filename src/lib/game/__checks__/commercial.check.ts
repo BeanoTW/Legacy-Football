@@ -54,8 +54,8 @@ function forceOffer(s: GameState, category = SPONSORSHIP_CATEGORIES[0]): Commerc
 }
 
 const ledgerTotal = (s: GameState) =>
-  (s.finance?.ledger ?? []).reduce(
-    (a, e) => a + (e.direction === "income" ? e.amount : -e.amount), 0);
+  (s.financeLedger ?? []).reduce(
+    (a: number, e: { direction: string; amount: number }) => a + (e.direction === "income" ? e.amount : -e.amount), 0);
 
 console.log("\n[1] Sponsor pool determinism");
 {
@@ -92,13 +92,13 @@ console.log("\n[4] Accept posts money through the finance ledger");
   const s = fixture();
   const offer = forceOffer(s);
   const cashBefore = s.cash;
-  const entriesBefore = (s.finance?.ledger ?? []).length;
+  const entriesBefore = (s.financeLedger ?? []).length;
   const r = acceptOffer(s, offer.id);
   check("accept succeeds", r.ok, r.message);
   const ns = r.state;
   check("signing bonus credited to cash", ns.cash === cashBefore + offer.signingBonus,
     `${ns.cash} vs ${cashBefore + offer.signingBonus}`);
-  check("exactly one new ledger entry", (ns.finance?.ledger ?? []).length === entriesBefore + 1);
+  check("exactly one new ledger entry", (ns.financeLedger ?? []).length === entriesBefore + 1);
   check("contract now active", !!contractForCategory(ns, offer.category));
   check("category cannot be double-signed", !acceptOffer(ns, offer.id).ok);
 }
