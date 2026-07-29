@@ -134,7 +134,7 @@ console.log("\n[6] Reject closes the offer and does not move money");
 console.log("\n[7] Counter-offer determinism and walk-away limit");
 {
   const a = fixture(); const oa = forceOffer(a);
-  const b = fixture(); const ob = forceOffer(b);
+  const b = structuredClone(a); const ob = offerById(b, oa.id)!;
   const ra = counterOffer(a, oa.id, "payment");
   const rb = counterOffer(b, ob.id, "payment");
   check("same counter → same result", ra.result.result === rb.result.result);
