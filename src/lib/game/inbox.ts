@@ -34,7 +34,14 @@ import type {
   ScheduledGenerator,
   Sponsor,
   FinanceCategory,
+  CommercialOffer,
 } from "./types";
+
+import {
+  MAX_NEGOTIATION_ROUNDS, SEASON_WEEKS, acceptOfferInPlace, counterOfferInPlace,
+  offerById, rejectOfferInPlace, relationshipLabel, sponsorById, sponsorName,
+  weeksRemaining,
+} from "./commercial";
 
 import { absoluteWeek, fromAbsoluteWeek } from "./time";
 import {
@@ -181,6 +188,22 @@ function applyEffectInPlace(s: GameState, e: InboxEffect, src: EffectSource): vo
     case "flag":
       s.inboxFlags[e.key] = e.value;
       break;
+    case "commercialAccept":
+      acceptOfferInPlace(s, e.offerId);
+      break;
+    case "commercialReject":
+      rejectOfferInPlace(s, e.offerId);
+      break;
+    case "commercialCounter": {
+      const res = counterOfferInPlace(s, e.offerId, e.counter);
+      if (res.ok) {
+        // Surface the answer immediately rather than waiting for the next week.
+        const offer = offerById(s, e.offerId);
+        const item = offer ? counterOutcomeItem(s, offer) : null;
+        if (item && !s.inbox.some((i) => i.eventKey === item.eventKey)) s.inbox.push(item);
+      }
+      break;
+    }
     case "scheduleGenerator": {
       assertGeneratorRegistered(e.generatorId);
       const dueAbs = absoluteWeek(s.season, s.week) + e.inWeeks;
@@ -1009,6 +1032,251 @@ const G_BOARD_PRESSURE: Generator = {
   },
 };
 
+
+
+/* =========================================================================
+   Commercial department generators
+   -------------------------------------------------------------------------
+   These surface state produced by runCommercialWeek(); they never create
+   offers or move money themselves. All eventKeys are derived from stable
+   offer/contract ids, so replays and reloads can never duplicate an item.
+========================================================================= */
+
+function offerSummaryLines(s: GameState, offer: CommercialOffer): string {
+  const total = offer.weeklyPayment * SEASON_WEEKS * offer.durationSeasons + offer.signingBonus;
+  const lines = [
+    `Weekly fee ......... ${money(offer.weeklyPayment)}`,
+    `Signing bonus ...... ${money(offer.signingBonus)}`,
+    `Term ............... ${offer.durationSeasons} season(s)`,
+    `Headline value ..... ${money(total)}`,
+  ];
+  if (offer.objectives.length) {
+    lines.push("", "Performance clauses:");
+    for (const o of offer.objectives) lines.push(`  • ${o.label} — ${money(o.bonus)} bonus`);
+  }
+  const sp = sponsorById(s, offer.sponsorId);
+  if (sp) lines.push("", `Relationship: ${relationshipLabel(sp.relationshipScore)}`);
+  return lines.join("\n");
+}
+
+function offerChoices(offer: CommercialOffer): InboxChoice[] {
+  const choices: InboxChoice[] = [
+    {
+      id: "accept",
+      label: "Accept the terms",
+      hint: `Sign at ${money(offer.weeklyPayment)}/wk for ${offer.durationSeasons} season(s).`,
+      effects: [{ kind: "commercialAccept", offerId: offer.id }],
+    },
+  ];
+  if (offer.negotiationRounds < MAX_NEGOTIATION_ROUNDS) {
+    choices.push(
+      {
+        id: "counter-payment",
+        label: "Push for a bigger weekly fee",
+        hint: "They may improve, hold firm, or lose patience.",
+        effects: [{ kind: "commercialCounter", offerId: offer.id, counter: "payment" }],
+      },
+      {
+        id: "counter-duration",
+        label: "Push for a longer term",
+        hint: "Locks the income in for another season if they agree.",
+        effects: [{ kind: "commercialCounter", offerId: offer.id, counter: "duration" }],
+      },
+      {
+        id: "counter-bonus",
+        label: "Push for a bigger signing bonus",
+        hint: "Cash up front instead of spread across the term.",
+        effects: [{ kind: "commercialCounter", offerId: offer.id, counter: "bonus" }],
+      },
+    );
+  }
+  choices.push({
+    id: "reject",
+    label: "Turn the offer down",
+    hint: "Ends the conversation. The relationship takes a knock.",
+    effects: [{ kind: "commercialReject", offerId: offer.id }],
+  });
+  return choices;
+}
+
+const offerEventKey = (offer: CommercialOffer) =>
+  `${offer.renewalOfContractId ? "commercial-renewal" : "commercial-offer"}:${offer.id}`;
+
+const counterEventKey = (offer: CommercialOffer, round: number) =>
+  `commercial-counter-outcome:${offer.id}:r${round}`;
+
+/** Builds the follow-up item shown after a counter is answered. */
+function counterOutcomeItem(s: GameState, offer: CommercialOffer): InboxItem | null {
+  const outcome = offer.outcomes[offer.outcomes.length - 1];
+  if (!outcome) return null;
+  const name = sponsorName(s, offer.sponsorId);
+  const stillLive = offer.status === "pending";
+  const headline =
+    outcome.result === "improved"
+      ? "Improved terms"
+      : outcome.result === "withdrawn"
+        ? "Offer withdrawn"
+        : "They held firm";
+  return mk(s, "commercial-counter-outcome", {
+    eventKey: counterEventKey(offer, outcome.round),
+    sender: s.commercial?.directorName ?? "Commercial Director",
+    department: "Commercial",
+    category: stillLive ? "decision" : "information",
+    priority: stillLive ? "high" : "normal",
+    subject: `${name} — ${headline}`,
+    body:
+      `${outcome.note}\n\n` +
+      (stillLive
+        ? `Terms now on the table:\n${offerSummaryLines(s, offer)}`
+        : `The ${offer.category} slot stays open. We will keep working the market.`),
+    choices: stillLive ? offerChoices(offer) : undefined,
+    expiresAtAbsoluteWeek: stillLive ? offer.expiresAtAbsoluteWeek : undefined,
+  });
+}
+
+/* -- Commercial: new sponsor approach -- */
+const G_COMMERCIAL_OFFER: Generator = {
+  id: "commercial-offer",
+  run: (s) => {
+    if (!s.commercial) return [];
+    return s.commercial.offers
+      .filter((o) => o.status === "pending" && !o.renewalOfContractId && o.negotiationRounds === 0)
+      .map((offer) =>
+        mk(s, "commercial-offer", {
+          eventKey: offerEventKey(offer),
+          sender: s.commercial.directorName,
+          department: "Commercial",
+          category: "opportunity",
+          priority: "high",
+          subject: `${sponsorName(s, offer.sponsorId)} want the ${offer.category}`,
+          body:
+            `${sponsorName(s, offer.sponsorId)} have approached us about the ` +
+            `${offer.category} rights.\n\n${offerSummaryLines(s, offer)}\n\n` +
+            `I can sign it as it stands, or push them on one point. Push twice and ` +
+            `they are liable to walk.`,
+          choices: offerChoices(offer),
+          expiresAtAbsoluteWeek: offer.expiresAtAbsoluteWeek,
+        }),
+      );
+  },
+};
+
+/* -- Commercial: renewal window -- */
+const G_COMMERCIAL_RENEWAL: Generator = {
+  id: "commercial-renewal",
+  run: (s) => {
+    if (!s.commercial) return [];
+    return s.commercial.offers
+      .filter((o) => o.status === "pending" && !!o.renewalOfContractId && o.negotiationRounds === 0)
+      .map((offer) => {
+        const current = s.commercial.contracts.find((c) => c.id === offer.renewalOfContractId);
+        const compare = current
+          ? `\nCurrent deal: ${money(current.weeklyPayment)}/wk, ` +
+            `${weeksRemaining(s, current)} week(s) left.\n`
+          : "\n";
+        return mk(s, "commercial-renewal", {
+          eventKey: offerEventKey(offer),
+          sender: s.commercial.directorName,
+          department: "Commercial",
+          category: "decision",
+          priority: "high",
+          subject: `Renewal — ${sponsorName(s, offer.sponsorId)} (${offer.category})`,
+          body:
+            `${sponsorName(s, offer.sponsorId)} have tabled renewal terms before ` +
+            `the current agreement runs out.\n${compare}\n` +
+            `Proposed:\n${offerSummaryLines(s, offer)}`,
+          choices: offerChoices(offer),
+          expiresAtAbsoluteWeek: offer.expiresAtAbsoluteWeek,
+        });
+      });
+  },
+};
+
+/* -- Commercial: counter-offer outcome (safety net; normally emitted on choice) -- */
+const G_COMMERCIAL_COUNTER_OUTCOME: Generator = {
+  id: "commercial-counter-outcome",
+  run: (s) => {
+    if (!s.commercial) return [];
+    const out: InboxItem[] = [];
+    for (const offer of s.commercial.offers) {
+      if (!offer.outcomes.length) continue;
+      const item = counterOutcomeItem(s, offer);
+      if (item) out.push(item);
+    }
+    return out;
+  },
+};
+
+/* -- Commercial: contract expiry warning -- */
+const G_COMMERCIAL_EXPIRY_WARNING: Generator = {
+  id: "commercial-expiry-warning",
+  run: (s) => {
+    if (!s.commercial) return [];
+    const nowAbs = absoluteWeek(s.season, s.week);
+    return s.commercial.contracts
+      .filter((c) => {
+        if (c.status !== "Active") return false;
+        const left = c.endAbsoluteWeek - nowAbs;
+        if (left > 6 || left <= 0) return false;
+        // Only warn when nobody is talking about a renewal.
+        return !s.commercial.offers.some(
+          (o) => o.renewalOfContractId === c.id && (o.status === "pending" || o.status === "accepted"),
+        );
+      })
+      .map((c) =>
+        mk(s, "commercial-expiry-warning", {
+          eventKey: `commercial-expiry-warning:${c.id}`,
+          sender: s.commercial.directorName,
+          department: "Commercial",
+          category: "warning",
+          priority: "high",
+          subject: `${c.category} deal expiring — ${sponsorName(s, c.sponsorId)}`,
+          body:
+            `${sponsorName(s, c.sponsorId)} have not tabled renewal terms and the ` +
+            `${c.category} agreement expires in ${c.endAbsoluteWeek - nowAbs} week(s).\n\n` +
+            `That is ${money(c.weeklyPayment)} a week off the books unless we replace it. ` +
+            `I will work the market, but the relationship is ` +
+            `${relationshipLabel(sponsorById(s, c.sponsorId)?.relationshipScore ?? 50).toLowerCase()}.`,
+        }),
+      );
+  },
+};
+
+/* -- Commercial: contract expired -- */
+const G_COMMERCIAL_EXPIRED: Generator = {
+  id: "commercial-contract-expired",
+  run: (s) => {
+    if (!s.commercial) return [];
+    return s.commercial.history
+      .filter((r) => r.outcome !== "renewed")
+      .slice(-6)
+      .map((r) =>
+        mk(s, "commercial-contract-expired", {
+          eventKey: `commercial-contract-expired:${r.contractId}`,
+          sender: s.commercial.directorName,
+          department: "Commercial",
+          category: "financial",
+          priority: "normal",
+          subject: `${r.category} agreement ended — ${r.sponsorName}`,
+          body:
+            `The ${r.category} agreement with ${r.sponsorName} has ` +
+            `${r.outcome === "terminated" ? "been terminated" : "run its course"}.\n\n` +
+            `Weeks active ....... ${r.weeksActive}\n` +
+            `Weekly fee ......... ${money(r.weeklyPayment)}\n` +
+            `Total value ........ ${money(r.totalValue)}\n` +
+            (r.objectives.length
+              ? `\nClauses:\n${r.objectives
+                  .map((o) => `  • ${o.label} — ${o.met ? "met" : "missed"} (${money(o.bonus)})`)
+                  .join("\n")}\n`
+              : "") +
+            `\nThe ${r.category} slot is open again.`,
+        }),
+      );
+  },
+};
+
+
+
 /* ---------- Registry ---------- */
 const GENERATORS: Generator[] = [
   G_WELCOME,
@@ -1022,6 +1290,11 @@ const GENERATORS: Generator[] = [
   G_BOARD_OBJECTIVES,
   G_BOARD_REVIEW,
   G_BOARD_PRESSURE,
+  G_COMMERCIAL_OFFER,
+  G_COMMERCIAL_RENEWAL,
+  G_COMMERCIAL_COUNTER_OUTCOME,
+  G_COMMERCIAL_EXPIRY_WARNING,
+  G_COMMERCIAL_EXPIRED,
 ];
 for (const g of GENERATORS) KNOWN_GENERATOR_IDS.add(g.id);
 

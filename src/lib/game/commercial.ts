@@ -447,32 +447,36 @@ export interface NegotiationResult {
   note: string;
 }
 
+export const offerById = (s: GameState, id: string): CommercialOffer | undefined =>
+  (s.commercial?.offers ?? []).find((o) => o.id === id);
+
 /**
- * Counter an offer. Outcome is a pure function of (saveSeed, offerId, counter,
- * round), so replaying the same counter always gives the same answer.
+ * Counter an offer on an already-cloned working state, in place.
+ * Outcome is a pure function of (saveSeed, offerId, counter, round), so
+ * replaying the same counter always gives the same answer.
  */
-export function counterOffer(
-  s: GameState,
+export function counterOfferInPlace(
+  ns: GameState,
   offerId: string,
   counter: CommercialCounterKind,
-): { state: GameState; result: NegotiationResult } {
-  const ns = structuredClone(s);
+): NegotiationResult {
   ensureCommercial(ns);
   const offer = ns.commercial.offers.find((o) => o.id === offerId);
   if (!offer || offer.status !== "pending") {
-    return { state: s, result: { ok: false, result: "held", note: "That offer is no longer on the table." } };
+    return { ok: false, result: "held", note: "That offer is no longer on the table." };
   }
   const sponsor = sponsorById(ns, offer.sponsorId);
   if (!sponsor) {
-    return { state: s, result: { ok: false, result: "held", note: "Sponsor unavailable." } };
+    return { ok: false, result: "held", note: "Sponsor unavailable." };
   }
   if (offer.negotiationRounds >= MAX_NEGOTIATION_ROUNDS) {
     offer.status = "withdrawn";
     const note = `${sponsor.companyName} have walked away — they were pushed once too often.`;
     offer.outcomes.push({ round: offer.negotiationRounds + 1, counter, result: "withdrawn", note });
     sponsor.relationshipScore = clamp(sponsor.relationshipScore - 8, 0, 100);
-    return { state: ns, result: { ok: true, result: "withdrawn", note } };
+    return { ok: true, result: "withdrawn", note };
   }
+
 
   const round = offer.negotiationRounds + 1;
   const rng = seededRng(ns.saveSeed, "commercial-counter", offer.id, counter, round);
@@ -496,7 +500,7 @@ export function counterOffer(
         : `${sponsor.companyName} say the fee is already at the top of their budget.`;
       if (offer.weeklyPayment === before) {
         offer.outcomes.push({ round, counter, result: "held", note });
-        return { state: ns, result: { ok: true, result: "held", note } };
+        return { ok: true, result: "held", note };
       }
     } else if (counter === "duration") {
       offer.durationSeasons = Math.min(5, offer.durationSeasons + 1);
@@ -508,13 +512,24 @@ export function counterOffer(
     }
     sponsor.relationshipScore = clamp(sponsor.relationshipScore - 1, 0, 100);
     offer.outcomes.push({ round, counter, result: "improved", note });
-    return { state: ns, result: { ok: true, result: "improved", note } };
+    return { ok: true, result: "improved", note };
   }
 
   const note = `${sponsor.companyName} hold firm — the original terms stand.`;
   sponsor.relationshipScore = clamp(sponsor.relationshipScore - 3, 0, 100);
   offer.outcomes.push({ round, counter, result: "held", note });
-  return { state: ns, result: { ok: true, result: "held", note } };
+  return { ok: true, result: "held", note };
+}
+
+/** Immutable wrapper around counterOfferInPlace. */
+export function counterOffer(
+  s: GameState,
+  offerId: string,
+  counter: CommercialCounterKind,
+): { state: GameState; result: NegotiationResult } {
+  const ns = structuredClone(s);
+  const result = counterOfferInPlace(ns, offerId, counter);
+  return { state: result.ok ? ns : s, result };
 }
 
 /* =========================================================================
