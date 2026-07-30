@@ -20,6 +20,10 @@ import type {
   League,
 } from "./types";
 import { runWeeklyGenerators } from "./inbox";
+import {
+  ensureRecruitment, runRecruitmentWeek, closeRecruitmentSeason,
+  rollRecruitmentToNewSeason,
+} from "./recruitment";
 import { ensureCommercial, runCommercialWeek, closeCommercialSeason } from "./commercial";
 
 import { CLUBS } from "./clubs";
@@ -299,6 +303,8 @@ export function newGame(clubName: string, managerName: string): GameState {
   // Opening cash is booked as a real ledger entry, so the books reconcile
   // from the very first week.
   initFinance(base);
+  // Canonical football world: players, contracts and squads for every club.
+  ensureRecruitment(base);
   return runWeeklyGenerators(base);
 }
 
@@ -314,7 +320,7 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
   const leagues = makeLeagues(clubName);
   const leagueSchedule = makePyramidSchedule(leagues, `${saveSeed}|season1`);
   return {
-    version: 8,
+    version: 9,
     saveSeed,
     clubName,
     managerName,
@@ -376,6 +382,7 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
     financeLedger: [],
     financeHistory: [],
     commercial: undefined as unknown as GameState["commercial"],
+    football: undefined as unknown as GameState["football"],
   };
 
 }
@@ -456,6 +463,9 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
 
   // ---- Commercial department: sponsorship payments, expiries, approaches ----
   runCommercialWeek(s);
+
+  // ---- Football operation: contracts, negotiations, AI recruitment ----
+  runRecruitmentWeek(s, isTransferWindowOpen(s));
 
   let matchdayNote: string | undefined;
 
@@ -700,6 +710,8 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     closeSeasonFinance(s, closingSeason, closingLeagueId);
     // Immutable commercial record of the season just closed.
     closeCommercialSeason(s, closingSeason);
+    // Immutable recruitment record of the season just closed.
+    closeRecruitmentSeason(s, closingSeason);
 
     // Board's final judgement on the season just completed. Must run before
     // the season counter moves so it is filed against the correct season.
@@ -728,6 +740,8 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
       if (p.age > 30) p.rating = Math.max(45, p.rating - randInt(0, 2));
       else if (p.age < 25) p.rating = Math.min(93, p.rating + randInt(0, 1));
     }
+    // Refresh player valuations for the new season (no development yet).
+    rollRecruitmentToNewSeason(s);
     // New season objectives, derived from the freshly stored projection.
     rollBoardToNewSeason(s);
     // Open the new season's books: opening balance, policy and budgets.
@@ -936,6 +950,17 @@ export function migrateSave(parsed: Record<string, unknown>): GameState {
     p.version = 8;
   }
 
+  // v8 → v9: football operation (players, contracts, squads, transfers).
+  //
+  // Additive, deterministic and idempotent. The world player database and
+  // valid opening contracts are generated from the save's own seed; finance,
+  // commercial, board, inbox and every history are left untouched, and no
+  // transfer or contract history is invented for seasons already played.
+  if (p.version < 9) {
+    ensureRecruitment(p as unknown as GameState);
+    p.version = 9;
+  }
+
   return p as GameState;
 }
 
@@ -954,7 +979,7 @@ export function loadGame(): GameState | null {
     const v = (parsed as { version?: number }).version;
     // Missing version = pre-versioning save, treat as v1. Only refuse saves
     // written by a FUTURE schema we don't understand.
-    if (typeof v === "number" && v > 8) return null;
+    if (typeof v === "number" && v > 9) return null;
     const legacyV = typeof v === "number" && v >= 1 ? v : 1;
     const migrated = migrateSave(parsed);
     // If this save had no inbox at all (older than v2 introduction), seed it.

@@ -50,6 +50,19 @@ export type InboxEffect =
   | { kind: "commercialCounter"; offerId: string; counter: "payment" | "duration" | "bonus" }
   | { kind: "flag"; key: string; value: string | number | boolean }
 
+  /* Recruitment. Every one of these routes into the canonical engine
+     functions in recruitment.ts — the inbox never mutates football state. */
+  | { kind: "recruitmentAcceptOffer"; negotiationId: string }
+  | { kind: "recruitmentRejectOffer"; negotiationId: string }
+  | { kind: "recruitmentCounterOffer"; negotiationId: string; fee?: number }
+  | { kind: "recruitmentWithdraw"; negotiationId: string }
+  | { kind: "recruitmentAcceptPlayerTerms"; negotiationId: string }
+  | { kind: "recruitmentImproveTerms"; negotiationId: string }
+  | { kind: "recruitmentCompleteTransfer"; negotiationId: string }
+  | { kind: "recruitmentRenewContract"; playerId: string; upliftPct?: number; seasons?: number }
+  | { kind: "recruitmentReleasePlayer"; playerId: string }
+
+
   | {
       kind: "scheduleGenerator";
       generatorId: string;
@@ -856,9 +869,206 @@ export interface CommercialDepartment {
   lostSponsorsThisSeason: number;
 }
 
+/* =========================================================================
+   FOOTBALL OPERATION — PLAYERS, CONTRACTS, SQUADS, TRANSFERS
+   -------------------------------------------------------------------------
+   GameState.football is the canonical source of truth for every player,
+   contract, squad membership, wage and transfer in the world. The legacy
+   GameState.squad array is a DERIVED PROJECTION of the user's first team,
+   rebuilt by syncLegacySquad() after every recruitment mutation, exactly as
+   GameState.ledger is a projection of the finance ledger. Never write to
+   GameState.squad directly.
+========================================================================= */
+
+export type PreferredFoot = "Left" | "Right" | "Both";
+
+export type PlayerPersonality =
+  | "Balanced" | "Ambitious" | "Loyal" | "Professional" | "Mercenary" | "Temperamental";
+
+export type PlayerTransferStatus =
+  | "unlisted" | "listed" | "wanted" | "agreedTransfer";
+
+export type PlayerAvailability = "available" | "unavailable";
+
+export type SquadRole =
+  | "Key Player" | "First Team" | "Rotation" | "Prospect";
+
+export type SquadGroup =
+  | "firstTeam" | "reserve" | "transferListed" | "contractExpiring";
+
+/** A persistent human being. Ids never change; players survive forever. */
+export interface FootballPlayer {
+  id: string;
+  firstName: string;
+  lastName: string;
+  /** In-world calendar. Season 1 == year 2000. */
+  dateOfBirth: { year: number; month: number; day: number };
+  nationality: string;
+  preferredFoot: PreferredFoot;
+  primaryPosition: Position;
+  secondaryPositions: Position[];
+  /** Club name, or null while unattached (free agent). */
+  currentClubId: string | null;
+  /** Standing in the game world, 0-100. */
+  reputation: number;
+  currentAbility: number;
+  potentialAbility: number;
+  marketValue: number;
+  /** £/week the player believes he is worth. */
+  wageExpectation: number;
+  personality: PlayerPersonality;
+  /** Active contract id, or null when out of contract. */
+  contractId: string | null;
+  transferStatus: PlayerTransferStatus;
+  availability: PlayerAvailability;
+  createdSeason: number;
+}
+
+export type PlayerContractStatus =
+  | "Active" | "Agreed" | "Expiring" | "Expired" | "Released";
+
+export interface PlayerContract {
+  id: string;
+  playerId: string;
+  clubId: string;
+  startSeason: number;
+  startWeek: number;
+  expirySeason: number;
+  expiryWeek: number;
+  weeklyWage: number;
+  squadRole: SquadRole;
+  signingBonus: number;
+  /** Fee agreed for the transfer that created this contract, if any. */
+  agreedTransferFee: number;
+  status: PlayerContractStatus;
+}
+
+export type NegotiationStage =
+  | "clubTalks" | "playerTalks" | "agreed" | "completed" | "rejected" | "withdrawn";
+
+export type NegotiationParty = "club" | "player";
+
+export interface NegotiationLogEntry {
+  round: number;
+  party: NegotiationParty;
+  action: "offer" | "accept" | "reject" | "counter" | "withdraw" | "complete";
+  note: string;
+  absoluteWeek: number;
+}
+
+/** A live transfer conversation. Deterministic from (saveSeed, id, round). */
+export interface TransferNegotiation {
+  id: string;
+  playerId: string;
+  /** Selling club, null for a free agent. */
+  fromClubId: string | null;
+  toClubId: string;
+  /** Relative to the USER's club. */
+  direction: "in" | "out";
+  stage: NegotiationStage;
+  clubRounds: number;
+  playerRounds: number;
+  /** Fee currently on the table. */
+  fee: number;
+  /** Selling club's latest counter, if it made one. */
+  clubCounterFee?: number;
+  proposedWeeklyWage: number;
+  proposedLengthSeasons: number;
+  proposedSigningBonus: number;
+  proposedRole: SquadRole;
+  /** Player's latest wage counter, if he made one. */
+  playerCounterWage?: number;
+  createdSeason: number;
+  createdAbsoluteWeek: number;
+  expiresAtAbsoluteWeek: number;
+  resolvedAtAbsoluteWeek?: number;
+  /** Set once completeTransfer has run. Guarantees exactly-once completion. */
+  completedTransferId?: string;
+  log: NegotiationLogEntry[];
+}
+
+/** Immutable record of one completed movement. Never rewritten. */
+export interface TransferRecord {
+  id: string;
+  playerId: string;
+  playerName: string;
+  position: Position;
+  fromClubId: string | null;
+  toClubId: string | null;
+  fee: number;
+  weeklyWage: number;
+  signingBonus: number;
+  season: number;
+  week: number;
+  absoluteWeek: number;
+  type: "transfer" | "freeTransfer" | "release" | "contractExpiry";
+  negotiationId?: string;
+}
+
+/** Immutable record of one finished contract. Never rewritten. */
+export interface PlayerContractRecord {
+  id: string;
+  contractId: string;
+  playerId: string;
+  playerName: string;
+  clubId: string;
+  weeklyWage: number;
+  startSeason: number;
+  endSeason: number;
+  seasons: number;
+  outcome: "renewed" | "expired" | "released" | "transferred";
+  season: number;
+  week: number;
+}
+
+/** Immutable per-season recruitment record. */
+export interface RecruitmentSeasonSummary {
+  season: number;
+  spend: number;
+  income: number;
+  netSpend: number;
+  playersIn: number;
+  playersOut: number;
+  wageBillAtClose: number;
+}
+
+export interface RecruitmentDepartment {
+  headOfRecruitment: string;
+  footballDirector: string;
+  /** Ability to identify and value players, 0-100. */
+  recruitmentRating: number;
+  /** Ability to win negotiations, 0-100. */
+  negotiationRating: number;
+  /** Standing with other clubs and agents, 0-100. */
+  recruitmentReputation: number;
+  /** Count of transfers concluded by this club. */
+  historicTransfers: number;
+}
+
+export interface RecruitmentState {
+  /** Every player in the world. Append-only; players are never deleted. */
+  players: FootballPlayer[];
+  /** Every contract ever issued. Append-only; status changes, rows do not. */
+  contracts: PlayerContract[];
+  negotiations: TransferNegotiation[];
+  department: RecruitmentDepartment;
+  /** Append-only immutable histories. */
+  transferHistory: TransferRecord[];
+  contractHistory: PlayerContractRecord[];
+  seasonHistory: RecruitmentSeasonSummary[];
+  /** Monotonic counters used for deterministic ids. */
+  nextContractId: number;
+  nextNegotiationId: number;
+  nextRecordId: number;
+  /** Season the world database was generated for. */
+  generatedSeason: number;
+}
+
 export interface GameState {
   /** Save schema version. Bump + add a migration in loadGame when persisted shape changes. */
-  version: 8;
+  version: 9;
+
+
 
 
   /** Stable per-save seed. Used for deterministic inbox generation. */
@@ -943,6 +1153,10 @@ export interface GameState {
 
   /** Commercial department: sponsors, contracts, offers and history. */
   commercial: CommercialDepartment;
+
+  /** Canonical football operation: players, contracts, squads, transfers. */
+  football: RecruitmentState;
+
 
 }
 
