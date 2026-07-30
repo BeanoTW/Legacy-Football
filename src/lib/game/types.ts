@@ -50,6 +50,19 @@ export type InboxEffect =
   | { kind: "commercialCounter"; offerId: string; counter: "payment" | "duration" | "bonus" }
   | { kind: "flag"; key: string; value: string | number | boolean }
 
+  /* Recruitment. Every one of these routes into the canonical engine
+     functions in recruitment.ts — the inbox never mutates football state. */
+  | { kind: "recruitmentAcceptOffer"; negotiationId: string }
+  | { kind: "recruitmentRejectOffer"; negotiationId: string }
+  | { kind: "recruitmentCounterOffer"; negotiationId: string; fee?: number }
+  | { kind: "recruitmentWithdraw"; negotiationId: string }
+  | { kind: "recruitmentAcceptPlayerTerms"; negotiationId: string }
+  | { kind: "recruitmentImproveTerms"; negotiationId: string }
+  | { kind: "recruitmentCompleteTransfer"; negotiationId: string }
+  | { kind: "recruitmentRenewContract"; playerId: string; upliftPct?: number; seasons?: number }
+  | { kind: "recruitmentReleasePlayer"; playerId: string }
+
+
   | {
       kind: "scheduleGenerator";
       generatorId: string;
