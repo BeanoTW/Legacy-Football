@@ -1141,6 +1141,10 @@ export interface GameState {
   /** Commercial department: sponsors, contracts, offers and history. */
   commercial: CommercialDepartment;
 
+  /** Canonical football operation: players, contracts, squads, transfers. */
+  football: RecruitmentState;
+
+
 }
 
 
