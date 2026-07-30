@@ -944,7 +944,7 @@ export interface PlayerContract {
 }
 
 export type NegotiationStage =
-  | "clubTalks" | "playerTalks" | "completed" | "rejected" | "withdrawn";
+  | "clubTalks" | "playerTalks" | "agreed" | "completed" | "rejected" | "withdrawn";
 
 export type NegotiationParty = "club" | "player";
 
