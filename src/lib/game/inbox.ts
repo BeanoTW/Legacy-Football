@@ -1275,6 +1275,263 @@ const G_COMMERCIAL_EXPIRED: Generator = {
   },
 };
 
+/* =========================================================================
+   RECRUITMENT GENERATORS
+   -------------------------------------------------------------------------
+   These read canonical football state produced by runRecruitmentWeek().
+   They never open, advance or complete a negotiation themselves — every
+   mutation goes through the recruitment effects below, which call the
+   in-place functions in recruitment.ts. eventKeys are derived from stable
+   negotiation / contract / record ids so replays cannot duplicate an item.
+========================================================================= */
+
+const RECRUITMENT_SENDER = (s: GameState) =>
+  s.football?.department?.headOfRecruitment ?? "Head of Recruitment";
+
+function negotiationLines(s: GameState, n: TransferNegotiation): string {
+  const p = playerById(s, n.playerId);
+  if (!p) return "";
+  return [
+    `Player ............. ${playerName(p)} (${p.primaryPosition}, ${ageOf(p, s.season)})`,
+    `Ability ............ ${p.currentAbility}`,
+    `Valuation .......... ${money(p.marketValue)}`,
+    `Fee on the table ... ${money(n.clubCounterFee ?? n.fee)}`,
+    `Wage proposed ...... ${money(n.proposedWeeklyWage)}/wk`,
+    `Term ............... ${n.proposedLengthSeasons} season(s) as ${n.proposedRole}`,
+  ].join("\n");
+}
+
+/* -- Recruitment: another club bids for one of ours -- */
+const G_RECRUITMENT_INCOMING_OFFER: Generator = {
+  id: "recruitment-incoming-offer",
+  run: (s) => {
+    if (!s.football) return [];
+    return s.football.negotiations
+      .filter((n) => n.direction === "out" && n.stage === "clubTalks")
+      .map((n) => {
+        const p = playerById(s, n.playerId);
+        if (!p) return null;
+        const fee = n.fee;
+        return mk(s, "recruitment-incoming-offer", {
+          eventKey: `recruitment-incoming-offer:${n.id}:r${n.clubRounds}`,
+          sender: RECRUITMENT_SENDER(s),
+          department: "Director of Football",
+          category: "decision",
+          priority: "high",
+          subject: `${n.fromClubId ?? "A club"} bid ${money(fee)} for ${playerName(p)}`,
+          body:
+            `We have a formal approach for ${playerName(p)}.\n\n${negotiationLines(s, n)}\n\n` +
+            `Selling banks the fee and frees the wage. Holding firm keeps the player, ` +
+            `but they may not come back.`,
+          choices: [
+            {
+              id: "accept",
+              label: `Accept ${money(fee)}`,
+              hint: "Fee is booked to the club's cash the moment the deal completes.",
+              effects: [{ kind: "recruitmentAcceptOffer", negotiationId: n.id }],
+            },
+            {
+              id: "counter",
+              label: `Demand ${money(Math.round(fee * 1.25))}`,
+              hint: "They may improve, hold firm or walk away.",
+              effects: [
+                { kind: "recruitmentCounterOffer", negotiationId: n.id, fee: Math.round(fee * 1.25) },
+              ],
+            },
+            {
+              id: "reject",
+              label: "Reject the bid",
+              hint: "He stays. The approach is closed.",
+              effects: [{ kind: "recruitmentRejectOffer", negotiationId: n.id }],
+            },
+          ],
+          expiresAtAbsoluteWeek: n.expiresAtAbsoluteWeek,
+        });
+      })
+      .filter((x): x is InboxItem => !!x);
+  },
+};
+
+/* -- Recruitment: our target's agent comes back on wages -- */
+const G_RECRUITMENT_PLAYER_TERMS: Generator = {
+  id: "recruitment-player-terms",
+  run: (s) => {
+    if (!s.football) return [];
+    return s.football.negotiations
+      .filter((n) => n.direction === "in" && n.stage === "playerTalks" && n.playerCounterWage != null)
+      .map((n) => {
+        const p = playerById(s, n.playerId);
+        if (!p) return null;
+        const wanted = n.playerCounterWage!;
+        return mk(s, "recruitment-player-terms", {
+          eventKey: `recruitment-player-terms:${n.id}:r${n.playerRounds}`,
+          sender: RECRUITMENT_SENDER(s),
+          department: "Director of Football",
+          category: "decision",
+          priority: "high",
+          subject: `${playerName(p)} wants ${money(wanted)}/wk`,
+          body:
+            `The fee is agreed. His representatives have come back on personal terms.\n\n` +
+            `${negotiationLines(s, n)}\n\nAsking ........... ${money(wanted)}/wk\n\n` +
+            `Meeting it closes the deal subject to the wage ceiling. Holding our number ` +
+            `risks him walking.`,
+          choices: [
+            {
+              id: "meet",
+              label: `Meet ${money(wanted)}/wk`,
+              hint: "Adds directly to the weekly wage bill.",
+              effects: [{ kind: "recruitmentAcceptPlayerTerms", negotiationId: n.id }],
+            },
+            {
+              id: "improve",
+              label: "Improve our offer slightly",
+              hint: "A measured rise. He may still refuse.",
+              effects: [{ kind: "recruitmentImproveTerms", negotiationId: n.id }],
+            },
+            {
+              id: "withdraw",
+              label: "Walk away",
+              hint: "Ends the negotiation. No fee is paid.",
+              effects: [{ kind: "recruitmentWithdraw", negotiationId: n.id }],
+            },
+          ],
+          expiresAtAbsoluteWeek: n.expiresAtAbsoluteWeek,
+        });
+      })
+      .filter((x): x is InboxItem => !!x);
+  },
+};
+
+/* -- Recruitment: deal agreed, awaiting the chairman's signature -- */
+const G_RECRUITMENT_DEAL_AGREED: Generator = {
+  id: "recruitment-deal-agreed",
+  run: (s) => {
+    if (!s.football) return [];
+    return s.football.negotiations
+      .filter((n) => n.stage === "agreed" && !n.completedTransferId)
+      .map((n) => {
+        const p = playerById(s, n.playerId);
+        if (!p) return null;
+        const incoming = n.direction === "in";
+        return mk(s, "recruitment-deal-agreed", {
+          eventKey: `recruitment-deal-agreed:${n.id}`,
+          sender: RECRUITMENT_SENDER(s),
+          department: "Director of Football",
+          category: "decision",
+          priority: "urgent",
+          subject: `${incoming ? "Sign" : "Sell"} ${playerName(p)} — everything is agreed`,
+          body:
+            `${incoming ? "Both the club and the player have agreed" : "Terms are agreed with the buying club"}. ` +
+            `It needs your signature to complete.\n\n${negotiationLines(s, n)}\n\n` +
+            (incoming
+              ? `The fee draws on real cash and transfer-budget authority.`
+              : `The fee is banked as transfer income.`),
+          choices: [
+            {
+              id: "complete",
+              label: incoming ? "Complete the signing" : "Complete the sale",
+              effects: [{ kind: "recruitmentCompleteTransfer", negotiationId: n.id }],
+            },
+            {
+              id: "withdraw",
+              label: "Pull out of the deal",
+              hint: "No money moves. Our standing takes a knock.",
+              effects: [{ kind: "recruitmentWithdraw", negotiationId: n.id }],
+            },
+          ],
+          expiresAtAbsoluteWeek: n.expiresAtAbsoluteWeek,
+        });
+      })
+      .filter((x): x is InboxItem => !!x);
+  },
+};
+
+/* -- Recruitment: contract running down -- */
+const G_RECRUITMENT_CONTRACT_EXPIRING: Generator = {
+  id: "recruitment-contract-expiring",
+  run: (s) => {
+    if (!s.football) return [];
+    const out: InboxItem[] = [];
+    for (const p of userSquad(s)) {
+      const c = activeContract(s, p.id);
+      if (!c) continue;
+      const left = weeksLeftOnContract(s, c);
+      if (left > RENEWAL_WINDOW_WEEKS || left <= 0) continue;
+      const terms = renewalTerms(s, p.id);
+      if (!terms) continue;
+      out.push(
+        mk(s, "recruitment-contract-expiring", {
+          eventKey: `recruitment-contract-expiring:${c.id}`,
+          sender: RECRUITMENT_SENDER(s),
+          department: "Director of Football",
+          category: "decision",
+          priority: p.currentAbility >= 65 ? "high" : "normal",
+          subject: `${playerName(p)} — ${left} week(s) left on his deal`,
+          body:
+            `${playerName(p)} (${p.primaryPosition}, ${ageOf(p, s.season)}) is inside the ` +
+            `renewal window.\n\n` +
+            `Current wage ....... ${money(c.weeklyWage)}/wk\n` +
+            `Asking ............. ${money(terms.weeklyWage)}/wk over ${terms.seasons} season(s)\n` +
+            `Signing bonus ...... ${money(terms.signingBonus)}\n` +
+            `Ability ............ ${p.currentAbility}\n\n` +
+            `Let it run out and he leaves for nothing.`,
+          choices: [
+            {
+              id: "renew",
+              label: `Renew at ${money(terms.weeklyWage)}/wk`,
+              effects: [{ kind: "recruitmentRenewContract", playerId: p.id }],
+            },
+            {
+              id: "renew-short",
+              label: "Offer one season only",
+              hint: "Cheaper commitment, shorter security.",
+              effects: [{ kind: "recruitmentRenewContract", playerId: p.id, seasons: 1 }],
+            },
+            {
+              id: "release",
+              label: "Let him go",
+              hint: "Ends the contract and clears the wage.",
+              effects: [{ kind: "recruitmentReleasePlayer", playerId: p.id }],
+            },
+          ],
+        }),
+      );
+    }
+    return out;
+  },
+};
+
+/* -- Recruitment: completed movement, for the record -- */
+const G_RECRUITMENT_TRANSFER_DONE: Generator = {
+  id: "recruitment-transfer-complete",
+  run: (s) => {
+    if (!s.football) return [];
+    return s.football.transferHistory
+      .filter((r) => r.toClubId === s.clubName || r.fromClubId === s.clubName)
+      .slice(-6)
+      .map((r) => {
+        const incoming = r.toClubId === s.clubName;
+        return mk(s, "recruitment-transfer-complete", {
+          eventKey: `recruitment-transfer-complete:${r.id}`,
+          sender: RECRUITMENT_SENDER(s),
+          department: "Director of Football",
+          category: "financial",
+          priority: "normal",
+          subject: `${incoming ? "Signed" : "Sold"} — ${r.playerName}`,
+          body:
+            `${r.playerName} (${r.position}) has ${incoming ? "joined" : "left"} the club.\n\n` +
+            `Fee ................ ${money(r.fee)}\n` +
+            (incoming
+              ? `Signing bonus ...... ${money(r.signingBonus)}\n` +
+                `Weekly wage ........ ${money(r.weeklyWage)}/wk\n`
+              : `Wage freed ......... ${money(r.weeklyWage)}/wk\n`) +
+            `Recorded ........... Season ${r.season}, week ${r.week}`,
+        });
+      });
+  },
+};
+
+
 
 
 /* ---------- Registry ---------- */
