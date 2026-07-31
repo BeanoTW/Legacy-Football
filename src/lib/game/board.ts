@@ -32,6 +32,14 @@ import { seededRng, rngInt } from "./rng";
 import { clubPrediction, EXPECTATION_LABEL } from "./reputation";
 import { playerLeagueId } from "./league";
 import { commercialWeeklyIncome, activeContracts } from "./commercial";
+import {
+  netSpendThisSeason,
+  transferIncomeThisSeason,
+  contractSecurityPct,
+  averageSquadAge,
+  incomingTransfersThisSeason,
+  userSquad,
+} from "./recruitment";
 
 
 /* ---------- Calendar anchors (kept local to avoid an engine import) ---------- */
