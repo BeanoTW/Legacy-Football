@@ -217,7 +217,7 @@ function SquadView({
                         variant="ghost"
                         onClick={() =>
                           act((s) =>
-                            setTransferStatus(s, p.id, p.transferStatus === "listed" ? "none" : "listed"),
+                            setTransferStatus(s, p.id, p.transferStatus === "listed" ? "unlisted" : "listed"),
                           )
                         }
                       >
