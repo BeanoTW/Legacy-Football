@@ -326,6 +326,14 @@ export function makeObjectives(s: GameState, season: number, board: BoardState):
     Math.round((commercialNow > 0 ? commercialNow * (1.15 + amb * 0.05) : 6_000) / 500) * 500,
   );
 
+  // Recruitment: measured from canonical football state, never the legacy squad.
+  const netSpendCap = Math.max(0, Math.round((s.transferBudget ?? 0) / 25_000) * 25_000);
+  const saleTarget = Math.round(Math.max(100_000, burn * 6) / 25_000) * 25_000;
+  const ageNow = averageSquadAge(s);
+  const ageTarget = ageNow > 0 ? Math.min(29, Math.max(23, Math.round((ageNow - 0.5) * 10) / 10)) : 27;
+  const securityTarget = Math.min(95, Math.max(60, Math.round(contractSecurityPct(s) + 5)));
+  const activityTarget = Math.max(1, 2 + amb);
+
 
   const mk = (
     kind: BoardObjective["kind"],
