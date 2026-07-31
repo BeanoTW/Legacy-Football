@@ -214,6 +214,56 @@ function applyEffectInPlace(s: GameState, e: InboxEffect, src: EffectSource): vo
       }
       break;
     }
+
+    /* -- Recruitment: every mutation delegates to recruitment.ts -- */
+    case "recruitmentAcceptOffer":
+      respondToIncomingOfferInPlace(s, e.negotiationId, "accept");
+      syncLegacySquad(s);
+      break;
+    case "recruitmentRejectOffer":
+      respondToIncomingOfferInPlace(s, e.negotiationId, "reject");
+      syncLegacySquad(s);
+      break;
+    case "recruitmentCounterOffer":
+      respondToIncomingOfferInPlace(s, e.negotiationId, "counter", e.fee);
+      syncLegacySquad(s);
+      break;
+    case "recruitmentWithdraw":
+      withdrawNegotiationInPlace(s, e.negotiationId);
+      syncLegacySquad(s);
+      break;
+    case "recruitmentAcceptPlayerTerms": {
+      const n = negotiationById(s, e.negotiationId);
+      improvePlayerTermsInPlace(s, e.negotiationId, n?.playerCounterWage);
+      syncLegacySquad(s);
+      break;
+    }
+    case "recruitmentImproveTerms":
+      improvePlayerTermsInPlace(s, e.negotiationId);
+      syncLegacySquad(s);
+      break;
+    case "recruitmentCompleteTransfer":
+      completeTransferInPlace(s, e.negotiationId);
+      syncLegacySquad(s);
+      break;
+    case "recruitmentRenewContract": {
+      const base = renewalTerms(s, e.playerId);
+      if (base) {
+        renewContractInPlace(s, e.playerId, {
+          seasons: e.seasons ?? base.seasons,
+          weeklyWage: e.upliftPct != null
+            ? Math.round((base.weeklyWage * (1 + e.upliftPct / 100)) / 25) * 25
+            : base.weeklyWage,
+        });
+        syncLegacySquad(s);
+      }
+      break;
+    }
+    case "recruitmentReleasePlayer":
+      releasePlayerInPlace(s, e.playerId);
+      syncLegacySquad(s);
+      break;
+
     case "scheduleGenerator": {
       assertGeneratorRegistered(e.generatorId);
       const dueAbs = absoluteWeek(s.season, s.week) + e.inWeeks;
