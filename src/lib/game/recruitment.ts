@@ -227,6 +227,7 @@ function defaultDepartment(s: GameState): RecruitmentDepartment {
 export function ensureRecruitment(s: GameState): void {
   if (s.football && Array.isArray(s.football.players) && s.football.players.length > 0) {
     s.football.negotiations ??= [];
+    s.football.shortlist ??= [];
     s.football.transferHistory ??= [];
     s.football.contractHistory ??= [];
     s.football.seasonHistory ??= [];
@@ -238,6 +239,7 @@ export function ensureRecruitment(s: GameState): void {
     players,
     contracts,
     negotiations: [],
+    shortlist: [],
     department: defaultDepartment(s),
     transferHistory: [],
     contractHistory: [],
@@ -1233,6 +1235,44 @@ export function contractSecurityPct(s: GameState): number {
     return !!c && c.expirySeason > s.season;
   }).length;
   return (secure / squad.length) * 100;
+}
+
+/** Average age of the user's squad. 0 when the squad is empty. */
+export function averageSquadAge(s: GameState): number {
+  const squad = userSquad(s);
+  if (!squad.length) return 0;
+  return squad.reduce((a, p) => a + ageOf(p, s.season), 0) / squad.length;
+}
+
+/** Count of players signed by the user's club this season. */
+export function incomingTransfersThisSeason(s: GameState): number {
+  return (s.football?.transferHistory ?? [])
+    .filter((r) => r.season === s.season && r.toClubId === s.clubName).length;
+}
+
+/** Count of contracts renewed at the user's club this season. */
+export function renewalsThisSeason(s: GameState): number {
+  return (s.football?.contractHistory ?? [])
+    .filter((r) => r.season === s.season && r.clubId === s.clubName && r.outcome === "renewed").length;
+}
+
+/** Persistent shortlist of player ids the chairman is watching. */
+export function shortlistIds(s: GameState): string[] {
+  return s.football?.shortlist ?? [];
+}
+
+export function toggleShortlistInPlace(s: GameState, playerId: string): void {
+  if (!s.football) return;
+  if (!Array.isArray(s.football.shortlist)) s.football.shortlist = [];
+  const i = s.football.shortlist.indexOf(playerId);
+  if (i >= 0) s.football.shortlist.splice(i, 1);
+  else s.football.shortlist.push(playerId);
+}
+
+export function toggleShortlist(s: GameState, playerId: string): GameState {
+  const w = structuredClone(s);
+  toggleShortlistInPlace(w, playerId);
+  return w;
 }
 
 /* ---------- Cloning wrappers for UI callers ---------- */

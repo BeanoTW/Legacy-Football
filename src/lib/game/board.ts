@@ -32,6 +32,14 @@ import { seededRng, rngInt } from "./rng";
 import { clubPrediction, EXPECTATION_LABEL } from "./reputation";
 import { playerLeagueId } from "./league";
 import { commercialWeeklyIncome, activeContracts } from "./commercial";
+import {
+  netSpendThisSeason,
+  transferIncomeThisSeason,
+  contractSecurityPct,
+  averageSquadAge,
+  incomingTransfersThisSeason,
+  userSquad,
+} from "./recruitment";
 
 
 /* ---------- Calendar anchors (kept local to avoid an engine import) ---------- */
@@ -275,6 +283,11 @@ const OBJ_META: Record<
   squadRating:      { priority: "squad",      ownerRole: "Football Director",    higherIsBetter: true  },
   commercialIncome: { priority: "commercial", ownerRole: "Commercial Director",  higherIsBetter: true  },
 
+  transferBudgetDiscipline: { priority: "finance", ownerRole: "Finance Director",  higherIsBetter: false },
+  playerSaleIncome:         { priority: "finance", ownerRole: "Finance Director",  higherIsBetter: true  },
+  squadAge:                 { priority: "squad",   ownerRole: "Football Director", higherIsBetter: false },
+  contractSecurity:         { priority: "squad",   ownerRole: "Football Director", higherIsBetter: true  },
+  recruitmentActivity:      { priority: "squad",   ownerRole: "Football Director", higherIsBetter: true  },
 };
 
 /** Does the board contain an ambitious voice? Ambition tightens targets. */
@@ -312,6 +325,14 @@ export function makeObjectives(s: GameState, season: number, board: BoardState):
     2_000,
     Math.round((commercialNow > 0 ? commercialNow * (1.15 + amb * 0.05) : 6_000) / 500) * 500,
   );
+
+  // Recruitment: measured from canonical football state, never the legacy squad.
+  const netSpendCap = Math.max(0, Math.round((s.transferBudget ?? 0) / 25_000) * 25_000);
+  const saleTarget = Math.round(Math.max(100_000, burn * 6) / 25_000) * 25_000;
+  const ageNow = averageSquadAge(s);
+  const ageTarget = ageNow > 0 ? Math.min(29, Math.max(23, Math.round((ageNow - 0.5) * 10) / 10)) : 27;
+  const securityTarget = Math.min(95, Math.max(60, Math.round(contractSecurityPct(s) + 5)));
+  const activityTarget = Math.max(1, 2 + amb);
 
 
   const mk = (
@@ -384,6 +405,42 @@ export function makeObjectives(s: GameState, season: number, board: BoardState):
         "Measured on contracted weekly payments from active partnerships.",
       commercialTarget,
       10,
+    ),
+    mk(
+      "transferBudgetDiscipline",
+      `Net transfer spend no higher than £${(netSpendCap / 1000).toFixed(0)}k`,
+      "Fees and signing bonuses paid, less fees received. The finance director treats the transfer budget " +
+        "as authority to spend, not a target to hit.",
+      netSpendCap,
+      10,
+    ),
+    mk(
+      "playerSaleIncome",
+      `Raise £${(saleTarget / 1000).toFixed(0)}k from player sales`,
+      "Fees banked from outgoing transfers this season. Trading is expected to part-fund the wage bill.",
+      saleTarget,
+      6,
+    ),
+    mk(
+      "squadAge",
+      `Average squad age ${ageTarget.toFixed(1)} or younger`,
+      "The football director wants the squad refreshed rather than allowed to age in place.",
+      ageTarget,
+      5,
+    ),
+    mk(
+      "contractSecurity",
+      `${securityTarget}% of the squad contracted beyond this season`,
+      "Players running down deals leave for nothing. Renew or replace before the expiry window.",
+      securityTarget,
+      8,
+    ),
+    mk(
+      "recruitmentActivity",
+      `Complete ${activityTarget} incoming signing${activityTarget === 1 ? "" : "s"}`,
+      "The board expects the recruitment department to actually deliver players, not just watch them.",
+      activityTarget,
+      5,
     ),
   ];
 
@@ -459,6 +516,38 @@ export function evaluateObjective(s: GameState, o: BoardObjective): ObjectivePro
     case "commercialIncome": {
       current = commercialWeeklyIncome(s);
       detail = `£${Math.round(current).toLocaleString()}/wk from ${activeContracts(s).length} partner(s)`;
+      progress = ratioProgress(current, o.target, true);
+      break;
+    }
+    case "transferBudgetDiscipline": {
+      current = netSpendThisSeason(s);
+      detail = `Net spend £${Math.round(current).toLocaleString()} against £${Math.round(o.target).toLocaleString()}`;
+      progress = current <= o.target ? 1 : ratioProgress(current, Math.max(1, o.target), false);
+      break;
+    }
+    case "playerSaleIncome": {
+      current = transferIncomeThisSeason(s);
+      detail = `£${Math.round(current).toLocaleString()} banked from sales`;
+      progress = ratioProgress(current, o.target, true);
+      break;
+    }
+    case "squadAge": {
+      current = averageSquadAge(s);
+      detail = current > 0
+        ? `Average age ${current.toFixed(1)} across ${userSquad(s).length} players`
+        : "No players registered";
+      progress = current === 0 ? 0 : ratioProgress(current, o.target, false);
+      break;
+    }
+    case "contractSecurity": {
+      current = contractSecurityPct(s);
+      detail = `${current.toFixed(0)}% contracted beyond season ${s.season}`;
+      progress = ratioProgress(current, o.target, true);
+      break;
+    }
+    case "recruitmentActivity": {
+      current = incomingTransfersThisSeason(s);
+      detail = `${current} signing(s) completed this season`;
       progress = ratioProgress(current, o.target, true);
       break;
     }
