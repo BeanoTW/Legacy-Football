@@ -445,7 +445,13 @@ export type ObjectiveKind =
   | "fanHappiness"
   | "stadiumCondition"
   | "squadRating"
-  | "commercialIncome";
+  | "commercialIncome"
+  /* Recruitment-aware objectives, measured from canonical football state. */
+  | "transferBudgetDiscipline"
+  | "playerSaleIncome"
+  | "squadAge"
+  | "contractSecurity"
+  | "recruitmentActivity";
 
 
 export type ObjectiveStatus = "active" | "met" | "missed";
