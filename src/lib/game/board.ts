@@ -519,6 +519,38 @@ export function evaluateObjective(s: GameState, o: BoardObjective): ObjectivePro
       progress = ratioProgress(current, o.target, true);
       break;
     }
+    case "transferBudgetDiscipline": {
+      current = netSpendThisSeason(s);
+      detail = `Net spend £${Math.round(current).toLocaleString()} against £${Math.round(o.target).toLocaleString()}`;
+      progress = current <= o.target ? 1 : ratioProgress(current, Math.max(1, o.target), false);
+      break;
+    }
+    case "playerSaleIncome": {
+      current = transferIncomeThisSeason(s);
+      detail = `£${Math.round(current).toLocaleString()} banked from sales`;
+      progress = ratioProgress(current, o.target, true);
+      break;
+    }
+    case "squadAge": {
+      current = averageSquadAge(s);
+      detail = current > 0
+        ? `Average age ${current.toFixed(1)} across ${userSquad(s).length} players`
+        : "No players registered";
+      progress = current === 0 ? 0 : ratioProgress(current, o.target, false);
+      break;
+    }
+    case "contractSecurity": {
+      current = contractSecurityPct(s);
+      detail = `${current.toFixed(0)}% contracted beyond season ${s.season}`;
+      progress = ratioProgress(current, o.target, true);
+      break;
+    }
+    case "recruitmentActivity": {
+      current = incomingTransfersThisSeason(s);
+      detail = `${current} signing(s) completed this season`;
+      progress = ratioProgress(current, o.target, true);
+      break;
+    }
   }
 
 
