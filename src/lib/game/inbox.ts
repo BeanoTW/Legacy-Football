@@ -35,6 +35,7 @@ import type {
   Sponsor,
   FinanceCategory,
   CommercialOffer,
+  TransferNegotiation,
 } from "./types";
 
 import {
@@ -42,6 +43,15 @@ import {
   offerById, rejectOfferInPlace, relationshipLabel, sponsorById, sponsorName,
   weeksRemaining,
 } from "./commercial";
+
+import {
+  RENEWAL_WINDOW_WEEKS, activeContract, ageOf, completeTransferInPlace,
+  improvePlayerTermsInPlace, negotiationById, playerById, playerName,
+  releasePlayerInPlace, renewContractInPlace, renewalTerms,
+  respondToIncomingOfferInPlace, syncLegacySquad, userSquad,
+  weeksLeftOnContract, withdrawNegotiationInPlace,
+} from "./recruitment";
+
 
 import { absoluteWeek, fromAbsoluteWeek } from "./time";
 import {
