@@ -54,6 +54,7 @@ import {
 import { LeagueBrowser } from "@/components/LeagueBrowser";
 import { BoardTab } from "@/components/BoardTab";
 import { CommercialTab } from "@/components/CommercialTab";
+import { RecruitmentTab } from "@/components/RecruitmentTab";
 import { useGame } from "@/hooks/useGame";
 import type { GameState, Stand, Staff, StaffRole, Priority, Position, TransferTarget, IncomingBid } from "@/lib/game/types";
 import {
@@ -161,8 +162,7 @@ type Tab =
   | "dashboard"
   | "cashflow"
   | "tickets"
-  | "squad"
-  | "transfers"
+  | "recruitment"
   | "staff"
   | "stadium"
   | "fixtures"
@@ -179,8 +179,7 @@ const ALL_TABS: TabDef[] = [
   ["dashboard", "Overview", LineIcon],
   ["cashflow", "Cash flow", CircleDollarSign],
   ["tickets", "Tickets", Ticket],
-  ["squad", "Squad", Users],
-  ["transfers", "Transfers", ArrowRight],
+  ["recruitment", "Recruitment", Users],
   ["staff", "Staff", Briefcase],
   ["stadium", "Stadium", Building2],
   ["fixtures", "Fixtures", Calendar],
@@ -188,7 +187,7 @@ const ALL_TABS: TabDef[] = [
   ["history", "Ledger", Save],
 ];
 
-const PRIMARY_TAB_IDS: Tab[] = ["inbox", "hub", "squad", "transfers"];
+const PRIMARY_TAB_IDS: Tab[] = ["inbox", "hub", "recruitment", "board"];
 
 
 function MobileNav({ tab, setTab, unread }: { tab: Tab; setTab: (t: Tab) => void; unread: number }) {
@@ -434,8 +433,7 @@ function Game({
         {tab === "dashboard" && <Dashboard state={state} />}
         {tab === "cashflow" && <CashFlow state={state} />}
         {tab === "tickets" && <Tickets state={state} update={update} />}
-        {tab === "squad" && <Squad state={state} />}
-        {tab === "transfers" && <Transfers state={state} update={update} />}
+        {tab === "recruitment" && <RecruitmentTab state={state} update={update} />}
         {tab === "staff" && <StaffTab state={state} update={update} />}
         {tab === "stadium" && <StadiumTab state={state} update={update} />}
         {tab === "fixtures" && <Fixtures state={state} update={update} />}
