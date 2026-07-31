@@ -406,6 +406,42 @@ export function makeObjectives(s: GameState, season: number, board: BoardState):
       commercialTarget,
       10,
     ),
+    mk(
+      "transferBudgetDiscipline",
+      `Net transfer spend no higher than £${(netSpendCap / 1000).toFixed(0)}k`,
+      "Fees and signing bonuses paid, less fees received. The finance director treats the transfer budget " +
+        "as authority to spend, not a target to hit.",
+      netSpendCap,
+      10,
+    ),
+    mk(
+      "playerSaleIncome",
+      `Raise £${(saleTarget / 1000).toFixed(0)}k from player sales`,
+      "Fees banked from outgoing transfers this season. Trading is expected to part-fund the wage bill.",
+      saleTarget,
+      6,
+    ),
+    mk(
+      "squadAge",
+      `Average squad age ${ageTarget.toFixed(1)} or younger`,
+      "The football director wants the squad refreshed rather than allowed to age in place.",
+      ageTarget,
+      5,
+    ),
+    mk(
+      "contractSecurity",
+      `${securityTarget}% of the squad contracted beyond this season`,
+      "Players running down deals leave for nothing. Renew or replace before the expiry window.",
+      securityTarget,
+      8,
+    ),
+    mk(
+      "recruitmentActivity",
+      `Complete ${activityTarget} incoming signing${activityTarget === 1 ? "" : "s"}`,
+      "The board expects the recruitment department to actually deliver players, not just watch them.",
+      activityTarget,
+      5,
+    ),
   ];
 
 }
