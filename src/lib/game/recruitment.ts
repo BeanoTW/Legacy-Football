@@ -227,6 +227,7 @@ function defaultDepartment(s: GameState): RecruitmentDepartment {
 export function ensureRecruitment(s: GameState): void {
   if (s.football && Array.isArray(s.football.players) && s.football.players.length > 0) {
     s.football.negotiations ??= [];
+    s.football.shortlist ??= [];
     s.football.transferHistory ??= [];
     s.football.contractHistory ??= [];
     s.football.seasonHistory ??= [];
@@ -238,6 +239,7 @@ export function ensureRecruitment(s: GameState): void {
     players,
     contracts,
     negotiations: [],
+    shortlist: [],
     department: defaultDepartment(s),
     transferHistory: [],
     contractHistory: [],
