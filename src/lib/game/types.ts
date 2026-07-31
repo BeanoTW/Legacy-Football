@@ -1057,6 +1057,8 @@ export interface RecruitmentState {
   /** Every contract ever issued. Append-only; status changes, rows do not. */
   contracts: PlayerContract[];
   negotiations: TransferNegotiation[];
+  /** Player ids the chairman is tracking. UI-facing, never affects simulation. */
+  shortlist: string[];
   department: RecruitmentDepartment;
   /** Append-only immutable histories. */
   transferHistory: TransferRecord[];
