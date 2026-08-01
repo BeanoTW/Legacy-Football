@@ -15,7 +15,7 @@ import { DIVISION_ONE, DIVISION_TWO, makePyramidSchedule } from "../pyramid";
 import type { GameState, ExpectationLevel } from "../types";
 
 /** Current save schema version — bump alongside engine migrations. */
-const CURRENT_SCHEMA = 7;
+const CURRENT_SCHEMA = 9;
 
 let passed = 0;
 let failed = 0;

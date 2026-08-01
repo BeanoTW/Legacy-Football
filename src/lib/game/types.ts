@@ -1,5 +1,4 @@
 export type Position = "GK" | "DEF" | "MID" | "FWD";
-export type Priority = "low" | "medium" | "high";
 
 /* ---------------- Inbox / Communication framework ----------------
    Backbone every department uses to talk to the player. Generators
@@ -510,43 +509,10 @@ export interface BoardState {
 }
 
 
-/* -------- Transfers -------- */
-export interface TransferTarget {
-  id: string;
-  player: Player;
-  askingFee: number;
-  wageDemand: number;
-  scoutedByName: string;
-  scoutedByRole: StaffRole;
-  scoutRating: number;
-  note: string;
-  positionPriority: Priority;
-  createdWeek: number;
-  createdSeason: number;
-}
-
-export interface IncomingBid {
-  id: string;
-  playerId: string;
-  playerName: string;
-  position: Position;
-  fromClub: string;
-  fee: number;
-  createdWeek: number;
-  createdSeason: number;
-}
-
-export interface CompletedTransfer {
-  week: number;
-  season: number;
-  direction: "in" | "out";
-  playerName: string;
-  position: Position;
-  fee: number;
-  wage: number;
-  otherClub: string;
-  handledBy?: string;
-}
+/* -------- Transfers --------
+   Legacy TransferTarget / IncomingBid / CompletedTransfer models were retired
+   with the Recruitment milestone. Canonical transfer state now lives in
+   GameState.football (see RecruitmentState). */
 
 /* -------- Match day -------- */
 export interface MatchEvent {
@@ -1135,10 +1101,6 @@ export interface GameState {
   // Transfers
   transferBudget: number;
   wageBudgetWeekly: number;
-  positionPriorities: Record<Position, Priority>;
-  transferTargets: TransferTarget[];
-  incomingBids: IncomingBid[];
-  completedTransfers: CompletedTransfer[];
 
   // Match day
   // Match day

@@ -2,7 +2,6 @@ import type {
   GameState,
   Player,
   Position,
-  Priority,
   Stand,
   Staff,
   StaffRole,
@@ -10,8 +9,6 @@ import type {
   WeekLedger,
   FixtureResult,
   LeagueRow,
-  TransferTarget,
-  IncomingBid,
   LiveMatch,
   MatchEvent,
   HalfTimeOption,
@@ -66,33 +63,6 @@ const LAST = [
   "Bailey","Fraser","Ainsley","Palmer","Foden","Rice","Saka","Gordon","Watkins","Bowen",
   "Clarke","Owen","Sterling","Grealish","Maddison","Toney","Isak","Nunes","Fabian","Onana",
 ];
-
-/* ---------- Generation ---------- */
-function makePlayer(pos: Position, quality: number): Player {
-  const rating = Math.max(45, Math.min(90, Math.round(quality + rand(-6, 6))));
-  const age = randInt(17, 34);
-  const wage = Math.round((rating ** 2.1) / 8) * 5; // £/week
-  const value = Math.round(wage * 52 * (rating / 60) * rand(1.2, 2.5));
-  return {
-    id: crypto.randomUUID(),
-    name: `${pick(FIRST)} ${pick(LAST)}`,
-    position: pos,
-    rating,
-    age,
-    wage,
-    contractWeeks: randInt(38, 38 * 3),
-    value,
-  };
-}
-
-function makeSquad(quality: number): Player[] {
-  const s: Player[] = [];
-  for (let i = 0; i < 3; i++) s.push(makePlayer("GK", quality - 2));
-  for (let i = 0; i < 8; i++) s.push(makePlayer("DEF", quality));
-  for (let i = 0; i < 8; i++) s.push(makePlayer("MID", quality));
-  for (let i = 0; i < 6; i++) s.push(makePlayer("FWD", quality + 2));
-  return s;
-}
 
 export { weekForLeagueRound };
 
@@ -337,7 +307,8 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
     staffWagesWeekly: 18_500,
     utilitiesWeekly: 6_800,
     maintenanceWeekly: 3_400,
-    squad: makeSquad(66),
+    // Canonical squad lives in GameState.football; this is a rebuilt projection.
+    squad: [],
     sponsors: [
       { name: "Main Kit Sponsor", weekly: 14_000, weeksLeft: 38 * 2 },
       { name: "Stadium Naming",   weekly: 5_000,  weeksLeft: 38 * 3 },
@@ -361,10 +332,6 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
     staffMarketRefreshedWeek: 1,
     transferBudget: 500_000,
     wageBudgetWeekly: 5_000,
-    positionPriorities: { GK: "medium", DEF: "medium", MID: "medium", FWD: "medium" },
-    transferTargets: [],
-    incomingBids: [],
-    completedTransfers: [],
     liveMatch: null,
     inbox: [],
     inboxFlags: {},
@@ -589,27 +556,6 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   }
 
 
-  // ---- Transfers: staff scouting + incoming bids (window only) ----
-  if (isTransferWindowOpen(s)) {
-    // top up shortlist (cap at 6 pending)
-    const slots = Math.max(0, 6 - s.transferTargets.length);
-    const bringN = Math.min(slots, 1 + randInt(0, 2));
-    if (bringN > 0) s.transferTargets.push(...generateTransferTargets(s, bringN));
-    // incoming bid chance rises with squad quality
-    if (Math.random() < 0.35) {
-      const bid = generateIncomingBid(s);
-      if (bid) s.incomingBids.push(bid);
-    }
-  } else {
-    // between windows, drop any lingering targets/bids so they don't feel stale
-    if (s.transferTargets.length > 0 || s.incomingBids.length > 0) {
-      s.transferTargets = [];
-      s.incomingBids = [];
-    }
-  }
-
-
-
   // ---- Legacy fallback only ----
   // Pre-v3 saves have no full division schedule, so the old "sprinkle four
   // random AI results" hack keeps their table moving. Schedule-backed saves
@@ -630,9 +576,6 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
 
   // ---- Sponsors tick ----
   for (const sp of s.sponsors) sp.weeksLeft = Math.max(0, sp.weeksLeft - 1);
-
-  // ---- Player contracts tick ----
-  for (const p of s.squad) p.contractWeeks = Math.max(0, p.contractWeeks - 1);
 
   // ---- Staff contracts tick + auto-refresh candidate market every 4 weeks ----
   for (const st of s.hiredStaff) st.contractWeeks = Math.max(0, st.contractWeeks - 1);
@@ -734,12 +677,8 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     for (const it of rollover.items) {
       if (!s.inbox.some((x) => x.eventKey === it.eventKey)) s.inbox.push({ ...it, week: 1, season: s.season });
     }
-    // age players + minor rating drift
-    for (const p of s.squad) {
-      p.age += 1;
-      if (p.age > 30) p.rating = Math.max(45, p.rating - randInt(0, 2));
-      else if (p.age < 25) p.rating = Math.min(93, p.rating + randInt(0, 1));
-    }
+    // Player ageing and revaluation happen in the canonical football world;
+    // GameState.squad is re-projected from it.
     // Refresh player valuations for the new season (no development yet).
     rollRecruitmentToNewSeason(s);
     // New season objectives, derived from the freshly stored projection.
@@ -793,11 +732,14 @@ export function migrateSave(parsed: Record<string, unknown>): GameState {
   if (p.staffMarketRefreshedWeek == null) p.staffMarketRefreshedWeek = p.week;
   if (p.transferBudget == null) p.transferBudget = 500_000;
   if (p.wageBudgetWeekly == null) p.wageBudgetWeekly = 5_000;
-  if (!p.positionPriorities)
-    p.positionPriorities = { GK: "medium", DEF: "medium", MID: "medium", FWD: "medium" };
-  p.transferTargets = arr(p.transferTargets, []);
-  p.incomingBids = arr(p.incomingBids, []);
-  p.completedTransfers = arr(p.completedTransfers, []);
+  // Retired with the Recruitment milestone: scouting priorities were only read
+  // by the removed legacy shortlist generator.
+  delete (p as unknown as Record<string, unknown>).positionPriorities;
+  // Retired legacy transfer state (pre-recruitment schema). Dropped on
+  // migration so no gameplay path can read two competing transfer models.
+  delete (p as unknown as Record<string, unknown>).transferTargets;
+  delete (p as unknown as Record<string, unknown>).incomingBids;
+  delete (p as unknown as Record<string, unknown>).completedTransfers;
   p.ledger = arr(p.ledger, []);
   p.results = arr(p.results, []);
   if (p.liveMatch === undefined) p.liveMatch = null;
@@ -1095,179 +1037,6 @@ function positionNeed(s: GameState): Record<Position, number> {
   return need;
 }
 
-function pickPriorityPosition(s: GameState): Position {
-  const need = positionNeed(s);
-  const entries: [Position, number][] = (["GK", "DEF", "MID", "FWD"] as Position[]).map((pos) => {
-    const prio = s.positionPriorities[pos];
-    const mul = prio === "high" ? 3.2 : prio === "medium" ? 1.4 : 0.4;
-    return [pos, need[pos] * mul];
-  });
-  const total = entries.reduce((a, [, w]) => a + w, 0);
-  let r = Math.random() * total;
-  for (const [pos, w] of entries) {
-    if ((r -= w) <= 0) return pos;
-  }
-  return "MID";
-}
-
-function scoutingCapability(s: GameState): {
-  scouter: Staff | null;
-  quality: number;
-  negotiation: number;
-} {
-  const hot = s.hiredStaff.find((x) => x.role === "Head of Transfers");
-  const chief = s.hiredStaff.find((x) => x.role === "Chief Scout");
-  const scouts = s.hiredStaff.filter((x) => x.role === "Scout");
-  const scoutAvg = scouts.length
-    ? scouts.reduce((a, b) => a + b.stats.scouting, 0) / scouts.length
-    : 38;
-  const scouter = hot ?? chief ?? scouts[0] ?? null;
-  const quality = Math.max(
-    chief?.stats.scouting ?? 40,
-    scoutAvg,
-    (hot?.stats.scouting ?? 40) - 5,
-  );
-  const negotiation = hot?.stats.negotiation ?? chief?.stats.negotiation ?? 35;
-  return { scouter, quality, negotiation };
-}
-
-function targetNote(pos: Position, p: Player, s: GameState): string {
-  const posLabel: Record<Position, string> = {
-    GK: "keeper",
-    DEF: "defender",
-    MID: "midfielder",
-    FWD: "forward",
-  };
-  const count = s.squad.filter((x) => x.position === pos).length;
-  if (count < 6) return `Fills a real gap — only ${count} ${posLabel[pos]}s on the books.`;
-  if (p.age < 22) return `Young ${posLabel[pos]} — real resale value if he kicks on.`;
-  if (p.rating >= 78) return `Genuine quality; slots straight into the first XI.`;
-  if (p.rating < 60) return `Cheap squad depth to rotate the ${posLabel[pos]}s.`;
-  return `Solid ${posLabel[pos]} to add to the group.`;
-}
-
-export function generateTransferTargets(s: GameState, count: number): TransferTarget[] {
-  const { scouter, quality, negotiation } = scoutingCapability(s);
-  const targets: TransferTarget[] = [];
-  for (let i = 0; i < count; i++) {
-    const pos = pickPriorityPosition(s);
-    const q = Math.max(45, Math.min(90, Math.round(quality - 4 + rand(-8, 14))));
-    const player = makePlayer(pos, q);
-    const feeRaw = player.value * (1 - Math.min(0.22, negotiation / 450)) * rand(0.9, 1.2);
-    const askingFee = Math.max(5_000, Math.round(feeRaw / 1000) * 1000);
-    const wageDemand = Math.max(150, Math.round((player.wage * rand(1.0, 1.3)) / 10) * 10);
-    targets.push({
-      id: crypto.randomUUID(),
-      player,
-      askingFee,
-      wageDemand,
-      scoutedByName: scouter?.name ?? "Backroom staff",
-      scoutedByRole: scouter?.role ?? "Scout",
-      scoutRating: scouter?.rating ?? 45,
-      note: targetNote(pos, player, s),
-      positionPriority: s.positionPriorities[pos],
-      createdWeek: s.week,
-      createdSeason: s.season,
-    });
-  }
-  return targets;
-}
-
-export function approveTransferTarget(
-  s: GameState,
-  id: string,
-): { state: GameState; ok: boolean; reason?: string } {
-  const t = s.transferTargets.find((x) => x.id === id);
-  if (!t) return { state: s, ok: false, reason: "Target no longer available" };
-  if (t.askingFee > s.transferBudget)
-    return { state: s, ok: false, reason: "Fee exceeds allocated transfer budget" };
-  if (t.wageDemand > s.wageBudgetWeekly)
-    return { state: s, ok: false, reason: "Wage exceeds weekly wage cap" };
-  const ns: GameState = structuredClone(s);
-  // Fee comes out of the ring-fenced transfer pot only. Cash was moved
-  // into that pot when the budget was allocated.
-  ns.transferBudget -= t.askingFee;
-  ns.wageBudgetWeekly -= t.wageDemand;
-  const signed: Player = { ...t.player, id: crypto.randomUUID(), wage: t.wageDemand };
-  ns.squad.push(signed);
-  ns.transferTargets = ns.transferTargets.filter((x) => x.id !== id);
-  ns.completedTransfers.push({
-    week: s.week,
-    season: s.season,
-    direction: "in",
-    playerName: t.player.name,
-    position: t.player.position,
-    fee: t.askingFee,
-    wage: t.wageDemand,
-    otherClub: "Scouted",
-    handledBy: t.scoutedByName,
-  });
-  // Cash already left the club when the pot was allocated, so the fee is a
-  // movement inside the ring-fenced transfer budget, not a new cash outflow.
-  return { state: ns, ok: true };
-}
-
-export function rejectTransferTarget(s: GameState, id: string): GameState {
-  const ns: GameState = structuredClone(s);
-  ns.transferTargets = ns.transferTargets.filter((x) => x.id !== id);
-  return ns;
-}
-
-export function generateIncomingBid(s: GameState): IncomingBid | null {
-  const candidates = s.squad.filter((p) => p.rating >= 66);
-  if (candidates.length === 0 || s.squad.length <= 18) return null;
-  const p = pick(candidates);
-  const fee = Math.max(10_000, Math.round((p.value * rand(0.7, 1.3)) / 1000) * 1000);
-  const other = CLUBS.filter((c) => c !== s.clubName);
-  return {
-    id: crypto.randomUUID(),
-    playerId: p.id,
-    playerName: p.name,
-    position: p.position,
-    fromClub: pick(other),
-    fee,
-    createdWeek: s.week,
-    createdSeason: s.season,
-  };
-}
-
-export function respondToBid(s: GameState, id: string, accept: boolean): GameState {
-  const ns: GameState = structuredClone(s);
-  const b = ns.incomingBids.find((x) => x.id === id);
-  if (!b) return ns;
-  ns.incomingBids = ns.incomingBids.filter((x) => x.id !== id);
-  if (accept) {
-    const p = ns.squad.find((x) => x.id === b.playerId);
-    if (p) {
-      postEntry(ns, {
-        category: "Transfers",
-        subcategory: "Player sale",
-        description: `${p.name} sold to ${b.fromClub}`,
-        amount: b.fee,
-        direction: "income",
-        sourceSystem: "transfers",
-        linkedEntityId: b.id,
-        dedupeKey: `transfer-in:${b.id}`,
-      });
-      // Sale proceeds land in spendable cash — reallocate to the transfer
-      // pot manually if you want to reinvest.
-      ns.wageBudgetWeekly += p.wage;
-      ns.squad = ns.squad.filter((x) => x.id !== b.playerId);
-      ns.completedTransfers.push({
-        week: s.week,
-        season: s.season,
-        direction: "out",
-        playerName: p.name,
-        position: p.position,
-        fee: b.fee,
-        wage: 0,
-        otherClub: b.fromClub,
-      });
-    }
-  }
-  return ns;
-}
-
 /* =========================================================================
    MATCH DAY
    ========================================================================= */
@@ -1498,9 +1267,6 @@ export function setTransferBudget(
 }
 export function setWageBudget(s: GameState, amount: number): GameState {
   return { ...s, wageBudgetWeekly: Math.max(0, Math.round(amount)) };
-}
-export function setPositionPriority(s: GameState, pos: Position, prio: Priority): GameState {
-  return { ...s, positionPriorities: { ...s.positionPriorities, [pos]: prio } };
 }
 
 /* =========================================================================
