@@ -60,7 +60,8 @@ const reconciles = (s: GameState) => {
 
 /** Push a purchase through club + player talks until it agrees, or give up. */
 function agreedPurchase(s: GameState): TransferNegotiation | null {
-  const market = transferMarket(s).filter((m) => m.askingPrice <= (s.transferBudget ?? 0) * 0.5);
+  const budget = Math.max((s.transferBudget ?? 0) * 0.5, 0);
+  const market = transferMarket(s).filter((m) => m.askingPrice <= budget && m.askingPrice + m.wageDemand * 4 <= s.cash);
   for (const m of market.slice(0, 40)) {
     const w = s;
     const r = openTransferNegotiationInPlace(w, m.player.id, Math.round(m.askingPrice * 1.2));
@@ -123,8 +124,9 @@ console.log("\n[R1] Player world");
       && p.marketValue >= 0 && p.wageExpectation > 0;
   }));
   const src = readFileSync("src/lib/game/recruitment.ts", "utf8");
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, "");
   check("7. no Math.random()/Date.now() in recruitment simulation",
-    !/(?<![Nn]o )Math\.random\(/.test(src) && !/(?<![Nn]o )Date\.now\(/.test(src));
+    !/Math\.random\(/.test(code) && !/Date\.now\(/.test(code));
   check("7b. generateWorld is pure w.r.t. a throwaway state", (() => {
     const g = fixture("PURE");
     const before = JSON.stringify(g.football);
@@ -783,13 +785,13 @@ console.log("\n[R15] Static audit");
     }
   })("src");
   const offenders = (re: RegExp) => files.filter((f) => re.test(readFileSync(f, "utf8")));
-  const codeOf = (f: string) => readFileSync(f, "utf8");
+  const codeOf = (f: string) => readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
   // engine.ts keeps clock/Math.random only for save-seed creation and legacy
   // presentation helpers; every simulated recruitment outcome is seeded.
   check("S1. no Math.random()/Date.now() in recruitment/finance/inbox simulation",
     ["src/lib/game/recruitment.ts", "src/lib/game/finance.ts", "src/lib/game/inbox.ts",
      "src/lib/game/commercial.ts", "src/lib/game/fixtures.ts"]
-      .every((f) => !/(?<![Nn]o )Math\.random\(/.test(codeOf(f)) && !/(?<![Nn]o )Date\.now\(/.test(codeOf(f))));
+      .every((f) => !/Math\.random\(/.test(codeOf(f)) && !/Date\.now\(/.test(codeOf(f))));
   check("S2. no direct cash writes outside finance.ts",
     offenders(/\.cash\s*[-+*]?=\s/).filter((f) => !f.endsWith("finance.ts")).length === 0);
   check("S3. no direct transfer-budget writes outside engine/finance",
