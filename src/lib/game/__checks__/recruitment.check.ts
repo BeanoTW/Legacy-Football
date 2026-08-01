@@ -62,7 +62,7 @@ const reconciles = (s: GameState) => {
 function agreedPurchase(s: GameState): TransferNegotiation | null {
   const budget = Math.max((s.transferBudget ?? 0) * 0.5, 0);
   const market = transferMarket(s).filter((m) => m.askingPrice <= budget && m.askingPrice + m.wageDemand * 4 <= s.cash);
-  for (const m of market.slice(0, 40)) {
+  for (const m of market.slice().sort((a, b) => a.askingPrice - b.askingPrice).slice(0, 60)) {
     const w = s;
     const r = openTransferNegotiationInPlace(w, m.player.id, Math.round(m.askingPrice * 1.2));
     if (!r.ok || !r.negotiation) continue;
