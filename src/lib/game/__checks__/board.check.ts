@@ -10,7 +10,7 @@ import {
 import type { GameState } from "../types";
 
 /** Current save schema version — bump alongside engine migrations. */
-const CURRENT_SCHEMA = 7;
+const CURRENT_SCHEMA = 9;
 
 let passed = 0;
 let failed = 0;
@@ -53,7 +53,7 @@ console.log("\n[B3] Objectives");
 {
   const s = fresh();
   const objs = s.board.objectives;
-  check("objectives generated for season 1", objs.length === 6 && objs.every((o) => o.season === 1));
+  check("objectives generated for season 1", objs.length === 12 && objs.every((o) => o.season === 1));
   check("all objective ids unique", new Set(objs.map((o) => o.id)).size === objs.length);
   check("every objective starts active", objs.every((o) => o.status === "active"));
   check("league position target is inside the division",
@@ -191,7 +191,7 @@ console.log("\n[B12] ensureBoard repairs corrupt state");
   check("missing board rebuilt", s.board.directors.length === 5);
   s.board.objectives = [];
   ensureBoard(s);
-  check("missing objectives rebuilt", s.board.objectives.length === 6);
+  check("missing objectives rebuilt", s.board.objectives.length === 12);
   s.board.objectivesSeason = 99;
   ensureBoard(s);
   check("stale objective season corrected", s.board.objectivesSeason === s.season);

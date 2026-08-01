@@ -10,7 +10,7 @@ import {
 import type { GameState } from "../types";
 
 /** Current save schema version — bump alongside engine migrations. */
-const CURRENT_SCHEMA = 7;
+const CURRENT_SCHEMA = 9;
 
 let passed = 0;
 let failed = 0;

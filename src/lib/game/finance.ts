@@ -283,8 +283,20 @@ export function syncWeekLedger(s: GameState, season: number, week: number): void
    2. Wages
 ========================================================================= */
 
-export const playerWageBill = (s: GameState) =>
-  int((s.squad ?? []).reduce((a, p) => a + p.wage, 0));
+/**
+ * Player wages derive from CANONICAL active contracts (GameState.football).
+ * GameState.squad is only a projection and is used as a fallback for saves
+ * that have not yet been migrated to the recruitment schema.
+ */
+export const playerWageBill = (s: GameState) => {
+  const contracts = s.football?.contracts;
+  if (contracts) {
+    return int(contracts
+      .filter((c) => c.clubId === s.clubName && (c.status === "Active" || c.status === "Expiring"))
+      .reduce((a, c) => a + c.weeklyWage, 0));
+  }
+  return int((s.squad ?? []).reduce((a, p) => a + p.wage, 0));
+};
 
 /** Contracted backroom staff plus the club's structural staff cost. */
 export const staffWageBill = (s: GameState) =>
