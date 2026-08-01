@@ -434,14 +434,15 @@ console.log("\n[R7] Transfer completion");
     check("54. ownership changes exactly once",
       playerById(s, n.playerId)!.currentClubId === s.clubName
       && s.football.contracts.filter((c) => c.playerId === n.playerId && c.status === "Active").length === 1);
+    const hadSeller = !!n.fromClubId;
     check("55. the selling contract closes exactly once",
-      s.football.contractHistory.filter((h) => h.playerId === n.playerId && h.outcome === "transferred").length === 1);
+      s.football.contractHistory.filter((h) => h.playerId === n.playerId && h.outcome === "transferred").length === (hadSeller ? 1 : 0));
     check("56. the buying contract opens exactly once",
       s.football.contracts.filter((c) => c.playerId === n.playerId && c.clubId === s.clubName && c.status === "Active").length === 1);
     check("57. transfer history appends exactly once",
       s.football.transferHistory.length === historyBefore + 1);
     check("58. contract history appends correctly",
-      s.football.contractHistory.length >= contractHistoryBefore + 1);
+      s.football.contractHistory.length === contractHistoryBefore + (hadSeller ? 1 : 0));
     const fees = s.financeLedger.filter((e) => e.dedupeKey === `transfer:${n.id}:fee`);
     const bonuses = s.financeLedger.filter((e) => e.dedupeKey === `transfer:${n.id}:bonus`);
     check("59. the transfer fee posts exactly once", fees.length === (n.fee > 0 ? 1 : 0));
