@@ -350,6 +350,7 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
     financeHistory: [],
     commercial: undefined as unknown as GameState["commercial"],
     football: undefined as unknown as GameState["football"],
+    infrastructure: undefined as unknown as GameState["infrastructure"],
   };
 
 }
