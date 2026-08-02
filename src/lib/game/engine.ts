@@ -21,6 +21,7 @@ import {
   ensureRecruitment, runRecruitmentWeek, closeRecruitmentSeason,
   rollRecruitmentToNewSeason,
 } from "./recruitment";
+import { ensureInfrastructure, runInfrastructureWeek } from "./infrastructure";
 import { ensureCommercial, runCommercialWeek, closeCommercialSeason } from "./commercial";
 
 import { CLUBS } from "./clubs";
