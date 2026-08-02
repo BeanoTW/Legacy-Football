@@ -431,6 +431,7 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   // Wages, operations, maintenance, admin, commercial and the league
   // distribution. Every stream is posted through the finance ledger with a
   // per-week dedupe key, so replaying a week cannot double-charge.
+  runInfrastructureWeek(s);
   postRecurringWeek(s);
 
   // ---- Commercial department: sponsorship payments, expiries, approaches ----
