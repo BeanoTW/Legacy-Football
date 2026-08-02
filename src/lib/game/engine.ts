@@ -275,6 +275,9 @@ export function newGame(clubName: string, managerName: string): GameState {
   initFinance(base);
   // Canonical football world: players, contracts and squads for every club.
   ensureRecruitment(base);
+  // Canonical physical club: stands, pitch, facilities and capital projects.
+  ensureInfrastructure(base);
+
   return runWeeklyGenerators(base);
 }
 
