@@ -290,7 +290,7 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
   const leagues = makeLeagues(clubName);
   const leagueSchedule = makePyramidSchedule(leagues, `${saveSeed}|season1`);
   return {
-    version: 9,
+    version: 10,
     saveSeed,
     clubName,
     managerName,

@@ -288,6 +288,12 @@ const OBJ_META: Record<
   squadAge:                 { priority: "squad",   ownerRole: "Football Director", higherIsBetter: false },
   contractSecurity:         { priority: "squad",   ownerRole: "Football Director", higherIsBetter: true  },
   recruitmentActivity:      { priority: "squad",   ownerRole: "Football Director", higherIsBetter: true  },
+
+  avoidCriticalAssets:   { priority: "facilities", ownerRole: "Commercial Director",  higherIsBetter: false },
+  trainingGroundLevel:   { priority: "facilities", ownerRole: "Football Director",    higherIsBetter: true  },
+  stadiumCapacity:       { priority: "facilities", ownerRole: "Commercial Director",  higherIsBetter: true  },
+  supporterFacilities:   { priority: "fans",       ownerRole: "Supporters' Director", higherIsBetter: true  },
+  capitalSpendControl:   { priority: "finance",    ownerRole: "Finance Director",     higherIsBetter: false },
 };
 
 /** Does the board contain an ambitious voice? Ambition tightens targets. */
