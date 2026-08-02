@@ -1297,6 +1297,10 @@ export interface GameState {
   /** Canonical football operation: players, contracts, squads, transfers. */
   football: RecruitmentState;
 
+  /** Canonical physical club: assets, condition, capital projects, history. */
+  infrastructure: InfrastructureState;
+
+
 
 }
 
