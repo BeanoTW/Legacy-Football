@@ -1038,9 +1038,179 @@ export interface RecruitmentState {
   generatedSeason: number;
 }
 
+/* =========================================================================
+   FACILITIES, STADIUM & CAPITAL PROJECTS
+   -------------------------------------------------------------------------
+   GameState.infrastructure is the canonical source of truth for every
+   physical asset the club owns, its condition, its running costs and every
+   capital project ever raised against it. GameState.stands / pitchCondition
+   / trainingRating remain as DERIVED PROJECTIONS for legacy screens and are
+   rebuilt by syncLegacyStadium() after every infrastructure mutation.
+========================================================================= */
+
+export type InfrastructureAssetType =
+  | "stand" | "pitch" | "shop" | "parking" | "hospitality" | "concessions"
+  | "sanitary" | "training" | "medical" | "offices" | "fanZone";
+
+export type InfrastructureAssetStatus =
+  | "operational" | "degraded" | "restricted" | "partiallyClosed"
+  | "closed" | "underConstruction";
+
+export type MaintenancePolicy =
+  | "Minimal" | "Reduced" | "Standard" | "Preventative" | "Premium";
+
+/** Named modifier channels every asset can contribute to. All are multipliers
+ *  around 1, or additive points for supporter/commercial/sporting channels. */
+export interface AssetModifiers {
+  [channel: string]: number;
+}
+
+export interface InfrastructureAsset {
+  id: string;
+  type: InfrastructureAssetType;
+  name: string;
+  /** Stand compass key, or a descriptive site location. */
+  location: string;
+  level: number;
+  condition: number;
+  maximumCondition: number;
+  ageYears: number;
+  openedSeason: number;
+  lastRefurbishedSeason: number | null;
+  status: InfrastructureAssetStatus;
+  /** Nominal seats (stands) or units (parking spaces, covers, m²). 0 = n/a. */
+  capacity: number;
+  /** Derived projection of capacity after condition + disruption. */
+  usableCapacity: number;
+  qualityRating: number;
+  /** 0-100 how much upkeep the asset demands. Drives maintenance cost. */
+  maintenanceRequirement: number;
+  weeklyOperatingCost: number;
+  weeklyMaintenanceCost: number;
+  revenueModifiers: AssetModifiers;
+  supporterModifiers: AssetModifiers;
+  commercialModifiers: AssetModifiers;
+  sportingModifiers: AssetModifiers;
+  /** Project types still available on this asset. */
+  upgradePath: CapitalProjectType[];
+  activeProjectId: string | null;
+  metadata: Record<string, number>;
+}
+
+export type CapitalProjectType =
+  | "minorRepair" | "majorRepair" | "refurbishment" | "replacement"
+  | "capacityExpansion" | "roofUpgrade" | "seatingRefurbishment"
+  | "concourseUpgrade" | "accessibilityUpgrade" | "hospitalityInstallation"
+  | "corporateBoxes" | "retailExpansion" | "standRedevelopment"
+  | "facilityUpgrade";
+
+export type CapitalProjectStatus =
+  | "proposed" | "approved" | "active" | "delayed" | "completed" | "cancelled";
+
+export interface ProjectPayment {
+  index: number;
+  dueAbsoluteWeek: number;
+  amount: number;
+  paid: boolean;
+  kind: "instalment" | "overrun" | "cancellation";
+}
+
+/** One declarative change applied to an asset exactly once on completion. */
+export type ProjectEffect =
+  | { kind: "condition"; to?: number; add?: number }
+  | { kind: "maximumCondition"; add: number }
+  | { kind: "capacity"; add: number }
+  | { kind: "level"; add: number }
+  | { kind: "quality"; add: number }
+  | { kind: "metadata"; key: string; add?: number; to?: number }
+  | { kind: "refurbish" }
+  | { kind: "resetAge" };
+
+export interface DirectorPosition {
+  directorId: string;
+  role: DirectorRole;
+  stance: "supports" | "neutral" | "opposes";
+  note: string;
+}
+
+export interface CapitalProject {
+  id: string;
+  type: CapitalProjectType;
+  assetId: string;
+  title: string;
+  description: string;
+  status: CapitalProjectStatus;
+  requestedBy: string;
+  approvedAtAbsoluteWeek: number | null;
+  startedAtAbsoluteWeek: number | null;
+  expectedCompletionAbsoluteWeek: number | null;
+  completedAtAbsoluteWeek: number | null;
+  baseCost: number;
+  approvedBudget: number;
+  spentToDate: number;
+  paymentSchedule: ProjectPayment[];
+  durationWeeks: number;
+  /** Weeks of construction actually worked. */
+  weeksWorked: number;
+  progress: number;
+  /** Temporary effects while the project runs. */
+  disruption: { capacityFactor: number; revenueFactor: number; fanHappiness: number };
+  riskProfile: number;
+  effectsOnCompletion: ProjectEffect[];
+  /** Deterministic, decided once at approval. Never re-rolled. */
+  delayWeeks: number;
+  costOverrun: number;
+  major: boolean;
+  directorPositions: DirectorPosition[];
+  history: { absoluteWeek: number; note: string }[];
+  eventKey: string;
+  /** Guards exactly-once completion effects. */
+  effectsApplied?: boolean;
+}
+
+export type InfrastructureRecordKind =
+  | "repair" | "refurbishment" | "expansion" | "redevelopment" | "newFacility"
+  | "delay" | "overrun" | "emergencyClosure" | "reopening" | "cancellation"
+  | "capacityChange" | "policyChange";
+
+/** Append-only. Never rewritten by later work on the same asset. */
+export interface InfrastructureRecord {
+  id: string;
+  kind: InfrastructureRecordKind;
+  assetId: string;
+  assetName: string;
+  projectId: string | null;
+  season: number;
+  week: number;
+  absoluteWeek: number;
+  description: string;
+  cost: number;
+  capacityBefore: number;
+  capacityAfter: number;
+  conditionBefore: number;
+  conditionAfter: number;
+}
+
+export interface InfrastructureState {
+  assets: InfrastructureAsset[];
+  projects: CapitalProject[];
+  history: InfrastructureRecord[];
+  maintenancePolicy: MaintenancePolicy;
+  policyChangedAtAbsoluteWeek: number;
+  /** Last four-week deterioration period applied. -1 = none yet. */
+  lastDeteriorationPeriod: number;
+  /** Last absolute week the weekly infrastructure tick ran. */
+  lastTickAbsoluteWeek: number;
+  nextProjectId: number;
+  nextRecordId: number;
+  /** Season the assets were seeded/migrated for. */
+  seededSeason: number;
+}
+
 export interface GameState {
   /** Save schema version. Bump + add a migration in loadGame when persisted shape changes. */
-  version: 9;
+  version: 10;
+
 
 
 
