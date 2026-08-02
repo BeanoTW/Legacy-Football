@@ -460,7 +460,14 @@ export type ObjectiveKind =
   | "playerSaleIncome"
   | "squadAge"
   | "contractSecurity"
-  | "recruitmentActivity";
+  | "recruitmentActivity"
+  /* Infrastructure-aware objectives, measured from canonical asset state. */
+  | "avoidCriticalAssets"
+  | "trainingGroundLevel"
+  | "stadiumCapacity"
+  | "supporterFacilities"
+  | "capitalSpendControl";
+
 
 
 export type ObjectiveStatus = "active" | "met" | "missed";
