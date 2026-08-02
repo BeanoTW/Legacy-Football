@@ -21,6 +21,7 @@ import {
   ensureRecruitment, runRecruitmentWeek, closeRecruitmentSeason,
   rollRecruitmentToNewSeason,
 } from "./recruitment";
+import { ensureInfrastructure, runInfrastructureWeek } from "./infrastructure";
 import { ensureCommercial, runCommercialWeek, closeCommercialSeason } from "./commercial";
 
 import { CLUBS } from "./clubs";
@@ -275,6 +276,9 @@ export function newGame(clubName: string, managerName: string): GameState {
   initFinance(base);
   // Canonical football world: players, contracts and squads for every club.
   ensureRecruitment(base);
+  // Canonical physical club: stands, pitch, facilities and capital projects.
+  ensureInfrastructure(base);
+
   return runWeeklyGenerators(base);
 }
 
@@ -290,7 +294,7 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
   const leagues = makeLeagues(clubName);
   const leagueSchedule = makePyramidSchedule(leagues, `${saveSeed}|season1`);
   return {
-    version: 9,
+    version: 10,
     saveSeed,
     clubName,
     managerName,
@@ -350,6 +354,7 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
     financeHistory: [],
     commercial: undefined as unknown as GameState["commercial"],
     football: undefined as unknown as GameState["football"],
+    infrastructure: undefined as unknown as GameState["infrastructure"],
   };
 
 }
@@ -426,6 +431,7 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   // Wages, operations, maintenance, admin, commercial and the league
   // distribution. Every stream is posted through the finance ledger with a
   // per-week dedupe key, so replaying a week cannot double-charge.
+  runInfrastructureWeek(s);
   postRecurringWeek(s);
 
   // ---- Commercial department: sponsorship payments, expiries, approaches ----
