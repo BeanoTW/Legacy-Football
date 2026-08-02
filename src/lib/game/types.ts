@@ -61,6 +61,16 @@ export type InboxEffect =
   | { kind: "recruitmentRenewContract"; playerId: string; upliftPct?: number; seasons?: number }
   | { kind: "recruitmentReleasePlayer"; playerId: string }
 
+  /* Infrastructure. Routed into the canonical project engine in
+     infrastructure.ts — the inbox never mutates assets or projects itself. */
+  | { kind: "infraApproveProject"; assetId: string; projectType: CapitalProjectType }
+  | { kind: "infraCancelProject"; projectId: string }
+  | { kind: "infraSetMaintenancePolicy"; policy: MaintenancePolicy }
+  | { kind: "infraCloseAsset"; assetId: string }
+  | { kind: "infraReopenAsset"; assetId: string }
+
+
+
 
   | {
       kind: "scheduleGenerator";
