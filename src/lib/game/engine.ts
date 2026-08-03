@@ -626,7 +626,8 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   }
 
   // ---- Pitch decay ----
-  s.pitchCondition = Math.max(35, s.pitchCondition - (fixture?.home ? 3 : 1));
+  // Owned entirely by infrastructure.ts (deteriorationFor factors home usage
+  // into the pitch asset). The legacy field is a projection, never mutated here.
 
   // ---- Weekly roll-up ----
   // Cash was already moved by the finance ledger; the legacy WeekLedger row
