@@ -404,7 +404,8 @@ function simAttendance(
   s: GameState, isHome: boolean, opponentStrength: number, rng: () => number = Math.random,
 ): number {
   if (!isHome) return 0;
-  const cap = totalCapacity(s);
+  // Attendance can never exceed the capacity the club can actually open.
+  const cap = usableCapacity(s);
   const avgPrice = avgTicketPrice(s);
   // reference price scales with reputation
   const refPrice = 15 + s.reputation * 0.4;
@@ -412,8 +413,10 @@ function simAttendance(
   const happinessFactor = 0.55 + s.fanHappiness / 200;   // 0.55 - 1.05
   const opponentFactor = 0.85 + opponentStrength / 400;  // 0.85 - 1.10
   const noise = 0.9 + rng() * 0.15;
-  const raw = cap * priceFactor * happinessFactor * opponentFactor * noise;
-  return Math.max(500, Math.min(cap, Math.round(raw)));
+  // Parking and fan-zone quality make coming to the ground easier.
+  const convenience = facilityModifiers(s).attendanceConvenience;
+  const raw = cap * priceFactor * happinessFactor * opponentFactor * noise * convenience;
+  return Math.max(0, Math.min(cap, Math.round(raw)));
 }
 
 function simGoals(strength: number, oppStrength: number): number {
