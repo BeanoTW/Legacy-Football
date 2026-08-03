@@ -557,7 +557,7 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     const gf = simGoals(myStrength + 2, oppStrength);
     const ga = simGoals(oppStrength, myStrength + 2);
     // Friendly attendance is a fraction of a league day
-    const cap = totalCapacity(s);
+    const cap = usableCapacity(s);
     const attendance = Math.round(cap * (0.28 + Math.random() * 0.18) * (0.6 + s.fanHappiness / 200));
     const gate = Math.round(attendance * avgTicketPrice(s) * 0.7);
     const matchdayOps = Math.round(4_200 + attendance * 0.3);
