@@ -215,7 +215,6 @@ function spendCheck(
 // raised as a capital project, which pays in instalments rather than up front.
 safe("capital project spends only through the ledger", () => {
   const s = fixture("CAPEX");
-  s.cash = 5_000_000;
   const before = s.cash;
   const n = s.financeLedger.length;
   const r = approveProject(s, "pitch", "minorRepair");
