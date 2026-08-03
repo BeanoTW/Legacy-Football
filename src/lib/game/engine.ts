@@ -960,7 +960,7 @@ export function loadGame(): GameState | null {
     const v = (parsed as { version?: number }).version;
     // Missing version = pre-versioning save, treat as v1. Only refuse saves
     // written by a FUTURE schema we don't understand.
-    if (typeof v === "number" && v > 9) return null;
+    if (typeof v === "number" && v > 10) return null;
     const legacyV = typeof v === "number" && v >= 1 ? v : 1;
     const migrated = migrateSave(parsed);
     // If this save had no inbox at all (older than v2 introduction), seed it.
