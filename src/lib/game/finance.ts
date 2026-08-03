@@ -432,12 +432,24 @@ export interface MatchdayFinanceInput {
   matchdayOps: number;
   winBonus?: number;
   fixtureId?: string;
+  /**
+   * Facility multipliers supplied by the caller (engine reads them from
+   * infrastructure.ts). Passed in rather than imported so finance.ts stays
+   * free of a circular dependency on the infrastructure module.
+   */
+  modifiers?: {
+    hospitalityIncome?: number;
+    concessionSpend?: number;
+    parkingIncome?: number;
+    matchdayOperatingCost?: number;
+  };
 }
 
 export interface MatchdayFinanceBreakdown {
   tickets: number;
   hospitality: number;
   concessions: number;
+  parking: number;
   broadcast: number;
   operatingCost: number;
   winBonus: number;
@@ -448,8 +460,9 @@ export const matchdayKey = (i: { season: number; week: number; opponent: string 
   `matchday:s${i.season}:w${i.week}:${i.opponent}`;
 
 /** Deterministic ancillary matchday revenue, derived from attendance. */
-export const hospitalityFor = (attendance: number) => int(attendance * 1.9);
-export const concessionsFor = (attendance: number) => int(attendance * 3.1);
+export const hospitalityFor = (attendance: number, mult = 1) => int(attendance * 1.9 * mult);
+export const concessionsFor = (attendance: number, mult = 1) => int(attendance * 3.1 * mult);
+export const parkingFor = (attendance: number, mult = 1) => int(attendance * 0.55 * mult);
 
 export function postMatchdayFinance(
   s: GameState, i: MatchdayFinanceInput,
