@@ -5,7 +5,6 @@ import type {
   CapitalProjectType,
   GameState,
   InfrastructureAsset,
-  MaintenancePolicy,
 } from "@/lib/game/types";
 import {
   ASSET_CONFIG,
@@ -171,7 +170,7 @@ export function FacilitiesTab({
                 >
                   <div className="font-display text-base">{p}</div>
                   <div className="mt-1 text-[11px] text-muted-foreground">
-                    {POLICY_CONFIG[p].description}
+                    {POLICY_CONFIG[p].label}
                   </div>
                   <div className="mt-2 text-xs tnum">
                     Cost {fmtMoneyExact(maintenanceCostUnder(state, p))}/wk
@@ -348,7 +347,7 @@ function AssetSheet({
                   <div className="mt-2 space-y-1 text-[11px]">
                     {ev.positions.map((p, i) => (
                       <div key={i} className="text-muted-foreground">
-                        <span className="font-medium text-foreground">{p.role}:</span> {p.comment}
+                        <span className="font-medium text-foreground">{p.role}:</span> {p.note}
                       </div>
                     ))}
                   </div>
@@ -427,6 +426,13 @@ function Mini({ label, value }: { label: string; value: string }) {
   );
 }
 
-function _unusedPolicyType(p: MaintenancePolicy) {
-  return p;
+function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+      <div className="panel-strip px-3 py-2 text-xs font-semibold uppercase tracking-wide">
+        {title}
+      </div>
+      <div className="p-3 space-y-3">{children}</div>
+    </div>
+  );
 }
