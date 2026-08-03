@@ -10,8 +10,8 @@ import { join } from "node:path";
 
 import {
   newGame, advanceWeek, migrateSave, setTransferBudget,
-  expandStand, upgradeTraining, relayPitch,
 } from "../engine";
+import { approveProject } from "../infrastructure";
 import {
   reconcile, entriesFor, seasonTotals, postRecurringWeek, syncWeekLedger,
   legacyIncomeBucket, legacyExpenseBucket, financeSnapshot,
