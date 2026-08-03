@@ -705,6 +705,8 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     // GameState.squad is re-projected from it.
     // Refresh player valuations for the new season (no development yet).
     rollRecruitmentToNewSeason(s);
+    // Physical plant ages one year and re-derives its projections.
+    rollInfrastructureToNewSeason(s);
     // New season objectives, derived from the freshly stored projection.
     rollBoardToNewSeason(s);
     // Open the new season's books: opening balance, policy and budgets.
