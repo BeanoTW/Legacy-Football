@@ -55,6 +55,7 @@ import { LeagueBrowser } from "@/components/LeagueBrowser";
 import { BoardTab } from "@/components/BoardTab";
 import { CommercialTab } from "@/components/CommercialTab";
 import { RecruitmentTab } from "@/components/RecruitmentTab";
+import { FacilitiesTab } from "@/components/FacilitiesTab";
 import { useGame } from "@/hooks/useGame";
 import type { GameState, Stand, Staff, StaffRole } from "@/lib/game/types";
 import {
@@ -77,9 +78,6 @@ import {
   applyHalfTimeChoice,
   commitLiveMatchAndAdvance,
   cancelLiveMatch,
-  expandStand as expandStandAction,
-  upgradeTraining,
-  relayPitch,
   hireStaffMember,
   sackStaffMember,
   severanceFor,
@@ -429,7 +427,7 @@ function Game({
         {tab === "tickets" && <Tickets state={state} update={update} />}
         {tab === "recruitment" && <RecruitmentTab state={state} update={update} />}
         {tab === "staff" && <StaffTab state={state} update={update} />}
-        {tab === "stadium" && <StadiumTab state={state} update={update} />}
+        {tab === "stadium" && <FacilitiesTab state={state} update={update} />}
         {tab === "fixtures" && <Fixtures state={state} update={update} />}
         {tab === "board" && <BoardTab state={state} />}
         {tab === "commercial" && <CommercialTab state={state} update={update} />}
@@ -1210,95 +1208,6 @@ function Tickets({
               {fmtMoney(totalRev)}
             </div>
           </div>
-        </div>
-      </Section>
-    </div>
-  );
-}
-
-/* =========================================================================
-   STADIUM
-   ========================================================================= */
-function StadiumTab({
-  state,
-  update,
-}: {
-  state: GameState;
-  update: (fn: (s: GameState) => GameState) => void;
-}) {
-  const expandStand = (key: Stand["key"], addSeats: number) => {
-    const res = expandStandAction(state, key, addSeats);
-    if (!res.ok) return alert(res.reason ?? "Not enough cash.");
-    update(() => res.state);
-  };
-
-  return (
-    <div className="space-y-4">
-      <Section title="Stadium">
-        <div className="grid gap-3 md:grid-cols-2">
-          {state.stands.map((st) => (
-            <div key={st.key} className="rounded-lg border bg-background/40 p-3">
-              <div className="flex items-baseline justify-between">
-                <div className="font-display text-lg">{st.name}</div>
-                <div className="text-xs text-muted-foreground">
-                  Condition <span className="font-semibold">{st.condition}%</span>
-                </div>
-              </div>
-              <div className="mt-2 grid grid-cols-2 gap-2 text-sm tnum">
-                <div>
-                  <div className="text-[10px] uppercase text-muted-foreground">Capacity</div>
-                  <div className="font-display text-xl">{st.capacity.toLocaleString()}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] uppercase text-muted-foreground">Ticket price</div>
-                  <div className="font-display text-xl">£{st.ticketPrice}</div>
-                </div>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button size="sm" variant="secondary" onClick={() => expandStand(st.key, 500)}>
-                  +500 seats (£{(500 * 350).toLocaleString()})
-                </Button>
-                <Button size="sm" variant="secondary" onClick={() => expandStand(st.key, 1500)}>
-                  +1500 seats (£{(1500 * 350).toLocaleString()})
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      <Section title="Training facilities">
-        <div className="grid gap-3 md:grid-cols-3">
-          <Stat label="Training rating" value={String(state.trainingRating)} />
-          <Stat label="Pitch condition" value={`${state.pitchCondition}%`} />
-          <Stat
-            label="Weekly cost"
-            value={fmtMoneyExact(state.trainingWeeklyCost)}
-            tone="bad"
-          />
-        </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            onClick={() => {
-              const res = upgradeTraining(state);
-              if (!res.ok) return alert(res.reason ?? "Not enough cash.");
-              update(() => res.state);
-            }}
-          >
-            Upgrade +3 (£250k)
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => {
-              const res = relayPitch(state);
-              if (!res.ok) return alert(res.reason ?? "Not enough cash.");
-              update(() => res.state);
-            }}
-          >
-            Relay pitch (£40k)
-          </Button>
         </div>
       </Section>
     </div>

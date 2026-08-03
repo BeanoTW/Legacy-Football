@@ -10,8 +10,8 @@ import { join } from "node:path";
 
 import {
   newGame, advanceWeek, migrateSave, setTransferBudget,
-  expandStand, upgradeTraining, relayPitch,
 } from "../engine";
+import { approveProject } from "../infrastructure";
 import {
   reconcile, entriesFor, seasonTotals, postRecurringWeek, syncWeekLedger,
   legacyIncomeBucket, legacyExpenseBucket, financeSnapshot,
@@ -211,18 +211,37 @@ function spendCheck(
   check(`${label}: input state untouched`, s0.cash === before);
 }
 
-spendCheck("stand expansion", (s) => expandStand(s, "N", 1000), 1000 * 350, "expense");
-spendCheck("training upgrade", (s) => upgradeTraining(s), 250_000, "expense");
-spendCheck("pitch relay", (s) => relayPitch(s), 40_000, "expense");
+// Legacy expandStand/upgradeTraining/relayPitch were retired: physical work is
+// raised as a capital project, which pays in instalments rather than up front.
+safe("capital project spends only through the ledger", () => {
+  const s = fixture("CAPEX");
+  const before = s.cash;
+  const n = s.financeLedger.length;
+  const r = approveProject(s, "pitch", "minorRepair");
+  check("project approved", r.ok, r.reason);
+  check("approval alone moves no cash", r.state.cash === before);
+  check("approval alone writes no entry", r.state.financeLedger.length === n);
+  const pid = r.state.infrastructure!.projects.at(-1)!.id;
+  let ticked = r.state;
+  for (let i = 0; i < 4; i++) ticked = advanceWeek(ticked);
+  check("instalments are booked as facilities expenses",
+    ticked.financeLedger.some((e) =>
+      e.sourceSystem === "facilities" && e.direction === "expense" &&
+      e.linkedEntityId === pid));
+  check("state still reconciles after the instalments", reconciles(ticked),
+    JSON.stringify(reconcile(ticked)));
+  check("input state untouched", s.cash === before);
+});
 
-safe("unaffordable spend is refused", () => {
+safe("unaffordable capital work is refused", () => {
   const s = fixture("POOR");
   s.cash = 1_000;
-  const r = expandStand(s, "N", 5000);
+  const r = approveProject(s, "pitch", "replacement");
   check("refused", !r.ok);
   check("cash unchanged", r.state.cash === 1_000);
   check("no entry added", r.state.financeLedger.length === s.financeLedger.length);
 });
+
 
 safe("transfer budget allocation is ring-fenced and booked", () => {
   const s = fixture("BUDGET");

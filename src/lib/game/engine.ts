@@ -21,7 +21,10 @@ import {
   ensureRecruitment, runRecruitmentWeek, closeRecruitmentSeason,
   rollRecruitmentToNewSeason,
 } from "./recruitment";
-import { ensureInfrastructure, runInfrastructureWeek } from "./infrastructure";
+import {
+  ensureInfrastructure, runInfrastructureWeek, rollInfrastructureToNewSeason,
+  stadiumCapacity, stadiumUsableCapacity, facilityModifiers,
+} from "./infrastructure";
 import { ensureCommercial, runCommercialWeek, closeCommercialSeason } from "./commercial";
 
 import { CLUBS } from "./clubs";
@@ -361,11 +364,20 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
 
 
 /* ---------- Derived ---------- */
+/**
+ * Nominal stadium capacity. Read from the canonical infrastructure assets;
+ * the legacy `stands` array is only a fallback for saves mid-migration.
+ */
 export const totalCapacity = (s: GameState) =>
-  s.stands.reduce((a, b) => a + b.capacity, 0);
+  stadiumCapacity(s) || s.stands.reduce((a, b) => a + b.capacity, 0);
+
+/** Capacity actually saleable this week (condition + construction aware). */
+export const usableCapacity = (s: GameState) =>
+  stadiumUsableCapacity(s) || totalCapacity(s);
 
 export const avgTicketPrice = (s: GameState) => {
-  const totalCap = totalCapacity(s);
+  const totalCap = s.stands.reduce((a, b) => a + b.capacity, 0);
+  if (totalCap <= 0) return 0;
   return s.stands.reduce((a, b) => a + b.ticketPrice * b.capacity, 0) / totalCap;
 };
 
@@ -392,7 +404,8 @@ function simAttendance(
   s: GameState, isHome: boolean, opponentStrength: number, rng: () => number = Math.random,
 ): number {
   if (!isHome) return 0;
-  const cap = totalCapacity(s);
+  // Attendance can never exceed the capacity the club can actually open.
+  const cap = usableCapacity(s);
   const avgPrice = avgTicketPrice(s);
   // reference price scales with reputation
   const refPrice = 15 + s.reputation * 0.4;
@@ -400,8 +413,10 @@ function simAttendance(
   const happinessFactor = 0.55 + s.fanHappiness / 200;   // 0.55 - 1.05
   const opponentFactor = 0.85 + opponentStrength / 400;  // 0.85 - 1.10
   const noise = 0.9 + rng() * 0.15;
-  const raw = cap * priceFactor * happinessFactor * opponentFactor * noise;
-  return Math.max(500, Math.min(cap, Math.round(raw)));
+  // Parking and fan-zone quality make coming to the ground easier.
+  const convenience = facilityModifiers(s).attendanceConvenience;
+  const raw = cap * priceFactor * happinessFactor * opponentFactor * noise * convenience;
+  return Math.max(0, Math.min(cap, Math.round(raw)));
 }
 
 function simGoals(strength: number, oppStrength: number): number {
@@ -486,6 +501,7 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
       opponent: fixture.opponent, home: fixture.home,
       attendance, gate, tv, matchdayOps,
       winBonus: override?.winBonus ?? 0,
+      modifiers: facilityModifiers(s),
     });
 
     const result: "W" | "D" | "L" = gf > ga ? "W" : gf === ga ? "D" : "L";
@@ -541,7 +557,7 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     const gf = simGoals(myStrength + 2, oppStrength);
     const ga = simGoals(oppStrength, myStrength + 2);
     // Friendly attendance is a fraction of a league day
-    const cap = totalCapacity(s);
+    const cap = usableCapacity(s);
     const attendance = Math.round(cap * (0.28 + Math.random() * 0.18) * (0.6 + s.fanHappiness / 200));
     const gate = Math.round(attendance * avgTicketPrice(s) * 0.7);
     const matchdayOps = Math.round(4_200 + attendance * 0.3);
@@ -549,6 +565,7 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
       season: s.season, week: s.week,
       opponent: `${opp} (friendly)`, home: true,
       attendance, gate, tv: 0, matchdayOps,
+      modifiers: facilityModifiers(s),
     });
     const result: "W" | "D" | "L" = gf > ga ? "W" : gf === ga ? "D" : "L";
     // Friendlies don't touch the league table; tiny happiness swing only
@@ -609,7 +626,8 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   }
 
   // ---- Pitch decay ----
-  s.pitchCondition = Math.max(35, s.pitchCondition - (fixture?.home ? 3 : 1));
+  // Owned entirely by infrastructure.ts (deteriorationFor factors home usage
+  // into the pitch asset). The legacy field is a projection, never mutated here.
 
   // ---- Weekly roll-up ----
   // Cash was already moved by the finance ledger; the legacy WeekLedger row
@@ -687,6 +705,8 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     // GameState.squad is re-projected from it.
     // Refresh player valuations for the new season (no development yet).
     rollRecruitmentToNewSeason(s);
+    // Physical plant ages one year and re-derives its projections.
+    rollInfrastructureToNewSeason(s);
     // New season objectives, derived from the freshly stored projection.
     rollBoardToNewSeason(s);
     // Open the new season's books: opening balance, policy and budgets.
@@ -909,6 +929,19 @@ export function migrateSave(parsed: Record<string, unknown>): GameState {
     p.version = 9;
   }
 
+  // v9 → v10: infrastructure (physical assets, capital projects, maintenance).
+  //
+  // ensureInfrastructure() converts the legacy `stands`, `pitchCondition` and
+  // `trainingRating` fields into canonical assets, preserving capacity and
+  // condition exactly, then re-projects the legacy fields back from them so
+  // older screens keep reading the same numbers. No cash moves, no ledger
+  // entry is written and no history is invented — it is purely structural.
+  if (p.version < 10) {
+    const st = p as unknown as GameState;
+    ensureInfrastructure(st);
+    p.version = 10;
+  }
+
   return p as GameState;
 }
 
@@ -927,7 +960,7 @@ export function loadGame(): GameState | null {
     const v = (parsed as { version?: number }).version;
     // Missing version = pre-versioning save, treat as v1. Only refuse saves
     // written by a FUTURE schema we don't understand.
-    if (typeof v === "number" && v > 9) return null;
+    if (typeof v === "number" && v > 10) return null;
     const legacyV = typeof v === "number" && v >= 1 ? v : 1;
     const migrated = migrateSave(parsed);
     // If this save had no inbox at all (older than v2 introduction), seed it.
@@ -1278,69 +1311,16 @@ export function setWageBudget(s: GameState, amount: number): GameState {
 /* =========================================================================
    Facility & staff spending — every movement goes through postEntry()
    so cash, the finance ledger and the weekly projection stay reconciled.
+
+   NOTE: expandStand(), upgradeTraining() and relayPitch() were retired with
+   the infrastructure milestone. Physical work is now raised exclusively as a
+   capital project through infrastructure.ts (approveProject / cancelProject),
+   which owns cost, duration, disruption, risk and the finance postings.
 ========================================================================= */
 
 export interface SpendResult { state: GameState; ok: boolean; reason?: string }
 
-const STAND_SEAT_COST = 350;
 
-export function expandStand(
-  s: GameState,
-  key: Stand["key"],
-  addSeats: number,
-): SpendResult {
-  const seats = Math.max(0, Math.round(addSeats));
-  const cost = seats * STAND_SEAT_COST;
-  if (seats === 0) return { state: s, ok: false, reason: "Nothing to build" };
-  if (s.cash < cost) return { state: s, ok: false, reason: "Not enough cash" };
-  const ns: GameState = structuredClone(s);
-  ns.stands = ns.stands.map((st) =>
-    st.key === key
-      ? { ...st, capacity: st.capacity + seats, condition: Math.max(50, st.condition - 5) }
-      : st,
-  );
-  postEntry(ns, {
-    category: "Facilities",
-    subcategory: "Stadium expansion",
-    description: `Expanded ${key} stand +${seats} seats`,
-    amount: cost,
-    direction: "expense",
-    sourceSystem: "facilities",
-    linkedEntityId: key,
-  });
-  return { state: ns, ok: true };
-}
-
-export function upgradeTraining(s: GameState, cost = 250_000): SpendResult {
-  if (s.cash < cost) return { state: s, ok: false, reason: "Not enough cash" };
-  const ns: GameState = structuredClone(s);
-  ns.trainingRating = Math.min(95, ns.trainingRating + 3);
-  ns.trainingWeeklyCost = Math.round(ns.trainingWeeklyCost * 1.08);
-  postEntry(ns, {
-    category: "Facilities",
-    subcategory: "Training ground",
-    description: "Upgraded training facilities +3",
-    amount: cost,
-    direction: "expense",
-    sourceSystem: "facilities",
-  });
-  return { state: ns, ok: true };
-}
-
-export function relayPitch(s: GameState, cost = 40_000): SpendResult {
-  if (s.cash < cost) return { state: s, ok: false, reason: "Not enough cash" };
-  const ns: GameState = structuredClone(s);
-  ns.pitchCondition = Math.min(99, ns.pitchCondition + 15);
-  postEntry(ns, {
-    category: "Facilities",
-    subcategory: "Stadium maintenance",
-    description: "Pitch relaid",
-    amount: cost,
-    direction: "expense",
-    sourceSystem: "facilities",
-  });
-  return { state: ns, ok: true };
-}
 
 export function hireStaffMember(s: GameState, id: string): SpendResult {
   const cand = s.staffCandidates.find((c) => c.id === id);
