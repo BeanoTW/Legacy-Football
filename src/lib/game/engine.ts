@@ -929,6 +929,19 @@ export function migrateSave(parsed: Record<string, unknown>): GameState {
     p.version = 9;
   }
 
+  // v9 → v10: infrastructure (physical assets, capital projects, maintenance).
+  //
+  // ensureInfrastructure() converts the legacy `stands`, `pitchCondition` and
+  // `trainingRating` fields into canonical assets, preserving capacity and
+  // condition exactly, then re-projects the legacy fields back from them so
+  // older screens keep reading the same numbers. No cash moves, no ledger
+  // entry is written and no history is invented — it is purely structural.
+  if (p.version < 10) {
+    const st = p as unknown as GameState;
+    ensureInfrastructure(st);
+    p.version = 10;
+  }
+
   return p as GameState;
 }
 
