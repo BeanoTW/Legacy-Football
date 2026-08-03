@@ -222,11 +222,13 @@ safe("capital project spends only through the ledger", () => {
   check("project approved", r.ok, r.reason);
   check("approval alone moves no cash", r.state.cash === before);
   check("approval alone writes no entry", r.state.financeLedger.length === n);
-  const ticked = advanceWeek(r.state);
-  check("first instalment is booked as an expense",
+  const pid = r.state.infrastructure!.projects.at(-1)!.id;
+  let ticked = r.state;
+  for (let i = 0; i < 4; i++) ticked = advanceWeek(ticked);
+  check("instalments are booked as facilities expenses",
     ticked.financeLedger.some((e) =>
       e.sourceSystem === "facilities" && e.direction === "expense" &&
-      e.linkedEntityId === r.projectId));
+      e.linkedEntityId === pid));
   check("state still reconciles after the instalment", reconciles(ticked));
   check("input state untouched", s.cash === before);
 });
