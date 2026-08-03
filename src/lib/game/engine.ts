@@ -501,6 +501,7 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
       opponent: fixture.opponent, home: fixture.home,
       attendance, gate, tv, matchdayOps,
       winBonus: override?.winBonus ?? 0,
+      modifiers: facilityModifiers(s),
     });
 
     const result: "W" | "D" | "L" = gf > ga ? "W" : gf === ga ? "D" : "L";
