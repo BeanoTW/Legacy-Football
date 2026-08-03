@@ -565,6 +565,7 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
       season: s.season, week: s.week,
       opponent: `${opp} (friendly)`, home: true,
       attendance, gate, tv: 0, matchdayOps,
+      modifiers: facilityModifiers(s),
     });
     const result: "W" | "D" | "L" = gf > ga ? "W" : gf === ga ? "D" : "L";
     // Friendlies don't touch the league table; tiny happiness swing only
