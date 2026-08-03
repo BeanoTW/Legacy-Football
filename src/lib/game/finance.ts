@@ -469,16 +469,18 @@ export function postMatchdayFinance(
 ): MatchdayFinanceBreakdown {
   const base = matchdayKey(i);
   const home = i.home;
+  const m = i.modifiers ?? {};
   const attendance = home ? int(i.attendance) : 0;
   const tickets = home ? int(i.gate) : 0;
-  const hospitality = home ? hospitalityFor(attendance) : 0;
-  const concessions = home ? concessionsFor(attendance) : 0;
+  const hospitality = home ? hospitalityFor(attendance, m.hospitalityIncome ?? 1) : 0;
+  const concessions = home ? concessionsFor(attendance, m.concessionSpend ?? 1) : 0;
+  const parking = home ? parkingFor(attendance, m.parkingIncome ?? 1) : 0;
   const broadcast = int(i.tv);
-  const ops = int(i.matchdayOps);
+  const ops = int(i.matchdayOps * (home ? (m.matchdayOperatingCost ?? 1) : 1));
   const winBonus = int(i.winBonus ?? 0);
   const meta = {
     opponent: i.opponent, home, attendance,
-    tickets, hospitality, concessions, broadcast,
+    tickets, hospitality, concessions, parking, broadcast,
   };
   const post = (
     sub: string, desc: string, amount: number, direction: FinanceDirection, suffix: string,
@@ -492,14 +494,15 @@ export function postMatchdayFinance(
   post("Ticket sales", `Gate receipts ${where} ${i.opponent}`, tickets, "income", "tickets");
   post("Hospitality", `Matchday hospitality ${where} ${i.opponent}`, hospitality, "income", "hospitality");
   post("Concessions", `Matchday concessions ${where} ${i.opponent}`, concessions, "income", "concessions");
+  post("Parking", `Matchday parking ${where} ${i.opponent}`, parking, "income", "parking");
   post("Broadcast", `Broadcast fee ${where} ${i.opponent}`, broadcast, "income", "broadcast");
   post("Operations", `Matchday operating costs ${where} ${i.opponent}`, ops, "expense", "ops");
   post("Win bonus", `Squad win bonus ${where} ${i.opponent}`, winBonus, "expense", "winBonus");
 
   return {
-    tickets, hospitality, concessions, broadcast,
+    tickets, hospitality, concessions, parking, broadcast,
     operatingCost: ops, winBonus,
-    net: tickets + hospitality + concessions + broadcast - ops - winBonus,
+    net: tickets + hospitality + concessions + parking + broadcast - ops - winBonus,
   };
 }
 
