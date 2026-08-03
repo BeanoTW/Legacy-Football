@@ -1311,69 +1311,16 @@ export function setWageBudget(s: GameState, amount: number): GameState {
 /* =========================================================================
    Facility & staff spending — every movement goes through postEntry()
    so cash, the finance ledger and the weekly projection stay reconciled.
+
+   NOTE: expandStand(), upgradeTraining() and relayPitch() were retired with
+   the infrastructure milestone. Physical work is now raised exclusively as a
+   capital project through infrastructure.ts (approveProject / cancelProject),
+   which owns cost, duration, disruption, risk and the finance postings.
 ========================================================================= */
 
 export interface SpendResult { state: GameState; ok: boolean; reason?: string }
 
-const STAND_SEAT_COST = 350;
 
-export function expandStand(
-  s: GameState,
-  key: Stand["key"],
-  addSeats: number,
-): SpendResult {
-  const seats = Math.max(0, Math.round(addSeats));
-  const cost = seats * STAND_SEAT_COST;
-  if (seats === 0) return { state: s, ok: false, reason: "Nothing to build" };
-  if (s.cash < cost) return { state: s, ok: false, reason: "Not enough cash" };
-  const ns: GameState = structuredClone(s);
-  ns.stands = ns.stands.map((st) =>
-    st.key === key
-      ? { ...st, capacity: st.capacity + seats, condition: Math.max(50, st.condition - 5) }
-      : st,
-  );
-  postEntry(ns, {
-    category: "Facilities",
-    subcategory: "Stadium expansion",
-    description: `Expanded ${key} stand +${seats} seats`,
-    amount: cost,
-    direction: "expense",
-    sourceSystem: "facilities",
-    linkedEntityId: key,
-  });
-  return { state: ns, ok: true };
-}
-
-export function upgradeTraining(s: GameState, cost = 250_000): SpendResult {
-  if (s.cash < cost) return { state: s, ok: false, reason: "Not enough cash" };
-  const ns: GameState = structuredClone(s);
-  ns.trainingRating = Math.min(95, ns.trainingRating + 3);
-  ns.trainingWeeklyCost = Math.round(ns.trainingWeeklyCost * 1.08);
-  postEntry(ns, {
-    category: "Facilities",
-    subcategory: "Training ground",
-    description: "Upgraded training facilities +3",
-    amount: cost,
-    direction: "expense",
-    sourceSystem: "facilities",
-  });
-  return { state: ns, ok: true };
-}
-
-export function relayPitch(s: GameState, cost = 40_000): SpendResult {
-  if (s.cash < cost) return { state: s, ok: false, reason: "Not enough cash" };
-  const ns: GameState = structuredClone(s);
-  ns.pitchCondition = Math.min(99, ns.pitchCondition + 15);
-  postEntry(ns, {
-    category: "Facilities",
-    subcategory: "Stadium maintenance",
-    description: "Pitch relaid",
-    amount: cost,
-    direction: "expense",
-    sourceSystem: "facilities",
-  });
-  return { state: ns, ok: true };
-}
 
 export function hireStaffMember(s: GameState, id: string): SpendResult {
   const cand = s.staffCandidates.find((c) => c.id === id);
