@@ -364,11 +364,20 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
 
 
 /* ---------- Derived ---------- */
+/**
+ * Nominal stadium capacity. Read from the canonical infrastructure assets;
+ * the legacy `stands` array is only a fallback for saves mid-migration.
+ */
 export const totalCapacity = (s: GameState) =>
-  s.stands.reduce((a, b) => a + b.capacity, 0);
+  stadiumCapacity(s) || s.stands.reduce((a, b) => a + b.capacity, 0);
+
+/** Capacity actually saleable this week (condition + construction aware). */
+export const usableCapacity = (s: GameState) =>
+  stadiumUsableCapacity(s) || totalCapacity(s);
 
 export const avgTicketPrice = (s: GameState) => {
-  const totalCap = totalCapacity(s);
+  const totalCap = s.stands.reduce((a, b) => a + b.capacity, 0);
+  if (totalCap <= 0) return 0;
   return s.stands.reduce((a, b) => a + b.ticketPrice * b.capacity, 0) / totalCap;
 };
 
