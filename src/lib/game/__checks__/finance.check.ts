@@ -229,7 +229,8 @@ safe("capital project spends only through the ledger", () => {
     ticked.financeLedger.some((e) =>
       e.sourceSystem === "facilities" && e.direction === "expense" &&
       e.linkedEntityId === pid));
-  check("state still reconciles after the instalment", reconciles(ticked));
+  check("state still reconciles after the instalments", reconciles(ticked),
+    JSON.stringify(reconcile(ticked)));
   check("input state untouched", s.cash === before);
 });
 
