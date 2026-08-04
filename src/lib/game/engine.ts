@@ -427,13 +427,16 @@ function simAttendance(
   return Math.max(0, Math.min(cap, Math.round(raw)));
 }
 
-function simGoals(strength: number, oppStrength: number): number {
+/**
+ * Poisson-ish goal draw. Callers pass their own seeded generator so results
+ * are replay-safe; `Math.random` is only the fallback for legacy call sites.
+ */
+function simGoals(strength: number, oppStrength: number, rand: () => number = Math.random): number {
   const diff = strength - oppStrength;
   const lambda = Math.max(0.2, 1.3 + diff / 20);
-  // Poisson-ish
   let g = 0;
   let p = Math.exp(-lambda);
-  let cum = p, r = Math.random(), k = 0;
+  let cum = p, r = rand(), k = 0;
   while (r > cum && k < 8) { k++; p = (p * lambda) / k; cum += p; g = k; }
   return g;
 }
