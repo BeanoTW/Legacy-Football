@@ -475,6 +475,38 @@ export interface MatchOverride {
   winBonus: number;
 }
 
+/**
+ * Advance the game by exactly one week.
+ *
+ * CONTRACT: this is a pure function. Given the same input state it MUST
+ * produce a byte-identical output state — that property is enforced by
+ * `__checks__/integration.check.ts` [I1] across a whole season. Consequences:
+ *
+ *   - No `Math.random()`, `Date.now()` or `crypto.randomUUID()` anywhere in
+ *     the tick. Seed from `saveSeed` + season + week instead.
+ *   - No module-level mutable state. Counters live on GameState
+ *     (e.g. `finance.nextEntryId`).
+ *   - `prev` is never mutated; all work happens on a structuredClone.
+ *
+ * ORDER OF OPERATIONS (each stage may read everything written before it):
+ *
+ *   1. Infrastructure  — deterioration, project instalments, works completion.
+ *                        Runs first so matchday sees this week's true condition.
+ *   2. Recurring       — wages, operations, maintenance, admin, distributions.
+ *   3. Commercial      — sponsor payments, expiries, new approaches.
+ *   4. Recruitment     — contracts, negotiations, AI transfer activity.
+ *   5. Matchday        — the user's fixture (or a friendly), then the rest of
+ *                        the round. Books gate/TV/hospitality via the ledger.
+ *   6. World tick      — sponsors, staff contracts, ticket-price backlash.
+ *   7. Roll-up         — project the WeekLedger row, resolve the round, rebuild
+ *                        the table from records.
+ *   8. Clock           — increment the week; past SEASON_END_WEEK this triggers
+ *                        the atomic season rollover (see below).
+ *   9. Board + inbox   — mid-season review checkpoint, weekly generators.
+ *
+ * Every financial stage posts through the finance ledger with a per-week
+ * dedupe key, so a replayed week cannot double-charge.
+ */
 export function advanceWeek(prev: GameState, override?: MatchOverride): GameState {
   const s: GameState = structuredClone(prev);
   const fixture = s.fixtures.find((f) => f.week === s.week);
