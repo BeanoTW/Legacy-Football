@@ -1,7 +1,7 @@
 /* Runtime verification for the Board of Directors system.
    Run with:  bun src/lib/game/__checks__/board.check.ts
 */
-import { newGame, advanceWeek, migrateSave } from "../engine";
+import { newGame, advanceWeek, migrateSave, SAVE_VERSION } from "../engine";
 import {
   ensureBoard, makeBoard, makeDirectors, recomputeConfidence, runBoardReview,
   directorSatisfaction, evaluateObjective, confidenceBand, hasReview,
@@ -9,8 +9,6 @@ import {
 } from "../board";
 import type { GameState } from "../types";
 
-/** Current save schema version — bump alongside engine migrations. */
-const CURRENT_SCHEMA = 9;
 
 let passed = 0;
 let failed = 0;
@@ -173,7 +171,7 @@ console.log("\n[B11] Migration from a boardless save");
   delete g.board;
   g.version = 5;
   const m = migrateSave(g);
-  check("v5 save migrates to current schema", (m.version as number) === CURRENT_SCHEMA);
+  check("v5 save migrates to current schema", (m.version as number) === SAVE_VERSION);
   check("migrated save has a full board", m.board.directors.length === 5);
   check("migrated save has current-season objectives",
     m.board.objectivesSeason === m.season && m.board.objectives.length > 0);

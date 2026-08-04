@@ -156,14 +156,15 @@ const ROLE_BASE_WAGE: Record<StaffRole, number> = {
   "Sports Scientist": 2_300,
 };
 
-function makeStaffStats(role: StaffRole, base: number): StaffStats {
+function makeStaffStats(role: StaffRole, base: number, rand01: () => number = Math.random): StaffStats {
+  const rnd = (min: number, max: number) => min + rand01() * (max - min);
   const keys: (keyof StaffStats)[] = [
     "tactics","attack","defense","development","scouting","negotiation","medical","motivation",
   ];
   const weights = ROLE_WEIGHTS[role];
   const stats = {} as StaffStats;
   for (const k of keys) {
-    const boosted = weights[k] ? base + rand(2, 10) * weights[k]! : base + rand(-14, 6);
+    const boosted = weights[k] ? base + rnd(2, 10) * weights[k]! : base + rnd(-14, 6);
     stats[k] = Math.max(30, Math.min(95, Math.round(boosted)));
   }
   return stats;
@@ -178,25 +179,40 @@ function overallFor(role: StaffRole, stats: StaffStats): number {
   return Math.round(sum / Math.max(1, wsum));
 }
 
-export function makeStaff(role: StaffRole, quality = 60): Staff {
-  const base = Math.max(35, Math.min(92, quality + rand(-8, 10)));
-  const stats = makeStaffStats(role, base);
+/**
+ * Build one staff member. `rand01` supplies all randomness so the caller
+ * controls reproducibility; it defaults to Math.random for ad-hoc use, but
+ * every in-game path passes a seeded generator.
+ */
+export function makeStaff(role: StaffRole, quality = 60, rand01: () => number = Math.random): Staff {
+  const rnd = (min: number, max: number) => min + rand01() * (max - min);
+  const rndInt = (min: number, max: number) => Math.floor(rnd(min, max + 1));
+  const one = <T,>(arr: T[]) => arr[rndInt(0, arr.length - 1)];
+
+  const base = Math.max(35, Math.min(92, quality + rnd(-8, 10)));
+  const stats = makeStaffStats(role, base, rand01);
   const rating = overallFor(role, stats);
   const wage = Math.round((ROLE_BASE_WAGE[role] * Math.pow(rating / 60, 2.4)) / 50) * 50;
   return {
-    id: crypto.randomUUID(),
-    name: `${pick(FIRST)}. ${pick(LAST)}`,
+    // Deterministic id: derived from the draw, never crypto.randomUUID, so a
+    // replayed week produces an identical candidate list.
+    id: `ST-${Math.floor(rand01() * 0xffffffff).toString(16).padStart(8, "0")}`,
+    name: `${one(FIRST)}. ${one(LAST)}`,
     role,
-    age: randInt(28, 62),
+    age: rndInt(28, 62),
     rating,
     stats,
     wage,
-    contractWeeks: randInt(38, 38 * 3),
-    reputation: Math.max(20, Math.min(95, Math.round(rating + rand(-8, 6)))),
+    contractWeeks: rndInt(38, 38 * 3),
+    reputation: Math.max(20, Math.min(95, Math.round(rating + rnd(-8, 6)))),
   };
 }
 
-function makeCandidatePool(): Staff[] {
+/**
+ * The rolling staff market. Seeded from the save so refreshing the pool is a
+ * pure function of (saveSeed, season, week) rather than wall-clock randomness.
+ */
+function makeCandidatePool(rand01: () => number = Math.random): Staff[] {
   const pool: Staff[] = [];
   // Deep talent pool with wide variance — journeymen through elite.
   // Each role gets many candidates across the whole ability spectrum.
@@ -216,11 +232,16 @@ function makeCandidatePool(): Staff[] {
   for (const [role, n] of spec) {
     for (let i = 0; i < n; i++) {
       // Quality skewed across the full 35-92 band for real variance
-      const q = 35 + Math.round(Math.pow(Math.random(), 0.9) * 57);
-      pool.push(makeStaff(role, q));
+      const q = 35 + Math.round(Math.pow(rand01(), 0.9) * 57);
+      pool.push(makeStaff(role, q, rand01));
     }
   }
   return pool;
+}
+
+/** Seeded refresh of the staff market for a given save + calendar slot. */
+function staffPoolFor(s: GameState): Staff[] {
+  return makeCandidatePool(mulberry32(hashString(`staffmarket|${s.saveSeed}|${s.season}|${s.week}`)));
 }
 
 export const hiredStaffWagesWeekly = (s: GameState) =>
@@ -285,6 +306,14 @@ export function newGame(clubName: string, managerName: string): GameState {
   return runWeeklyGenerators(base);
 }
 
+/**
+ * Canonical save schema version. Single source of truth: `newGame` stamps it,
+ * `migrateSave` upgrades to it, and the verification suites import it rather
+ * than keeping their own copies (which silently rot on every migration).
+ * Bump this whenever a new `if (p.version < N)` migration step is added.
+ */
+export const SAVE_VERSION = 10;
+
 function _newGameSeed(clubName: string, managerName: string): GameState {
   const saveSeed = `${clubName}|${managerName}|${Date.now().toString(36)}`;
 
@@ -297,7 +326,7 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
   const leagues = makeLeagues(clubName);
   const leagueSchedule = makePyramidSchedule(leagues, `${saveSeed}|season1`);
   return {
-    version: 10,
+    version: SAVE_VERSION,
     saveSeed,
     clubName,
     managerName,
@@ -371,9 +400,15 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
 export const totalCapacity = (s: GameState) =>
   stadiumCapacity(s) || s.stands.reduce((a, b) => a + b.capacity, 0);
 
-/** Capacity actually saleable this week (condition + construction aware). */
+/**
+ * Capacity actually saleable this week (condition + construction aware).
+ *
+ * The legacy-save fallback keys off whether the infrastructure model has any
+ * stands at all — NOT off a zero result. A stadium closed by ruinous condition
+ * legitimately returns 0, and must not silently fall back to full capacity.
+ */
 export const usableCapacity = (s: GameState) =>
-  stadiumUsableCapacity(s) || totalCapacity(s);
+  stadiumCapacity(s) > 0 ? stadiumUsableCapacity(s) : totalCapacity(s);
 
 export const avgTicketPrice = (s: GameState) => {
   const totalCap = s.stands.reduce((a, b) => a + b.capacity, 0);
@@ -419,13 +454,16 @@ function simAttendance(
   return Math.max(0, Math.min(cap, Math.round(raw)));
 }
 
-function simGoals(strength: number, oppStrength: number): number {
+/**
+ * Poisson-ish goal draw. Callers pass their own seeded generator so results
+ * are replay-safe; `Math.random` is only the fallback for legacy call sites.
+ */
+function simGoals(strength: number, oppStrength: number, rand: () => number = Math.random): number {
   const diff = strength - oppStrength;
   const lambda = Math.max(0.2, 1.3 + diff / 20);
-  // Poisson-ish
   let g = 0;
   let p = Math.exp(-lambda);
-  let cum = p, r = Math.random(), k = 0;
+  let cum = p, r = rand(), k = 0;
   while (r > cum && k < 8) { k++; p = (p * lambda) / k; cum += p; g = k; }
   return g;
 }
@@ -437,6 +475,38 @@ export interface MatchOverride {
   winBonus: number;
 }
 
+/**
+ * Advance the game by exactly one week.
+ *
+ * CONTRACT: this is a pure function. Given the same input state it MUST
+ * produce a byte-identical output state — that property is enforced by
+ * `__checks__/integration.check.ts` [I1] across a whole season. Consequences:
+ *
+ *   - No `Math.random()`, `Date.now()` or `crypto.randomUUID()` anywhere in
+ *     the tick. Seed from `saveSeed` + season + week instead.
+ *   - No module-level mutable state. Counters live on GameState
+ *     (e.g. `finance.nextEntryId`).
+ *   - `prev` is never mutated; all work happens on a structuredClone.
+ *
+ * ORDER OF OPERATIONS (each stage may read everything written before it):
+ *
+ *   1. Infrastructure  — deterioration, project instalments, works completion.
+ *                        Runs first so matchday sees this week's true condition.
+ *   2. Recurring       — wages, operations, maintenance, admin, distributions.
+ *   3. Commercial      — sponsor payments, expiries, new approaches.
+ *   4. Recruitment     — contracts, negotiations, AI transfer activity.
+ *   5. Matchday        — the user's fixture (or a friendly), then the rest of
+ *                        the round. Books gate/TV/hospitality via the ledger.
+ *   6. World tick      — sponsors, staff contracts, ticket-price backlash.
+ *   7. Roll-up         — project the WeekLedger row, resolve the round, rebuild
+ *                        the table from records.
+ *   8. Clock           — increment the week; past SEASON_END_WEEK this triggers
+ *                        the atomic season rollover (see below).
+ *   9. Board + inbox   — mid-season review checkpoint, weekly generators.
+ *
+ * Every financial stage posts through the finance ledger with a per-week
+ * dedupe key, so a replayed week cannot double-charge.
+ */
 export function advanceWeek(prev: GameState, override?: MatchOverride): GameState {
   const s: GameState = structuredClone(prev);
   const fixture = s.fixtures.find((f) => f.week === s.week);
@@ -551,14 +621,18 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     matchdayNote = `${fixture.home ? "H" : "A"} vs ${fixture.opponent} — ${gf}-${ga} ${result}`;
   } else if (!override && FRIENDLY_WEEKS.has(s.week)) {
     // ---- Friendly (pre-season / mid-season windows) ----
-    const opp = pick(CLUBS.filter((c) => c !== s.clubName));
-    const oppStrength = 50 + Math.random() * 25;
+    // Seeded from the save + calendar slot so replaying the same pre-week
+    // state reproduces the same friendly, exactly like a league fixture.
+    const rng = mulberry32(hashString(`friendly|${s.saveSeed}|${s.season}|${s.week}`));
+    const others = CLUBS.filter((c) => c !== s.clubName);
+    const opp = others[Math.floor(rng() * others.length)];
+    const oppStrength = 50 + rng() * 25;
     const myStrength = squadRating(s);
-    const gf = simGoals(myStrength + 2, oppStrength);
-    const ga = simGoals(oppStrength, myStrength + 2);
+    const gf = simGoals(myStrength + 2, oppStrength, rng);
+    const ga = simGoals(oppStrength, myStrength + 2, rng);
     // Friendly attendance is a fraction of a league day
     const cap = usableCapacity(s);
-    const attendance = Math.round(cap * (0.28 + Math.random() * 0.18) * (0.6 + s.fanHappiness / 200));
+    const attendance = Math.round(cap * (0.28 + rng() * 0.18) * (0.6 + s.fanHappiness / 200));
     const gate = Math.round(attendance * avgTicketPrice(s) * 0.7);
     const matchdayOps = Math.round(4_200 + attendance * 0.3);
     postMatchdayFinance(s, {
@@ -603,7 +677,7 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   // ---- Staff contracts tick + auto-refresh candidate market every 4 weeks ----
   for (const st of s.hiredStaff) st.contractWeeks = Math.max(0, st.contractWeeks - 1);
   if (s.week - (s.staffMarketRefreshedWeek ?? 0) >= 4) {
-    s.staffCandidates = makeCandidatePool();
+    s.staffCandidates = staffPoolFor(s);
     s.staffMarketRefreshedWeek = s.week;
   }
 
@@ -680,9 +754,8 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     // Immutable recruitment record of the season just closed.
     closeRecruitmentSeason(s, closingSeason);
 
-    // Board's final judgement on the season just completed. Must run before
-    // the season counter moves so it is filed against the correct season.
-    runEndOfSeasonReview(s);
+
+
     // reset
     s.season += 1;
     s.week = 1;
@@ -754,7 +827,7 @@ export function migrateSave(parsed: Record<string, unknown>): GameState {
   const arr = <T,>(v: unknown, fallback: T[]): T[] => (Array.isArray(v) ? (v as T[]) : fallback);
 
   p.hiredStaff = arr(p.hiredStaff, []);
-  if (!Array.isArray(p.staffCandidates)) p.staffCandidates = makeCandidatePool();
+  if (!Array.isArray(p.staffCandidates)) p.staffCandidates = staffPoolFor(p as unknown as GameState);
   if (p.staffMarketRefreshedWeek == null) p.staffMarketRefreshedWeek = p.week;
   if (p.transferBudget == null) p.transferBudget = 500_000;
   if (p.wageBudgetWeekly == null) p.wageBudgetWeekly = 5_000;
@@ -941,6 +1014,9 @@ export function migrateSave(parsed: Record<string, unknown>): GameState {
     ensureInfrastructure(st);
     p.version = 10;
   }
+
+  // Every step above has run: the save is now at the current schema.
+  p.version = SAVE_VERSION;
 
   return p as GameState;
 }

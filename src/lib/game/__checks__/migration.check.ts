@@ -1,12 +1,10 @@
 /* Runtime verification for save migration + Pass-1 regression defects.
    Run with:  bun src/lib/game/__checks__/migration.check.ts
 */
-import { newGame, migrateSave } from "../engine";
+import { newGame, migrateSave, SAVE_VERSION } from "../engine";
 import { runWeeklyGenerators } from "../inbox";
 import { absoluteWeek } from "../time";
 
-/** Current save schema version — bump alongside engine migrations. */
-const CURRENT_SCHEMA = 10;
 
 let passed = 0;
 let failed = 0;
@@ -34,24 +32,24 @@ function legacy(overrides: Record<string, unknown> = {}): Record<string, unknown
 console.log("\n[M1] Version handling");
 safe("missing version", () => {
   const m = migrateSave(legacy());
-  check("missing version migrates to current schema", (m.version as number) === CURRENT_SCHEMA);
+  check("missing version migrates to current schema", (m.version as number) === SAVE_VERSION);
   check("missing version backfills saveSeed", typeof m.saveSeed === "string" && m.saveSeed.length > 0);
 });
 safe("version 1", () => {
   const m = migrateSave(legacy({ version: 1 }));
-  check("v1 migrates to current schema", (m.version as number) === CURRENT_SCHEMA);
+  check("v1 migrates to current schema", (m.version as number) === SAVE_VERSION);
 });
 safe("version 2 idempotent", () => {
   const src = { ...legacy({ version: 2 }), saveSeed: "KEEP_ME" };
   const srcAny = src as Record<string, unknown>;
   delete srcAny.leagueSchedule; delete srcAny.matchRecords; // a genuine v2 save has neither
   const m = migrateSave(src);
-  check("v2 upgrades to v6 keeping seed", (m.version as number) === CURRENT_SCHEMA && m.saveSeed === "KEEP_ME");
+  check("v2 upgrades to v6 keeping seed", (m.version as number) === SAVE_VERSION && m.saveSeed === "KEEP_ME");
   check("v2 save gets empty league schedule (legacy season preserved)",
     Array.isArray(m.leagueSchedule) && m.leagueSchedule.length === 0 &&
     Array.isArray(m.matchRecords) && m.matchRecords.length === 0);
   const again = migrateSave(m as unknown as Record<string, unknown>);
-  check("migration is idempotent", again.saveSeed === "KEEP_ME" && (again.version as number) === CURRENT_SCHEMA);
+  check("migration is idempotent", again.saveSeed === "KEEP_ME" && (again.version as number) === SAVE_VERSION);
 });
 
 console.log("\n[M2] Missing optional collections must not throw");
