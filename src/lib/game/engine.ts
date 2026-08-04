@@ -178,25 +178,40 @@ function overallFor(role: StaffRole, stats: StaffStats): number {
   return Math.round(sum / Math.max(1, wsum));
 }
 
-export function makeStaff(role: StaffRole, quality = 60): Staff {
-  const base = Math.max(35, Math.min(92, quality + rand(-8, 10)));
-  const stats = makeStaffStats(role, base);
+/**
+ * Build one staff member. `rand01` supplies all randomness so the caller
+ * controls reproducibility; it defaults to Math.random for ad-hoc use, but
+ * every in-game path passes a seeded generator.
+ */
+export function makeStaff(role: StaffRole, quality = 60, rand01: () => number = Math.random): Staff {
+  const rnd = (min: number, max: number) => min + rand01() * (max - min);
+  const rndInt = (min: number, max: number) => Math.floor(rnd(min, max + 1));
+  const one = <T,>(arr: T[]) => arr[rndInt(0, arr.length - 1)];
+
+  const base = Math.max(35, Math.min(92, quality + rnd(-8, 10)));
+  const stats = makeStaffStats(role, base, rand01);
   const rating = overallFor(role, stats);
   const wage = Math.round((ROLE_BASE_WAGE[role] * Math.pow(rating / 60, 2.4)) / 50) * 50;
   return {
-    id: crypto.randomUUID(),
-    name: `${pick(FIRST)}. ${pick(LAST)}`,
+    // Deterministic id: derived from the draw, never crypto.randomUUID, so a
+    // replayed week produces an identical candidate list.
+    id: `ST-${Math.floor(rand01() * 0xffffffff).toString(16).padStart(8, "0")}`,
+    name: `${one(FIRST)}. ${one(LAST)}`,
     role,
-    age: randInt(28, 62),
+    age: rndInt(28, 62),
     rating,
     stats,
     wage,
-    contractWeeks: randInt(38, 38 * 3),
-    reputation: Math.max(20, Math.min(95, Math.round(rating + rand(-8, 6)))),
+    contractWeeks: rndInt(38, 38 * 3),
+    reputation: Math.max(20, Math.min(95, Math.round(rating + rnd(-8, 6)))),
   };
 }
 
-function makeCandidatePool(): Staff[] {
+/**
+ * The rolling staff market. Seeded from the save so refreshing the pool is a
+ * pure function of (saveSeed, season, week) rather than wall-clock randomness.
+ */
+function makeCandidatePool(rand01: () => number = Math.random): Staff[] {
   const pool: Staff[] = [];
   // Deep talent pool with wide variance — journeymen through elite.
   // Each role gets many candidates across the whole ability spectrum.
@@ -216,11 +231,16 @@ function makeCandidatePool(): Staff[] {
   for (const [role, n] of spec) {
     for (let i = 0; i < n; i++) {
       // Quality skewed across the full 35-92 band for real variance
-      const q = 35 + Math.round(Math.pow(Math.random(), 0.9) * 57);
-      pool.push(makeStaff(role, q));
+      const q = 35 + Math.round(Math.pow(rand01(), 0.9) * 57);
+      pool.push(makeStaff(role, q, rand01));
     }
   }
   return pool;
+}
+
+/** Seeded refresh of the staff market for a given save + calendar slot. */
+function staffPoolFor(s: GameState): Staff[] {
+  return makeCandidatePool(mulberry32(hashString(`staffmarket|${s.saveSeed}|${s.season}|${s.week}`)));
 }
 
 export const hiredStaffWagesWeekly = (s: GameState) =>
