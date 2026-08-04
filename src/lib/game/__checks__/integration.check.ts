@@ -171,7 +171,7 @@ console.log("\n[I8] Season rollover is an atomic, once-only transaction");
     String(s.board.reviews.filter((r) => r.season === 1 && r.type === "endSeason").length));
   check("no club appears in two divisions after promotion/relegation",
     (() => {
-      const all = s.leagues.flatMap((l) => l.teams);
+      const all = s.leagues.flatMap((l) => l.clubIds);
       return new Set(all).size === all.length;
     })());
   check("prize money awarded exactly once",
