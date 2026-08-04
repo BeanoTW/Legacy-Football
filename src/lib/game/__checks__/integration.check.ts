@@ -13,6 +13,7 @@ import {
   totalCapacity, usableCapacity, avgTicketPrice, squadRating,
 } from "../engine";
 import { facilityModifiers, stadiumCapacity } from "../infrastructure";
+import { reconcile } from "../finance";
 import { buildTable, sortTable, LEAGUE_ID } from "../league";
 import { clubStrengthFor } from "../reputation";
 import { DIVISION_ONE } from "../pyramid";
