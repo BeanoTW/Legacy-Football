@@ -202,13 +202,9 @@ console.log("\n[I10] Infrastructure survives the rollover without double-chargin
     s.infrastructure.assets.length > 0);
   check("no asset condition escaped 0..100",
     s.infrastructure.assets.every((a) => a.condition >= 0 && a.condition <= 100));
-  check("cash equals the sum of the ledger",
-    (() => {
-      const net = s.financeLedger.reduce((t, e) => t + e.amount, 0);
-      return Math.abs((s.finance.openingCash ?? 0) + net - s.cash) < 1 ||
-             s.financeLedger.length === 0;
-    })(),
-    `cash ${s.cash}`);
+  check("cash still reconciles against the ledger after the rollover",
+    reconcile(s).ok, JSON.stringify(reconcile(s)));
+
 }
 
 /* ------------------------------------------------------------------ */
