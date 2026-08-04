@@ -400,9 +400,15 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
 export const totalCapacity = (s: GameState) =>
   stadiumCapacity(s) || s.stands.reduce((a, b) => a + b.capacity, 0);
 
-/** Capacity actually saleable this week (condition + construction aware). */
+/**
+ * Capacity actually saleable this week (condition + construction aware).
+ *
+ * The legacy-save fallback keys off whether the infrastructure model has any
+ * stands at all — NOT off a zero result. A stadium closed by ruinous condition
+ * legitimately returns 0, and must not silently fall back to full capacity.
+ */
 export const usableCapacity = (s: GameState) =>
-  stadiumUsableCapacity(s) || totalCapacity(s);
+  stadiumCapacity(s) > 0 ? stadiumUsableCapacity(s) : totalCapacity(s);
 
 export const avgTicketPrice = (s: GameState) => {
   const totalCap = s.stands.reduce((a, b) => a + b.capacity, 0);
