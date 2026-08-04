@@ -789,7 +789,7 @@ export function migrateSave(parsed: Record<string, unknown>): GameState {
   const arr = <T,>(v: unknown, fallback: T[]): T[] => (Array.isArray(v) ? (v as T[]) : fallback);
 
   p.hiredStaff = arr(p.hiredStaff, []);
-  if (!Array.isArray(p.staffCandidates)) p.staffCandidates = makeCandidatePool();
+  if (!Array.isArray(p.staffCandidates)) p.staffCandidates = staffPoolFor(p as unknown as GameState);
   if (p.staffMarketRefreshedWeek == null) p.staffMarketRefreshedWeek = p.week;
   if (p.transferBudget == null) p.transferBudget = 500_000;
   if (p.wageBudgetWeekly == null) p.wageBudgetWeekly = 5_000;
