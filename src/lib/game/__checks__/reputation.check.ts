@@ -2,7 +2,7 @@
    the league-browser data layer.
    Run with:  bun src/lib/game/__checks__/reputation.check.ts
 */
-import { newGame, advanceWeek, migrateSave } from "../engine";
+import { newGame, advanceWeek, migrateSave, SAVE_VERSION } from "../engine";
 import {
   clubReputation, clubStrengthFor, strengthParts, predictLeague, predictSeason,
   predictionFor, expectationFor, applySeasonIdentity, reputationDelta,
@@ -14,8 +14,6 @@ import {
 import { DIVISION_ONE, DIVISION_TWO, makePyramidSchedule } from "../pyramid";
 import type { GameState, ExpectationLevel } from "../types";
 
-/** Current save schema version — bump alongside engine migrations. */
-const CURRENT_SCHEMA = 9;
 
 let passed = 0;
 let failed = 0;
@@ -295,7 +293,7 @@ console.log("\n[R11] Save migration (v4 → v5)");
   delete g.seasonPredictions;
   delete g.clubSnapshots;
   const m = migrateSave(structuredClone(g));
-  check("migrated to current schema", (m.version as number) === CURRENT_SCHEMA);
+  check("migrated to current schema", (m.version as number) === SAVE_VERSION);
   check("reputations backfilled for every club",
     Object.keys(m.clubReputations).length === 40 &&
     Object.values(m.clubReputations).every((v) => v >= REP_MIN && v <= REP_MAX));

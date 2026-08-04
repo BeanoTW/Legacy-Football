@@ -1,7 +1,7 @@
 /* Verification for the league simulation foundation.
    Run with:  bun src/lib/game/__checks__/league.check.ts
 */
-import { newGame, advanceWeek, makeLeagueSchedule, leagueTeams, migrateSave } from "../engine";
+import { newGame, advanceWeek, makeLeagueSchedule, leagueTeams, migrateSave, SAVE_VERSION } from "../engine";
 import { DIVISION_ONE, DIVISION_TWO } from "../pyramid";
 import {
   buildTable, sortTable, simulateAiFixture, isSeasonComplete, seasonCompletedCount,
@@ -9,8 +9,6 @@ import {
 } from "../league";
 import type { GameState } from "../types";
 
-/** Current save schema version — bump alongside engine migrations. */
-const CURRENT_SCHEMA = 9;
 
 let passed = 0;
 let failed = 0;
@@ -46,7 +44,7 @@ function playSeason(g0: GameState): GameState {
 console.log("\n[1] Schedule + state shape");
 {
   const g = fresh();
-  check("save version is current", (g.version as number) === CURRENT_SCHEMA);
+  check("save version is current", (g.version as number) === SAVE_VERSION);
   check("top division schedule present (380 fixtures)",
     g.leagueSchedule.filter((f) => f.league === DIVISION_ONE).length === 380,
     String(g.leagueSchedule.length));
@@ -182,7 +180,7 @@ console.log("\n[8] Legacy (v2) save compatibility");
   delete g.leagueSchedule;
   delete g.matchRecords;
   const m = migrateSave(g);
-  check("migrated to current schema", (m.version as number) === CURRENT_SCHEMA);
+  check("migrated to current schema", (m.version as number) === SAVE_VERSION);
   check("legacy in-progress season keeps empty schedule", m.leagueSchedule.length === 0);
   check("legacy save is not force-simulated", m.matchRecords.length === 0);
   const after = advanceWeek(m, { gf: 2, ga: 0, attendance: 900, gate: 1, tv: 1, matchdayOps: 1, winBonus: 0 });
