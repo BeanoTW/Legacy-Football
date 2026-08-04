@@ -219,7 +219,7 @@ console.log("\n[I11] Migrated saves are clean and idempotent");
   check("migrates to the current schema", m.version === SAVE_VERSION, String(m.version));
   check("infrastructure rebuilt from legacy fields", m.infrastructure.assets.length > 0);
   check("migration invents no completed projects",
-    m.infrastructure.projects.every((p) => p.status !== "complete"));
+    m.infrastructure.projects.every((p) => p.status !== "completed"));
   check("migration invents no board reviews", m.board.reviews.length === 0);
   check("migration writes no finance entries",
     m.financeLedger.every((e) => !/migrat/i.test(e.description ?? "")));
