@@ -944,11 +944,14 @@ export function migrateSave(parsed: Record<string, unknown>): GameState {
   // condition exactly, then re-projects the legacy fields back from them so
   // older screens keep reading the same numbers. No cash moves, no ledger
   // entry is written and no history is invented — it is purely structural.
-  if (p.version < SAVE_VERSION) {
+  if (p.version < 10) {
     const st = p as unknown as GameState;
     ensureInfrastructure(st);
-    p.version = SAVE_VERSION;
+    p.version = 10;
   }
+
+  // Every step above has run: the save is now at the current schema.
+  p.version = SAVE_VERSION;
 
   return p as GameState;
 }
