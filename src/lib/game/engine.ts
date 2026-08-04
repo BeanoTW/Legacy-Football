@@ -156,14 +156,15 @@ const ROLE_BASE_WAGE: Record<StaffRole, number> = {
   "Sports Scientist": 2_300,
 };
 
-function makeStaffStats(role: StaffRole, base: number): StaffStats {
+function makeStaffStats(role: StaffRole, base: number, rand01: () => number = Math.random): StaffStats {
+  const rnd = (min: number, max: number) => min + rand01() * (max - min);
   const keys: (keyof StaffStats)[] = [
     "tactics","attack","defense","development","scouting","negotiation","medical","motivation",
   ];
   const weights = ROLE_WEIGHTS[role];
   const stats = {} as StaffStats;
   for (const k of keys) {
-    const boosted = weights[k] ? base + rand(2, 10) * weights[k]! : base + rand(-14, 6);
+    const boosted = weights[k] ? base + rnd(2, 10) * weights[k]! : base + rnd(-14, 6);
     stats[k] = Math.max(30, Math.min(95, Math.round(boosted)));
   }
   return stats;
