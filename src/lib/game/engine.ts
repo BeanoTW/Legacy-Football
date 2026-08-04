@@ -688,9 +688,8 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     // Immutable recruitment record of the season just closed.
     closeRecruitmentSeason(s, closingSeason);
 
-    // Board's final judgement on the season just completed. Must run before
-    // the season counter moves so it is filed against the correct season.
-    runEndOfSeasonReview(s);
+
+
     // reset
     s.season += 1;
     s.week = 1;
