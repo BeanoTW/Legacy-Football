@@ -639,7 +639,7 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   // ---- Staff contracts tick + auto-refresh candidate market every 4 weeks ----
   for (const st of s.hiredStaff) st.contractWeeks = Math.max(0, st.contractWeeks - 1);
   if (s.week - (s.staffMarketRefreshedWeek ?? 0) >= 4) {
-    s.staffCandidates = makeCandidatePool();
+    s.staffCandidates = staffPoolFor(s);
     s.staffMarketRefreshedWeek = s.week;
   }
 
