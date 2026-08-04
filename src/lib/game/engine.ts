@@ -559,14 +559,18 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     matchdayNote = `${fixture.home ? "H" : "A"} vs ${fixture.opponent} — ${gf}-${ga} ${result}`;
   } else if (!override && FRIENDLY_WEEKS.has(s.week)) {
     // ---- Friendly (pre-season / mid-season windows) ----
-    const opp = pick(CLUBS.filter((c) => c !== s.clubName));
-    const oppStrength = 50 + Math.random() * 25;
+    // Seeded from the save + calendar slot so replaying the same pre-week
+    // state reproduces the same friendly, exactly like a league fixture.
+    const rng = mulberry32(hashString(`friendly|${s.saveSeed}|${s.season}|${s.week}`));
+    const others = CLUBS.filter((c) => c !== s.clubName);
+    const opp = others[Math.floor(rng() * others.length)];
+    const oppStrength = 50 + rng() * 25;
     const myStrength = squadRating(s);
-    const gf = simGoals(myStrength + 2, oppStrength);
-    const ga = simGoals(oppStrength, myStrength + 2);
+    const gf = simGoals(myStrength + 2, oppStrength, rng);
+    const ga = simGoals(oppStrength, myStrength + 2, rng);
     // Friendly attendance is a fraction of a league day
     const cap = usableCapacity(s);
-    const attendance = Math.round(cap * (0.28 + Math.random() * 0.18) * (0.6 + s.fanHappiness / 200));
+    const attendance = Math.round(cap * (0.28 + rng() * 0.18) * (0.6 + s.fanHappiness / 200));
     const gate = Math.round(attendance * avgTicketPrice(s) * 0.7);
     const matchdayOps = Math.round(4_200 + attendance * 0.3);
     postMatchdayFinance(s, {
