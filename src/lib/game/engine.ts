@@ -285,6 +285,14 @@ export function newGame(clubName: string, managerName: string): GameState {
   return runWeeklyGenerators(base);
 }
 
+/**
+ * Canonical save schema version. Single source of truth: `newGame` stamps it,
+ * `migrateSave` upgrades to it, and the verification suites import it rather
+ * than keeping their own copies (which silently rot on every migration).
+ * Bump this whenever a new `if (p.version < N)` migration step is added.
+ */
+export const SAVE_VERSION = 10;
+
 function _newGameSeed(clubName: string, managerName: string): GameState {
   const saveSeed = `${clubName}|${managerName}|${Date.now().toString(36)}`;
 
