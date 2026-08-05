@@ -1175,9 +1175,9 @@ function positionNeed(s: GameState): Record<Position, number> {
                       card roll (0.55) + side       cosmetic, persisted in events
      kickoff()/       both halves draw from the
      applyHalfTime()  same unseeded pool            gameplay-significant, persisted
-     commitFullTime() tvIncome (22k + rand*8k)      gameplay-significant, RECOMPUTED
-                                                    at commit time, never re-rolled
-                                                    afterwards
+     applyHalfTime()  tvIncome (22k + rand*8k)      gameplay-significant, rolled
+                                                    once at full-time and then
+                                                    PERSISTED; commit only books it
 
    Reload behaviour:
      - Before kickoff (status "brief"): the brief — opponent strength, weather,
