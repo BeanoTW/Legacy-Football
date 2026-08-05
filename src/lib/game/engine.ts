@@ -1154,7 +1154,57 @@ function positionNeed(s: GameState): Record<Position, number> {
 
 /* =========================================================================
    MATCH DAY
+
+   DETERMINISM STATUS — READ BEFORE EXTENDING
+   -------------------------------------------------------------------------
+   The AUTO-RESOLVED matchday path (advanceWeek → resolveWeek, league fixtures
+   and friendlies) is fully seeded and replay-safe. The INTERACTIVE live match
+   below is NOT. It is the only remaining source of unseeded randomness in the
+   simulation, and `liveMatch` IS persisted into the save (GameState.liveMatch
+   is written to storage by useGame), so a reload mid-match resumes a state
+   whose future rolls cannot be reproduced.
+
+   Remaining Math.random() sites in the live overlay:
+
+     startMatchDay()  oppStrength (55 + rand*20)   gameplay-significant, PERSISTED
+                      weather (pick)                cosmetic, persisted
+                      projectedAttendance           gameplay-significant, persisted
+     halfEvents()     poisson() goal counts         gameplay-significant, persisted via score
+                      goal minutes (randInt)        cosmetic, persisted in events
+                      chance count/side/text        cosmetic, persisted in events
+                      card roll (0.55) + side       cosmetic, persisted in events
+     kickoff()/       both halves draw from the
+     applyHalfTime()  same unseeded pool            gameplay-significant, persisted
+     commitFullTime() tvIncome (22k + rand*8k)      gameplay-significant, RECOMPUTED
+                                                    at commit time, never re-rolled
+                                                    afterwards
+
+   Reload behaviour:
+     - Before kickoff (status "brief"): the brief — opponent strength, weather,
+       projected attendance — was already rolled and saved, so it survives
+       intact. No re-roll. Safe.
+     - During the first half: the first half is computed atomically inside
+       kickoff(); there is no partial half state. A reload lands either before
+       kickoff or at half-time.
+     - At half-time (status "halfTime"): the first-half score and events are
+       persisted and stable. Safe.
+     - During the second half: likewise atomic inside applyHalfTimeChoice();
+       a reload lands at half-time or full-time.
+     - Before committing full-time (status "fullTime"): the whole 90 minutes,
+       including the final score, is persisted. Committing only books finance
+       and the league record, plus the one tvIncome roll.
+
+   So no half is ever replayed from a partial state, and nothing already shown
+   to the player is silently re-rolled. The correctness risk is different: an
+   unfavourable half can be re-rolled by discarding the save and replaying the
+   week, because the outcome is not a function of (saveSeed, season, week).
+   Save-scumming the live match is therefore possible, and the live match is
+   not byte-reproducible. NEXT DETERMINISM HARDENING TASK: thread a seeded RNG
+   (`seededRng(saveSeed, "live", season, week, half)`) through startMatchDay,
+   halfEvents, poisson and commitFullTime, and store the draw counter on
+   LiveMatch so resumed matches continue the same stream.
    ========================================================================= */
+
 function formGuide(s: GameState): string {
   const last5 = s.results.slice(-5).map((r) => r.result).join("");
   return last5 || "—";
