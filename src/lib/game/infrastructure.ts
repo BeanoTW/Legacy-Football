@@ -933,6 +933,14 @@ export function directorPositions(
       if (spec.type === "minorRepair" || spec.type === "majorRepair") score += 1;
       if (d.traits.includes("frugal")) score -= 2;
     }
+    if (d.role === "Football Director") {
+      // Sporting quality is the canonical infrastructure signal the Football
+      // Director judges sporting proposals against: weak facilities make the
+      // case, strong ones make it less urgent.
+      const sq = facilityModifiers(s).sportingQuality;
+      const sporting = a?.type === "training" || a?.type === "medical" || a?.type === "pitch";
+      if (sporting) score += sq < -5 ? 2 : sq > 10 ? -1 : 0;
+    }
     if (d.role === "Chairman") {
       score += spec.major ? 1 : 0;
       if (d.traits.includes("ambitious")) score += 1;

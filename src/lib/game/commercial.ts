@@ -32,6 +32,7 @@ import type {
 import { absoluteWeek } from "./time";
 import { hashString, rngInt, seededRng } from "./rng";
 import { averageHomeAttendance, leagueTierOf, postEntry } from "./finance";
+import { facilityModifiers } from "./infrastructure";
 
 const int = (n: number) => Math.round(Number.isFinite(n) ? n : 0);
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
@@ -247,13 +248,18 @@ export function commercialPower(s: GameState): number {
     ? (recent.filter((r) => r.result === "W").length * 3 +
        recent.filter((r) => r.result === "D").length) / (recent.length * 3) * 100
     : 50;
+  // Canonical infrastructure signal (shop, hospitality, offices, stands).
+  // Additive and capped so facilities nudge commercial standing without
+  // outweighing reputation, tier or recent success.
+  const facilities = clamp(facilityModifiers(s).commercialPower, -12, 12);
   const power =
     (s.reputation ?? 50) * 0.32 +
     s.commercial.commercialReputation * 0.26 +
     tierScore * 0.16 +
     attendanceScore * 0.12 +
     (s.fanHappiness ?? 60) * 0.08 +
-    form * 0.06;
+    form * 0.06 +
+    facilities;
   return clamp(Math.round(power * 10) / 10, 1, 100);
 }
 

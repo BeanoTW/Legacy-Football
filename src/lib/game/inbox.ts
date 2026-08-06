@@ -53,6 +53,19 @@ import {
 } from "./recruitment";
 
 
+import {
+  activeProjects as infraActiveProjects,
+  approveProjectInPlace,
+  assetById as infraAssetById,
+  assets as infraAssets,
+  cancelProjectInPlace,
+  closeAssetInPlace,
+  conditionBand,
+  projectCapacity,
+  projectCatalogue,
+  reopenAssetInPlace,
+  setMaintenancePolicyInPlace,
+} from "./infrastructure";
 import { absoluteWeek, fromAbsoluteWeek } from "./time";
 import {
   evaluateObjective, confidenceBand, BAND_LABEL, directorConcern,
@@ -262,6 +275,28 @@ function applyEffectInPlace(s: GameState, e: InboxEffect, src: EffectSource): vo
     case "recruitmentReleasePlayer":
       releasePlayerInPlace(s, e.playerId);
       syncLegacySquad(s);
+      break;
+
+    /* ---- Facilities: the Inbox only ever calls canonical infrastructure
+       functions. It never writes assets, projects, cash or history itself. ---- */
+    case "infraApproveProject":
+      approveProjectInPlace(s, e.assetId, e.projectType);
+      break;
+
+    case "infraCancelProject":
+      cancelProjectInPlace(s, e.projectId);
+      break;
+
+    case "infraSetMaintenancePolicy":
+      setMaintenancePolicyInPlace(s, e.policy);
+      break;
+
+    case "infraCloseAsset":
+      closeAssetInPlace(s, e.assetId);
+      break;
+
+    case "infraReopenAsset":
+      reopenAssetInPlace(s, e.assetId);
       break;
 
     case "scheduleGenerator": {
@@ -1595,6 +1630,184 @@ const G_RECRUITMENT_TRANSFER_DONE: Generator = {
 
 
 /* ---------- Registry ---------- */
+
+/* =========================================================================
+   Facilities generators
+   -------------------------------------------------------------------------
+   These read canonical infrastructure state only. Informational items carry
+   no effects at all, so re-reading or re-opening them can never move money
+   or condition. Actionable items dispatch infra* effects, which call the
+   canonical infrastructure functions.
+========================================================================= */
+
+/* -- Deterioration warning: one per asset per season -- */
+const G_INFRA_WARNING: Generator = {
+  id: "facilities-condition-warning",
+  run: (s) => {
+    if (!s.infrastructure) return [];
+    return infraAssets(s)
+      .filter((a) => a.status !== "closed" && a.condition < 45 && a.condition >= 20)
+      .map((a) =>
+        mk(s, "facilities-condition-warning", {
+          eventKey: `facilities-condition-warning:${a.id}:s${s.season}`,
+          sender: "Eddie Kerr",
+          department: "Groundskeeper",
+          category: "facilities",
+          priority: "normal",
+          subject: `${a.name} is deteriorating (${Math.round(a.condition)}%)`,
+          body:
+            `${a.name} is now rated ${conditionBand(a.condition)} at ` +
+            `${Math.round(a.condition)}%. Left alone it will keep sliding and ` +
+            `start costing us on matchdays. Worth raising some work in the ` +
+            `Facilities office.`,
+        }),
+      );
+  },
+};
+
+/* -- Critical warning: one per asset per season, actionable -- */
+const G_INFRA_CRITICAL: Generator = {
+  id: "facilities-critical-warning",
+  run: (s) => {
+    if (!s.infrastructure) return [];
+    return infraAssets(s)
+      .filter((a) => a.status !== "closed" && a.condition < 20)
+      .map((a) =>
+        mk(s, "facilities-critical-warning", {
+          eventKey: `facilities-critical-warning:${a.id}:s${s.season}`,
+          sender: "Eddie Kerr",
+          department: "Groundskeeper",
+          category: "warning",
+          priority: "high",
+          subject: `${a.name} is in a critical state`,
+          body:
+            `${a.name} has fallen to ${Math.round(a.condition)}%. I can't ` +
+            `certify it as safe for much longer. We either close it now or ` +
+            `carry the risk.`,
+          choices: [
+            {
+              id: "close",
+              label: `Close ${a.name}`,
+              hint: "Removes it from use until it is repaired.",
+              effects: [{ kind: "infraCloseAsset", assetId: a.id }],
+            },
+            {
+              id: "carry-on",
+              label: "Keep it open for now",
+              hint: "No cost today. Supporters will notice.",
+              effects: [{ kind: "fanHappiness", delta: -1 }],
+            },
+          ],
+        }),
+      );
+  },
+};
+
+/* -- Works proposal: the worst poor asset, once per asset per season -- */
+const G_INFRA_PROPOSAL: Generator = {
+  id: "facilities-project-proposal",
+  run: (s) => {
+    if (!s.infrastructure) return [];
+    const cap = projectCapacity(s);
+    if (!cap.canStartMinor && !cap.canStartMajor) return [];
+    const worst = infraAssets(s)
+      .filter((a) => !a.activeProjectId && a.condition < 55)
+      .sort((a, b) => a.condition - b.condition)[0];
+    if (!worst) return [];
+    const spec = projectCatalogue(s, worst.id).find(
+      (x) => (x.major ? cap.canStartMajor : cap.canStartMinor) &&
+        (x.type === "majorRepair" || x.type === "minorRepair"),
+    );
+    if (!spec) return [];
+    return [
+      mk(s, "facilities-project-proposal", {
+        eventKey: `facilities-project-proposal:${worst.id}:${spec.type}:s${s.season}`,
+        sender: "Eddie Kerr",
+        department: "Groundskeeper",
+        category: "facilities",
+        priority: "normal",
+        subject: `Proposal — ${spec.title} on ${worst.name}`,
+        body:
+          `${spec.description}\n\nCost £${spec.cost.toLocaleString("en-GB")} over ` +
+          `${spec.durationWeeks} week(s). Approving here raises exactly the same ` +
+          `project as the Facilities office would.`,
+        expiresInWeeks: 4,
+        choices: [
+          {
+            id: "approve",
+            label: `Approve — £${spec.cost.toLocaleString("en-GB")}`,
+            hint: "Raises the project through the Facilities department.",
+            requirements: [{ kind: "cash", amount: spec.cost }],
+            effects: [
+              { kind: "infraApproveProject", assetId: worst.id, projectType: spec.type },
+            ],
+          },
+          { id: "decline", label: "Not now", hint: "No cost. No work.", effects: [] },
+        ],
+      }),
+    ];
+  },
+};
+
+/* -- Works bulletin: one informational item per infrastructure record -- */
+const RECORD_SUBJECT: Record<string, string> = {
+  delay: "Programme delay",
+  overrun: "Cost overrun",
+  cancellation: "Works cancelled",
+  emergencyClosure: "Emergency closure",
+  reopening: "Reopened",
+  repair: "Works completed",
+  refurbishment: "Refurbishment completed",
+  redevelopment: "Redevelopment completed",
+  expansion: "Expansion completed",
+  newFacility: "New facility open",
+  capacityChange: "Capacity change",
+};
+
+const G_INFRA_WORKS_UPDATE: Generator = {
+  id: "facilities-works-update",
+  run: (s) => {
+    if (!s.infrastructure) return [];
+    const nowAbs = absoluteWeek(s.season, s.week);
+    const items: InboxItem[] = [];
+    for (const r of s.infrastructure.history) {
+      if (!(r.kind in RECORD_SUBJECT)) continue;
+      if (nowAbs - r.absoluteWeek > 2 || r.absoluteWeek > nowAbs) continue;
+      items.push(
+        mk(s, "facilities-works-update", {
+          eventKey: `facilities-works-update:${r.id}`,
+          sender: "Eddie Kerr",
+          department: "Groundskeeper",
+          category: "facilities",
+          priority: r.kind === "overrun" || r.kind === "delay" ? "high" : "normal",
+          subject: `${RECORD_SUBJECT[r.kind]} — ${r.assetName}`,
+          body:
+            `${r.description}.` +
+            (r.cost > 0 ? ` Cost booked: £${r.cost.toLocaleString("en-GB")}.` : "") +
+            ` Condition ${r.conditionBefore}% → ${r.conditionAfter}%.`,
+        }),
+      );
+    }
+    // Halfway milestone on live work.
+    for (const p of infraActiveProjects(s)) {
+      if (p.progress < 50) continue;
+      const a = infraAssetById(s, p.assetId);
+      items.push(
+        mk(s, "facilities-works-update", {
+          eventKey: `facilities-works-update:milestone:${p.id}:50`,
+          sender: "Eddie Kerr",
+          department: "Groundskeeper",
+          category: "facilities",
+          priority: "low",
+          subject: `${p.title} — halfway`,
+          body: `${p.title}${a ? ` on ${a.name}` : ""} has passed the halfway mark.`,
+        }),
+      );
+    }
+    return items;
+  },
+};
+
 const GENERATORS: Generator[] = [
   G_WELCOME,
   G_FINANCE_WEEKLY,
@@ -1617,6 +1830,10 @@ const GENERATORS: Generator[] = [
   G_RECRUITMENT_DEAL_AGREED,
   G_RECRUITMENT_CONTRACT_EXPIRING,
   G_RECRUITMENT_TRANSFER_DONE,
+  G_INFRA_WARNING,
+  G_INFRA_CRITICAL,
+  G_INFRA_PROPOSAL,
+  G_INFRA_WORKS_UPDATE,
 ];
 for (const g of GENERATORS) KNOWN_GENERATOR_IDS.add(g.id);
 
