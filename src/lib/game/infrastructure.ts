@@ -379,6 +379,7 @@ export function disruptionFor(s: GameState, assetId: string) {
 /** Usable capacity = nominal × condition band × live construction disruption. */
 export function usableCapacityOf(s: GameState, a: InfrastructureAsset): number {
   if (a.capacity <= 0) return 0;
+  if (a.status === "closed") return 0; // a shut stand sells no tickets
   const factor = capacityFactorFor(a.type, a.condition) * disruptionFor(s, a.id).capacityFactor;
   return clamp(int(a.capacity * factor), 0, a.capacity);
 }
@@ -507,7 +508,13 @@ export function recomputeDerived(s: GameState): void {
     a.upgradePath = availableProjectTypes(a);
     const live = projectForAsset(s, a.id);
     a.activeProjectId = live?.id ?? null;
-    a.status = live ? "underConstruction" : statusForCondition(a.condition);
+    // A deliberate closure survives recomputation: only reopenAssetInPlace
+    // may lift it. Otherwise the status follows condition.
+    a.status = live
+      ? "underConstruction"
+      : a.status === "closed"
+        ? "closed"
+        : statusForCondition(a.condition);
   }
 }
 
