@@ -35,8 +35,15 @@ const facilityEntries = (s: GameState) =>
   (s.financeLedger ?? []).filter((e) => e.sourceSystem === "facilities");
 const src = (f: string) => readFileSync(`src/lib/game/${f}`, "utf8");
 
-function fixture(seed = "INFRA_AUDIT"): GameState {
+const BASE = (() => {
   const g = newGame("Audit FC", "Auditor");
+  g.saveSeed = "INFRA_AUDIT";
+  return g;
+})();
+
+/** Every fixture is a clone of one generated world: only the seed varies. */
+function fixture(seed = "INFRA_AUDIT"): GameState {
+  const g = structuredClone(BASE);
   g.saveSeed = seed;
   return g;
 }
@@ -82,11 +89,10 @@ console.log("\n[A] Asset state");
 ========================================================================= */
 console.log("\n[B] Deterioration and maintenance");
 {
-  const a = fixture(); const b = fixture();
+  const a = fixture(); const b = clone(a);
   const period = periodIndexFor(absoluteWeek(a.season, a.week)) + 1;
-  const asset = assets(a)[0];
   check("6. deterioration is deterministic",
-    deteriorationFor(a, asset, period) === deteriorationFor(b, assets(b)[0], period));
+    deteriorationFor(a, assets(a)[0], period) === deteriorationFor(b, assets(b)[0], period));
 
   const s = fixture();
   s.week = 1 + DETERIORATION_PERIOD_WEEKS * 2;
@@ -170,9 +176,13 @@ function runProject(s: GameState, weeks: number) {
   check("16. instalments post exactly once", new Set(keys).size === keys.length && pays.length > 0);
   check("17. progress advances exactly once per week", p.weeksWorked <= p.durationWeeks + p.delayWeeks);
   const condAfter = assetById(s, "pitch")!.condition;
+  const completionRecords = () =>
+    s.infrastructure.history.filter((h) => h.projectId === p.id && h.description.includes("completed")).length;
+  const recBefore = completionRecords();
   runProject(s, 3);
   check("18. completion effects apply once",
-    Math.abs(assetById(s, "pitch")!.condition - condAfter) < 3 && p.effectsApplied === true);
+    p.effectsApplied === true && completionRecords() === recBefore &&
+    assetById(s, "pitch")!.condition <= condAfter);
   const completions = s.infrastructure.history.filter((h) => h.projectId === p.id && h.cost > 0);
   check("19. project history appends once (one costed completion record)", completions.length === 1);
   check("20. completed projects never reactivate",
@@ -191,8 +201,11 @@ console.log("\n[D] Delays and overruns");
   const r3 = riskOutcome("SEED_B", "CP-0001", spec);
   check("21. delay outcomes are deterministic", r1.delayWeeks === r2.delayWeeks);
   check("22. overrun outcomes are deterministic", r1.overrunPct === r2.overrunPct);
+  const variety = new Set(
+    Array.from({ length: 40 }, (_, i) => JSON.stringify(riskOutcome(`S${i}`, "CP-0001", spec))),
+  );
   check("22b. different seeds can produce different risk",
-    JSON.stringify(r1) !== JSON.stringify(r3) || r1.delayWeeks + r1.overrunPct === 0);
+    variety.size > 1 && JSON.stringify(r3) === JSON.stringify(riskOutcome("SEED_B", "CP-0001", spec)));
 
   // Find a save seed whose first project both slips and overruns.
   let found: GameState | null = null;
@@ -244,10 +257,13 @@ console.log("\n[D] Delays and overruns");
 console.log("\n[E] Cancellation");
 {
   const s = rich();
-  assetById(s, "pitch")!.condition = 40;
-  const r = approve(s, "pitch", "majorRepair");
+  const standId = assets(s).find((x) => x.type === "stand")!.id;
+  assetById(s, standId)!.condition = 35;
+  const longType: CapitalProjectType =
+    specFor(s, standId, "refurbishment") ? "refurbishment" : "majorRepair";
+  const r = approve(s, standId, longType);
   const pid = r.projectId!;
-  runProject(s, 2);
+  runProject(s, 1);
   const spentBefore = projectById(s, pid)!.spentToDate;
   const cashBefore = s.cash;
   const c1 = cancelProjectInPlace(s, pid);
@@ -260,7 +276,7 @@ console.log("\n[E] Cancellation");
   check("29. cancellation penalty posts once", penalties.length === 1);
   check("29b. penalty is 15% of the unpaid commitment",
     penalties.length === 1 && penalties[0].amount > 0 &&
-    Math.abs(penalties[0].amount - Math.round((cashBefore - cashAfterFirst))) < 2 &&
+    Math.abs(penalties[0].amount - (cashBefore - cashAfterFirst)) < 2 &&
     CANCELLATION_PENALTY_PCT === 0.15);
   check("30. spent funds are not refunded",
     s.cash <= cashBefore && projectById(s, pid)!.spentToDate >= spentBefore);
@@ -437,7 +453,7 @@ console.log("\n[H] Cross-system modifiers");
     a.level = ASSET_CONFIG[a.type].maxLevel;
     a.qualityRating = 95;
   }
-  const bad = rich();
+  const bad = clone(good);
   for (const id of ["shop", "hospitality", "offices"]) {
     const a = assetById(bad, id)!;
     a.condition = 12;
@@ -449,7 +465,7 @@ console.log("\n[H] Cross-system modifiers");
   check("50. Commercial reads commercialPower (good > bad)", pGood > pBad, `${pGood} vs ${pBad}`);
   check("50b. facilities do not overwhelm reputation", pGood - pBad <= 24, `${pGood - pBad}`);
 
-  const recGood = rich(); const recBad = rich();
+  const recGood = rich(); const recBad = clone(recGood);
   for (const id of ["training", "medical"]) {
     const a = recGood.infrastructure.assets.find((x) => x.id === id)!;
     a.condition = a.maximumCondition; a.level = ASSET_CONFIG[a.type].maxLevel; a.qualityRating = 95;
