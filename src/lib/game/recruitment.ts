@@ -27,6 +27,7 @@ import { hashString, seededRng, rngInt, rngRange } from "./rng";
 import { absoluteWeek, WEEKS_PER_SEASON } from "./time";
 import { postEntry } from "./finance";
 import { clubReputation } from "./reputation";
+import { facilityModifiers } from "./infrastructure";
 
 const int = (n: number) => Math.round(n) || 0;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -441,7 +442,11 @@ export function wageDemand(s: GameState, p: FootballPlayer, role: SquadRole = "F
   const roleFactor = role === "Key Player" ? 1.15 : role === "First Team" ? 1 : role === "Rotation" ? 0.9 : 0.8;
   const ambitionGap = clamp(1 + (clubReputation(s, s.clubName) - p.reputation) / 240, 0.85, 1.2);
   const personality = p.personality === "Mercenary" ? 1.15 : p.personality === "Loyal" ? 0.92 : 1;
-  return Math.max(250, int((p.wageExpectation * roleFactor * personality) / ambitionGap / 25) * 25);
+  // Canonical infrastructure signal: good training/medical/pitch facilities
+  // shave a little off wage demands, poor ones add to them. Capped at +/-6%.
+  const attraction = clamp(facilityModifiers(s).recruitmentAttraction, -15, 15);
+  const facilityFactor = clamp(1 - attraction / 250, 0.94, 1.06);
+  return Math.max(250, int((p.wageExpectation * roleFactor * personality * facilityFactor) / ambitionGap / 25) * 25);
 }
 
 /**

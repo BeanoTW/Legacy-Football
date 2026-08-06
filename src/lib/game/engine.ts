@@ -262,8 +262,16 @@ export interface JoinTerms {
   note: string;
 }
 
-export function staffJoinTerms(clubReputation: number, staff: Staff): JoinTerms {
-  const gap = staff.reputation - clubReputation;
+export function staffJoinTerms(
+  clubReputation: number,
+  staff: Staff,
+  /** Canonical infrastructure staffAttraction points (see facilityModifiers). */
+  staffAttraction = 0,
+): JoinTerms {
+  // Facilities read as club standing to a prospective employee: capped so a
+  // small club with a great training ground is still a small club.
+  const effectiveRep = clubReputation + Math.max(-8, Math.min(8, staffAttraction));
+  const gap = staff.reputation - effectiveRep;
   let premiumPct = 0;
   let willing = true;
   let note = "Happy to join";
@@ -1454,7 +1462,7 @@ export function hireStaffMember(s: GameState, id: string): SpendResult {
   if (s.hiredStaff.some((h) => h.role === cand.role)) {
     return { state: s, ok: false, reason: `You already employ a ${cand.role}. Sack them first.` };
   }
-  const terms = staffJoinTerms(s.reputation, cand);
+  const terms = staffJoinTerms(s.reputation, cand, facilityModifiers(s).staffAttraction);
   if (!terms.willing) {
     return { state: s, ok: false, reason: `${cand.name} won't join a club of this reputation.` };
   }

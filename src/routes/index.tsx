@@ -56,6 +56,7 @@ import { BoardTab } from "@/components/BoardTab";
 import { CommercialTab } from "@/components/CommercialTab";
 import { RecruitmentTab } from "@/components/RecruitmentTab";
 import { FacilitiesTab } from "@/components/FacilitiesTab";
+import { facilityModifiers } from "@/lib/game/infrastructure";
 import { useGame } from "@/hooks/useGame";
 import type { GameState, Stand, Staff, StaffRole } from "@/lib/game/types";
 import {
@@ -1436,7 +1437,7 @@ function StaffTab({
 
   const enriched = state.staffCandidates.map((c) => ({
     staff: c,
-    terms: staffJoinTerms(state.reputation, c),
+    terms: staffJoinTerms(state.reputation, c, facilityModifiers(state).staffAttraction),
   }));
 
   const filtered = enriched
