@@ -55,7 +55,7 @@ function rich(seed = "INFRA_AUDIT", cash = 30_000_000): GameState {
   postEntry(g, {
     category: "Miscellaneous", subcategory: "Benefactor injection",
     description: "Test capital injection", amount: cash - Math.round(g.cash),
-    direction: "income", sourceSystem: "manual", dedupeKey: `test-injection:${seed}`,
+    direction: "income", sourceSystem: "engine.opening", dedupeKey: `test-injection:${seed}`,
   });
   return g;
 }
