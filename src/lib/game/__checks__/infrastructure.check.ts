@@ -16,7 +16,7 @@ import {
   setMaintenancePolicyInPlace, specFor, stadiumCapacity, stadiumUsableCapacity,
   usableCapacityOf,
 } from "../infrastructure";
-import { reconcile, entriesFor } from "../finance";
+import { reconcile } from "../finance";
 import { commercialPower } from "../commercial";
 import { wageDemand } from "../recruitment";
 import { runWeeklyGenerators, handleInboxChoice, isKnownGeneratorId } from "../inbox";
@@ -31,6 +31,8 @@ function check(label: string, cond: boolean, extra?: string) {
 }
 
 const clone = <T,>(x: T): T => structuredClone(x);
+const facilityEntries = (s: GameState) =>
+  (s.financeLedger ?? []).filter((e) => e.sourceSystem === "facilities");
 const src = (f: string) => readFileSync(`src/lib/game/${f}`, "utf8");
 
 function fixture(seed = "INFRA_AUDIT"): GameState {
@@ -108,9 +110,9 @@ console.log("\n[B] Deterioration and maintenance");
 
   const p = fixture();
   postInfrastructureWeek(p);
-  const spend1 = entriesFor(p, { sourceSystem: "facilities" }).length;
+  const spend1 = facilityEntries(p).length;
   postInfrastructureWeek(p);
-  const spend2 = entriesFor(p, { sourceSystem: "facilities" }).length;
+  const spend2 = facilityEntries(p).length;
   check("10. maintenance payments post once", spend1 === spend2 && spend1 > 0);
 
   const r = fixture();
@@ -162,7 +164,7 @@ function runProject(s: GameState, weeks: number) {
   const spec = specFor(s, "pitch", "majorRepair")!;
   runProject(s, spec.durationWeeks + 6);
   const p = projectById(s, first.projectId!)!;
-  const pays = entriesFor(s, { sourceSystem: "facilities" })
+  const pays = facilityEntries(s)
     .filter((e) => e.linkedEntityId === p.id);
   const keys = pays.map((e) => e.dedupeKey);
   check("16. instalments post exactly once", new Set(keys).size === keys.length && pays.length > 0);
@@ -223,7 +225,7 @@ console.log("\n[D] Delays and overruns");
 
     runProject(s0, base.durationWeeks + p0.delayWeeks + 6);
     const done = projectById(s0, pid)!;
-    const overrunEntries = entriesFor(s0, { sourceSystem: "facilities" })
+    const overrunEntries = facilityEntries(s0)
       .filter((e) => e.linkedEntityId === pid && e.subcategory === "Project overrun");
     check("26. overrun payment posts exactly once", overrunEntries.length === 1);
     const finalRec = s0.infrastructure.history
@@ -253,7 +255,7 @@ console.log("\n[E] Cancellation");
   const c2 = cancelProjectInPlace(s, pid);
   check("28. cancellation is idempotent",
     c1.ok && c2.ok && s.cash === cashAfterFirst);
-  const penalties = entriesFor(s, { sourceSystem: "facilities" })
+  const penalties = facilityEntries(s)
     .filter((e) => e.linkedEntityId === pid && e.subcategory === "Cancellation penalty");
   check("29. cancellation penalty posts once", penalties.length === 1);
   check("29b. penalty is 15% of the unpaid commitment",
