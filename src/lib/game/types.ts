@@ -1240,7 +1240,7 @@ export interface InfrastructureState {
 
 export interface GameState {
   /** Save schema version. Bump + add a migration in loadGame when persisted shape changes. */
-  version: 10;
+  version: 11;
 
 
 
