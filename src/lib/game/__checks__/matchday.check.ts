@@ -33,6 +33,8 @@ const src = (f: string) => readFileSync(`src/lib/game/${f}`, "utf8");
 const reload = (s: GameState): GameState =>
   migrateSave(JSON.parse(JSON.stringify(s)) as unknown as Record<string, unknown>);
 
+type LegacySave = Omit<GameState, "version"> & { version: number };
+
 const BASE = (() => {
   const g = newGame("Audit FC", "Auditor");
   g.saveSeed = "MATCHDAY_AUDIT";
@@ -374,7 +376,7 @@ console.log("\n[J] Save / migration");
   check("J43a. schema version bumped", SAVE_VERSION === 11);
   const started = startMatchDay(clone(PRE));
   // Simulate a pre-v11 save: strip the new fields and drop the version.
-  const legacyRaw = JSON.parse(JSON.stringify(started)) as GameState & { version: number };
+  const legacyRaw = JSON.parse(JSON.stringify(started)) as LegacySave;
   legacyRaw.version = 10;
   const lmAny = legacyRaw.liveMatch as unknown as Record<string, unknown>;
   const before = JSON.parse(JSON.stringify(lmAny));
@@ -395,7 +397,7 @@ console.log("\n[J] Save / migration");
   check("J45. migration is idempotent", JSON.stringify(m3) === JSON.stringify(m1));
 
   const played = commitLiveMatchAndAdvance(applyHalfTimeChoice(kickoff(clone(started)), "steady"));
-  const legacyPlayed = JSON.parse(JSON.stringify(played)) as GameState & { version: number };
+  const legacyPlayed = JSON.parse(JSON.stringify(played)) as LegacySave;
   legacyPlayed.version = 10;
   const m4 = migrateSave(JSON.parse(JSON.stringify(legacyPlayed)) as unknown as Record<string, unknown>);
   check("J46. existing completed matches are untouched",
@@ -406,7 +408,7 @@ console.log("\n[J] Save / migration");
     (m4.seasonHistory ?? []).length === (played.seasonHistory ?? []).length);
   check("J47b. a save with no match in flight is unchanged apart from version",
     (() => {
-      const plain = JSON.parse(JSON.stringify(PRE)) as GameState & { version: number };
+      const plain = JSON.parse(JSON.stringify(PRE)) as LegacySave;
       plain.version = 10;
       const out = migrateSave(JSON.parse(JSON.stringify(plain)) as unknown as Record<string, unknown>);
       return out.liveMatch == null && out.version === SAVE_VERSION;
