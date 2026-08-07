@@ -446,11 +446,13 @@ console.log("\n[K] Purity");
 ========================================================================= */
 console.log("\n[L] Static audit");
 {
-  const md = src("matchday.ts");
+  /** Comments may legitimately *mention* the banned APIs; strip them first. */
+  const strip = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  const md = strip(src("matchday.ts"));
   check("L1. matchday.ts has no Math.random", !/Math\.random/.test(md));
   check("L2. matchday.ts has no Date.now", !/Date\.now/.test(md));
   check("L3. matchday.ts has no crypto.randomUUID", !/randomUUID/.test(md));
-  const eng = src("engine.ts");
+  const eng = strip(src("engine.ts"));
   const live = eng.slice(eng.indexOf("export function startMatchDay"),
     eng.indexOf("export function cancelLiveMatch"));
   check("L4. live-match path has no Math.random", !/Math\.random/.test(live));
