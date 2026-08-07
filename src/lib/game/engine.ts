@@ -34,6 +34,11 @@ import {
 } from "./league";
 import { mulberry32, hashString } from "./rng";
 import {
+  matchIdentity, matchSeedBase, preMatchKey, matchStream, seedOf,
+  weatherFor, halfGoals, halfPresentation, liveTvIncome, liveOpponentStrength,
+} from "./matchday";
+
+import {
   initClubReputations, storePredictions, clubStrengthFor,
 } from "./reputation";
 import {
