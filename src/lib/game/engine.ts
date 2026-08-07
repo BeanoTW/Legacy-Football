@@ -1028,8 +1028,40 @@ export function migrateSave(parsed: Record<string, unknown>): GameState {
     p.version = 10;
   }
 
+  // v10 → v11: canonical live-match identity.
+  //
+  // LiveMatch gained a persisted seed root plus fixture/league/round identity
+  // and a `committed` flag so an interactive match is deterministic,
+  // resumable and exactly-once. Purely additive:
+  //   - Saves with no match in flight are untouched.
+  //   - An in-flight legacy match keeps its already-shown score, events,
+  //     weather and attendance; only the missing identity fields are
+  //     backfilled, derived from the save itself (no clock, no randomness),
+  //     so the migration is deterministic and idempotent.
+  //   - No historical MatchRecord, ledger entry or result is created, altered
+  //     or fabricated.
+  if (p.version < 11) {
+    const st = p as unknown as GameState;
+    const lm = st.liveMatch;
+    if (lm) {
+      const ident = matchIdentity(st);
+      lm.matchSeed ??= ident
+        ? matchSeedBase(st.saveSeed, ident, preMatchKey({ squadRating: squadRating(st) }))
+        : `${st.saveSeed}|live-match|s${st.season}|w${st.week}|${lm.fixture.opponent}`;
+      lm.fixtureId ??= ident?.fixtureId;
+      lm.leagueId ??= ident?.leagueId;
+      lm.season ??= st.season;
+      lm.round ??= ident?.round;
+      lm.homeClub ??= ident?.homeClub;
+      lm.awayClub ??= ident?.awayClub;
+      lm.committed ??= false;
+    }
+    p.version = 11;
+  }
+
   // Every step above has run: the save is now at the current schema.
   p.version = SAVE_VERSION;
+
 
   return p as GameState;
 }
