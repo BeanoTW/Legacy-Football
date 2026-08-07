@@ -568,7 +568,21 @@ export interface LiveMatch {
   tvIncome: number;
   matchdayOps: number;
   winBonus: number;
+  /* ---- Canonical identity (v11+). Optional so pre-v11 in-flight matches
+     still load; migrateSave backfills them deterministically. ---- */
+  /** Seed root for every RNG substream of this match. */
+  matchSeed?: string;
+  /** Canonical league fixture id — the exactly-once completion key. */
+  fixtureId?: string;
+  leagueId?: string;
+  season?: number;
+  round?: number;
+  homeClub?: string;
+  awayClub?: string;
+  /** Set once the full-time result has been committed to the world. */
+  committed?: boolean;
 }
+
 
 /* =========================================================================
    CLUB FINANCE
