@@ -34,6 +34,11 @@ import {
 } from "./league";
 import { mulberry32, hashString } from "./rng";
 import {
+  matchIdentity, matchSeedBase, preMatchKey, matchStream, seedOf,
+  weatherFor, halfGoals, halfPresentation, liveTvIncome, liveOpponentStrength,
+} from "./matchday";
+
+import {
   initClubReputations, storePredictions, clubStrengthFor,
 } from "./reputation";
 import {
@@ -320,7 +325,7 @@ export function newGame(clubName: string, managerName: string): GameState {
  * than keeping their own copies (which silently rot on every migration).
  * Bump this whenever a new `if (p.version < N)` migration step is added.
  */
-export const SAVE_VERSION = 10;
+export const SAVE_VERSION = 11;
 
 function _newGameSeed(clubName: string, managerName: string): GameState {
   const saveSeed = `${clubName}|${managerName}|${Date.now().toString(36)}`;
@@ -1023,8 +1028,40 @@ export function migrateSave(parsed: Record<string, unknown>): GameState {
     p.version = 10;
   }
 
+  // v10 → v11: canonical live-match identity.
+  //
+  // LiveMatch gained a persisted seed root plus fixture/league/round identity
+  // and a `committed` flag so an interactive match is deterministic,
+  // resumable and exactly-once. Purely additive:
+  //   - Saves with no match in flight are untouched.
+  //   - An in-flight legacy match keeps its already-shown score, events,
+  //     weather and attendance; only the missing identity fields are
+  //     backfilled, derived from the save itself (no clock, no randomness),
+  //     so the migration is deterministic and idempotent.
+  //   - No historical MatchRecord, ledger entry or result is created, altered
+  //     or fabricated.
+  if (p.version < 11) {
+    const st = p as unknown as GameState;
+    const lm = st.liveMatch;
+    if (lm) {
+      const ident = matchIdentity(st);
+      lm.matchSeed ??= ident
+        ? matchSeedBase(st.saveSeed, ident, preMatchKey({ squadRating: squadRating(st) }))
+        : `${st.saveSeed}|live-match|s${st.season}|w${st.week}|${lm.fixture.opponent}`;
+      lm.fixtureId ??= ident?.fixtureId;
+      lm.leagueId ??= ident?.leagueId;
+      lm.season ??= st.season;
+      lm.round ??= ident?.round;
+      lm.homeClub ??= ident?.homeClub;
+      lm.awayClub ??= ident?.awayClub;
+      lm.committed ??= false;
+    }
+    p.version = 11;
+  }
+
   // Every step above has run: the save is now at the current schema.
   p.version = SAVE_VERSION;
+
 
   return p as GameState;
 }
@@ -1165,52 +1202,32 @@ function positionNeed(s: GameState): Record<Position, number> {
 
    DETERMINISM STATUS — READ BEFORE EXTENDING
    -------------------------------------------------------------------------
-   The AUTO-RESOLVED matchday path (advanceWeek → resolveWeek, league fixtures
-   and friendlies) is fully seeded and replay-safe. The INTERACTIVE live match
-   below is NOT. It is the only remaining source of unseeded randomness in the
-   simulation, and `liveMatch` IS persisted into the save (GameState.liveMatch
-   is written to storage by useGame), so a reload mid-match resumes a state
-   whose future rolls cannot be reproduced.
+   Both matchday paths are now fully seeded and replay-safe:
 
-   Remaining Math.random() sites in the live overlay:
+     - AUTO-RESOLVED (advanceWeek → resolveWeek, league fixtures, friendlies)
+       seeds from (saveSeed, season, round, home, away).
+     - INTERACTIVE (startMatchDay → kickoff → applyHalfTimeChoice → commit)
+       seeds from `matchSeedBase(saveSeed, identity, preMatchKey)` in
+       ./matchday, and the seed root is PERSISTED on LiveMatch.matchSeed.
 
-     startMatchDay()  oppStrength (55 + rand*20)   gameplay-significant, PERSISTED
-                      weather (pick)                cosmetic, persisted
-                      projectedAttendance           gameplay-significant, persisted
-     halfEvents()     poisson() goal counts         gameplay-significant, persisted via score
-                      goal minutes (randInt)        cosmetic, persisted in events
-                      chance count/side/text        cosmetic, persisted in events
-                      card roll (0.55) + side       cosmetic, persisted in events
-     kickoff()/       both halves draw from the
-     applyHalfTime()  same unseeded pool            gameplay-significant, persisted
-     applyHalfTime()  tvIncome (22k + rand*8k)      gameplay-significant, rolled
-                                                    once at full-time and then
-                                                    PERSISTED; commit only books it
+   RNG substreams (./matchday) are independent generators, never one shared
+   cursor: brief, weather, attendance, h1.score, h1.events, h1.cards,
+   h2.score, h2.events, h2.cards, halftime, finance. Adding or removing a
+   cosmetic draw therefore cannot move a scoreline, attendance or any money.
 
-   Reload behaviour:
-     - Before kickoff (status "brief"): the brief — opponent strength, weather,
-       projected attendance — was already rolled and saved, so it survives
-       intact. No re-roll. Safe.
-     - During the first half: the first half is computed atomically inside
-       kickoff(); there is no partial half state. A reload lands either before
-       kickoff or at half-time.
-     - At half-time (status "halfTime"): the first-half score and events are
-       persisted and stable. Safe.
-     - During the second half: likewise atomic inside applyHalfTimeChoice();
-       a reload lands at half-time or full-time.
-     - Before committing full-time (status "fullTime"): the whole 90 minutes,
-       including the final score, is persisted. Committing only books finance
-       and the league record, plus the one tvIncome roll.
+   Lifecycle:
+     fixture -> brief -> first half -> halfTime -> second half -> fullTime
+             -> commit (exactly once) -> weekly advance
 
-   So no half is ever replayed from a partial state, and nothing already shown
-   to the player is silently re-rolled. The correctness risk is different: an
-   unfavourable half can be re-rolled by discarding the save and replaying the
-   week, because the outcome is not a function of (saveSeed, season, week).
-   Save-scumming the live match is therefore possible, and the live match is
-   not byte-reproducible. NEXT DETERMINISM HARDENING TASK: thread a seeded RNG
-   (`seededRng(saveSeed, "live", season, week, half)`) through startMatchDay,
-   halfEvents, poisson and commitFullTime, and store the draw counter on
-   LiveMatch so resumed matches continue the same stream.
+   Resume safety: every stage's outputs are persisted, and every future draw
+   is a pure function of the persisted seed root, so a reload at brief,
+   halfTime or fullTime resumes byte-identically and nothing re-rolls.
+
+   Exactly-once: commitLiveMatchAndAdvance is guarded by LiveMatch.committed
+   AND by canonical fixture completion (a MatchRecord with the same
+   fixtureId). All money flows through postMatchdayFinance, whose dedupe keys
+   are derived from (season, week, opponent), so a duplicate invocation
+   cannot duplicate a single pound.
    ========================================================================= */
 
 function formGuide(s: GameState): string {
@@ -1221,11 +1238,17 @@ function formGuide(s: GameState): string {
 export function startMatchDay(s: GameState): GameState {
   const fx = s.fixtures.find((f) => f.week === s.week);
   if (!fx) return s;
+  const ident = matchIdentity(s);
   const ns: GameState = structuredClone(s);
   const ourStrength = squadRating(ns) + (fx.home ? 3 : 0);
-  const oppStrength = 55 + Math.random() * 20;
-  const projectedAttendance = simAttendance(ns, fx.home, oppStrength);
-  const weather = pick(["Clear", "Overcast", "Wet", "Windy"] as const);
+  const seedBase = ident
+    ? matchSeedBase(ns.saveSeed, ident, preMatchKey({ squadRating: squadRating(ns) }))
+    : `${ns.saveSeed}|live-match|s${ns.season}|w${ns.week}|${fx.opponent}`;
+  const oppStrength = liveOpponentStrength(seedBase);
+  const projectedAttendance = simAttendance(
+    ns, fx.home, oppStrength, matchStream(seedBase, "attendance"),
+  );
+  const weather = weatherFor(seedBase);
   const boardExpectation: LiveMatch["boardExpectation"] =
     ourStrength > oppStrength + 5
       ? "Win"
@@ -1249,85 +1272,25 @@ export function startMatchDay(s: GameState): GameState {
     tvIncome: 0,
     matchdayOps: 0,
     winBonus: 0,
+    matchSeed: seedBase,
+    fixtureId: ident?.fixtureId,
+    leagueId: ident?.leagueId,
+    season: ns.season,
+    round: ident?.round,
+    homeClub: ident?.homeClub,
+    awayClub: ident?.awayClub,
+    committed: false,
   };
   return ns;
 }
 
-function halfEvents(
-  lm: LiveMatch,
-  fromMin: number,
-  toMin: number,
-  attackMod: number,
-  defenseMod: number,
-): { events: MatchEvent[]; usGoals: number; themGoals: number } {
-  const us = Math.max(0.1, (1.3 + (lm.ourStrength - lm.oppStrength) / 20) * attackMod / 2);
-  const them = Math.max(0.1, (1.3 - (lm.ourStrength - lm.oppStrength) / 20) / defenseMod / 2);
-  const usGoals = poisson(us);
-  const themGoals = poisson(them);
-  const events: MatchEvent[] = [];
-  const goalMinsUs = Array.from({ length: usGoals }, () => randInt(fromMin + 1, toMin));
-  const goalMinsThem = Array.from({ length: themGoals }, () => randInt(fromMin + 1, toMin));
-  const chances = randInt(2, 4);
-  for (let i = 0; i < chances; i++) {
-    events.push({
-      minute: randInt(fromMin + 1, toMin),
-      type: "chance",
-      side: Math.random() < 0.5 ? "us" : "them",
-      text: pick([
-        "Half chance goes begging.",
-        "Corner cleared to safety.",
-        "Long-range effort skims the post.",
-        "Penalty shouts waved away.",
-        "Free-kick curled just over.",
-      ]),
-    });
-  }
-  if (Math.random() < 0.55) {
-    events.push({
-      minute: randInt(fromMin + 1, toMin),
-      type: "card",
-      side: Math.random() < 0.5 ? "us" : "them",
-      text: "Yellow card shown.",
-    });
-  }
-  for (const m of goalMinsUs)
-    events.push({
-      minute: m,
-      type: "goal",
-      side: "us",
-      text: `GOAL — ${pick(FIRST)}. ${pick(LAST)} finds the net!`,
-    });
-  for (const m of goalMinsThem)
-    events.push({
-      minute: m,
-      type: "goal",
-      side: "them",
-      text: `${lm.fixture.opponent} score.`,
-    });
-  return { events: events.sort((a, b) => a.minute - b.minute), usGoals, themGoals };
-}
-
-function poisson(l: number): number {
-  let g = 0,
-    p = Math.exp(-l),
-    cum = p,
-    r = Math.random(),
-    k = 0;
-  while (r > cum && k < 8) {
-    k++;
-    p = (p * l) / k;
-    cum += p;
-    g = k;
-  }
-  return g;
-}
-
 export function kickoff(s: GameState): GameState {
-  if (!s.liveMatch) return s;
+  if (!s.liveMatch || s.liveMatch.status !== "brief") return s;
   const ns: GameState = structuredClone(s);
   const lm = ns.liveMatch!;
-  const { events, usGoals, themGoals } = halfEvents(lm, 0, 45, 1, 1);
-  lm.events = events;
+  const seedBase = seedOf(lm);
+  const { usGoals, themGoals } = halfGoals(seedBase, 1, lm.ourStrength, lm.oppStrength, 1, 1);
+  lm.events = halfPresentation(seedBase, 1, 0, 45, usGoals, themGoals, lm.fixture.opponent);
   lm.ourGoals += usGoals;
   lm.theirGoals += themGoals;
   lm.status = "halfTime";
@@ -1368,20 +1331,29 @@ export function kickoff(s: GameState): GameState {
 }
 
 export function applyHalfTimeChoice(s: GameState, choiceId: string): GameState {
-  if (!s.liveMatch || !s.liveMatch.halfTimeOptions) return s;
+  if (!s.liveMatch || s.liveMatch.status !== "halfTime") return s;
+  if (!s.liveMatch.halfTimeOptions) return s;
+  const opt0 = s.liveMatch.halfTimeOptions.find((o) => o.id === choiceId);
+  if (!opt0) return s;
   const ns: GameState = structuredClone(s);
   const lm = ns.liveMatch!;
   const opt = lm.halfTimeOptions!.find((o) => o.id === choiceId)!;
   lm.chosenNudgeId = choiceId;
-  const { events, usGoals, themGoals } = halfEvents(lm, 45, 90, opt.attackMod, opt.defenseMod);
-  lm.events = [...lm.events, ...events];
+  const seedBase = seedOf(lm);
+  const { usGoals, themGoals } = halfGoals(
+    seedBase, 2, lm.ourStrength, lm.oppStrength, opt.attackMod, opt.defenseMod,
+  );
+  lm.events = [
+    ...lm.events,
+    ...halfPresentation(seedBase, 2, 45, 90, usGoals, themGoals, lm.fixture.opponent),
+  ];
   lm.ourGoals += usGoals;
   lm.theirGoals += themGoals;
 
-  // finalise money
+  // finalise money — every figure deterministic, none of it booked yet
   lm.attendance = lm.fixture.home ? lm.projectedAttendance : 0;
   lm.gateReceipts = Math.round(lm.attendance * avgTicketPrice(ns));
-  lm.tvIncome = 22_000 + Math.round(Math.random() * 8000);
+  lm.tvIncome = liveTvIncome(seedBase);
   lm.matchdayOps = lm.fixture.home ? Math.round(6_500 + lm.attendance * 0.4) : 3_200;
   const result: "W" | "D" | "L" =
     lm.ourGoals > lm.theirGoals ? "W" : lm.ourGoals === lm.theirGoals ? "D" : "L";
@@ -1391,13 +1363,24 @@ export function applyHalfTimeChoice(s: GameState, choiceId: string): GameState {
   return ns;
 }
 
+/**
+ * Exactly-once full-time commit.
+ * Guarded twice: by the LiveMatch.committed flag and by canonical fixture
+ * completion. Neither a double click nor a resumed-then-recommitted save can
+ * post money, create a second MatchRecord or advance the week again.
+ */
 export function commitLiveMatchAndAdvance(prev: GameState): GameState {
   if (!prev.liveMatch || prev.liveMatch.status !== "fullTime") return prev;
   const lm = prev.liveMatch;
+  if (lm.committed) return { ...prev, liveMatch: null };
+  if (lm.fixtureId && (prev.matchRecords ?? []).some((r) => r.id === lm.fixtureId)) {
+    return { ...prev, liveMatch: null };
+  }
   const cleared: GameState = { ...prev, liveMatch: null };
   return advanceWeek(cleared, {
     gf: lm.ourGoals,
     ga: lm.theirGoals,
+
     attendance: lm.attendance,
     gate: lm.gateReceipts,
     tv: lm.tvIncome,
