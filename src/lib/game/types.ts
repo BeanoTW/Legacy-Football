@@ -69,7 +69,17 @@ export type InboxEffect =
   | { kind: "infraCloseAsset"; assetId: string }
   | { kind: "infraReopenAsset"; assetId: string }
 
-
+  /* Sustainability. Records a chairman's stated strategic intent. Creates a
+     promise the Board can later judge — it never moves or reserves cash. */
+  | {
+      kind: "strategicCommitment";
+      category: CommitmentCategory;
+      /** Weeks the chairman has to deliver. */
+      weeks: number;
+      /** Investment the Board expects to see, £. 0 = qualitative promise. */
+      targetInvestment?: number;
+      note?: string;
+    }
 
 
   | {
@@ -1238,9 +1248,65 @@ export interface InfrastructureState {
   seededSeason: number;
 }
 
+/* =========================================================================
+   Sustainability — strategic pressure, not another economy
+   -------------------------------------------------------------------------
+   Everything the sustainability layer reports is DERIVED from Finance,
+   Recruitment, Commercial, Infrastructure and the Board. The only state it
+   owns is (a) the chairman's stated commitments and (b) how long excess
+   cash has been sitting idle. It never holds a copy of a number another
+   system owns, and it never moves cash.
+========================================================================= */
+
+export type CommitmentCategory =
+  | "football" | "infrastructure" | "commercial" | "supporters" | "financial";
+
+export type CommitmentStatus = "open" | "fulfilled" | "failed";
+
+export interface StrategicCommitment {
+  id: string;
+  category: CommitmentCategory;
+  /** Free-text promise as it was put to the Board. */
+  description: string;
+  createdAbsoluteWeek: number;
+  deadlineAbsoluteWeek: number;
+  /** Capital the Board expects to see committed. 0 = qualitative promise. */
+  targetInvestment: number;
+  /** Measured spend/progress in the category at creation time. */
+  baseline: number;
+  owningDirectorRole: DirectorRole;
+  status: CommitmentStatus;
+  resolvedAbsoluteWeek: number | null;
+  /** Exactly-once guard: consequences applied. */
+  settled: boolean;
+}
+
+export interface SustainabilityState {
+  commitments: StrategicCommitment[];
+  history: {
+    id: string;
+    category: CommitmentCategory;
+    outcome: "fulfilled" | "failed";
+    absoluteWeek: number;
+    note: string;
+  }[];
+  /** Consecutive weeks cash has sat above the recommended reserve. */
+  excessWeeks: number;
+  /** Highest excess-cash streak ever reached. Used by Board narrative. */
+  peakExcessWeeks: number;
+  /** Idempotency guard for the weekly tick. */
+  lastTickAbsoluteWeek: number;
+  nextCommitmentId: number;
+}
+
+export type FinancialHealthState =
+  | "secure" | "healthy" | "tight" | "stressed" | "critical";
+
+
+
 export interface GameState {
   /** Save schema version. Bump + add a migration in loadGame when persisted shape changes. */
-  version: 11;
+  version: 12;
 
 
 
@@ -1330,6 +1396,10 @@ export interface GameState {
 
   /** Canonical physical club: assets, condition, capital projects, history. */
   infrastructure: InfrastructureState;
+
+  /** Strategic pressure layer: chairman commitments and excess-cash ageing. */
+  sustainability: SustainabilityState;
+
 
 
 
