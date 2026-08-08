@@ -315,6 +315,9 @@ export function newGame(clubName: string, managerName: string): GameState {
   ensureRecruitment(base);
   // Canonical physical club: stands, pitch, facilities and capital projects.
   ensureInfrastructure(base);
+  // Strategic pressure layer. Owns only commitments + the idle-cash clock;
+  // every number it reports is derived from the systems above.
+  ensureSustainability(base);
 
   return runWeeklyGenerators(base);
 }
@@ -325,7 +328,7 @@ export function newGame(clubName: string, managerName: string): GameState {
  * than keeping their own copies (which silently rot on every migration).
  * Bump this whenever a new `if (p.version < N)` migration step is added.
  */
-export const SAVE_VERSION = 11;
+export const SAVE_VERSION = 12;
 
 function _newGameSeed(clubName: string, managerName: string): GameState {
   const saveSeed = `${clubName}|${managerName}|${Date.now().toString(36)}`;
@@ -400,6 +403,7 @@ function _newGameSeed(clubName: string, managerName: string): GameState {
     commercial: undefined as unknown as GameState["commercial"],
     football: undefined as unknown as GameState["football"],
     infrastructure: undefined as unknown as GameState["infrastructure"],
+    sustainability: undefined as unknown as GameState["sustainability"],
   };
 
 }
@@ -1057,6 +1061,15 @@ export function migrateSave(parsed: Record<string, unknown>): GameState {
       lm.committed ??= false;
     }
     p.version = 11;
+  }
+
+  // v11 -> v12: strategic pressure layer.
+  //   - Adds SustainabilityState only. No cash, ledger entry, board review or
+  //     historical record is created or altered, so the step is a pure
+  //     structural upgrade and is idempotent by construction.
+  if (p.version < 12) {
+    ensureSustainability(p as unknown as GameState);
+    p.version = 12;
   }
 
   // Every step above has run: the save is now at the current schema.
