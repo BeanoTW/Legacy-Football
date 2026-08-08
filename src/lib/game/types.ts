@@ -1306,7 +1306,7 @@ export type FinancialHealthState =
 
 export interface GameState {
   /** Save schema version. Bump + add a migration in loadGame when persisted shape changes. */
-  version: 11;
+  version: 12;
 
 
 
