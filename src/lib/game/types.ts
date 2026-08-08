@@ -1397,6 +1397,10 @@ export interface GameState {
   /** Canonical physical club: assets, condition, capital projects, history. */
   infrastructure: InfrastructureState;
 
+  /** Strategic pressure layer: chairman commitments and excess-cash ageing. */
+  sustainability: SustainabilityState;
+
+
 
 
 }
