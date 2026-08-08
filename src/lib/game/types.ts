@@ -69,7 +69,17 @@ export type InboxEffect =
   | { kind: "infraCloseAsset"; assetId: string }
   | { kind: "infraReopenAsset"; assetId: string }
 
-
+  /* Sustainability. Records a chairman's stated strategic intent. Creates a
+     promise the Board can later judge — it never moves or reserves cash. */
+  | {
+      kind: "strategicCommitment";
+      category: CommitmentCategory;
+      /** Weeks the chairman has to deliver. */
+      weeks: number;
+      /** Investment the Board expects to see, £. 0 = qualitative promise. */
+      targetInvestment?: number;
+      note?: string;
+    }
 
 
   | {
