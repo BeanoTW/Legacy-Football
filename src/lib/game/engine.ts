@@ -25,6 +25,7 @@ import {
   ensureInfrastructure, runInfrastructureWeek, rollInfrastructureToNewSeason,
   stadiumCapacity, stadiumUsableCapacity, facilityModifiers,
 } from "./infrastructure";
+import { ensureSustainability, runSustainabilityWeek } from "./sustainability";
 import { ensureCommercial, runCommercialWeek, closeCommercialSeason } from "./commercial";
 
 import { CLUBS } from "./clubs";
@@ -724,6 +725,11 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   // Cash was already moved by the finance ledger; the legacy WeekLedger row
   // is a projection of this week's entries, rebuilt on every post.
   syncWeekLedger(s, s.season, s.week);
+
+  // ---- Strategic pressure ----
+  // Runs after the books are settled so it reads the finished week. Ages the
+  // idle-cash clock and settles due commitments. Posts nothing to the ledger.
+  runSustainabilityWeek(s);
   if (matchdayNote) {
     const row = s.ledger.find((l) => l.season === s.season && l.week === s.week);
     if (row) row.matchdayNote = matchdayNote;
