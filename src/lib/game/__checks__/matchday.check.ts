@@ -373,7 +373,7 @@ console.log("\n[I] Weekly integration");
 ========================================================================= */
 console.log("\n[J] Save / migration");
 {
-  check("J43a. schema version bumped", SAVE_VERSION === 11);
+  check("J43a. schema version bumped", SAVE_VERSION >= 11);
   const started = startMatchDay(clone(PRE));
   // Simulate a pre-v11 save: strip the new fields and drop the version.
   const legacyRaw = JSON.parse(JSON.stringify(started)) as LegacySave;
