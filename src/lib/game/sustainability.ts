@@ -31,6 +31,7 @@ import {
   FINANCE_PERIOD_WEEKS,
   entriesFor,
   leagueTierOf,
+  leagueDistributionWeekly,
   staffWageBill,
   playerWageBill,
 } from "./finance";
@@ -176,7 +177,7 @@ export function structuralWeeklyExpenditure(s: GameState): number {
 
 /** Run-rate weekly income excluding matchday spikes and one-off windfalls. */
 export function structuralWeeklyIncome(s: GameState): number {
-  return int(commercialWeeklyIncome(s) + (s.finance?.leagueDistributionWeekly ?? 0));
+  return int(commercialWeeklyIncome(s) + leagueDistributionWeekly(s));
 }
 
 /* =========================================================================
@@ -201,7 +202,7 @@ export function capitalCommitmentsWithin(s: GameState, weeks: number): number {
       (t, p) =>
         t +
         p.paymentSchedule
-          .filter((x) => !x.paid && x.dueAtAbsoluteWeek <= now + weeks)
+          .filter((x) => !x.paid && x.dueAbsoluteWeek <= now + weeks)
           .reduce((a, x) => a + x.amount, 0),
       0,
     ),
@@ -213,7 +214,7 @@ export function committedWages(s: GameState, weeks = 52): number {
   const now = absoluteWeek(s.season, s.week);
   let total = 0;
   for (const c of s.football?.contracts ?? []) {
-    if (c.clubId !== s.clubName || c.status !== "active") continue;
+    if (c.clubId !== s.clubName || c.status !== "Active") continue;
     const expiry = absoluteWeek(c.expirySeason, c.expiryWeek);
     const left = clamp(expiry - now, 0, weeks);
     total += c.weeklyWage * left;
@@ -231,7 +232,7 @@ export function contractExposure(s: GameState): number {
   let expiring = 0;
   let total = 0;
   for (const c of s.football?.contracts ?? []) {
-    if (c.clubId !== s.clubName || c.status !== "active") continue;
+    if (c.clubId !== s.clubName || c.status !== "Active") continue;
     total += c.weeklyWage;
     if (absoluteWeek(c.expirySeason, c.expiryWeek) - now <= 46) expiring += c.weeklyWage;
   }
@@ -352,9 +353,9 @@ export function squadNeed(s: GameState): number {
   if (!squad.length) return 1;
   const ours = squad.reduce((t, p) => t + p.currentAbility, 0) / squad.length;
   const league = s.leagues?.find((l) => l.id === s.playerLeagueId);
-  const rivals = (league?.clubs ?? []).filter((c) => c !== s.clubName);
+  const rivals = (league?.clubIds ?? []).filter((c: string) => c !== s.clubName);
   if (!rivals.length) return clamp01((60 - ours) / 25);
-  const par = rivals.reduce((t, c) => t + clubStrengthFor(s, c, s.season), 0) / rivals.length;
+  const par = rivals.reduce((a: number, c: string) => a + clubStrengthFor(s, c, s.season), 0) / rivals.length;
   // clubStrength and player ability share a 0-100 scale by construction.
   return clamp01((par - ours) / 20);
 }
@@ -419,17 +420,17 @@ export interface CapacityPicture {
 
 export function capacityPicture(s: GameState): CapacityPicture {
   const usable = stands(s).reduce((t, a) => t + usableCapacityOf(s, a), 0);
-  const home = (s.matchRecords ?? []).filter(
-    (m) => m.homeClub === s.clubName && typeof m.attendance === "number" && m.attendance > 0,
-  ).slice(-19);
-  const avg = home.length
-    ? home.reduce((t, m) => t + (m.attendance ?? 0), 0) / home.length
-    : 0;
+  // Attendance is owned by the finance ledger (gate receipts carry it as
+  // metadata); we never keep a second copy of it.
+  const gates = (s.financeLedger ?? [])
+    .filter((e) => e.category === "Matchday" && e.subcategory === "Ticket sales"
+      && e.metadata?.home === true)
+    .slice(-19);
+  const atts = gates.map((e) => Number(e.metadata?.attendance ?? 0)).filter((n) => n > 0);
+  const avg = atts.length ? atts.reduce((a, b) => a + b, 0) / atts.length : 0;
   const occupancy = usable > 0 ? clamp01(avg / usable) : 0;
-  const sellOuts = usable > 0
-    ? home.filter((m) => (m.attendance ?? 0) >= usable * 0.97).length
-    : 0;
-  const sellOutRate = home.length ? sellOuts / home.length : 0;
+  const sellOuts = usable > 0 ? atts.filter((a) => a >= usable * 0.97).length : 0;
+  const sellOutRate = atts.length ? sellOuts / atts.length : 0;
   // Selling out repeatedly is the signal; high occupancy alone is healthy.
   const pressure = clamp(
     int((clamp01((occupancy - 0.82) / 0.18) * 60 + sellOutRate * 40)),
