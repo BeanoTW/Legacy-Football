@@ -35,17 +35,17 @@ const reload = (s: GameState): GameState =>
 
 type LegacySave = Omit<GameState, "version"> & { version: number };
 
-const BASE = (() => {
-  const g = newGame("Audit FC", "Auditor");
-  g.saveSeed = "MATCHDAY_AUDIT";
-  return g;
-})();
+// Seeded world generation: the whole save (squads, schedule, simulation) is
+// reproducible across processes, so match outcomes are stable in this suite.
+const BASE = newGame("Audit FC", "Auditor", "MATCHDAY_AUDIT");
 
+const worlds = new Map<string, GameState>();
 function fixtureState(seed = "MATCHDAY_AUDIT"): GameState {
-  const g = clone(BASE);
-  g.saveSeed = seed;
-  return g;
+  if (seed === "MATCHDAY_AUDIT") return clone(BASE);
+  if (!worlds.has(seed)) worlds.set(seed, newGame("Audit FC", "Auditor", seed));
+  return clone(worlds.get(seed)!);
 }
+
 
 /** Wind the save forward to the club's first league fixture week. */
 function atFixture(seed = "MATCHDAY_AUDIT"): GameState {
@@ -55,7 +55,16 @@ function atFixture(seed = "MATCHDAY_AUDIT"): GameState {
   return s;
 }
 
+/** Wind forward to the club's first HOME fixture (gate/hospitality income). */
+function atHomeFixture(seed = "MATCHDAY_AUDIT"): GameState {
+  let s = fixtureState(seed);
+  const target = Math.min(...s.fixtures.filter((f) => f.home).map((f) => f.week));
+  while (s.week < target) s = advanceWeek(s);
+  return s;
+}
+
 const PRE = atFixture();
+
 
 /* =========================================================================
    [A] Identity
@@ -302,7 +311,7 @@ console.log("\n[G] Fixture completion");
 ========================================================================= */
 console.log("\n[H] Finance");
 {
-  const ft = applyHalfTimeChoice(kickoff(startMatchDay(clone(PRE))), "attack");
+  const ft = applyHalfTimeChoice(kickoff(startMatchDay(atHomeFixture())), "attack");
   const lm = ft.liveMatch!;
   const openingCash = ft.cash;
   const after = commitLiveMatchAndAdvance(clone(ft));
@@ -312,9 +321,9 @@ console.log("\n[H] Finance");
   check("H31. gate posts once", countOf("tickets") === 1);
   check("H32. TV posts once", countOf("broadcast") === 1);
   check("H33. matchday expense posts once", countOf("ops") === 1);
-  check("H34. conditional bonus posts once", countOf("winBonus") === 1);
-  check("H34b. bonus amount matches the condition",
-    (md.find((e) => e.dedupeKey === `${base}:winBonus`)?.amount ?? 0) === lm.winBonus);
+  check("H34pre. baseline seed posts no bonus unless it won",
+    countOf("winBonus") === (lm.winBonus > 0 ? 1 : 0));
+
   check("H35. every matchday posting has a stable fixture-derived dedupe key",
     md.length > 0 && md.every((e) => e.dedupeKey!.startsWith(`matchday:s${lm.season}:w${lm.fixture.week}:`)));
   check("H35b. dedupe keys are unique", new Set(md.map((e) => e.dedupeKey)).size === md.length);
@@ -340,6 +349,70 @@ console.log("\n[H] Finance");
   check("H37b. cash == opening cash + canonical ledger movement",
     Math.round(after.cash) === Math.round(openingCash + movement));
 }
+
+/* =========================================================================
+   [H34] Conditional win bonus — exactly-once, result-driven
+   Uses fixed seeds whose canonical full-time result is asserted first, so the
+   test verifies the posting rule rather than whether a seed happens to win.
+========================================================================= */
+console.log("\n[H34] Win bonus");
+{
+  const ftOf = (seed: string, choice: string) =>
+    applyHalfTimeChoice(kickoff(startMatchDay(atFixture(seed))), choice);
+
+  const win = ftOf("MD_AUDIT_1", "attack");
+  const wlm = win.liveMatch!;
+  check("H34a. precondition: canonical result is a win with a bonus on offer",
+    wlm.status === "fullTime" && wlm.ourGoals > wlm.theirGoals && wlm.winBonus > 0,
+    `${wlm.ourGoals}-${wlm.theirGoals} bonus=${wlm.winBonus}`);
+
+  const wAfter = commitLiveMatchAndAdvance(clone(win));
+  const wBase = matchdayKey({
+    season: wlm.season!, week: wlm.fixture.week, opponent: wlm.fixture.opponent,
+  });
+  const bonuses = (s: GameState) =>
+    (s.financeLedger ?? []).filter((e) => e.dedupeKey === `${wBase}:winBonus`);
+  check("H34b. exactly one bonus entry posts", bonuses(wAfter).length === 1);
+  check("H34c. amount equals the canonical win bonus",
+    bonuses(wAfter)[0]?.amount === wlm.winBonus && bonuses(wAfter)[0]?.direction === "expense");
+  check("H34d. dedupe key is fixture-derived and stable",
+    bonuses(wAfter)[0]?.dedupeKey === `${wBase}:winBonus` &&
+    bonuses(wAfter)[0]?.linkedEntityId === wlm.fixtureId);
+
+  const wDup = commitLiveMatchAndAdvance({ ...clone(wAfter), liveMatch: clone(wlm) });
+  check("H34e. re-committing posts no second bonus",
+    bonuses(wDup).length === 1 && wDup.cash === wAfter.cash);
+  const wReload = commitLiveMatchAndAdvance(
+    { ...reload(wAfter), liveMatch: clone(wlm) } as GameState);
+  check("H34f. reloading after commit posts no second bonus",
+    bonuses(wReload).length === 1 && wReload.cash === wAfter.cash);
+
+  const bonusCount = (s: GameState, lm: NonNullable<GameState["liveMatch"]>) => {
+    const b = matchdayKey({ season: lm.season!, week: lm.fixture.week, opponent: lm.fixture.opponent });
+    return (s.financeLedger ?? []).filter((e) => e.dedupeKey === `${b}:winBonus`).length;
+  };
+
+  const loss = ftOf("MD_AUDIT_10", "attack");
+  const llm = loss.liveMatch!;
+  check("H34g. precondition: canonical result is a defeat",
+    llm.ourGoals < llm.theirGoals, `${llm.ourGoals}-${llm.theirGoals}`);
+  check("H34h. a defeat posts no bonus",
+    llm.winBonus === 0 && bonusCount(commitLiveMatchAndAdvance(clone(loss)), llm) === 0);
+
+  const draw = ftOf("MD_AUDIT_0", "attack");
+  const dlm = draw.liveMatch!;
+  check("H34i. precondition: canonical result is a draw",
+    dlm.ourGoals === dlm.theirGoals, `${dlm.ourGoals}-${dlm.theirGoals}`);
+  check("H34j. a draw posts no bonus",
+    dlm.winBonus === 0 && bonusCount(commitLiveMatchAndAdvance(clone(draw)), dlm) === 0);
+
+  const steady = ftOf("MD_AUDIT_10", "steady");
+  const slm = steady.liveMatch!;
+  check("H34k. a result with no bonus on offer posts nothing",
+    slm.winBonus === 0 && bonusCount(commitLiveMatchAndAdvance(clone(steady)), slm) === 0);
+}
+
+
 
 /* =========================================================================
    [I] Weekly integration
