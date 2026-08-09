@@ -108,8 +108,8 @@ console.log("\n[B] Recommended reserve");
   // Sizing responds to the cost base, not to a hard-coded number.
   const lean = clone(MID);
   const heavy = clone(MID);
-  for (const p of heavy.recruitment?.players ?? []) {
-    if (p.clubName === heavy.clubName) p.contract.wage = p.contract.wage * 3;
+  for (const c of heavy.football?.contracts ?? []) {
+    if (c.clubId === heavy.clubName && c.status === "active") c.weeklyWage *= 3;
   }
   check("B9. a heavier wage bill raises the recommended reserve",
     recommendedReserve(heavy) >= recommendedReserve(lean),
@@ -119,8 +119,9 @@ console.log("\n[B] Recommended reserve");
   const capital = clone(MID);
   const proj = capital.infrastructure?.projects?.[0];
   if (proj) {
-    proj.status = "inProgress";
-    proj.weeksRemaining = Math.max(4, proj.weeksRemaining || 8);
+    proj.status = "active";
+    proj.durationWeeks = Math.max(8, proj.durationWeeks);
+    proj.weeksWorked = 0;
   }
   check("B10. capital commitments within 26 weeks are added to the reserve",
     recommendedReserve(capital) >= recommendedReserve(MID));
@@ -164,9 +165,9 @@ console.log("\n[C] Needs");
     supporterNeed(unhappy) > supporterNeed(MID));
 
   const gutted = clone(MID);
-  gutted.recruitment!.players = (gutted.recruitment?.players ?? []).filter(
-    (p) => p.clubName !== gutted.clubName,
-  );
+  for (const pl of gutted.football?.players ?? []) {
+    if (pl.currentClubId === gutted.clubName) { pl.currentClubId = null; pl.contractId = null; }
+  }
   check("C6. an empty squad raises squad need",
     squadNeed(gutted) >= squadNeed(MID));
   check("C7. commercial need stays in range for a normal club",
@@ -338,8 +339,8 @@ console.log("\n[G] Capacity and wage pressure");
   const wageRatio = wageToRevenue(MID);
   check("G6. wage-to-revenue is reported", wageRatio > 0);
   const bloated = clone(MID);
-  for (const p of bloated.recruitment?.players ?? []) {
-    if (p.clubName === bloated.clubName) p.contract.wage = p.contract.wage * 4;
+  for (const c of bloated.football?.contracts ?? []) {
+    if (c.clubId === bloated.clubName && c.status === "active") c.weeklyWage *= 4;
   }
   check("G7. a bloated wage bill raises the wage ratio", wageToRevenue(bloated) > wageRatio);
   check("G8. wage ratio is bounded", wageToRevenue(bloated) <= 400);
