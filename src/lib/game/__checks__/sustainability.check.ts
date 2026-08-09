@@ -142,8 +142,12 @@ console.log("\n[C] Needs");
     [n.infrastructure, n.squad, n.supporters, n.commercial, n.overall].every(inRange),
     JSON.stringify(n));
   check("C2. worst area matches the highest individual need", (() => {
-    const vals = { infrastructure: n.infrastructure, squad: n.squad, supporters: n.supporters, commercial: n.commercial };
-    return n.worst.value === Math.max(...Object.values(vals));
+    const vals: Record<string, number> = {
+      infrastructure: n.infrastructure, squad: n.squad,
+      supporters: n.supporters, commercial: n.commercial,
+    };
+    const top = Math.max(...Object.values(vals));
+    return Math.abs(vals[n.worst.area] - top) < 1e-9;
   })());
   check("C3. overall need sits between the best and worst area",
     n.overall <= n.worst.value + 1e-9 &&
@@ -311,6 +315,7 @@ console.log("\n[F] Commitments");
 
   // Repeated failures hurt more than the first.
   const repeat = clone(failing);
+  repeat.week += 1; // a promise made in a later week, not a duplicate of the first
   const c2 = createCommitmentInPlace(repeat, "infrastructure", 10, 400_000);
   repeat.sustainability!.commitments.find((x) => x.id === c2!.id)!.deadlineAbsoluteWeek = 0;
   const second = settleCommitmentsInPlace(repeat);
