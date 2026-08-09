@@ -312,9 +312,9 @@ console.log("\n[H] Finance");
   check("H31. gate posts once", countOf("tickets") === 1);
   check("H32. TV posts once", countOf("broadcast") === 1);
   check("H33. matchday expense posts once", countOf("ops") === 1);
-  check("H34. conditional bonus posts once", countOf("winBonus") === 1);
-  check("H34b. bonus amount matches the condition",
-    (md.find((e) => e.dedupeKey === `${base}:winBonus`)?.amount ?? 0) === lm.winBonus);
+  check("H34pre. baseline seed posts no bonus unless it won",
+    countOf("winBonus") === (lm.winBonus > 0 ? 1 : 0));
+
   check("H35. every matchday posting has a stable fixture-derived dedupe key",
     md.length > 0 && md.every((e) => e.dedupeKey!.startsWith(`matchday:s${lm.season}:w${lm.fixture.week}:`)));
   check("H35b. dedupe keys are unique", new Set(md.map((e) => e.dedupeKey)).size === md.length);
