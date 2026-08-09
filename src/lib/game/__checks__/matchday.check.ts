@@ -35,17 +35,17 @@ const reload = (s: GameState): GameState =>
 
 type LegacySave = Omit<GameState, "version"> & { version: number };
 
-const BASE = (() => {
-  const g = newGame("Audit FC", "Auditor");
-  g.saveSeed = "MATCHDAY_AUDIT";
-  return g;
-})();
+// Seeded world generation: the whole save (squads, schedule, simulation) is
+// reproducible across processes, so match outcomes are stable in this suite.
+const BASE = newGame("Audit FC", "Auditor", "MATCHDAY_AUDIT");
 
+const worlds = new Map<string, GameState>();
 function fixtureState(seed = "MATCHDAY_AUDIT"): GameState {
-  const g = clone(BASE);
-  g.saveSeed = seed;
-  return g;
+  if (seed === "MATCHDAY_AUDIT") return clone(BASE);
+  if (!worlds.has(seed)) worlds.set(seed, newGame("Audit FC", "Auditor", seed));
+  return clone(worlds.get(seed)!);
 }
+
 
 /** Wind the save forward to the club's first league fixture week. */
 function atFixture(seed = "MATCHDAY_AUDIT"): GameState {
