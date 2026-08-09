@@ -311,7 +311,7 @@ console.log("\n[G] Fixture completion");
 ========================================================================= */
 console.log("\n[H] Finance");
 {
-  const ft = applyHalfTimeChoice(kickoff(startMatchDay(clone(PRE))), "attack");
+  const ft = applyHalfTimeChoice(kickoff(startMatchDay(atHomeFixture())), "attack");
   const lm = ft.liveMatch!;
   const openingCash = ft.cash;
   const after = commitLiveMatchAndAdvance(clone(ft));
