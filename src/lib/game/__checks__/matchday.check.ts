@@ -383,14 +383,14 @@ console.log("\n[H34] Win bonus");
     return (s.financeLedger ?? []).filter((e) => e.dedupeKey === `${b}:winBonus`).length;
   };
 
-  const loss = ftOf("MD_AUDIT_0", "attack");
+  const loss = ftOf("MD_AUDIT_1", "attack");
   const llm = loss.liveMatch!;
   check("H34g. precondition: canonical result is a defeat",
     llm.ourGoals < llm.theirGoals, `${llm.ourGoals}-${llm.theirGoals}`);
   check("H34h. a defeat posts no bonus",
     llm.winBonus === 0 && bonusCount(commitLiveMatchAndAdvance(clone(loss)), llm) === 0);
 
-  const draw = ftOf("MD_AUDIT_10", "attack");
+  const draw = ftOf("MD_AUDIT_7", "attack");
   const dlm = draw.liveMatch!;
   check("H34i. precondition: canonical result is a draw",
     dlm.ourGoals === dlm.theirGoals, `${dlm.ourGoals}-${dlm.theirGoals}`);
