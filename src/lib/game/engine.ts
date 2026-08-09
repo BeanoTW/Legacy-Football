@@ -303,8 +303,10 @@ export function staffJoinTerms(
 }
 
 /* ---------- Initial state ---------- */
-export function newGame(clubName: string, managerName: string): GameState {
-  const base = _newGameSeed(clubName, managerName);
+export function newGame(clubName: string, managerName: string, seed?: string): GameState {
+  // `seed` is optional: verification suites pass a fixed seed so the whole
+  // generated world (squads, schedule, sim) is reproducible across runs.
+  const base = _newGameSeed(clubName, managerName, seed);
   // Pre-season projection for season 1 (derived from starting reputations).
   storePredictions(base, base.season);
   ensureBoard(base);
@@ -331,8 +333,8 @@ export function newGame(clubName: string, managerName: string): GameState {
  */
 export const SAVE_VERSION = 12;
 
-function _newGameSeed(clubName: string, managerName: string): GameState {
-  const saveSeed = `${clubName}|${managerName}|${Date.now().toString(36)}`;
+function _newGameSeed(clubName: string, managerName: string, seed?: string): GameState {
+  const saveSeed = seed ?? `${clubName}|${managerName}|${Date.now().toString(36)}`;
 
   const stands: Stand[] = [
     { key: "N", name: "North Stand", capacity: 6000, condition: 92, ticketPrice: 22 },
