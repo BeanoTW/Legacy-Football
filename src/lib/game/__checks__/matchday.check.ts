@@ -351,7 +351,7 @@ console.log("\n[H34] Win bonus");
   const ftOf = (seed: string, choice: string) =>
     applyHalfTimeChoice(kickoff(startMatchDay(atFixture(seed))), choice);
 
-  const win = ftOf("MD_AUDIT_0", "attack");
+  const win = ftOf("MD_AUDIT_1", "attack");
   const wlm = win.liveMatch!;
   check("H34a. precondition: canonical result is a win with a bonus on offer",
     wlm.status === "fullTime" && wlm.ourGoals > wlm.theirGoals && wlm.winBonus > 0,
@@ -383,23 +383,23 @@ console.log("\n[H34] Win bonus");
     return (s.financeLedger ?? []).filter((e) => e.dedupeKey === `${b}:winBonus`).length;
   };
 
-  const loss = ftOf("MD_AUDIT_1", "attack");
+  const loss = ftOf("MD_AUDIT_10", "attack");
   const llm = loss.liveMatch!;
   check("H34g. precondition: canonical result is a defeat",
     llm.ourGoals < llm.theirGoals, `${llm.ourGoals}-${llm.theirGoals}`);
   check("H34h. a defeat posts no bonus",
     llm.winBonus === 0 && bonusCount(commitLiveMatchAndAdvance(clone(loss)), llm) === 0);
 
-  const draw = ftOf("MD_AUDIT_7", "attack");
+  const draw = ftOf("MD_AUDIT_0", "attack");
   const dlm = draw.liveMatch!;
   check("H34i. precondition: canonical result is a draw",
     dlm.ourGoals === dlm.theirGoals, `${dlm.ourGoals}-${dlm.theirGoals}`);
   check("H34j. a draw posts no bonus",
     dlm.winBonus === 0 && bonusCount(commitLiveMatchAndAdvance(clone(draw)), dlm) === 0);
 
-  const steady = ftOf("MD_AUDIT_0", "steady");
+  const steady = ftOf("MD_AUDIT_10", "steady");
   const slm = steady.liveMatch!;
-  check("H34k. a win without a bonus offer posts nothing",
+  check("H34k. a result with no bonus on offer posts nothing",
     slm.winBonus === 0 && bonusCount(commitLiveMatchAndAdvance(clone(steady)), slm) === 0);
 }
 
