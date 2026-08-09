@@ -109,7 +109,7 @@ console.log("\n[B] Recommended reserve");
   const lean = clone(MID);
   const heavy = clone(MID);
   for (const c of heavy.football?.contracts ?? []) {
-    if (c.clubId === heavy.clubName && c.status === "active") c.weeklyWage *= 3;
+    if (c.clubId === heavy.clubName && (c.status === "Active" || c.status === "Expiring")) c.weeklyWage *= 3;
   }
   check("B9. a heavier wage bill raises the recommended reserve",
     recommendedReserve(heavy) >= recommendedReserve(lean),
@@ -345,7 +345,7 @@ console.log("\n[G] Capacity and wage pressure");
   check("G6. wage-to-revenue is reported", wageRatio > 0);
   const bloated = clone(MID);
   for (const c of bloated.football?.contracts ?? []) {
-    if (c.clubId === bloated.clubName && c.status === "active") c.weeklyWage *= 4;
+    if (c.clubId === bloated.clubName && (c.status === "Active" || c.status === "Expiring")) c.weeklyWage *= 4;
   }
   check("G7. a bloated wage bill raises the wage ratio", wageToRevenue(bloated) > wageRatio);
   check("G8. wage ratio is bounded", wageToRevenue(bloated) <= 400);
@@ -504,7 +504,9 @@ console.log("\n[J] Passive economy audit");
 ========================================================================= */
 console.log("\n[K] Static audit");
 {
-  const src = readFileSync("src/lib/game/sustainability.ts", "utf8");
+  const raw = readFileSync("src/lib/game/sustainability.ts", "utf8");
+  // Strip comments: the module documents the rules it obeys.
+  const src = raw.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
   check("K1. no Math.random", !src.includes("Math.random"));
   check("K2. no Date.now", !src.includes("Date.now"));
   check("K3. no crypto.randomUUID", !src.includes("crypto.randomUUID"));
