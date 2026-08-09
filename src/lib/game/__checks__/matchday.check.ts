@@ -55,7 +55,16 @@ function atFixture(seed = "MATCHDAY_AUDIT"): GameState {
   return s;
 }
 
+/** Wind forward to the club's first HOME fixture (gate/hospitality income). */
+function atHomeFixture(seed = "MATCHDAY_AUDIT"): GameState {
+  let s = fixtureState(seed);
+  const target = Math.min(...s.fixtures.filter((f) => f.home).map((f) => f.week));
+  while (s.week < target) s = advanceWeek(s);
+  return s;
+}
+
 const PRE = atFixture();
+
 
 /* =========================================================================
    [A] Identity
