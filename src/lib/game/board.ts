@@ -29,6 +29,7 @@ import type {
   ObjectiveProgress,
 } from "./types";
 import { seededRng, rngInt } from "./rng";
+import { sustainabilityConfidenceAdjustment } from "./sustainability";
 import { clubPrediction, EXPECTATION_LABEL } from "./reputation";
 import { playerLeagueId } from "./league";
 import { commercialWeeklyIncome, activeContracts } from "./commercial";
