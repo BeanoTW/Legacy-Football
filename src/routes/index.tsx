@@ -1717,17 +1717,19 @@ function initials(name: string) {
     .join("");
 }
 
+/**
+ * Presentation wrapper only. Every number and every rating comes from the
+ * canonical sustainability selectors — the UI must never compute its own
+ * view of the club's finances.
+ */
 function financialHealth(state: GameState): { label: string; tone: "good" | "bad" | "muted" } {
-  const wIncome = weeklySponsorIncome(state);
-  const wExp = totalWeeklyExpenses(state);
-  const net = wIncome - wExp;
-  const runwayWeeks = net < 0 ? state.cash / Math.abs(net) : Infinity;
-  if (state.cash < 0) return { label: "CRITICAL", tone: "bad" };
-  if (runwayWeeks < 8) return { label: "POOR", tone: "bad" };
-  if (state.cash > 3_000_000 && net >= 0) return { label: "STRONG", tone: "good" };
-  if (net >= 0) return { label: "OKAY", tone: "muted" };
-  return { label: "TIGHT", tone: "muted" };
+  const h = canonicalFinancialHealth(state);
+  const tone: "good" | "bad" | "muted" =
+    h.state === "secure" || h.state === "healthy" ? "good"
+      : h.state === "stressed" || h.state === "critical" ? "bad" : "muted";
+  return { label: h.label, tone };
 }
+
 
 function fanbaseEstimate(state: GameState): number {
   const cap = totalCapacity(state);
