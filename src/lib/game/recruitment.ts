@@ -459,7 +459,7 @@ export function clubGrowthFactor(s: GameState): number {
   }
   // Reputation trend over the same window, from the immutable snapshots.
   const snaps = (s.clubSnapshots ?? [])
-    .filter((x) => x.clubName === s.clubName)
+    .filter((x) => x.club === s.clubName)
     .sort((a, b) => a.season - b.season);
   const now = clubReputation(s, s.clubName);
   const then = snaps.length ? snaps[Math.max(0, snaps.length - 4)].reputation : now;
