@@ -693,7 +693,13 @@ export function runBoardReview(
   for (const d of board.directors) {
     const satisfaction = directorSatisfaction(s, d);
     const gap = satisfaction - d.confidence;
-    const move = gap * 0.55 * reactivity(d) * severity;
+    // Objectives are only half the story. Each director also reads the
+    // club's strategic financial picture through their own portfolio: the
+    // Finance Director rewards cover, the Football Director resents idle
+    // capital while the squad lags, and so on. Bounded, deterministic, and
+    // applied only here — reviews are guarded to run once per window.
+    const strategic = sustainabilityConfidenceAdjustment(s, d.role) * severity;
+    const move = gap * 0.55 * reactivity(d) * severity + strategic;
     const next = Math.round(
       Math.max(confidenceFloor(d), Math.min(100, d.confidence + move)),
     );
