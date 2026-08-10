@@ -951,3 +951,159 @@ export function sustainabilitySnapshot(s: GameState): SustainabilitySnapshot {
     facilityModifiers: facilityModifiers(s),
   };
 }
+
+/* =========================================================================
+   12. Tier movement — promotion / relegation shock
+   -------------------------------------------------------------------------
+   Promotion and relegation are NOT cash events. They change the club's
+   operating environment: distributions, sponsor appetite, attendance
+   potential and wage expectations all move through their own canonical
+   systems. This selector only tells the rest of the game which way the club
+   just moved, so the Board and Inbox can say something about it once.
+========================================================================= */
+
+export type TierMovement = "promoted" | "relegated" | null;
+
+/** What happened to the club at the end of `season - 1`. Pure lookup. */
+export function tierMovement(s: GameState, season = s.season): TierMovement {
+  const prev = (s.seasonHistory ?? []).filter((h) => h.season === season - 1);
+  for (const h of prev) {
+    if (h.promoted?.includes?.(s.clubName)) return "promoted";
+    if (h.relegated?.includes?.(s.clubName)) return "relegated";
+  }
+  return null;
+}
+
+export interface TierShockPicture {
+  movement: TierMovement;
+  tier: number;
+  /** Structural weekly income at the new tier, £. */
+  weeklyIncome: number;
+  /** Weekly wage + running cost the club carries into the new tier, £. */
+  weeklyCost: number;
+  committedWages: number;
+  reserve: ReservePicture;
+  health: HealthPicture;
+  needs: NeedPicture;
+  summary: string;
+}
+
+/**
+ * One derived picture of what a division change means. Reads canonical
+ * numbers only; changes nothing.
+ */
+export function tierShock(s: GameState): TierShockPicture {
+  const movement = tierMovement(s);
+  const reserve = reservePicture(s);
+  const health = financialHealth(s);
+  const n = needs(s);
+  const weeklyIncome = structuralWeeklyIncome(s);
+  const weeklyCost = structuralWeeklyExpenditure(s);
+  const summary =
+    movement === "promoted"
+      ? "Promotion changes the club's operating environment. Revenue potential has increased, but squad and infrastructure requirements are now significantly higher."
+      : movement === "relegated"
+        ? "Relegation cuts the club's revenue potential immediately. Existing wages, maintenance and project commitments do not fall with it."
+        : "The club remains in the same division.";
+  return {
+    movement, tier: leagueTierOf(s), weeklyIncome, weeklyCost,
+    committedWages: committedWages(s, 46), reserve, health, needs: n, summary,
+  };
+}
+
+/* =========================================================================
+   13. Director reaction to the strategic picture
+   -------------------------------------------------------------------------
+   This is NOT a global confidence penalty. Each director reads the SAME
+   canonical selectors through their own portfolio, so the Finance Director
+   can be delighted in the same week the Supporters' Director is furious.
+   Bounded, deterministic, and applied only inside a board review (which is
+   itself guarded to run exactly once per window).
+========================================================================= */
+
+/** Hard bound on how far the strategic picture can move one director. */
+export const SUSTAINABILITY_CONFIDENCE_BOUND = 6;
+
+export function sustainabilityConfidenceAdjustment(
+  s: GameState,
+  role: DirectorRole,
+): number {
+  const res = reservePicture(s);
+  const h = financialHealth(s);
+  const p = reinvestmentPressure(s);
+  const n = needs(s);
+  const cap = capacityPicture(s);
+  const B = SUSTAINABILITY_CONFIDENCE_BOUND;
+  let v = 0;
+
+  switch (role) {
+    case "Finance Director": {
+      // Rewards cover and control. Deliberately never penalises a club for
+      // simply holding cash — that is the FD's own preference, not a failing.
+      const coverRatio = res.targetCoverWeeks > 0 ? res.coverWeeks / res.targetCoverWeeks : 1;
+      v += coverRatio >= 1.6 ? 4 : coverRatio >= 1 ? 2 : -clamp((1 - coverRatio) * 8, 0, 6);
+      v += h.wageRatio > 85 ? -3 : h.wageRatio > 65 ? -1 : h.wageRatio < 50 ? 1 : 0;
+      v += h.trajectory === "improving" ? 1 : h.trajectory === "declining" ? -1 : 0;
+      v += capitalCommitments(s) > Math.max(1, res.cash) ? -3 : 0;
+      break;
+    }
+    case "Football Director": {
+      v -= (p.byArea.squad / 100) * 5;
+      v -= n.squad > 0.5 ? 1 : 0;
+      v += n.squad < 0.2 ? 2 : 0;
+      v -= res.excess > 0 && n.squad > 0.4 ? 1 : 0;
+      break;
+    }
+    case "Commercial Director": {
+      v -= (p.byArea.commercial / 100) * 5;
+      v += n.commercial < 0.25 ? 2 : 0;
+      // Sell-outs the club cannot monetise are a commercial failing too.
+      v -= cap.pressure > 60 && n.commercial > 0.4 ? 1 : 0;
+      break;
+    }
+    case "Supporters' Director": {
+      v -= (p.byArea.supporters / 100) * 5;
+      v -= n.supporters > 0.6 ? 1 : 0;
+      v += n.supporters < 0.25 ? 2 : 0;
+      v -= cap.pressure > 60 ? 1 : 0;
+      break;
+    }
+    default: {
+      // Chairman balances security against visible ambition.
+      v -= (p.score / 100) * 4;
+      v += h.state === "secure" ? 2 : h.state === "healthy" ? 1 : h.state === "critical" ? -3 : 0;
+      v += tierMovement(s) === "promoted" ? 1 : tierMovement(s) === "relegated" ? -1 : 0;
+      break;
+    }
+  }
+  return clamp(Math.round(v), -B, B);
+}
+
+/** Every director's strategic adjustment, for the UI and verification. */
+export function boardSustainabilityAdjustments(s: GameState): Record<DirectorRole, number> {
+  const out = {} as Record<DirectorRole, number>;
+  for (const d of s.board?.directors ?? []) {
+    out[d.role] = sustainabilityConfidenceAdjustment(s, d.role);
+  }
+  return out;
+}
+
+/* =========================================================================
+   14. Staff wage pressure — DEFERRED HOOK
+   -------------------------------------------------------------------------
+   Staff currently run on rolling terms with no renewal negotiation, so there
+   is no negotiation moment to attach growth pressure to. Rather than build a
+   staff-contract subsystem inside a sustainability pass, this selector is the
+   single place a future staff-renewal milestone should read. Nothing calls it
+   to change money today, and nothing should until staff contracts exist.
+========================================================================= */
+
+export function staffWagePressureFactor(s: GameState): number {
+  const tier = leagueTierOf(s);
+  const rep = clubReputation(s, s.clubName);
+  const move = tierMovement(s);
+  const growth = 1 + clamp((rep - 50) / 250, -0.2, 0.2)
+    + (tier === 1 ? 0.08 : 0)
+    + (move === "promoted" ? 0.06 : move === "relegated" ? -0.04 : 0);
+  return Math.round(clamp(growth, 0.8, 1.4) * 100) / 100;
+}
