@@ -1877,6 +1877,43 @@ function fanbaseEstimate(state: GameState): number {
   return Math.round(cap * factor);
 }
 
+function HubStrategicStrip({
+  state, onOpenFinance,
+}: { state: GameState; onOpenFinance: () => void }) {
+  const snap = useMemo(() => sustainabilitySnapshot(state), [state]);
+  const { health, reserve, pressure } = snap;
+  return (
+    <button
+      onClick={onOpenFinance}
+      className="w-full text-left rounded-xl border bg-card shadow-sm p-3 grid gap-3 sm:grid-cols-3 hover:bg-muted/40 transition-colors"
+    >
+      <div>
+        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Financial health</div>
+        <div className={cn("font-display text-lg leading-none", HEALTH_TONE[health.state])}>
+          {health.label}
+        </div>
+        <div className="text-[11px] text-muted-foreground">
+          {health.coverMonths.toFixed(1)} months cover · wages {health.wageRatio}%
+        </div>
+      </div>
+      <div>
+        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Reserve</div>
+        <div className="font-display text-lg leading-none">{fmtMoney(reserve.recommended)}</div>
+        <div className="text-[11px] text-muted-foreground">
+          {reserve.excess > 0
+            ? `${fmtMoney(reserve.excess)} above recommended`
+            : `${fmtMoney(reserve.deficit)} short`}
+        </div>
+      </div>
+      <div>
+        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Board pressure</div>
+        <div className="font-display text-lg leading-none tabular-nums">{pressure.score}/100</div>
+        <div className="text-[11px] text-muted-foreground line-clamp-2">{pressure.headline}</div>
+      </div>
+    </button>
+  );
+}
+
 function ClubHub({
   state,
   advance,
@@ -1933,6 +1970,9 @@ function ClubHub({
           </div>
         </div>
       </div>
+
+      {/* Strategic financial picture — canonical selectors, no local maths */}
+      <HubStrategicStrip state={state} onOpenFinance={() => setTab("cashflow")} />
 
       {/* Central portrait + side tiles */}
       <div className="grid grid-cols-1 md:grid-cols-[1fr_260px] gap-4">
