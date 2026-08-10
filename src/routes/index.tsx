@@ -58,9 +58,11 @@ import { RecruitmentTab } from "@/components/RecruitmentTab";
 import { FacilitiesTab } from "@/components/FacilitiesTab";
 import { facilityModifiers } from "@/lib/game/infrastructure";
 import {
+  commitmentProgress,
   financialHealth as canonicalFinancialHealth,
   sustainabilitySnapshot,
 } from "@/lib/game/sustainability";
+import { WEEKS_PER_SEASON } from "@/lib/game/time";
 import { useGame } from "@/hooks/useGame";
 import type { GameState, Stand, Staff, StaffRole } from "@/lib/game/types";
 import {
@@ -930,20 +932,20 @@ function FinancialHealthPanel({ state }: { state: GameState }) {
             </p>
           ) : (
             commitments.map((c) => {
-              const pct = c.targetInvestment > 0
-                ? Math.min(100, (c.investedSoFar / c.targetInvestment) * 100)
-                : 100;
+              const pct = Math.round(commitmentProgress(state, c) * 100);
               return (
                 <div key={c.id} className="text-[11px] space-y-1 border-b last:border-0 pb-2">
                   <div className="flex justify-between gap-2">
                     <span className="font-medium capitalize">{c.category}</span>
                     <span className="text-muted-foreground">
-                      by week {c.dueWeek} · S{c.dueSeason}
+                      due week {c.deadlineAbsoluteWeek % WEEKS_PER_SEASON || WEEKS_PER_SEASON}
                     </span>
                   </div>
                   <Meter value={pct} tone={pct >= 100 ? "bg-emerald-500" : "bg-amber-500"} />
                   <div className="text-muted-foreground">
-                    {fmtMoneyExact(c.investedSoFar)} of {fmtMoneyExact(c.targetInvestment)}
+                    {c.targetInvestment > 0
+                      ? `${fmtMoneyExact(Math.round(commitmentProgress(state, c) * c.targetInvestment))} of ${fmtMoneyExact(c.targetInvestment)}`
+                      : c.description}
                   </div>
                 </div>
               );
@@ -952,7 +954,7 @@ function FinancialHealthPanel({ state }: { state: GameState }) {
           <div className="text-[11px] text-muted-foreground pt-1 space-y-1">
             <Row k="Committed wages" v={fmtMoneyExact(snap.committedWages)} />
             <Row k="Capital committed" v={fmtMoneyExact(snap.capitalCommitments)} />
-            <Row k="Ground utilisation" v={`${capacity.utilisation}%`} />
+            <Row k="Ground utilisation" v={`${capacity.occupancy}%`} />
           </div>
         </div>
       </div>
