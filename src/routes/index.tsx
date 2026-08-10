@@ -57,6 +57,12 @@ import { CommercialTab } from "@/components/CommercialTab";
 import { RecruitmentTab } from "@/components/RecruitmentTab";
 import { FacilitiesTab } from "@/components/FacilitiesTab";
 import { facilityModifiers } from "@/lib/game/infrastructure";
+import {
+  commitmentProgress,
+  financialHealth as canonicalFinancialHealth,
+  sustainabilitySnapshot,
+} from "@/lib/game/sustainability";
+import { WEEKS_PER_SEASON } from "@/lib/game/time";
 import { useGame } from "@/hooks/useGame";
 import type { GameState, Stand, Staff, StaffRole } from "@/lib/game/types";
 import {
@@ -832,6 +838,139 @@ function RecurringBreakdown({ state }: { state: GameState }) {
 /* =========================================================================
    CASH FLOW
    ========================================================================= */
+
+/* =========================================================================
+   Financial health — a read-only window onto the sustainability engine.
+   Nothing here computes anything: every figure is a canonical selector, so
+   the Board, the Inbox and this panel can never disagree.
+========================================================================= */
+
+const HEALTH_TONE: Record<string, string> = {
+  secure: "text-emerald-600",
+  healthy: "text-teal-600",
+  tight: "text-amber-600",
+  stressed: "text-orange-600",
+  critical: "text-rose-600",
+};
+
+function Meter({ value, tone }: { value: number; tone?: string }) {
+  return (
+    <div className="h-2 rounded-full bg-muted overflow-hidden">
+      <div
+        className={cn("h-full rounded-full", tone ?? "bg-primary/70")}
+        style={{ width: `${Math.max(2, Math.min(100, value))}%` }}
+      />
+    </div>
+  );
+}
+
+function FinancialHealthPanel({ state }: { state: GameState }) {
+  const snap = useMemo(() => sustainabilitySnapshot(state), [state]);
+  const { health, reserve, pressure, needs, capacity, openCommitments: commitments } = snap;
+  const reservePct = reserve.recommended > 0
+    ? (reserve.cash / reserve.recommended) * 100
+    : 100;
+
+  return (
+    <section className="rounded-xl border bg-card shadow-sm overflow-hidden md:col-span-2">
+      <div className="banner-strip px-3 py-2 text-xs flex items-center justify-between">
+        <span>Financial health</span>
+        <span className="opacity-80 capitalize">{health.trajectory}</span>
+      </div>
+      <div className="p-4 grid gap-4 md:grid-cols-3">
+        <div className="space-y-2">
+          <div className={cn("text-2xl font-display leading-none", HEALTH_TONE[health.state])}>
+            {health.label}
+          </div>
+          <p className="text-xs text-muted-foreground">{health.summary}</p>
+          <div className="text-xs space-y-1 pt-1">
+            <Row k="Cash" v={fmtMoneyExact(reserve.cash)} />
+            <Row k="Recommended reserve" v={fmtMoneyExact(reserve.recommended)} />
+            <Row
+              k={reserve.excess > 0 ? "Above reserve" : "Short of reserve"}
+              v={fmtMoneyExact(reserve.excess > 0 ? reserve.excess : reserve.deficit)}
+            />
+            <Row k="Operating cover" v={`${health.coverMonths.toFixed(1)} months`} />
+            <Row k="Wage to revenue" v={`${health.wageRatio}%`} />
+          </div>
+          <Meter value={reservePct} tone={reservePct >= 100 ? "bg-emerald-500" : reservePct >= 60 ? "bg-amber-500" : "bg-rose-500"} />
+        </div>
+
+        <div className="space-y-2">
+          <div className="text-xs font-semibold">Reinvestment pressure</div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-display tabular-nums">{pressure.score}</span>
+            <span className="text-xs text-muted-foreground">/ 100</span>
+          </div>
+          <Meter
+            value={pressure.score}
+            tone={pressure.score >= 70 ? "bg-rose-500" : pressure.score >= 40 ? "bg-amber-500" : "bg-teal-500"}
+          />
+          <p className="text-xs text-muted-foreground">{pressure.headline}</p>
+          <div className="text-[11px] space-y-1 pt-1">
+            {([
+              ["Infrastructure", needs.infrastructure, pressure.byArea.infrastructure],
+              ["Squad", needs.squad, pressure.byArea.squad],
+              ["Supporters", needs.supporters, pressure.byArea.supporters],
+              ["Commercial", needs.commercial, pressure.byArea.commercial],
+            ] as const).map(([label_, need, score]) => (
+              <div key={label_} className="flex items-center gap-2">
+                <span className="w-24 shrink-0 text-muted-foreground">{label_}</span>
+                <div className="flex-1"><Meter value={score} tone={score >= 60 ? "bg-orange-500" : "bg-primary/60"} /></div>
+                <span className="w-8 text-right tabular-nums">{Math.round(need * 100)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="text-xs font-semibold">Commitments to the board</div>
+          {commitments.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              No promises outstanding. Anything you agree to in the inbox is
+              tracked here and judged on real spending, not intentions.
+            </p>
+          ) : (
+            commitments.map((c) => {
+              const pct = Math.round(commitmentProgress(state, c) * 100);
+              return (
+                <div key={c.id} className="text-[11px] space-y-1 border-b last:border-0 pb-2">
+                  <div className="flex justify-between gap-2">
+                    <span className="font-medium capitalize">{c.category}</span>
+                    <span className="text-muted-foreground">
+                      due week {c.deadlineAbsoluteWeek % WEEKS_PER_SEASON || WEEKS_PER_SEASON}
+                    </span>
+                  </div>
+                  <Meter value={pct} tone={pct >= 100 ? "bg-emerald-500" : "bg-amber-500"} />
+                  <div className="text-muted-foreground">
+                    {c.targetInvestment > 0
+                      ? `${fmtMoneyExact(Math.round(commitmentProgress(state, c) * c.targetInvestment))} of ${fmtMoneyExact(c.targetInvestment)}`
+                      : c.description}
+                  </div>
+                </div>
+              );
+            })
+          )}
+          <div className="text-[11px] text-muted-foreground pt-1 space-y-1">
+            <Row k="Committed wages" v={fmtMoneyExact(snap.committedWages)} />
+            <Row k="Capital committed" v={fmtMoneyExact(snap.capitalCommitments)} />
+            <Row k="Ground utilisation" v={`${capacity.occupancy}%`} />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Row({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-muted-foreground">{k}</span>
+      <span className="font-medium tabular-nums">{v}</span>
+    </div>
+  );
+}
+
 function CashFlow({ state }: { state: GameState }) {
   const totals = useMemo(() => {
     const inc = { gate: 0, tv: 0, sponsor: 0, merchandise: 0, prize: 0, transfers: 0, other: 0 };
@@ -865,6 +1004,7 @@ function CashFlow({ state }: { state: GameState }) {
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
+      <FinancialHealthPanel state={state} />
       <Section title="Season income">
         <PieBlock data={incomePie} colors={CHART_COLORS} />
         <BreakdownTable totals={totals.inc} tone="income" />
@@ -1717,22 +1857,61 @@ function initials(name: string) {
     .join("");
 }
 
+/**
+ * Presentation wrapper only. Every number and every rating comes from the
+ * canonical sustainability selectors — the UI must never compute its own
+ * view of the club's finances.
+ */
 function financialHealth(state: GameState): { label: string; tone: "good" | "bad" | "muted" } {
-  const wIncome = weeklySponsorIncome(state);
-  const wExp = totalWeeklyExpenses(state);
-  const net = wIncome - wExp;
-  const runwayWeeks = net < 0 ? state.cash / Math.abs(net) : Infinity;
-  if (state.cash < 0) return { label: "CRITICAL", tone: "bad" };
-  if (runwayWeeks < 8) return { label: "POOR", tone: "bad" };
-  if (state.cash > 3_000_000 && net >= 0) return { label: "STRONG", tone: "good" };
-  if (net >= 0) return { label: "OKAY", tone: "muted" };
-  return { label: "TIGHT", tone: "muted" };
+  const h = canonicalFinancialHealth(state);
+  const tone: "good" | "bad" | "muted" =
+    h.state === "secure" || h.state === "healthy" ? "good"
+      : h.state === "stressed" || h.state === "critical" ? "bad" : "muted";
+  return { label: h.label, tone };
 }
+
 
 function fanbaseEstimate(state: GameState): number {
   const cap = totalCapacity(state);
   const factor = 0.35 + state.fanHappiness / 220 + state.reputation / 260;
   return Math.round(cap * factor);
+}
+
+function HubStrategicStrip({
+  state, onOpenFinance,
+}: { state: GameState; onOpenFinance: () => void }) {
+  const snap = useMemo(() => sustainabilitySnapshot(state), [state]);
+  const { health, reserve, pressure } = snap;
+  return (
+    <button
+      onClick={onOpenFinance}
+      className="w-full text-left rounded-xl border bg-card shadow-sm p-3 grid gap-3 sm:grid-cols-3 hover:bg-muted/40 transition-colors"
+    >
+      <div>
+        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Financial health</div>
+        <div className={cn("font-display text-lg leading-none", HEALTH_TONE[health.state])}>
+          {health.label}
+        </div>
+        <div className="text-[11px] text-muted-foreground">
+          {health.coverMonths.toFixed(1)} months cover · wages {health.wageRatio}%
+        </div>
+      </div>
+      <div>
+        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Reserve</div>
+        <div className="font-display text-lg leading-none">{fmtMoney(reserve.recommended)}</div>
+        <div className="text-[11px] text-muted-foreground">
+          {reserve.excess > 0
+            ? `${fmtMoney(reserve.excess)} above recommended`
+            : `${fmtMoney(reserve.deficit)} short`}
+        </div>
+      </div>
+      <div>
+        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Board pressure</div>
+        <div className="font-display text-lg leading-none tabular-nums">{pressure.score}/100</div>
+        <div className="text-[11px] text-muted-foreground line-clamp-2">{pressure.headline}</div>
+      </div>
+    </button>
+  );
 }
 
 function ClubHub({
@@ -1791,6 +1970,9 @@ function ClubHub({
           </div>
         </div>
       </div>
+
+      {/* Strategic financial picture — canonical selectors, no local maths */}
+      <HubStrategicStrip state={state} onOpenFinance={() => setTab("cashflow")} />
 
       {/* Central portrait + side tiles */}
       <div className="grid grid-cols-1 md:grid-cols-[1fr_260px] gap-4">

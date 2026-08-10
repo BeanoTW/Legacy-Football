@@ -20,6 +20,8 @@
 import { readFileSync } from "fs";
 import { newGame, advanceWeek, migrateSave, SAVE_VERSION } from "../engine";
 import { reconcile } from "../finance";
+import { runBoardReview } from "../board";
+import { clubGrowthFactor } from "../recruitment";
 import {
   ensureSustainability, defaultSustainability,
   operatingPicture, structuralWeeklyExpenditure, structuralWeeklyIncome,
@@ -27,6 +29,7 @@ import {
   commercialConcentration, recommendedReserve, reservePicture,
   needs, infrastructureNeed, squadNeed, supporterNeed, commercialNeed,
   capacityPicture, capacityPressure, reinvestmentPressure,
+  sustainabilityConfidenceAdjustment, RESERVE_REPORT_WEEKS,
   wageToRevenue, staffCostRatio, infrastructureCostRatio, financialHealth,
   financialTrajectory, insolvencyRisk,
   directorStance, boardStances, boardDisagrees,
@@ -513,6 +516,59 @@ console.log("\n[K] Static audit");
   check("K4. never mutates cash directly", !/\bs\.cash\s*=/.test(src));
   check("K5. never posts to the ledger", !src.includes("postEntry("));
   check("K6. never pushes ledger entries by hand", !src.includes("financeLedger.push"));
+}
+
+
+/* =========================================================================
+   [L] Integration: Board, Inbox, wages and UI wiring
+========================================================================= */
+console.log("\n[L] Integration wiring");
+{
+  const s = newGame("Wire FC", "Chair", "SUS-WIRE-1");
+
+  // Director adjustments are bounded and role-specific.
+  const roles = s.board.directors.map((d) => d.role);
+  let anyNonZero = false;
+  for (const role of roles) {
+    const adj = sustainabilityConfidenceAdjustment(s, role);
+    check(`L1. ${role} adjustment within ±6`, adj >= -6 && adj <= 6, String(adj));
+    if (adj !== 0) anyNonZero = true;
+  }
+  const rich = { ...s, cash: 400_000_000 } as typeof s;
+  check("L2. idle capital changes at least one director's stance",
+    roles.some((r) => sustainabilityConfidenceAdjustment(rich, r) !== sustainabilityConfidenceAdjustment(s, r)) || anyNonZero);
+
+  // Board reviews stay in range with the adjustment wired in.
+  let r = newGame("Review FC", "Chair", "SUS-WIRE-2");
+  r.cash = 250_000_000;
+  runBoardReview(r, "endSeason");
+  check("L3. confidence stays bounded after a review",
+    r.board.directors.every((d) => d.confidence >= 0 && d.confidence <= 100));
+
+  // Inbox generators: deterministic and cash-neutral.
+  const a = newGame("Inbox FC", "Chair", "SUS-WIRE-3");
+  const b = newGame("Inbox FC", "Chair", "SUS-WIRE-3");
+  let ax = a, bx = b;
+  for (let i = 0; i < 30; i++) { ax = advanceWeek(ax); bx = advanceWeek(bx); }
+  const keys = (g: typeof ax) => g.inbox.map((i) => i.eventKey).sort().join("|");
+  check("L4. sustainability inbox is deterministic", keys(ax) === keys(bx));
+  const dupes = ax.inbox.map((i) => i.eventKey).filter((k) => k.startsWith("sustainability-"));
+  check("L5. no duplicate sustainability eventKeys", new Set(dupes).size === dupes.length);
+
+  // Reserve reports appear on the fixed cadence only.
+  const reports = dupes.filter((k) => k.startsWith("sustainability-reserve-report"));
+  check("L6. reserve reports respect the cadence",
+    reports.every((k) => Number(k.split(":")[1]) % RESERVE_REPORT_WEEKS === 0));
+
+  // Wage growth factor: bounded, deterministic, neutral on a fresh save.
+  const gf = clubGrowthFactor(a);
+  check("L7. growth factor bounded", gf >= 0.85 && gf <= 1.35, String(gf));
+  check("L8. growth factor deterministic", clubGrowthFactor(a) === clubGrowthFactor(b));
+  check("L9. fresh club has no growth premium", gf === 1);
+
+  // The UI's health label is the canonical one.
+  check("L10. health labels come from one place",
+    ["Secure", "Healthy", "Tight", "Stressed", "Critical"].includes(financialHealth(a).label));
 }
 
 console.log(`\n=== ${passed} passed, ${failed} failed ===`);

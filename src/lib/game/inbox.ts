@@ -70,6 +70,17 @@ import { absoluteWeek, fromAbsoluteWeek } from "./time";
 import {
   evaluateObjective, confidenceBand, BAND_LABEL, directorConcern,
 } from "./board";
+import {
+  RESERVE_REPORT_WEEKS,
+  capacityPicture,
+  createCommitmentInPlace,
+  financialHealth,
+  needs as sustainabilityNeeds,
+  openCommitments,
+  reinvestmentPressure,
+  reservePicture,
+  tierShock,
+} from "./sustainability";
 import { hashString, seededRng } from "./rng";
 import { postEntry } from "./finance";
 
@@ -298,6 +309,17 @@ function applyEffectInPlace(s: GameState, e: InboxEffect, src: EffectSource): vo
     case "infraReopenAsset":
       reopenAssetInPlace(s, e.assetId);
       break;
+
+    /* -- Sustainability: records a promise to the Board. Creating a
+       commitment never moves, reserves or refunds cash; fulfilment is
+       measured later from the canonical ledger, never from the UI. -- */
+    case "strategicCommitment":
+      createCommitmentInPlace(
+        s, e.category, e.weeks, e.targetInvestment ?? 0, e.note,
+      );
+      break;
+
+
 
     case "scheduleGenerator": {
       assertGeneratorRegistered(e.generatorId);
@@ -1808,6 +1830,322 @@ const G_INFRA_WORKS_UPDATE: Generator = {
   },
 };
 
+
+/* =========================================================================
+   Sustainability generators
+   -------------------------------------------------------------------------
+   Strategic pressure made visible. Every one of these is a pure read of the
+   canonical sustainability selectors, emits a stable eventKey, and never
+   moves cash. The only thing a choice can do is record a promise to the
+   Board (a StrategicCommitment) — the money still has to be spent through
+   Recruitment, Facilities or Commercial like any other decision.
+========================================================================= */
+
+const SUS_SENDER = (s: GameState) =>
+  s.board?.directors?.find((d) => d.role === "Finance Director")?.name ?? "Finance Director";
+
+/** Deterministic investment figure a promise is measured against, £. */
+function commitmentTarget(strategicCapital: number, share: number): number {
+  return Math.max(250_000, Math.round((strategicCapital * share) / 50_000) * 50_000);
+}
+
+const hasOpenCommitment = (s: GameState, category: string) =>
+  openCommitments(s).some((c) => c.category === category);
+
+/* -- Periodic reserve report: informational, fixed cadence, never spam -- */
+const G_SUS_RESERVE_REPORT: Generator = {
+  id: "sustainability-reserve-report",
+  run: (s) => {
+    const abs = absoluteWeek(s.season, s.week);
+    if (abs % RESERVE_REPORT_WEEKS !== 0) return [];
+    const res = reservePicture(s);
+    const h = financialHealth(s);
+    const p = reinvestmentPressure(s);
+    return [
+      mk(s, "sustainability-reserve-report", {
+        eventKey: `sustainability-reserve-report:${abs}`,
+        sender: SUS_SENDER(s),
+        department: "Finance",
+        category: "information",
+        priority: "normal",
+        subject: `Reserve report — ${h.label}`,
+        body:
+          `Cash: ${money(res.cash)}\n` +
+          `Recommended reserve: ${money(res.recommended)}\n` +
+          (res.excess > 0
+            ? `Above reserve by ${money(res.excess)}\n`
+            : `Short of reserve by ${money(res.deficit)}\n`) +
+          `Operating cover: ${res.coverMonths.toFixed(1)} months\n` +
+          `Wage-to-revenue: ${h.wageRatio}%\n\n` +
+          `${h.summary}\n\n${p.headline}`,
+      }),
+    ];
+  },
+};
+
+/* -- Football Director asks for the money to be used on the squad -- */
+const G_SUS_FOOTBALL_REQUEST: Generator = {
+  id: "sustainability-football-request",
+  run: (s) => {
+    const n = sustainabilityNeeds(s);
+    const p = reinvestmentPressure(s);
+    const res = reservePicture(s);
+    if (n.squad < 0.45 || p.byArea.squad < 45 || res.strategicCapital <= 0) return [];
+    if (hasOpenCommitment(s, "football")) return [];
+    const d = s.board?.directors?.find((x) => x.role === "Football Director");
+    const target = commitmentTarget(res.strategicCapital, 0.35);
+    return [
+      mk(s, "sustainability-football-request", {
+        eventKey: `sustainability-football-request:s${s.season}`,
+        sender: d?.name ?? "Football Director",
+        department: "Board of Directors",
+        category: "decision",
+        priority: "high",
+        subject: "The squad is falling behind this division",
+        body:
+          `We are carrying ${money(res.strategicCapital)} of capital that is not ` +
+          `committed to anything, and the squad is rated well below the clubs ` +
+          `we are playing every week.\n\n` +
+          `I am not asking you to empty the account. I am asking you to tell ` +
+          `the board what this money is for.`,
+        expiresInWeeks: 6,
+        choices: [
+          {
+            id: "squad",
+            label: `Commit ${money(target)} to the squad`,
+            hint: "Promise measured against real transfer and wage spend.",
+            effects: [{
+              kind: "strategicCommitment", category: "football", weeks: 26,
+              targetInvestment: target,
+              note: "Chairman promised the Football Director squad investment.",
+            }],
+          },
+          {
+            id: "training",
+            label: `Commit ${money(target)} to training and medical`,
+            hint: "Promise measured against facilities and capital spend.",
+            effects: [{
+              kind: "strategicCommitment", category: "infrastructure", weeks: 34,
+              targetInvestment: target,
+              note: "Chairman promised investment in training and medical facilities.",
+            }],
+          },
+          {
+            id: "hold",
+            label: "Maintain the current strategy",
+            hint: "No promise made. The director will remember at the review.",
+            effects: [],
+          },
+          {
+            id: "refuse",
+            label: "Refuse to commit funds",
+            hint: "Blunt, and the dressing room will hear about it.",
+            effects: [{ kind: "fanHappiness", delta: -1 }],
+          },
+        ],
+      }),
+    ];
+  },
+};
+
+/* -- Supporters' Director: only after sustained visible underinvestment -- */
+const G_SUS_SUPPORTER_PRESSURE: Generator = {
+  id: "sustainability-supporter-pressure",
+  run: (s) => {
+    const n = sustainabilityNeeds(s);
+    const res = reservePicture(s);
+    const cap = capacityPicture(s);
+    const idle = s.sustainability?.excessWeeks ?? 0;
+    const sustained = idle >= 24 && res.excess > 0;
+    if (!sustained || (n.supporters < 0.5 && cap.pressure < 60)) return [];
+    if (hasOpenCommitment(s, "supporters")) return [];
+    const d = s.board?.directors?.find((x) => x.role === "Supporters' Director");
+    const target = commitmentTarget(res.strategicCapital, 0.25);
+    return [
+      mk(s, "sustainability-supporter-pressure", {
+        eventKey: `sustainability-supporter-pressure:s${s.season}`,
+        sender: d?.name ?? "Supporters' Director",
+        department: "Board of Directors",
+        category: "warning",
+        priority: "high",
+        subject: "Supporters can see the balance sheet",
+        body:
+          `We have been sitting on money above our reserve for ${idle} weeks. ` +
+          `In the same period the ground has been left as it is` +
+          (cap.pressure >= 60 ? ` and we are turning people away most weeks` : ``) +
+          `.\n\nThe supporters' trust has asked me directly what the money is for. ` +
+          `I would like an answer I can give them.`,
+        expiresInWeeks: 6,
+        choices: [
+          {
+            id: "commit",
+            label: `Commit ${money(target)} to supporter facilities`,
+            hint: "Measured against real facilities and capital spend.",
+            effects: [{
+              kind: "strategicCommitment", category: "supporters", weeks: 30,
+              targetInvestment: target,
+              note: "Chairman promised investment in supporter facilities.",
+            }],
+          },
+          {
+            id: "listen",
+            label: "Meet the trust without promising anything",
+            hint: "Buys goodwill now, changes nothing.",
+            effects: [{ kind: "fanHappiness", delta: 1 }],
+          },
+          {
+            id: "dismiss",
+            label: "Tell them the reserves are not for spending",
+            hint: "Honest. Unpopular.",
+            effects: [{ kind: "fanHappiness", delta: -2 }],
+          },
+        ],
+      }),
+    ];
+  },
+};
+
+/* -- Commercial Director: untapped revenue while capital sits idle -- */
+const G_SUS_COMMERCIAL_REQUEST: Generator = {
+  id: "sustainability-commercial-request",
+  run: (s) => {
+    const n = sustainabilityNeeds(s);
+    const p = reinvestmentPressure(s);
+    const res = reservePicture(s);
+    if (n.commercial < 0.45 || p.byArea.commercial < 40 || res.strategicCapital <= 0) return [];
+    if (hasOpenCommitment(s, "commercial")) return [];
+    const d = s.board?.directors?.find((x) => x.role === "Commercial Director");
+    const target = commitmentTarget(res.strategicCapital, 0.3);
+    return [
+      mk(s, "sustainability-commercial-request", {
+        eventKey: `sustainability-commercial-request:s${s.season}`,
+        sender: d?.name ?? "Commercial Director",
+        department: "Board of Directors",
+        category: "opportunity",
+        priority: "normal",
+        subject: "We are leaving money on the table every matchday",
+        body:
+          `Our retail, hospitality and catering are behind what this club could ` +
+          `support. With ${money(res.strategicCapital)} uncommitted, developing ` +
+          `them would raise recurring income rather than spend it once.\n\n` +
+          `Approve the work through the Facilities office and I will do the rest.`,
+        expiresInWeeks: 6,
+        choices: [
+          {
+            id: "commit",
+            label: `Commit ${money(target)} to commercial development`,
+            hint: "Measured against real capital and operations spend.",
+            effects: [{
+              kind: "strategicCommitment", category: "commercial", weeks: 30,
+              targetInvestment: target,
+              note: "Chairman promised commercial development.",
+            }],
+          },
+          {
+            id: "later",
+            label: "Not this season",
+            hint: "No promise recorded.",
+            effects: [],
+          },
+        ],
+      }),
+    ];
+  },
+};
+
+/* -- Strategic capital review: sustained pressure, chairman sets priority -- */
+const G_SUS_STRATEGIC_REVIEW: Generator = {
+  id: "sustainability-strategic-review",
+  run: (s) => {
+    const p = reinvestmentPressure(s);
+    const res = reservePicture(s);
+    const idle = s.sustainability?.excessWeeks ?? 0;
+    if (p.score < 70 || idle < 20) return [];
+    if (openCommitments(s).length > 0) return [];
+    const chair = s.board?.directors?.find((x) => x.role === "Chairman");
+    const target = commitmentTarget(res.strategicCapital, 0.3);
+    const promise = (category: "football" | "infrastructure" | "commercial" | "supporters", label: string, weeks: number) => ({
+      id: category,
+      label,
+      hint: `Recorded as a promise to the board. Measured over ${weeks} weeks.`,
+      effects: [{
+        kind: "strategicCommitment" as const, category, weeks,
+        targetInvestment: target,
+        note: `Strategic capital review: ${label}.`,
+      }],
+    });
+    return [
+      mk(s, "sustainability-strategic-review", {
+        eventKey: `sustainability-strategic-review:s${s.season}`,
+        sender: chair?.name ?? "Chairman",
+        department: "Board of Directors",
+        category: "decision",
+        priority: "high",
+        subject: "Strategic capital review",
+        body:
+          `${p.headline}\n\n` +
+          `Uncommitted capital: ${money(res.strategicCapital)}\n` +
+          `Weeks above reserve: ${idle}\n\n` +
+          `The board would like a stated priority for this money. Preserving ` +
+          `it is a legitimate answer — but it has to be an answer.`,
+        expiresInWeeks: 8,
+        choices: [
+          {
+            id: "preserve",
+            label: "Preserve reserves",
+            hint: "Promise to hold cover through the period.",
+            effects: [{
+              kind: "strategicCommitment", category: "financial", weeks: 26,
+              targetInvestment: 0,
+              note: "Chairman committed to protecting the club's reserves.",
+            }],
+          },
+          promise("football", "Prioritise the squad", 26),
+          promise("infrastructure", "Prioritise stadium and training infrastructure", 34),
+          promise("supporters", "Prioritise supporter facilities", 30),
+        ],
+      }),
+    ];
+  },
+};
+
+/* -- Promotion / relegation: one sustainability briefing per season -- */
+const G_SUS_TIER_SHOCK: Generator = {
+  id: "sustainability-tier-shock",
+  run: (s) => {
+    const shock = tierShock(s);
+    if (!shock.movement || s.week > 6) return [];
+    const up = shock.movement === "promoted";
+    return [
+      mk(s, "sustainability-tier-shock", {
+        eventKey: `sustainability-tier-shock:${shock.movement}:s${s.season}`,
+        sender: SUS_SENDER(s),
+        department: "Finance",
+        category: up ? "information" : "warning",
+        priority: up ? "normal" : "high",
+        subject: up
+          ? "What promotion means for the books"
+          : "What relegation means for the books",
+        body:
+          `${shock.summary}\n\n` +
+          `Recurring income at this level: ${money(shock.weeklyIncome)}/week\n` +
+          `Running cost we carry: ${money(shock.weeklyCost)}/week\n` +
+          `Wages already contracted this season: ${money(shock.committedWages)}\n` +
+          `Cash: ${money(shock.reserve.cash)} against a recommended reserve of ` +
+          `${money(shock.reserve.recommended)}\n` +
+          `Status: ${shock.health.label} — ${shock.reserve.coverMonths.toFixed(1)} months cover\n\n` +
+          (up
+            ? `Sponsors, attendances and distributions all improve at this level. ` +
+              `So do wage demands at renewal, transfer prices and what the board ` +
+              `considers an acceptable squad and ground.`
+            : `Nothing on the cost side falls with us: signed contracts, maintenance ` +
+              `and any approved works continue exactly as they are. Expect the ` +
+              `financial health indicators to tighten before they recover.`),
+      }),
+    ];
+  },
+};
+
 const GENERATORS: Generator[] = [
   G_WELCOME,
   G_FINANCE_WEEKLY,
@@ -1834,6 +2172,12 @@ const GENERATORS: Generator[] = [
   G_INFRA_CRITICAL,
   G_INFRA_PROPOSAL,
   G_INFRA_WORKS_UPDATE,
+  G_SUS_RESERVE_REPORT,
+  G_SUS_FOOTBALL_REQUEST,
+  G_SUS_SUPPORTER_PRESSURE,
+  G_SUS_COMMERCIAL_REQUEST,
+  G_SUS_STRATEGIC_REVIEW,
+  G_SUS_TIER_SHOCK,
 ];
 for (const g of GENERATORS) KNOWN_GENERATOR_IDS.add(g.id);
 

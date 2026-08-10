@@ -438,6 +438,39 @@ export function askingPrice(s: GameState, p: FootballPlayer): number {
   return Math.max(20_000, int((p.marketValue * contractFactor * importance * listed * ambition) / 5_000) * 5_000);
 }
 
+/**
+ * Growth pressure on wage expectations at NEGOTIATION time.
+ *
+ * A club that rises through the pyramid discovers that keeping the same
+ * players costs more. This deliberately measures CHANGE, not level: the
+ * absolute reputation of the club is already priced into `ambitionGap`
+ * below, so counting it twice would double-charge every club.
+ *
+ * Signed contracts are never touched by this — it only bends what a player
+ * asks for when new terms are being agreed.
+ */
+export function clubGrowthFactor(s: GameState): number {
+  const history = s.seasonHistory ?? [];
+  let moves = 0;
+  for (const h of history) {
+    if (h.season < s.season - 3) continue;
+    if (h.promoted?.includes?.(s.clubName)) moves += 1;
+    if (h.relegated?.includes?.(s.clubName)) moves -= 1;
+  }
+  // Reputation trend over the same window, from the immutable snapshots.
+  const snaps = (s.clubSnapshots ?? [])
+    .filter((x) => x.club === s.clubName)
+    .sort((a, b) => a.season - b.season);
+  const now = clubReputation(s, s.clubName);
+  const then = snaps.length ? snaps[Math.max(0, snaps.length - 4)].reputation : now;
+  const repTrend = clamp((now - then) / 100, -0.1, 0.15);
+  // Recent success: a club winning things is a club players charge more to join.
+  const recent = history
+    .filter((h) => h.season >= s.season - 2 && h.champion === s.clubName).length;
+  const factor = 1 + clamp(moves * 0.07, -0.14, 0.21) + repTrend + recent * 0.03;
+  return Math.round(clamp(factor, 0.85, 1.35) * 1000) / 1000;
+}
+
 export function wageDemand(s: GameState, p: FootballPlayer, role: SquadRole = "First Team"): number {
   const roleFactor = role === "Key Player" ? 1.15 : role === "First Team" ? 1 : role === "Rotation" ? 0.9 : 0.8;
   const ambitionGap = clamp(1 + (clubReputation(s, s.clubName) - p.reputation) / 240, 0.85, 1.2);
@@ -446,7 +479,8 @@ export function wageDemand(s: GameState, p: FootballPlayer, role: SquadRole = "F
   // shave a little off wage demands, poor ones add to them. Capped at +/-6%.
   const attraction = clamp(facilityModifiers(s).recruitmentAttraction, -15, 15);
   const facilityFactor = clamp(1 - attraction / 250, 0.94, 1.06);
-  return Math.max(250, int((p.wageExpectation * roleFactor * personality * facilityFactor) / ambitionGap / 25) * 25);
+  const growth = clubGrowthFactor(s);
+  return Math.max(250, int((p.wageExpectation * roleFactor * personality * facilityFactor * growth) / ambitionGap / 25) * 25);
 }
 
 /**
