@@ -299,6 +299,17 @@ function applyEffectInPlace(s: GameState, e: InboxEffect, src: EffectSource): vo
       reopenAssetInPlace(s, e.assetId);
       break;
 
+    /* -- Sustainability: records a promise to the Board. Creating a
+       commitment never moves, reserves or refunds cash; fulfilment is
+       measured later from the canonical ledger, never from the UI. -- */
+    case "strategicCommitment":
+      createCommitmentInPlace(
+        s, e.category, e.weeks, e.targetInvestment ?? 0, e.note,
+      );
+      break;
+
+
+
     case "scheduleGenerator": {
       assertGeneratorRegistered(e.generatorId);
       const dueAbs = absoluteWeek(s.season, s.week) + e.inWeeks;
