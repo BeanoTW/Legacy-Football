@@ -29,6 +29,7 @@ import {
   commercialConcentration, recommendedReserve, reservePicture,
   needs, infrastructureNeed, squadNeed, supporterNeed, commercialNeed,
   capacityPicture, capacityPressure, reinvestmentPressure,
+  sustainabilityConfidenceAdjustment, RESERVE_REPORT_WEEKS,
   wageToRevenue, staffCostRatio, infrastructureCostRatio, financialHealth,
   financialTrajectory, insolvencyRisk,
   directorStance, boardStances, boardDisagrees,
