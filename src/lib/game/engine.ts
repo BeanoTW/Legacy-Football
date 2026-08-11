@@ -17,6 +17,7 @@ import type {
   League,
 } from "./types";
 import { runWeeklyGenerators } from "./inbox";
+import { profileForTier, tierOfUser, clubSizeFactor } from "./economy";
 import {
   ensureRecruitment, runRecruitmentWeek, closeRecruitmentSeason,
   rollRecruitmentToNewSeason,
@@ -336,11 +337,13 @@ export const SAVE_VERSION = 12;
 function _newGameSeed(clubName: string, managerName: string, seed?: string): GameState {
   const saveSeed = seed ?? `${clubName}|${managerName}|${Date.now().toString(36)}`;
 
+  // Sized for a Division One (League One analogue) club: a 12,000 ground and
+  // ticket prices around the £20 reference for the level.
   const stands: Stand[] = [
-    { key: "N", name: "North Stand", capacity: 6000, condition: 92, ticketPrice: 22 },
-    { key: "E", name: "East Stand",  capacity: 5000, condition: 88, ticketPrice: 26 },
-    { key: "S", name: "South Stand", capacity: 6000, condition: 90, ticketPrice: 22 },
-    { key: "W", name: "West Stand",  capacity: 7000, condition: 94, ticketPrice: 30 },
+    { key: "N", name: "North Stand", capacity: 3200, condition: 92, ticketPrice: 18 },
+    { key: "E", name: "East Stand",  capacity: 2600, condition: 88, ticketPrice: 21 },
+    { key: "S", name: "South Stand", capacity: 3200, condition: 90, ticketPrice: 18 },
+    { key: "W", name: "West Stand",  capacity: 3000, condition: 94, ticketPrice: 26 },
   ];
   const leagues = makeLeagues(clubName);
   const leagueSchedule = makePyramidSchedule(leagues, `${saveSeed}|season1`);
@@ -359,15 +362,15 @@ function _newGameSeed(clubName: string, managerName: string, seed?: string): Gam
     pitchCondition: 90,
     trainingRating: 65,
     trainingWeeklyCost: 4_200,
-    staffWagesWeekly: 18_500,
+    staffWagesWeekly: 26_000,
     utilitiesWeekly: 6_800,
     maintenanceWeekly: 3_400,
     // Canonical squad lives in GameState.football; this is a rebuilt projection.
     squad: [],
     sponsors: [
-      { name: "Main Kit Sponsor", weekly: 14_000, weeksLeft: 38 * 2 },
-      { name: "Stadium Naming",   weekly: 5_000,  weeksLeft: 38 * 3 },
-      { name: "Training Wear",    weekly: 2_200,  weeksLeft: 20 },
+      { name: "Main Kit Sponsor", weekly: 15_000, weeksLeft: 38 * 2 },
+      { name: "Stadium Naming",   weekly: 6_000,  weeksLeft: 38 * 3 },
+      { name: "Training Wear",    weekly: 2_500,  weeksLeft: 20 },
     ],
     fixtures: fixturesForClub(leagueSchedule, clubName),
     leagues,
@@ -459,18 +462,27 @@ function simAttendance(
   s: GameState, isHome: boolean, opponentStrength: number, rng: () => number = Math.random,
 ): number {
   if (!isHome) return 0;
-  // Attendance can never exceed the capacity the club can actually open.
+  // Attendance is DEMAND-led, then capped by what the club can open. A big
+  // stadium does not create supporters: the level of football and the size of
+  // the club set the crowd, and the ground only limits it.
   const cap = usableCapacity(s);
+  const tier = tierOfUser(s);
+  const profile = profileForTier(tier);
+  const demandBase = profile.typicalAttendance * clubSizeFactor(s.reputation ?? 50);
+
   const avgPrice = avgTicketPrice(s);
-  // reference price scales with reputation
-  const refPrice = 15 + s.reputation * 0.4;
-  const priceFactor = Math.max(0.15, 1 - Math.pow(Math.max(0, avgPrice - refPrice) / refPrice, 1.4));
-  const happinessFactor = 0.55 + s.fanHappiness / 200;   // 0.55 - 1.05
-  const opponentFactor = 0.85 + opponentStrength / 400;  // 0.85 - 1.10
-  const noise = 0.9 + rng() * 0.15;
+  // Supporters judge the price against what the level normally charges.
+  const refPrice = profile.ticketPriceReference * (0.85 + clubSizeFactor(s.reputation ?? 50) * 0.15);
+  const priceFactor = avgPrice <= refPrice
+    ? Math.min(1.12, 1 + (refPrice - avgPrice) / refPrice * 0.28)
+    : Math.max(0.18, 1 - Math.pow((avgPrice - refPrice) / refPrice, 1.25) * 0.85);
+
+  const happinessFactor = 0.6 + (s.fanHappiness ?? 60) / 165;   // 0.6 - 1.21
+  const opponentFactor = 0.9 + opponentStrength / 600;
+  const noise = 0.93 + rng() * 0.12;
   // Parking and fan-zone quality make coming to the ground easier.
   const convenience = facilityModifiers(s).attendanceConvenience;
-  const raw = cap * priceFactor * happinessFactor * opponentFactor * noise * convenience;
+  const raw = demandBase * priceFactor * happinessFactor * opponentFactor * noise * convenience;
   return Math.max(0, Math.min(cap, Math.round(raw)));
 }
 
@@ -580,8 +592,13 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
       attendance = simAttendance(s, fixture.home, oppStrength, rng);
       const avgPrice = avgTicketPrice(s);
       gate = Math.round(attendance * avgPrice);
-      tv = 22_000 + Math.round(rng() * 8000);
-      matchdayOps = fixture.home ? Math.round(6_500 + attendance * 0.4) : 3_200;
+      // Central broadcast money arrives weekly through the league
+      // distribution; this is only the per-fixture facility/host fee.
+      const econ = profileForTier(tierOfUser(s));
+      tv = Math.round((econ.broadcastSeason * 0.07) / 23 * (0.85 + rng() * 0.3));
+      matchdayOps = fixture.home
+        ? Math.round((4_200 + attendance * 1.35) * econ.matchdayCostFactor)
+        : Math.round(3_200 * econ.matchdayCostFactor);
     }
 
     // Single matchday-finance path shared by auto-resolved and live matches.

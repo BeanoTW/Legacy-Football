@@ -28,6 +28,9 @@ import { absoluteWeek, WEEKS_PER_SEASON } from "./time";
 import { postEntry } from "./finance";
 import { clubReputation } from "./reputation";
 import { facilityModifiers } from "./infrastructure";
+import {
+  weeklyWageFor, profileForTier, tierOfClub, tierOfUser, sustainableWeeklyWageBill,
+} from "./economy";
 
 const int = (n: number) => Math.round(n) || 0;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -85,18 +88,22 @@ export function ageOf(p: FootballPlayer, season: number): number {
   return BASE_YEAR + season - 1 - p.dateOfBirth.year;
 }
 
-/** Wage a given ability commands, £/week. Single definition, used everywhere. */
-export function wageForAbility(ability: number, clubRep = 55): number {
-  const base = (ability ** 2.15) / 9;
-  return Math.max(250, int((base * (0.75 + clubRep / 200)) / 25) * 25);
+/**
+ * Wage a given ability commands, £/week. Single definition, used everywhere.
+ * The real economics live in economy.ts: the level of football a club plays
+ * at sets the scale, the club's own standing nudges it up or down.
+ */
+export function wageForAbility(ability: number, clubRep = 55, tier = 1, age?: number, potential?: number): number {
+  return weeklyWageFor({ ability, tier, clubReputation: clubRep, age, potential });
 }
 
 /** Market value of an ability/age pair, £. Single definition. */
-export function valueForPlayer(ability: number, potential: number, age: number): number {
+export function valueForPlayer(ability: number, potential: number, age: number, tier = 1): number {
   const peak = clamp(1.25 - Math.abs(age - 25) * 0.045, 0.35, 1.25);
   const upside = 1 + Math.max(0, potential - ability) / 90;
-  const raw = (ability ** 3) * 0.55 * peak * upside;
-  return Math.max(25_000, int(raw / 5_000) * 5_000);
+  const scale = profileForTier(tier).transferMarketScale;
+  const raw = (ability ** 3) * 0.55 * peak * upside * scale;
+  return Math.max(10_000, int(raw / 5_000) * 5_000);
 }
 
 /* =========================================================================
@@ -105,6 +112,7 @@ export function valueForPlayer(ability: number, potential: number, age: number):
 
 function makePlayerFor(
   saveSeed: string, clubId: string | null, index: number, tierRating: number, season: number,
+  tier = 1, clubRep = 50,
 ): FootballPlayer {
   const key = `${saveSeed}|player|${clubId ?? "free"}|${index}`;
   const rng = seededRng(key);
@@ -145,8 +153,8 @@ function makePlayerFor(
     reputation,
     currentAbility,
     potentialAbility,
-    marketValue: valueForPlayer(currentAbility, potentialAbility, age),
-    wageExpectation: wageForAbility(currentAbility, tierRating),
+    marketValue: valueForPlayer(currentAbility, potentialAbility, age, tier),
+    wageExpectation: wageForAbility(currentAbility, clubRep, tier, age, potentialAbility),
     personality: PERSONALITIES[rngInt(rng, 0, PERSONALITIES.length - 1)],
     contractId: null,
     transferStatus: "unlisted",
@@ -175,7 +183,7 @@ export function generateWorld(s: GameState): { players: FootballPlayer[]; contra
     const tierRating = clamp(42 + rep * 0.42, 40, 88);
     const squad: FootballPlayer[] = [];
     for (let i = 0; i < SQUAD_SIZE; i++) {
-      squad.push(makePlayerFor(s.saveSeed, club, i, tierRating, s.season));
+      squad.push(makePlayerFor(s.saveSeed, club, i, tierRating, s.season, tierOfClub(s, club), rep));
     }
     squad.sort((a, b) => b.currentAbility - a.currentAbility || a.id.localeCompare(b.id));
     squad.forEach((p, i) => {
@@ -189,7 +197,7 @@ export function generateWorld(s: GameState): { players: FootballPlayer[]; contra
         startWeek: 1,
         expirySeason: s.season + seasons - 1,
         expiryWeek: WEEKS_PER_SEASON,
-        weeklyWage: wageForAbility(p.currentAbility, rep),
+        weeklyWage: wageForAbility(p.currentAbility, rep, tierOfClub(s, club), ageOf(p, s.season), p.potentialAbility),
         squadRole: roleFor(i),
         signingBonus: 0,
         agreedTransferFee: 0,
@@ -201,8 +209,9 @@ export function generateWorld(s: GameState): { players: FootballPlayer[]; contra
     });
   }
 
+  const freeAgentTier = Math.max(...(s.leagues ?? []).map((l) => l.tier ?? 1), 1);
   for (let i = 0; i < FREE_AGENT_POOL; i++) {
-    const p = makePlayerFor(s.saveSeed, null, i, 52, s.season);
+    const p = makePlayerFor(s.saveSeed, null, i, 52, s.season, freeAgentTier, 45);
     p.contractId = null;
     p.transferStatus = "listed";
     players.push(p);
@@ -509,7 +518,7 @@ export function availabilityReason(s: GameState, p: FootballPlayer): string | nu
 
   const sellerRep = clubReputation(s, club);
   if (p.reputation > sellerRep + 18) return "Ambition outgrowing his club";
-  if (sellerRep < 35 && c.weeklyWage > wageForAbility(p.currentAbility, sellerRep) * 1.1) {
+  if (sellerRep < 35 && c.weeklyWage > wageForAbility(p.currentAbility, sellerRep, tierOfClub(s, club)) * 1.1) {
     return "His club needs the wage off the books";
   }
   return null;
@@ -883,7 +892,9 @@ export function completeTransferInPlace(s: GameState, negotiationId: string): Ne
     if (old) closeContract(s, old, "transferred", "Expired");
     const buyerRep = clubReputation(s, n.toClubId);
     const fresh = issueContract(
-      s, p.id, n.toClubId, wageForAbility(p.currentAbility, buyerRep), 3, "First Team", 0, n.fee,
+      s, p.id, n.toClubId,
+      wageForAbility(p.currentAbility, buyerRep, tierOfClub(s, n.toClubId), ageOf(p, s.season), p.potentialAbility),
+      3, "First Team", 0, n.fee,
     );
     p.currentClubId = n.toClubId;
     p.contractId = fresh.id;
@@ -1040,6 +1051,37 @@ export function setTransferStatusInPlace(
    9. Weekly runner
 ========================================================================= */
 
+/** Would an AI club keep this player? Deterministic, football-shaped. */
+function aiRenews(s: GameState, c: PlayerContract, p: FootballPlayer): boolean {
+  const squad = squadOf(s, c.clubId);
+  if (squad.length > SQUAD_SIZE + 2) return false;
+  const rng = seededRng(s.saveSeed, "aiRenew", c.id, s.season);
+  const rep = clubReputation(s, c.clubId);
+  const age = ageOf(p, s.season);
+  const wanted = p.currentAbility >= rep * 0.6 + 25;
+  const tooOld = age >= 35;
+  if (tooOld) return false;
+  if (squad.length <= MIN_SQUAD_SIZE + 2) return true;
+  return wanted ? rng() < 0.85 : rng() < 0.45;
+}
+
+/** Roll one AI contract over onto fresh, level-appropriate terms. */
+function renewAiContract(s: GameState, c: PlayerContract, p: FootballPlayer): void {
+  const rng = seededRng(s.saveSeed, "aiRenewTerms", c.id, s.season);
+  const rep = clubReputation(s, c.clubId);
+  const tier = tierOfClub(s, c.clubId);
+  const age = ageOf(p, s.season);
+  closeContract(s, c, "renewed", "Expired");
+  const fresh = issueContract(
+    s, p.id, c.clubId,
+    wageForAbility(p.currentAbility, rep, tier, age, p.potentialAbility),
+    rngInt(rng, 1, 4), c.squadRole, 0, 0,
+  );
+  p.currentClubId = c.clubId;
+  p.contractId = fresh.id;
+  p.transferStatus = "unlisted";
+}
+
 /** Contracts that have run out: player leaves, records are written. */
 function processExpiries(s: GameState): void {
   const abs = nowAbs(s);
@@ -1048,6 +1090,13 @@ function processExpiries(s: GameState): void {
     const left = contractExpiresAbs(c) - abs;
     if (left <= 0) {
       const p = playerById(s, c.playerId);
+      // AI clubs run their own squads: rather than let a squad dissolve, they
+      // renew players they still need. Only the user's club is left exposed
+      // to its own inaction.
+      if (p && c.clubId !== s.clubName && aiRenews(s, c, p)) {
+        renewAiContract(s, c, p);
+        continue;
+      }
       c.status = "Expired";
       s.football.contractHistory.push({
         id: nextRecordId(s, "CR"),
@@ -1164,7 +1213,8 @@ function runAiRecruitment(s: GameState, windowOpen: boolean): void {
     if (!pool.length) continue;
     const pick = pool[Math.min(pool.length - 1, rngInt(rng, 0, 2))];
     const c = issueContract(
-      s, pick.id, club, wageForAbility(pick.currentAbility, rep),
+      s, pick.id, club,
+      wageForAbility(pick.currentAbility, rep, tierOfClub(s, club), ageOf(pick, s.season), pick.potentialAbility),
       rngInt(rng, 1, 3), "Rotation", 0, 0,
     );
     pick.currentClubId = club;
@@ -1180,13 +1230,86 @@ function runAiRecruitment(s: GameState, windowOpen: boolean): void {
   }
 }
 
+/**
+ * The club must be able to field a team. When the squad falls below the
+ * minimum, the recruitment department signs the best free agent it can
+ * plausibly attract — a chairman who ignores the squad still pays wages.
+ */
+function coverSquadShortfall(s: GameState): void {
+  const squad = userSquad(s);
+  if (squad.length >= MIN_SQUAD_SIZE) return;
+  const rng = seededRng(s.saveSeed, "squadCover", s.season, s.week);
+  const rep = clubReputation(s, s.clubName);
+  const tier = tierOfClub(s, s.clubName);
+  const needed = Math.min(2, MIN_SQUAD_SIZE - squad.length);
+
+  for (let k = 0; k < needed; k++) {
+    // Emergency cover is bought within the club's means, not on ambition:
+    // the department signs the best player the wage structure can carry.
+    const ceiling = Math.max(
+      600,
+      sustainableWeeklyWageBill(tier, rep) - userWageBill(s),
+    );
+    const affordable = (p: FootballPlayer) =>
+      wageForAbility(p.currentAbility, rep, tier, ageOf(p, s.season), p.potentialAbility) <= ceiling;
+    const all = freeAgents(s).filter((p) => p.reputation <= rep + 6);
+    if (!all.length) return;
+    const within = all.filter(affordable)
+      .sort((a, b) => b.currentAbility - a.currentAbility || a.id.localeCompare(b.id));
+    const pool = within.length
+      ? within
+      : [...all].sort((a, b) => a.currentAbility - b.currentAbility || a.id.localeCompare(b.id));
+    const pick = pool[Math.min(pool.length - 1, rngInt(rng, 0, 2))];
+    const age = ageOf(pick, s.season);
+    const c = issueContract(
+      s, pick.id, s.clubName,
+      wageForAbility(pick.currentAbility, rep, tier, age, pick.potentialAbility),
+      rngInt(rng, 1, 3), "Rotation", 0, 0,
+    );
+    pick.currentClubId = s.clubName;
+    pick.contractId = c.id;
+    pick.transferStatus = "unlisted";
+    s.football.transferHistory.push({
+      id: nextRecordId(s, "TR"),
+      playerId: pick.id, playerName: playerName(pick), position: pick.primaryPosition,
+      fromClubId: null, toClubId: s.clubName, fee: 0, weeklyWage: c.weeklyWage,
+      signingBonus: 0, season: s.season, week: s.week, absoluteWeek: nowAbs(s),
+      type: "freeTransfer",
+    });
+  }
+}
+
+/**
+ * Free agents dry up as contracts are handed out. Top up the pool so the
+ * market never empties — released players, academy leavers and foreign
+ * arrivals all keep it stocked in a real football economy.
+ */
+function replenishFreeAgents(s: GameState): void {
+  const pool = freeAgents(s);
+  if (pool.length >= 12) return;
+  const tier = Math.max(...(s.leagues ?? []).map((l) => l.tier ?? 1), 1);
+  const seq = s.football.players.length;
+  for (let i = 0; i < 12 - pool.length; i++) {
+    const p = makePlayerFor(
+      s.saveSeed, null, seq + i, 50,
+      s.season, tier, 45,
+    );
+    p.id = `${p.id}-fa${s.season}-${s.week}-${i}`;
+    p.contractId = null;
+    p.transferStatus = "listed";
+    s.football.players.push(p);
+  }
+}
+
 /** Called once per week from advanceWeek, before the inbox runs. */
 export function runRecruitmentWeek(s: GameState, windowOpen: boolean): void {
   ensureRecruitment(s);
   processExpiries(s);
   expireNegotiations(s);
+  replenishFreeAgents(s);
   generateIncomingOffers(s, windowOpen);
   runAiRecruitment(s, windowOpen);
+  coverSquadShortfall(s);
   syncLegacySquad(s);
 }
 
@@ -1214,8 +1337,11 @@ export function rollRecruitmentToNewSeason(s: GameState): void {
   ensureRecruitment(s);
   for (const p of s.football.players) {
     const age = ageOf(p, s.season);
-    p.marketValue = valueForPlayer(p.currentAbility, p.potentialAbility, age);
-    p.wageExpectation = wageForAbility(p.currentAbility, p.currentClubId ? clubReputation(s, p.currentClubId) : 45);
+    const tier = p.currentClubId ? tierOfClub(s, p.currentClubId) : tierOfUser(s);
+    p.marketValue = valueForPlayer(p.currentAbility, p.potentialAbility, age, tier);
+    p.wageExpectation = wageForAbility(
+      p.currentAbility, p.currentClubId ? clubReputation(s, p.currentClubId) : 45, tier, age, p.potentialAbility,
+    );
   }
   syncLegacySquad(s);
 }
