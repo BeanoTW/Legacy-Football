@@ -38,6 +38,7 @@ import type {
 import { absoluteWeek } from "./time";
 import { seededRng, rngRange } from "./rng";
 import { assessSpend, postEntry } from "./finance";
+import { profileForTier, tierOfUser } from "./economy";
 
 const int = (n: number) => Math.round(Number.isFinite(n) ? n : 0);
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
@@ -480,10 +481,13 @@ export function assetCosts(s: GameState, a: InfrastructureAsset): {
   const levelScale = 1 + (a.level - 1) * 0.42;
   const capScale = a.type === "stand" ? Math.max(0.5, a.capacity / 6000) : 1;
   const closed = a.status === "closed";
-  const operating = closed ? 0 : int(cfg.operatingCost * levelScale * capScale * BAND_COST[band]);
+  // Running a ground costs what the level of football demands: staffing,
+  // stewarding, energy and compliance all scale with the division.
+  const level = profileForTier(tierOfUser(s)).infrastructureCostFactor;
+  const operating = closed ? 0 : int(cfg.operatingCost * levelScale * capScale * BAND_COST[band] * level);
   // A closed asset is still made safe, but is not fully maintained.
   const maintenance = int(
-    cfg.maintenanceCost * levelScale * capScale * policy.cost *
+    cfg.maintenanceCost * levelScale * capScale * policy.cost * level *
     (1 + a.maintenanceRequirement / 200) * (closed ? 0.3 : 1),
   );
   return { operating, maintenance };

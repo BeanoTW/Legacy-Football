@@ -36,6 +36,10 @@ import type {
   WeekLedger,
 } from "./types";
 import { absoluteWeek } from "./time";
+import {
+  profileForTier, clubSizeFactor, revenueBaseline, sustainableWeeklyWageBill,
+  wageStructureFrom, type WageStructure,
+} from "./economy";
 
 export const SEASON_WEEKS = 46;
 /** Four playing weeks = one "month" for reporting cadence. */
@@ -323,13 +327,25 @@ export function wageSummary(s: GameState): WageSummary {
    3. Recurring income and expenditure
 ========================================================================= */
 
-export const adminWeeklyCost = (s: GameState) =>
-  int(3_500 + (s.reputation ?? 50) * 60);
+/**
+ * Club administration: compliance, insurance, travel, ticketing operations.
+ * Scales with the level of football played, not just reputation, because the
+ * cost of running a club is set by the league it operates in.
+ */
+export const adminWeeklyCost = (s: GameState) => {
+  const p = profileForTier(leagueTierOf(s));
+  const size = clubSizeFactor(s.reputation ?? 50);
+  return int((2_600 + (s.reputation ?? 50) * 26) * p.staffCostFactor * size);
+};
 
-/** Placeholder central distribution until broadcast deals are modelled. */
+/**
+ * Central broadcast and solidarity payments, paid weekly across the season.
+ * Driven entirely by the league's economic profile, so promotion and
+ * relegation change the club's whole income base with no special casing.
+ */
 export function leagueDistributionWeekly(s: GameState): number {
-  const tier = leagueTierOf(s);
-  return tier <= 1 ? 26_000 : 11_000;
+  const base = revenueBaseline(leagueTierOf(s), s.reputation ?? 50);
+  return base.weeklyBroadcast;
 }
 
 export function leagueTierOf(s: GameState): number {
@@ -341,8 +357,16 @@ export function leagueTierOf(s: GameState): number {
 export const sponsorWeeklyIncome = (s: GameState) =>
   int((s.sponsors ?? []).reduce((a, sp) => a + (sp.weeksLeft > 0 ? sp.weekly : 0), 0));
 
-export const merchandiseWeeklyIncome = (s: GameState) =>
-  int(400 + (s.reputation ?? 50) * 90 + (s.fanHappiness ?? 60) * 30);
+/**
+ * Retail and non-contracted commercial takings. Anchored to the level's
+ * commercial baseline (a third of it — the rest arrives through negotiated
+ * sponsorship) and moved by how happy the supporters are.
+ */
+export const merchandiseWeeklyIncome = (s: GameState) => {
+  const base = revenueBaseline(leagueTierOf(s), s.reputation ?? 50);
+  const mood = 0.6 + (s.fanHappiness ?? 60) / 150;   // 0.6 - 1.27
+  return int((base.commercialSeason * 0.3 / SEASON_WEEKS) * mood);
+};
 
 export const recurringWeeklyIncome = (s: GameState) =>
   sponsorWeeklyIncome(s) + merchandiseWeeklyIncome(s) + leagueDistributionWeekly(s);
@@ -403,12 +427,15 @@ export function postRecurringWeek(s: GameState): void {
     playerWageBill(s), "expense", "playerWages");
   post("Wages", "Staff wages", "Weekly backroom and club staff wages",
     staffWageBill(s), "expense", "staffWages");
+  // Facility upkeep belongs to infrastructure.ts once the asset model exists;
+  // posting the legacy mirrors as well would charge the club twice.
+  const legacyUpkeep = !(s.infrastructure?.assets?.length);
   post("Operations", "Stadium operations", "Utilities and general operating costs",
-    int(s.utilitiesWeekly ?? 0), "expense", "operations");
+    legacyUpkeep ? int(s.utilitiesWeekly ?? 0) : 0, "expense", "operations");
   post("Facilities", "Stadium maintenance", "Stadium upkeep",
-    int(s.maintenanceWeekly ?? 0), "expense", "stadiumMaintenance");
+    legacyUpkeep ? int(s.maintenanceWeekly ?? 0) : 0, "expense", "stadiumMaintenance");
   post("Facilities", "Training ground", "Training ground running costs",
-    int(s.trainingWeeklyCost ?? 0), "expense", "trainingMaintenance");
+    legacyUpkeep ? int(s.trainingWeeklyCost ?? 0) : 0, "expense", "trainingMaintenance");
   post("Operations", "Administration", "Club administration and compliance",
     adminWeeklyCost(s), "expense", "admin");
 }
@@ -459,10 +486,20 @@ export interface MatchdayFinanceBreakdown {
 export const matchdayKey = (i: { season: number; week: number; opponent: string }) =>
   `matchday:s${i.season}:w${i.week}:${i.opponent}`;
 
-/** Deterministic ancillary matchday revenue, derived from attendance. */
-export const hospitalityFor = (attendance: number, mult = 1) => int(attendance * 1.9 * mult);
-export const concessionsFor = (attendance: number, mult = 1) => int(attendance * 3.1 * mult);
-export const parkingFor = (attendance: number, mult = 1) => int(attendance * 0.55 * mult);
+/**
+ * Deterministic ancillary matchday revenue, derived from attendance.
+ * `level` scales spend per head with the level of football: supporters in the
+ * top flight spend several times what a National Division crowd does.
+ */
+export const spendLevelFactor = (tier: number) =>
+  profileForTier(tier).ticketPriceReference / 20;
+
+export const hospitalityFor = (attendance: number, mult = 1, level = 1) =>
+  int(attendance * 1.35 * mult * level);
+export const concessionsFor = (attendance: number, mult = 1, level = 1) =>
+  int(attendance * 2.6 * mult * level);
+export const parkingFor = (attendance: number, mult = 1, level = 1) =>
+  int(attendance * 0.5 * mult * level);
 
 export function postMatchdayFinance(
   s: GameState, i: MatchdayFinanceInput,
@@ -472,9 +509,10 @@ export function postMatchdayFinance(
   const m = i.modifiers ?? {};
   const attendance = home ? int(i.attendance) : 0;
   const tickets = home ? int(i.gate) : 0;
-  const hospitality = home ? hospitalityFor(attendance, m.hospitalityIncome ?? 1) : 0;
-  const concessions = home ? concessionsFor(attendance, m.concessionSpend ?? 1) : 0;
-  const parking = home ? parkingFor(attendance, m.parkingIncome ?? 1) : 0;
+  const level = spendLevelFactor(leagueTierOf(s));
+  const hospitality = home ? hospitalityFor(attendance, m.hospitalityIncome ?? 1, level) : 0;
+  const concessions = home ? concessionsFor(attendance, m.concessionSpend ?? 1, level) : 0;
+  const parking = home ? parkingFor(attendance, m.parkingIncome ?? 1, level) : 0;
   const broadcast = int(i.tv);
   const ops = int(i.matchdayOps * (home ? (m.matchdayOperatingCost ?? 1) : 1));
   const winBonus = int(i.winBonus ?? 0);
@@ -512,14 +550,13 @@ export function postMatchdayFinance(
 
 export function prizeRulesFor(league: League): LeaguePrizeRules {
   if (league.prizeRules) return league.prizeRules;
-  const tier = Math.max(1, league.tier ?? 1);
-  const scale = 1 / Math.pow(2.2, tier - 1);
+  const prize = profileForTier(league.tier ?? 1).prize;
   return {
-    basePayment: int(1_800_000 * scale),
-    positionStep: int(110_000 * scale),
-    championBonus: int(1_400_000 * scale),
-    promotionBonus: league.promotionPlaces > 0 ? int(2_600_000 * scale) : 0,
-    relegationSupport: league.relegationPlaces > 0 ? int(900_000 * scale) : 0,
+    basePayment: prize.basePayment,
+    positionStep: prize.positionStep,
+    championBonus: prize.championBonus,
+    promotionBonus: league.promotionPlaces > 0 ? prize.promotionBonus : 0,
+    relegationSupport: league.relegationPlaces > 0 ? prize.relegationCushion : 0,
   };
 }
 
@@ -1136,4 +1173,75 @@ export function initFinance(s: GameState): void {
   s.finance.openingSeasonBalance = int(s.cash);
   s.finance.openingSeasonNumber = s.season;
   applyBoardPolicy(s, s.season);
+}
+
+/* =========================================================================
+   9. Economy selectors — how the club compares with its level
+   Derived only. Nothing here mutates state.
+========================================================================= */
+
+/** The wage structure of the user's contracted squad, banded for its level. */
+export function squadWageStructure(s: GameState): WageStructure {
+  const wages = (s.football?.contracts ?? [])
+    .filter((c) => c.clubId === s.clubName && (c.status === "Active" || c.status === "Expiring"))
+    .map((c) => c.weeklyWage);
+  return wageStructureFrom(wages, leagueTierOf(s));
+}
+
+export interface EconomyBenchmark {
+  tier: number;
+  levelLabel: string;
+  /** Annualised revenue actually banked, from the ledger. */
+  revenueAnnualised: number;
+  /** What a club of this size at this level would typically turn over. */
+  revenueBenchmark: number;
+  wageBillWeekly: number;
+  sustainableWageBillWeekly: number;
+  wageToRevenuePct: number;
+  expectedWageToRevenuePct: number;
+  /** Operating result excludes transfer trading; trading is shown separately. */
+  operatingResultSeason: number;
+  tradingResultSeason: number;
+}
+
+/** Operating vs transfer-trading split for one season, from the ledger. */
+export function operatingSplit(s: GameState, season: number): {
+  operatingIncome: number; operatingExpense: number; operatingResult: number;
+  tradingIncome: number; tradingExpense: number; tradingResult: number;
+} {
+  const es = entriesFor(s, season);
+  const isTrading = (c: string) => c === "Transfers";
+  let oi = 0, oe = 0, ti = 0, te = 0;
+  for (const e of es) {
+    const trading = isTrading(e.category);
+    if (e.direction === "income") { if (trading) ti += e.amount; else oi += e.amount; }
+    else if (trading) te += e.amount; else oe += e.amount;
+  }
+  return {
+    operatingIncome: oi, operatingExpense: oe, operatingResult: oi - oe,
+    tradingIncome: ti, tradingExpense: te, tradingResult: ti - te,
+  };
+}
+
+export function economyBenchmark(s: GameState): EconomyBenchmark {
+  const tier = leagueTierOf(s);
+  const p = profileForTier(tier);
+  const rep = s.reputation ?? 50;
+  const split = operatingSplit(s, s.season);
+  const weeksPlayed = Math.max(1, s.week - 1);
+  const annualised = int((split.operatingIncome / weeksPlayed) * SEASON_WEEKS);
+  const wages = playerWageBill(s) + staffWageBill(s);
+  const benchmark = revenueBaseline(tier, rep).totalSeason;
+  return {
+    tier,
+    levelLabel: p.label,
+    revenueAnnualised: annualised,
+    revenueBenchmark: benchmark,
+    wageBillWeekly: wages,
+    sustainableWageBillWeekly: sustainableWeeklyWageBill(tier, rep),
+    wageToRevenuePct: (wages * SEASON_WEEKS / Math.max(1, annualised || benchmark)) * 100,
+    expectedWageToRevenuePct: p.expectedWageRevenueRatio * 100,
+    operatingResultSeason: split.operatingResult,
+    tradingResultSeason: split.tradingResult,
+  };
 }
