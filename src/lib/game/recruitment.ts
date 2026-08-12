@@ -44,6 +44,12 @@ export const MAX_SQUAD_SIZE = 30;
 export const FREE_AGENT_POOL = 24;
 /** Both club and player talks allow at most this many negotiation rounds. */
 export const MAX_NEGOTIATION_ROUNDS = 2;
+
+/** Share of a club's sustainable wage bill that goes to players (rest = staff). */
+export const PLAYER_WAGE_SHARE = 0.78;
+/** How heavily a freshly generated squad is already committed against that share. */
+export const OPENING_WAGE_LOAD = 0.82;
+
 /** Weeks before expiry a contract is flagged as expiring / renewable. */
 export const RENEWAL_WINDOW_WEEKS = 20;
 /** Weeks an untouched negotiation stays on the table. */
@@ -180,15 +186,29 @@ export function generateWorld(s: GameState): { players: FootballPlayer[]; contra
 
   for (const club of clubs) {
     const rep = clubReputation(s, club);
+    const tier = tierOfClub(s, club);
     const tierRating = clamp(42 + rep * 0.42, 40, 88);
     const squad: FootballPlayer[] = [];
     for (let i = 0; i < SQUAD_SIZE; i++) {
-      squad.push(makePlayerFor(s.saveSeed, club, i, tierRating, s.season, tierOfClub(s, club), rep));
+      squad.push(makePlayerFor(s.saveSeed, club, i, tierRating, s.season, tier, rep));
     }
     squad.sort((a, b) => b.currentAbility - a.currentAbility || a.id.localeCompare(b.id));
+
+    // Opening contracts are normalised to the club's sustainable player wage
+    // load. The tier wage curve still sets the SHAPE of the squad's pay
+    // hierarchy; this only decides how heavily the club is already committed,
+    // so a fresh save never starts above its own board wage ceiling with no
+    // room to sign anybody. Bounded so the curve stays authoritative.
+    const rawBill = squad.reduce(
+      (a, p) => a + wageForAbility(p.currentAbility, rep, tier, ageOf(p, s.season), p.potentialAbility), 0,
+    );
+    const targetBill = sustainableWeeklyWageBill(tier, rep) * PLAYER_WAGE_SHARE * OPENING_WAGE_LOAD;
+    const wageScalar = rawBill > 0 ? clamp(targetBill / rawBill, 0.6, 1.5) : 1;
+
     squad.forEach((p, i) => {
       const rng = seededRng(`${s.saveSeed}|contract|${p.id}`);
       const seasons = rngInt(rng, 1, 4);
+      const base = wageForAbility(p.currentAbility, rep, tier, ageOf(p, s.season), p.potentialAbility);
       const contract: PlayerContract = {
         id: `PC-${String(contractSeq++).padStart(6, "0")}`,
         playerId: p.id,
@@ -197,7 +217,7 @@ export function generateWorld(s: GameState): { players: FootballPlayer[]; contra
         startWeek: 1,
         expirySeason: s.season + seasons - 1,
         expiryWeek: WEEKS_PER_SEASON,
-        weeklyWage: wageForAbility(p.currentAbility, rep, tierOfClub(s, club), ageOf(p, s.season), p.potentialAbility),
+        weeklyWage: Math.max(200, int((base * wageScalar) / 25) * 25),
         squadRole: roleFor(i),
         signingBonus: 0,
         agreedTransferFee: 0,
@@ -208,6 +228,7 @@ export function generateWorld(s: GameState): { players: FootballPlayer[]; contra
       players.push(p);
     });
   }
+
 
   const freeAgentTier = Math.max(...(s.leagues ?? []).map((l) => l.tier ?? 1), 1);
   for (let i = 0; i < FREE_AGENT_POOL; i++) {
@@ -1189,9 +1210,30 @@ function generateIncomingOffers(s: GameState, windowOpen: boolean): void {
 }
 
 /**
+ * The single free-transfer registration path. Both the AI department and the
+ * user's emergency squad cover route here so ownership, the contract and the
+ * history record are always written together, exactly once.
+ */
+function registerFreeSigning(
+  s: GameState, pick: FootballPlayer, club: string, c: PlayerContract,
+): void {
+  pick.currentClubId = club;
+  pick.contractId = c.id;
+  pick.transferStatus = "unlisted";
+  s.football.transferHistory.push({
+    id: nextRecordId(s, "TR"),
+    playerId: pick.id, playerName: playerName(pick), position: pick.primaryPosition,
+    fromClubId: null, toClubId: club, fee: 0, weeklyWage: c.weeklyWage,
+    signingBonus: 0, season: s.season, week: s.week, absoluteWeek: nowAbs(s),
+    type: "freeTransfer",
+  });
+}
+
+/**
  * AI recruitment. Believable, not optimal: clubs only act when they are
  * short of bodies, and they sign the best free agent they can plausibly pay.
  */
+
 function runAiRecruitment(s: GameState, windowOpen: boolean): void {
   if (!windowOpen) return;
   const rng = seededRng(s.saveSeed, "aiRecruit", s.season, s.week);
@@ -1217,16 +1259,8 @@ function runAiRecruitment(s: GameState, windowOpen: boolean): void {
       wageForAbility(pick.currentAbility, rep, tierOfClub(s, club), ageOf(pick, s.season), pick.potentialAbility),
       rngInt(rng, 1, 3), "Rotation", 0, 0,
     );
-    pick.currentClubId = club;
-    pick.contractId = c.id;
-    pick.transferStatus = "unlisted";
-    s.football.transferHistory.push({
-      id: nextRecordId(s, "TR"),
-      playerId: pick.id, playerName: playerName(pick), position: pick.primaryPosition,
-      fromClubId: null, toClubId: club, fee: 0, weeklyWage: c.weeklyWage,
-      signingBonus: 0, season: s.season, week: s.week, absoluteWeek: nowAbs(s),
-      type: "freeTransfer",
-    });
+    registerFreeSigning(s, pick, club, c);
+
   }
 }
 
@@ -1266,16 +1300,8 @@ function coverSquadShortfall(s: GameState): void {
       wageForAbility(pick.currentAbility, rep, tier, age, pick.potentialAbility),
       rngInt(rng, 1, 3), "Rotation", 0, 0,
     );
-    pick.currentClubId = s.clubName;
-    pick.contractId = c.id;
-    pick.transferStatus = "unlisted";
-    s.football.transferHistory.push({
-      id: nextRecordId(s, "TR"),
-      playerId: pick.id, playerName: playerName(pick), position: pick.primaryPosition,
-      fromClubId: null, toClubId: s.clubName, fee: 0, weeklyWage: c.weeklyWage,
-      signingBonus: 0, season: s.season, week: s.week, absoluteWeek: nowAbs(s),
-      type: "freeTransfer",
-    });
+    registerFreeSigning(s, pick, s.clubName, c);
+
   }
 }
 

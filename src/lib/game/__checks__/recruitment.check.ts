@@ -17,6 +17,8 @@ import { ensureBoard } from "../board";
 import {
   MAX_NEGOTIATION_ROUNDS, MAX_SQUAD_SIZE, MIN_SQUAD_SIZE,
   activeContract, ageOf, askingPrice, availabilityReason, averageSquadAge,
+  canAuthorisePurchase, canAuthoriseWage,
+
   completeTransferInPlace, contractSecurityPct, counterClubOfferInPlace,
   ensureRecruitment, freeAgents, generateWorld, incomingTransfersThisSeason,
   negotiationById, netSpendThisSeason, openNegotiations, openTransferNegotiationInPlace,
@@ -41,8 +43,9 @@ const clone = <T,>(x: T): T => structuredClone(x);
 const reload = (s: GameState): GameState =>
   migrateSave(JSON.parse(JSON.stringify(s)) as Record<string, unknown>);
 
-/** newGame() seeds from the clock, so every fixture derives from one base. */
-const BASE = newGame("Audit FC", "Auditor");
+/** Fixed seed: the whole generated world is reproducible across runs. */
+const BASE = newGame("Audit FC", "Auditor", "RECRUIT_AUDIT_BASE");
+
 function fixture(seed = "RECRUIT_AUDIT", clubName = "Audit FC"): GameState {
   const g = clone(BASE);
   g.clubName = clubName;
@@ -58,11 +61,18 @@ const reconciles = (s: GameState) => {
   return r.ok && r.expected === s.cash;
 };
 
-/** Push a purchase through club + player talks until it agrees, or give up. */
-function agreedPurchase(s: GameState): TransferNegotiation | null {
+/**
+ * Push a purchase through club + player talks until it agrees, or give up.
+ * Every offer is derived from the canonical asking price (which itself comes
+ * from marketValue), never from a hardcoded legacy amount.
+ */
+function agreedPurchase(s: GameState, opts: { requireSeller?: boolean } = {}): TransferNegotiation | null {
   const budget = Math.max((s.transferBudget ?? 0) * 0.5, 0);
-  const market = transferMarket(s).filter((m) => m.askingPrice <= budget && m.askingPrice + m.wageDemand * 4 <= s.cash);
+  const market = transferMarket(s)
+    .filter((m) => m.askingPrice <= budget && m.askingPrice + m.wageDemand * 4 <= s.cash)
+    .filter((m) => (opts.requireSeller ? m.clubId !== null : true));
   for (const m of market.slice().sort((a, b) => a.askingPrice - b.askingPrice).slice(0, 60)) {
+
     const w = s;
     const r = openTransferNegotiationInPlace(w, m.player.id, Math.round(m.askingPrice * 1.2));
     if (!r.ok || !r.negotiation) continue;
@@ -420,10 +430,36 @@ console.log("\n[R7] Transfer completion");
 {
   const s = fixture("COMPLETE");
   Object.assign(s, setTransferBudget(s, Math.min(20_000_000, Math.floor(s.cash))).state);
-  const n = agreedPurchase(s);
+
+  // Preconditions: the fixture must construct a genuinely valid deal under the
+  // calibrated economy before completion is asserted at all.
+  const target = transferMarket(s)
+    .filter((m) => m.clubId !== null)
+    .sort((a, b) => a.askingPrice - b.askingPrice)[0];
+  check("52a. a contracted, eligible target exists on the market", !!target
+    && target.player.currentClubId !== s.clubName
+    && availabilityReason(s, target.player) !== null);
+  if (target) {
+    const offer = Math.round(target.askingPrice * 1.2);
+    check("52b. the offer is derived from canonical market value",
+      target.askingPrice >= 20_000 && offer >= target.askingPrice
+      && offer <= askingPrice(s, target.player) * 1.5);
+    check("52c. the buyer holds the cash", s.cash >= offer + target.wageDemand * 4);
+    check("52d. the transfer budget authorises the fee",
+      canAuthorisePurchase(s, offer).allowed);
+    check("52e. the wage demand is affordable", canAuthoriseWage(s, target.wageDemand).allowed);
+  } else {
+    check("52b. the offer is derived from canonical market value", false, "no target");
+    check("52c. the buyer holds the cash", false, "no target");
+    check("52d. the transfer budget authorises the fee", false, "no target");
+    check("52e. the wage demand is affordable", false, "no target");
+  }
+
+  const n = agreedPurchase(s, { requireSeller: true });
   if (!n) {
     check("53-66. transfer completion", false, "no agreed deal reachable");
   } else {
+
     const beforeSave = reload(s);
     const cashBefore = s.cash;
     const budgetBefore = s.transferBudget ?? 0;

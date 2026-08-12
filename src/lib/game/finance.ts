@@ -38,8 +38,10 @@ import type {
 import { absoluteWeek } from "./time";
 import {
   profileForTier, clubSizeFactor, revenueBaseline, sustainableWeeklyWageBill,
-  wageStructureFrom, type WageStructure,
+  wageStructureFrom, tierOfUser, SEASON_MATCH_WEEKS, type WageStructure,
 } from "./economy";
+import { clubReputation } from "./reputation";
+
 
 export const SEASON_WEEKS = 46;
 /** Four playing weeks = one "month" for reporting cadence. */
@@ -390,14 +392,14 @@ export function weeklyRevenueEstimate(s: GameState): number {
     const total = window.reduce((a, e) => a + e.amount, 0);
     return Math.max(1, int(total / Math.max(1, Math.min(6, weeks))));
   }
-  // Fresh save: project recurring streams plus averaged matchday income so a
-  // pre-season wage ratio is realistic rather than several hundred percent.
-  const capacity = (s.stands ?? []).reduce((a, b) => a + b.capacity, 0);
-  const avgPrice = capacity
-    ? (s.stands ?? []).reduce((a, b) => a + b.ticketPrice * b.capacity, 0) / capacity
-    : 0;
-  const matchday = avgPrice * capacity * 0.65 * (19 / SEASON_WEEKS);
-  return Math.max(1, int(recurringWeeklyIncome(s) + matchday));
+  // Fresh save: use the canonical economy baseline for the club's level and
+  // size. The old stand-capacity projection predated economy.ts and badly
+  // understated income, which starved the derived wage ceiling.
+  const tier = tierOfUser(s);
+  const rep = clubReputation(s, s.clubName);
+  const baseline = revenueBaseline(tier, rep).totalSeason / SEASON_MATCH_WEEKS;
+  return Math.max(1, int(Math.max(baseline, recurringWeeklyIncome(s))));
+
 }
 
 /**
