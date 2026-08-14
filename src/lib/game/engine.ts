@@ -59,7 +59,8 @@ import {
 
 
 
-const STORAGE_KEY = "chairman.save.v1";
+import { createLocalSaveStore } from "./storage/localStore";
+import type { SaveStore, Diagnostic } from "./storage/types";
 
 
 /* ---------- RNG (seedable via Math.random for v1) ---------- */
@@ -386,7 +387,7 @@ function _newGameSeed(clubName: string, managerName: string, seed?: string): Gam
     ledger: [],
     league: makeLeague(leagues[0].clubIds),
     hiredStaff: [],
-    staffCandidates: makeCandidatePool(),
+    staffCandidates: makeCandidatePool(mulberry32(hashString(`staffmarket|${saveSeed}|1|1`))),
     staffMarketRefreshedWeek: 1,
     transferBudget: 500_000,
     wageBudgetWeekly: 5_000,
