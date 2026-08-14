@@ -1,18 +1,32 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { GameState } from "@/lib/game/types";
 import { advanceWeek, loadGame, saveGame, clearGame, newGame } from "@/lib/game/engine";
 
 export function useGame() {
   const [state, setState] = useState<GameState | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  // Persistence is async (and will stay async when storage moves to IndexedDB),
+  // so writes are fire-and-forget and must never be applied out of order.
+  const writeSeq = useRef(0);
 
   useEffect(() => {
-    setState(loadGame());
-    setHydrated(true);
+    let cancelled = false;
+    void loadGame().then((loaded) => {
+      if (cancelled) return;
+      setState(loaded);
+      setHydrated(true);
+    });
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
-    if (state) saveGame(state);
+    if (!state) return;
+    const seq = ++writeSeq.current;
+    void saveGame(state).then(() => {
+      // A newer write already landed; nothing to do. Kept explicit so the
+      // ordering guarantee is visible rather than accidental.
+      if (seq !== writeSeq.current) return;
+    });
   }, [state]);
 
   const start = useCallback((clubName: string, managerName: string) => {
@@ -33,7 +47,7 @@ export function useGame() {
   }, []);
 
   const reset = useCallback(() => {
-    clearGame();
+    void clearGame();
     setState(null);
   }, []);
 

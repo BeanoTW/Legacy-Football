@@ -59,7 +59,8 @@ import {
 
 
 
-const STORAGE_KEY = "chairman.save.v1";
+import { createLocalSaveStore } from "./storage/localStore";
+import type { SaveStore, Diagnostic } from "./storage/types";
 
 
 /* ---------- RNG (seedable via Math.random for v1) ---------- */
@@ -386,7 +387,7 @@ function _newGameSeed(clubName: string, managerName: string, seed?: string): Gam
     ledger: [],
     league: makeLeague(leagues[0].clubIds),
     hiredStaff: [],
-    staffCandidates: makeCandidatePool(),
+    staffCandidates: makeCandidatePool(mulberry32(hashString(`staffmarket|${saveSeed}|1|1`))),
     staffMarketRefreshedWeek: 1,
     transferBudget: 500_000,
     wageBudgetWeekly: 5_000,
@@ -1115,35 +1116,44 @@ function absoluteWeekLocal(season: number, week: number): number {
   return (season - 1) * 46 + week;
 }
 
-export function loadGame(): GameState | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    const v = (parsed as { version?: number }).version;
-    // Missing version = pre-versioning save, treat as v1. Only refuse saves
-    // written by a FUTURE schema we don't understand.
-    if (typeof v === "number" && v > 10) return null;
-    const legacyV = typeof v === "number" && v >= 1 ? v : 1;
-    const migrated = migrateSave(parsed);
+/* ---------- Persistence ----------
+ * Storage choice does NOT leak past this point. Everything below delegates to
+ * the `SaveStore` boundary in `./storage`, so Phase 1 can swap in IndexedDB or
+ * a compressed/chunked store without touching a single domain module.
+ */
+export const saveStore: SaveStore = createLocalSaveStore({
+  migrate: migrateSave,
+  currentVersion: SAVE_VERSION,
+  afterMigrate: (state, rawVersion) => {
     // If this save had no inbox at all (older than v2 introduction), seed it.
-    const needsSeed = migrated.inbox.length === 0 && legacyV < 2;
+    const needsSeed = state.inbox.length === 0 && rawVersion < 2;
+    return needsSeed ? runWeeklyGenerators(state) : state;
+  },
+});
 
-    return needsSeed ? runWeeklyGenerators(migrated) : migrated;
-  } catch { return null; }
+function reportDiagnostics(diags: Diagnostic[]) {
+  for (const d of diags) {
+    const msg = `[save] ${d.code}${d.detail ? ` — ${d.detail}` : ""}`;
+    if (d.level === "error") console.error(msg);
+    else if (d.level === "warn") console.warn(msg);
+  }
+}
+
+export async function loadGame(): Promise<GameState | null> {
+  const { state, diagnostics } = await saveStore.load();
+  reportDiagnostics(diagnostics);
+  return state;
+}
+
+export async function saveGame(state: GameState): Promise<void> {
+  reportDiagnostics(await saveStore.save(state));
+}
+
+export async function clearGame(): Promise<void> {
+  await saveStore.clear();
 }
 
 
-export function saveGame(state: GameState) {
-  if (typeof window === "undefined") return;
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch { /* ignore */ }
-}
-
-export function clearGame() {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(STORAGE_KEY);
-}
 
 /* ---------- Formatting ---------- */
 export const fmtMoney = (n: number) => {
