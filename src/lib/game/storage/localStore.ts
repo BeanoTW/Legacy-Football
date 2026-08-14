@@ -8,7 +8,7 @@ import type { Diagnostic, LoadResult, SaveStore } from "./types";
 import { parseSave, serializeSave, byteLength } from "./serialize";
 import { SIZE_ERROR_BYTES, SIZE_WARN_BYTES, formatBytes } from "../diagnostics/saveSize";
 
-export const STORAGE_KEY = "fcm.save.v1";
+export const STORAGE_KEY = "chairman.save.v1";
 
 export interface LocalStoreDeps {
   /** Applies the migration chain to a raw parsed save. */
