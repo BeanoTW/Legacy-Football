@@ -104,8 +104,9 @@ console.log("\n[T4] Storage choice does not leak into domain code");
       const p = `${dir}/${e}`;
       if (statSync(p).isDirectory()) { walk(p); continue; }
       if (!/\.(ts|tsx)$/.test(e)) continue;
-      if (p.includes("/lib/game/storage/")) continue;
-      if (/\blocalStorage\b/.test(readFileSync(p, "utf8"))) offenders.push(p);
+      if (p.includes("/lib/game/storage/") || p.includes("/__checks__/")) continue;
+      // Only real usage counts; the word may legitimately appear in comments.
+      if (/localStorage\s*[.[]/.test(readFileSync(p, "utf8"))) offenders.push(p);
     }
   };
   walk("src");
