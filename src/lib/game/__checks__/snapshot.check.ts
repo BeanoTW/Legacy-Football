@@ -79,7 +79,8 @@ if (write) {
       null,
       2,
     )} as never;\n`;
-  await Bun.write(new URL("./snapshot.baseline.ts", import.meta.url).pathname, body);
+  const { writeFileSync } = await import("node:fs");
+  writeFileSync(new URL("./snapshot.baseline.ts", import.meta.url).pathname, body);
   console.log("\nBaseline written.");
 } else {
   console.log(`\n${passed} passed, ${failed} failed`);
