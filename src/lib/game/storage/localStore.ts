@@ -9,6 +9,9 @@ import { parseSave, serializeSave, byteLength } from "./serialize";
 import { SIZE_ERROR_BYTES, SIZE_WARN_BYTES, formatBytes } from "../diagnostics/saveSize";
 
 export const STORAGE_KEY = "chairman.save.v1";
+/** Untouched copy of a save this build could not load. Never overwritten by
+ *  gameplay, so a future build can still recover it. */
+export const BACKUP_KEY = "chairman.save.v1.unreadable";
 
 export interface LocalStoreDeps {
   /** Applies the migration chain to a raw parsed save. */
@@ -28,6 +31,21 @@ function defaultBackend(): LocalStoreDeps["backend"] | null {
 
 export function createLocalSaveStore(deps: LocalStoreDeps): SaveStore {
   const backend = deps.backend ?? defaultBackend();
+  /* Set when a stored save could not be read (parse, migration or future
+   * version). While set, writes are refused so a new game can never silently
+   * destroy the original save. Cleared only by an explicit clear(). */
+  let unreadable = false;
+
+  /** Preserve the raw save verbatim under the backup key. */
+  function preserve(raw: string, reason: string): Diagnostic {
+    unreadable = true;
+    try {
+      backend?.setItem(BACKUP_KEY, raw);
+      return { level: "warn", code: "save/preserved", detail: `${reason}; original kept at ${BACKUP_KEY}` };
+    } catch (e) {
+      return { level: "warn", code: "save/preserve-failed", detail: (e as Error).message };
+    }
+  }
 
   return {
     kind: "localStorage",
@@ -38,7 +56,7 @@ export function createLocalSaveStore(deps: LocalStoreDeps): SaveStore {
       if (!raw) return { state: null, diagnostics: [] };
 
       const { parsed, diagnostics } = parseSave(raw);
-      if (!parsed) return { state: null, diagnostics };
+      if (!parsed) return { state: null, diagnostics: [...diagnostics, preserve(raw, "save could not be parsed")] };
 
       const v = typeof parsed.version === "number" && Number.isFinite(parsed.version)
         ? (parsed.version as number)
@@ -49,7 +67,15 @@ export function createLocalSaveStore(deps: LocalStoreDeps): SaveStore {
           state: null,
           diagnostics: [
             ...diagnostics,
-            { level: "error", code: "save/future-version", detail: `save v${v} > schema v${deps.currentVersion}` },
+            {
+              level: "error",
+              code: "save/future-version",
+              detail:
+                `this save was created by a newer version of the game ` +
+                `(schema v${v}; this build understands v${deps.currentVersion}). It is not corrupt — ` +
+                `update the game to load it.`,
+            },
+            preserve(raw, `future schema v${v}`),
           ],
         };
       }
@@ -64,6 +90,7 @@ export function createLocalSaveStore(deps: LocalStoreDeps): SaveStore {
           diagnostics: [
             ...diagnostics,
             { level: "error", code: "save/migration-failed", detail: (e as Error).message },
+            preserve(raw, "migration failed"),
           ],
         };
       }
@@ -71,6 +98,15 @@ export function createLocalSaveStore(deps: LocalStoreDeps): SaveStore {
 
     async save(state: GameState): Promise<Diagnostic[]> {
       if (!backend) return [];
+      if (unreadable) {
+        return [
+          {
+            level: "error",
+            code: "save/write-blocked",
+            detail: "an unreadable save is present; refusing to overwrite it until the slot is cleared",
+          },
+        ];
+      }
       const out: Diagnostic[] = [];
       const raw = serializeSave(state);
       const bytes = byteLength(raw);
@@ -89,6 +125,7 @@ export function createLocalSaveStore(deps: LocalStoreDeps): SaveStore {
     },
 
     async clear(): Promise<void> {
+      unreadable = false;
       backend?.removeItem(STORAGE_KEY);
     },
   };

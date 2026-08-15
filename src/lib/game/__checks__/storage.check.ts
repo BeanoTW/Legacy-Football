@@ -2,7 +2,7 @@
    Run with:  bun src/lib/game/__checks__/storage.check.ts
 */
 import { newGame, migrateSave, SAVE_VERSION } from "../engine";
-import { createLocalSaveStore, STORAGE_KEY } from "../storage/localStore";
+import { createLocalSaveStore, STORAGE_KEY, BACKUP_KEY } from "../storage/localStore";
 import { serializeSave, parseSave, byteLength } from "../storage/serialize";
 import { stateHash } from "../diagnostics/stateHash";
 
@@ -94,6 +94,54 @@ console.log("\n[T3] Failure behaviour");
   const res = await store(backend).load();
   check(`current-version (v${SAVE_VERSION}) save still loads`, res.state !== null);
 }
+{
+  // A genuine legacy save must migrate on load.
+  const backend = memoryBackend();
+  const s = newGame("Store City", "Persis Tence", SEED) as unknown as Record<string, unknown>;
+  s.version = 6;
+  delete s.finance; delete s.financeLedger; delete s.financeHistory;
+  delete s.commercial; delete s.football; delete s.infrastructure; delete s.sustainability;
+  backend.map.set(STORAGE_KEY, JSON.stringify(s));
+  const res = await store(backend).load();
+  check("legacy v6 save loads and is migrated to the current schema",
+    res.state?.version === SAVE_VERSION);
+}
+
+console.log("\n[T3b] An unreadable save is preserved, never overwritten");
+{
+  const backend = memoryBackend();
+  backend.map.set(STORAGE_KEY, "{not json");
+  const st = store(backend);
+  const res = await st.load();
+  check("original raw save is kept verbatim", backend.map.get(STORAGE_KEY) === "{not json");
+  check("a backup copy is written", backend.map.get(BACKUP_KEY) === "{not json");
+  check("preservation is reported", res.diagnostics.some((d) => d.code === "save/preserved"));
+
+  const diags = await st.save(newGame("Store City", "Persis Tence", SEED));
+  check("writes are blocked while an unreadable save is present",
+    diags.some((d) => d.code === "save/write-blocked"));
+  check("the unreadable save survived the blocked write", backend.map.get(STORAGE_KEY) === "{not json");
+
+  await st.clear();
+  const after = await st.save(newGame("Store City", "Persis Tence", SEED));
+  check("an explicit clear unblocks writing", after.length === 0, JSON.stringify(after));
+}
+{
+  const backend = memoryBackend();
+  const s = newGame("Store City", "Persis Tence", SEED) as unknown as Record<string, unknown>;
+  s.version = SAVE_VERSION + 5;
+  const raw = JSON.stringify(s);
+  backend.map.set(STORAGE_KEY, raw);
+  const st = store(backend);
+  const res = await st.load();
+  check("future-version message explains the newer game version",
+    res.diagnostics.some((d) => d.code === "save/future-version" && /newer version/.test(d.detail ?? "")));
+  check("future-version save is preserved untouched", backend.map.get(STORAGE_KEY) === raw);
+  const diags = await st.save(newGame("Store City", "Persis Tence", SEED));
+  check("a future-version save is never overwritten",
+    diags.some((d) => d.code === "save/write-blocked") && backend.map.get(STORAGE_KEY) === raw);
+}
+
 
 console.log("\n[T4] Storage choice does not leak into domain code");
 {
