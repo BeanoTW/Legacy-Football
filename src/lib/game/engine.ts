@@ -332,7 +332,8 @@ export function newGame(clubName: string, managerName: string, seed?: string): G
  * Canonical save schema version. Single source of truth: `newGame` stamps it,
  * `migrateSave` upgrades to it, and the verification suites import it rather
  * than keeping their own copies (which silently rot on every migration).
- * Bump this whenever a new `if (p.version < N)` migration step is added.
+ * Bump this whenever a new step is added to the migration registry
+ * (src/lib/game/migrations) — engine.ts holds no per-version field knowledge.
  */
 export const SAVE_VERSION = 12;
 
