@@ -526,8 +526,9 @@ console.log("\n[L] Static audit");
   check("L2. matchday.ts has no Date.now", !/Date\.now/.test(md));
   check("L3. matchday.ts has no crypto.randomUUID", !/randomUUID/.test(md));
   const eng = strip(src("engine.ts"));
-  const live = eng.slice(eng.indexOf("export function startMatchDay"),
-    eng.indexOf("export function cancelLiveMatch"));
+  // The interactive path moved to liveMatch.ts in Phase 0c; the commit
+  // wrapper stays in engine.ts, so both files are audited together.
+  const live = strip(src("liveMatch.ts")) + eng;
   check("L4. live-match path has no Math.random", !/Math\.random/.test(live));
   check("L5. live-match path has no Date.now", !/Date\.now/.test(live));
   check("L6. live-match path has no crypto.randomUUID", !/randomUUID/.test(live));
@@ -539,7 +540,8 @@ console.log("\n[L] Static audit");
   check("L10. commit is guarded by canonical fixture completion",
     /matchRecords\s*\?\?\s*\[\]\)\.some\(\(r\) => r\.id === lm\.fixtureId\)/.test(live));
   check("L11. only one commit entry point exists",
-    (eng.match(/export function commitLiveMatchAndAdvance/g) ?? []).length === 1);
+    (eng.match(/export function commitLiveMatchAndAdvance/g) ?? []).length === 1 &&
+    (strip(src("liveMatch.ts")).match(/export function commitLiveMatch\b/g) ?? []).length === 1);
   check("L12. presentation never calls the score stream",
     !/h1\.score|h2\.score/.test(md.slice(md.indexOf("export function halfPresentation"))));
 }
