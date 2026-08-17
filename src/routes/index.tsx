@@ -186,21 +186,24 @@ function Game({
       </nav>
 
       <main className="mx-auto max-w-6xl px-3 py-5 pb-24 md:pb-5">
-        {tab === "inbox" && <InboxTab state={state} update={update} />}
-        {tab === "hub" && <ClubHub state={state} advance={advance} update={update} setTab={setTab} />}
+        <ScreenBoundary name={ALL_TABS.find(([id]) => id === tab)?.[1] ?? tab}>
+          {tab === "inbox" && <InboxTab state={state} update={update} />}
+          {tab === "hub" && <ClubHub state={state} advance={advance} update={update} setTab={setTab} />}
 
-        {tab === "dashboard" && <DashboardTab state={state} />}
-        {tab === "cashflow" && <CashFlowTab state={state} />}
-        {tab === "tickets" && <TicketsTab state={state} update={update} />}
-        {tab === "recruitment" && <RecruitmentTab state={state} update={update} />}
-        {tab === "staff" && <StaffTab state={state} update={update} />}
-        {tab === "stadium" && <FacilitiesTab state={state} update={update} />}
-        {tab === "fixtures" && <FixturesTab state={state} update={update} />}
-        {tab === "board" && <BoardTab state={state} />}
-        {tab === "commercial" && <CommercialTab state={state} update={update} />}
-        {tab === "leagues" && <LeagueBrowser state={state} />}
-        {tab === "history" && <HistoryTab state={state} />}
+          {tab === "dashboard" && <DashboardTab state={state} />}
+          {tab === "cashflow" && <CashFlowTab state={state} />}
+          {tab === "tickets" && <TicketsTab state={state} update={update} />}
+          {tab === "recruitment" && <RecruitmentTab state={state} update={update} />}
+          {tab === "staff" && <StaffTab state={state} update={update} />}
+          {tab === "stadium" && <FacilitiesTab state={state} update={update} />}
+          {tab === "fixtures" && <FixturesTab state={state} update={update} />}
+          {tab === "board" && <BoardTab state={state} />}
+          {tab === "commercial" && <CommercialTab state={state} update={update} />}
+          {tab === "leagues" && <LeagueBrowser state={state} />}
+          {tab === "history" && <HistoryTab state={state} />}
+        </ScreenBoundary>
       </main>
+
 
       {/* Mobile bottom nav */}
       <MobileNav tab={tab} setTab={setTab} unread={unreadCount(state)} />
