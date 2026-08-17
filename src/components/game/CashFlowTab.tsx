@@ -4,6 +4,7 @@ import type { GameState } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
 import { fmtMoneyExact } from "@/lib/game/engine";
 import { Section } from "./shared/primitives";
+import { FinancialHealthPanel } from "./DashboardTab";
 
 export function CashFlowTab({ state }: { state: GameState }) {
   const totals = useMemo(() => {
