@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { fmtMoneyExact } from "@/lib/game/engine";
 import { Section, sum } from "./shared/primitives";
 
-export function History({ state }: { state: GameState }) {
+export function HistoryTab({ state }: { state: GameState }) {
   const rows = [...state.ledger].reverse();
   return (
     <Section title="Weekly ledger">

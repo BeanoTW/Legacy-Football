@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { fmtMoneyExact } from "@/lib/game/engine";
 import { Section } from "./shared/primitives";
 
-export function CashFlow({ state }: { state: GameState }) {
+export function CashFlowTab({ state }: { state: GameState }) {
   const totals = useMemo(() => {
     const inc = { gate: 0, tv: 0, sponsor: 0, merchandise: 0, prize: 0, transfers: 0, other: 0 };
     const exp = {

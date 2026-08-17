@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { startMatchDay } from "@/lib/game/engine";
 import { Section } from "./shared/primitives";
 
-export function Fixtures({ state, update }: { state: GameState; update: (fn: (s: GameState) => GameState) => void }) {
+export function FixturesTab({ state, update }: { state: GameState; update: (fn: (s: GameState) => GameState) => void }) {
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <Section title="Fixtures">

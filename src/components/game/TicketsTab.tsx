@@ -5,7 +5,7 @@ import { Slider } from "@/components/ui/slider";
 import { avgTicketPrice, fmtMoney, fmtMoneyExact, totalCapacity } from "@/lib/game/engine";
 import { InfoTip, Section } from "./shared/primitives";
 
-export function Tickets({
+export function TicketsTab({
   state,
   update,
 }: {
