@@ -52,7 +52,7 @@ export function CashFlowTab({ state }: { state: GameState }) {
   );
 }
 
-export function label(k: string) {
+function label(k: string) {
   return k.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase());
 }
 

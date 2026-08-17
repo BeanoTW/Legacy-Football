@@ -16,7 +16,7 @@ import type { Tab } from "./tabs";
  * canonical sustainability selectors — the UI must never compute its own
  * view of the club's finances.
  */
-export function financialHealth(state: GameState): { label: string; tone: "good" | "bad" | "muted" } {
+function financialHealth(state: GameState): { label: string; tone: "good" | "bad" | "muted" } {
   const h = canonicalFinancialHealth(state);
   const tone: "good" | "bad" | "muted" =
     h.state === "secure" || h.state === "healthy" ? "good"
@@ -25,7 +25,7 @@ export function financialHealth(state: GameState): { label: string; tone: "good"
 }
 
 
-export function fanbaseEstimate(state: GameState): number {
+function fanbaseEstimate(state: GameState): number {
   const cap = totalCapacity(state);
   const factor = 0.35 + state.fanHappiness / 220 + state.reputation / 260;
   return Math.round(cap * factor);

@@ -13,10 +13,10 @@ import {
 import { facilityModifiers } from "@/lib/game/infrastructure";
 import { Section, Stat } from "./shared/primitives";
 
-export const STAT_KEYS: (keyof Staff["stats"])[] = [
+const STAT_KEYS: (keyof Staff["stats"])[] = [
   "tactics","attack","defense","development","scouting","negotiation","medical","motivation",
 ];
-export const STAT_LABEL: Record<keyof Staff["stats"], string> = {
+const STAT_LABEL: Record<keyof Staff["stats"], string> = {
   tactics: "Tac", attack: "Att", defense: "Def", development: "Dev",
   scouting: "Sct", negotiation: "Neg", medical: "Med", motivation: "Mot",
 };
