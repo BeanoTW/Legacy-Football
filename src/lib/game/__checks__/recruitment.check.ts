@@ -712,7 +712,12 @@ console.log("\n[R12] UI and selectors");
   const uiSrc = readFileSync("src/components/RecruitmentTab.tsx", "utf8");
   check("113b. the recruitment UI never writes canonical state directly",
     !/state\.football\.[a-zA-Z]+\s*(=|\.push\()/.test(uiSrc) && !/\.cash\s*=/.test(uiSrc));
-  const routeSrc = readFileSync("src/routes/index.tsx", "utf8");
+  // Phase 0d moved the screens out of the route; scan the extracted UI too.
+  const routeSrc = readFileSync("src/routes/index.tsx", "utf8")
+    + readdirSync("src/components/game")
+      .filter((f) => f.endsWith(".tsx"))
+      .map((f) => readFileSync(`src/components/game/${f}`, "utf8"))
+      .join("\n");
   check("114. old Squad and Transfers interfaces are unreachable",
     !/function Squad\(|function Transfers\(|function TargetCard\(|function BidCard\(/.test(routeSrc));
   check("114b. no legacy transfer engine paths remain",
