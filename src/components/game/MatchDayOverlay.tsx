@@ -1,3 +1,12 @@
+import type { GameState } from "@/lib/game/types";
+import { ChevronsRight } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import {
+  applyHalfTimeChoice, cancelLiveMatch, commitLiveMatchAndAdvance, fmtMoney, kickoff,
+} from "@/lib/game/engine";
+import { Info2 } from "./shared/primitives";
+
 export function MatchDayOverlay({
   state,
   update,

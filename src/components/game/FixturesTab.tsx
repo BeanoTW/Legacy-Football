@@ -1,3 +1,9 @@
+import { Play } from "lucide-react";
+import type { GameState } from "@/lib/game/types";
+import { cn } from "@/lib/utils";
+import { startMatchDay } from "@/lib/game/engine";
+import { Section } from "./shared/primitives";
+
 export function Fixtures({ state, update }: { state: GameState; update: (fn: (s: GameState) => GameState) => void }) {
   return (
     <div className="grid gap-4 md:grid-cols-2">

@@ -1,3 +1,10 @@
+import { useState } from "react";
+import { Play } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { TopBar } from "./shared/primitives";
+
 export function NewGame({ onStart }: { onStart: (club: string, manager: string) => void }) {
   const [club, setClub] = useState("Dalton Town");
   const [manager, setManager] = useState("N. Cahill");

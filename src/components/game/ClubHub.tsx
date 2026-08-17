@@ -1,3 +1,16 @@
+import { useMemo } from "react";
+import { ArrowRight, Briefcase, ChevronsRight, Heart, Play, ShieldCheck } from "lucide-react";
+import type { GameState, Staff } from "@/lib/game/types";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import {
+  CALENDAR, fmtMoney, phaseOf, startMatchDay, totalCapacity, totalWeeklyExpenses,
+  weeklySponsorIncome,
+} from "@/lib/game/engine";
+import { financialHealth as canonicalFinancialHealth, sustainabilitySnapshot } from "@/lib/game/sustainability";
+import { HEALTH_TONE, initials, ord } from "./shared/primitives";
+import type { Tab } from "./tabs";
+
 /**
  * Presentation wrapper only. Every number and every rating comes from the
  * canonical sustainability selectors — the UI must never compute its own

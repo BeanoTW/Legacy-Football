@@ -1,3 +1,18 @@
+import { useState } from "react";
+import { UserMinus, UserPlus } from "lucide-react";
+import type { GameState, Staff, StaffRole } from "@/lib/game/types";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import {
+  fmtMoneyExact, hireStaffMember, hiredStaffWagesWeekly, sackStaffMember,
+  severanceFor, staffJoinTerms,
+} from "@/lib/game/engine";
+import { facilityModifiers } from "@/lib/game/infrastructure";
+import { Section, Stat } from "./shared/primitives";
+
 export const STAT_KEYS: (keyof Staff["stats"])[] = [
   "tactics","attack","defense","development","scouting","negotiation","medical","motivation",
 ];

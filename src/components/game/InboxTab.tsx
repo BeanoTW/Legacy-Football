@@ -1,3 +1,14 @@
+import { useMemo, useState } from "react";
+import type { GameState, InboxItem, InboxCategory, InboxDepartment } from "@/lib/game/types";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  CATEGORY_META, DEPARTMENTS_ALL, PRIORITY_META, clearReadInbox, dismissInboxItem,
+  evaluateChoice, handleInboxChoice, markInboxRead, unreadCount,
+} from "@/lib/game/inbox";
+import { Section } from "./shared/primitives";
+
 export type InboxFilter = "all" | "unread" | "decisions" | "archive";
 
 export function InboxTab({

@@ -1,3 +1,10 @@
+import { Ticket, TriangleAlert } from "lucide-react";
+import type { GameState, Stand } from "@/lib/game/types";
+import { cn } from "@/lib/utils";
+import { Slider } from "@/components/ui/slider";
+import { avgTicketPrice, fmtMoney, fmtMoneyExact, totalCapacity } from "@/lib/game/engine";
+import { InfoTip, Section } from "./shared/primitives";
+
 export function Tickets({
   state,
   update,

@@ -1,3 +1,7 @@
+import { Info, Trophy } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+
 export function InfoTip({ children, label }: { children: React.ReactNode; label?: string }) {
   return (
     <Popover>

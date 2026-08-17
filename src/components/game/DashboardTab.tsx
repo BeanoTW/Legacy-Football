@@ -1,3 +1,15 @@
+import { useMemo } from "react";
+import {
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer,
+  Tooltip as RTooltip, XAxis, YAxis,
+} from "recharts";
+import type { GameState } from "@/lib/game/types";
+import { cn } from "@/lib/utils";
+import { fmtMoney, fmtMoneyExact, hiredStaffWagesWeekly, playerWagesWeekly, weeklySponsorIncome } from "@/lib/game/engine";
+import { commitmentProgress, sustainabilitySnapshot } from "@/lib/game/sustainability";
+import { WEEKS_PER_SEASON } from "@/lib/game/time";
+import { HEALTH_TONE, Meter, Row, Section, Stat, ord, sum } from "./shared/primitives";
+
 export function Dashboard({ state }: { state: GameState }) {
   const last12 = state.ledger.slice(-12);
   const chartData = last12.map((l) => ({

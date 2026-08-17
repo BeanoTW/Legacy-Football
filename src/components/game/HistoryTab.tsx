@@ -1,3 +1,8 @@
+import type { GameState } from "@/lib/game/types";
+import { cn } from "@/lib/utils";
+import { fmtMoneyExact } from "@/lib/game/engine";
+import { Section, sum } from "./shared/primitives";
+
 export function History({ state }: { state: GameState }) {
   const rows = [...state.ledger].reverse();
   return (

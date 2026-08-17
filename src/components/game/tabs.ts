@@ -1,3 +1,8 @@
+import {
+  Briefcase, Building2, Calendar, CircleDollarSign, Gavel, Handshake,
+  LineChart as LineIcon, Mail, Save, Ticket, Trophy, Users,
+} from "lucide-react";
+
 export type Tab =
   | "inbox"
   | "hub"
