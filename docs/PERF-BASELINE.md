@@ -57,3 +57,48 @@ Implication for Phase 1: chunked storage alone is not enough — a history
 rollup/prune policy for `matchRecords`, `financeLedger`, `contractHistory` and
 `inbox` is required, and `contracts` needs compaction (expired contracts are
 retained in full today).
+
+---
+
+# Phase 1a Storage Baseline — IndexedDB SaveStore
+
+Regenerate with:
+
+```
+bun src/lib/game/__checks__/idb-storage.check.ts   # store logic, memory backend
+bun src/lib/game/__checks__/idb-backend.check.ts   # real IndexedDB (fake-indexeddb)
+```
+
+## Backend
+
+IndexedDB is now the primary `SaveStore`. Database `football-club-owner`
+(db version 1), single object store `records`, string keys namespaced by
+`saveId`: `primary:manifest`, `primary:core`, `primary:unreadable`, with
+`primary:<kind>:<id>` reserved for Phase 1b/1c chunks.
+
+Storage-format version is **1**, tracked in the manifest and deliberately
+independent of the game schema version (currently 12).
+
+## Measurements
+
+| Operation | Recorded |
+| --- | --- |
+| save, new game (real IndexedDB) | 11.5 ms |
+| load, new game (real IndexedDB) | 4.7 ms |
+| legacy localStorage -> IndexedDB migration (new game) | 25.5 ms |
+| save, season-5 state (4.31 MB core) | 34.1 ms |
+| load, season-5 state (4.31 MB core) | 43.0 ms |
+| records written per save | 2 (manifest + core) |
+
+Season-5 saves — beyond the ~5 MB localStorage danger line — now store and
+reload with an identical state hash. The localStorage ceiling is no longer the
+binding constraint; growth itself still is, which is Phase 1b/1c.
+
+## Save frequency
+
+`useGame` writes on every state change (one `useEffect` on `state`): roughly
+one write per week advance plus one per user decision — order 1-3 writes per
+interaction burst, never in a loop. At 34 ms for the largest measured save,
+off the main thread's critical path and asynchronous, this remains acceptable;
+no debounce was added, since debouncing risks losing a decision on reload for
+no measured benefit. Revisit if a save exceeds ~150 ms.
