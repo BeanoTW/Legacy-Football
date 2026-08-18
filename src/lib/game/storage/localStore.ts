@@ -5,6 +5,7 @@
  */
 import type { GameState } from "../types";
 import type { Diagnostic, LoadResult, SaveStore } from "./types";
+import type { LegacySource } from "./records";
 import { parseSave, serializeSave, byteLength } from "./serialize";
 import { SIZE_ERROR_BYTES, SIZE_WARN_BYTES, formatBytes } from "../diagnostics/saveSize";
 
@@ -12,6 +13,30 @@ export const STORAGE_KEY = "chairman.save.v1";
 /** Untouched copy of a save this build could not load. Never overwritten by
  *  gameplay, so a future build can still recover it. */
 export const BACKUP_KEY = "chairman.save.v1.unreadable";
+/** Verbatim copy of a legacy save that has been migrated into IndexedDB.
+ *  Written only AFTER the IndexedDB commit is verified. */
+export const MIGRATED_KEY = "chairman.save.v1.migrated";
+
+type Backend = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+
+/**
+ * The legacy localStorage slot, seen by the IndexedDB store through the
+ * narrow `LegacySource` contract. This is the only path by which the new
+ * store may touch localStorage.
+ */
+export function createLegacyLocalSource(backend?: Backend | null): LegacySource {
+  const b = backend ?? defaultBackend();
+  return {
+    readRaw: () => b?.getItem(STORAGE_KEY) ?? null,
+    archive: (raw) => { try { b?.setItem(MIGRATED_KEY, raw); } catch { /* archive is best-effort */ } },
+    remove: () => b?.removeItem(STORAGE_KEY),
+    purge: () => {
+      b?.removeItem(STORAGE_KEY);
+      b?.removeItem(MIGRATED_KEY);
+      b?.removeItem(BACKUP_KEY);
+    },
+  };
+}
 
 export interface LocalStoreDeps {
   /** Applies the migration chain to a raw parsed save. */
