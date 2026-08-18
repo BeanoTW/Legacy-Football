@@ -10,6 +10,7 @@
  *   <saveId>:<kind>:<id> RESERVED for Phase 1b/1c chunks — unused here
  */
 import type { GameState } from "../types";
+import { controlledClubId } from "../ids";
 import type { Diagnostic, LoadResult, SaveStore } from "./types";
 import type { LegacySource, RecordStore } from "./records";
 import { parseSave, serializeSave, byteLength } from "./serialize";
@@ -121,7 +122,7 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
       storageFormatVersion: STORAGE_FORMAT_VERSION,
       gameSchemaVersion: state.version,
       saveSeed: state.saveSeed,
-      controlledClubId: (state as unknown as { clubId?: string }).clubId ?? state.clubName ?? null,
+      controlledClubId: controlledClubId(state) as string,
       createdAt,
       updatedAt: t,
       coreBytes: bytes,
