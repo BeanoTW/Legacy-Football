@@ -231,7 +231,7 @@ console.log("\n[D5] Metadata separation");
   const m = await a.readManifest();
   check("22. storage format version is separate from the game schema version",
     isManifest(m) && m!.storageFormatVersion === STORAGE_FORMAT_VERSION &&
-    m!.gameSchemaVersion === SAVE_VERSION && STORAGE_FORMAT_VERSION !== SAVE_VERSION);
+    m!.gameSchemaVersion === SAVE_VERSION && (STORAGE_FORMAT_VERSION as number) !== (SAVE_VERSION as number));
   check("    manifest carries save identity for future multi-slot use",
     m!.saveId === SAVE_ID && m!.saveSeed === s.saveSeed && m!.controlledClubId === "IDB City");
 }
