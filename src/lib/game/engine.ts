@@ -19,7 +19,7 @@ import { resolveWeek, syncTable } from "./league";
 import { runMigrations, type MigrationDeps, type RunMigrationsResult } from "./migrations";
 import { ensureBoard, maybeRunMidSeasonReview } from "./board";
 import { ensureFinance, postRecurringWeek, syncWeekLedger } from "./finance";
-import { createLocalSaveStore } from "./storage/localStore";
+import { createSaveStore } from "./storage/createSaveStore";
 import type { SaveStore, Diagnostic } from "./storage/types";
 
 import { SAVE_VERSION } from "./newGame";
@@ -184,7 +184,7 @@ export function migrateSave(parsed: Record<string, unknown>): GameState {
  * the `SaveStore` boundary in `./storage`, so Phase 1 can swap in IndexedDB or
  * a compressed/chunked store without touching a single domain module.
  */
-export const saveStore: SaveStore = createLocalSaveStore({
+export const saveStore: SaveStore = createSaveStore({
   migrate: migrateSave,
   currentVersion: SAVE_VERSION,
   afterMigrate: (state, rawVersion) => {
