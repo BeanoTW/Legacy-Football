@@ -1400,9 +1400,63 @@ export interface GameState {
   /** Strategic pressure layer: chairman commitments and excess-cash ageing. */
   sustainability: SustainabilityState;
 
-
-
-
+  /**
+   * Phase 1b — compaction residue. ABSENT on a freshly simulated state; it is
+   * written only by the persistence layer when historical detail is moved out
+   * of the hot core into IndexedDB history chunks. It holds the *minimum*
+   * information the live simulation still needs once that detail is gone
+   * (finance reconciliation totals, regeneration guards, counts). It is never
+   * a second copy of anything still hot.
+   */
+  archive?: SaveArchive;
 }
+
+/* =========================================================================
+   Save archive (Phase 1b) — residue of compacted history
+========================================================================= */
+
+/** Aggregate of archived finance entries sharing a booking signature. */
+export interface ArchivedFinanceBucket {
+  sourceSystem: string;
+  category: string;
+  subcategory: string;
+  direction: FinanceDirection;
+  amount: number;
+  count: number;
+}
+
+export interface ArchivedFinanceSummary {
+  /** income − expense across every archived entry. Keeps reconcile() exact. */
+  net: number;
+  income: number;
+  expense: number;
+  entryCount: number;
+  /** Cumulative totals by booking signature, for all-time spend readers. */
+  buckets: ArchivedFinanceBucket[];
+  /** Dedupe keys of archived entries a future week could still re-post. */
+  guardKeys: string[];
+  /** Consecutive losing weeks at the very end of the archived range. */
+  trailingLossWeeks: number;
+  /** Highest absolute week represented in the archive. */
+  lastAbsoluteWeek: number;
+  /** Commercial income per archived season (season -> £). */
+  commercialIncomeBySeason: Record<string, number>;
+}
+
+export interface SaveArchive {
+  /** Seasons with at least one record moved into a history chunk. */
+  seasons: number[];
+  finance: ArchivedFinanceSummary;
+  inbox: {
+    /** Event keys of archived items that a generator could otherwise re-emit. */
+    guardKeys: string[];
+    count: number;
+  };
+  matches: { count: number };
+  transfers: { count: number };
+  contracts: { recordCount: number; expiredCount: number };
+  inboxLedgerRows?: number;
+}
+
 
 
