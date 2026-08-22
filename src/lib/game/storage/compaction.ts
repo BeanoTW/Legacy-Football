@@ -172,7 +172,7 @@ export function compactState(state: GameState): CompactionResult {
   );
   const liveContractIds = new Set(
     (core.commercial?.contracts ?? [])
-      .filter((c) => c.status === "active" || c.status === "Active" || c.status === "signed")
+      .filter((c) => c.status === "Active")
       .map((c) => c.id),
   );
   const hotEntries: FinanceEntry[] = [];
