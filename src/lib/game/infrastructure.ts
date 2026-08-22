@@ -39,6 +39,7 @@ import { absoluteWeek } from "./time";
 import { seededRng, rngRange } from "./rng";
 import { assessSpend, postEntry } from "./finance";
 import { profileForTier, tierOfUser } from "./economy";
+import { archivedBucketSum } from "./archive";
 
 const int = (n: number) => Math.round(Number.isFinite(n) ? n : 0);
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
@@ -1485,7 +1486,10 @@ export interface InfrastructureSnapshot {
 }
 
 export function totalCapitalSpend(s: GameState): number {
-  return (s.financeLedger ?? [])
+  const archived = archivedBucketSum(s, (b) =>
+    b.sourceSystem === "facilities" && b.direction === "expense" &&
+    b.subcategory !== "Routine maintenance" && b.subcategory !== "Training ground");
+  return archived + (s.financeLedger ?? [])
     .filter((e) => e.sourceSystem === "facilities" && e.direction === "expense" &&
       e.subcategory !== "Routine maintenance" && e.subcategory !== "Training ground")
     .reduce((t, e) => t + e.amount, 0);
