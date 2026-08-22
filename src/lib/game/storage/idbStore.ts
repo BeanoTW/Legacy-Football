@@ -14,7 +14,7 @@ import { controlledClubId } from "../ids";
 import type { Diagnostic, LoadResult, SaveStore } from "./types";
 import type { LegacySource, RecordStore, StoredRecord } from "./records";
 import { compactState } from "./compaction";
-import { createHistoryRepository, historyChunkKey, parseHistoryKey, type HistoryRepository } from "./history";
+import { createHistoryRepository, historyChunkKey, type HistoryRepository } from "./history";
 import { parseSave, serializeSave, byteLength } from "./serialize";
 import {
   DEFAULT_SAVE_ID, STORAGE_FORMAT_VERSION, checksum, coreKey, manifestKey,
