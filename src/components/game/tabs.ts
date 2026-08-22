@@ -1,5 +1,5 @@
 import {
-  Briefcase, Building2, Calendar, CircleDollarSign, Gavel, Handshake,
+  Briefcase, Building2, Calendar, CircleDollarSign, Gavel, Globe2, Handshake,
   LineChart as LineIcon, Mail, Save, Ticket, Trophy, Users,
 } from "lucide-react";
 
@@ -16,6 +16,7 @@ export type Tab =
   | "stadium"
   | "fixtures"
   | "leagues"
+  | "world"
   | "history";
 
 export type TabDef = [Tab, string, typeof LineIcon];
@@ -33,6 +34,7 @@ export const ALL_TABS: TabDef[] = [
   ["stadium", "Stadium", Building2],
   ["fixtures", "Fixtures", Calendar],
   ["leagues", "Leagues", Trophy],
+  ["world", "World", Globe2],
   ["history", "Ledger", Save],
 ];
 
