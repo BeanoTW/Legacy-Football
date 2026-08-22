@@ -175,7 +175,13 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
     }
 
     // Manifest must describe the post-write world, including new chunks.
-    for (const e of pendingEntries) chunkEntries.set(e.key, e);
+    // Snapshot any entries being replaced so a failed transaction can restore
+    // the exact previously committed manifest state rather than deleting them.
+    const previousEntries = new Map<string, ChunkManifestEntry | undefined>();
+    for (const e of pendingEntries) {
+      previousEntries.set(e.key, chunkEntries.get(e.key));
+      chunkEntries.set(e.key, e);
+    }
     const manifest = buildManifest(compactCore, core);
     try {
       await deps.records.putAll([
@@ -187,11 +193,12 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
       metrics.recordCount = 2 + manifest.chunkManifest.length;
       return { diagnostics: [], core };
     } catch (e) {
-      // Nothing landed (putAll is atomic): forget the speculative entries so
-      // the in-memory manifest still describes the previous valid save.
+      // Nothing landed (putAll is atomic): restore the in-memory manifest to
+      // exactly the state of the previous valid save.
       for (const en of pendingEntries) {
-        if (!chunkEntries.has(en.key)) continue;
-        chunkEntries.delete(en.key);
+        const previous = previousEntries.get(en.key);
+        if (previous) chunkEntries.set(en.key, previous);
+        else chunkEntries.delete(en.key);
       }
       return {
         diagnostics: [{ level: "error", code: "save/write-failed", detail: (e as Error).message }],
