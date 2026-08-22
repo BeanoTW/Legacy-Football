@@ -13,12 +13,14 @@ export function CashFlowTab({ state }: { state: GameState }) {
       playerWages: 0, staffWages: 0, stadiumOps: 0, trainingOps: 0,
       maintenance: 0, matchday: 0, transfers: 0, other: 0,
     };
-    for (const l of state.ledger) {
+    // Only the current season is guaranteed hot: older weekly roll-ups are
+    // compacted out of the save, and the panel is labelled per-season anyway.
+    for (const l of state.ledger.filter((r) => r.season === state.season)) {
       (Object.keys(inc) as (keyof typeof inc)[]).forEach((k) => (inc[k] += l.income[k]));
       (Object.keys(exp) as (keyof typeof exp)[]).forEach((k) => (exp[k] += l.expenses[k]));
     }
     return { inc, exp };
-  }, [state.ledger]);
+  }, [state.ledger, state.season]);
 
   const incomePie = Object.entries(totals.inc)
     .filter(([, v]) => v > 0)
