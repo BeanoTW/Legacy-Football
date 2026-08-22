@@ -12,11 +12,13 @@
 import type { GameState } from "../types";
 import { controlledClubId } from "../ids";
 import type { Diagnostic, LoadResult, SaveStore } from "./types";
-import type { LegacySource, RecordStore } from "./records";
+import type { LegacySource, RecordStore, StoredRecord } from "./records";
+import { compactState } from "./compaction";
+import { createHistoryRepository, historyChunkKey, parseHistoryKey, type HistoryRepository } from "./history";
 import { parseSave, serializeSave, byteLength } from "./serialize";
 import {
   DEFAULT_SAVE_ID, STORAGE_FORMAT_VERSION, checksum, coreKey, manifestKey,
-  unreadableKey, isManifest, type SaveManifest,
+  unreadableKey, isManifest, type SaveManifest, type ChunkManifestEntry,
 } from "./manifest";
 
 export interface IdbStoreDeps {
@@ -43,6 +45,7 @@ export interface StorageMetrics {
 
 export interface IdbSaveStore extends SaveStore {
   readonly metrics: StorageMetrics;
+  readonly history: HistoryRepository;
   readManifest(): Promise<SaveManifest | null>;
 }
 
@@ -56,6 +59,9 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
    * writes are refused so a new game can never destroy the original. */
   let unreadable = false;
   let createdAt: number | null = null;
+  /** Chunk records already committed, keyed by storage key. */
+  const chunkEntries = new Map<string, ChunkManifestEntry>();
+  const history = createHistoryRepository(deps.records, saveId);
 
   const metrics: StorageMetrics = {
     lastLoadMs: null, lastSaveMs: null, lastLegacyMigrationMs: null,
@@ -117,6 +123,7 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
     const t = now();
     createdAt ??= t;
     const bytes = byteLength(core);
+    const chunkManifest = [...chunkEntries.values()].sort((a, b) => a.key.localeCompare(b.key));
     return {
       saveId,
       storageFormatVersion: STORAGE_FORMAT_VERSION,
@@ -127,17 +134,52 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
       updatedAt: t,
       coreBytes: bytes,
       coreChecksum: checksum(core),
-      chunkManifest: [],
-      totalBytes: bytes,
+      chunkManifest,
+      totalBytes: bytes + chunkManifest.reduce((t, c) => t + c.bytes, 0),
     };
   }
 
-  /** Atomic commit of manifest + core in ONE transaction. */
+  /** Atomic commit of history chunks + core + manifest in ONE transaction. */
   async function commit(state: GameState): Promise<{ diagnostics: Diagnostic[]; core: string }> {
-    const core = serializeSave(state);
-    const manifest = buildManifest(state, core);
+    /* Compaction is PURE: `state` is never mutated, only read. */
+    const { core: compactCore, chunks } = compactState(state);
+    const core = serializeSave(compactCore);
+
+    const chunkRecords: StoredRecord[] = [];
+    const pendingEntries: ChunkManifestEntry[] = [];
+    if (chunks.length) {
+      const keys = chunks.map((c) => historyChunkKey(saveId, c.kind, c.season));
+      let existing: Record<string, string | undefined> = {};
+      try {
+        existing = await deps.records.get(keys);
+      } catch (e) {
+        return {
+          diagnostics: [{ level: "error", code: "save/chunk-read-failed", detail: (e as Error).message }],
+          core,
+        };
+      }
+      chunks.forEach((c, i) => {
+        const key = keys[i]!;
+        let rows: unknown[] = [];
+        const raw = existing[key];
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw) as unknown;
+            if (Array.isArray(parsed)) rows = parsed;
+          } catch { /* unreadable chunk: rebuilt from the rows we hold */ }
+        }
+        const value = JSON.stringify([...rows, ...c.rows]);
+        chunkRecords.push({ key, value });
+        pendingEntries.push({ key, bytes: byteLength(value), checksum: checksum(value) });
+      });
+    }
+
+    // Manifest must describe the post-write world, including new chunks.
+    for (const e of pendingEntries) chunkEntries.set(e.key, e);
+    const manifest = buildManifest(compactCore, core);
     try {
       await deps.records.putAll([
+        ...chunkRecords,
         { key: K.core, value: core },
         { key: K.manifest, value: JSON.stringify(manifest) },
       ]);
@@ -145,6 +187,12 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
       metrics.recordCount = 2 + manifest.chunkManifest.length;
       return { diagnostics: [], core };
     } catch (e) {
+      // Nothing landed (putAll is atomic): forget the speculative entries so
+      // the in-memory manifest still describes the previous valid save.
+      for (const en of pendingEntries) {
+        if (!chunkEntries.has(en.key)) continue;
+        chunkEntries.delete(en.key);
+      }
       return {
         diagnostics: [{ level: "error", code: "save/write-failed", detail: (e as Error).message }],
         core,
@@ -213,6 +261,7 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
   return {
     kind: `indexedDB:${deps.records.kind}`,
     metrics,
+    history,
 
     async readManifest() {
       const rec = await deps.records.get([K.manifest]);
@@ -291,6 +340,8 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
       }
 
       createdAt = manifest.createdAt;
+      chunkEntries.clear();
+      for (const c of manifest.chunkManifest ?? []) chunkEntries.set(c.key, c);
       const decoded = await decode(rec[K.core]!, "save");
       metrics.lastLoadMs = performance.now() - t0;
       metrics.lastCoreBytes = manifest.coreBytes;
@@ -315,6 +366,7 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
     async clear(): Promise<void> {
       unreadable = false;
       createdAt = null;
+      chunkEntries.clear();
       // Only this save's records — never unrelated browser storage.
       await deps.records.deletePrefix(`${saveId}:`);
       deps.legacy?.purge();
