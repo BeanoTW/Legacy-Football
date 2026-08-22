@@ -1,10 +1,11 @@
-/* IndexedDB SaveStore verification — Phase 1a.
+/* IndexedDB SaveStore verification — Phase 1a/1b.
    Run with:  bun src/lib/game/__checks__/idb-storage.check.ts
 */
 import { newGame, advanceWeek, migrateSave, SAVE_VERSION } from "../engine";
 import { createIdbSaveStore } from "../storage/idbStore";
 import { createMemoryRecordStore } from "../storage/memoryRecords";
 import { createLegacyLocalSource, STORAGE_KEY, MIGRATED_KEY } from "../storage/localStore";
+import { compactState } from "../storage/compaction";
 import { serializeSave } from "../storage/serialize";
 import {
   STORAGE_FORMAT_VERSION, checksum, coreKey, manifestKey, isManifest, type SaveManifest,
@@ -284,21 +285,43 @@ console.log("\n[D7] Scale + benchmarks");
   const { store } = makeStore(records);
   let s: GameState = fresh();
   for (let season = 0; season < 5; season++) for (let w = 0; w < 46; w++) s = advanceWeek(s);
-  const bytes = serializeSave(s).length;
+
+  // The live in-memory state intentionally carries full history. Persistence
+  // compacts that history into chunks, so compare reloads with the derived hot
+  // core rather than with the uncompacted source object.
+  const rawBytes = serializeSave(s).length;
+  const expectedCompact = compactState(s).core;
 
   const t0 = performance.now();
   const diags = await store.save(s);
   const saveMs = performance.now() - t0;
+  const manifest = await store.readManifest();
   const t1 = performance.now();
   const loaded = await store.load();
   const loadMs = performance.now() - t1;
 
-  console.log(`  · season-5 core: ${(bytes / 1024 / 1024).toFixed(2)} MB | save ${saveMs.toFixed(1)} ms | load ${loadMs.toFixed(1)} ms`);
-  check("25. a season-5 save (beyond the localStorage danger line) stores and loads",
-    diags.length === 0 && loaded.state !== null && stateHash(loaded.state!) === stateHash(s) && bytes > 4_000_000);
+  const compactBytes = manifest?.coreBytes ?? Number.POSITIVE_INFINITY;
+  const chunkCount = manifest?.chunkManifest.length ?? 0;
+  console.log(
+    `  · season-5 raw: ${(rawBytes / 1024 / 1024).toFixed(2)} MB` +
+    ` | hot core: ${(compactBytes / 1024 / 1024).toFixed(2)} MB` +
+    ` | chunks ${chunkCount} | save ${saveMs.toFixed(1)} ms | load ${loadMs.toFixed(1)} ms`,
+  );
+
+  check("25. a season-5 save beyond the old localStorage danger line stores and loads",
+    diags.length === 0 && loaded.state !== null && rawBytes > 4_000_000);
+  check("25b. reload is the deterministic compact hot core",
+    loaded.state !== null && stateHash(loaded.state!) === stateHash(expectedCompact));
+  check("25c. historical detail is split into chunk records",
+    isManifest(manifest) && chunkCount > 0);
+  check("25d. compaction materially shrinks the persisted core",
+    isManifest(manifest) && compactBytes < rawBytes,
+    `${(compactBytes / 1024 / 1024).toFixed(2)} MB persisted vs ${(rawBytes / 1024 / 1024).toFixed(2)} MB raw`);
   check("23. load stays within the development baseline (<2000 ms)", loadMs < 2000, `${loadMs.toFixed(1)} ms`);
   check("24. save stays within the development baseline (<2000 ms)", saveMs < 2000, `${saveMs.toFixed(1)} ms`);
-  check("metrics are reported by the store", store.metrics.lastSaveMs !== null && store.metrics.recordCount === 2);
+  check("metrics account for core plus chunk records",
+    isManifest(manifest) && store.metrics.lastSaveMs !== null &&
+    store.metrics.recordCount === 2 + manifest!.chunkManifest.length);
 }
 
 console.log("\n[D8] Static audit: persistence stays inside the storage module");
