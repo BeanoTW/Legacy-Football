@@ -49,6 +49,7 @@ import { activeContracts, commercialWeeklyIncome } from "./commercial";
 import { squadOf, userWageBill } from "./recruitment";
 import { clubReputation, clubStrengthFor } from "./reputation";
 import { absoluteWeek } from "./time";
+import { archivedBucketSum } from "./archive";
 
 const int = (n: number) => Math.round(Number.isFinite(n) ? n : 0);
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
@@ -770,10 +771,13 @@ export function categorySpendToDate(s: GameState, category: CommitmentCategory):
       case "financial": return false;
     }
   };
+  const archived = archivedBucketSum(
+    s, (b) => b.direction === "expense" && match(b.category, b.subcategory));
   return int(
-    entries
-      .filter((e) => e.direction === "expense" && match(e.category, e.subcategory))
-      .reduce((a, e) => a + e.amount, 0),
+    archived +
+      entries
+        .filter((e) => e.direction === "expense" && match(e.category, e.subcategory))
+        .reduce((a, e) => a + e.amount, 0),
   );
 }
 

@@ -33,6 +33,7 @@ import { absoluteWeek } from "./time";
 import { hashString, rngInt, seededRng } from "./rng";
 import { averageHomeAttendance, leagueTierOf, postEntry } from "./finance";
 import { facilityModifiers } from "./infrastructure";
+import { archivedCommercialIncome } from "./archive";
 
 const int = (n: number) => Math.round(Number.isFinite(n) ? n : 0);
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
@@ -266,9 +267,10 @@ export function commercialPower(s: GameState): number {
 /** Total commercial income banked in a season, read from the finance ledger. */
 export function commercialIncomeForSeason(s: GameState, season = s.season): number {
   return int(
-    (s.financeLedger ?? [])
-      .filter((e) => e.sourceSystem === "commercial" && e.direction === "income" && e.season === season)
-      .reduce((a, e) => a + e.amount, 0),
+    archivedCommercialIncome(s, season) +
+      (s.financeLedger ?? [])
+        .filter((e) => e.sourceSystem === "commercial" && e.direction === "income" && e.season === season)
+        .reduce((a, e) => a + e.amount, 0),
   );
 }
 

@@ -10,3 +10,6 @@ export {
   STORAGE_FORMAT_VERSION, DEFAULT_SAVE_ID, checksum, manifestKey, coreKey, chunkKey,
   unreadableKey, isManifest, type SaveManifest, type ChunkManifestEntry,
 } from "./manifest";
+export { compactState, CHUNK_KINDS, RETAIN_LEDGER_WEEKS, RETAIN_GATE_ENTRIES, RETAIN_WEEK_ROWS,
+  type ChunkKind, type HistoryChunk, type CompactionResult } from "./compaction";
+export { createHistoryRepository, historyChunkKey, parseHistoryKey, type HistoryRepository } from "./history";

@@ -83,6 +83,7 @@ import {
 } from "./sustainability";
 import { hashString, seededRng } from "./rng";
 import { postEntry } from "./finance";
+import { archivedInboxGuardKeys } from "./archive";
 
 /* ---------- Helpers ---------- */
 const money = (n: number) => {
@@ -2240,7 +2241,10 @@ export function runWeeklyGenerators(prev: GameState): GameState {
   });
 
   // 3. Build a fast lookup of existing eventKeys so we never emit duplicates.
-  const existingKeys = new Set(s.inbox.map((i) => i.eventKey));
+  const existingKeys = new Set([
+    ...s.inbox.map((i) => i.eventKey),
+    ...archivedInboxGuardKeys(s),
+  ]);
 
   // 4. Run every generator; dedup on eventKey before appending.
   const consumed = new Set<string>();

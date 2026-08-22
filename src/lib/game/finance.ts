@@ -41,6 +41,7 @@ import {
   wageStructureFrom, tierOfUser, SEASON_MATCH_WEEKS, type WageStructure,
 } from "./economy";
 import { clubReputation } from "./reputation";
+import { archivedFinanceGuard, archivedNet, archivedTrailingLossWeeks } from "./archive";
 
 
 export const SEASON_WEEKS = 46;
@@ -95,6 +96,7 @@ export function defaultFinanceState(s: GameState): FinanceState {
 
 /** Has a movement with this dedupe key already been posted? */
 export function hasEntry(s: GameState, dedupeKey: string): boolean {
+  if (archivedFinanceGuard(s, dedupeKey)) return true;
   return (s.financeLedger ?? []).some((e) => e.dedupeKey === dedupeKey);
 }
 
@@ -138,7 +140,7 @@ export function postEntry(s: GameState, input: PostEntryInput): FinanceEntry | n
 
 /** Ledger reconciliation: cash must equal income − expenditure, always. */
 export function reconcile(s: GameState): { ok: boolean; expected: number; actual: number } {
-  let expected = 0;
+  let expected = archivedNet(s);
   for (const e of s.financeLedger ?? []) {
     expected += e.direction === "income" ? e.amount : -e.amount;
   }
@@ -199,7 +201,13 @@ export function consecutiveLossWeeks(s: GameState): number {
   }
   const weeks = [...byWeek.keys()].sort((a, b) => a - b);
   let run = 0;
-  for (const w of weeks) if ((byWeek.get(w) ?? 0) < 0) run++; else run = 0;
+  let allLosses = true;
+  for (const w of weeks) {
+    if ((byWeek.get(w) ?? 0) < 0) run++;
+    else { run = 0; allLosses = false; }
+  }
+  // When every hot week is a loss the run continues into archived history.
+  if (allLosses) run += archivedTrailingLossWeeks(s);
   return run;
 }
 
