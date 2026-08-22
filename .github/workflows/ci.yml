@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - 'chatgpt/**'
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run build
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Run game verification suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          for check in src/lib/game/__checks__/*.check.ts; do
+            echo "::group::$check"
+            bun "$check"
+            echo "::endgroup::"
+          done
