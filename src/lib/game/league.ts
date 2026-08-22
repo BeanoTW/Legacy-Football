@@ -12,6 +12,7 @@
 import type { GameState, LeagueRow, MatchRecord, ScheduledFixture } from "./types";
 import { mulberry32, hashString } from "./rng";
 import { clubStrengthFor } from "./reputation";
+import { buildWorldSimulationPlan, simulationLevelForClub, type WorldSimulationLevel } from "./world";
 
 /** Tier-1 division id. Also the id every pre-v4 record/fixture belongs to. */
 export const LEAGUE_ID = "league-1";
@@ -98,6 +99,27 @@ export function simulateAiFixture(
   leagueId: string = LEAGUE_ID,
 ): { homeGoals: number; awayGoals: number; seed: string } {
   return simulateFixture(s, season, round, home, away, leagueId);
+}
+
+/**
+ * Phase-2 simulation gateway. Both levels intentionally use the same scoreline
+ * engine today, which makes adoption behaviour-preserving. Future expensive
+ * club/player detail belongs behind the `focus` branch; fringe clubs retain
+ * the cheap strength-based result path and immutable record contract.
+ */
+export function simulateAiFixtureAtLevel(
+  s: GameState,
+  season: number,
+  round: number,
+  home: string,
+  away: string,
+  leagueId: string,
+  level: WorldSimulationLevel,
+): { homeGoals: number; awayGoals: number; seed: string } {
+  if (level === "focus") {
+    return simulateAiFixture(s, season, round, home, away, leagueId);
+  }
+  return simulateAiFixture(s, season, round, home, away, leagueId);
 }
 
 export function outcomeOf(homeGoals: number, awayGoals: number): MatchRecord["outcome"] {
@@ -205,6 +227,7 @@ export function isCompleted(
 export function resolveWeek(s: GameState, week: number, userRecord?: MatchRecord): void {
   if (!hasFullSchedule(s)) return;
   s.matchRecords ??= [];
+  const worldPlan = buildWorldSimulationPlan(s);
   for (const f of scheduleForWeek(s, week)) {
     const lid = leagueOf(f);
     const id = fixtureId(s.season, f.round, f.home, f.away, lid);
@@ -214,7 +237,11 @@ export function resolveWeek(s: GameState, week: number, userRecord?: MatchRecord
       if (userRecord && userRecord.id === id) s.matchRecords.push(userRecord);
       continue; // user fixture without a result stays Scheduled
     }
-    const sim = simulateAiFixture(s, s.season, f.round, f.home, f.away, lid);
+    const level: WorldSimulationLevel =
+      simulationLevelForClub(worldPlan, f.home) === "focus" || simulationLevelForClub(worldPlan, f.away) === "focus"
+        ? "focus"
+        : "fringe";
+    const sim = simulateAiFixtureAtLevel(s, s.season, f.round, f.home, f.away, lid, level);
     s.matchRecords.push(
       makeRecord({
         leagueId: lid,
@@ -258,66 +285,11 @@ export function isSeasonComplete(s: GameState): boolean {
 }
 
 /** Build any division's live table, sorted. */
-export function tableFor(s: GameState, leagueId: string): LeagueRow[] {
+export function tableForLeague(s: GameState, leagueId: string): LeagueRow[] {
   return sortTable(buildTable(leagueClubs(s, leagueId), s.matchRecords ?? [], s.season, leagueId));
 }
 
-/** Refresh s.league (the user's division) from stored records.
- *  No-op for legacy schedule-less saves. */
+/** Keep legacy `s.league` as the player's-division projection for old UI. */
 export function syncTable(s: GameState): void {
-  if (!hasFullSchedule(s)) return;
-  const lid = playerLeagueId(s);
-  const teams = leagueClubs(s, lid);
-  s.league = buildTable(teams, s.matchRecords ?? [], s.season, lid);
-}
-
-/* ---------- Read-only selectors (league browser) ----------
-   The browser UI must read directly from this state; it never keeps its own
-   copy of a table or fixture list. Every selector below is a pure read. */
-
-export interface FixtureView {
-  league: string;
-  round: number;
-  week: number;
-  home: string;
-  away: string;
-  /** Present once the fixture has been played. */
-  record?: MatchRecord;
-}
-
-/**
- * Every fixture of a division in a season, in round order, with results.
- * The live season reads the schedule; past seasons read the immutable match
- * records (the schedule only ever holds the current season).
- */
-export function leagueFixtures(s: GameState, leagueId: string, season = s.season): FixtureView[] {
-  const records = (s.matchRecords ?? []).filter((r) => r.season === season && r.league === leagueId);
-  if (season !== s.season) {
-    return records
-      .map((r) => ({ league: leagueId, round: r.round, week: r.week, home: r.home, away: r.away, record: r }))
-      .sort((a, b) => a.round - b.round || a.home.localeCompare(b.home));
-  }
-  const byId = new Map(records.map((r) => [r.id, r]));
-  return (s.leagueSchedule ?? [])
-    .filter((f) => leagueOf(f) === leagueId)
-    .map((f) => ({
-      league: leagueId,
-      round: f.round,
-      week: f.week,
-      home: f.home,
-      away: f.away,
-      record: byId.get(fixtureId(season, f.round, f.home, f.away, leagueId)),
-    }))
-    .sort((a, b) => a.round - b.round || a.home.localeCompare(b.home));
-}
-
-/** Final table of a completed season, straight from immutable history. */
-export function historicalTable(s: GameState, season: number, leagueId: string): LeagueRow[] | null {
-  const h = (s.seasonHistory ?? []).find((e) => e.season === season && e.leagueId === leagueId);
-  return h ? h.finalTable : null;
-}
-
-/** Seasons that have a stored final table, newest first. */
-export function completedSeasons(s: GameState): number[] {
-  return [...new Set((s.seasonHistory ?? []).map((e) => e.season))].sort((a, b) => b - a);
+  s.league = tableForLeague(s, playerLeagueId(s));
 }
