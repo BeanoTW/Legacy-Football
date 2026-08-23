@@ -326,15 +326,16 @@ console.log("\n[R12] Promoted / relegated clubs evolve rather than jump");
   const promoted = h.flatMap((e) => e.promoted);
   const relegated = h.flatMap((e) => e.relegated);
   const t1 = s2.leagues.find((l) => l.tier === 1)!;
-  const t2 = s2.leagues.find((l) => l.tier === 2)!;
   const avg = (ids: string[]) => ids.reduce((a, c) => a + clubStrengthFor(s2, c, 2), 0) / ids.length;
   for (const c of promoted) {
-    check(`promoted ${c} is not instantly a top-tier force`,
-      clubStrengthFor(s2, c, 2) < avg(t1.clubIds) + 6);
+    const destination = s2.leagues.find((league) => league.clubIds.includes(c))!;
+    check(`promoted ${c} is not instantly dominant in tier ${destination.tier}`,
+      clubStrengthFor(s2, c, 2) < avg(destination.clubIds) + 6);
   }
   for (const c of relegated) {
-    check(`relegated ${c} keeps some class in tier 2`,
-      clubStrengthFor(s2, c, 2) > avg(t2.clubIds) - 6);
+    const destination = s2.leagues.find((league) => league.clubIds.includes(c))!;
+    check(`relegated ${c} keeps some class in tier ${destination.tier}`,
+      clubStrengthFor(s2, c, 2) > avg(destination.clubIds) - 6);
   }
   const pred2 = predictionFor(s2, 2, DIVISION_ONE)!;
   check("season 2 projection covers the new tier-1 membership",
