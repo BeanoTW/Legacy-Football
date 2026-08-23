@@ -1,27 +1,19 @@
-import { buildFringeWorldState, fringeWorldSignature, reconcileFringeWorldState } from "../fringe";
-import { buildWorldSimulationPlan } from "../world";
-import { makeExpandedLeagues } from "../worldPyramid";
-import { initClubReputations } from "../pyramid";
 import {
-  FREE_AGENT_POOL,
-  SQUAD_SIZE,
-  generateWorld,
-  reconcileRecruitmentFidelity,
-} from "../recruitment";
+  buildFringeWorldState,
+  ensureFringeWorldState,
+  fringeWorldSignature,
+  reconcileFringeWorldState,
+} from "../fringe";
+import { buildWorldSimulationPlan } from "../world";
+import { newGame } from "../newGame";
+import { FREE_AGENT_POOL, SQUAD_SIZE, reconcileRecruitmentFidelity } from "../recruitment";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
-const leagues = makeExpandedLeagues("Player FC");
-const state = {
-  saveSeed: "fringe-check-seed",
-  season: 1,
-  clubName: "Player FC",
-  playerLeagueId: leagues[0].id,
-  leagues,
-  clubReputations: initClubReputations(leagues, "fringe-check-seed"),
-} as any;
+const state = newGame("Player FC", "World Auditor", "fringe-check-seed");
+const leagues = state.leagues;
 
 const plan = buildWorldSimulationPlan(state);
 const worldA = buildFringeWorldState(state);
@@ -53,6 +45,19 @@ assert(
   "reconciliation must preserve persistent Fringe identity",
 );
 
+const persistedState = JSON.parse(JSON.stringify(state)) as typeof state;
+assert(
+  fringeWorldSignature(ensureFringeWorldState(persistedState)) ===
+    fringeWorldSignature(state.fringeWorld ?? {}),
+  "Fringe state must survive a save/load round trip",
+);
+const legacyState = structuredClone(state);
+delete legacyState.fringeWorld;
+assert(
+  fringeWorldSignature(ensureFringeWorldState(legacyState)) === fringeWorldSignature(worldA),
+  "older version-12 saves must hydrate missing Fringe state deterministically",
+);
+
 // Move the player down one tier: the old distant tier can enter Focus and its
 // lightweight entries must be removed rather than duplicated across fidelity layers.
 const movedState = { ...state, playerLeagueId: leagues[1].id };
@@ -62,54 +67,36 @@ for (const id of movedPlan.focusClubIds) {
   assert(!movedWorld[id], `Focus club ${id} must not retain a Fringe snapshot`);
 }
 
-const generated = generateWorld(state);
 assert(
-  generated.players.length === plan.focusClubIds.length * SQUAD_SIZE + FREE_AGENT_POOL,
+  state.football.players.length === plan.focusClubIds.length * SQUAD_SIZE + FREE_AGENT_POOL,
   "opening recruitment must create detailed players only for Focus clubs",
 );
 assert(
-  generated.players.every(
+  state.football.players.every(
     (player) => player.currentClubId === null || plan.focusClubIds.includes(player.currentClubId),
   ),
   "Fringe clubs must not receive detailed opening squads",
 );
 
-const recruitmentState = {
-  ...state,
-  squad: [],
-  football: {
-    players: generated.players,
-    contracts: generated.contracts,
-    negotiations: [],
-    shortlist: [],
-    department: {} as any,
-    transferHistory: [],
-    contractHistory: [],
-    seasonHistory: [],
-    nextContractId: generated.contracts.length + 1,
-    nextNegotiationId: 1,
-    nextRecordId: 1,
-    generatedSeason: state.season,
-  },
-} as any;
+const recruitmentState = structuredClone(state);
 recruitmentState.playerLeagueId = leagues[1].id;
 reconcileRecruitmentFidelity(recruitmentState);
 const expandedPlan = buildWorldSimulationPlan(recruitmentState);
 for (const id of expandedPlan.focusClubIds) {
   assert(
-    recruitmentState.football.players.filter((player: any) => player.currentClubId === id)
-      .length === SQUAD_SIZE,
+    recruitmentState.football.players.filter((player) => player.currentClubId === id).length ===
+      SQUAD_SIZE,
     `new Focus club ${id} must be hydrated exactly once`,
   );
 }
 const signatureAfterHydration = recruitmentState.football.players
-  .map((player: any) => player.id)
+  .map((player) => player.id)
   .sort()
   .join("|");
 reconcileRecruitmentFidelity(recruitmentState);
 assert(
   recruitmentState.football.players
-    .map((player: any) => player.id)
+    .map((player) => player.id)
     .sort()
     .join("|") === signatureAfterHydration,
   "repeated reconciliation must not duplicate hydrated players",

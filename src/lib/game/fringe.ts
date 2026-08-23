@@ -1,4 +1,4 @@
-import type { GameState } from "./types";
+import type { FringeClubState, FringeWorldState, GameState } from "./types";
 import { buildWorldSimulationPlan } from "./world";
 import { clubReputation } from "./reputation";
 import { hashString } from "./rng";
@@ -8,21 +8,6 @@ import { hashString } from "./rng";
  * It deliberately stores only values that must survive save/reload. Detailed
  * squads, contracts and match-by-match state belong to Focus simulation.
  */
-export interface FringeClubState {
-  clubId: string;
-  leagueId: string;
-  tier: number;
-  reputation: number;
-  strength: number;
-  form: number;
-  financeBand: number;
-  lastSimulatedSeason: number;
-}
-
-export type FringeWorldState = Record<string, FringeClubState>;
-
-type StateWithFringe = GameState & { fringeWorld?: FringeWorldState };
-
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
 function stableOffset(seed: string, clubId: string, channel: string, span: number): number {
@@ -102,7 +87,6 @@ export function fringeWorldSignature(world: FringeWorldState): string {
 
 /** Returns the persisted compact layer, creating it for legacy saves on demand. */
 export function ensureFringeWorldState(s: GameState): FringeWorldState {
-  const state = s as StateWithFringe;
-  state.fringeWorld = reconcileFringeWorldState(s, state.fringeWorld);
-  return state.fringeWorld;
+  s.fringeWorld = reconcileFringeWorldState(s, s.fringeWorld);
+  return s.fringeWorld;
 }
