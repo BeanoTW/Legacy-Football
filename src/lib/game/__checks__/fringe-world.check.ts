@@ -1,4 +1,5 @@
 import {
+  advanceFringeWorldToSeason,
   buildFringeWorldState,
   ensureFringeWorldState,
   fringeWorldSignature,
@@ -56,6 +57,41 @@ delete legacyState.fringeWorld;
 assert(
   fringeWorldSignature(ensureFringeWorldState(legacyState)) === fringeWorldSignature(worldA),
   "older version-12 saves must hydrate missing Fringe state deterministically",
+);
+
+const advancedState = structuredClone(state);
+advancedState.season = 3;
+const advancedWorld = advanceFringeWorldToSeason(advancedState);
+assert(
+  Object.values(advancedWorld).every((club) => club.lastSimulatedSeason === 3),
+  "Fringe clubs must catch up across skipped seasons",
+);
+assert(
+  fringeWorldSignature(advancedWorld) !== fringeWorldSignature(worldA),
+  "Fringe identity must evolve rather than freeze between seasons",
+);
+const advancedSignature = fringeWorldSignature(advancedWorld);
+assert(
+  fringeWorldSignature(advanceFringeWorldToSeason(advancedState)) === advancedSignature,
+  "Fringe seasonal advancement must be idempotent",
+);
+const replayedAdvance = structuredClone(state);
+replayedAdvance.season = 3;
+assert(
+  fringeWorldSignature(advanceFringeWorldToSeason(replayedAdvance)) === advancedSignature,
+  "Fringe seasonal advancement must be deterministic after reload",
+);
+assert(
+  Object.values(advancedWorld).every(
+    (club) =>
+      club.strength >= 1 &&
+      club.strength <= 100 &&
+      club.form >= -5 &&
+      club.form <= 5 &&
+      club.financeBand >= 1 &&
+      club.financeBand <= 5,
+  ),
+  "advanced Fringe values must remain inside their compact bounds",
 );
 
 // Move the player down one tier: the old distant tier can enter Focus and its

@@ -85,6 +85,46 @@ export function fringeWorldSignature(world: FringeWorldState): string {
     .join("|");
 }
 
+/**
+ * Advances compact clubs to the state's current season without expanding
+ * their detailed football state. Each season is derived from the save seed,
+ * club identity and season number, so season jumps and reloads are replay-safe.
+ * Snapshots for clubs newly entering Focus are deliberately retained here;
+ * recruitment consumes them during hydration and then reconciles the map.
+ */
+export function advanceFringeWorldToSeason(s: GameState): FringeWorldState {
+  const world = s.fringeWorld ?? buildFringeWorldState(s);
+  const advanced: FringeWorldState = {};
+
+  for (const clubId of Object.keys(world).sort((a, b) => a.localeCompare(b))) {
+    const current = { ...world[clubId] };
+    while (current.lastSimulatedSeason < s.season) {
+      const season = current.lastSimulatedSeason + 1;
+      const reputation = clubReputation(s, clubId);
+      const strengthDrift = stableOffset(s.saveSeed, clubId, `strength-s${season}`, 2);
+      const financeDrift = stableOffset(s.saveSeed, clubId, `finance-s${season}`, 1);
+
+      current.reputation = reputation;
+      current.strength = clamp(
+        Math.round(current.strength * 0.75 + reputation * 0.25 + strengthDrift),
+        1,
+        100,
+      );
+      current.form = stableOffset(s.saveSeed, clubId, `form-s${season}`, 5);
+      current.financeBand = clamp(
+        Math.round((current.financeBand * 2 + reputation / 20 + financeDrift) / 3),
+        1,
+        5,
+      );
+      current.lastSimulatedSeason = season;
+    }
+    advanced[clubId] = current;
+  }
+
+  s.fringeWorld = advanced;
+  return advanced;
+}
+
 /** Returns the persisted compact layer, creating it for legacy saves on demand. */
 export function ensureFringeWorldState(s: GameState): FringeWorldState {
   s.fringeWorld = reconcileFringeWorldState(s, s.fringeWorld);

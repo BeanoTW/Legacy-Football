@@ -12,6 +12,7 @@ import { runEndOfSeasonReview, rollBoardToNewSeason } from "../board";
 import { awardPrizeMoney, closeSeasonFinance, openSeasonFinance } from "../finance";
 import { closeCommercialSeason } from "../commercial";
 import { closeRecruitmentSeason, rollRecruitmentToNewSeason } from "../recruitment";
+import { advanceFringeWorldToSeason } from "../fringe";
 import { rollInfrastructureToNewSeason } from "../infrastructure";
 import { SEASON_END_WEEK } from "../calendar";
 import { ordinal } from "../format";
@@ -61,6 +62,9 @@ export function tickSeasonRollover(s: GameState): void {
   // reset
   s.season += 1;
   s.week = 1;
+  // Advance compact outer-world identity before recruitment moves the Focus
+  // boundary. Newly focused clubs hydrate from this evolved snapshot.
+  advanceFringeWorldToSeason(s);
   if (s.leagues?.length) {
     s.leagueSchedule = makePyramidSchedule(s.leagues, `${s.saveSeed}|season${s.season}`);
     s.fixtures = fixturesForClub(s.leagueSchedule, s.clubName);
