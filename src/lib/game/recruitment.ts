@@ -41,7 +41,7 @@ import { postEntry } from "./finance";
 import { clubReputation } from "./reputation";
 import { facilityModifiers } from "./infrastructure";
 import { buildWorldSimulationPlan } from "./world";
-import { ensureFringeWorldState } from "./fringe";
+import { ensureFringeWorldState, makeFringeClubState } from "./fringe";
 import {
   weeklyWageFor,
   profileForTier,
@@ -416,6 +416,26 @@ export function reconcileRecruitmentFidelity(s: GameState): void {
   const plan = buildWorldSimulationPlan(s);
   const focus = new Set(plan.focusClubIds);
   const fringe = new Set(plan.fringeClubIds);
+  const previousFringe = s.fringeWorld ?? {};
+
+  // Preserve the football identity of clubs leaving Focus before their
+  // detailed players and contracts are discarded. The compact strength is the
+  // rounded squad average, so returning clubs hydrate from what they actually
+  // were rather than being regenerated from reputation alone.
+  for (const profile of plan.clubs) {
+    if (profile.level !== "fringe") continue;
+    const squad = s.football.players.filter((player) => player.currentClubId === profile.clubId);
+    if (!squad.length) continue;
+    const compact = makeFringeClubState(s, profile.clubId, profile.leagueId, profile.tier);
+    compact.strength = clamp(
+      int(squad.reduce((total, player) => total + player.currentAbility, 0) / squad.length),
+      1,
+      100,
+    );
+    compact.form = previousFringe[profile.clubId]?.form ?? compact.form;
+    s.fringeWorld ??= {};
+    s.fringeWorld[profile.clubId] = compact;
+  }
 
   const removedPlayerIds = new Set(
     s.football.players
@@ -442,7 +462,7 @@ export function reconcileRecruitmentFidelity(s: GameState): void {
     if (detailedClubs.has(club)) continue;
     const rep = clubReputation(s, club);
     const tier = tierOfClub(s, club);
-    const tierRating = clamp(42 + rep * 0.42, 40, 88);
+    const tierRating = clamp(previousFringe[club]?.strength ?? 42 + rep * 0.42, 40, 88);
     const squad = Array.from({ length: SQUAD_SIZE }, (_, index) =>
       makePlayerFor(s.saveSeed, club, index, tierRating, s.season, tier, rep),
     ).sort((a, b) => b.currentAbility - a.currentAbility || a.id.localeCompare(b.id));

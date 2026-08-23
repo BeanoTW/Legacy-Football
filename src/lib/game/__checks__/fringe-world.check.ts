@@ -80,6 +80,12 @@ assert(
 
 const recruitmentState = structuredClone(state);
 recruitmentState.playerLeagueId = leagues[1].id;
+const newlyFocusedClub = buildWorldSimulationPlan(recruitmentState).focusClubIds.find(
+  (clubId) => worldA[clubId],
+);
+assert(newlyFocusedClub, "moving the Focus boundary must expose a previously Fringe club");
+const compactStrength = 78;
+recruitmentState.fringeWorld![newlyFocusedClub].strength = compactStrength;
 reconcileRecruitmentFidelity(recruitmentState);
 const expandedPlan = buildWorldSimulationPlan(recruitmentState);
 for (const id of expandedPlan.focusClubIds) {
@@ -89,6 +95,19 @@ for (const id of expandedPlan.focusClubIds) {
     `new Focus club ${id} must be hydrated exactly once`,
   );
 }
+const hydratedAverage = Math.round(
+  recruitmentState.football.players
+    .filter((player) => player.currentClubId === newlyFocusedClub)
+    .reduce((total, player) => total + player.currentAbility, 0) / SQUAD_SIZE,
+);
+assert(
+  Math.abs(hydratedAverage - compactStrength) <= 5,
+  "new Focus squads must inherit their compact Fringe strength",
+);
+assert(
+  !recruitmentState.fringeWorld?.[newlyFocusedClub],
+  "hydrated Focus clubs must relinquish their compact snapshot",
+);
 const signatureAfterHydration = recruitmentState.football.players
   .map((player) => player.id)
   .sort()
@@ -100,6 +119,28 @@ assert(
     .sort()
     .join("|") === signatureAfterHydration,
   "repeated reconciliation must not duplicate hydrated players",
+);
+
+const departingState = structuredClone(state);
+const detailedClub = plan.focusClubIds.find(
+  (clubId) => clubId !== state.clubName && leagues[0].clubIds.includes(clubId),
+);
+assert(detailedClub, "opening Focus must contain a non-player top-tier club");
+const detailedSquad = departingState.football.players.filter(
+  (player) => player.currentClubId === detailedClub,
+);
+const detailedAverage = Math.round(
+  detailedSquad.reduce((total, player) => total + player.currentAbility, 0) / detailedSquad.length,
+);
+departingState.playerLeagueId = leagues[3].id;
+reconcileRecruitmentFidelity(departingState);
+assert(
+  departingState.fringeWorld?.[detailedClub]?.strength === detailedAverage,
+  "clubs leaving Focus must compact their detailed squad strength",
+);
+assert(
+  !departingState.football.players.some((player) => player.currentClubId === detailedClub),
+  "compacted Fringe clubs must not retain detailed players",
 );
 
 console.log("fringe-world.check.ts: PASS");
