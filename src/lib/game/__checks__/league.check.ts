@@ -144,8 +144,9 @@ console.log("\n[6] Fixture identity + historical records");
   const rec = t.matchRecords[0];
   check("record id matches fixtureId()",
     rec.id === fixtureId(rec.season, rec.round, rec.home, rec.away, rec.league));
+  const leagueIds = new Set(t.leagues.map((league) => league.id));
   check("records carry league/season/week/round", t.matchRecords.every(
-    (r) => (r.league === LEAGUE_ID || r.league === DIVISION_TWO) && r.season >= 1 && r.week >= 5 && r.round >= 1));
+    (r) => leagueIds.has(r.league) && r.season >= 1 && r.week >= 5 && r.round >= 1));
   check("outcome agrees with score", t.matchRecords.every((r) =>
     r.outcome === (r.homeGoals > r.awayGoals ? "home" : r.homeGoals < r.awayGoals ? "away" : "draw")));
   check("AI records store their simulation seed",
@@ -153,7 +154,10 @@ console.log("\n[6] Fixture identity + historical records");
   check("history survives the season rollover",
     t.season === 2 && t.matchRecords.filter((r) => r.season === 1 && r.league === DIVISION_ONE).length === 380);
   check("new season gets a fresh schedule", t.leagueSchedule.every((f) => f.round >= 1) &&
-    t.leagueSchedule.length === 760);
+    t.leagueSchedule.length === t.leagues.reduce(
+      (total, league) => total + league.clubIds.length * (league.clubIds.length - 1),
+      0,
+    ));
   check("new season table reset to zero", t.league.every((r) => r.p === 0));
 }
 
@@ -201,3 +205,4 @@ console.log("\n[9] User club is not privileged");
 
 console.log(`\n=== ${passed} passed, ${failed} failed ===`);
 if (failed > 0) process.exit(1);
+
