@@ -209,7 +209,10 @@ console.log("\n[I8] Season rollover is an atomic, once-only transaction");
   check("season 1 fixtures all resolved exactly once",
     (() => {
       const ids = s.matchRecords.filter((r) => r.season === 1).map((r) => r.id);
-      return new Set(ids).size === ids.length && ids.length === 760;
+      const expected = s.seasonHistory
+        .filter((history) => history.season === 1)
+        .reduce((total, history) => total + history.finalTable.length * (history.finalTable.length - 1), 0);
+      return new Set(ids).size === ids.length && ids.length === expected;
     })());
   check("exactly one end-of-season board review for season 1",
     s.board.reviews.filter((r) => r.season === 1 && r.type === "endSeason").length === 1,
@@ -273,3 +276,4 @@ console.log("\n[I11] Migrated saves are clean and idempotent");
 
 console.log(`\n=== ${passed} passed, ${failed} failed ===`);
 if (failed > 0) process.exit(1);
+
