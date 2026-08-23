@@ -2,6 +2,7 @@ import {
   advanceFringeWorldToSeason,
   buildFringeWorldState,
   ensureFringeWorldState,
+  fringeFormFromFinish,
   fringeWorldSignature,
   reconcileFringeWorldState,
 } from "../fringe";
@@ -141,6 +142,35 @@ assert(
       club.financeBand <= 5,
   ),
   "advanced Fringe values must remain inside their compact bounds",
+);
+
+const topFinishState = structuredClone(state);
+topFinishState.clubRecords[fringeClub].leagueHistory.push({
+  season: 1,
+  leagueId: worldA[fringeClub].leagueId,
+  position: 1,
+});
+topFinishState.season = 2;
+const topFinishForm = fringeFormFromFinish(topFinishState, fringeClub, 2);
+assert(
+  topFinishForm !== null && topFinishForm > 0,
+  "a top finish must produce positive Fringe form",
+);
+const bottomFinishState = structuredClone(state);
+bottomFinishState.clubRecords[fringeClub].leagueHistory.push({
+  season: 1,
+  leagueId: worldA[fringeClub].leagueId,
+  position: 20,
+});
+bottomFinishState.season = 2;
+const bottomFinishForm = fringeFormFromFinish(bottomFinishState, fringeClub, 2);
+assert(
+  bottomFinishForm !== null && bottomFinishForm < 0,
+  "a bottom finish must produce negative Fringe form",
+);
+assert(
+  advanceFringeWorldToSeason(topFinishState)[fringeClub].form === topFinishForm,
+  "seasonal advancement must consume recorded finishing form",
 );
 
 // Move the player down one tier: the old distant tier can enter Focus and its

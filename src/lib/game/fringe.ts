@@ -1,6 +1,6 @@
 import type { FringeClubState, FringeWorldState, GameState } from "./types";
 import { buildWorldSimulationPlan } from "./world";
-import { clubReputation } from "./reputation";
+import { clubReputation, finishIn } from "./reputation";
 import { hashString } from "./rng";
 
 /**
@@ -13,6 +13,15 @@ const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n
 function stableOffset(seed: string, clubId: string, channel: string, span: number): number {
   const h = hashString(`${seed}|fringe|${clubId}|${channel}`);
   return (Math.abs(h) % (span * 2 + 1)) - span;
+}
+
+/** Previous-season finish mapped onto the compact -4..4 form scale. */
+export function fringeFormFromFinish(s: GameState, clubId: string, season: number): number | null {
+  const finish = finishIn(s, clubId, season - 1);
+  if (!finish) return null;
+  const size = s.leagues.find((league) => league.id === finish.leagueId)?.clubIds.length ?? 20;
+  const midpoint = (size + 1) / 2;
+  return clamp(Math.round(((midpoint - finish.position) / midpoint) * 4), -4, 4);
 }
 
 export function makeFringeClubState(
@@ -110,7 +119,9 @@ export function advanceFringeWorldToSeason(s: GameState): FringeWorldState {
         1,
         100,
       );
-      current.form = stableOffset(s.saveSeed, clubId, `form-s${season}`, 5);
+      current.form =
+        fringeFormFromFinish(s, clubId, season) ??
+        stableOffset(s.saveSeed, clubId, `form-s${season}`, 5);
       current.financeBand = clamp(
         Math.round((current.financeBand * 2 + reputation / 20 + financeDrift) / 3),
         1,
