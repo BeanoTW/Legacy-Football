@@ -39,7 +39,7 @@ console.log("\n[U1] Route is an orchestration shell");
 console.log("\n[U2] Navigation completeness");
 {
   const EXPECTED = ["inbox", "hub", "board", "commercial", "dashboard", "cashflow", "tickets",
-    "recruitment", "staff", "stadium", "fixtures", "leagues", "history"];
+    "recruitment", "staff", "stadium", "fixtures", "leagues", "world", "history"];
   const registered = [...tabs.matchAll(/\["([a-z]+)",\s*"/g)].map((m) => m[1]);
   check("every expected tab id is registered", EXPECTED.every((t) => registered.includes(t)),
     EXPECTED.filter((t) => !registered.includes(t)).join(","));
