@@ -47,19 +47,20 @@ function playSeason(g0: GameState): GameState {
 console.log("\n[R1] Reputation persistence");
 {
   const g = fresh();
+  const worldClubCount = g.leagues.reduce((sum, league) => sum + league.clubIds.length, 0);
   const before = Object.fromEntries(Object.keys(g.clubReputations).map((c) => [c, clubReputation(g, c)]));
-  check("every pyramid club has a reputation", Object.keys(g.clubReputations).length === 40);
+  check("every pyramid club has a reputation", Object.keys(g.clubReputations).length === worldClubCount);
   check("reputations sit inside 0-100",
     Object.values(before).every((v) => v >= REP_MIN && v <= REP_MAX));
   const s2 = playSeason(g);
   check("season rolled over", s2.season === 2);
   check("reputation map survives the rollover (no reset)",
-    Object.keys(s2.clubReputations).length === 40);
+    Object.keys(s2.clubReputations).length === worldClubCount);
   const moved = Object.keys(before).filter((c) => s2.clubReputations[c] !== before[c]);
-  check("reputation carries over, adjusted not rebuilt", moved.length > 0 && moved.length <= 40);
+  check("reputation carries over, adjusted not rebuilt", moved.length > 0 && moved.length <= worldClubCount);
   const s3 = playSeason(s2);
   check("still persistent after a second season",
-    s3.season === 3 && Object.keys(s3.clubReputations).length === 40);
+    s3.season === 3 && Object.keys(s3.clubReputations).length === worldClubCount);
 }
 
 console.log("\n[R2] Promotion raises reputation, relegation lowers it");
@@ -70,7 +71,9 @@ console.log("\n[R2] Promotion raises reputation, relegation lowers it");
   const hist = s2.seasonHistory.filter((h) => h.season === 1);
   const promoted = hist.flatMap((h) => h.promoted);
   const relegated = hist.flatMap((h) => h.relegated);
-  check("promotion + relegation happened", promoted.length === 2 && relegated.length === 2);
+  check("promotion + relegation happened",
+    promoted.length === g.leagues.reduce((sum, league) => sum + league.promotionPlaces, 0) &&
+    relegated.length === g.leagues.reduce((sum, league) => sum + league.relegationPlaces, 0));
   check("every promoted club gained reputation",
     promoted.every((c) => s2.clubReputations[c] > before[c]),
     promoted.map((c) => `${c} ${before[c]}->${s2.clubReputations[c]}`).join(", "));
@@ -162,7 +165,7 @@ console.log("\n[R6] Predictions are deterministic and complete");
   const a = fresh("REP_SEED_6");
   const b = fresh("REP_SEED_6");
   check("predictions stored for every division at kick-off",
-    a.seasonPredictions.filter((p) => p.season === 1).length === 2);
+    a.seasonPredictions.filter((p) => p.season === 1).length === a.leagues.length);
   const pa = predictSeason(a, 1);
   const pb = predictSeason(b, 1);
   check("same save => identical predictions", JSON.stringify(pa) === JSON.stringify(pb));
@@ -294,12 +297,13 @@ console.log("\n[R11] Save migration (v4 → v5)");
   delete g.seasonPredictions;
   delete g.clubSnapshots;
   const m = migrateSave(structuredClone(g));
+  const migratedClubCount = m.leagues.reduce((sum, league) => sum + league.clubIds.length, 0);
   check("migrated to current schema", (m.version as number) === SAVE_VERSION);
   check("reputations backfilled for every club",
-    Object.keys(m.clubReputations).length === 40 &&
+    Object.keys(m.clubReputations).length === migratedClubCount &&
     Object.values(m.clubReputations).every((v) => v >= REP_MIN && v <= REP_MAX));
   check("current season projected on migration",
-    m.seasonPredictions.filter((p) => p.season === m.season).length === 2);
+    m.seasonPredictions.filter((p) => p.season === m.season).length === m.leagues.length);
   check("no historical seasons invented", m.clubSnapshots.length === 0);
   const again = migrateSave(structuredClone(m) as unknown as Record<string, unknown>);
   check("migration is idempotent",
