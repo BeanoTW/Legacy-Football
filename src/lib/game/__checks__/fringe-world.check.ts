@@ -9,7 +9,12 @@ import { buildWorldSimulationPlan } from "../world";
 import { newGame } from "../newGame";
 import { clubStrengthAtLevel, simulateAiFixtureAtLevel } from "../league";
 import { clubStrengthFor } from "../reputation";
-import { FREE_AGENT_POOL, SQUAD_SIZE, reconcileRecruitmentFidelity } from "../recruitment";
+import {
+  FREE_AGENT_POOL,
+  SQUAD_SIZE,
+  fringeFinanceWageFactor,
+  reconcileRecruitmentFidelity,
+} from "../recruitment";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -166,6 +171,32 @@ const newlyFocusedClub = buildWorldSimulationPlan(recruitmentState).focusClubIds
 assert(newlyFocusedClub, "moving the Focus boundary must expose a previously Fringe club");
 const compactStrength = 78;
 recruitmentState.fringeWorld![newlyFocusedClub].strength = compactStrength;
+
+const lowFinanceState = structuredClone(recruitmentState);
+const highFinanceState = structuredClone(recruitmentState);
+lowFinanceState.fringeWorld![newlyFocusedClub].financeBand = 1;
+highFinanceState.fringeWorld![newlyFocusedClub].financeBand = 5;
+reconcileRecruitmentFidelity(lowFinanceState);
+reconcileRecruitmentFidelity(highFinanceState);
+const hydratedWageBill = (candidate: typeof recruitmentState) => {
+  const playerIds = new Set(
+    candidate.football.players
+      .filter((player) => player.currentClubId === newlyFocusedClub)
+      .map((player) => player.id),
+  );
+  return candidate.football.contracts
+    .filter((contract) => playerIds.has(contract.playerId) && contract.status === "Active")
+    .reduce((total, contract) => total + contract.weeklyWage, 0);
+};
+assert(
+  hydratedWageBill(highFinanceState) > hydratedWageBill(lowFinanceState),
+  "stronger Fringe finances must hydrate a higher but bounded contract load",
+);
+assert(
+  fringeFinanceWageFactor(1) === 0.85 && fringeFinanceWageFactor(5) === 1.15,
+  "Fringe finance bands must remain inside the conservative hydration range",
+);
+
 reconcileRecruitmentFidelity(recruitmentState);
 const expandedPlan = buildWorldSimulationPlan(recruitmentState);
 for (const id of expandedPlan.focusClubIds) {

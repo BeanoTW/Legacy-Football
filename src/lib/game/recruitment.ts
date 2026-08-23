@@ -69,6 +69,16 @@ export const PLAYER_WAGE_SHARE = 0.78;
 /** How heavily a freshly generated squad is already committed against that share. */
 export const OPENING_WAGE_LOAD = 0.82;
 
+/**
+ * Converts compact financial identity into a conservative hydration modifier.
+ * Even the strongest band remains below the club's sustainable total wage
+ * bill after the player/staff split and opening-load factors are applied.
+ */
+export function fringeFinanceWageFactor(financeBand: number | undefined): number {
+  if (financeBand === undefined) return 1;
+  return clamp(0.85 + (clamp(int(financeBand), 1, 5) - 1) * 0.075, 0.85, 1.15);
+}
+
 /** Weeks before expiry a contract is flagged as expiring / renewable. */
 export const RENEWAL_WINDOW_WEEKS = 20;
 /** Weeks an untouched negotiation stays on the table. */
@@ -480,7 +490,12 @@ export function reconcileRecruitmentFidelity(s: GameState): void {
       0,
     );
     const targetBill = sustainableWeeklyWageBill(tier, rep) * PLAYER_WAGE_SHARE * OPENING_WAGE_LOAD;
-    const wageScalar = rawBill > 0 ? clamp(targetBill / rawBill, 0.6, 1.5) : 1;
+    const baseWageScalar = rawBill > 0 ? clamp(targetBill / rawBill, 0.6, 1.5) : 1;
+    const wageScalar = clamp(
+      baseWageScalar * fringeFinanceWageFactor(previousFringe[club]?.financeBand),
+      0.5,
+      1.5,
+    );
 
     squad.forEach((player, index) => {
       if (s.football.players.some((existing) => existing.id === player.id)) return;

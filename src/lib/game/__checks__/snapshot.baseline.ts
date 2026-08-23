@@ -3,8 +3,8 @@
 export const BASELINE: Record<string, string> & { parts?: Record<string, Record<string, string>> } =
   {
     "season1-week10": "3f275e56",
-    "season1-end": "daf43b0f",
-    "season3-end": "52b1f2b8",
+    "season1-end": "d09197e9",
+    "season3-end": "cedd683f",
     parts: {
       "season1-week10": {
         board: "093d97d7",
@@ -70,7 +70,7 @@ export const BASELINE: Record<string, string> & { parts?: Record<string, Record<
         financeHistory: "17df1636",
         financeLedger: "aba5f2f4",
         fixtures: "28f8216d",
-        football: "58bc9d77",
+        football: "fc2d56ef",
         fringeWorld: "1f9462d7",
         hiredStaff: "741638a5",
         inbox: "a8435a53",
@@ -121,7 +121,7 @@ export const BASELINE: Record<string, string> & { parts?: Record<string, Record<
         financeHistory: "2a27494e",
         financeLedger: "908bd7f5",
         fixtures: "7dbbf953",
-        football: "96eda07f",
+        football: "40c0daf0",
         fringeWorld: "e849ba25",
         hiredStaff: "741638a5",
         inbox: "57c9eb26",
