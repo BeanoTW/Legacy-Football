@@ -91,7 +91,27 @@ export function simulateAiFixture(
   return simulateFixture(s, season, round, home, away, leagueId);
 }
 
-/** Phase-2 fidelity gateway. Behaviour is intentionally identical while the boundary beds in. */
+/** Strength gateway for a fixture resolved at a particular fidelity level. */
+export function clubStrengthAtLevel(
+  s: GameState,
+  season: number,
+  club: string,
+  level: WorldSimulationLevel,
+): number {
+  if (level === "fringe") {
+    const compact = s.fringeWorld?.[club];
+    if (compact?.lastSimulatedSeason === season) {
+      return Math.max(1, Math.min(100, compact.strength + compact.form));
+    }
+  }
+  return clubStrength(s, season, club);
+}
+
+/**
+ * Focus fixtures retain the detailed reputation/history model. Fringe-only
+ * fixtures resolve from compact persistent strength and form, without
+ * hydrating players or contracts.
+ */
 export function simulateAiFixtureAtLevel(
   s: GameState,
   season: number,
@@ -102,7 +122,10 @@ export function simulateAiFixtureAtLevel(
   level: WorldSimulationLevel,
 ): { homeGoals: number; awayGoals: number; seed: string } {
   if (level === "focus") return simulateAiFixture(s, season, round, home, away, leagueId);
-  return simulateAiFixture(s, season, round, home, away, leagueId);
+  return simulateFixture(s, season, round, home, away, leagueId, {
+    homeStrength: clubStrengthAtLevel(s, season, home, level),
+    awayStrength: clubStrengthAtLevel(s, season, away, level),
+  });
 }
 
 export function outcomeOf(homeGoals: number, awayGoals: number): MatchRecord["outcome"] {
