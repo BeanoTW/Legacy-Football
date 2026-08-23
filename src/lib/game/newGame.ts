@@ -10,7 +10,9 @@ import { ensureInfrastructure } from "./infrastructure";
 import { ensureSustainability } from "./sustainability";
 import { ensureCommercial } from "./commercial";
 import { initClubReputations, storePredictions } from "./reputation";
-import { makeLeagues, makePyramidSchedule, makeClubRecords, DIVISION_ONE } from "./pyramid";
+import { makePyramidSchedule, makeClubRecords, DIVISION_ONE } from "./pyramid";
+import { makeExpandedLeagues } from "./worldPyramid";
+import { ensureFringeWorldState } from "./fringe";
 import { makeBoard, ensureBoard } from "./board";
 import { initFinance } from "./finance";
 import { openingStaffPool } from "./staff";
@@ -37,7 +39,9 @@ export function newGame(clubName: string, managerName: string, seed?: string): G
   // Opening cash is booked as a real ledger entry, so the books reconcile
   // from the very first week.
   initFinance(base);
-  // Canonical football world: players, contracts and squads for every club.
+  // Persist the lightweight outer world before detailed Focus squads are built.
+  ensureFringeWorldState(base);
+  // Canonical football world: detailed squads and contracts only for Focus clubs.
   ensureRecruitment(base);
   // Canonical physical club: stands, pitch, facilities and capital projects.
   ensureInfrastructure(base);
@@ -59,7 +63,7 @@ function _newGameSeed(clubName: string, managerName: string, seed?: string): Gam
     { key: "S", name: "South Stand", capacity: 3200, condition: 90, ticketPrice: 18 },
     { key: "W", name: "West Stand",  capacity: 3000, condition: 94, ticketPrice: 26 },
   ];
-  const leagues = makeLeagues(clubName);
+  const leagues = makeExpandedLeagues(clubName);
   const leagueSchedule = makePyramidSchedule(leagues, `${saveSeed}|season1`);
   return {
     version: SAVE_VERSION,
