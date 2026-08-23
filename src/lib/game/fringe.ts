@@ -21,6 +21,8 @@ export interface FringeClubState {
 
 export type FringeWorldState = Record<string, FringeClubState>;
 
+type StateWithFringe = GameState & { fringeWorld?: FringeWorldState };
+
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
 function stableOffset(seed: string, clubId: string, channel: string, span: number): number {
@@ -81,4 +83,11 @@ export function fringeWorldSignature(world: FringeWorldState): string {
     .sort((a, b) => a.clubId.localeCompare(b.clubId))
     .map((c) => `${c.clubId}:${c.leagueId}:${c.tier}:${c.reputation}:${c.strength}:${c.form}:${c.financeBand}:${c.lastSimulatedSeason}`)
     .join("|");
+}
+
+/** Returns the persisted compact layer, creating it for legacy saves on demand. */
+export function ensureFringeWorldState(s: GameState): FringeWorldState {
+  const state = s as StateWithFringe;
+  state.fringeWorld = reconcileFringeWorldState(s, state.fringeWorld);
+  return state.fringeWorld;
 }
