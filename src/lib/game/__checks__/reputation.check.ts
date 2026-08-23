@@ -180,7 +180,7 @@ console.log("\n[R6] Predictions are deterministic and complete");
   check("tier 1 has relegation favourites", t1.relegationFavourites.length >= 2);
   const s2 = playSeason(a);
   check("next season is projected at rollover",
-    s2.seasonPredictions.filter((p) => p.season === 2).length === 2);
+    s2.seasonPredictions.filter((p) => p.season === 2).length === s2.leagues.length);
   check("previous season's prediction is not rewritten",
     JSON.stringify(s2.seasonPredictions.filter((p) => p.season === 1)) === JSON.stringify(pa));
 }
@@ -190,7 +190,7 @@ console.log("\n[R7] Every club receives exactly one expectation");
   const g = fresh("REP_SEED_7");
   const preds = predictSeason(g, 1);
   const all = preds.flatMap((p) => p.clubs);
-  check("40 clubs projected", all.length === 40);
+  check("every world club projected", all.length === g.leagues.reduce((sum, league) => sum + league.clubIds.length, 0));
   const seen = new Map<string, number>();
   for (const c of all) seen.set(c.club, (seen.get(c.club) ?? 0) + 1);
   check("no club appears twice", [...seen.values()].every((n) => n === 1));
@@ -231,7 +231,8 @@ console.log("\n[R9] Historical snapshots are immutable");
   const g = fresh("REP_SEED_9");
   const s2 = playSeason(g);
   const snaps1 = s2.clubSnapshots.filter((x) => x.season === 1);
-  check("one snapshot per club for season 1", snaps1.length === 40);
+  const worldClubCount = g.leagues.reduce((sum, league) => sum + league.clubIds.length, 0);
+  check("one snapshot per club for season 1", snaps1.length === worldClubCount);
   check("snapshot carries reputation, strength, expected + actual finish",
     snaps1.every((x) =>
       typeof x.reputation === "number" && typeof x.strength === "number" &&
@@ -240,7 +241,7 @@ console.log("\n[R9] Historical snapshots are immutable");
   const s3 = playSeason(s2);
   check("season 1 snapshots untouched after season 2",
     JSON.stringify(s3.clubSnapshots.filter((x) => x.season === 1)) === frozen);
-  check("season 2 snapshots appended", s3.clubSnapshots.filter((x) => x.season === 2).length === 40);
+  check("season 2 snapshots appended", s3.clubSnapshots.filter((x) => x.season === 2).length === worldClubCount);
   // Re-running the identity pass for an already-recorded season adds nothing.
   const before = s3.clubSnapshots.length;
   applySeasonIdentity(s3, 1, [{
@@ -340,3 +341,4 @@ console.log("\n[R12] Promoted / relegated clubs evolve rather than jump");
 
 console.log(`\n=== ${passed} passed, ${failed} failed ===`);
 if (failed > 0) process.exit(1);
+
