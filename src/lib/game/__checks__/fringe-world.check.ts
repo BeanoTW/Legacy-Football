@@ -2,6 +2,7 @@ import { buildFringeWorldState, fringeWorldSignature, reconcileFringeWorldState 
 import { buildWorldSimulationPlan } from "../world";
 import { makeExpandedLeagues } from "../worldPyramid";
 import { initClubReputations } from "../pyramid";
+import { FREE_AGENT_POOL, SQUAD_SIZE, generateWorld, reconcileRecruitmentFidelity } from "../recruitment";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -40,5 +41,50 @@ const movedWorld = reconcileFringeWorldState(movedState, worldA);
 for (const id of movedPlan.focusClubIds) {
   assert(!movedWorld[id], `Focus club ${id} must not retain a Fringe snapshot`);
 }
+
+
+const generated = generateWorld(state);
+assert(
+  generated.players.length === plan.focusClubIds.length * SQUAD_SIZE + FREE_AGENT_POOL,
+  "opening recruitment must create detailed players only for Focus clubs",
+);
+assert(
+  generated.players.every((player) => player.currentClubId === null || plan.focusClubIds.includes(player.currentClubId)),
+  "Fringe clubs must not receive detailed opening squads",
+);
+
+const recruitmentState = {
+  ...state,
+  squad: [],
+  football: {
+    players: generated.players,
+    contracts: generated.contracts,
+    negotiations: [],
+    shortlist: [],
+    department: {} as any,
+    transferHistory: [],
+    contractHistory: [],
+    seasonHistory: [],
+    nextContractId: generated.contracts.length + 1,
+    nextNegotiationId: 1,
+    nextRecordId: 1,
+    generatedSeason: state.season,
+  },
+} as any;
+recruitmentState.playerLeagueId = leagues[1].id;
+reconcileRecruitmentFidelity(recruitmentState);
+const expandedPlan = buildWorldSimulationPlan(recruitmentState);
+for (const id of expandedPlan.focusClubIds) {
+  assert(
+    recruitmentState.football.players.filter((player: any) => player.currentClubId === id).length === SQUAD_SIZE,
+    `new Focus club ${id} must be hydrated exactly once`,
+  );
+}
+const signatureAfterHydration = recruitmentState.football.players.map((player: any) => player.id).sort().join("|");
+reconcileRecruitmentFidelity(recruitmentState);
+assert(
+  recruitmentState.football.players.map((player: any) => player.id).sort().join("|") === signatureAfterHydration,
+  "repeated reconciliation must not duplicate hydrated players",
+);
 
 console.log("fringe-world.check.ts: PASS");
