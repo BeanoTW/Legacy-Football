@@ -75,6 +75,78 @@ assert(
   "untracking a distant club must compact its identity exactly once",
 );
 
+const recruitmentReferenceState = setWorldClubTracked(state, trackedClub, true);
+const trackedPlayer = recruitmentReferenceState.football.players.find(
+  (player) => player.currentClubId === trackedClub,
+)!;
+const focusPlayer = recruitmentReferenceState.football.players.find(
+  (player) => player.currentClubId === recruitmentReferenceState.clubName,
+)!;
+const unrelatedPlayer = recruitmentReferenceState.football.players.find(
+  (player) =>
+    player.currentClubId !== trackedClub &&
+    player.currentClubId !== recruitmentReferenceState.clubName,
+)!;
+recruitmentReferenceState.football.shortlist.push(trackedPlayer.id, focusPlayer.id);
+recruitmentReferenceState.football.negotiations.push(
+  {
+    id: "boundary-target",
+    playerId: focusPlayer.id,
+    fromClubId: recruitmentReferenceState.clubName,
+    toClubId: trackedClub,
+    direction: "out",
+    stage: "clubTalks",
+    clubRounds: 1,
+    playerRounds: 0,
+    fee: 100_000,
+    proposedWeeklyWage: 0,
+    proposedLengthSeasons: 3,
+    proposedSigningBonus: 0,
+    proposedRole: "Rotation",
+    createdSeason: state.season,
+    createdAbsoluteWeek: 1,
+    expiresAtAbsoluteWeek: 2,
+    log: [],
+  },
+  {
+    id: "unrelated-focus",
+    playerId: unrelatedPlayer.id,
+    fromClubId: unrelatedPlayer.currentClubId,
+    toClubId: recruitmentReferenceState.clubName,
+    direction: "in",
+    stage: "clubTalks",
+    clubRounds: 1,
+    playerRounds: 0,
+    fee: 100_000,
+    proposedWeeklyWage: 0,
+    proposedLengthSeasons: 3,
+    proposedSigningBonus: 0,
+    proposedRole: "Rotation",
+    createdSeason: state.season,
+    createdAbsoluteWeek: 1,
+    expiresAtAbsoluteWeek: 2,
+    log: [],
+  },
+);
+const prunedReferenceState = setWorldClubTracked(recruitmentReferenceState, trackedClub, false);
+assert(
+  !prunedReferenceState.football.negotiations.some(
+    (negotiation) => negotiation.id === "boundary-target",
+  ),
+  "compaction must remove negotiations targeting a Fringe club",
+);
+assert(
+  prunedReferenceState.football.negotiations.some(
+    (negotiation) => negotiation.id === "unrelated-focus",
+  ),
+  "compaction must preserve unrelated Focus negotiations",
+);
+assert(
+  !prunedReferenceState.football.shortlist.includes(trackedPlayer.id) &&
+    prunedReferenceState.football.shortlist.includes(focusPlayer.id),
+  "compaction must prune only shortlist ids whose detailed players were discarded",
+);
+
 const fringeClub = plan.fringeClubIds[0];
 const persisted = worldA[fringeClub];
 const reconciled = reconcileFringeWorldState(state, worldA);

@@ -457,10 +457,20 @@ export function reconcileRecruitmentFidelity(s: GameState): void {
     s.football.contracts = s.football.contracts.filter(
       (contract) => !removedPlayerIds.has(contract.playerId),
     );
-    s.football.negotiations = s.football.negotiations.filter(
-      (negotiation) => !removedPlayerIds.has(negotiation.playerId),
-    );
   }
+  // A negotiation can reference a departing club without referencing one of
+  // its players (for example, an incoming bid for the user's player). Keeping
+  // that row would allow a later completion to recreate detailed ownership in
+  // Fringe. Remove every negotiation crossing the new boundary, then prune
+  // shortlist ids whose detailed player record no longer exists.
+  s.football.negotiations = s.football.negotiations.filter(
+    (negotiation) =>
+      !removedPlayerIds.has(negotiation.playerId) &&
+      (negotiation.fromClubId === null || !fringe.has(negotiation.fromClubId)) &&
+      (negotiation.toClubId === null || !fringe.has(negotiation.toClubId)),
+  );
+  const retainedPlayerIds = new Set(s.football.players.map((player) => player.id));
+  s.football.shortlist = s.football.shortlist.filter((playerId) => retainedPlayerIds.has(playerId));
 
   const detailedClubs = new Set(
     s.football.players
