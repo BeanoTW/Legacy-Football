@@ -839,7 +839,8 @@ console.log("\n[R15] Static audit");
   // The migration registry may seed a default budget on an old save that
   // predates the field; that is schema backfill, not a gameplay mutation.
   check("S3. no direct transfer-budget writes outside engine/budgets/finance/migrations",
-    offenders(/\.transferBudget\s*[-+*]?=\s/).filter((f) => !/engine\.ts|budgets\.ts|finance\.ts|migrations\//.test(f)).length === 0);
+    offenders(/\.transferBudget\s*[-+*]?=\s/)
+      .filter((f) => !/engine\.ts|budgets\.ts|finance\.ts|migrations\//.test(f.replace(/\\/g, "/"))).length === 0);
 
   check("S4. no squad or contract mutation in components/routes",
     offenders(/football\.(contracts|players|negotiations)\.(push|splice)/)
@@ -858,3 +859,4 @@ console.log("\n[R15] Static audit");
 
 console.log(`\n=== ${passed} passed, ${failed} failed ===`);
 if (failed > 0) process.exit(1);
+
