@@ -80,9 +80,11 @@ if (write) {
       2,
     )} as never;\n`;
   const { writeFileSync } = await import("node:fs");
-  writeFileSync(new URL("./snapshot.baseline.ts", import.meta.url).pathname, body);
+  const { fileURLToPath } = await import("node:url");
+  writeFileSync(fileURLToPath(new URL("./snapshot.baseline.ts", import.meta.url)), body);
   console.log("\nBaseline written.");
 } else {
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed) process.exit(1);
 }
+
