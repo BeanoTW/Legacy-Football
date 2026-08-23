@@ -530,6 +530,24 @@ export function reconcileRecruitmentFidelity(s: GameState): void {
   ensureFringeWorldState(s);
 }
 
+/** Persistently track/untrack a club and reconcile its fidelity immediately. */
+export function setWorldClubTrackedInPlace(s: GameState, clubId: string, tracked: boolean): void {
+  const exists = s.leagues.some((league) => league.clubIds.includes(clubId));
+  if (!exists) throw new Error(`Cannot track unknown world club: ${clubId}`);
+  const ids = new Set(s.trackedClubIds ?? []);
+  if (tracked) ids.add(clubId);
+  else ids.delete(clubId);
+  s.trackedClubIds = [...ids].sort((a, b) => a.localeCompare(b));
+  reconcileRecruitmentFidelity(s);
+  syncLegacySquad(s);
+}
+
+export function setWorldClubTracked(s: GameState, clubId: string, tracked: boolean): GameState {
+  const next = structuredClone(s);
+  setWorldClubTrackedInPlace(next, clubId, tracked);
+  return next;
+}
+
 /** Idempotent. Builds the football world once, then leaves it alone. */
 export function ensureRecruitment(s: GameState): void {
   if (s.football && Array.isArray(s.football.players) && s.football.players.length > 0) {

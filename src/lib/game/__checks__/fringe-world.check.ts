@@ -16,6 +16,7 @@ import {
   SQUAD_SIZE,
   fringeFinanceWageFactor,
   reconcileRecruitmentFidelity,
+  setWorldClubTracked,
 } from "../recruitment";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -46,6 +47,33 @@ assert(
   "lightweight world must be deterministic regardless of league array order",
 );
 assert(!worldA["Player FC"], "player club must never be represented as Fringe");
+
+const trackedState = setWorldClubTracked(state, plan.fringeClubIds[0], true);
+const trackedClub = plan.fringeClubIds[0];
+assert(trackedState.trackedClubIds?.includes(trackedClub), "tracked club identity must persist");
+assert(
+  trackedState.football.players.filter((player) => player.currentClubId === trackedClub).length ===
+    SQUAD_SIZE,
+  "tracking a Fringe club must hydrate one detailed squad",
+);
+assert(
+  !trackedState.fringeWorld?.[trackedClub],
+  "a tracked Focus club must not retain duplicate compact state",
+);
+const reloadedTrackedState = JSON.parse(JSON.stringify(trackedState)) as typeof trackedState;
+assert(
+  buildWorldSimulationPlan(reloadedTrackedState).focusClubIds.includes(trackedClub),
+  "tracked Focus status must survive save/load",
+);
+const untrackedState = setWorldClubTracked(reloadedTrackedState, trackedClub, false);
+assert(
+  !untrackedState.football.players.some((player) => player.currentClubId === trackedClub),
+  "untracking a distant club must remove its detailed squad",
+);
+assert(
+  Boolean(untrackedState.fringeWorld?.[trackedClub]),
+  "untracking a distant club must compact its identity exactly once",
+);
 
 const fringeClub = plan.fringeClubIds[0];
 const persisted = worldA[fringeClub];

@@ -81,6 +81,12 @@ assert(
   tracked.clubs.find((club) => club.clubId === "F")?.reasons.includes("tracked"),
   "tracked reason must be recorded",
 );
+const persistedTracked = buildWorldSimulationPlan({ ...state, trackedClubIds: ["F"] });
+assert(
+  simulationLevelForClub(persistedTracked, "F") === "focus" &&
+    persistedTracked.clubs.find((club) => club.clubId === "F")?.reasons.includes("tracked"),
+  "persisted tracked clubs must enter Focus without temporary options",
+);
 
 const narrow = buildWorldSimulationPlan(state, { includeAdjacentLeagues: false });
 assert(simulationLevelForClub(narrow, "A") === "fringe", "adjacent leagues must be optional");

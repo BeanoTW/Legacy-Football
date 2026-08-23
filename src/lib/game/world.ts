@@ -55,7 +55,7 @@ function uniqueSorted(values: readonly string[]): string[] {
  * unmodelled boundary.
  */
 export function buildWorldSimulationPlan(
-  state: Pick<GameState, "season" | "clubName" | "playerLeagueId" | "leagues">,
+  state: Pick<GameState, "season" | "clubName" | "playerLeagueId" | "leagues" | "trackedClubIds">,
   options: WorldFocusOptions = {},
 ): WorldSimulationPlan {
   const playerLeague = state.leagues.find((league) => league.id === state.playerLeagueId);
@@ -76,7 +76,7 @@ export function buildWorldSimulationPlan(
     }
   }
 
-  const tracked = new Set(options.trackedClubIds ?? []);
+  const tracked = new Set([...(state.trackedClubIds ?? []), ...(options.trackedClubIds ?? [])]);
   const recent = new Set(options.recentOpponentIds ?? []);
 
   const clubs: WorldClubSimulationProfile[] = [];

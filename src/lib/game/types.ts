@@ -1471,6 +1471,9 @@ export interface GameState {
    */
   fringeWorld?: FringeWorldState;
 
+  /** Clubs the player explicitly keeps inside the detailed Focus bubble. */
+  trackedClubIds?: string[];
+
   ledger: WeekLedger[];
   league: LeagueRow[];
 
