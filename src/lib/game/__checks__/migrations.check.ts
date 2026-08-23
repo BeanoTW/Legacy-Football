@@ -19,6 +19,7 @@ import { legacyMigrateSave } from "./legacyMigrate";
 import { stateHash, stateHashParts, stableStringify } from "../diagnostics/stateHash";
 import type { GameState } from "../types";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 let passed = 0;
 let failed = 0;
@@ -338,7 +339,7 @@ console.log("\n[G5] Step-contract verification");
     f,
     // Comments are stripped: the rules themselves are written down in prose
     // inside these files and must not trip their own scan.
-    src: readFileSync(new URL(`../migrations/${f}`, import.meta.url).pathname, "utf8")
+    src: readFileSync(fileURLToPath(new URL(`../migrations/${f}`, import.meta.url)), "utf8")
       .replace(/\/\*[\s\S]*?\*\//g, "")
       .replace(/^\s*\/\/.*$/gm, ""),
   }));
@@ -418,3 +419,4 @@ console.log("\n[G9] Diagnostics reporting");
 
 console.log(`\n=== ${passed} passed, ${failed} failed ===`);
 if (failed > 0) process.exit(1);
+
