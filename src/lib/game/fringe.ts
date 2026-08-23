@@ -24,6 +24,21 @@ export function fringeFormFromFinish(s: GameState, clubId: string, season: numbe
   return clamp(Math.round(((midpoint - finish.position) / midpoint) * 4), -4, 4);
 }
 
+/** Promotion/relegation pressure applied to compact finances for a new season. */
+export function fringeFinanceMovement(s: GameState, clubId: string, season: number): number {
+  const history = s.clubRecords?.[clubId]?.leagueHistory ?? [];
+  const previousLeagueId = history.find((entry) => entry.season === season - 1)?.leagueId;
+  if (!previousLeagueId) return 0;
+  const currentLeagueId =
+    history.find((entry) => entry.season === season)?.leagueId ??
+    s.leagues.find((league) => league.clubIds.includes(clubId))?.id;
+  if (!currentLeagueId) return 0;
+  const previousTier = s.leagues.find((league) => league.id === previousLeagueId)?.tier;
+  const currentTier = s.leagues.find((league) => league.id === currentLeagueId)?.tier;
+  if (previousTier === undefined || currentTier === undefined) return 0;
+  return currentTier < previousTier ? 1 : currentTier > previousTier ? -1 : 0;
+}
+
 export function makeFringeClubState(
   s: Pick<GameState, "saveSeed" | "season" | "clubReputations">,
   clubId: string,
@@ -123,7 +138,8 @@ export function advanceFringeWorldToSeason(s: GameState): FringeWorldState {
         fringeFormFromFinish(s, clubId, season) ??
         stableOffset(s.saveSeed, clubId, `form-s${season}`, 5);
       current.financeBand = clamp(
-        Math.round((current.financeBand * 2 + reputation / 20 + financeDrift) / 3),
+        Math.round((current.financeBand * 2 + reputation / 20 + financeDrift) / 3) +
+          fringeFinanceMovement(s, clubId, season),
         1,
         5,
       );

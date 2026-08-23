@@ -2,6 +2,7 @@ import {
   advanceFringeWorldToSeason,
   buildFringeWorldState,
   ensureFringeWorldState,
+  fringeFinanceMovement,
   fringeFormFromFinish,
   fringeWorldSignature,
   reconcileFringeWorldState,
@@ -171,6 +172,36 @@ assert(
 assert(
   advanceFringeWorldToSeason(topFinishState)[fringeClub].form === topFinishForm,
   "seasonal advancement must consume recorded finishing form",
+);
+
+const movableProfile = plan.clubs.find(
+  (profile) => profile.level === "fringe" && profile.tier > 1 && profile.tier < leagues.length,
+);
+assert(movableProfile, "Fringe world must contain a club with leagues on both sides");
+const movementState = structuredClone(state);
+movementState.clubRecords[movableProfile.clubId].leagueHistory.push({
+  season: 1,
+  leagueId: movableProfile.leagueId,
+  position: 1,
+});
+movementState.season = 2;
+const moveClubToTier = (candidate: typeof movementState, tier: number) => {
+  for (const league of candidate.leagues) {
+    league.clubIds = league.clubIds.filter((clubId) => clubId !== movableProfile.clubId);
+  }
+  candidate.leagues.find((league) => league.tier === tier)!.clubIds.push(movableProfile.clubId);
+};
+const promotedState = structuredClone(movementState);
+moveClubToTier(promotedState, movableProfile.tier - 1);
+assert(
+  fringeFinanceMovement(promotedState, movableProfile.clubId, 2) === 1,
+  "promotion must lift compact financial momentum",
+);
+const relegatedState = structuredClone(movementState);
+moveClubToTier(relegatedState, movableProfile.tier + 1);
+assert(
+  fringeFinanceMovement(relegatedState, movableProfile.clubId, 2) === -1,
+  "relegation must reduce compact financial momentum",
 );
 
 // Move the player down one tier: the old distant tier can enter Focus and its
