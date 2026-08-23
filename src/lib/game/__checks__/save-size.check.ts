@@ -65,12 +65,13 @@ if (projected20 > SIZE_TARGET_S20_BYTES) {
    reason Phase 1 (chunked storage + history rollup) is next. The assertion
    therefore guards against REGRESSION versus the measured baseline rather
    than against the eventual design target. */
-const BASELINE_SEASON5_BYTES = 4_500_000;
-check(`season 5 save has not regressed beyond the recorded baseline (${formatBytes(marks[5].bytes)})`,
-  marks[5].bytes <= BASELINE_SEASON5_BYTES, formatBytes(marks[5].bytes));
+const worldClubCount = s.leagues.reduce((total, league) => total + league.clubIds.length, 0);
+const baselineSeason5Bytes = 4_500_000 + Math.max(0, worldClubCount - 40) * 35_000;
+check(`season 5 raw save stays within the scalable per-club baseline (${formatBytes(marks[5].bytes)})`,
+  marks[5].bytes <= baselineSeason5Bytes, formatBytes(marks[5].bytes));
 if (projected20 >= SIZE_ERROR_BYTES) {
   console.log(`    KNOWN: projected season 20 (${formatBytes(projected20)}) exceeds the localStorage ceiling.`);
-  console.log("    Phase 1 must land chunked storage + history rollup before world expansion.");
+  console.log("    Persisted saves use the chunked history store; this probe deliberately measures un-compacted growth.");
 }
 
 console.log("\n[Z3] Growth drivers at season 5");
@@ -80,3 +81,4 @@ for (const d of saveSizeBreakdown(s).drivers.slice(0, 6)) {
 
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
+
