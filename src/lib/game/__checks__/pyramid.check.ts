@@ -42,8 +42,8 @@ function playSeason(g0: GameState): GameState {
 console.log("\n[1] Pyramid shape");
 {
   const g = fresh();
-  check("two leagues exist", g.leagues.length === 2);
-  check("tiers are 1 and 2", g.leagues.map((l) => l.tier).join(",") === "1,2");
+  check("expanded world leagues exist", g.leagues.length === 4);
+  check("tiers are contiguous", g.leagues.map((l) => l.tier).join(",") === "1,2,3,4");
   check("20 clubs per division", g.leagues.every((l) => l.clubIds.length === CLUBS_PER_DIVISION));
   check("no club appears in two leagues",
     new Set(pyramidClubs(g)).size === pyramidClubs(g).length);
@@ -51,8 +51,8 @@ console.log("\n[1] Pyramid shape");
     g.leagues[0].clubIds.includes(g.clubName));
   check("tier 1 relegates 2, promotes 0",
     g.leagues[0].relegationPlaces === 2 && g.leagues[0].promotionPlaces === 0);
-  check("tier 2 promotes 2, relegates 0",
-    g.leagues[1].promotionPlaces === 2 && g.leagues[1].relegationPlaces === 0);
+  check("bottom tier promotes 2, relegates 0",
+    g.leagues.at(-1)!.promotionPlaces === 2 && g.leagues.at(-1)!.relegationPlaces === 0);
   check("integrity check passes", pyramidIntegrity(g).ok, pyramidIntegrity(g).problems.join("; "));
 }
 
@@ -97,6 +97,7 @@ console.log("\n[3] Every division completes independently (player absent)");
 console.log("\n[4] Promotion and relegation are correct");
 {
   const before = fresh();
+  const clubsBefore = pyramidClubs(before);
   const d1Before = [...before.leagues[0].clubIds];
   const d2Before = [...before.leagues[1].clubIds];
   const t = playSeason(before);
@@ -120,10 +121,9 @@ console.log("\n[4] Promotion and relegation are correct");
     d1After.length === 20 && d2After.length === 20);
   check("no club is in two divisions",
     d1After.every((c) => !d2After.includes(c)));
-  check("no club disappeared", [...d1Before, ...d2Before].every(
-    (c) => d1After.includes(c) || d2After.includes(c)));
-  check("no club appeared from nowhere", [...d1After, ...d2After].every(
-    (c) => d1Before.includes(c) || d2Before.includes(c)));
+  const clubsAfter = pyramidClubs(t);
+  check("no club disappeared", clubsBefore.every((c) => clubsAfter.includes(c)));
+  check("no club appeared from nowhere", clubsAfter.every((c) => clubsBefore.includes(c)));
   check("club records count movements",
     h1.relegated.every((c) => t.clubRecords[c].relegations === 1) &&
     h2.promoted.every((c) => t.clubRecords[c].promotions === 1));
@@ -149,8 +149,8 @@ console.log("\n[5] Player follows their club through the pyramid");
     check("relegation inbox mail sent", t.inbox.some((i) => i.eventKey.startsWith("club-relegated")));
   } else {
     check("surviving player stayed in tier 1", t.playerLeagueId === DIVISION_ONE);
-    check("champions mail exists for both divisions",
-      t.inbox.filter((i) => i.eventKey.startsWith("league-champion")).length === 2);
+    check("champions mail exists for every division",
+      t.inbox.filter((i) => i.eventKey.startsWith("league-champion")).length === t.leagues.length);
   }
 }
 
@@ -178,19 +178,19 @@ console.log("\n[7] Two consecutive seasons");
   const before = structuredClone(s1.seasonHistory);
   const s2 = playSeason(s1);
   check("season counter advanced to 3", s2.season === 3);
-  check("history has 4 entries (2 leagues x 2 seasons)", s2.seasonHistory.length === 4,
+  check("history has one entry per league and season", s2.seasonHistory.length === s2.leagues.length * 2,
     String(s2.seasonHistory.length));
   check("season-1 history is byte-identical after season 2",
     JSON.stringify(s2.seasonHistory.filter((h) => h.season === 1)) === JSON.stringify(before));
   check("season-1 match records untouched",
-    s2.matchRecords.filter((r) => r.season === 1).length === 760);
-  check("season 2 fully simulated in both divisions",
-    s2.matchRecords.filter((r) => r.season === 2).length === 760,
+    s2.matchRecords.filter((r) => r.season === 1).length === s2.leagues.length * 380);
+  check("season 2 fully simulated in every division",
+    s2.matchRecords.filter((r) => r.season === 2).length === s2.leagues.length * 380,
     String(s2.matchRecords.filter((r) => r.season === 2).length));
   check("season 2 tables built from season-2 clubs", s2.seasonHistory
     .filter((h) => h.season === 2).every((h) => h.finalTable.length === 20));
   check("clubs still unique across the pyramid",
-    new Set(pyramidClubs(s2)).size === 40);
+    new Set(pyramidClubs(s2)).size === pyramidClubs(s2).length);
   check("integrity after two rollovers", pyramidIntegrity(s2).ok,
     pyramidIntegrity(s2).problems.join("; "));
   check("club league history has two rows per club",
@@ -263,3 +263,4 @@ console.log("\n[10] finaliseLeague is a pure read");
 
 console.log(`\n=== ${passed} passed, ${failed} failed ===`);
 if (failed > 0) process.exit(1);
+
