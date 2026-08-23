@@ -1292,7 +1292,8 @@ console.log("\n[R15] Static audit");
   );
   check(
     "S7. only one wage-posting path exists",
-    files.filter((f) => /post\("Wages", "Player wages"/.test(readFileSync(f, "utf8"))).length === 1,
+    files.filter((f) => /post\(\s*"Wages",\s*"Player wages"/.test(readFileSync(f, "utf8")))
+      .length === 1,
   );
   check(
     "S8. no legacy recruitment effects remain registered",
