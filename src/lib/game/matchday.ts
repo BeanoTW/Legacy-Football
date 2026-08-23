@@ -78,9 +78,7 @@ export function preMatchKey(inputs: { squadRating: number }): string {
 }
 
 /** Stable seed root for one match. */
-export function matchSeedBase(
-  saveSeed: string, ident: MatchIdentity, pmKey: string,
-): string {
+export function matchSeedBase(saveSeed: string, ident: MatchIdentity, pmKey: string): string {
   return `${saveSeed}|live-match|s${ident.season}|${ident.leagueId}|${ident.fixtureId}|${pmKey}`;
 }
 
@@ -129,13 +127,61 @@ export function poissonFrom(rng: () => number, lambda: number): number {
 
 const rInt = (rng: () => number, min: number, max: number) =>
   Math.floor(min + rng() * (max - min + 1));
-const rPick = <T,>(rng: () => number, arr: readonly T[]) => arr[rInt(rng, 0, arr.length - 1)];
+const rPick = <T>(rng: () => number, arr: readonly T[]) => arr[rInt(rng, 0, arr.length - 1)];
 
-const FIRST = ["J", "A", "M", "R", "T", "S", "D", "C", "L", "N", "P", "K", "B", "H", "O", "E", "G", "F", "W", "V"] as const;
+const FIRST = [
+  "J",
+  "A",
+  "M",
+  "R",
+  "T",
+  "S",
+  "D",
+  "C",
+  "L",
+  "N",
+  "P",
+  "K",
+  "B",
+  "H",
+  "O",
+  "E",
+  "G",
+  "F",
+  "W",
+  "V",
+] as const;
 const LAST = [
-  "Cahill", "Potter", "Hughes", "Morris", "Ellis", "Brooks", "Reid", "Walsh", "Ward", "Kane",
-  "Bailey", "Fraser", "Ainsley", "Palmer", "Foden", "Rice", "Saka", "Gordon", "Watkins", "Bowen",
-  "Clarke", "Owen", "Sterling", "Grealish", "Maddison", "Toney", "Isak", "Nunes", "Fabian", "Onana",
+  "Cahill",
+  "Potter",
+  "Hughes",
+  "Morris",
+  "Ellis",
+  "Brooks",
+  "Reid",
+  "Walsh",
+  "Ward",
+  "Kane",
+  "Bailey",
+  "Fraser",
+  "Ainsley",
+  "Palmer",
+  "Foden",
+  "Rice",
+  "Saka",
+  "Gordon",
+  "Watkins",
+  "Bowen",
+  "Clarke",
+  "Owen",
+  "Sterling",
+  "Grealish",
+  "Maddison",
+  "Toney",
+  "Isak",
+  "Nunes",
+  "Fabian",
+  "Onana",
 ] as const;
 const CHANCE_TEXT = [
   "Half chance goes begging.",

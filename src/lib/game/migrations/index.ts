@@ -31,11 +31,12 @@ function normalise(p: AnySave, deps: MigrationDeps) {
   // Versioning arrived late, so an absent version means "the very first schema".
   if (typeof p.version !== "number" || !Number.isFinite(p.version)) p.version = 1;
 
-  const arr = <T,>(v: unknown, fallback: T[]): T[] => (Array.isArray(v) ? (v as T[]) : fallback);
+  const arr = <T>(v: unknown, fallback: T[]): T[] => (Array.isArray(v) ? (v as T[]) : fallback);
   const raw = p as unknown as Record<string, unknown>;
 
   p.hiredStaff = arr(p.hiredStaff, []);
-  if (!Array.isArray(p.staffCandidates)) p.staffCandidates = deps.staffPoolFor(p as unknown as GameState);
+  if (!Array.isArray(p.staffCandidates))
+    p.staffCandidates = deps.staffPoolFor(p as unknown as GameState);
   if (p.staffMarketRefreshedWeek == null) p.staffMarketRefreshedWeek = p.week;
   if (p.transferBudget == null) p.transferBudget = 500_000;
   if (p.wageBudgetWeekly == null) p.wageBudgetWeekly = 5_000;

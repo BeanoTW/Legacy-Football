@@ -27,10 +27,11 @@ export function legacyMigrateSave(parsed: Record<string, unknown>): GameState {
   // so pre-versioning saves must still migrate rather than be discarded).
   if (typeof p.version !== "number" || !Number.isFinite(p.version)) p.version = 1;
 
-  const arr = <T,>(v: unknown, fallback: T[]): T[] => (Array.isArray(v) ? (v as T[]) : fallback);
+  const arr = <T>(v: unknown, fallback: T[]): T[] => (Array.isArray(v) ? (v as T[]) : fallback);
 
   p.hiredStaff = arr(p.hiredStaff, []);
-  if (!Array.isArray(p.staffCandidates)) p.staffCandidates = staffPoolFor(p as unknown as GameState);
+  if (!Array.isArray(p.staffCandidates))
+    p.staffCandidates = staffPoolFor(p as unknown as GameState);
   if (p.staffMarketRefreshedWeek == null) p.staffMarketRefreshedWeek = p.week;
   if (p.transferBudget == null) p.transferBudget = 500_000;
   if (p.wageBudgetWeekly == null) p.wageBudgetWeekly = 5_000;
@@ -78,7 +79,6 @@ export function legacyMigrateSave(parsed: Record<string, unknown>): GameState {
         return { ...g, dueAtAbsoluteWeek: nowAbs };
       });
 
-
     // Cooldown flag: convert week-of-season → absolute (using saved season)
     const legacyWarn = p.inboxFlags["fansWarnedAtWeek"];
     if (legacyWarn != null && p.inboxFlags["fansWarnedAtAbsoluteWeek"] == null) {
@@ -124,8 +124,7 @@ export function legacyMigrateSave(parsed: Record<string, unknown>): GameState {
       p.leagues = fresh;
     }
     if (!p.playerLeagueId) {
-      p.playerLeagueId =
-        p.leagues.find((l) => l.clubIds.includes(p.clubName))?.id ?? DIVISION_ONE;
+      p.playerLeagueId = p.leagues.find((l) => l.clubIds.includes(p.clubName))?.id ?? DIVISION_ONE;
     }
     if (!p.leagues.some((l) => l.clubIds.includes(p.clubName))) {
       const home = p.leagues.find((l) => l.id === p.playerLeagueId) ?? p.leagues[0];
@@ -261,7 +260,6 @@ export function legacyMigrateSave(parsed: Record<string, unknown>): GameState {
   // Every step above has run: the save is now at the current schema.
   p.version = SAVE_VERSION;
 
-
   return p as GameState;
 }
 
@@ -270,4 +268,3 @@ export function legacyMigrateSave(parsed: Record<string, unknown>): GameState {
 function absoluteWeekLocal(season: number, week: number): number {
   return (season - 1) * 46 + week;
 }
-

@@ -60,7 +60,9 @@ export function buildWorldSimulationPlan(
 ): WorldSimulationPlan {
   const playerLeague = state.leagues.find((league) => league.id === state.playerLeagueId);
   if (!playerLeague) {
-    throw new Error(`Cannot build world simulation plan: player league ${state.playerLeagueId} is missing.`);
+    throw new Error(
+      `Cannot build world simulation plan: player league ${state.playerLeagueId} is missing.`,
+    );
   }
 
   const focusLeagueIds = new Set<string>([playerLeague.id]);
@@ -78,14 +80,18 @@ export function buildWorldSimulationPlan(
   const recent = new Set(options.recentOpponentIds ?? []);
 
   const clubs: WorldClubSimulationProfile[] = [];
-  for (const league of [...state.leagues].sort((a, b) => a.tier - b.tier || a.id.localeCompare(b.id))) {
+  for (const league of [...state.leagues].sort(
+    (a, b) => a.tier - b.tier || a.id.localeCompare(b.id),
+  )) {
     for (const clubId of uniqueSorted(league.clubIds)) {
       const reasons: WorldFocusReason[] = [];
 
       if (clubId === state.clubName) reasons.push("playerClub");
       if (league.id === playerLeague.id) reasons.push("sameLeague");
-      if (includeAdjacent && league.tier === playerLeague.tier - 1) reasons.push("promotionNeighbour");
-      if (includeAdjacent && league.tier === playerLeague.tier + 1) reasons.push("relegationNeighbour");
+      if (includeAdjacent && league.tier === playerLeague.tier - 1)
+        reasons.push("promotionNeighbour");
+      if (includeAdjacent && league.tier === playerLeague.tier + 1)
+        reasons.push("relegationNeighbour");
       if (recent.has(clubId)) reasons.push("recentOpponent");
       if (tracked.has(clubId)) reasons.push("tracked");
 
@@ -99,8 +105,12 @@ export function buildWorldSimulationPlan(
     }
   }
 
-  const focusClubIds = uniqueSorted(clubs.filter((club) => club.level === "focus").map((club) => club.clubId));
-  const fringeClubIds = uniqueSorted(clubs.filter((club) => club.level === "fringe").map((club) => club.clubId));
+  const focusClubIds = uniqueSorted(
+    clubs.filter((club) => club.level === "focus").map((club) => club.clubId),
+  );
+  const fringeClubIds = uniqueSorted(
+    clubs.filter((club) => club.level === "fringe").map((club) => club.clubId),
+  );
 
   return {
     season: state.season,
@@ -112,7 +122,10 @@ export function buildWorldSimulationPlan(
   };
 }
 
-export function simulationLevelForClub(plan: WorldSimulationPlan, clubId: string): WorldSimulationLevel {
+export function simulationLevelForClub(
+  plan: WorldSimulationPlan,
+  clubId: string,
+): WorldSimulationLevel {
   return plan.clubs.find((club) => club.clubId === clubId)?.level ?? "fringe";
 }
 

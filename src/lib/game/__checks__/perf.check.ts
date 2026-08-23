@@ -12,8 +12,13 @@ import type { GameState } from "../types";
 let passed = 0;
 let failed = 0;
 function check(label: string, cond: boolean, extra?: string) {
-  if (cond) { passed++; console.log(`  ✓ ${label}`); }
-  else { failed++; console.log(`  ✗ ${label}${extra ? " — " + extra : ""}`); }
+  if (cond) {
+    passed++;
+    console.log(`  ✓ ${label}`);
+  } else {
+    failed++;
+    console.log(`  ✗ ${label}${extra ? " — " + extra : ""}`);
+  }
 }
 
 const SEED = "PHASE0|PERF|FIXED";
@@ -39,22 +44,40 @@ function bench(label: string, envelopeMs: number, fn: () => void, runs = 5) {
 }
 
 console.log("\n[P1] Core operations");
-bench("newGame", 1500, () => { newGame("Perf United", "Bench Marker", SEED); });
+bench("newGame", 1500, () => {
+  newGame("Perf United", "Bench Marker", SEED);
+});
 
 const base = newGame("Perf United", "Bench Marker", SEED);
-bench("advanceWeek (single)", 250, () => { advanceWeek(base); }, 5);
+bench(
+  "advanceWeek (single)",
+  250,
+  () => {
+    advanceWeek(base);
+  },
+  5,
+);
 
-bench("full season (46 weeks)", 8000, () => {
-  let s = newGame("Perf United", "Bench Marker", SEED);
-  for (let i = 0; i < 46; i++) s = advanceWeek(s);
-}, 3);
+bench(
+  "full season (46 weeks)",
+  8000,
+  () => {
+    let s = newGame("Perf United", "Bench Marker", SEED);
+    for (let i = 0; i < 46; i++) s = advanceWeek(s);
+  },
+  3,
+);
 
 console.log("\n[P2] Persistence operations");
 let season3: GameState = newGame("Perf United", "Bench Marker", SEED);
 for (let i = 0; i < 46 * 3; i++) season3 = advanceWeek(season3);
 const raw = serializeSave(season3);
-bench("serializeSave (season 3)", 500, () => { serializeSave(season3); });
-bench("parseSave (season 3)", 500, () => { parseSave(raw); });
+bench("serializeSave (season 3)", 500, () => {
+  serializeSave(season3);
+});
+bench("parseSave (season 3)", 500, () => {
+  parseSave(raw);
+});
 bench("migrateSave (current-version save)", 1500, () => {
   migrateSave(JSON.parse(raw) as Record<string, unknown>);
 });

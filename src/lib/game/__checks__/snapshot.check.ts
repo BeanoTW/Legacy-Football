@@ -14,8 +14,13 @@ import type { GameState } from "../types";
 let passed = 0;
 let failed = 0;
 function check(label: string, cond: boolean, extra?: string) {
-  if (cond) { passed++; console.log(`  ✓ ${label}`); }
-  else { failed++; console.log(`  ✗ ${label}${extra ? " — " + extra : ""}`); }
+  if (cond) {
+    passed++;
+    console.log(`  ✓ ${label}`);
+  } else {
+    failed++;
+    console.log(`  ✗ ${label}${extra ? " — " + extra : ""}`);
+  }
 }
 
 const SEED = "PHASE0|SNAPSHOT|FIXED";
@@ -58,13 +63,19 @@ for (const p of points) {
 }
 
 console.log("\n[S2] Same seed twice is identical");
-check("two independent runs agree", stateHash(run(WEEKS_PER_SEASON)) === stateHash(run(WEEKS_PER_SEASON)));
+check(
+  "two independent runs agree",
+  stateHash(run(WEEKS_PER_SEASON)) === stateHash(run(WEEKS_PER_SEASON)),
+);
 
 console.log("\n[S3] Different seeds diverge");
 {
   let a = newGame("Snapshot Town", "A. Baseline", "SEED-A");
   let b = newGame("Snapshot Town", "A. Baseline", "SEED-B");
-  for (let i = 0; i < 20; i++) { a = advanceWeek(a); b = advanceWeek(b); }
+  for (let i = 0; i < 20; i++) {
+    a = advanceWeek(a);
+    b = advanceWeek(b);
+  }
   check("seed changes the world", stateHash(a) !== stateHash(b));
 }
 
@@ -87,4 +98,3 @@ if (write) {
   console.log(`\n${passed} passed, ${failed} failed`);
   if (failed) process.exit(1);
 }
-

@@ -55,7 +55,9 @@ const afterRecovery = await store.readManifest();
 if (!afterRecovery) throw new Error("manifest missing after recovery save");
 const actual = JSON.stringify(afterRecovery.chunkManifest);
 if (actual !== expected) {
-  throw new Error(`failed transaction changed committed chunk manifest\nexpected ${expected}\nactual   ${actual}`);
+  throw new Error(
+    `failed transaction changed committed chunk manifest\nexpected ${expected}\nactual   ${actual}`,
+  );
 }
 
 console.log("✓ failed chunk overwrite restores the previous committed manifest exactly");

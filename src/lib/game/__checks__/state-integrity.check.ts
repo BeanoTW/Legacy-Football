@@ -2,20 +2,20 @@
    Run with:  bun src/lib/game/__checks__/state-integrity.check.ts
 */
 import { newGame } from "../engine";
-import {
-  applyEffects,
-  runWeeklyGenerators,
-  handleInboxChoice,
-  evaluateChoice,
-} from "../inbox";
+import { applyEffects, runWeeklyGenerators, handleInboxChoice, evaluateChoice } from "../inbox";
 import { absoluteWeek } from "../time";
 import type { GameState, InboxItem, WeekLedger } from "../types";
 
 let passed = 0;
 let failed = 0;
 function check(label: string, cond: boolean, extra?: string) {
-  if (cond) { passed++; console.log(`  ✓ ${label}`); }
-  else { failed++; console.log(`  ✗ ${label}${extra ? " — " + extra : ""}`); }
+  if (cond) {
+    passed++;
+    console.log(`  ✓ ${label}`);
+  } else {
+    failed++;
+    console.log(`  ✗ ${label}${extra ? " — " + extra : ""}`);
+  }
 }
 
 const sum = (o: Record<string, number>) => Object.values(o).reduce((a, b) => a + b, 0);
@@ -72,10 +72,16 @@ console.log("\n[1] Expiry consequence applies exactly once (£40,000)");
   s = runWeeklyGenerators(s);
   s = runWeeklyGenerators(s);
   const row2 = s.ledger.find((l) => l.season === s.season && l.week === s.week)!;
-  check("re-running weekly processor does not repeat cash", s.cash === cashAfterFirst, `cash=${s.cash}`);
+  check(
+    "re-running weekly processor does not repeat cash",
+    s.cash === cashAfterFirst,
+    `cash=${s.cash}`,
+  );
   check("re-running does not repeat ledger", row2.expenses.other === 40_000);
-  check("still exactly one expired copy",
-    s.inbox.filter((i) => i.id === "test-expiry-1").length === 1);
+  check(
+    "still exactly one expired copy",
+    s.inbox.filter((i) => i.id === "test-expiry-1").length === 1,
+  );
 
   // Simulate a reload: serialise / deserialise, then re-run.
   const reloaded: GameState = JSON.parse(JSON.stringify(s));
@@ -104,7 +110,10 @@ console.log("\n[2] Player choice applies exactly once");
 
   const weekly = runWeeklyGenerators(s);
   check("weekly run does not re-apply completed choice", weekly.cash === afterOnce);
-  check("status is completed", s.inbox.find((i) => i.id === "test-expiry-1")!.status === "completed");
+  check(
+    "status is completed",
+    s.inbox.find((i) => i.id === "test-expiry-1")!.status === "completed",
+  );
 }
 
 console.log("\n[3] Ledger integrity — opening + income - expenditure = closing");
@@ -130,13 +139,17 @@ console.log("\n[3] Ledger integrity — opening + income - expenditure = closing
   check("row created", !!row);
   check("income bucket honoured", row.income.sponsor === 25_000);
   check("expense bucket honoured", row.expenses.maintenance === 7_500);
-  check("no redundant 'other' fallback used",
-    row.income.other === otherIncBefore && row.expenses.other === otherExpBefore);
+  check(
+    "no redundant 'other' fallback used",
+    row.income.other === otherIncBefore && row.expenses.other === otherExpBefore,
+  );
   check("net correct", row.net === sum(row.income) - sum(row.expenses));
   check("closing balance equals cash", row.balance === s.cash);
-  check("opening + income - expenditure = closing",
+  check(
+    "opening + income - expenditure = closing",
     opening + (sum(row.income) - incBefore) - (sum(row.expenses) - expBefore) === row.balance,
-    `${opening} + ${sum(row.income) - incBefore} - ${sum(row.expenses) - expBefore} !== ${row.balance}`);
+    `${opening} + ${sum(row.income) - incBefore} - ${sum(row.expenses) - expBefore} !== ${row.balance}`,
+  );
   check("two notes recorded", row.inboxNotes?.length === 2);
   check("notes carry event key", row.inboxNotes?.every((n) => n.sourceEventKey === "k1") === true);
 }
@@ -156,8 +169,10 @@ console.log("\n[4] Effects apply sequentially to one working state");
   check("all deltas accumulate", s1.fanHappiness === Math.max(0, s0.fanHappiness - 10));
   check("input state untouched", s0.cash !== s1.cash && s0.ledger.length === rowsBefore0);
   const row = s1.ledger.find((l) => l.season === s1.season && l.week === s1.week)!;
-  check("single row for the week",
-    s1.ledger.filter((l) => l.season === s1.season && l.week === s1.week).length === 1);
+  check(
+    "single row for the week",
+    s1.ledger.filter((l) => l.season === s1.season && l.week === s1.week).length === 1,
+  );
   check("balance still agrees", row.balance === s1.cash);
 }
 
@@ -177,7 +192,10 @@ console.log("\n[5] Choice affordability — no debt or overdraft");
   };
   check("affordable choice available", evaluateChoice(s, cheap).available);
   check("unaffordable choice blocked", !evaluateChoice(s, dear).available);
-  check("blocked choice explains why", evaluateChoice(s, dear).reasons[0].includes("Not enough cash"));
+  check(
+    "blocked choice explains why",
+    evaluateChoice(s, dear).reasons[0].includes("Not enough cash"),
+  );
   check("net cost used, not gross", evaluateChoice(s, mixed).available);
   check("cashRequired reported", evaluateChoice(s, dear).cashRequired === 100_000);
 
@@ -205,5 +223,7 @@ console.log("\n[5] Choice affordability — no debt or overdraft");
   check("cash never goes negative via inbox", s3.cash >= 0);
 }
 
-console.log(`\n${failed === 0 ? "ALL CHECKS PASSED" : "FAILURES PRESENT"} — ${passed} passed, ${failed} failed\n`);
+console.log(
+  `\n${failed === 0 ? "ALL CHECKS PASSED" : "FAILURES PRESENT"} — ${passed} passed, ${failed} failed\n`,
+);
 if (failed > 0) process.exit(1);

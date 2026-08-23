@@ -6,25 +6,51 @@ let s: GameState = newGame("Size City", "Meter Maid", SEED);
 for (let i = 0; i < 46 * 5; i++) s = advanceWeek(s);
 console.log("season", s.season, "week", s.week);
 const seasonScoped = /(^|[:|])s\d+([:|]|$)|:s\d+$/;
-const old = s.financeLedger.filter(e => e.season < s.season);
-const guard = old.filter(e => e.dedupeKey && !seasonScoped.test(e.dedupeKey));
+const old = s.financeLedger.filter((e) => e.season < s.season);
+const guard = old.filter((e) => e.dedupeKey && !seasonScoped.test(e.dedupeKey));
 console.log("old ledger entries", old.length, "of", s.financeLedger.length);
-console.log("non-season-scoped dedupe keys", guard.length, "bytes", byteLength(JSON.stringify(guard.map(e=>e.dedupeKey))));
-console.log("sample", guard.slice(0,5).map(e=>e.dedupeKey));
+console.log(
+  "non-season-scoped dedupe keys",
+  guard.length,
+  "bytes",
+  byteLength(JSON.stringify(guard.map((e) => e.dedupeKey))),
+);
+console.log(
+  "sample",
+  guard.slice(0, 5).map((e) => e.dedupeKey),
+);
 const st: Record<string, number> = {};
-for (const i of s.inbox) st[i.status] = (st[i.status]??0)+1;
+for (const i of s.inbox) st[i.status] = (st[i.status] ?? 0) + 1;
 console.log("inbox statuses", st, "total", s.inbox.length);
-const oldInbox = s.inbox.filter(i => i.season < s.season);
-console.log("old-season inbox", oldInbox.length, "unresolved among them",
-  oldInbox.filter(i=>i.status==="unread"||i.status==="awaitingDecision").length);
-const ek = oldInbox.filter(i=>!seasonScoped.test(i.eventKey));
-console.log("non-season eventKeys", ek.length, "bytes", byteLength(JSON.stringify(ek.map(i=>i.eventKey))), ek.slice(0,5).map(i=>i.eventKey));
+const oldInbox = s.inbox.filter((i) => i.season < s.season);
+console.log(
+  "old-season inbox",
+  oldInbox.length,
+  "unresolved among them",
+  oldInbox.filter((i) => i.status === "unread" || i.status === "awaitingDecision").length,
+);
+const ek = oldInbox.filter((i) => !seasonScoped.test(i.eventKey));
+console.log(
+  "non-season eventKeys",
+  ek.length,
+  "bytes",
+  byteLength(JSON.stringify(ek.map((i) => i.eventKey))),
+  ek.slice(0, 5).map((i) => i.eventKey),
+);
 // contracts
 const cs = s.football.contracts;
 const byStatus: Record<string, number> = {};
-for (const c of cs) byStatus[c.status] = (byStatus[c.status]??0)+1;
+for (const c of cs) byStatus[c.status] = (byStatus[c.status] ?? 0) + 1;
 console.log("contracts", cs.length, byStatus);
-console.log("contractHistory seasons", new Set(s.football.contractHistory.map(r=>r.season)).size);
-console.log("financeHistory", JSON.stringify(s.financeHistory[0] ?? null).slice(0,400));
-console.log("seasonHistory rows", s.seasonHistory.length, "keys", Object.keys(s.seasonHistory[0]??{}));
-console.log("total", (byteLength(serializeSave(s))/1048576).toFixed(3), "MB");
+console.log(
+  "contractHistory seasons",
+  new Set(s.football.contractHistory.map((r) => r.season)).size,
+);
+console.log("financeHistory", JSON.stringify(s.financeHistory[0] ?? null).slice(0, 400));
+console.log(
+  "seasonHistory rows",
+  s.seasonHistory.length,
+  "keys",
+  Object.keys(s.seasonHistory[0] ?? {}),
+);
+console.log("total", (byteLength(serializeSave(s)) / 1048576).toFixed(3), "MB");

@@ -1,11 +1,25 @@
 import { useMemo } from "react";
 import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer,
-  Tooltip as RTooltip, XAxis, YAxis,
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip as RTooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
 import type { GameState } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
-import { fmtMoney, fmtMoneyExact, hiredStaffWagesWeekly, playerWagesWeekly, weeklySponsorIncome } from "@/lib/game/engine";
+import {
+  fmtMoney,
+  fmtMoneyExact,
+  hiredStaffWagesWeekly,
+  playerWagesWeekly,
+  weeklySponsorIncome,
+} from "@/lib/game/engine";
 import { commitmentProgress, sustainabilitySnapshot } from "@/lib/game/sustainability";
 import { WEEKS_PER_SEASON } from "@/lib/game/time";
 import { HEALTH_TONE, Meter, Row, Section, Stat, ord, sum } from "./shared/primitives";
@@ -33,7 +47,7 @@ export function DashboardTab({ state }: { state: GameState }) {
   );
 
   const leagueSorted = [...state.league].sort(
-    (a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga) || b.gf - a.gf,
+    (a, b) => b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga) || b.gf - a.gf,
   );
   const myPos = leagueSorted.findIndex((r) => r.team === state.clubName) + 1;
 
@@ -137,7 +151,8 @@ export function DashboardTab({ state }: { state: GameState }) {
                 <span
                   className={cn(
                     "px-2 py-0.5 rounded text-xs font-bold",
-                    lastResult.result === "W" && "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300",
+                    lastResult.result === "W" &&
+                      "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300",
                     lastResult.result === "D" && "bg-muted text-muted-foreground",
                     lastResult.result === "L" && "bg-rose-500/20 text-rose-700 dark:text-rose-300",
                   )}
@@ -185,16 +200,8 @@ export function DashboardTab({ state }: { state: GameState }) {
               {lastLedger.matchdayNote ?? "No match this week."}
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <Stat
-                label="Income"
-                value={fmtMoney(sum(lastLedger.income))}
-                tone="good"
-              />
-              <Stat
-                label="Expenses"
-                value={fmtMoney(sum(lastLedger.expenses))}
-                tone="bad"
-              />
+              <Stat label="Income" value={fmtMoney(sum(lastLedger.income))} tone="good" />
+              <Stat label="Expenses" value={fmtMoney(sum(lastLedger.expenses))} tone="bad" />
               <Stat
                 label="Net"
                 value={fmtMoney(lastLedger.net)}
@@ -254,9 +261,7 @@ export function RecurringBreakdown({ state }: { state: GameState }) {
 export function FinancialHealthPanel({ state }: { state: GameState }) {
   const snap = useMemo(() => sustainabilitySnapshot(state), [state]);
   const { health, reserve, pressure, needs, capacity, openCommitments: commitments } = snap;
-  const reservePct = reserve.recommended > 0
-    ? (reserve.cash / reserve.recommended) * 100
-    : 100;
+  const reservePct = reserve.recommended > 0 ? (reserve.cash / reserve.recommended) * 100 : 100;
 
   return (
     <section className="rounded-xl border bg-card shadow-sm overflow-hidden md:col-span-2">
@@ -280,7 +285,16 @@ export function FinancialHealthPanel({ state }: { state: GameState }) {
             <Row k="Operating cover" v={`${health.coverMonths.toFixed(1)} months`} />
             <Row k="Wage to revenue" v={`${health.wageRatio}%`} />
           </div>
-          <Meter value={reservePct} tone={reservePct >= 100 ? "bg-emerald-500" : reservePct >= 60 ? "bg-amber-500" : "bg-rose-500"} />
+          <Meter
+            value={reservePct}
+            tone={
+              reservePct >= 100
+                ? "bg-emerald-500"
+                : reservePct >= 60
+                  ? "bg-amber-500"
+                  : "bg-rose-500"
+            }
+          />
         </div>
 
         <div className="space-y-2">
@@ -291,19 +305,29 @@ export function FinancialHealthPanel({ state }: { state: GameState }) {
           </div>
           <Meter
             value={pressure.score}
-            tone={pressure.score >= 70 ? "bg-rose-500" : pressure.score >= 40 ? "bg-amber-500" : "bg-teal-500"}
+            tone={
+              pressure.score >= 70
+                ? "bg-rose-500"
+                : pressure.score >= 40
+                  ? "bg-amber-500"
+                  : "bg-teal-500"
+            }
           />
           <p className="text-xs text-muted-foreground">{pressure.headline}</p>
           <div className="text-[11px] space-y-1 pt-1">
-            {([
-              ["Infrastructure", needs.infrastructure, pressure.byArea.infrastructure],
-              ["Squad", needs.squad, pressure.byArea.squad],
-              ["Supporters", needs.supporters, pressure.byArea.supporters],
-              ["Commercial", needs.commercial, pressure.byArea.commercial],
-            ] as const).map(([label_, need, score]) => (
+            {(
+              [
+                ["Infrastructure", needs.infrastructure, pressure.byArea.infrastructure],
+                ["Squad", needs.squad, pressure.byArea.squad],
+                ["Supporters", needs.supporters, pressure.byArea.supporters],
+                ["Commercial", needs.commercial, pressure.byArea.commercial],
+              ] as const
+            ).map(([label_, need, score]) => (
               <div key={label_} className="flex items-center gap-2">
                 <span className="w-24 shrink-0 text-muted-foreground">{label_}</span>
-                <div className="flex-1"><Meter value={score} tone={score >= 60 ? "bg-orange-500" : "bg-primary/60"} /></div>
+                <div className="flex-1">
+                  <Meter value={score} tone={score >= 60 ? "bg-orange-500" : "bg-primary/60"} />
+                </div>
                 <span className="w-8 text-right tabular-nums">{Math.round(need * 100)}</span>
               </div>
             ))}
@@ -314,8 +338,8 @@ export function FinancialHealthPanel({ state }: { state: GameState }) {
           <div className="text-xs font-semibold">Commitments to the board</div>
           {commitments.length === 0 ? (
             <p className="text-xs text-muted-foreground">
-              No promises outstanding. Anything you agree to in the inbox is
-              tracked here and judged on real spending, not intentions.
+              No promises outstanding. Anything you agree to in the inbox is tracked here and judged
+              on real spending, not intentions.
             </p>
           ) : (
             commitments.map((c) => {

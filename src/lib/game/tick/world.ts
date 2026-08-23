@@ -13,7 +13,7 @@ import { phaseOf } from "../calendar";
    never runs for a schedule-backed save. */
 const rand = (min: number, max: number) => min + Math.random() * (max - min);
 const randInt = (min: number, max: number) => Math.floor(rand(min, max + 1));
-const pick = <T,>(arr: T[]) => arr[randInt(0, arr.length - 1)];
+const pick = <T>(arr: T[]) => arr[randInt(0, arr.length - 1)];
 
 /**
  * Pre-v3 saves have no full division schedule, so the old "sprinkle four
@@ -25,13 +25,31 @@ export function tickLegacyAiResults(s: GameState): void {
   if (!inLeague || hasFullSchedule(s)) return;
   const others = s.league.filter((r) => r.team !== s.clubName);
   for (let i = 0; i < 4; i++) {
-    const a = pick(others), b = pick(others);
+    const a = pick(others),
+      b = pick(others);
     if (a === b) continue;
-    const ag = randInt(0, 3), bg = randInt(0, 3);
-    a.p++; b.p++; a.gf += ag; a.ga += bg; b.gf += bg; b.ga += ag;
-    if (ag > bg) { a.w++; a.pts += 3; b.l++; }
-    else if (ag < bg) { b.w++; b.pts += 3; a.l++; }
-    else { a.d++; b.d++; a.pts++; b.pts++; }
+    const ag = randInt(0, 3),
+      bg = randInt(0, 3);
+    a.p++;
+    b.p++;
+    a.gf += ag;
+    a.ga += bg;
+    b.gf += bg;
+    b.ga += ag;
+    if (ag > bg) {
+      a.w++;
+      a.pts += 3;
+      b.l++;
+    } else if (ag < bg) {
+      b.w++;
+      b.pts += 3;
+      a.l++;
+    } else {
+      a.d++;
+      b.d++;
+      a.pts++;
+      b.pts++;
+    }
   }
 }
 

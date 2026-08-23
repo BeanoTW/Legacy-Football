@@ -30,13 +30,24 @@
  */
 import type { GameState, LiveMatch } from "./types";
 import {
-  matchIdentity, matchSeedBase, preMatchKey, matchStream, seedOf,
-  weatherFor, halfGoals, halfPresentation, liveTvIncome, liveOpponentStrength,
+  matchIdentity,
+  matchSeedBase,
+  preMatchKey,
+  matchStream,
+  seedOf,
+  weatherFor,
+  halfGoals,
+  halfPresentation,
+  liveTvIncome,
+  liveOpponentStrength,
 } from "./matchday";
 import { avgTicketPrice, squadRating, simAttendance } from "./sim";
 
 function formGuide(s: GameState): string {
-  const last5 = s.results.slice(-5).map((r) => r.result).join("");
+  const last5 = s.results
+    .slice(-5)
+    .map((r) => r.result)
+    .join("");
   return last5 || "—";
 }
 
@@ -51,7 +62,10 @@ export function startMatchDay(s: GameState): GameState {
     : `${ns.saveSeed}|live-match|s${ns.season}|w${ns.week}|${fx.opponent}`;
   const oppStrength = liveOpponentStrength(seedBase);
   const projectedAttendance = simAttendance(
-    ns, fx.home, oppStrength, matchStream(seedBase, "attendance"),
+    ns,
+    fx.home,
+    oppStrength,
+    matchStream(seedBase, "attendance"),
   );
   const weather = weatherFor(seedBase);
   const boardExpectation: LiveMatch["boardExpectation"] =
@@ -146,7 +160,12 @@ export function applyHalfTimeChoice(s: GameState, choiceId: string): GameState {
   lm.chosenNudgeId = choiceId;
   const seedBase = seedOf(lm);
   const { usGoals, themGoals } = halfGoals(
-    seedBase, 2, lm.ourStrength, lm.oppStrength, opt.attackMod, opt.defenseMod,
+    seedBase,
+    2,
+    lm.ourStrength,
+    lm.oppStrength,
+    opt.attackMod,
+    opt.defenseMod,
   );
   lm.events = [
     ...lm.events,
@@ -180,10 +199,18 @@ export function applyHalfTimeChoice(s: GameState, choiceId: string): GameState {
  */
 export function commitLiveMatch(
   prev: GameState,
-  advance: (s: GameState, override: {
-    gf: number; ga: number; attendance: number;
-    gate: number; tv: number; matchdayOps: number; winBonus: number;
-  }) => GameState,
+  advance: (
+    s: GameState,
+    override: {
+      gf: number;
+      ga: number;
+      attendance: number;
+      gate: number;
+      tv: number;
+      matchdayOps: number;
+      winBonus: number;
+    },
+  ) => GameState,
 ): GameState {
   if (!prev.liveMatch || prev.liveMatch.status !== "fullTime") return prev;
   const lm = prev.liveMatch;

@@ -16,7 +16,9 @@ export function useGame() {
       setState(loaded);
       setHydrated(true);
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {

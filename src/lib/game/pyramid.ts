@@ -17,12 +17,23 @@
 ========================================================================= */
 
 import type {
-  GameState, League, LeagueRow, ScheduledFixture, SeasonHistoryEntry, ClubRecord, InboxItem,
+  GameState,
+  League,
+  LeagueRow,
+  ScheduledFixture,
+  SeasonHistoryEntry,
+  ClubRecord,
+  InboxItem,
 } from "./types";
 import { CLUBS } from "./clubs";
 import { buildSeasonSchedule } from "./fixtures";
 import {
-  LEAGUE_ID, leagueOf, sortTable, buildTable, resolveRemainingSeason, hasFullSchedule,
+  LEAGUE_ID,
+  leagueOf,
+  sortTable,
+  buildTable,
+  resolveRemainingSeason,
+  hasFullSchedule,
   isLeagueSeasonComplete,
 } from "./league";
 import { hashString } from "./rng";
@@ -116,10 +127,12 @@ export interface LeagueOutcome {
 /** Final standings + movement for one division. Pure. */
 export function finaliseLeague(s: GameState, league: League): LeagueOutcome {
   const table = sortTable(buildTable(league.clubIds, s.matchRecords ?? [], s.season, league.id));
-  const promoted = league.promotionPlaces > 0
-    ? table.slice(0, league.promotionPlaces).map((r) => r.team) : [];
-  const relegated = league.relegationPlaces > 0
-    ? table.slice(table.length - league.relegationPlaces).map((r) => r.team) : [];
+  const promoted =
+    league.promotionPlaces > 0 ? table.slice(0, league.promotionPlaces).map((r) => r.team) : [];
+  const relegated =
+    league.relegationPlaces > 0
+      ? table.slice(table.length - league.relegationPlaces).map((r) => r.team)
+      : [];
   return {
     leagueId: league.id,
     leagueName: league.name,
@@ -144,8 +157,11 @@ export function seasonAlreadyFinalised(s: GameState, season: number): boolean {
  * Safe to call twice: the seasonHistory guard makes the second call a no-op.
  * Does NOT advance s.season — the caller owns the clock.
  */
-export function applySeasonRollover(s: GameState): { outcomes: LeagueOutcome[]; items: InboxItem[] } {
-  if (!hasFullSchedule(s) || !(s.leagues?.length)) return { outcomes: [], items: [] };
+export function applySeasonRollover(s: GameState): {
+  outcomes: LeagueOutcome[];
+  items: InboxItem[];
+} {
+  if (!hasFullSchedule(s) || !s.leagues?.length) return { outcomes: [], items: [] };
   if (seasonAlreadyFinalised(s, s.season)) return { outcomes: [], items: [] };
 
   // 1. every league finishes its fixtures
@@ -173,11 +189,19 @@ export function applySeasonRollover(s: GameState): { outcomes: LeagueOutcome[]; 
 
   // 3b. club identity: reputation movement + immutable yearly snapshots.
   //     Runs before membership changes so positions map to the league played.
-  applySeasonIdentity(s, s.season, outcomes.map((o) => ({
-    leagueId: o.leagueId, tier: o.tier, table: o.table,
-    champion: o.champion, runnerUp: o.runnerUp,
-    promoted: o.promoted, relegated: o.relegated,
-  })));
+  applySeasonIdentity(
+    s,
+    s.season,
+    outcomes.map((o) => ({
+      leagueId: o.leagueId,
+      tier: o.tier,
+      table: o.table,
+      champion: o.champion,
+      runnerUp: o.runnerUp,
+      promoted: o.promoted,
+      relegated: o.relegated,
+    })),
+  );
 
   // 4. promotion / relegation — computed first, applied as one transaction
   s.clubRecords ??= {};
@@ -267,15 +291,21 @@ export function rolloverInboxItems(s: GameState, outcomes: LeagueOutcome[]): Inb
 
   for (const o of outcomes) {
     if (o.champion) {
-      out.push(item(
-        s, `league-champion:${o.leagueId}:s${season}`,
-        "Football Association", "League", "league", "normal",
-        `${o.leagueName} champions: ${o.champion}`,
-        `${o.champion} are confirmed as ${o.leagueName} champions for season ${season}.` +
-        (o.runnerUp ? ` ${o.runnerUp} finish as runners-up.` : "") +
-        (o.promoted.length ? ` Promoted: ${o.promoted.join(", ")}.` : "") +
-        (o.relegated.length ? ` Relegated: ${o.relegated.join(", ")}.` : ""),
-      ));
+      out.push(
+        item(
+          s,
+          `league-champion:${o.leagueId}:s${season}`,
+          "Football Association",
+          "League",
+          "league",
+          "normal",
+          `${o.leagueName} champions: ${o.champion}`,
+          `${o.champion} are confirmed as ${o.leagueName} champions for season ${season}.` +
+            (o.runnerUp ? ` ${o.runnerUp} finish as runners-up.` : "") +
+            (o.promoted.length ? ` Promoted: ${o.promoted.join(", ")}.` : "") +
+            (o.relegated.length ? ` Relegated: ${o.relegated.join(", ")}.` : ""),
+        ),
+      );
     }
   }
 
@@ -283,44 +313,69 @@ export function rolloverInboxItems(s: GameState, outcomes: LeagueOutcome[]): Inb
   if (mine) {
     const pos = mine.table.findIndex((r) => r.team === s.clubName) + 1;
     if (mine.promoted.includes(s.clubName)) {
-      out.push(item(
-        s, `club-promoted:${s.clubName}:s${season}`,
-        "The Board", "Board of Directors", "board", "high",
-        `Promoted from ${mine.leagueName}`,
-        `Congratulations — finishing ${pos}${ordinal(pos)} in ${mine.leagueName} takes us up. ` +
-        `A revised budget and a higher revenue settlement will follow, and expectations rise with them. ` +
-        `The board will set new targets before the first fixture of season ${season + 1}.`,
-      ));
+      out.push(
+        item(
+          s,
+          `club-promoted:${s.clubName}:s${season}`,
+          "The Board",
+          "Board of Directors",
+          "board",
+          "high",
+          `Promoted from ${mine.leagueName}`,
+          `Congratulations — finishing ${pos}${ordinal(pos)} in ${mine.leagueName} takes us up. ` +
+            `A revised budget and a higher revenue settlement will follow, and expectations rise with them. ` +
+            `The board will set new targets before the first fixture of season ${season + 1}.`,
+        ),
+      );
     } else if (mine.relegated.includes(s.clubName)) {
-      out.push(item(
-        s, `club-relegated:${s.clubName}:s${season}`,
-        "The Board", "Board of Directors", "board", "urgent",
-        `Relegated from ${mine.leagueName}`,
-        `Finishing ${pos}${ordinal(pos)} means relegation. The board is deeply disappointed. ` +
-        `Central income will fall next season and the wage bill must be reviewed accordingly. ` +
-        `Supporters will want to hear from the club quickly.`,
-      ));
-      out.push(item(
-        s, `fans-relegation:${s.clubName}:s${season}`,
-        "Supporters' Trust", "Fan Liaison", "fans", "high",
-        "Supporters seek answers after relegation",
-        `The trust has requested a meeting following relegation from ${mine.leagueName}. ` +
-        `Season-ticket renewals are expected to slow until the club sets out a plan.`,
-      ));
+      out.push(
+        item(
+          s,
+          `club-relegated:${s.clubName}:s${season}`,
+          "The Board",
+          "Board of Directors",
+          "board",
+          "urgent",
+          `Relegated from ${mine.leagueName}`,
+          `Finishing ${pos}${ordinal(pos)} means relegation. The board is deeply disappointed. ` +
+            `Central income will fall next season and the wage bill must be reviewed accordingly. ` +
+            `Supporters will want to hear from the club quickly.`,
+        ),
+      );
+      out.push(
+        item(
+          s,
+          `fans-relegation:${s.clubName}:s${season}`,
+          "Supporters' Trust",
+          "Fan Liaison",
+          "fans",
+          "high",
+          "Supporters seek answers after relegation",
+          `The trust has requested a meeting following relegation from ${mine.leagueName}. ` +
+            `Season-ticket renewals are expected to slow until the club sets out a plan.`,
+        ),
+      );
     } else if (mine.champion === s.clubName) {
-      out.push(item(
-        s, `club-champions:${s.clubName}:s${season}`,
-        "The Board", "Board of Directors", "board", "high",
-        `${mine.leagueName} champions!`,
-        `We finished top of ${mine.leagueName} in season ${season}. A remarkable campaign.`,
-      ));
+      out.push(
+        item(
+          s,
+          `club-champions:${s.clubName}:s${season}`,
+          "The Board",
+          "Board of Directors",
+          "board",
+          "high",
+          `${mine.leagueName} champions!`,
+          `We finished top of ${mine.leagueName} in season ${season}. A remarkable campaign.`,
+        ),
+      );
     }
   }
   return out;
 }
 
 function ordinal(n: number): string {
-  const s = ["th", "st", "nd", "rd"], v = n % 100;
+  const s = ["th", "st", "nd", "rd"],
+    v = n % 100;
   return s[(v - 20) % 10] || s[v] || s[0];
 }
 

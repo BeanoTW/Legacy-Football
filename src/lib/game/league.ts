@@ -12,16 +12,33 @@
 import type { GameState, LeagueRow, MatchRecord, ScheduledFixture } from "./types";
 import { mulberry32, hashString } from "./rng";
 import { clubStrengthFor } from "./reputation";
-import { buildWorldSimulationPlan, simulationLevelForClub, type WorldSimulationLevel } from "./world";
+import {
+  buildWorldSimulationPlan,
+  simulationLevelForClub,
+  type WorldSimulationLevel,
+} from "./world";
 
 export const LEAGUE_ID = "league-1";
 export const leagueOf = (f: { league?: string }) => f.league ?? LEAGUE_ID;
 
-export function fixtureId(season: number, round: number, home: string, away: string, leagueId: string = LEAGUE_ID): string {
+export function fixtureId(
+  season: number,
+  round: number,
+  home: string,
+  away: string,
+  leagueId: string = LEAGUE_ID,
+): string {
   return `${leagueId}|s${season}|r${round}|${home}>${away}`;
 }
 
-export function matchSeed(saveSeed: string, season: number, round: number, home: string, away: string, leagueId: string = LEAGUE_ID) {
+export function matchSeed(
+  saveSeed: string,
+  season: number,
+  round: number,
+  home: string,
+  away: string,
+  leagueId: string = LEAGUE_ID,
+) {
   return `match|${saveSeed}|${leagueId}|s${season}|r${round}|${home}>${away}`;
 }
 
@@ -48,7 +65,11 @@ export function goalsFrom(rng: () => number, strength: number, oppStrength: numb
 export const HOME_ADVANTAGE = 3;
 
 export function simulateFixture(
-  s: GameState, season: number, round: number, home: string, away: string,
+  s: GameState,
+  season: number,
+  round: number,
+  home: string,
+  away: string,
   leagueId: string = LEAGUE_ID,
   override?: { homeStrength?: number; awayStrength?: number },
 ): { homeGoals: number; awayGoals: number; seed: string } {
@@ -60,15 +81,25 @@ export function simulateFixture(
 }
 
 export function simulateAiFixture(
-  s: GameState, season: number, round: number, home: string, away: string, leagueId: string = LEAGUE_ID,
+  s: GameState,
+  season: number,
+  round: number,
+  home: string,
+  away: string,
+  leagueId: string = LEAGUE_ID,
 ): { homeGoals: number; awayGoals: number; seed: string } {
   return simulateFixture(s, season, round, home, away, leagueId);
 }
 
 /** Phase-2 fidelity gateway. Behaviour is intentionally identical while the boundary beds in. */
 export function simulateAiFixtureAtLevel(
-  s: GameState, season: number, round: number, home: string, away: string,
-  leagueId: string, level: WorldSimulationLevel,
+  s: GameState,
+  season: number,
+  round: number,
+  home: string,
+  away: string,
+  leagueId: string,
+  level: WorldSimulationLevel,
 ): { homeGoals: number; awayGoals: number; seed: string } {
   if (level === "focus") return simulateAiFixture(s, season, round, home, away, leagueId);
   return simulateAiFixture(s, season, round, home, away, leagueId);
@@ -79,15 +110,31 @@ export function outcomeOf(homeGoals: number, awayGoals: number): MatchRecord["ou
 }
 
 export function makeRecord(args: {
-  leagueId?: string; season: number; week: number; round: number; home: string; away: string;
-  homeGoals: number; awayGoals: number; seed?: string; userInvolved: boolean;
+  leagueId?: string;
+  season: number;
+  week: number;
+  round: number;
+  home: string;
+  away: string;
+  homeGoals: number;
+  awayGoals: number;
+  seed?: string;
+  userInvolved: boolean;
 }): MatchRecord {
   const leagueId = args.leagueId ?? LEAGUE_ID;
   return {
-    id: fixtureId(args.season, args.round, args.home, args.away, leagueId), league: leagueId,
-    season: args.season, week: args.week, round: args.round, home: args.home, away: args.away,
-    homeGoals: args.homeGoals, awayGoals: args.awayGoals, outcome: outcomeOf(args.homeGoals, args.awayGoals),
-    seed: args.seed, userInvolved: args.userInvolved,
+    id: fixtureId(args.season, args.round, args.home, args.away, leagueId),
+    league: leagueId,
+    season: args.season,
+    week: args.week,
+    round: args.round,
+    home: args.home,
+    away: args.away,
+    homeGoals: args.homeGoals,
+    awayGoals: args.awayGoals,
+    outcome: outcomeOf(args.homeGoals, args.awayGoals),
+    seed: args.seed,
+    userInvolved: args.userInvolved,
   };
 }
 
@@ -95,22 +142,47 @@ export function emptyRow(team: string): LeagueRow {
   return { team, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 };
 }
 
-export function buildTable(teams: string[], records: MatchRecord[], season: number, leagueId: string = LEAGUE_ID): LeagueRow[] {
+export function buildTable(
+  teams: string[],
+  records: MatchRecord[],
+  season: number,
+  leagueId: string = LEAGUE_ID,
+): LeagueRow[] {
   const rows = new Map<string, LeagueRow>(teams.map((t) => [t, emptyRow(t)]));
   for (const r of records) {
     if (r.season !== season || r.league !== leagueId) continue;
-    const h = rows.get(r.home), a = rows.get(r.away);
+    const h = rows.get(r.home),
+      a = rows.get(r.away);
     if (!h || !a) continue;
-    h.p++; a.p++; h.gf += r.homeGoals; h.ga += r.awayGoals; a.gf += r.awayGoals; a.ga += r.homeGoals;
-    if (r.outcome === "home") { h.w++; h.pts += 3; a.l++; }
-    else if (r.outcome === "away") { a.w++; a.pts += 3; h.l++; }
-    else { h.d++; a.d++; h.pts++; a.pts++; }
+    h.p++;
+    a.p++;
+    h.gf += r.homeGoals;
+    h.ga += r.awayGoals;
+    a.gf += r.awayGoals;
+    a.ga += r.homeGoals;
+    if (r.outcome === "home") {
+      h.w++;
+      h.pts += 3;
+      a.l++;
+    } else if (r.outcome === "away") {
+      a.w++;
+      a.pts += 3;
+      h.l++;
+    } else {
+      h.d++;
+      a.d++;
+      h.pts++;
+      a.pts++;
+    }
   }
   return teams.map((t) => rows.get(t)!);
 }
 
 export function sortTable(rows: LeagueRow[]): LeagueRow[] {
-  return [...rows].sort((a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga) || b.gf - a.gf || a.team.localeCompare(b.team));
+  return [...rows].sort(
+    (a, b) =>
+      b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga) || b.gf - a.gf || a.team.localeCompare(b.team),
+  );
 }
 
 export function hasFullSchedule(s: GameState): boolean {
@@ -118,7 +190,9 @@ export function hasFullSchedule(s: GameState): boolean {
 }
 
 export function scheduleForWeek(s: GameState, week: number, leagueId?: string): ScheduledFixture[] {
-  return (s.leagueSchedule ?? []).filter((f) => f.week === week && (leagueId === undefined || leagueOf(f) === leagueId));
+  return (s.leagueSchedule ?? []).filter(
+    (f) => f.week === week && (leagueId === undefined || leagueOf(f) === leagueId),
+  );
 }
 
 export const playerLeagueId = (s: GameState) => s.playerLeagueId ?? LEAGUE_ID;
@@ -129,7 +203,14 @@ export function leagueClubs(s: GameState, leagueId: string): string[] {
   return s.league.map((r) => r.team);
 }
 
-export function isCompleted(s: GameState, season: number, round: number, home: string, away: string, leagueId?: string) {
+export function isCompleted(
+  s: GameState,
+  season: number,
+  round: number,
+  home: string,
+  away: string,
+  leagueId?: string,
+) {
   const id = fixtureId(season, round, home, away, leagueId ?? LEAGUE_ID);
   return (s.matchRecords ?? []).some((r) => r.id === id);
 }
@@ -147,9 +228,26 @@ export function resolveWeek(s: GameState, week: number, userRecord?: MatchRecord
       if (userRecord && userRecord.id === id) s.matchRecords.push(userRecord);
       continue;
     }
-    const level: WorldSimulationLevel = simulationLevelForClub(worldPlan, f.home) === "focus" || simulationLevelForClub(worldPlan, f.away) === "focus" ? "focus" : "fringe";
+    const level: WorldSimulationLevel =
+      simulationLevelForClub(worldPlan, f.home) === "focus" ||
+      simulationLevelForClub(worldPlan, f.away) === "focus"
+        ? "focus"
+        : "fringe";
     const sim = simulateAiFixtureAtLevel(s, s.season, f.round, f.home, f.away, lid, level);
-    s.matchRecords.push(makeRecord({ leagueId: lid, season: s.season, week: f.week, round: f.round, home: f.home, away: f.away, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals, seed: sim.seed, userInvolved: false }));
+    s.matchRecords.push(
+      makeRecord({
+        leagueId: lid,
+        season: s.season,
+        week: f.week,
+        round: f.round,
+        home: f.home,
+        away: f.away,
+        homeGoals: sim.homeGoals,
+        awayGoals: sim.awayGoals,
+        seed: sim.seed,
+        userInvolved: false,
+      }),
+    );
   }
 }
 
@@ -159,17 +257,25 @@ export function resolveRemainingSeason(s: GameState): void {
   for (const w of weeks) resolveWeek(s, w);
 }
 
-export function seasonFixtureCount(s: GameState): number { return (s.leagueSchedule ?? []).length; }
+export function seasonFixtureCount(s: GameState): number {
+  return (s.leagueSchedule ?? []).length;
+}
 
 export function seasonCompletedCount(s: GameState): number {
-  const ids = new Set((s.leagueSchedule ?? []).map((f) => fixtureId(s.season, f.round, f.home, f.away, leagueOf(f))));
+  const ids = new Set(
+    (s.leagueSchedule ?? []).map((f) => fixtureId(s.season, f.round, f.home, f.away, leagueOf(f))),
+  );
   return (s.matchRecords ?? []).filter((r) => r.season === s.season && ids.has(r.id)).length;
 }
 
 export function isLeagueSeasonComplete(s: GameState, leagueId: string): boolean {
   const fixtures = (s.leagueSchedule ?? []).filter((f) => leagueOf(f) === leagueId);
   if (fixtures.length === 0) return false;
-  const done = new Set((s.matchRecords ?? []).filter((r) => r.season === s.season && r.league === leagueId).map((r) => r.id));
+  const done = new Set(
+    (s.matchRecords ?? [])
+      .filter((r) => r.season === s.season && r.league === leagueId)
+      .map((r) => r.id),
+  );
   return fixtures.every((f) => done.has(fixtureId(s.season, f.round, f.home, f.away, leagueId)));
 }
 
@@ -193,22 +299,49 @@ export function syncTable(s: GameState): void {
 }
 
 export interface FixtureView {
-  league: string; round: number; week: number; home: string; away: string; record?: MatchRecord;
+  league: string;
+  round: number;
+  week: number;
+  home: string;
+  away: string;
+  record?: MatchRecord;
 }
 
 export function leagueFixtures(s: GameState, leagueId: string, season = s.season): FixtureView[] {
-  const records = (s.matchRecords ?? []).filter((r) => r.season === season && r.league === leagueId);
+  const records = (s.matchRecords ?? []).filter(
+    (r) => r.season === season && r.league === leagueId,
+  );
   if (season !== s.season) {
-    return records.map((r) => ({ league: leagueId, round: r.round, week: r.week, home: r.home, away: r.away, record: r })).sort((a, b) => a.round - b.round || a.home.localeCompare(b.home));
+    return records
+      .map((r) => ({
+        league: leagueId,
+        round: r.round,
+        week: r.week,
+        home: r.home,
+        away: r.away,
+        record: r,
+      }))
+      .sort((a, b) => a.round - b.round || a.home.localeCompare(b.home));
   }
   const byId = new Map(records.map((r) => [r.id, r]));
-  return (s.leagueSchedule ?? []).filter((f) => leagueOf(f) === leagueId).map((f) => ({
-    league: leagueId, round: f.round, week: f.week, home: f.home, away: f.away,
-    record: byId.get(fixtureId(season, f.round, f.home, f.away, leagueId)),
-  })).sort((a, b) => a.round - b.round || a.home.localeCompare(b.home));
+  return (s.leagueSchedule ?? [])
+    .filter((f) => leagueOf(f) === leagueId)
+    .map((f) => ({
+      league: leagueId,
+      round: f.round,
+      week: f.week,
+      home: f.home,
+      away: f.away,
+      record: byId.get(fixtureId(season, f.round, f.home, f.away, leagueId)),
+    }))
+    .sort((a, b) => a.round - b.round || a.home.localeCompare(b.home));
 }
 
-export function historicalTable(s: GameState, season: number, leagueId: string): LeagueRow[] | null {
+export function historicalTable(
+  s: GameState,
+  season: number,
+  leagueId: string,
+): LeagueRow[] | null {
   const h = (s.seasonHistory ?? []).find((e) => e.season === season && e.leagueId === leagueId);
   return h ? h.finalTable : null;
 }

@@ -8,26 +8,49 @@ export type Position = "GK" | "DEF" | "MID" | "FWD";
 ------------------------------------------------------------------- */
 
 export type InboxCategory =
-  | "information" | "decision" | "warning" | "opportunity"
-  | "financial" | "staff" | "facilities" | "transfers"
-  | "board" | "fans" | "league" | "media";
+  | "information"
+  | "decision"
+  | "warning"
+  | "opportunity"
+  | "financial"
+  | "staff"
+  | "facilities"
+  | "transfers"
+  | "board"
+  | "fans"
+  | "league"
+  | "media";
 
 export type InboxDepartment =
-  | "Board of Directors" | "Manager" | "Director of Football"
-  | "Finance" | "Commercial" | "Head Scout" | "Medical"
-  | "Groundskeeper" | "Fan Liaison" | "Sponsors"
-  | "League" | "Media" | "Club";
+  | "Board of Directors"
+  | "Manager"
+  | "Director of Football"
+  | "Finance"
+  | "Commercial"
+  | "Head Scout"
+  | "Medical"
+  | "Groundskeeper"
+  | "Fan Liaison"
+  | "Sponsors"
+  | "League"
+  | "Media"
+  | "Club";
 
 export type InboxPriority = "low" | "normal" | "high" | "urgent";
-export type InboxStatus =
-  | "unread" | "read" | "awaitingDecision" | "completed" | "expired";
+export type InboxStatus = "unread" | "read" | "awaitingDecision" | "completed" | "expired";
 
 /** Ledger buckets an inbox cash effect may be booked against. */
 export type LedgerIncomeCategory =
-  | "gate" | "tv" | "sponsor" | "merchandise" | "prize" | "transfers" | "other";
+  "gate" | "tv" | "sponsor" | "merchandise" | "prize" | "transfers" | "other";
 export type LedgerExpenseCategory =
-  | "playerWages" | "staffWages" | "stadiumOps" | "trainingOps"
-  | "maintenance" | "matchday" | "transfers" | "other";
+  | "playerWages"
+  | "staffWages"
+  | "stadiumOps"
+  | "trainingOps"
+  | "maintenance"
+  | "matchday"
+  | "transfers"
+  | "other";
 
 export type InboxEffect =
   | {
@@ -80,8 +103,6 @@ export type InboxEffect =
       targetInvestment?: number;
       note?: string;
     }
-
-
   | {
       kind: "scheduleGenerator";
       generatorId: string;
@@ -110,7 +131,6 @@ export interface InboxChoice {
    */
   requirements?: InboxRequirement[];
 }
-
 
 export interface InboxItem {
   id: string;
@@ -145,7 +165,6 @@ export interface InboxItem {
   resolvedAtAbsoluteWeek?: number;
 }
 
-
 export interface ScheduledGenerator {
   generatorId: string;
   /** Canonical due time on the absolute timeline. */
@@ -157,25 +176,22 @@ export interface ScheduledGenerator {
   payload?: Record<string, string | number | boolean>;
 }
 
-
-
-
 export interface Player {
   id: string;
   name: string;
   position: Position;
-  rating: number;      // 40-95
+  rating: number; // 40-95
   age: number;
-  wage: number;        // £/week
+  wage: number; // £/week
   contractWeeks: number;
-  value: number;       // transfer value £
+  value: number; // transfer value £
 }
 
 export interface Stand {
   key: "N" | "E" | "S" | "W";
   name: string;
   capacity: number;
-  condition: number;   // 0-100
+  condition: number; // 0-100
   ticketPrice: number; // £
 }
 
@@ -251,7 +267,6 @@ export interface WeekLedger {
   /** Human-readable notes attached by inbox effects, with their source item/event. */
   inboxNotes?: { note: string; amount: number; sourceItemId?: string; sourceEventKey?: string }[];
 }
-
 
 export interface FixtureResult {
   week: number;
@@ -329,7 +344,6 @@ export interface LeaguePrizeRules {
   relegationSupport: number;
 }
 
-
 /** Immutable record of one completed league season. Never overwritten. */
 export interface SeasonHistoryEntry {
   season: number;
@@ -348,12 +362,7 @@ export interface SeasonHistoryEntry {
 
 /** Seasonal objective handed to a club, derived from predicted strength. */
 export type ExpectationLevel =
-  | "winLeague"
-  | "promotion"
-  | "topHalf"
-  | "midTable"
-  | "avoidRelegation"
-  | "survival";
+  "winLeague" | "promotion" | "topHalf" | "midTable" | "avoidRelegation" | "survival";
 
 /** One club's pre-season projection inside a division. */
 export interface ClubPrediction {
@@ -407,8 +416,13 @@ export interface ClubRecord {
 
 export interface LeagueRow {
   team: string;
-  p: number; w: number; d: number; l: number;
-  gf: number; ga: number; pts: number;
+  p: number;
+  w: number;
+  d: number;
+  l: number;
+  gf: number;
+  ga: number;
+  pts: number;
 }
 
 /* -------- Board of Directors --------
@@ -426,18 +440,17 @@ export type DirectorRole =
   | "Supporters' Director";
 
 export type DirectorTrait =
-  | "patient"      // slower confidence swings
-  | "ruthless"     // faster confidence swings, punishes misses hard
-  | "ambitious"    // raises objective targets
-  | "frugal"       // weights finance heavily, hates spending
-  | "pragmatic"    // rewards being on track rather than perfection
-  | "loyal"        // confidence floor is higher
-  | "populist"     // weights fans heavily
+  | "patient" // slower confidence swings
+  | "ruthless" // faster confidence swings, punishes misses hard
+  | "ambitious" // raises objective targets
+  | "frugal" // weights finance heavily, hates spending
+  | "pragmatic" // rewards being on track rather than perfection
+  | "loyal" // confidence floor is higher
+  | "populist" // weights fans heavily
   | "traditionalist"; // weights facilities and continuity
 
 /** The areas of the club a director can care about. */
-export type BoardPriority =
-  | "results" | "finance" | "fans" | "facilities" | "squad" | "commercial";
+export type BoardPriority = "results" | "finance" | "fans" | "facilities" | "squad" | "commercial";
 
 export interface Director {
   id: string;
@@ -477,8 +490,6 @@ export type ObjectiveKind =
   | "stadiumCapacity"
   | "supporterFacilities"
   | "capitalSpendControl";
-
-
 
 export type ObjectiveStatus = "active" | "met" | "missed";
 
@@ -534,7 +545,6 @@ export interface BoardState {
   /** Influence-weighted headline confidence, 0-100. */
   confidence: number;
 }
-
 
 /* -------- Transfers --------
    Legacy TransferTarget / IncomingBid / CompletedTransfer models were retired
@@ -593,7 +603,6 @@ export interface LiveMatch {
   committed?: boolean;
 }
 
-
 /* =========================================================================
    CLUB FINANCE
    -------------------------------------------------------------------------
@@ -608,15 +617,30 @@ export interface LiveMatch {
 export type FinanceDirection = "income" | "expense";
 
 export type FinanceCategory =
-  | "Matchday" | "Wages" | "Prize Money" | "Commercial" | "Facilities"
-  | "Operations" | "Board" | "Staff" | "Transfers" | "Miscellaneous";
+  | "Matchday"
+  | "Wages"
+  | "Prize Money"
+  | "Commercial"
+  | "Facilities"
+  | "Operations"
+  | "Board"
+  | "Staff"
+  | "Transfers"
+  | "Miscellaneous";
 
 /** Which system authored the movement. Used for ledger filtering + audits. */
 export type FinanceSource =
-  | "engine.opening" | "engine.recurring" | "engine.matchday" | "engine.prize"
-  | "inbox" | "transfers" | "staff" | "board" | "facilities" | "migration"
+  | "engine.opening"
+  | "engine.recurring"
+  | "engine.matchday"
+  | "engine.prize"
+  | "inbox"
+  | "transfers"
+  | "staff"
+  | "board"
+  | "facilities"
+  | "migration"
   | "commercial";
-
 
 export interface FinanceEntry {
   id: string;
@@ -643,11 +667,13 @@ export interface FinanceEntry {
 }
 
 export type BoardSpendingPolicy =
-  | "Aggressive Investment" | "Controlled Growth" | "Balanced"
-  | "Cautious" | "Emergency Cost Control";
+  | "Aggressive Investment"
+  | "Controlled Growth"
+  | "Balanced"
+  | "Cautious"
+  | "Emergency Cost Control";
 
-export type FinancialRiskLevel =
-  | "Secure" | "Stable" | "Watch" | "High Risk" | "Critical";
+export type FinancialRiskLevel = "Secure" | "Stable" | "Watch" | "High Risk" | "Critical";
 
 /** Board-approved authorisation limits. Budgets never create cash. */
 export type BudgetKey = "wages" | "transfers" | "facilities" | "commercial" | "contingency";
@@ -687,7 +713,7 @@ export interface SeasonFinancialSummary {
 }
 
 export type AffordabilityVerdict =
-  | "affordable" | "affordableButRisky" | "requiresBoardApproval" | "unaffordable";
+  "affordable" | "affordableButRisky" | "requiresBoardApproval" | "unaffordable";
 
 export interface AffordabilityResult {
   verdict: AffordabilityVerdict;
@@ -736,13 +762,26 @@ export interface WageSummary {
 ========================================================================= */
 
 export type SponsorshipCategory =
-  | "Shirt Front" | "Shirt Sleeve" | "Training Kit"
-  | "Stadium Advertising" | "Matchday Programme" | "Club Partner";
+  | "Shirt Front"
+  | "Shirt Sleeve"
+  | "Training Kit"
+  | "Stadium Advertising"
+  | "Matchday Programme"
+  | "Club Partner";
 
 export type SponsorIndustry =
-  | "Banking" | "Insurance" | "Energy" | "Telecoms" | "Brewery"
-  | "Automotive" | "Retail" | "Airline" | "Technology" | "Construction"
-  | "Food & Drink" | "Logistics";
+  | "Banking"
+  | "Insurance"
+  | "Energy"
+  | "Telecoms"
+  | "Brewery"
+  | "Automotive"
+  | "Retail"
+  | "Airline"
+  | "Technology"
+  | "Construction"
+  | "Food & Drink"
+  | "Logistics";
 
 /** How big a club the sponsor is typically comfortable backing. */
 export type SponsorScale = "local" | "regional" | "national";
@@ -766,7 +805,7 @@ export interface CommercialSponsor {
 }
 
 export type CommercialObjectiveKind =
-  | "topHalf" | "promotion" | "avoidRelegation" | "maintainAttendance";
+  "topHalf" | "promotion" | "avoidRelegation" | "maintainAttendance";
 
 export interface CommercialObjective {
   id: string;
@@ -779,8 +818,7 @@ export interface CommercialObjective {
   status: "active" | "met" | "missed";
 }
 
-export type CommercialContractStatus =
-  | "Active" | "Negotiating" | "Expired" | "Terminated";
+export type CommercialContractStatus = "Active" | "Negotiating" | "Expired" | "Terminated";
 
 export interface CommercialContract {
   id: string;
@@ -804,8 +842,7 @@ export interface CommercialContract {
   closed?: boolean;
 }
 
-export type CommercialOfferStatus =
-  | "pending" | "accepted" | "rejected" | "expired" | "withdrawn";
+export type CommercialOfferStatus = "pending" | "accepted" | "rejected" | "expired" | "withdrawn";
 
 export type CommercialCounterKind = "payment" | "duration" | "bonus";
 
@@ -896,18 +933,15 @@ export interface CommercialDepartment {
 export type PreferredFoot = "Left" | "Right" | "Both";
 
 export type PlayerPersonality =
-  | "Balanced" | "Ambitious" | "Loyal" | "Professional" | "Mercenary" | "Temperamental";
+  "Balanced" | "Ambitious" | "Loyal" | "Professional" | "Mercenary" | "Temperamental";
 
-export type PlayerTransferStatus =
-  | "unlisted" | "listed" | "wanted" | "agreedTransfer";
+export type PlayerTransferStatus = "unlisted" | "listed" | "wanted" | "agreedTransfer";
 
 export type PlayerAvailability = "available" | "unavailable";
 
-export type SquadRole =
-  | "Key Player" | "First Team" | "Rotation" | "Prospect";
+export type SquadRole = "Key Player" | "First Team" | "Rotation" | "Prospect";
 
-export type SquadGroup =
-  | "firstTeam" | "reserve" | "transferListed" | "contractExpiring";
+export type SquadGroup = "firstTeam" | "reserve" | "transferListed" | "contractExpiring";
 
 /** A persistent human being. Ids never change; players survive forever. */
 export interface FootballPlayer {
@@ -937,8 +971,7 @@ export interface FootballPlayer {
   createdSeason: number;
 }
 
-export type PlayerContractStatus =
-  | "Active" | "Agreed" | "Expiring" | "Expired" | "Released";
+export type PlayerContractStatus = "Active" | "Agreed" | "Expiring" | "Expired" | "Released";
 
 export interface PlayerContract {
   id: string;
@@ -957,7 +990,7 @@ export interface PlayerContract {
 }
 
 export type NegotiationStage =
-  | "clubTalks" | "playerTalks" | "agreed" | "completed" | "rejected" | "withdrawn";
+  "clubTalks" | "playerTalks" | "agreed" | "completed" | "rejected" | "withdrawn";
 
 export type NegotiationParty = "club" | "player";
 
@@ -1090,15 +1123,22 @@ export interface RecruitmentState {
 ========================================================================= */
 
 export type InfrastructureAssetType =
-  | "stand" | "pitch" | "shop" | "parking" | "hospitality" | "concessions"
-  | "sanitary" | "training" | "medical" | "offices" | "fanZone";
+  | "stand"
+  | "pitch"
+  | "shop"
+  | "parking"
+  | "hospitality"
+  | "concessions"
+  | "sanitary"
+  | "training"
+  | "medical"
+  | "offices"
+  | "fanZone";
 
 export type InfrastructureAssetStatus =
-  | "operational" | "degraded" | "restricted" | "partiallyClosed"
-  | "closed" | "underConstruction";
+  "operational" | "degraded" | "restricted" | "partiallyClosed" | "closed" | "underConstruction";
 
-export type MaintenancePolicy =
-  | "Minimal" | "Reduced" | "Standard" | "Preventative" | "Premium";
+export type MaintenancePolicy = "Minimal" | "Reduced" | "Standard" | "Preventative" | "Premium";
 
 /** Named modifier channels every asset can contribute to. All are multipliers
  *  around 1, or additive points for supporter/commercial/sporting channels. */
@@ -1139,14 +1179,23 @@ export interface InfrastructureAsset {
 }
 
 export type CapitalProjectType =
-  | "minorRepair" | "majorRepair" | "refurbishment" | "replacement"
-  | "capacityExpansion" | "roofUpgrade" | "seatingRefurbishment"
-  | "concourseUpgrade" | "accessibilityUpgrade" | "hospitalityInstallation"
-  | "corporateBoxes" | "retailExpansion" | "standRedevelopment"
+  | "minorRepair"
+  | "majorRepair"
+  | "refurbishment"
+  | "replacement"
+  | "capacityExpansion"
+  | "roofUpgrade"
+  | "seatingRefurbishment"
+  | "concourseUpgrade"
+  | "accessibilityUpgrade"
+  | "hospitalityInstallation"
+  | "corporateBoxes"
+  | "retailExpansion"
+  | "standRedevelopment"
   | "facilityUpgrade";
 
 export type CapitalProjectStatus =
-  | "proposed" | "approved" | "active" | "delayed" | "completed" | "cancelled";
+  "proposed" | "approved" | "active" | "delayed" | "completed" | "cancelled";
 
 export interface ProjectPayment {
   index: number;
@@ -1210,9 +1259,18 @@ export interface CapitalProject {
 }
 
 export type InfrastructureRecordKind =
-  | "repair" | "refurbishment" | "expansion" | "redevelopment" | "newFacility"
-  | "delay" | "overrun" | "emergencyClosure" | "reopening" | "cancellation"
-  | "capacityChange" | "policyChange";
+  | "repair"
+  | "refurbishment"
+  | "expansion"
+  | "redevelopment"
+  | "newFacility"
+  | "delay"
+  | "overrun"
+  | "emergencyClosure"
+  | "reopening"
+  | "cancellation"
+  | "capacityChange"
+  | "policyChange";
 
 /** Append-only. Never rewritten by later work on the same asset. */
 export interface InfrastructureRecord {
@@ -1259,7 +1317,7 @@ export interface InfrastructureState {
 ========================================================================= */
 
 export type CommitmentCategory =
-  | "football" | "infrastructure" | "commercial" | "supporters" | "financial";
+  "football" | "infrastructure" | "commercial" | "supporters" | "financial";
 
 export type CommitmentStatus = "open" | "fulfilled" | "failed";
 
@@ -1299,18 +1357,11 @@ export interface SustainabilityState {
   nextCommitmentId: number;
 }
 
-export type FinancialHealthState =
-  | "secure" | "healthy" | "tight" | "stressed" | "critical";
-
-
+export type FinancialHealthState = "secure" | "healthy" | "tight" | "stressed" | "critical";
 
 export interface GameState {
   /** Save schema version. Bump + add a migration in loadGame when persisted shape changes. */
   version: 12;
-
-
-
-
 
   /** Stable per-save seed. Used for deterministic inbox generation. */
   saveSeed: string;
@@ -1457,6 +1508,3 @@ export interface SaveArchive {
   contracts: { recordCount: number; expiredCount: number };
   inboxLedgerRows?: number;
 }
-
-
-

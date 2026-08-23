@@ -16,9 +16,8 @@ export function NewGame({ onStart }: { onStart: (club: string, manager: string) 
           <div className="banner-strip px-4 py-2 text-sm">New Club Setup</div>
           <div className="p-6 space-y-5">
             <p className="text-sm text-muted-foreground">
-              You take over a mid-table club with £2.5M in the bank. Set ticket prices,
-              control the wage bill, invest in the ground and try to survive the season
-              in the black.
+              You take over a mid-table club with £2.5M in the bank. Set ticket prices, control the
+              wage bill, invest in the ground and try to survive the season in the black.
             </p>
             <div className="space-y-2">
               <Label htmlFor="club">Club name</Label>

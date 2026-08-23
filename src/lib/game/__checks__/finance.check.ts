@@ -8,13 +8,17 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-import {
-  newGame, advanceWeek, migrateSave, setTransferBudget,
-} from "../engine";
+import { newGame, advanceWeek, migrateSave, setTransferBudget } from "../engine";
 import { approveProject } from "../infrastructure";
 import {
-  reconcile, entriesFor, seasonTotals, postRecurringWeek, syncWeekLedger,
-  legacyIncomeBucket, legacyExpenseBucket, financeSnapshot,
+  reconcile,
+  entriesFor,
+  seasonTotals,
+  postRecurringWeek,
+  syncWeekLedger,
+  legacyIncomeBucket,
+  legacyExpenseBucket,
+  financeSnapshot,
 } from "../finance";
 import { applyEffects } from "../inbox";
 import type { GameState } from "../types";
@@ -22,15 +26,25 @@ import type { GameState } from "../types";
 let passed = 0;
 let failed = 0;
 function check(label: string, cond: boolean, extra?: string) {
-  if (cond) { passed++; console.log(`  ✓ ${label}`); }
-  else { failed++; console.log(`  ✗ ${label}${extra ? " — " + extra : ""}`); }
+  if (cond) {
+    passed++;
+    console.log(`  ✓ ${label}`);
+  } else {
+    failed++;
+    console.log(`  ✗ ${label}${extra ? " — " + extra : ""}`);
+  }
 }
 function safe(label: string, fn: () => void) {
-  try { fn(); } catch (e) { failed++; console.log(`  ✗ ${label} threw — ${(e as Error).message}`); }
+  try {
+    fn();
+  } catch (e) {
+    failed++;
+    console.log(`  ✗ ${label} threw — ${(e as Error).message}`);
+  }
 }
 
 const sum = (o: Record<string, number>) => Object.values(o).reduce((a, b) => a + b, 0);
-const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
+const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
 
 function fixture(seed = "FINANCE_AUDIT"): GameState {
   const g = newGame("Audit FC", "Auditor");
@@ -74,13 +88,19 @@ console.log("\n[P1] Cash mutation audit (static)");
       if (MUTATION.test(ln)) offenders.push(`${f}:${i + 1} ${ln.trim()}`);
     });
   }
-  check("no cash mutation outside finance.ts postEntry path",
-    offenders.length === 0, offenders.join(" | "));
+  check(
+    "no cash mutation outside finance.ts postEntry path",
+    offenders.length === 0,
+    offenders.join(" | "),
+  );
 
   const financeSrc = readFileSync("src/lib/game/finance.ts", "utf8");
   const bodies = financeSrc.split("\n").filter((l) => /s\.cash\s*=/.test(l));
-  check("finance.ts writes cash in a small number of places",
-    bodies.length <= 4, `${bodies.length} sites: ${bodies.map((b) => b.trim()).join(" | ")}`);
+  check(
+    "finance.ts writes cash in a small number of places",
+    bodies.length <= 4,
+    `${bodies.length} sites: ${bodies.map((b) => b.trim()).join(" | ")}`,
+  );
 }
 
 /* =====================================================================
@@ -94,20 +114,32 @@ safe("season simulation", () => {
   let allWeeksReconcile = true;
   for (let i = 0; i < 46; i++) {
     s = advanceWeek(s);
-    if (!reconciles(s)) { allWeeksReconcile = false; break; }
+    if (!reconciles(s)) {
+      allWeeksReconcile = false;
+      break;
+    }
   }
-  check("cash reconciles after every one of 46 weeks", allWeeksReconcile,
-    JSON.stringify(reconcile(s)));
+  check(
+    "cash reconciles after every one of 46 weeks",
+    allWeeksReconcile,
+    JSON.stringify(reconcile(s)),
+  );
   check("season rollover reconciles", reconciles(s));
-  check("entries were actually produced", entriesFor(s, 1).length > 50,
-    `${entriesFor(s, 1).length} entries`);
+  check(
+    "entries were actually produced",
+    entriesFor(s, 1).length > 50,
+    `${entriesFor(s, 1).length} entries`,
+  );
 
   // Every ledger entry is uniquely identified.
   const ids = new Set(s.financeLedger.map((e) => e.id));
   check("entry ids unique", ids.size === s.financeLedger.length);
   const keys = s.financeLedger.map((e) => e.dedupeKey).filter(Boolean) as string[];
-  check("dedupe keys unique", new Set(keys).size === keys.length,
-    `${keys.length - new Set(keys).size} duplicates`);
+  check(
+    "dedupe keys unique",
+    new Set(keys).size === keys.length,
+    `${keys.length - new Set(keys).size} duplicates`,
+  );
 
   // Weekly projection must equal the entries it projects.
   let projOk = true;
@@ -118,28 +150,41 @@ safe("season simulation", () => {
     const exp = es.filter((e) => e.direction === "expense").reduce((a, e) => a + e.amount, 0);
     if (sum(row.income) !== inc || sum(row.expenses) !== exp || row.net !== inc - exp) {
       projOk = false;
-      detail.push(`s${row.season}w${row.week}: row ${sum(row.income)}/${sum(row.expenses)} vs entries ${inc}/${exp}`);
+      detail.push(
+        `s${row.season}w${row.week}: row ${sum(row.income)}/${sum(row.expenses)} vs entries ${inc}/${exp}`,
+      );
     }
   }
-  check("weekly ledger is a faithful projection of finance entries", projOk, detail.slice(0, 3).join(" | "));
+  check(
+    "weekly ledger is a faithful projection of finance entries",
+    projOk,
+    detail.slice(0, 3).join(" | "),
+  );
 
   const lastRow = s.ledger[s.ledger.length - 1];
   const lastEntry = s.financeLedger[s.financeLedger.length - 1];
-  check("closing balance of last row equals recorded balanceAfter",
+  check(
+    "closing balance of last row equals recorded balanceAfter",
     lastRow.balance === lastEntry.balanceAfter,
-    `${lastRow.balance} vs ${lastEntry.balanceAfter}`);
+    `${lastRow.balance} vs ${lastEntry.balanceAfter}`,
+  );
 
   // Season totals agree with the entry stream.
   const t = seasonTotals(s, 1);
   const es1 = entriesFor(s, 1);
-  check("season totals agree with entries",
+  check(
+    "season totals agree with entries",
     t.income === es1.filter((e) => e.direction === "income").reduce((a, e) => a + e.amount, 0) &&
-    t.expenditure === es1.filter((e) => e.direction === "expense").reduce((a, e) => a + e.amount, 0));
+      t.expenditure ===
+        es1.filter((e) => e.direction === "expense").reduce((a, e) => a + e.amount, 0),
+  );
 
-  check("prize money awarded exactly once",
+  check(
+    "prize money awarded exactly once",
     s.financeLedger.filter((e) => e.category === "Prize Money").length <= 1 ||
-    new Set(s.financeLedger.filter((e) => e.category === "Prize Money").map((e) => e.dedupeKey)).size ===
-      s.financeLedger.filter((e) => e.category === "Prize Money").length);
+      new Set(s.financeLedger.filter((e) => e.category === "Prize Money").map((e) => e.dedupeKey))
+        .size === s.financeLedger.filter((e) => e.category === "Prize Money").length,
+  );
 
   check("season summary archived at rollover", (s.financeHistory?.length ?? 0) >= 1);
   const snap = financeSnapshot(s);
@@ -159,18 +204,25 @@ safe("recurring week replay", () => {
   postRecurringWeek(s);
   postRecurringWeek(s);
   check("re-posting the same week is a no-op on cash", s.cash === cash, `${s.cash} vs ${cash}`);
-  check("re-posting adds no entries", s.financeLedger.length === n,
-    `${s.financeLedger.length} vs ${n}`);
+  check(
+    "re-posting adds no entries",
+    s.financeLedger.length === n,
+    `${s.financeLedger.length} vs ${n}`,
+  );
   check("still reconciles", reconciles(s));
 });
 
 safe("reload then continue", () => {
   let s = fixture("RELOAD");
   for (let i = 0; i < 8; i++) s = advanceWeek(s);
-  const reloaded = migrateSave(clone(s) as unknown as Record<string, unknown>) as unknown as GameState;
+  const reloaded = migrateSave(
+    clone(s) as unknown as Record<string, unknown>,
+  ) as unknown as GameState;
   check("reload does not change cash", reloaded.cash === s.cash, `${reloaded.cash} vs ${s.cash}`);
-  check("reload does not change entry count",
-    reloaded.financeLedger.length === s.financeLedger.length);
+  check(
+    "reload does not change entry count",
+    reloaded.financeLedger.length === s.financeLedger.length,
+  );
   check("reloaded save reconciles", reconciles(reloaded));
   const advanced = advanceWeek(reloaded);
   check("advancing a reloaded save reconciles", reconciles(advanced));
@@ -182,8 +234,7 @@ safe("syncWeekLedger is idempotent", () => {
   const before = clone(s.ledger);
   syncWeekLedger(s, s.season, s.week);
   syncWeekLedger(s, s.season, s.week);
-  check("repeat sync produces identical rows",
-    JSON.stringify(s.ledger) === JSON.stringify(before));
+  check("repeat sync produces identical rows", JSON.stringify(s.ledger) === JSON.stringify(before));
   check("repeat sync leaves cash untouched", reconciles(s));
 });
 
@@ -202,11 +253,16 @@ function spendCheck(
   const n = s0.financeLedger.length;
   const { state: s1, ok } = act(s0);
   check(`${label}: action succeeded`, ok);
-  check(`${label}: cash moved by exactly the cost`,
+  check(
+    `${label}: cash moved by exactly the cost`,
     s1.cash === before + (bucket === "expense" ? -expectCost : expectCost),
-    `${s1.cash} vs ${before - expectCost}`);
-  check(`${label}: exactly one new entry`, s1.financeLedger.length === n + 1,
-    `${s1.financeLedger.length - n} entries`);
+    `${s1.cash} vs ${before - expectCost}`,
+  );
+  check(
+    `${label}: exactly one new entry`,
+    s1.financeLedger.length === n + 1,
+    `${s1.financeLedger.length - n} entries`,
+  );
   check(`${label}: reconciles`, reconciles(s1));
   check(`${label}: input state untouched`, s0.cash === before);
 }
@@ -224,12 +280,18 @@ safe("capital project spends only through the ledger", () => {
   const pid = r.state.infrastructure!.projects.at(-1)!.id;
   let ticked = r.state;
   for (let i = 0; i < 4; i++) ticked = advanceWeek(ticked);
-  check("instalments are booked as facilities expenses",
-    ticked.financeLedger.some((e) =>
-      e.sourceSystem === "facilities" && e.direction === "expense" &&
-      e.linkedEntityId === pid));
-  check("state still reconciles after the instalments", reconciles(ticked),
-    JSON.stringify(reconcile(ticked)));
+  check(
+    "instalments are booked as facilities expenses",
+    ticked.financeLedger.some(
+      (e) =>
+        e.sourceSystem === "facilities" && e.direction === "expense" && e.linkedEntityId === pid,
+    ),
+  );
+  check(
+    "state still reconciles after the instalments",
+    reconciles(ticked),
+    JSON.stringify(reconcile(ticked)),
+  );
   check("input state untouched", s.cash === before);
 });
 
@@ -242,7 +304,6 @@ safe("unaffordable capital work is refused", () => {
   check("no entry added", r.state.financeLedger.length === s.financeLedger.length);
 });
 
-
 safe("transfer budget allocation is ring-fenced and booked", () => {
   const s = fixture("BUDGET");
   const cash = s.cash;
@@ -254,27 +315,38 @@ safe("transfer budget allocation is ring-fenced and booked", () => {
   const s2 = setTransferBudget(s1, pot).state;
   check("release returns cash", s2.cash === cash, `${s2.cash} vs ${cash}`);
   check("release reconciles", reconciles(s2));
-  check("total club money conserved across allocation",
-    s2.cash + s2.transferBudget === cash + pot);
+  check("total club money conserved across allocation", s2.cash + s2.transferBudget === cash + pot);
 });
 
 safe("inbox effects post to the ledger", () => {
   const s0 = fixture("INBOX");
   const n = s0.financeLedger.length;
-  const s1 = applyEffects(s0, [
-    { kind: "cash", amount: -12_500, note: "Roof repair", expenseCategory: "maintenance" },
-    { kind: "cash", amount: 40_000, note: "Sponsor top-up", incomeCategory: "sponsor" },
-  ], { sourceItemId: "item-1", sourceEventKey: "key-1" });
-  check("two new finance entries", s1.financeLedger.length === n + 2,
-    `${s1.financeLedger.length - n}`);
+  const s1 = applyEffects(
+    s0,
+    [
+      { kind: "cash", amount: -12_500, note: "Roof repair", expenseCategory: "maintenance" },
+      { kind: "cash", amount: 40_000, note: "Sponsor top-up", incomeCategory: "sponsor" },
+    ],
+    { sourceItemId: "item-1", sourceEventKey: "key-1" },
+  );
+  check(
+    "two new finance entries",
+    s1.financeLedger.length === n + 2,
+    `${s1.financeLedger.length - n}`,
+  );
   check("inbox spend reconciles", reconciles(s1));
-  check("inbox entries tagged to source",
-    s1.financeLedger.slice(-2).every((e) => e.linkedEntityId === "item-1" &&
-      e.sourceSystem === "inbox"));
+  check(
+    "inbox entries tagged to source",
+    s1.financeLedger
+      .slice(-2)
+      .every((e) => e.linkedEntityId === "item-1" && e.sourceSystem === "inbox"),
+  );
   const row = s1.ledger.find((l) => l.season === s1.season && l.week === s1.week)!;
-  check("legacy buckets honoured in projection",
+  check(
+    "legacy buckets honoured in projection",
     row.expenses.maintenance === 12_500 && row.income.sponsor === 40_000,
-    JSON.stringify({ m: row.expenses.maintenance, sp: row.income.sponsor }));
+    JSON.stringify({ m: row.expenses.maintenance, sp: row.income.sponsor }),
+  );
   check("projection balance equals cash", row.balance === s1.cash);
 });
 
@@ -292,10 +364,29 @@ safe("v6 ledger-only save", () => {
   legacy.cash = 1_750_000;
   legacy.ledger = [
     {
-      week: 1, season: 1,
-      income: { gate: 90_000, tv: 0, sponsor: 12_000, merchandise: 4_000, prize: 0, transfers: 0, other: 0 },
-      expenses: { playerWages: 60_000, staffWages: 12_000, stadiumOps: 8_000, trainingOps: 5_000, maintenance: 0, matchday: 9_000, transfers: 0, other: 0 },
-      net: 12_000, balance: 1_750_000,
+      week: 1,
+      season: 1,
+      income: {
+        gate: 90_000,
+        tv: 0,
+        sponsor: 12_000,
+        merchandise: 4_000,
+        prize: 0,
+        transfers: 0,
+        other: 0,
+      },
+      expenses: {
+        playerWages: 60_000,
+        staffWages: 12_000,
+        stadiumOps: 8_000,
+        trainingOps: 5_000,
+        maintenance: 0,
+        matchday: 9_000,
+        transfers: 0,
+        other: 0,
+      },
+      net: 12_000,
+      balance: 1_750_000,
     },
   ];
 
@@ -304,20 +395,26 @@ safe("v6 ledger-only save", () => {
   check("cash preserved exactly", m.cash === 1_750_000, `${m.cash}`);
   check("migrated save reconciles", reconciles(m), JSON.stringify(reconcile(m)));
   check("legacy rows converted into entries", m.financeLedger.length > 0);
-  check("legacy buckets round-trip",
+  check(
+    "legacy buckets round-trip",
     m.financeLedger.some((e) => legacyIncomeBucket(e) === "gate") &&
-    m.financeLedger.some((e) => legacyExpenseBucket(e) === "playerWages"));
+      m.financeLedger.some((e) => legacyExpenseBucket(e) === "playerWages"),
+  );
 
   const again = migrateSave(clone(m) as unknown as Record<string, unknown>) as unknown as GameState;
   check("migration idempotent on cash", again.cash === m.cash, `${again.cash} vs ${m.cash}`);
-  check("migration idempotent on entries",
+  check(
+    "migration idempotent on entries",
     again.financeLedger.length === m.financeLedger.length,
-    `${again.financeLedger.length} vs ${m.financeLedger.length}`);
+    `${again.financeLedger.length} vs ${m.financeLedger.length}`,
+  );
   check("re-migrated save still reconciles", reconciles(again));
 
   const played = advanceWeek(again);
   check("migrated save can be played on and still reconciles", reconciles(played));
 });
 
-console.log(`\n${failed === 0 ? "ALL CHECKS PASSED" : "FAILURES PRESENT"} — ${passed} passed, ${failed} failed\n`);
+console.log(
+  `\n${failed === 0 ? "ALL CHECKS PASSED" : "FAILURES PRESENT"} — ${passed} passed, ${failed} failed\n`,
+);
 if (failed > 0) process.exit(1);

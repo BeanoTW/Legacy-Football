@@ -55,16 +55,16 @@
   --radius: 0.5rem;
 
   /* Football Chairman inspired: teal panels, cream cards, orange accent */
-  --background: oklch(0.96 0.012 180);              /* soft off-white cream */
-  --foreground: oklch(0.20 0.02 220);               /* near black */
+  --background: oklch(0.96 0.012 180); /* soft off-white cream */
+  --foreground: oklch(0.2 0.02 220); /* near black */
 
   --card: oklch(0.99 0.005 180);
-  --card-foreground: oklch(0.20 0.02 220);
+  --card-foreground: oklch(0.2 0.02 220);
 
   --popover: oklch(0.99 0.005 180);
-  --popover-foreground: oklch(0.20 0.02 220);
+  --popover-foreground: oklch(0.2 0.02 220);
 
-  --primary: oklch(0.55 0.08 190);                  /* teal */
+  --primary: oklch(0.55 0.08 190); /* teal */
   --primary-foreground: oklch(0.99 0 0);
 
   --secondary: oklch(0.92 0.015 190);
@@ -73,8 +73,8 @@
   --muted: oklch(0.94 0.01 200);
   --muted-foreground: oklch(0.48 0.02 220);
 
-  --accent: oklch(0.75 0.15 65);                    /* warm orange banner */
-  --accent-foreground: oklch(0.20 0.02 220);
+  --accent: oklch(0.75 0.15 65); /* warm orange banner */
+  --accent-foreground: oklch(0.2 0.02 220);
 
   --destructive: oklch(0.55 0.22 27);
   --destructive-foreground: oklch(0.99 0 0);
@@ -84,24 +84,24 @@
   --ring: oklch(0.55 0.08 190);
 
   /* Game specific */
-  --pitch: oklch(0.55 0.14 145);                    /* grass */
-  --banner: oklch(0.75 0.15 65);                    /* orange section banner */
+  --pitch: oklch(0.55 0.14 145); /* grass */
+  --banner: oklch(0.75 0.15 65); /* orange section banner */
   --banner-foreground: oklch(0.18 0.03 40);
-  --panel: oklch(0.52 0.06 195);                    /* teal header panel */
+  --panel: oklch(0.52 0.06 195); /* teal header panel */
   --panel-foreground: oklch(0.99 0 0);
   --subtle: oklch(0.92 0.008 200);
-  --income: oklch(0.55 0.16 145);                   /* green */
-  --expense: oklch(0.58 0.20 25);                   /* red */
+  --income: oklch(0.55 0.16 145); /* green */
+  --expense: oklch(0.58 0.2 25); /* red */
 
-  --chart-1: oklch(0.55 0.08 190);   /* teal */
-  --chart-2: oklch(0.75 0.15 65);    /* orange */
-  --chart-3: oklch(0.55 0.16 145);   /* green */
-  --chart-4: oklch(0.58 0.20 25);    /* red */
-  --chart-5: oklch(0.55 0.15 285);   /* purple */
+  --chart-1: oklch(0.55 0.08 190); /* teal */
+  --chart-2: oklch(0.75 0.15 65); /* orange */
+  --chart-3: oklch(0.55 0.16 145); /* green */
+  --chart-4: oklch(0.58 0.2 25); /* red */
+  --chart-5: oklch(0.55 0.15 285); /* purple */
 }
 
 .dark {
-  --background: oklch(0.20 0.02 220);
+  --background: oklch(0.2 0.02 220);
   --foreground: oklch(0.96 0.01 180);
   --card: oklch(0.25 0.02 220);
   --card-foreground: oklch(0.96 0.01 180);
@@ -109,13 +109,13 @@
   --popover-foreground: oklch(0.96 0.01 180);
   --primary: oklch(0.65 0.08 190);
   --primary-foreground: oklch(0.15 0.02 220);
-  --secondary: oklch(0.30 0.02 220);
+  --secondary: oklch(0.3 0.02 220);
   --secondary-foreground: oklch(0.96 0.01 180);
   --muted: oklch(0.28 0.02 220);
   --muted-foreground: oklch(0.72 0.02 200);
   --accent: oklch(0.72 0.15 65);
   --accent-foreground: oklch(0.15 0.02 220);
-  --destructive: oklch(0.60 0.22 27);
+  --destructive: oklch(0.6 0.22 27);
   --destructive-foreground: oklch(0.99 0 0);
   --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 15%);
@@ -126,18 +126,27 @@
 }
 
 @layer base {
-  * { border-color: var(--color-border); }
-  html, body {
+  * {
+    border-color: var(--color-border);
+  }
+  html,
+  body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
     font-feature-settings: "cv02", "cv03", "cv04", "tnum";
   }
-  h1, h2, h3, h4, .font-display {
+  h1,
+  h2,
+  h3,
+  h4,
+  .font-display {
     font-family: var(--font-display);
     letter-spacing: 0.01em;
   }
-  .tnum { font-variant-numeric: tabular-nums; }
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 @utility banner-strip {

@@ -39,19 +39,36 @@ import type {
 } from "./types";
 
 import {
-  MAX_NEGOTIATION_ROUNDS, SEASON_WEEKS, acceptOfferInPlace, counterOfferInPlace,
-  offerById, rejectOfferInPlace, relationshipLabel, sponsorById, sponsorName,
+  MAX_NEGOTIATION_ROUNDS,
+  SEASON_WEEKS,
+  acceptOfferInPlace,
+  counterOfferInPlace,
+  offerById,
+  rejectOfferInPlace,
+  relationshipLabel,
+  sponsorById,
+  sponsorName,
   weeksRemaining,
 } from "./commercial";
 
 import {
-  RENEWAL_WINDOW_WEEKS, activeContract, ageOf, completeTransferInPlace,
-  improvePlayerTermsInPlace, negotiationById, playerById, playerName,
-  releasePlayerInPlace, renewContractInPlace, renewalTerms,
-  respondToIncomingOfferInPlace, syncLegacySquad, userSquad,
-  weeksLeftOnContract, withdrawNegotiationInPlace,
+  RENEWAL_WINDOW_WEEKS,
+  activeContract,
+  ageOf,
+  completeTransferInPlace,
+  improvePlayerTermsInPlace,
+  negotiationById,
+  playerById,
+  playerName,
+  releasePlayerInPlace,
+  renewContractInPlace,
+  renewalTerms,
+  respondToIncomingOfferInPlace,
+  syncLegacySquad,
+  userSquad,
+  weeksLeftOnContract,
+  withdrawNegotiationInPlace,
 } from "./recruitment";
-
 
 import {
   activeProjects as infraActiveProjects,
@@ -67,9 +84,7 @@ import {
   setMaintenancePolicyInPlace,
 } from "./infrastructure";
 import { absoluteWeek, fromAbsoluteWeek } from "./time";
-import {
-  evaluateObjective, confidenceBand, BAND_LABEL, directorConcern,
-} from "./board";
+import { evaluateObjective, confidenceBand, BAND_LABEL, directorConcern } from "./board";
 import {
   RESERVE_REPORT_WEEKS,
   capacityPicture,
@@ -97,8 +112,7 @@ const money = (n: number) => {
 const sponsorId = (name: string) => name.replace(/\s+/g, "-").toLowerCase();
 
 /* Every id derived from eventKey is stable across reloads. */
-const idForEventKey = (eventKey: string) =>
-  `inbox-${hashString(eventKey).toString(36)}`;
+const idForEventKey = (eventKey: string) => `inbox-${hashString(eventKey).toString(36)}`;
 
 /* ---------- Registry validation ----------
  * Any scheduleGenerator effect must target a generator that is actually
@@ -111,7 +125,7 @@ export function assertGeneratorRegistered(id: string): void {
   if (!KNOWN_GENERATOR_IDS.has(id)) {
     const msg = `[inbox] scheduleGenerator references unknown generatorId "${id}"`;
     if (import.meta.env?.DEV) throw new Error(msg);
-    // eslint-disable-next-line no-console
+
     console.warn(msg);
   }
 }
@@ -129,18 +143,25 @@ export interface EffectSource {
   sourceEventKey?: string;
 }
 
-
-
-
 /** Legacy bucket → finance category, so inbox money is a real ledger entry. */
 const INCOME_CATEGORY: Record<string, FinanceCategory> = {
-  gate: "Matchday", tv: "Matchday", sponsor: "Commercial", merchandise: "Commercial",
-  prize: "Prize Money", transfers: "Transfers", other: "Miscellaneous",
+  gate: "Matchday",
+  tv: "Matchday",
+  sponsor: "Commercial",
+  merchandise: "Commercial",
+  prize: "Prize Money",
+  transfers: "Transfers",
+  other: "Miscellaneous",
 };
 const EXPENSE_CATEGORY: Record<string, FinanceCategory> = {
-  playerWages: "Wages", staffWages: "Staff", stadiumOps: "Operations",
-  trainingOps: "Facilities", maintenance: "Facilities", matchday: "Matchday",
-  transfers: "Transfers", other: "Miscellaneous",
+  playerWages: "Wages",
+  staffWages: "Staff",
+  stadiumOps: "Operations",
+  trainingOps: "Facilities",
+  maintenance: "Facilities",
+  matchday: "Matchday",
+  transfers: "Transfers",
+  other: "Miscellaneous",
 };
 
 /**
@@ -148,11 +169,7 @@ const EXPENSE_CATEGORY: Record<string, FinanceCategory> = {
  * Goes through postEntry() — the single cash mutator — so the finance ledger
  * stays the source of truth and GameState.ledger remains a projection.
  */
-function bookCash(
-  s: GameState,
-  e: Extract<InboxEffect, { kind: "cash" }>,
-  src: EffectSource,
-) {
+function bookCash(s: GameState, e: Extract<InboxEffect, { kind: "cash" }>, src: EffectSource) {
   const amount = Math.round(e.amount);
   if (amount === 0) return;
   const income = amount > 0;
@@ -160,8 +177,9 @@ function bookCash(
   const hadRow = (s.ledger ?? []).some((l) => l.season === s.season && l.week === s.week);
 
   postEntry(s, {
-    category: income ? INCOME_CATEGORY[bucket] ?? "Miscellaneous"
-      : EXPENSE_CATEGORY[bucket] ?? "Miscellaneous",
+    category: income
+      ? (INCOME_CATEGORY[bucket] ?? "Miscellaneous")
+      : (EXPENSE_CATEGORY[bucket] ?? "Miscellaneous"),
     subcategory: bucket,
     description: e.note ?? "Inbox decision",
     amount: Math.abs(amount),
@@ -190,7 +208,6 @@ function bookCash(
     });
   }
 }
-
 
 /** Applies ONE effect to the working state, in place. */
 function applyEffectInPlace(s: GameState, e: InboxEffect, src: EffectSource): void {
@@ -276,9 +293,10 @@ function applyEffectInPlace(s: GameState, e: InboxEffect, src: EffectSource): vo
       if (base) {
         renewContractInPlace(s, e.playerId, {
           seasons: e.seasons ?? base.seasons,
-          weeklyWage: e.upliftPct != null
-            ? Math.round((base.weeklyWage * (1 + e.upliftPct / 100)) / 25) * 25
-            : base.weeklyWage,
+          weeklyWage:
+            e.upliftPct != null
+              ? Math.round((base.weeklyWage * (1 + e.upliftPct / 100)) / 25) * 25
+              : base.weeklyWage,
         });
         syncLegacySquad(s);
       }
@@ -315,12 +333,8 @@ function applyEffectInPlace(s: GameState, e: InboxEffect, src: EffectSource): vo
        commitment never moves, reserves or refunds cash; fulfilment is
        measured later from the canonical ledger, never from the UI. -- */
     case "strategicCommitment":
-      createCommitmentInPlace(
-        s, e.category, e.weeks, e.targetInvestment ?? 0, e.note,
-      );
+      createCommitmentInPlace(s, e.category, e.weeks, e.targetInvestment ?? 0, e.note);
       break;
-
-
 
     case "scheduleGenerator": {
       assertGeneratorRegistered(e.generatorId);
@@ -377,10 +391,7 @@ export interface ChoiceAvailability {
 
 /** Net cash outflow implied by a choice's own effects. */
 export function choiceCashCost(choice: InboxChoice): number {
-  const net = choice.effects.reduce(
-    (a, e) => (e.kind === "cash" ? a + e.amount : a),
-    0,
-  );
+  const net = choice.effects.reduce((a, e) => (e.kind === "cash" ? a + e.amount : a), 0);
   return net < 0 ? -net : 0;
 }
 
@@ -460,7 +471,6 @@ export function handleInboxChoice(s: GameState, itemId: string, choiceId: string
   return ns;
 }
 
-
 export function dismissInboxItem(s: GameState, id: string): GameState {
   const ns = structuredClone(s);
   const it = ns.inbox.find((i) => i.id === id);
@@ -470,9 +480,7 @@ export function dismissInboxItem(s: GameState, id: string): GameState {
 
 export function clearReadInbox(s: GameState): GameState {
   const ns = structuredClone(s);
-  ns.inbox = ns.inbox.filter(
-    (i) => i.status === "unread" || i.status === "awaitingDecision",
-  );
+  ns.inbox = ns.inbox.filter((i) => i.status === "unread" || i.status === "awaitingDecision");
   return ns;
 }
 
@@ -646,7 +654,11 @@ const G_ROOF: Generator = {
               { kind: "cash", amount: -40_000 },
               { kind: "standCondition", standKey: "S", delta: 3 },
               { kind: "flag", key: "roofHandled", value: "patched" },
-              { kind: "scheduleGenerator", generatorId: "grounds-south-roof-followup", inWeeks: 20 },
+              {
+                kind: "scheduleGenerator",
+                generatorId: "grounds-south-roof-followup",
+                inWeeks: 20,
+              },
             ],
           },
           {
@@ -905,7 +917,11 @@ const G_SPONSOR_PUSHBACK: Generator = {
                 effects: [
                   { kind: "cash", amount: bonus, note: "Sponsor bonus (improved)" },
                   { kind: "sponsorExtend", sponsorName, addWeeks: 76, newWeekly: bumped },
-                  { kind: "flag", key: `sponsorPushback-${sponsorName}-s${s.season}`, value: "accepted" },
+                  {
+                    kind: "flag",
+                    key: `sponsorPushback-${sponsorName}-s${s.season}`,
+                    value: "accepted",
+                  },
                 ],
               },
               {
@@ -913,7 +929,11 @@ const G_SPONSOR_PUSHBACK: Generator = {
                 label: "Reject — walk away",
                 hint: "No deal. Sponsor lapses when weeks run out.",
                 effects: [
-                  { kind: "flag", key: `sponsorPushback-${sponsorName}-s${s.season}`, value: "rejected" },
+                  {
+                    kind: "flag",
+                    key: `sponsorPushback-${sponsorName}-s${s.season}`,
+                    value: "rejected",
+                  },
                 ],
               },
             ],
@@ -937,7 +957,11 @@ const G_SPONSOR_PUSHBACK: Generator = {
                 id: "ack",
                 label: "Noted",
                 effects: [
-                  { kind: "flag", key: `sponsorPushback-${sponsorName}-s${s.season}`, value: "withdrawn" },
+                  {
+                    kind: "flag",
+                    key: `sponsorPushback-${sponsorName}-s${s.season}`,
+                    value: "withdrawn",
+                  },
                 ],
               },
             ],
@@ -969,8 +993,8 @@ const G_MEDIA_MATCH: Generator = {
       r.result === "W"
         ? `Comfortable ${r.goalsFor}-${r.goalsAgainst} ${r.home ? "home" : "away"} win vs ${r.opponent}. Back-page splash: "Chairman's model working".`
         : r.result === "D"
-        ? `${r.goalsFor}-${r.goalsAgainst} draw with ${r.opponent}. Pundits split — solid point or two dropped?`
-        : `Poor ${r.goalsFor}-${r.goalsAgainst} defeat to ${r.opponent}. Local paper calls for "clarity from the boardroom".`;
+          ? `${r.goalsFor}-${r.goalsAgainst} draw with ${r.opponent}. Pundits split — solid point or two dropped?`
+          : `Poor ${r.goalsFor}-${r.goalsAgainst} defeat to ${r.opponent}. Local paper calls for "clarity from the boardroom".`;
     return [
       mk(s, "media-post-match", {
         eventKey,
@@ -1003,9 +1027,7 @@ const G_BOARD_OBJECTIVES: Generator = {
     if (s.week > 6) return [];
     const chair = board.directors.find((d) => d.role === "Chairman") ?? board.directors[0];
     if (!chair) return [];
-    const lines = board.objectives
-      .map((o) => `• ${o.label}\n   ${o.description}`)
-      .join("\n\n");
+    const lines = board.objectives.map((o) => `• ${o.label}\n   ${o.description}`).join("\n\n");
     return [
       mk(s, "board-objectives", {
         eventKey: `board-objectives:s${s.season}`,
@@ -1056,9 +1078,10 @@ const G_BOARD_REVIEW: Generator = {
       const chair = board.directors.find((d) => d.role === "Chairman") ?? board.directors[0];
       const band = confidenceBand(r.confidenceAfter);
       const met = r.outcomes.filter((o) => o.met).length;
-      const heading = r.type === "midSeason"
-        ? `Mid-season review — season ${r.season}`
-        : `End of season review — season ${r.season}`;
+      const heading =
+        r.type === "midSeason"
+          ? `Mid-season review — season ${r.season}`
+          : `End of season review — season ${r.season}`;
       const body =
         `${r.verdict}\n\n` +
         `Board confidence: ${r.confidenceBefore}% → ${r.confidenceAfter}% (${BAND_LABEL[band]}).\n` +
@@ -1099,7 +1122,7 @@ const G_BOARD_PRESSURE: Generator = {
     if (nowAbs - last < 8) return [];
     // The angriest influential director speaks up.
     const sorted = [...board.directors].sort(
-      (a, b) => (a.confidence - b.confidence) || (b.influence - a.influence),
+      (a, b) => a.confidence - b.confidence || b.influence - a.influence,
     );
     const d = sorted[0];
     if (!d || d.confidence >= 40) return [];
@@ -1126,16 +1149,19 @@ const G_BOARD_PRESSURE: Generator = {
             id: "reassure",
             label: "Reassure them personally",
             hint: "Costs nothing but your word. Small, temporary goodwill.",
-            effects: [
-              { kind: "flag", key: "boardPressureAtAbsoluteWeek", value: nowAbs },
-            ],
+            effects: [{ kind: "flag", key: "boardPressureAtAbsoluteWeek", value: nowAbs }],
           },
           {
             id: "act",
             label: "Commit club funds to the problem",
             hint: "Spend £75k addressing their concern directly.",
             effects: [
-              { kind: "cash", amount: -75_000, note: `Board directive — ${d.role}`, expenseCategory: "other" },
+              {
+                kind: "cash",
+                amount: -75_000,
+                note: `Board directive — ${d.role}`,
+                expenseCategory: "other",
+              },
               { kind: "flag", key: "boardPressureAtAbsoluteWeek", value: nowAbs },
               { kind: "reputation", delta: 1 },
             ],
@@ -1149,8 +1175,6 @@ const G_BOARD_PRESSURE: Generator = {
     ];
   },
 };
-
-
 
 /* =========================================================================
    Commercial department generators
@@ -1338,7 +1362,8 @@ const G_COMMERCIAL_EXPIRY_WARNING: Generator = {
         if (left > 6 || left <= 0) return false;
         // Only warn when nobody is talking about a renewal.
         return !s.commercial.offers.some(
-          (o) => o.renewalOfContractId === c.id && (o.status === "pending" || o.status === "accepted"),
+          (o) =>
+            o.renewalOfContractId === c.id && (o.status === "pending" || o.status === "accepted"),
         );
       })
       .map((c) =>
@@ -1453,7 +1478,11 @@ const G_RECRUITMENT_INCOMING_OFFER: Generator = {
               label: `Demand ${money(Math.round(fee * 1.25))}`,
               hint: "They may improve, hold firm or walk away.",
               effects: [
-                { kind: "recruitmentCounterOffer", negotiationId: n.id, fee: Math.round(fee * 1.25) },
+                {
+                  kind: "recruitmentCounterOffer",
+                  negotiationId: n.id,
+                  fee: Math.round(fee * 1.25),
+                },
               ],
             },
             {
@@ -1476,7 +1505,9 @@ const G_RECRUITMENT_PLAYER_TERMS: Generator = {
   run: (s) => {
     if (!s.football) return [];
     return s.football.negotiations
-      .filter((n) => n.direction === "in" && n.stage === "playerTalks" && n.playerCounterWage != null)
+      .filter(
+        (n) => n.direction === "in" && n.stage === "playerTalks" && n.playerCounterWage != null,
+      )
       .map((n) => {
         const p = playerById(s, n.playerId);
         if (!p) return null;
@@ -1649,9 +1680,6 @@ const G_RECRUITMENT_TRANSFER_DONE: Generator = {
   },
 };
 
-
-
-
 /* ---------- Registry ---------- */
 
 /* =========================================================================
@@ -1738,7 +1766,8 @@ const G_INFRA_PROPOSAL: Generator = {
       .sort((a, b) => a.condition - b.condition)[0];
     if (!worst) return [];
     const spec = projectCatalogue(s, worst.id).find(
-      (x) => (x.major ? cap.canStartMajor : cap.canStartMinor) &&
+      (x) =>
+        (x.major ? cap.canStartMajor : cap.canStartMinor) &&
         (x.type === "majorRepair" || x.type === "minorRepair"),
     );
     if (!spec) return [];
@@ -1761,9 +1790,7 @@ const G_INFRA_PROPOSAL: Generator = {
             label: `Approve — £${spec.cost.toLocaleString("en-GB")}`,
             hint: "Raises the project through the Facilities department.",
             requirements: [{ kind: "cash", amount: spec.cost }],
-            effects: [
-              { kind: "infraApproveProject", assetId: worst.id, projectType: spec.type },
-            ],
+            effects: [{ kind: "infraApproveProject", assetId: worst.id, projectType: spec.type }],
           },
           { id: "decline", label: "Not now", hint: "No cost. No work.", effects: [] },
         ],
@@ -1830,7 +1857,6 @@ const G_INFRA_WORKS_UPDATE: Generator = {
     return items;
   },
 };
-
 
 /* =========================================================================
    Sustainability generators
@@ -1915,21 +1941,29 @@ const G_SUS_FOOTBALL_REQUEST: Generator = {
             id: "squad",
             label: `Commit ${money(target)} to the squad`,
             hint: "Promise measured against real transfer and wage spend.",
-            effects: [{
-              kind: "strategicCommitment", category: "football", weeks: 26,
-              targetInvestment: target,
-              note: "Chairman promised the Football Director squad investment.",
-            }],
+            effects: [
+              {
+                kind: "strategicCommitment",
+                category: "football",
+                weeks: 26,
+                targetInvestment: target,
+                note: "Chairman promised the Football Director squad investment.",
+              },
+            ],
           },
           {
             id: "training",
             label: `Commit ${money(target)} to training and medical`,
             hint: "Promise measured against facilities and capital spend.",
-            effects: [{
-              kind: "strategicCommitment", category: "infrastructure", weeks: 34,
-              targetInvestment: target,
-              note: "Chairman promised investment in training and medical facilities.",
-            }],
+            effects: [
+              {
+                kind: "strategicCommitment",
+                category: "infrastructure",
+                weeks: 34,
+                targetInvestment: target,
+                note: "Chairman promised investment in training and medical facilities.",
+              },
+            ],
           },
           {
             id: "hold",
@@ -1982,11 +2016,15 @@ const G_SUS_SUPPORTER_PRESSURE: Generator = {
             id: "commit",
             label: `Commit ${money(target)} to supporter facilities`,
             hint: "Measured against real facilities and capital spend.",
-            effects: [{
-              kind: "strategicCommitment", category: "supporters", weeks: 30,
-              targetInvestment: target,
-              note: "Chairman promised investment in supporter facilities.",
-            }],
+            effects: [
+              {
+                kind: "strategicCommitment",
+                category: "supporters",
+                weeks: 30,
+                targetInvestment: target,
+                note: "Chairman promised investment in supporter facilities.",
+              },
+            ],
           },
           {
             id: "listen",
@@ -2036,11 +2074,15 @@ const G_SUS_COMMERCIAL_REQUEST: Generator = {
             id: "commit",
             label: `Commit ${money(target)} to commercial development`,
             hint: "Measured against real capital and operations spend.",
-            effects: [{
-              kind: "strategicCommitment", category: "commercial", weeks: 30,
-              targetInvestment: target,
-              note: "Chairman promised commercial development.",
-            }],
+            effects: [
+              {
+                kind: "strategicCommitment",
+                category: "commercial",
+                weeks: 30,
+                targetInvestment: target,
+                note: "Chairman promised commercial development.",
+              },
+            ],
           },
           {
             id: "later",
@@ -2065,15 +2107,23 @@ const G_SUS_STRATEGIC_REVIEW: Generator = {
     if (openCommitments(s).length > 0) return [];
     const chair = s.board?.directors?.find((x) => x.role === "Chairman");
     const target = commitmentTarget(res.strategicCapital, 0.3);
-    const promise = (category: "football" | "infrastructure" | "commercial" | "supporters", label: string, weeks: number) => ({
+    const promise = (
+      category: "football" | "infrastructure" | "commercial" | "supporters",
+      label: string,
+      weeks: number,
+    ) => ({
       id: category,
       label,
       hint: `Recorded as a promise to the board. Measured over ${weeks} weeks.`,
-      effects: [{
-        kind: "strategicCommitment" as const, category, weeks,
-        targetInvestment: target,
-        note: `Strategic capital review: ${label}.`,
-      }],
+      effects: [
+        {
+          kind: "strategicCommitment" as const,
+          category,
+          weeks,
+          targetInvestment: target,
+          note: `Strategic capital review: ${label}.`,
+        },
+      ],
     });
     return [
       mk(s, "sustainability-strategic-review", {
@@ -2095,11 +2145,15 @@ const G_SUS_STRATEGIC_REVIEW: Generator = {
             id: "preserve",
             label: "Preserve reserves",
             hint: "Promise to hold cover through the period.",
-            effects: [{
-              kind: "strategicCommitment", category: "financial", weeks: 26,
-              targetInvestment: 0,
-              note: "Chairman committed to protecting the club's reserves.",
-            }],
+            effects: [
+              {
+                kind: "strategicCommitment",
+                category: "financial",
+                weeks: 26,
+                targetInvestment: 0,
+                note: "Chairman committed to protecting the club's reserves.",
+              },
+            ],
           },
           promise("football", "Prioritise the squad", 26),
           promise("infrastructure", "Prioritise stadium and training infrastructure", 34),
@@ -2124,9 +2178,7 @@ const G_SUS_TIER_SHOCK: Generator = {
         department: "Finance",
         category: up ? "information" : "warning",
         priority: up ? "normal" : "high",
-        subject: up
-          ? "What promotion means for the books"
-          : "What relegation means for the books",
+        subject: up ? "What promotion means for the books" : "What relegation means for the books",
         body:
           `${shock.summary}\n\n` +
           `Recurring income at this level: ${money(shock.weeklyIncome)}/week\n` +
@@ -2224,7 +2276,6 @@ export function runWeeklyGenerators(prev: GameState): GameState {
     }
   }
 
-
   // 2. Pull scheduled entries that are due now, grouped by generatorId.
   //    Entries with a missing/NaN due time are treated as due immediately
   //    rather than being stranded in the queue forever.
@@ -2241,10 +2292,7 @@ export function runWeeklyGenerators(prev: GameState): GameState {
   });
 
   // 3. Build a fast lookup of existing eventKeys so we never emit duplicates.
-  const existingKeys = new Set([
-    ...s.inbox.map((i) => i.eventKey),
-    ...archivedInboxGuardKeys(s),
-  ]);
+  const existingKeys = new Set([...s.inbox.map((i) => i.eventKey), ...archivedInboxGuardKeys(s)]);
 
   // 4. Run every generator; dedup on eventKey before appending.
   const consumed = new Set<string>();
@@ -2263,13 +2311,11 @@ export function runWeeklyGenerators(prev: GameState): GameState {
   //     silently. Surface it loudly instead of losing the follow-up.
   for (const id of dueByGenerator.keys()) {
     if (!consumed.has(id)) {
-      // eslint-disable-next-line no-console
       console.warn(
         `[inbox] dropped ${dueByGenerator.get(id)!.length} scheduled entr(y/ies) for unregistered generatorId "${id}"`,
       );
     }
   }
-
 
   // 5. Cap history to keep localStorage sane.
   if (s.inbox.length > 200) {
@@ -2302,14 +2348,24 @@ export const CATEGORY_META: Record<InboxCategory, { label: string; color: string
 };
 
 export const PRIORITY_META: Record<InboxPriority, { label: string; className: string }> = {
-  low:    { label: "Low",    className: "text-muted-foreground" },
+  low: { label: "Low", className: "text-muted-foreground" },
   normal: { label: "Normal", className: "text-foreground" },
-  high:   { label: "High",   className: "text-amber-600 font-medium" },
+  high: { label: "High", className: "text-amber-600 font-medium" },
   urgent: { label: "Urgent", className: "text-rose-600 font-semibold" },
 };
 
 export const DEPARTMENTS_ALL: InboxDepartment[] = [
-  "Board of Directors", "Manager", "Director of Football", "Finance",
-  "Commercial", "Head Scout", "Medical", "Groundskeeper",
-  "Fan Liaison", "Sponsors", "League", "Media", "Club",
+  "Board of Directors",
+  "Manager",
+  "Director of Football",
+  "Finance",
+  "Commercial",
+  "Head Scout",
+  "Medical",
+  "Groundskeeper",
+  "Fan Liaison",
+  "Sponsors",
+  "League",
+  "Media",
+  "Club",
 ];

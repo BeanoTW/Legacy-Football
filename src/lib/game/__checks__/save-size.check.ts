@@ -7,16 +7,26 @@
 */
 import { newGame, advanceWeek } from "../engine";
 import {
-  saveBytes, saveSizeBreakdown, formatBytes, warnOnSaveSize,
-  SIZE_ERROR_BYTES, SIZE_TARGET_S20_BYTES, SIZE_WARN_BYTES,
+  saveBytes,
+  saveSizeBreakdown,
+  formatBytes,
+  warnOnSaveSize,
+  SIZE_ERROR_BYTES,
+  SIZE_TARGET_S20_BYTES,
+  SIZE_WARN_BYTES,
 } from "../diagnostics/saveSize";
 import type { GameState } from "../types";
 
 let passed = 0;
 let failed = 0;
 function check(label: string, cond: boolean, extra?: string) {
-  if (cond) { passed++; console.log(`  ✓ ${label}`); }
-  else { failed++; console.log(`  ✗ ${label}${extra ? " — " + extra : ""}`); }
+  if (cond) {
+    passed++;
+    console.log(`  ✓ ${label}`);
+  } else {
+    failed++;
+    console.log(`  ✗ ${label}${extra ? " — " + extra : ""}`);
+  }
 }
 
 const SEED = "PHASE0|SIZE|FIXED";
@@ -28,9 +38,15 @@ console.log("\n[Z1] Instrumentation behaviour");
   const bytes = saveBytes(s);
   check("saveBytes is positive", bytes > 0);
   const b = saveSizeBreakdown(s);
-  check("breakdown totals are within 5% of the whole save", Math.abs(b.total - bytes) / bytes < 0.05,
-    `${b.total} vs ${bytes}`);
-  check("breakdown is sorted largest-first", b.entries.every((e, i) => i === 0 || b.entries[i - 1].bytes >= e.bytes));
+  check(
+    "breakdown totals are within 5% of the whole save",
+    Math.abs(b.total - bytes) / bytes < 0.05,
+    `${b.total} vs ${bytes}`,
+  );
+  check(
+    "breakdown is sorted largest-first",
+    b.entries.every((e, i) => i === 0 || b.entries[i - 1].bytes >= e.bytes),
+  );
   const warnings: string[] = [];
   warnOnSaveSize(SIZE_WARN_BYTES + 1, (m) => warnings.push(m));
   warnOnSaveSize(SIZE_ERROR_BYTES + 1, (m) => warnings.push(m));
@@ -50,12 +66,17 @@ for (const m of marks) console.log(`  · after season ${m.season}: ${formatBytes
 
 const s1 = marks[1].bytes - marks[0].bytes;
 const s5 = marks[5].bytes - marks[4].bytes;
-check("per-season growth is not super-linear (season 5 <= 3x season 1)", s5 <= s1 * 3,
-  `${formatBytes(s1)} -> ${formatBytes(s5)}`);
+check(
+  "per-season growth is not super-linear (season 5 <= 3x season 1)",
+  s5 <= s1 * 3,
+  `${formatBytes(s1)} -> ${formatBytes(s5)}`,
+);
 
 const perSeason = (marks[5].bytes - marks[0].bytes) / 5;
 const projected20 = marks[0].bytes + perSeason * 20;
-console.log(`  · projected season 20: ${formatBytes(projected20)} (design target ${formatBytes(SIZE_TARGET_S20_BYTES)})`);
+console.log(
+  `  · projected season 20: ${formatBytes(projected20)} (design target ${formatBytes(SIZE_TARGET_S20_BYTES)})`,
+);
 if (projected20 > SIZE_TARGET_S20_BYTES) {
   console.log("    note: above the roadmap design target — Phase 1 rollup/prune work required.");
 }
@@ -67,11 +88,18 @@ if (projected20 > SIZE_TARGET_S20_BYTES) {
    than against the eventual design target. */
 const worldClubCount = s.leagues.reduce((total, league) => total + league.clubIds.length, 0);
 const baselineSeason5Bytes = 4_500_000 + Math.max(0, worldClubCount - 40) * 35_000;
-check(`season 5 raw save stays within the scalable per-club baseline (${formatBytes(marks[5].bytes)})`,
-  marks[5].bytes <= baselineSeason5Bytes, formatBytes(marks[5].bytes));
+check(
+  `season 5 raw save stays within the scalable per-club baseline (${formatBytes(marks[5].bytes)})`,
+  marks[5].bytes <= baselineSeason5Bytes,
+  formatBytes(marks[5].bytes),
+);
 if (projected20 >= SIZE_ERROR_BYTES) {
-  console.log(`    KNOWN: projected season 20 (${formatBytes(projected20)}) exceeds the localStorage ceiling.`);
-  console.log("    Persisted saves use the chunked history store; this probe deliberately measures un-compacted growth.");
+  console.log(
+    `    KNOWN: projected season 20 (${formatBytes(projected20)}) exceeds the localStorage ceiling.`,
+  );
+  console.log(
+    "    Persisted saves use the chunked history store; this probe deliberately measures un-compacted growth.",
+  );
 }
 
 console.log("\n[Z3] Growth drivers at season 5");
@@ -81,4 +109,3 @@ for (const d of saveSizeBreakdown(s).drivers.slice(0, 6)) {
 
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
-

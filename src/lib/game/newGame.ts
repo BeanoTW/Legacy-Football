@@ -59,9 +59,9 @@ function _newGameSeed(clubName: string, managerName: string, seed?: string): Gam
   // ticket prices around the £20 reference for the level.
   const stands: Stand[] = [
     { key: "N", name: "North Stand", capacity: 3200, condition: 92, ticketPrice: 18 },
-    { key: "E", name: "East Stand",  capacity: 2600, condition: 88, ticketPrice: 21 },
+    { key: "E", name: "East Stand", capacity: 2600, condition: 88, ticketPrice: 21 },
     { key: "S", name: "South Stand", capacity: 3200, condition: 90, ticketPrice: 18 },
-    { key: "W", name: "West Stand",  capacity: 3000, condition: 94, ticketPrice: 26 },
+    { key: "W", name: "West Stand", capacity: 3000, condition: 94, ticketPrice: 26 },
   ];
   const leagues = makeExpandedLeagues(clubName);
   const leagueSchedule = makePyramidSchedule(leagues, `${saveSeed}|season1`);
@@ -87,8 +87,8 @@ function _newGameSeed(clubName: string, managerName: string, seed?: string): Gam
     squad: [],
     sponsors: [
       { name: "Main Kit Sponsor", weekly: 15_000, weeksLeft: 38 * 2 },
-      { name: "Stadium Naming",   weekly: 6_000,  weeksLeft: 38 * 3 },
-      { name: "Training Wear",    weekly: 2_500,  weeksLeft: 20 },
+      { name: "Stadium Naming", weekly: 6_000, weeksLeft: 38 * 3 },
+      { name: "Training Wear", weekly: 2_500, weeksLeft: 20 },
     ],
     fixtures: fixturesForClub(leagueSchedule, clubName),
     leagues,

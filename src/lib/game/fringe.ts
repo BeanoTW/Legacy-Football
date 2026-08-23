@@ -44,7 +44,11 @@ export function makeFringeClubState(
     reputation,
     strength: clamp(reputation + stableOffset(s.saveSeed, clubId, "strength", 7), 1, 100),
     form: stableOffset(s.saveSeed, clubId, `form-s${s.season}`, 5),
-    financeBand: clamp(Math.round(reputation / 20) + stableOffset(s.saveSeed, clubId, "finance", 1), 1, 5),
+    financeBand: clamp(
+      Math.round(reputation / 20) + stableOffset(s.saveSeed, clubId, "finance", 1),
+      1,
+      5,
+    ),
     lastSimulatedSeason: s.season,
   };
 }
@@ -65,14 +69,22 @@ export function buildFringeWorldState(s: GameState): FringeWorldState {
  * Clubs entering Focus disappear from this map; clubs leaving Focus acquire a
  * deterministic compact snapshot. No detailed football state is fabricated.
  */
-export function reconcileFringeWorldState(s: GameState, previous: FringeWorldState = {}): FringeWorldState {
+export function reconcileFringeWorldState(
+  s: GameState,
+  previous: FringeWorldState = {},
+): FringeWorldState {
   const plan = buildWorldSimulationPlan(s);
   const out: FringeWorldState = {};
   for (const profile of plan.clubs) {
     if (profile.level !== "fringe") continue;
     const old = previous[profile.clubId];
     out[profile.clubId] = old
-      ? { ...old, leagueId: profile.leagueId, tier: profile.tier, reputation: clubReputation(s, profile.clubId) }
+      ? {
+          ...old,
+          leagueId: profile.leagueId,
+          tier: profile.tier,
+          reputation: clubReputation(s, profile.clubId),
+        }
       : makeFringeClubState(s, profile.clubId, profile.leagueId, profile.tier);
   }
   return out;
@@ -81,7 +93,10 @@ export function reconcileFringeWorldState(s: GameState, previous: FringeWorldSta
 export function fringeWorldSignature(world: FringeWorldState): string {
   return Object.values(world)
     .sort((a, b) => a.clubId.localeCompare(b.clubId))
-    .map((c) => `${c.clubId}:${c.leagueId}:${c.tier}:${c.reputation}:${c.strength}:${c.form}:${c.financeBand}:${c.lastSimulatedSeason}`)
+    .map(
+      (c) =>
+        `${c.clubId}:${c.leagueId}:${c.tier}:${c.reputation}:${c.strength}:${c.form}:${c.financeBand}:${c.lastSimulatedSeason}`,
+    )
     .join("|");
 }
 

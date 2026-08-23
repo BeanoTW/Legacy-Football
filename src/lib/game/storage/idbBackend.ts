@@ -40,7 +40,10 @@ export function createIdbRecordStore(): RecordStore {
   let dbPromise: Promise<IDBDatabase> | null = null;
   const db = () => (dbPromise ??= openDb());
 
-  async function tx<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => Promise<T>): Promise<T> {
+  async function tx<T>(
+    mode: IDBTransactionMode,
+    fn: (s: IDBObjectStore) => Promise<T>,
+  ): Promise<T> {
     const d = await db();
     const t = d.transaction(STORE_NAME, mode);
     const store = t.objectStore(STORE_NAME);
@@ -53,7 +56,11 @@ export function createIdbRecordStore(): RecordStore {
     try {
       result = await fn(store);
     } catch (e) {
-      try { t.abort(); } catch { /* already finished */ }
+      try {
+        t.abort();
+      } catch {
+        /* already finished */
+      }
       throw e;
     }
     await done;

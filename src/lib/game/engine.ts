@@ -27,9 +27,7 @@ import { squadRating } from "./sim";
 import { staffPoolFor } from "./staff";
 import { SEASON_END_WEEK, isTransferWindowOpen } from "./calendar";
 import { tickMatchday, type MatchOverride } from "./tick/matchday";
-import {
-  tickLegacyAiResults, tickContractsAndMarkets, tickTicketBacklash,
-} from "./tick/world";
+import { tickLegacyAiResults, tickContractsAndMarkets, tickTicketBacklash } from "./tick/world";
 import { tickSeasonRollover } from "./tick/rollover";
 import { commitLiveMatch } from "./liveMatch";
 
@@ -37,25 +35,45 @@ import { commitLiveMatch } from "./liveMatch";
 export { weekForLeagueRound } from "./pyramid";
 export { newGame, SAVE_VERSION } from "./newGame";
 export {
-  leagueTeams, userLeagueTeams, makeLeagueSchedule, makeFixtures, fixturesForClub,
+  leagueTeams,
+  userLeagueTeams,
+  makeLeagueSchedule,
+  makeFixtures,
+  fixturesForClub,
 } from "./schedule";
 export {
-  totalCapacity, usableCapacity, avgTicketPrice, playerWagesWeekly, squadRating,
-  totalWeeklyExpenses, weeklySponsorIncome,
+  totalCapacity,
+  usableCapacity,
+  avgTicketPrice,
+  playerWagesWeekly,
+  squadRating,
+  totalWeeklyExpenses,
+  weeklySponsorIncome,
 } from "./sim";
 export {
-  STAFF_ROLES, makeStaff, staffPoolFor, hiredStaffWagesWeekly, staffJoinTerms,
-  hireStaffMember, sackStaffMember, severanceFor,
-  type JoinTerms, type SpendResult,
+  STAFF_ROLES,
+  makeStaff,
+  staffPoolFor,
+  hiredStaffWagesWeekly,
+  staffJoinTerms,
+  hireStaffMember,
+  sackStaffMember,
+  severanceFor,
+  type JoinTerms,
+  type SpendResult,
 } from "./staff";
 export {
-  CALENDAR, SEASON_END_WEEK, WINDOW_PRESEASON_END, WINDOW_MIDSEASON,
-  phaseOf, isTransferWindowOpen, windowStatus, type SeasonPhase,
+  CALENDAR,
+  SEASON_END_WEEK,
+  WINDOW_PRESEASON_END,
+  WINDOW_MIDSEASON,
+  phaseOf,
+  isTransferWindowOpen,
+  windowStatus,
+  type SeasonPhase,
 } from "./calendar";
 export { fmtMoney, fmtMoneyExact } from "./format";
-export {
-  startMatchDay, kickoff, applyHalfTimeChoice, cancelLiveMatch,
-} from "./liveMatch";
+export { startMatchDay, kickoff, applyHalfTimeChoice, cancelLiveMatch } from "./liveMatch";
 export type { MatchOverride } from "./tick/matchday";
 
 /**

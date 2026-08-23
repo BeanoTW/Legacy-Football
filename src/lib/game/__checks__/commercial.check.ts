@@ -4,20 +4,41 @@
 import { readFileSync } from "node:fs";
 import { newGame, advanceWeek } from "../engine";
 import {
-  CATEGORY_MIN_POWER, MAX_NEGOTIATION_ROUNDS, SPONSORSHIP_CATEGORIES, SPONSOR_POOL_SIZE,
-  acceptOffer, activeContracts, closeCommercialSeason, commercialIncomeForSeason,
-  commercialPower, commercialSnapshot, contractForCategory, counterOffer,
-  eligibleSponsors, ensureCommercial, generateSponsorPool, offerById, pendingOffers,
-  rejectOffer, runCommercialWeek, sponsorById,
+  CATEGORY_MIN_POWER,
+  MAX_NEGOTIATION_ROUNDS,
+  SPONSORSHIP_CATEGORIES,
+  SPONSOR_POOL_SIZE,
+  acceptOffer,
+  activeContracts,
+  closeCommercialSeason,
+  commercialIncomeForSeason,
+  commercialPower,
+  commercialSnapshot,
+  contractForCategory,
+  counterOffer,
+  eligibleSponsors,
+  ensureCommercial,
+  generateSponsorPool,
+  offerById,
+  pendingOffers,
+  rejectOffer,
+  runCommercialWeek,
+  sponsorById,
 } from "../commercial";
 import { runWeeklyGenerators, handleInboxChoice, isKnownGeneratorId } from "../inbox";
 import { absoluteWeek } from "../time";
 import type { CommercialOffer, GameState } from "../types";
 
-let passed = 0, failed = 0;
+let passed = 0,
+  failed = 0;
 function check(label: string, cond: boolean, extra?: string) {
-  if (cond) { passed++; console.log(`  ✓ ${label}`); }
-  else { failed++; console.log(`  ✗ ${label}${extra ? " — " + extra : ""}`); }
+  if (cond) {
+    passed++;
+    console.log(`  ✓ ${label}`);
+  } else {
+    failed++;
+    console.log(`  ✗ ${label}${extra ? " — " + extra : ""}`);
+  }
 }
 
 function fixture(seed = "COMM_SEED_1"): GameState {
@@ -55,7 +76,10 @@ function forceOffer(s: GameState, category = SPONSORSHIP_CATEGORIES[0]): Commerc
 
 const ledgerTotal = (s: GameState) =>
   (s.financeLedger ?? []).reduce(
-    (a: number, e: { direction: string; amount: number }) => a + (e.direction === "income" ? e.amount : -e.amount), 0);
+    (a: number, e: { direction: string; amount: number }) =>
+      a + (e.direction === "income" ? e.amount : -e.amount),
+    0,
+  );
 
 console.log("\n[1] Sponsor pool determinism");
 {
@@ -96,8 +120,11 @@ console.log("\n[4] Accept posts money through the finance ledger");
   const r = acceptOffer(s, offer.id);
   check("accept succeeds", r.ok, r.message);
   const ns = r.state;
-  check("signing bonus credited to cash", ns.cash === cashBefore + offer.signingBonus,
-    `${ns.cash} vs ${cashBefore + offer.signingBonus}`);
+  check(
+    "signing bonus credited to cash",
+    ns.cash === cashBefore + offer.signingBonus,
+    `${ns.cash} vs ${cashBefore + offer.signingBonus}`,
+  );
   check("exactly one new ledger entry", (ns.financeLedger ?? []).length === entriesBefore + 1);
   check("contract now active", !!contractForCategory(ns, offer.category));
   check("category cannot be double-signed", !acceptOffer(ns, offer.id).ok);
@@ -107,15 +134,18 @@ console.log("\n[5] Weekly payments are exactly-once");
 {
   const s = fixture();
   const offer = forceOffer(s);
-  let ns = acceptOffer(s, offer.id).state;
+  const ns = acceptOffer(s, offer.id).state;
   ns.week += 1;
   const before = ledgerTotal(ns);
   runCommercialWeek(ns);
   const afterOne = ledgerTotal(ns);
   runCommercialWeek(ns); // replay same week
   const afterTwo = ledgerTotal(ns);
-  check("one weekly payment posted", afterOne - before >= offer.weeklyPayment,
-    `delta=${afterOne - before}`);
+  check(
+    "one weekly payment posted",
+    afterOne - before >= offer.weeklyPayment,
+    `delta=${afterOne - before}`,
+  );
   check("replaying the same week posts nothing extra", afterTwo === afterOne);
 }
 
@@ -133,29 +163,43 @@ console.log("\n[6] Reject closes the offer and does not move money");
 
 console.log("\n[7] Counter-offer determinism and walk-away limit");
 {
-  const a = fixture(); const oa = forceOffer(a);
-  const b = structuredClone(a); const ob = offerById(b, oa.id)!;
+  const a = fixture();
+  const oa = forceOffer(a);
+  const b = structuredClone(a);
+  const ob = offerById(b, oa.id)!;
   const ra = counterOffer(a, oa.id, "payment");
   const rb = counterOffer(b, ob.id, "payment");
   check("same counter → same result", ra.result.result === rb.result.result);
   check("same counter → same note", ra.result.note === rb.result.note);
-  check("same counter → same terms",
-    JSON.stringify(offerById(ra.state, oa.id)) === JSON.stringify(offerById(rb.state, ob.id)));
+  check(
+    "same counter → same terms",
+    JSON.stringify(offerById(ra.state, oa.id)) === JSON.stringify(offerById(rb.state, ob.id)),
+  );
 
   let s = ra.state;
   for (let i = 0; i < MAX_NEGOTIATION_ROUNDS + 1; i++) s = counterOffer(s, oa.id, "payment").state;
   const final = offerById(s, oa.id)!;
-  check("negotiation rounds capped", final.negotiationRounds <= MAX_NEGOTIATION_ROUNDS,
-    `rounds=${final.negotiationRounds}`);
-  check("over-pushing withdraws the offer", final.status === "withdrawn" || final.status === "pending");
+  check(
+    "negotiation rounds capped",
+    final.negotiationRounds <= MAX_NEGOTIATION_ROUNDS,
+    `rounds=${final.negotiationRounds}`,
+  );
+  check(
+    "over-pushing withdraws the offer",
+    final.status === "withdrawn" || final.status === "pending",
+  );
 }
 
 console.log("\n[8] Inbox generators are registered and deduplicated");
 {
   for (const id of [
-    "commercial-offer", "commercial-renewal", "commercial-counter-outcome",
-    "commercial-expiry-warning", "commercial-contract-expired",
-  ]) check(`generator registered: ${id}`, isKnownGeneratorId(id));
+    "commercial-offer",
+    "commercial-renewal",
+    "commercial-counter-outcome",
+    "commercial-expiry-warning",
+    "commercial-contract-expired",
+  ])
+    check(`generator registered: ${id}`, isKnownGeneratorId(id));
 
   let s = fixture();
   forceOffer(s);
@@ -174,11 +218,17 @@ console.log("\n[9] Inbox choices drive the commercial engine");
   const offer = forceOffer(s);
   s = runWeeklyGenerators(s);
   const item = s.inbox.find((i) => i.generatorId === "commercial-offer")!;
-  check("offer item has accept/reject choices",
-    !!item.choices?.some((c) => c.id === "accept") && !!item.choices?.some((c) => c.id === "reject"));
+  check(
+    "offer item has accept/reject choices",
+    !!item.choices?.some((c) => c.id === "accept") &&
+      !!item.choices?.some((c) => c.id === "reject"),
+  );
 
   const accepted = handleInboxChoice(s, item.id, "accept");
-  check("accepting from the inbox signs the contract", !!contractForCategory(accepted, offer.category));
+  check(
+    "accepting from the inbox signs the contract",
+    !!contractForCategory(accepted, offer.category),
+  );
   check("accepting credits the signing bonus", accepted.cash === s.cash + offer.signingBonus);
 
   // Counter from the inbox emits an outcome follow-up immediately.
@@ -187,12 +237,17 @@ console.log("\n[9] Inbox choices drive the commercial engine");
   s2 = runWeeklyGenerators(s2);
   const item2 = s2.inbox.find((i) => i.generatorId === "commercial-offer")!;
   const countered = handleInboxChoice(s2, item2.id, "counter-payment");
-  check("counter registers a negotiation round", (offerById(countered, o2.id)?.negotiationRounds ?? 0) === 1);
+  check(
+    "counter registers a negotiation round",
+    (offerById(countered, o2.id)?.negotiationRounds ?? 0) === 1,
+  );
   const follow = countered.inbox.filter((i) => i.generatorId === "commercial-counter-outcome");
   check("counter outcome item emitted immediately", follow.length === 1, `n=${follow.length}`);
   const replayed = runWeeklyGenerators(countered);
-  check("weekly run does not duplicate the outcome item",
-    replayed.inbox.filter((i) => i.generatorId === "commercial-counter-outcome").length === 1);
+  check(
+    "weekly run does not duplicate the outcome item",
+    replayed.inbox.filter((i) => i.generatorId === "commercial-counter-outcome").length === 1,
+  );
 }
 
 console.log("\n[10] Expiry warning and expired notice");
@@ -205,26 +260,34 @@ console.log("\n[10] Expiry warning and expired notice");
   contract.endAbsoluteWeek = absoluteWeek(s.season, s.week) + 3;
   contract.renewalWindowWeeks = 0; // suppress the auto-renewal approach
   s = runWeeklyGenerators(s);
-  check("expiry warning emitted inside the window",
-    s.inbox.some((i) => i.generatorId === "commercial-expiry-warning"));
+  check(
+    "expiry warning emitted inside the window",
+    s.inbox.some((i) => i.generatorId === "commercial-expiry-warning"),
+  );
   const warnCount = s.inbox.filter((i) => i.generatorId === "commercial-expiry-warning").length;
   s.week += 1;
   s = runWeeklyGenerators(s);
-  check("expiry warning is not repeated",
-    s.inbox.filter((i) => i.generatorId === "commercial-expiry-warning").length === warnCount);
+  check(
+    "expiry warning is not repeated",
+    s.inbox.filter((i) => i.generatorId === "commercial-expiry-warning").length === warnCount,
+  );
 
   // Run past the end date so the contract closes.
   s.week += 4;
   runCommercialWeek(s);
   check("contract closed into history", (s.commercial.history ?? []).length === 1);
   s = runWeeklyGenerators(s);
-  check("expired notice emitted",
-    s.inbox.some((i) => i.generatorId === "commercial-contract-expired"));
+  check(
+    "expired notice emitted",
+    s.inbox.some((i) => i.generatorId === "commercial-contract-expired"),
+  );
   const expCount = s.inbox.filter((i) => i.generatorId === "commercial-contract-expired").length;
   s.week += 1;
   s = runWeeklyGenerators(s);
-  check("expired notice is not repeated",
-    s.inbox.filter((i) => i.generatorId === "commercial-contract-expired").length === expCount);
+  check(
+    "expired notice is not repeated",
+    s.inbox.filter((i) => i.generatorId === "commercial-contract-expired").length === expCount,
+  );
 }
 
 console.log("\n[11] Season summary is written once");
@@ -232,7 +295,10 @@ console.log("\n[11] Season summary is written once");
   const s = fixture();
   closeCommercialSeason(s, 1);
   closeCommercialSeason(s, 1);
-  check("one summary per season", s.commercial.seasonHistory.filter((h) => h.season === 1).length === 1);
+  check(
+    "one summary per season",
+    s.commercial.seasonHistory.filter((h) => h.season === 1).length === 1,
+  );
 }
 
 console.log("\n[12] Snapshot integrity");
@@ -242,8 +308,10 @@ console.log("\n[12] Snapshot integrity");
   const ns = acceptOffer(s, offer.id).state;
   const snap = commercialSnapshot(ns);
   check("snapshot counts the live partner", snap.activePartners === activeContracts(ns).length);
-  check("snapshot excludes contracted categories from vacancies",
-    !snap.openCategories.includes(offer.category));
+  check(
+    "snapshot excludes contracted categories from vacancies",
+    !snap.openCategories.includes(offer.category),
+  );
   check("season income is non-negative", commercialIncomeForSeason(ns) >= 0);
 }
 
@@ -262,19 +330,37 @@ console.log("\n[14] Commercial week is deterministic and self-consistent");
   const a = fixture();
   const b = structuredClone(a);
   for (let i = 0; i < 6; i++) {
-    a.week += 1; b.week += 1;
-    runCommercialWeek(a); runCommercialWeek(b);
+    a.week += 1;
+    b.week += 1;
+    runCommercialWeek(a);
+    runCommercialWeek(b);
   }
   check("cash identical after 6 commercial weeks", a.cash === b.cash, `${a.cash} vs ${b.cash}`);
-  check("offers identical after 6 commercial weeks",
-    JSON.stringify(a.commercial.offers) === JSON.stringify(b.commercial.offers));
-  const ia = runWeeklyGenerators(a), ib = runWeeklyGenerators(b);
-  check("inbox keys identical",
-    ia.inbox.map((i) => i.eventKey).sort().join("|") === ib.inbox.map((i) => i.eventKey).sort().join("|"));
-  check("sponsor relationships stay in range",
-    a.commercial.sponsors.every((sp) => sp.relationshipScore >= 0 && sp.relationshipScore <= 100));
-  check("sponsorById resolves every contract",
-    a.commercial.contracts.every((c) => !!sponsorById(a, c.sponsorId)));
+  check(
+    "offers identical after 6 commercial weeks",
+    JSON.stringify(a.commercial.offers) === JSON.stringify(b.commercial.offers),
+  );
+  const ia = runWeeklyGenerators(a),
+    ib = runWeeklyGenerators(b);
+  check(
+    "inbox keys identical",
+    ia.inbox
+      .map((i) => i.eventKey)
+      .sort()
+      .join("|") ===
+      ib.inbox
+        .map((i) => i.eventKey)
+        .sort()
+        .join("|"),
+  );
+  check(
+    "sponsor relationships stay in range",
+    a.commercial.sponsors.every((sp) => sp.relationshipScore >= 0 && sp.relationshipScore <= 100),
+  );
+  check(
+    "sponsorById resolves every contract",
+    a.commercial.contracts.every((c) => !!sponsorById(a, c.sponsorId)),
+  );
   const one = advanceWeek(fixture());
   check("advanceWeek keeps the commercial department intact", !!one.commercial?.sponsors.length);
 }

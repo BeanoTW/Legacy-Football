@@ -45,7 +45,11 @@ export function saveSizeBreakdown(state: GameState): {
   const drivers: SizeEntry[] = [
     { key: "matchRecords", bytes: bytesOf(state.matchRecords), rows: arr(state.matchRecords) },
     { key: "financeLedger", bytes: bytesOf(state.financeLedger), rows: arr(state.financeLedger) },
-    { key: "financeHistory", bytes: bytesOf(state.financeHistory), rows: arr(state.financeHistory) },
+    {
+      key: "financeHistory",
+      bytes: bytesOf(state.financeHistory),
+      rows: arr(state.financeHistory),
+    },
     { key: "inbox", bytes: bytesOf(state.inbox), rows: arr(state.inbox) },
     { key: "clubSnapshots", bytes: bytesOf(state.clubSnapshots), rows: arr(state.clubSnapshots) },
     { key: "seasonHistory", bytes: bytesOf(state.seasonHistory), rows: arr(state.seasonHistory) },
@@ -67,8 +71,12 @@ export function formatBytes(n: number): string {
 /** Dev-only console signal. Silent in production builds. */
 export function warnOnSaveSize(bytes: number, log: (m: string) => void = console.warn): void {
   if (bytes >= SIZE_ERROR_BYTES) {
-    log(`[save-size] ${formatBytes(bytes)} — above the ${formatBytes(SIZE_ERROR_BYTES)} danger line.`);
+    log(
+      `[save-size] ${formatBytes(bytes)} — above the ${formatBytes(SIZE_ERROR_BYTES)} danger line.`,
+    );
   } else if (bytes >= SIZE_WARN_BYTES) {
-    log(`[save-size] ${formatBytes(bytes)} — above the ${formatBytes(SIZE_WARN_BYTES)} warning line.`);
+    log(
+      `[save-size] ${formatBytes(bytes)} — above the ${formatBytes(SIZE_WARN_BYTES)} warning line.`,
+    );
   }
 }

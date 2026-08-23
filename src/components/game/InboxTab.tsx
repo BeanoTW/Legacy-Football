@@ -4,8 +4,15 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
-  CATEGORY_META, DEPARTMENTS_ALL, PRIORITY_META, clearReadInbox, dismissInboxItem,
-  evaluateChoice, handleInboxChoice, markInboxRead, unreadCount,
+  CATEGORY_META,
+  DEPARTMENTS_ALL,
+  PRIORITY_META,
+  clearReadInbox,
+  dismissInboxItem,
+  evaluateChoice,
+  handleInboxChoice,
+  markInboxRead,
+  unreadCount,
 } from "@/lib/game/inbox";
 import { Section } from "./shared/primitives";
 
@@ -26,22 +33,26 @@ export function InboxTab({
   const items = useMemo(() => {
     // Newest first
     const all = [...state.inbox].sort(
-      (a, b) =>
-        b.season - a.season ||
-        b.week - a.week ||
-        b.id.localeCompare(a.id),
+      (a, b) => b.season - a.season || b.week - a.week || b.id.localeCompare(a.id),
     );
     return all.filter((i) => {
-      if (filter === "unread" && i.status !== "unread" && i.status !== "awaitingDecision") return false;
+      if (filter === "unread" && i.status !== "unread" && i.status !== "awaitingDecision")
+        return false;
       if (filter === "decisions" && i.status !== "awaitingDecision") return false;
-      if (filter === "archive" && i.status !== "completed" && i.status !== "expired" && i.status !== "read") return false;
+      if (
+        filter === "archive" &&
+        i.status !== "completed" &&
+        i.status !== "expired" &&
+        i.status !== "read"
+      )
+        return false;
       if (category !== "any" && i.category !== category) return false;
       if (department !== "any" && i.department !== department) return false;
       return true;
     });
   }, [state.inbox, filter, category, department]);
 
-  const open = openId ? state.inbox.find((i) => i.id === openId) ?? null : null;
+  const open = openId ? (state.inbox.find((i) => i.id === openId) ?? null) : null;
   const unread = unreadCount(state);
   const decisions = state.inbox.filter((i) => i.status === "awaitingDecision").length;
 
@@ -54,7 +65,9 @@ export function InboxTab({
           <span className="flex items-center gap-2 text-[10px]">
             <span className="rounded-full bg-rose-500 text-white px-2 py-0.5">{unread} unread</span>
             {decisions > 0 && (
-              <span className="rounded-full bg-amber-500 text-white px-2 py-0.5">{decisions} decision{decisions > 1 ? "s" : ""}</span>
+              <span className="rounded-full bg-amber-500 text-white px-2 py-0.5">
+                {decisions} decision{decisions > 1 ? "s" : ""}
+              </span>
             )}
           </span>
         }
@@ -72,7 +85,13 @@ export function InboxTab({
                   : "bg-card hover:bg-muted",
               )}
             >
-              {f === "all" ? "All" : f === "unread" ? "Unread" : f === "decisions" ? "Decisions" : "Archive"}
+              {f === "all"
+                ? "All"
+                : f === "unread"
+                  ? "Unread"
+                  : f === "decisions"
+                    ? "Decisions"
+                    : "Archive"}
             </button>
           ))}
           <select
@@ -82,7 +101,9 @@ export function InboxTab({
           >
             <option value="any">All categories</option>
             {(Object.keys(CATEGORY_META) as InboxCategory[]).map((c) => (
-              <option key={c} value={c}>{CATEGORY_META[c].label}</option>
+              <option key={c} value={c}>
+                {CATEGORY_META[c].label}
+              </option>
             ))}
           </select>
           <select
@@ -92,10 +113,14 @@ export function InboxTab({
           >
             <option value="any">All departments</option>
             {DEPARTMENTS_ALL.map((d) => (
-              <option key={d} value={d}>{d}</option>
+              <option key={d} value={d}>
+                {d}
+              </option>
             ))}
           </select>
-          {items.some((i) => i.status === "read" || i.status === "completed" || i.status === "expired") && (
+          {items.some(
+            (i) => i.status === "read" || i.status === "completed" || i.status === "expired",
+          ) && (
             <button
               onClick={() => update((s) => clearReadInbox(s))}
               className="ml-auto text-xs px-2.5 py-1 rounded-full border text-muted-foreground hover:text-foreground"
@@ -126,29 +151,45 @@ export function InboxTab({
                   <span
                     className={cn(
                       "mt-1 shrink-0 size-2 rounded-full",
-                      it.status === "unread" ? "bg-primary" :
-                      it.status === "awaitingDecision" ? "bg-amber-500" :
-                      it.status === "expired" ? "bg-rose-400" :
-                      "bg-transparent border border-muted-foreground/40",
+                      it.status === "unread"
+                        ? "bg-primary"
+                        : it.status === "awaitingDecision"
+                          ? "bg-amber-500"
+                          : it.status === "expired"
+                            ? "bg-rose-400"
+                            : "bg-transparent border border-muted-foreground/40",
                     )}
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-                      <span className={cn("rounded px-1.5 py-0.5 text-white text-[9px]", CATEGORY_META[it.category].color)}>
+                      <span
+                        className={cn(
+                          "rounded px-1.5 py-0.5 text-white text-[9px]",
+                          CATEGORY_META[it.category].color,
+                        )}
+                      >
                         {CATEGORY_META[it.category].label}
                       </span>
                       <span className="truncate">{it.department}</span>
-                      <span className="ml-auto shrink-0">S{it.season} · W{it.week}</span>
+                      <span className="ml-auto shrink-0">
+                        S{it.season} · W{it.week}
+                      </span>
                     </div>
-                    <div className={cn(
-                      "text-sm mt-0.5 truncate",
-                      (it.status === "unread" || it.status === "awaitingDecision") ? "font-medium" : "text-muted-foreground",
-                    )}>
+                    <div
+                      className={cn(
+                        "text-sm mt-0.5 truncate",
+                        it.status === "unread" || it.status === "awaitingDecision"
+                          ? "font-medium"
+                          : "text-muted-foreground",
+                      )}
+                    >
                       {it.subject}
                     </div>
                     <div className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5">
                       <span className="truncate">{it.sender}</span>
-                      <span className={PRIORITY_META[it.priority].className}>· {PRIORITY_META[it.priority].label}</span>
+                      <span className={PRIORITY_META[it.priority].className}>
+                        · {PRIORITY_META[it.priority].label}
+                      </span>
                       {it.expiresWeek != null && it.status === "awaitingDecision" && (
                         <span className="text-amber-600 ml-auto shrink-0">
                           Expires W{it.expiresWeek}
@@ -195,17 +236,28 @@ export function InboxDetail({
   onChoose: (choiceId: string) => void;
   onDismiss: () => void;
 }) {
-
   return (
-    <Sheet open onOpenChange={(v) => { if (!v) onClose(); }}>
+    <Sheet
+      open
+      onOpenChange={(v) => {
+        if (!v) onClose();
+      }}
+    >
       <SheetContent side="bottom" className="rounded-t-2xl max-h-[90vh] overflow-y-auto">
         <SheetHeader className="text-left">
           <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-            <span className={cn("rounded px-1.5 py-0.5 text-white text-[9px]", CATEGORY_META[item.category].color)}>
+            <span
+              className={cn(
+                "rounded px-1.5 py-0.5 text-white text-[9px]",
+                CATEGORY_META[item.category].color,
+              )}
+            >
               {CATEGORY_META[item.category].label}
             </span>
             <span>{item.department}</span>
-            <span className="ml-auto">S{item.season} · W{item.week}</span>
+            <span className="ml-auto">
+              S{item.season} · W{item.week}
+            </span>
           </div>
           <SheetTitle className="text-base leading-tight">{item.subject}</SheetTitle>
           <div className="text-xs text-muted-foreground">
@@ -213,18 +265,14 @@ export function InboxDetail({
             <span className={cn("ml-2", PRIORITY_META[item.priority].className)}>
               · {PRIORITY_META[item.priority].label} priority
             </span>
-            {item.status === "expired" && (
-              <span className="ml-2 text-rose-500">· Expired</span>
-            )}
+            {item.status === "expired" && <span className="ml-2 text-rose-500">· Expired</span>}
             {item.status === "completed" && (
               <span className="ml-2 text-emerald-600">· Completed</span>
             )}
           </div>
         </SheetHeader>
 
-        <div className="mt-4 text-sm whitespace-pre-wrap leading-relaxed">
-          {item.body}
-        </div>
+        <div className="mt-4 text-sm whitespace-pre-wrap leading-relaxed">{item.body}</div>
 
         {item.choices && item.choices.length > 0 && (
           <div className="mt-5 space-y-2">
@@ -267,7 +315,6 @@ export function InboxDetail({
                     </button>
                   );
                 })}
-
               </>
             )}
           </div>
@@ -275,7 +322,9 @@ export function InboxDetail({
 
         {(!item.choices || item.status === "read" || item.status === "completed") && (
           <div className="mt-5 flex justify-end">
-            <Button variant="ghost" size="sm" onClick={onDismiss}>Close</Button>
+            <Button variant="ghost" size="sm" onClick={onDismiss}>
+              Close
+            </Button>
           </div>
         )}
       </SheetContent>

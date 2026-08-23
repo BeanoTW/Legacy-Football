@@ -86,8 +86,11 @@ const TIER_PROFILES: Record<number, LeagueEconomicProfile> = {
     ticketPriceReference: 38,
     wageMultiplier: 54,
     wageBands: {
-      fringe: [7_200, 18_000], rotation: [18_000, 42_000], firstTeam: [36_000, 78_000],
-      key: [66_000, 150_000], star: [120_000, 300_000],
+      fringe: [7_200, 18_000],
+      rotation: [18_000, 42_000],
+      firstTeam: [36_000, 78_000],
+      key: [66_000, 150_000],
+      star: [120_000, 300_000],
     },
     staffCostFactor: 6.5,
     matchdayCostFactor: 5.5,
@@ -95,8 +98,11 @@ const TIER_PROFILES: Record<number, LeagueEconomicProfile> = {
     expectedWageRevenueRatio: 0.7,
     transferMarketScale: 40,
     prize: {
-      basePayment: 22_000_000, positionStep: 2_400_000, championBonus: 8_000_000,
-      promotionBonus: 0, relegationCushion: 40_000_000,
+      basePayment: 22_000_000,
+      positionStep: 2_400_000,
+      championBonus: 8_000_000,
+      promotionBonus: 0,
+      relegationCushion: 40_000_000,
     },
   },
   0: {
@@ -109,8 +115,11 @@ const TIER_PROFILES: Record<number, LeagueEconomicProfile> = {
     ticketPriceReference: 26,
     wageMultiplier: 13,
     wageBands: {
-      fringe: [1_500, 3_600], rotation: [3_600, 8_400], firstTeam: [7_200, 15_600],
-      key: [13_200, 27_000], star: [24_000, 54_000],
+      fringe: [1_500, 3_600],
+      rotation: [3_600, 8_400],
+      firstTeam: [7_200, 15_600],
+      key: [13_200, 27_000],
+      star: [24_000, 54_000],
     },
     staffCostFactor: 2.4,
     matchdayCostFactor: 2.4,
@@ -118,8 +127,11 @@ const TIER_PROFILES: Record<number, LeagueEconomicProfile> = {
     expectedWageRevenueRatio: 0.85,
     transferMarketScale: 8,
     prize: {
-      basePayment: 2_400_000, positionStep: 180_000, championBonus: 1_200_000,
-      promotionBonus: 6_000_000, relegationCushion: 0,
+      basePayment: 2_400_000,
+      positionStep: 180_000,
+      championBonus: 1_200_000,
+      promotionBonus: 6_000_000,
+      relegationCushion: 0,
     },
   },
   1: {
@@ -132,8 +144,11 @@ const TIER_PROFILES: Record<number, LeagueEconomicProfile> = {
     ticketPriceReference: 20,
     wageMultiplier: 4.2,
     wageBands: {
-      fringe: [300, 850], rotation: [850, 1_800], firstTeam: [1_700, 3_600],
-      key: [3_300, 6_600], star: [6_000, 13_200],
+      fringe: [300, 850],
+      rotation: [850, 1_800],
+      firstTeam: [1_700, 3_600],
+      key: [3_300, 6_600],
+      star: [6_000, 13_200],
     },
     staffCostFactor: 1,
     matchdayCostFactor: 1,
@@ -141,8 +156,11 @@ const TIER_PROFILES: Record<number, LeagueEconomicProfile> = {
     expectedWageRevenueRatio: 0.6,
     transferMarketScale: 1,
     prize: {
-      basePayment: 420_000, positionStep: 26_000, championBonus: 300_000,
-      promotionBonus: 900_000, relegationCushion: 0,
+      basePayment: 420_000,
+      positionStep: 26_000,
+      championBonus: 300_000,
+      promotionBonus: 900_000,
+      relegationCushion: 0,
     },
   },
   2: {
@@ -155,8 +173,11 @@ const TIER_PROFILES: Record<number, LeagueEconomicProfile> = {
     ticketPriceReference: 18,
     wageMultiplier: 2.4,
     wageBands: {
-      fringe: [200, 500], rotation: [500, 1_000], firstTeam: [950, 1_900],
-      key: [1_800, 3_600], star: [3_300, 7_200],
+      fringe: [200, 500],
+      rotation: [500, 1_000],
+      firstTeam: [950, 1_900],
+      key: [1_800, 3_600],
+      star: [3_300, 7_200],
     },
     staffCostFactor: 0.65,
     matchdayCostFactor: 0.62,
@@ -164,8 +185,11 @@ const TIER_PROFILES: Record<number, LeagueEconomicProfile> = {
     expectedWageRevenueRatio: 0.55,
     transferMarketScale: 0.45,
     prize: {
-      basePayment: 260_000, positionStep: 15_000, championBonus: 200_000,
-      promotionBonus: 500_000, relegationCushion: 0,
+      basePayment: 260_000,
+      positionStep: 15_000,
+      championBonus: 200_000,
+      promotionBonus: 500_000,
+      relegationCushion: 0,
     },
   },
   3: {
@@ -178,8 +202,11 @@ const TIER_PROFILES: Record<number, LeagueEconomicProfile> = {
     ticketPriceReference: 14,
     wageMultiplier: 1.15,
     wageBands: {
-      fringe: [100, 250], rotation: [200, 500], firstTeam: [400, 900],
-      key: [850, 1_700], star: [1_500, 3_000],
+      fringe: [100, 250],
+      rotation: [200, 500],
+      firstTeam: [400, 900],
+      key: [850, 1_700],
+      star: [1_500, 3_000],
     },
     staffCostFactor: 0.35,
     matchdayCostFactor: 0.35,
@@ -187,13 +214,20 @@ const TIER_PROFILES: Record<number, LeagueEconomicProfile> = {
     expectedWageRevenueRatio: 0.5,
     transferMarketScale: 0.12,
     prize: {
-      basePayment: 90_000, positionStep: 5_000, championBonus: 70_000,
-      promotionBonus: 200_000, relegationCushion: 0,
+      basePayment: 90_000,
+      positionStep: 5_000,
+      championBonus: 70_000,
+      promotionBonus: 200_000,
+      relegationCushion: 0,
     },
   },
 };
 
-const scaleProfile = (p: LeagueEconomicProfile, tier: number, k: number): LeagueEconomicProfile => ({
+const scaleProfile = (
+  p: LeagueEconomicProfile,
+  tier: number,
+  k: number,
+): LeagueEconomicProfile => ({
   ...p,
   tier,
   label: `Tier ${tier}`,
@@ -225,7 +259,9 @@ export function profileForTier(tier: number): LeagueEconomicProfile {
   return scaleProfile(TIER_PROFILES[3], t, Math.pow(0.45, t - 3));
 }
 
-export const KNOWN_TIERS = Object.keys(TIER_PROFILES).map(Number).sort((a, b) => a - b);
+export const KNOWN_TIERS = Object.keys(TIER_PROFILES)
+  .map(Number)
+  .sort((a, b) => a - b);
 
 /* ---------------------------------------------------------------------
    Tier resolution from state
@@ -237,8 +273,9 @@ export function tierOfClub(s: GameState, clubId: string): number {
 }
 
 export function tierOfUser(s: GameState): number {
-  const l = (s.leagues ?? []).find((x) => x.id === s.playerLeagueId)
-    ?? (s.leagues ?? []).find((x) => x.clubIds?.includes(s.clubName));
+  const l =
+    (s.leagues ?? []).find((x) => x.id === s.playerLeagueId) ??
+    (s.leagues ?? []).find((x) => x.clubIds?.includes(s.clubName));
   return l?.tier ?? 1;
 }
 
@@ -272,16 +309,21 @@ export interface WageInputs {
  * Canonical £/week a player of a given ability commands at a given level.
  * Everything else in the game (renewals, transfers, AI clubs) routes here.
  */
-export function weeklyWageFor({ ability, tier, clubReputation = 50, age, potential }: WageInputs): number {
+export function weeklyWageFor({
+  ability,
+  tier,
+  clubReputation = 50,
+  age,
+  potential,
+}: WageInputs): number {
   const p = profileForTier(tier);
-  const size = 0.78 + clubSizeFactor(clubReputation) * 0.26;   // ~0.9 - 1.27
+  const size = 0.78 + clubSizeFactor(clubReputation) * 0.26; // ~0.9 - 1.27
   let w = abilityWageIndex(ability) * p.wageMultiplier * size;
 
   if (typeof age === "number") {
     // Peak-earning years pay most; teenagers and veterans cost less.
-    const ageFactor = age < 21 ? 0.6 + (age - 16) * 0.06
-      : age > 32 ? Math.max(0.6, 1 - (age - 32) * 0.08)
-        : 1;
+    const ageFactor =
+      age < 21 ? 0.6 + (age - 16) * 0.06 : age > 32 ? Math.max(0.6, 1 - (age - 32) * 0.08) : 1;
     w *= ageFactor;
   }
   if (typeof potential === "number" && potential > ability) {
@@ -358,13 +400,25 @@ export interface WageStructure {
 export function wageStructureFrom(weeklyWages: number[], tier: number): WageStructure {
   const w = [...weeklyWages].filter((x) => x > 0).sort((a, b) => b - a);
   const bands: WageStructure["bands"] = {
-    fringe: 0, rotation: 0, firstTeam: 0, key: 0, star: 0, aboveScale: 0,
+    fringe: 0,
+    rotation: 0,
+    firstTeam: 0,
+    key: 0,
+    star: 0,
+    aboveScale: 0,
   };
   for (const x of w) bands[wageBandOf(tier, x)]++;
   if (!w.length) {
     return {
-      count: 0, totalWeekly: 0, averageWeekly: 0, medianWeekly: 0, highestWeekly: 0,
-      lowestWeekly: 0, topFiveSharePct: 0, compression: 0, bands,
+      count: 0,
+      totalWeekly: 0,
+      averageWeekly: 0,
+      medianWeekly: 0,
+      highestWeekly: 0,
+      lowestWeekly: 0,
+      topFiveSharePct: 0,
+      compression: 0,
+      bands,
     };
   }
   const total = w.reduce((a, b) => a + b, 0);

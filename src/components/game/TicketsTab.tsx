@@ -73,9 +73,9 @@ export function TicketsTab({
           <>
             Fans compare each stand's price against a market reference of{" "}
             <strong>£{refPrice.toFixed(2)}</strong>, driven by your reputation (
-            {state.reputation.toFixed(0)}). Recommended prices per stand also factor in
-            that stand's condition. Push far above and demand collapses; push much further
-            and fan happiness — then reputation — start to slide.
+            {state.reputation.toFixed(0)}). Recommended prices per stand also factor in that stand's
+            condition. Push far above and demand collapses; push much further and fan happiness —
+            then reputation — start to slide.
           </>
         }
       >
@@ -84,8 +84,8 @@ export function TicketsTab({
             <div className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
               Market reference
               <InfoTip label="Market reference">
-                What fans consider a fair average price at your level. Grows with reputation
-                (base £15 + 0.4 × rep).
+                What fans consider a fair average price at your level. Grows with reputation (base
+                £15 + 0.4 × rep).
               </InfoTip>
             </div>
             <div className="font-display text-lg tnum">£{refPrice.toFixed(2)}</div>
@@ -102,9 +102,7 @@ export function TicketsTab({
           <div className="rounded-md border bg-background/40 p-2">
             <div className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
               Your average
-              <InfoTip label="Your average">
-                Capacity-weighted average of your four stands.
-              </InfoTip>
+              <InfoTip label="Your average">Capacity-weighted average of your four stands.</InfoTip>
             </div>
             <div
               className={cn(
@@ -165,9 +163,9 @@ export function TicketsTab({
                   <div className="font-display text-lg flex items-center gap-1">
                     {st.name}
                     <InfoTip label={st.name}>
-                      Recommended reflects the market reference adjusted for this stand's
-                      condition ({st.condition}%). Better stands can charge a small premium
-                      without upsetting fans.
+                      Recommended reflects the market reference adjusted for this stand's condition
+                      ({st.condition}%). Better stands can charge a small premium without upsetting
+                      fans.
                     </InfoTip>
                   </div>
                   <div className="text-xs text-muted-foreground tnum">
@@ -228,9 +226,7 @@ export function TicketsTab({
                   </div>
                   <div>
                     <div className="text-[10px] uppercase text-muted-foreground">Est. gate</div>
-                    <div className="text-[color:var(--color-income)]">
-                      {fmtMoneyExact(revenue)}
-                    </div>
+                    <div className="text-[color:var(--color-income)]">{fmtMoneyExact(revenue)}</div>
                   </div>
                 </div>
               </div>

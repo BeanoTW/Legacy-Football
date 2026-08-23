@@ -9,16 +9,18 @@ import type { GameState } from "../types";
 import { resolveRemainingSeason, syncTable, playerLeagueId } from "../league";
 import { makePyramidSchedule, applySeasonRollover, findLeague } from "../pyramid";
 import { runEndOfSeasonReview, rollBoardToNewSeason } from "../board";
-import {
-  awardPrizeMoney, closeSeasonFinance, openSeasonFinance,
-} from "../finance";
+import { awardPrizeMoney, closeSeasonFinance, openSeasonFinance } from "../finance";
 import { closeCommercialSeason } from "../commercial";
 import { closeRecruitmentSeason, rollRecruitmentToNewSeason } from "../recruitment";
 import { rollInfrastructureToNewSeason } from "../infrastructure";
 import { SEASON_END_WEEK } from "../calendar";
 import { ordinal } from "../format";
 import {
-  fixturesForClub, makeFixtures, makeLeagueRows, leagueTeams, userLeagueTeams,
+  fixturesForClub,
+  makeFixtures,
+  makeLeagueRows,
+  leagueTeams,
+  userLeagueTeams,
 } from "../schedule";
 
 /** Close the finished season and open the next one. Mutates the tick clone. */
@@ -35,15 +37,14 @@ export function tickSeasonRollover(s: GameState): void {
   const rollover = applySeasonRollover(s);
   // End of season: configuration-driven league prize money, awarded exactly
   // once (guarded by a ledger dedupe key, not by the calendar).
-  const sorted = [...s.league].sort((a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga));
+  const sorted = [...s.league].sort((a, b) => b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga));
   const pos = sorted.findIndex((r) => r.team === s.clubName) + 1;
   if (closingLeague && pos > 0) {
     const award = awardPrizeMoney(s, closingSeason, closingLeague, pos);
     if (award) {
       const row = s.ledger.find((l) => l.season === closingSeason && l.week === SEASON_END_WEEK);
       if (row) {
-        row.matchdayNote =
-          `SEASON END — Finished ${pos}${ordinal(pos)}. Prize £${award.total.toLocaleString()}`;
+        row.matchdayNote = `SEASON END — Finished ${pos}${ordinal(pos)}. Prize £${award.total.toLocaleString()}`;
       }
     }
   }
@@ -73,7 +74,8 @@ export function tickSeasonRollover(s: GameState): void {
   s.results = [];
   // Season-outcome mail (announcement only — no financial effects yet).
   for (const it of rollover.items) {
-    if (!s.inbox.some((x) => x.eventKey === it.eventKey)) s.inbox.push({ ...it, week: 1, season: s.season });
+    if (!s.inbox.some((x) => x.eventKey === it.eventKey))
+      s.inbox.push({ ...it, week: 1, season: s.season });
   }
   // Player ageing and revaluation happen in the canonical football world;
   // GameState.squad is re-projected from it.

@@ -74,21 +74,67 @@ export const CATEGORY_MIN_POWER: Record<SponsorshipCategory, number> = {
 };
 
 const INDUSTRIES: SponsorIndustry[] = [
-  "Banking", "Insurance", "Energy", "Telecoms", "Brewery", "Automotive",
-  "Retail", "Airline", "Technology", "Construction", "Food & Drink", "Logistics",
+  "Banking",
+  "Insurance",
+  "Energy",
+  "Telecoms",
+  "Brewery",
+  "Automotive",
+  "Retail",
+  "Airline",
+  "Technology",
+  "Construction",
+  "Food & Drink",
+  "Logistics",
 ];
 
 /* Company names are assembled from neutral word banks so no sponsor is ever
    hard-coded to a club. */
 const NAME_A = [
-  "North", "Vale", "Iron", "Crown", "Harbour", "Summit", "Orchard", "Granite",
-  "Silver", "Beacon", "Foundry", "Meridian", "Halcyon", "Pioneer", "Kestrel",
-  "Bramble", "Cinder", "Anchor", "Redwood", "Lantern", "Quarry", "Amber",
+  "North",
+  "Vale",
+  "Iron",
+  "Crown",
+  "Harbour",
+  "Summit",
+  "Orchard",
+  "Granite",
+  "Silver",
+  "Beacon",
+  "Foundry",
+  "Meridian",
+  "Halcyon",
+  "Pioneer",
+  "Kestrel",
+  "Bramble",
+  "Cinder",
+  "Anchor",
+  "Redwood",
+  "Lantern",
+  "Quarry",
+  "Amber",
 ];
 const NAME_B = [
-  "Mutual", "Union", "Group", "Holdings", "Partners", "Industries", "Works",
-  "Assurance", "Logistics", "Brewing", "Motors", "Telecom", "Energy", "Foods",
-  "Systems", "Bank", "Airways", "Build", "Retail", "Labs",
+  "Mutual",
+  "Union",
+  "Group",
+  "Holdings",
+  "Partners",
+  "Industries",
+  "Works",
+  "Assurance",
+  "Logistics",
+  "Brewing",
+  "Motors",
+  "Telecom",
+  "Energy",
+  "Foods",
+  "Systems",
+  "Bank",
+  "Airways",
+  "Build",
+  "Retail",
+  "Labs",
 ];
 const NAME_SUFFIX = ["", " plc", " Ltd", " Co.", " International", " & Sons"];
 
@@ -117,7 +163,8 @@ function makeSponsor(saveSeed: string, index: number): CommercialSponsor {
     `${NAME_B[rngInt(rng, 0, NAME_B.length - 1)]}` +
     `${NAME_SUFFIX[rngInt(rng, 0, NAME_SUFFIX.length - 1)]}`;
 
-  const scale: SponsorScale = reputation >= 70 ? "national" : reputation >= 45 ? "regional" : "local";
+  const scale: SponsorScale =
+    reputation >= 70 ? "national" : reputation >= 45 ? "regional" : "local";
   const preferredLeagueTier = reputation >= 62 ? 1 : 2;
   // Weekly spending ceiling scales with brand standing.
   const budget = int((900 + reputation * reputation * 4.2) * (0.85 + rng() * 0.4));
@@ -137,7 +184,10 @@ function makeSponsor(saveSeed: string, index: number): CommercialSponsor {
 }
 
 /** The full sponsor universe for a save. Pure function of the seed. */
-export function generateSponsorPool(saveSeed: string, count = SPONSOR_POOL_SIZE): CommercialSponsor[] {
+export function generateSponsorPool(
+  saveSeed: string,
+  count = SPONSOR_POOL_SIZE,
+): CommercialSponsor[] {
   const out: CommercialSponsor[] = [];
   for (let i = 0; i < count; i++) out.push(makeSponsor(saveSeed, i));
   // Stable ordering by id keeps iteration deterministic regardless of insert order.
@@ -145,8 +195,30 @@ export function generateSponsorPool(saveSeed: string, count = SPONSOR_POOL_SIZE)
 }
 
 function makeDirectorName(saveSeed: string): string {
-  const first = ["Alan", "Marie", "Derek", "Priya", "Colin", "Nadia", "Ruth", "Owen", "Sian", "Malcolm"];
-  const last = ["Fraser", "Okafor", "Whitlock", "Ahmed", "Lennox", "Baptiste", "Kerr", "Doyle", "Mercer", "Vance"];
+  const first = [
+    "Alan",
+    "Marie",
+    "Derek",
+    "Priya",
+    "Colin",
+    "Nadia",
+    "Ruth",
+    "Owen",
+    "Sian",
+    "Malcolm",
+  ];
+  const last = [
+    "Fraser",
+    "Okafor",
+    "Whitlock",
+    "Ahmed",
+    "Lennox",
+    "Baptiste",
+    "Kerr",
+    "Doyle",
+    "Mercer",
+    "Vance",
+  ];
   const rng = seededRng(saveSeed, "commercial-director");
   return `${first[rngInt(rng, 0, first.length - 1)]} ${last[rngInt(rng, 0, last.length - 1)]}`;
 }
@@ -187,7 +259,8 @@ export function ensureCommercial(s: GameState): void {
   if (!Array.isArray(c.offers)) c.offers = [];
   if (!Array.isArray(c.history)) c.history = [];
   if (!Array.isArray(c.seasonHistory)) c.seasonHistory = [];
-  if (typeof c.directorName !== "string") c.directorName = makeDirectorName(s.saveSeed ?? s.clubName);
+  if (typeof c.directorName !== "string")
+    c.directorName = makeDirectorName(s.saveSeed ?? s.clubName);
   if (typeof c.rating !== "number") c.rating = 50;
   if (typeof c.negotiation !== "number") c.negotiation = 50;
   if (typeof c.commercialReputation !== "number") {
@@ -215,8 +288,7 @@ export const activeContracts = (s: GameState): CommercialContract[] =>
 export const contractForCategory = (
   s: GameState,
   category: SponsorshipCategory,
-): CommercialContract | undefined =>
-  activeContracts(s).find((c) => c.category === category);
+): CommercialContract | undefined => activeContracts(s).find((c) => c.category === category);
 
 export const pendingOffers = (s: GameState): CommercialOffer[] =>
   (s.commercial?.offers ?? []).filter((o) => o.status === "pending");
@@ -227,7 +299,7 @@ export const commercialWeeklyIncome = (s: GameState): number =>
 /** Current league position of the user's club (1 = top). */
 export function leaguePosition(s: GameState): number {
   const sorted = [...(s.league ?? [])].sort(
-    (a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga) || b.gf - a.gf,
+    (a, b) => b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga) || b.gf - a.gf,
   );
   const i = sorted.findIndex((r) => r.team === s.clubName);
   return i >= 0 ? i + 1 : sorted.length || 20;
@@ -246,8 +318,10 @@ export function commercialPower(s: GameState): number {
   const attendanceScore = clamp((attendance / capacity) * 100, 0, 100);
   const recent = (s.results ?? []).slice(-6);
   const form = recent.length
-    ? (recent.filter((r) => r.result === "W").length * 3 +
-       recent.filter((r) => r.result === "D").length) / (recent.length * 3) * 100
+    ? ((recent.filter((r) => r.result === "W").length * 3 +
+        recent.filter((r) => r.result === "D").length) /
+        (recent.length * 3)) *
+      100
     : 50;
   // Canonical infrastructure signal (shop, hospitality, offices, stands).
   // Additive and capped so facilities nudge commercial standing without
@@ -269,7 +343,9 @@ export function commercialIncomeForSeason(s: GameState, season = s.season): numb
   return int(
     archivedCommercialIncome(s, season) +
       (s.financeLedger ?? [])
-        .filter((e) => e.sourceSystem === "commercial" && e.direction === "income" && e.season === season)
+        .filter(
+          (e) => e.sourceSystem === "commercial" && e.direction === "income" && e.season === season,
+        )
         .reduce((a, e) => a + e.amount, 0),
   );
 }
@@ -306,7 +382,9 @@ export function commercialSnapshot(s: GameState): CommercialSnapshot {
     activePartners: live.length,
     openCategories: SPONSORSHIP_CATEGORIES.filter((c) => !live.some((x) => x.category === c)),
     pendingOffers: pendingOffers(s).length,
-    nextRenewal: next ? { contract: next, weeksLeft: Math.max(0, next.endAbsoluteWeek - nowAbs) } : null,
+    nextRenewal: next
+      ? { contract: next, weeksLeft: Math.max(0, next.endAbsoluteWeek - nowAbs) }
+      : null,
   };
 }
 
@@ -328,20 +406,39 @@ function objectiveFor(
   switch (kind) {
     case "topHalf":
       return {
-        id, kind, target: Math.floor(size / 2), bonus, status: "active",
+        id,
+        kind,
+        target: Math.floor(size / 2),
+        bonus,
+        status: "active",
         label: `Finish in the top half (${Math.floor(size / 2)} or better)`,
       };
     case "promotion":
-      return { id, kind, target: 2, bonus: int(bonus * 2), status: "active", label: "Win promotion" };
+      return {
+        id,
+        kind,
+        target: 2,
+        bonus: int(bonus * 2),
+        status: "active",
+        label: "Win promotion",
+      };
     case "avoidRelegation":
       return {
-        id, kind, target: Math.max(1, size - 3), bonus: int(bonus * 0.6), status: "active",
+        id,
+        kind,
+        target: Math.max(1, size - 3),
+        bonus: int(bonus * 0.6),
+        status: "active",
         label: `Avoid relegation (${Math.max(1, size - 3)} or better)`,
       };
     case "maintainAttendance": {
       const target = int(Math.max(500, currentAtt * 0.95));
       return {
-        id, kind, target, bonus: int(bonus * 0.7), status: "active",
+        id,
+        kind,
+        target,
+        bonus: int(bonus * 0.7),
+        status: "active",
         label: `Average home attendance of ${target.toLocaleString()}+`,
       };
     }
@@ -389,7 +486,9 @@ function buildObjectives(
   if (n === 0) return [];
   const tier = leagueTierOf(s);
   const pool: CommercialObjectiveKind[] =
-    tier > 1 ? ["promotion", "topHalf", "maintainAttendance"] : ["topHalf", "avoidRelegation", "maintainAttendance"];
+    tier > 1
+      ? ["promotion", "topHalf", "maintainAttendance"]
+      : ["topHalf", "avoidRelegation", "maintainAttendance"];
   const picked: CommercialObjectiveKind[] = [];
   for (let i = 0; i < n; i++) {
     const k = pool[rngInt(rng, 0, pool.length - 1)];
@@ -485,13 +584,16 @@ export function counterOfferInPlace(
     return { ok: true, result: "withdrawn", note };
   }
 
-
   const round = offer.negotiationRounds + 1;
   const rng = seededRng(ns.saveSeed, "commercial-counter", offer.id, counter, round);
   const skill = ns.commercial.negotiation / 100;
   const goodwill = sponsor.relationshipScore / 100;
   const patience = 1 - (sponsor.reputation / 100) * 0.35;
-  const successChance = clamp(0.18 + skill * 0.45 + goodwill * 0.2 + patience * 0.15 - (round - 1) * 0.18, 0.05, 0.9);
+  const successChance = clamp(
+    0.18 + skill * 0.45 + goodwill * 0.2 + patience * 0.15 - (round - 1) * 0.18,
+    0.05,
+    0.9,
+  );
   const roll = rng();
 
   offer.negotiationRounds = round;
@@ -502,10 +604,14 @@ export function counterOfferInPlace(
     if (counter === "payment") {
       const before = offer.weeklyPayment;
       const ceiling = int(sponsor.budget * CATEGORY_WEIGHT[offer.category]);
-      offer.weeklyPayment = Math.max(before, Math.min(ceiling, int((before * (1 + gain)) / 50) * 50));
-      note = offer.weeklyPayment > before
-        ? `${sponsor.companyName} improve the weekly fee to £${offer.weeklyPayment.toLocaleString()}.`
-        : `${sponsor.companyName} say the fee is already at the top of their budget.`;
+      offer.weeklyPayment = Math.max(
+        before,
+        Math.min(ceiling, int((before * (1 + gain)) / 50) * 50),
+      );
+      note =
+        offer.weeklyPayment > before
+          ? `${sponsor.companyName} improve the weekly fee to £${offer.weeklyPayment.toLocaleString()}.`
+          : `${sponsor.companyName} say the fee is already at the top of their budget.`;
       if (offer.weeklyPayment === before) {
         offer.outcomes.push({ round, counter, result: "held", note });
         return { ok: true, result: "held", note };
@@ -622,11 +728,14 @@ export function acceptOfferInPlace(s: GameState, offerId: string): CommercialAct
   // Signing a partner lifts commercial standing a little.
   s.commercial.commercialReputation = clamp(
     s.commercial.commercialReputation + Math.min(3, contract.weeklyPayment / 6000),
-    1, 100,
+    1,
+    100,
   );
 
   return {
-    state: s, ok: true, contractId: contract.id,
+    state: s,
+    ok: true,
+    contractId: contract.id,
     message: `${sponsor.companyName} signed as ${contract.category} partner.`,
   };
 }
@@ -647,7 +756,8 @@ export function rejectOfferInPlace(s: GameState, offerId: string): CommercialAct
   const sponsor = sponsorById(s, offer.sponsorId);
   if (sponsor) sponsor.relationshipScore = clamp(sponsor.relationshipScore - 6, 0, 100);
   return {
-    state: s, ok: true,
+    state: s,
+    ok: true,
     message: `${sponsor?.companyName ?? "The sponsor"}'s ${offer.category} offer was turned down.`,
   };
 }
@@ -724,11 +834,17 @@ export function closeContract(
 
   if (sponsor) {
     const swing =
-      outcome === "renewed" ? 8
-      : outcome === "terminated" ? -18
-      : contract.objectives.length === 0 ? 3
-      : metCount === contract.objectives.length ? 7
-      : metCount > 0 ? 1 : -7;
+      outcome === "renewed"
+        ? 8
+        : outcome === "terminated"
+          ? -18
+          : contract.objectives.length === 0
+            ? 3
+            : metCount === contract.objectives.length
+              ? 7
+              : metCount > 0
+                ? 1
+                : -7;
     sponsor.relationshipScore = clamp(sponsor.relationshipScore + swing, 0, 100);
   }
 
@@ -752,7 +868,8 @@ export function closeContract(
 
   s.commercial.commercialReputation = clamp(
     s.commercial.commercialReputation + (outcome === "renewed" ? 1 : metCount > 0 ? 0 : -1),
-    1, 100,
+    1,
+    100,
   );
 }
 
@@ -773,12 +890,13 @@ export function commercialReputationTarget(s: GameState): number {
   const solvency = clamp(((s.cash ?? 0) / 2_000_000) * 100, 0, 100);
   return clamp(
     (s.reputation ?? 50) * 0.24 +
-    exposure * 0.16 +
-    attendanceScore * 0.14 +
-    portfolio * 0.24 +
-    confidence * 0.12 +
-    solvency * 0.1,
-    1, 100,
+      exposure * 0.16 +
+      attendanceScore * 0.14 +
+      portfolio * 0.24 +
+      confidence * 0.12 +
+      solvency * 0.1,
+    1,
+    100,
   );
 }
 
@@ -834,7 +952,9 @@ export function runCommercialWeek(s: GameState): void {
     if (contract.status !== "Active") continue;
     if (nowAbs < contract.endAbsoluteWeek - contract.renewalWindowWeeks) continue;
     const already = c.offers.some(
-      (o) => o.renewalOfContractId === contract.id && (o.status === "pending" || o.status === "accepted"),
+      (o) =>
+        o.renewalOfContractId === contract.id &&
+        (o.status === "pending" || o.status === "accepted"),
     );
     if (already) continue;
     const sponsor = sponsorById(s, contract.sponsorId);

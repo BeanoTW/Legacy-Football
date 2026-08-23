@@ -28,7 +28,13 @@ export function createLegacyLocalSource(backend?: Backend | null): LegacySource 
   const b = backend ?? defaultBackend();
   return {
     readRaw: () => b?.getItem(STORAGE_KEY) ?? null,
-    archive: (raw) => { try { b?.setItem(MIGRATED_KEY, raw); } catch { /* archive is best-effort */ } },
+    archive: (raw) => {
+      try {
+        b?.setItem(MIGRATED_KEY, raw);
+      } catch {
+        /* archive is best-effort */
+      }
+    },
     remove: () => b?.removeItem(STORAGE_KEY),
     purge: () => {
       b?.removeItem(STORAGE_KEY);
@@ -66,7 +72,11 @@ export function createLocalSaveStore(deps: LocalStoreDeps): SaveStore {
     unreadable = true;
     try {
       backend?.setItem(BACKUP_KEY, raw);
-      return { level: "warn", code: "save/preserved", detail: `${reason}; original kept at ${BACKUP_KEY}` };
+      return {
+        level: "warn",
+        code: "save/preserved",
+        detail: `${reason}; original kept at ${BACKUP_KEY}`,
+      };
     } catch (e) {
       return { level: "warn", code: "save/preserve-failed", detail: (e as Error).message };
     }
@@ -81,11 +91,16 @@ export function createLocalSaveStore(deps: LocalStoreDeps): SaveStore {
       if (!raw) return { state: null, diagnostics: [] };
 
       const { parsed, diagnostics } = parseSave(raw);
-      if (!parsed) return { state: null, diagnostics: [...diagnostics, preserve(raw, "save could not be parsed")] };
+      if (!parsed)
+        return {
+          state: null,
+          diagnostics: [...diagnostics, preserve(raw, "save could not be parsed")],
+        };
 
-      const v = typeof parsed.version === "number" && Number.isFinite(parsed.version)
-        ? (parsed.version as number)
-        : 1;
+      const v =
+        typeof parsed.version === "number" && Number.isFinite(parsed.version)
+          ? (parsed.version as number)
+          : 1;
       // Refuse ONLY saves written by a future schema we cannot understand.
       if (v > deps.currentVersion) {
         return {
@@ -128,7 +143,8 @@ export function createLocalSaveStore(deps: LocalStoreDeps): SaveStore {
           {
             level: "error",
             code: "save/write-blocked",
-            detail: "an unreadable save is present; refusing to overwrite it until the slot is cleared",
+            detail:
+              "an unreadable save is present; refusing to overwrite it until the slot is cleared",
           },
         ];
       }

@@ -2,11 +2,20 @@ import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { ClubPrediction, GameState, LeagueRow } from "@/lib/game/types";
 import {
-  tableFor, leagueFixtures, historicalTable, completedSeasons, playerLeagueId,
+  tableFor,
+  leagueFixtures,
+  historicalTable,
+  completedSeasons,
+  playerLeagueId,
 } from "@/lib/game/league";
 import {
-  clubReputation, clubStrengthFor, clubPrediction, predictionFor,
-  EXPECTATION_LABEL, tierOfClub, finishIn,
+  clubReputation,
+  clubStrengthFor,
+  clubPrediction,
+  predictionFor,
+  EXPECTATION_LABEL,
+  tierOfClub,
+  finishIn,
 } from "@/lib/game/reputation";
 
 type View = "table" | "fixtures" | "predictions";
@@ -26,7 +35,7 @@ export function LeagueBrowser({ state }: { state: GameState }) {
   );
   const isPast = season !== state.season;
   const rows: LeagueRow[] = isPast
-    ? historicalTable(state, season, leagueId) ?? []
+    ? (historicalTable(state, season, leagueId) ?? [])
     : tableFor(state, leagueId);
   const fixtures = leagueFixtures(state, leagueId, season);
   const prediction = predictionFor(state, season, leagueId);
@@ -41,15 +50,27 @@ export function LeagueBrowser({ state }: { state: GameState }) {
           <Segmented
             options={leagues.map((l) => [l.id, l.name] as const)}
             value={leagueId}
-            onChange={(v) => { setLeagueId(v); setClub(null); }}
+            onChange={(v) => {
+              setLeagueId(v);
+              setClub(null);
+            }}
           />
           <Segmented
-            options={seasons.map((s) => [String(s), s === state.season ? `Season ${s} (live)` : `Season ${s}`] as const)}
+            options={seasons.map(
+              (s) =>
+                [String(s), s === state.season ? `Season ${s} (live)` : `Season ${s}`] as const,
+            )}
             value={String(season)}
             onChange={(v) => setSeason(Number(v))}
           />
           <Segmented
-            options={[["table", "Table"], ["fixtures", "Fixtures"], ["predictions", "Predictions"]] as const}
+            options={
+              [
+                ["table", "Table"],
+                ["fixtures", "Fixtures"],
+                ["predictions", "Predictions"],
+              ] as const
+            }
             value={view}
             onChange={(v) => setView(v as View)}
           />
@@ -62,9 +83,7 @@ export function LeagueBrowser({ state }: { state: GameState }) {
         </div>
       </div>
 
-      {view === "table" && (
-        <TableView state={state} rows={rows} season={season} onPick={setClub} />
-      )}
+      {view === "table" && <TableView state={state} rows={rows} season={season} onPick={setClub} />}
       {view === "fixtures" && <FixturesView fixtures={fixtures} userClub={state.clubName} />}
       {view === "predictions" && (
         <PredictionsView
@@ -82,7 +101,9 @@ export function LeagueBrowser({ state }: { state: GameState }) {
 }
 
 function Segmented<T extends string>({
-  options, value, onChange,
+  options,
+  value,
+  onChange,
 }: {
   options: readonly (readonly [T, string])[];
   value: string;
@@ -107,9 +128,15 @@ function Segmented<T extends string>({
 }
 
 function TableView({
-  state, rows, season, onPick,
+  state,
+  rows,
+  season,
+  onPick,
 }: {
-  state: GameState; rows: LeagueRow[]; season: number; onPick: (c: string) => void;
+  state: GameState;
+  rows: LeagueRow[];
+  season: number;
+  onPick: (c: string) => void;
 }) {
   if (rows.length === 0) {
     return <Empty>No table stored for this season yet.</Empty>;
@@ -159,11 +186,16 @@ function TableView({
 }
 
 function FixturesView({
-  fixtures, userClub,
+  fixtures,
+  userClub,
 }: {
-  fixtures: ReturnType<typeof leagueFixtures>; userClub: string;
+  fixtures: ReturnType<typeof leagueFixtures>;
+  userClub: string;
 }) {
-  const rounds = useMemo(() => [...new Set(fixtures.map((f) => f.round))].sort((a, b) => a - b), [fixtures]);
+  const rounds = useMemo(
+    () => [...new Set(fixtures.map((f) => f.round))].sort((a, b) => a - b),
+    [fixtures],
+  );
   const [round, setRound] = useState(() => {
     const next = fixtures.find((f) => !f.record);
     return next?.round ?? rounds[0] ?? 1;
@@ -214,7 +246,11 @@ function FixturesView({
 }
 
 function PredictionsView({
-  state, season, clubs, champion, onPick,
+  state,
+  season,
+  clubs,
+  champion,
+  onPick,
 }: {
   state: GameState;
   season: number;
@@ -252,7 +288,9 @@ function PredictionsView({
               <span className="text-right text-xs tnum text-muted-foreground">
                 <span className="block">Str {c.strength.toFixed(1)}</span>
                 <span className="block">
-                  {actual ? `Finished ${actual}` : `Rep ${clubReputation(state, c.club).toFixed(0)}`}
+                  {actual
+                    ? `Finished ${actual}`
+                    : `Rep ${clubReputation(state, c.club).toFixed(0)}`}
                 </span>
               </span>
             </button>
@@ -264,19 +302,30 @@ function PredictionsView({
 }
 
 function ClubCard({
-  state, club, season, onClose,
+  state,
+  club,
+  season,
+  onClose,
 }: {
-  state: GameState; club: string; season: number; onClose: () => void;
+  state: GameState;
+  club: string;
+  season: number;
+  onClose: () => void;
 }) {
   const pred = clubPrediction(state, club, season);
   const record = state.clubRecords?.[club];
   const history = (record?.leagueHistory ?? []).slice(-8).reverse();
-  const snaps = (state.clubSnapshots ?? []).filter((s) => s.club === club).slice(-8).reverse();
+  const snaps = (state.clubSnapshots ?? [])
+    .filter((s) => s.club === club)
+    .slice(-8)
+    .reverse();
   return (
     <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
       <div className="banner-strip px-3 py-2 text-xs flex items-center justify-between">
         <span>{club}</span>
-        <button onClick={onClose} className="opacity-80 hover:opacity-100">Close</button>
+        <button onClick={onClose} className="opacity-80 hover:opacity-100">
+          Close
+        </button>
       </div>
       <div className="p-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
         <Cell label="Reputation" value={clubReputation(state, club).toFixed(1)} />

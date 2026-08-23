@@ -18,10 +18,22 @@
 ========================================================================= */
 
 import type {
-  FootballPlayer, GameState, PlayerContract, PlayerContractRecord, Player,
-  Position, RecruitmentDepartment, RecruitmentSeasonSummary, RecruitmentState,
-  SquadRole, TransferNegotiation, TransferRecord, PreferredFoot,
-  PlayerPersonality, NegotiationLogEntry, SquadGroup,
+  FootballPlayer,
+  GameState,
+  PlayerContract,
+  PlayerContractRecord,
+  Player,
+  Position,
+  RecruitmentDepartment,
+  RecruitmentSeasonSummary,
+  RecruitmentState,
+  SquadRole,
+  TransferNegotiation,
+  TransferRecord,
+  PreferredFoot,
+  PlayerPersonality,
+  NegotiationLogEntry,
+  SquadGroup,
 } from "./types";
 import { hashString, seededRng, rngInt, rngRange } from "./rng";
 import { absoluteWeek, WEEKS_PER_SEASON } from "./time";
@@ -31,7 +43,11 @@ import { facilityModifiers } from "./infrastructure";
 import { buildWorldSimulationPlan } from "./world";
 import { ensureFringeWorldState } from "./fringe";
 import {
-  weeklyWageFor, profileForTier, tierOfClub, tierOfUser, sustainableWeeklyWageBill,
+  weeklyWageFor,
+  profileForTier,
+  tierOfClub,
+  tierOfUser,
+  sustainableWeeklyWageBill,
 } from "./economy";
 
 const int = (n: number) => Math.round(n) || 0;
@@ -40,7 +56,8 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 /* ---------- Constants ---------- */
 
 export const SQUAD_TEMPLATE: Record<Position, number> = { GK: 3, DEF: 8, MID: 7, FWD: 4 };
-export const SQUAD_SIZE = SQUAD_TEMPLATE.GK + SQUAD_TEMPLATE.DEF + SQUAD_TEMPLATE.MID + SQUAD_TEMPLATE.FWD;
+export const SQUAD_SIZE =
+  SQUAD_TEMPLATE.GK + SQUAD_TEMPLATE.DEF + SQUAD_TEMPLATE.MID + SQUAD_TEMPLATE.FWD;
 export const MIN_SQUAD_SIZE = 16;
 export const MAX_SQUAD_SIZE = 30;
 export const FREE_AGENT_POOL = 24;
@@ -62,35 +79,137 @@ export const BASE_YEAR = 2000;
 const SQUAD_ROLES: SquadRole[] = ["Key Player", "First Team", "Rotation", "Prospect"];
 const FOOT: PreferredFoot[] = ["Right", "Right", "Right", "Left", "Both"];
 const PERSONALITIES: PlayerPersonality[] = [
-  "Balanced", "Ambitious", "Loyal", "Professional", "Mercenary", "Temperamental",
+  "Balanced",
+  "Ambitious",
+  "Loyal",
+  "Professional",
+  "Mercenary",
+  "Temperamental",
 ];
 const NATIONS = [
-  "England", "Scotland", "Wales", "Ireland", "France", "Spain", "Portugal",
-  "Netherlands", "Belgium", "Germany", "Italy", "Denmark", "Norway", "Sweden",
-  "Poland", "Brazil", "Argentina", "Nigeria", "Ghana", "Senegal", "Japan", "USA",
+  "England",
+  "Scotland",
+  "Wales",
+  "Ireland",
+  "France",
+  "Spain",
+  "Portugal",
+  "Netherlands",
+  "Belgium",
+  "Germany",
+  "Italy",
+  "Denmark",
+  "Norway",
+  "Sweden",
+  "Poland",
+  "Brazil",
+  "Argentina",
+  "Nigeria",
+  "Ghana",
+  "Senegal",
+  "Japan",
+  "USA",
 ];
 const FIRST_NAMES = [
-  "Alfie", "Callum", "Declan", "Ethan", "Finlay", "George", "Harvey", "Isaac",
-  "Jacob", "Kieran", "Liam", "Mason", "Noah", "Oliver", "Patrick", "Reuben",
-  "Samuel", "Theo", "Vincent", "William", "Andres", "Bruno", "Diogo", "Emile",
-  "Fabio", "Gustav", "Hugo", "Ibrahim", "Joris", "Kasper", "Lars", "Matteo",
-  "Nikola", "Omar", "Pedro", "Rafael", "Stefan", "Tomas", "Viktor", "Yannick",
+  "Alfie",
+  "Callum",
+  "Declan",
+  "Ethan",
+  "Finlay",
+  "George",
+  "Harvey",
+  "Isaac",
+  "Jacob",
+  "Kieran",
+  "Liam",
+  "Mason",
+  "Noah",
+  "Oliver",
+  "Patrick",
+  "Reuben",
+  "Samuel",
+  "Theo",
+  "Vincent",
+  "William",
+  "Andres",
+  "Bruno",
+  "Diogo",
+  "Emile",
+  "Fabio",
+  "Gustav",
+  "Hugo",
+  "Ibrahim",
+  "Joris",
+  "Kasper",
+  "Lars",
+  "Matteo",
+  "Nikola",
+  "Omar",
+  "Pedro",
+  "Rafael",
+  "Stefan",
+  "Tomas",
+  "Viktor",
+  "Yannick",
 ];
 const LAST_NAMES = [
-  "Ainsworth", "Barlow", "Cartwright", "Dunne", "Eastwood", "Fenton", "Gallagher",
-  "Hollis", "Irvine", "Jarvis", "Kendall", "Lockhart", "Marsden", "Naylor",
-  "Ogden", "Pemberton", "Quigley", "Radcliffe", "Sutcliffe", "Thornton",
-  "Underwood", "Vickers", "Whitfield", "Yates", "Almeida", "Bergkamp", "Cardoso",
-  "De Vries", "Eriksen", "Ferrari", "Gundogan", "Haugen", "Ivanov", "Jansen",
-  "Kovac", "Lindqvist", "Moreno", "Nowak", "Oduya", "Petit", "Rossi", "Silva",
-  "Toure", "Vidal", "Weiss", "Zanetti",
+  "Ainsworth",
+  "Barlow",
+  "Cartwright",
+  "Dunne",
+  "Eastwood",
+  "Fenton",
+  "Gallagher",
+  "Hollis",
+  "Irvine",
+  "Jarvis",
+  "Kendall",
+  "Lockhart",
+  "Marsden",
+  "Naylor",
+  "Ogden",
+  "Pemberton",
+  "Quigley",
+  "Radcliffe",
+  "Sutcliffe",
+  "Thornton",
+  "Underwood",
+  "Vickers",
+  "Whitfield",
+  "Yates",
+  "Almeida",
+  "Bergkamp",
+  "Cardoso",
+  "De Vries",
+  "Eriksen",
+  "Ferrari",
+  "Gundogan",
+  "Haugen",
+  "Ivanov",
+  "Jansen",
+  "Kovac",
+  "Lindqvist",
+  "Moreno",
+  "Nowak",
+  "Oduya",
+  "Petit",
+  "Rossi",
+  "Silva",
+  "Toure",
+  "Vidal",
+  "Weiss",
+  "Zanetti",
 ];
 
 /* ---------- Small helpers ---------- */
 
 export const playerName = (p: FootballPlayer) => `${p.firstName} ${p.lastName}`;
 
-export const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+export const slug = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
 
 export function ageOf(p: FootballPlayer, season: number): number {
   return BASE_YEAR + season - 1 - p.dateOfBirth.year;
@@ -101,7 +220,13 @@ export function ageOf(p: FootballPlayer, season: number): number {
  * The real economics live in economy.ts: the level of football a club plays
  * at sets the scale, the club's own standing nudges it up or down.
  */
-export function wageForAbility(ability: number, clubRep = 55, tier = 1, age?: number, potential?: number): number {
+export function wageForAbility(
+  ability: number,
+  clubRep = 55,
+  tier = 1,
+  age?: number,
+  potential?: number,
+): number {
   return weeklyWageFor({ ability, tier, clubReputation: clubRep, age, potential });
 }
 
@@ -110,7 +235,7 @@ export function valueForPlayer(ability: number, potential: number, age: number, 
   const peak = clamp(1.25 - Math.abs(age - 25) * 0.045, 0.35, 1.25);
   const upside = 1 + Math.max(0, potential - ability) / 90;
   const scale = profileForTier(tier).transferMarketScale;
-  const raw = (ability ** 3) * 0.55 * peak * upside * scale;
+  const raw = ability ** 3 * 0.55 * peak * upside * scale;
   return Math.max(10_000, int(raw / 5_000) * 5_000);
 }
 
@@ -119,8 +244,13 @@ export function valueForPlayer(ability: number, potential: number, age: number, 
 ========================================================================= */
 
 function makePlayerFor(
-  saveSeed: string, clubId: string | null, index: number, tierRating: number, season: number,
-  tier = 1, clubRep = 50,
+  saveSeed: string,
+  clubId: string | null,
+  index: number,
+  tierRating: number,
+  season: number,
+  tier = 1,
+  clubRep = 50,
 ): FootballPlayer {
   const key = `${saveSeed}|player|${clubId ?? "free"}|${index}`;
   const rng = seededRng(key);
@@ -137,12 +267,18 @@ function makePlayerFor(
   const age = rngInt(rng, 17, 35);
   const potentialAbility = clamp(
     int(currentAbility + (age < 24 ? rngRange(rng, 2, 16) : rngRange(rng, -1, 4))),
-    currentAbility, 96,
+    currentAbility,
+    96,
   );
   const reputation = clamp(int(currentAbility * 0.85 + rngRange(rng, -6, 8)), 5, 98);
-  const secondary: Position[] = rng() > 0.65
-    ? [(["GK", "DEF", "MID", "FWD"] as Position[]).filter((p) => p !== primaryPosition)[rngInt(rng, 0, 2)]]
-    : [];
+  const secondary: Position[] =
+    rng() > 0.65
+      ? [
+          (["GK", "DEF", "MID", "FWD"] as Position[]).filter((p) => p !== primaryPosition)[
+            rngInt(rng, 0, 2)
+          ],
+        ]
+      : [];
 
   return {
     id,
@@ -179,7 +315,10 @@ function roleFor(indexInSquad: number): SquadRole {
 }
 
 /** Build detailed squads for the current Focus bubble plus a free-agent pool. */
-export function generateWorld(s: GameState): { players: FootballPlayer[]; contracts: PlayerContract[] } {
+export function generateWorld(s: GameState): {
+  players: FootballPlayer[];
+  contracts: PlayerContract[];
+} {
   const players: FootballPlayer[] = [];
   const contracts: PlayerContract[] = [];
   let contractSeq = 1;
@@ -202,7 +341,9 @@ export function generateWorld(s: GameState): { players: FootballPlayer[]; contra
     // so a fresh save never starts above its own board wage ceiling with no
     // room to sign anybody. Bounded so the curve stays authoritative.
     const rawBill = squad.reduce(
-      (a, p) => a + wageForAbility(p.currentAbility, rep, tier, ageOf(p, s.season), p.potentialAbility), 0,
+      (a, p) =>
+        a + wageForAbility(p.currentAbility, rep, tier, ageOf(p, s.season), p.potentialAbility),
+      0,
     );
     const targetBill = sustainableWeeklyWageBill(tier, rep) * PLAYER_WAGE_SHARE * OPENING_WAGE_LOAD;
     const wageScalar = rawBill > 0 ? clamp(targetBill / rawBill, 0.6, 1.5) : 1;
@@ -210,7 +351,13 @@ export function generateWorld(s: GameState): { players: FootballPlayer[]; contra
     squad.forEach((p, i) => {
       const rng = seededRng(`${s.saveSeed}|contract|${p.id}`);
       const seasons = rngInt(rng, 1, 4);
-      const base = wageForAbility(p.currentAbility, rep, tier, ageOf(p, s.season), p.potentialAbility);
+      const base = wageForAbility(
+        p.currentAbility,
+        rep,
+        tier,
+        ageOf(p, s.season),
+        p.potentialAbility,
+      );
       const contract: PlayerContract = {
         id: `PC-${String(contractSeq++).padStart(6, "0")}`,
         playerId: p.id,
@@ -230,7 +377,6 @@ export function generateWorld(s: GameState): { players: FootballPlayer[]; contra
       players.push(p);
     });
   }
-
 
   const freeAgentTier = Math.max(...(s.leagues ?? []).map((l) => l.tier ?? 1), 1);
   for (let i = 0; i < FREE_AGENT_POOL; i++) {
@@ -256,7 +402,6 @@ function defaultDepartment(s: GameState): RecruitmentDepartment {
   };
 }
 
-
 function hydrationContractId(s: GameState, clubId: string, playerId: string): string {
   return `PC-H-${(hashString(`${s.saveSeed}|hydrate|${clubId}|${playerId}`) >>> 0).toString(36)}`;
 }
@@ -279,7 +424,9 @@ export function reconcileRecruitmentFidelity(s: GameState): void {
   );
   if (removedPlayerIds.size) {
     s.football.players = s.football.players.filter((player) => !removedPlayerIds.has(player.id));
-    s.football.contracts = s.football.contracts.filter((contract) => !removedPlayerIds.has(contract.playerId));
+    s.football.contracts = s.football.contracts.filter(
+      (contract) => !removedPlayerIds.has(contract.playerId),
+    );
     s.football.negotiations = s.football.negotiations.filter(
       (negotiation) => !removedPlayerIds.has(negotiation.playerId),
     );
@@ -296,15 +443,20 @@ export function reconcileRecruitmentFidelity(s: GameState): void {
     const rep = clubReputation(s, club);
     const tier = tierOfClub(s, club);
     const tierRating = clamp(42 + rep * 0.42, 40, 88);
-    const squad = Array.from(
-      { length: SQUAD_SIZE },
-      (_, index) => makePlayerFor(s.saveSeed, club, index, tierRating, s.season, tier, rep),
+    const squad = Array.from({ length: SQUAD_SIZE }, (_, index) =>
+      makePlayerFor(s.saveSeed, club, index, tierRating, s.season, tier, rep),
     ).sort((a, b) => b.currentAbility - a.currentAbility || a.id.localeCompare(b.id));
 
     const rawBill = squad.reduce(
-      (sum, player) => sum + wageForAbility(
-        player.currentAbility, rep, tier, ageOf(player, s.season), player.potentialAbility,
-      ),
+      (sum, player) =>
+        sum +
+        wageForAbility(
+          player.currentAbility,
+          rep,
+          tier,
+          ageOf(player, s.season),
+          player.potentialAbility,
+        ),
       0,
     );
     const targetBill = sustainableWeeklyWageBill(tier, rep) * PLAYER_WAGE_SHARE * OPENING_WAGE_LOAD;
@@ -314,7 +466,11 @@ export function reconcileRecruitmentFidelity(s: GameState): void {
       if (s.football.players.some((existing) => existing.id === player.id)) return;
       const rng = seededRng(`${s.saveSeed}|contract|${player.id}`);
       const base = wageForAbility(
-        player.currentAbility, rep, tier, ageOf(player, s.season), player.potentialAbility,
+        player.currentAbility,
+        rep,
+        tier,
+        ageOf(player, s.season),
+        player.potentialAbility,
       );
       const contract: PlayerContract = {
         id: hydrationContractId(s, club, player.id),
@@ -377,8 +533,10 @@ export function ensureRecruitment(s: GameState): void {
 export const playerById = (s: GameState, id: string): FootballPlayer | undefined =>
   s.football?.players.find((p) => p.id === id);
 
-export const contractById = (s: GameState, id: string | null | undefined): PlayerContract | undefined =>
-  id ? s.football?.contracts.find((c) => c.id === id) : undefined;
+export const contractById = (
+  s: GameState,
+  id: string | null | undefined,
+): PlayerContract | undefined => (id ? s.football?.contracts.find((c) => c.id === id) : undefined);
 
 /** The one live contract for a player, if any. Never more than one. */
 export function activeContract(s: GameState, playerId: string): PlayerContract | undefined {
@@ -409,9 +567,10 @@ export function weeksLeftOnContract(s: GameState, c: PlayerContract): number {
 /** Squad groups. Reserve is a placeholder bucket for the future academy. */
 export function squadGroup(s: GameState, p: FootballPlayer): SquadGroup {
   const c = activeContract(s, p.id);
-  if (p.transferStatus === "listed" || p.transferStatus === "agreedTransfer") return "transferListed";
+  if (p.transferStatus === "listed" || p.transferStatus === "agreedTransfer")
+    return "transferListed";
   if (c && weeksLeftOnContract(s, c) <= RENEWAL_WINDOW_WEEKS) return "contractExpiring";
-  if (c && (c.squadRole === "Prospect")) return "reserve";
+  if (c && c.squadRole === "Prospect") return "reserve";
   return "firstTeam";
 }
 
@@ -438,9 +597,11 @@ export function syncLegacySquad(s: GameState): void {
 ========================================================================= */
 
 export function clubWageBill(s: GameState, club: string): number {
-  return int((s.football?.contracts ?? [])
-    .filter((c) => c.clubId === club && (c.status === "Active" || c.status === "Expiring"))
-    .reduce((a, c) => a + c.weeklyWage, 0));
+  return int(
+    (s.football?.contracts ?? [])
+      .filter((c) => c.clubId === club && (c.status === "Active" || c.status === "Expiring"))
+      .reduce((a, c) => a + c.weeklyWage, 0),
+  );
 }
 
 export const userWageBill = (s: GameState) => clubWageBill(s, s.clubName);
@@ -458,12 +619,19 @@ export function futureWageCommitments(s: GameState, seasons = 3): WageCommitment
   for (let i = 0; i < seasons; i++) {
     const season = s.season + i;
     const live = (s.football?.contracts ?? []).filter(
-      (c) => c.clubId === s.clubName &&
+      (c) =>
+        c.clubId === s.clubName &&
         (c.status === "Active" || c.status === "Expiring") &&
-        c.expirySeason >= season && c.startSeason <= season,
+        c.expirySeason >= season &&
+        c.startSeason <= season,
     );
     const weekly = int(live.reduce((a, c) => a + c.weeklyWage, 0));
-    out.push({ season, weeklyWage: weekly, annualised: weekly * WEEKS_PER_SEASON, players: live.length });
+    out.push({
+      season,
+      weeklyWage: weekly,
+      annualised: weekly * WEEKS_PER_SEASON,
+      players: live.length,
+    });
   }
   return out;
 }
@@ -476,15 +644,19 @@ export function futureWageCommitments(s: GameState, seasons = 3): WageCommitment
 ========================================================================= */
 
 export function transferSpendThisSeason(s: GameState): number {
-  return int((s.football?.transferHistory ?? [])
-    .filter((r) => r.season === s.season && r.toClubId === s.clubName)
-    .reduce((a, r) => a + r.fee + r.signingBonus, 0));
+  return int(
+    (s.football?.transferHistory ?? [])
+      .filter((r) => r.season === s.season && r.toClubId === s.clubName)
+      .reduce((a, r) => a + r.fee + r.signingBonus, 0),
+  );
 }
 
 export function transferIncomeThisSeason(s: GameState): number {
-  return int((s.football?.transferHistory ?? [])
-    .filter((r) => r.season === s.season && r.fromClubId === s.clubName)
-    .reduce((a, r) => a + r.fee, 0));
+  return int(
+    (s.football?.transferHistory ?? [])
+      .filter((r) => r.season === s.season && r.fromClubId === s.clubName)
+      .reduce((a, r) => a + r.fee, 0),
+  );
 }
 
 export const netSpendThisSeason = (s: GameState) =>
@@ -508,20 +680,38 @@ export function canAuthorisePurchase(s: GameState, cost: number): PurchaseAuthor
   const cashAvailable = int(s.cash);
   const c = int(cost);
   if (c > budgetRemaining) {
-    return { allowed: false, reason: "Exceeds the authorised transfer budget", cost: c, cashAvailable, budgetRemaining };
+    return {
+      allowed: false,
+      reason: "Exceeds the authorised transfer budget",
+      cost: c,
+      cashAvailable,
+      budgetRemaining,
+    };
   }
   if (c > cashAvailable) {
-    return { allowed: false, reason: "The club does not hold the cash — budget authority is not money", cost: c, cashAvailable, budgetRemaining };
+    return {
+      allowed: false,
+      reason: "The club does not hold the cash — budget authority is not money",
+      cost: c,
+      cashAvailable,
+      budgetRemaining,
+    };
   }
   return { allowed: true, reason: "Authorised", cost: c, cashAvailable, budgetRemaining };
 }
 
-export function canAuthoriseWage(s: GameState, weeklyWage: number): { allowed: boolean; reason: string } {
+export function canAuthoriseWage(
+  s: GameState,
+  weeklyWage: number,
+): { allowed: boolean; reason: string } {
   const cap = int(s.finance?.budgets?.wages ?? 0);
   if (cap <= 0) return { allowed: true, reason: "No wage ceiling set" };
   const projected = userWageBill(s) + int(weeklyWage);
   if (projected > cap) {
-    return { allowed: false, reason: `Wage bill would reach £${projected.toLocaleString()}/wk against a £${cap.toLocaleString()}/wk ceiling` };
+    return {
+      allowed: false,
+      reason: `Wage bill would reach £${projected.toLocaleString()}/wk against a £${cap.toLocaleString()}/wk ceiling`,
+    };
   }
   return { allowed: true, reason: "Within the wage ceiling" };
 }
@@ -545,13 +735,21 @@ export function askingPrice(s: GameState, p: FootballPlayer): number {
   if (!c) return 0; // free agent
   const weeksLeft = Math.max(0, weeksLeftOnContract(s, c));
   const contractFactor = clamp(0.45 + weeksLeft / (WEEKS_PER_SEASON * 3), 0.45, 1.35);
-  const importance = c.squadRole === "Key Player" ? 1.4
-    : c.squadRole === "First Team" ? 1.15
-    : c.squadRole === "Rotation" ? 0.95 : 0.8;
+  const importance =
+    c.squadRole === "Key Player"
+      ? 1.4
+      : c.squadRole === "First Team"
+        ? 1.15
+        : c.squadRole === "Rotation"
+          ? 0.95
+          : 0.8;
   const listed = p.transferStatus === "listed" ? 0.8 : 1;
   const sellerRep = p.currentClubId ? clubReputation(s, p.currentClubId) : 50;
   const ambition = 0.9 + sellerRep / 250;
-  return Math.max(20_000, int((p.marketValue * contractFactor * importance * listed * ambition) / 5_000) * 5_000);
+  return Math.max(
+    20_000,
+    int((p.marketValue * contractFactor * importance * listed * ambition) / 5_000) * 5_000,
+  );
 }
 
 /**
@@ -581,14 +779,20 @@ export function clubGrowthFactor(s: GameState): number {
   const then = snaps.length ? snaps[Math.max(0, snaps.length - 4)].reputation : now;
   const repTrend = clamp((now - then) / 100, -0.1, 0.15);
   // Recent success: a club winning things is a club players charge more to join.
-  const recent = history
-    .filter((h) => h.season >= s.season - 2 && h.champion === s.clubName).length;
+  const recent = history.filter(
+    (h) => h.season >= s.season - 2 && h.champion === s.clubName,
+  ).length;
   const factor = 1 + clamp(moves * 0.07, -0.14, 0.21) + repTrend + recent * 0.03;
   return Math.round(clamp(factor, 0.85, 1.35) * 1000) / 1000;
 }
 
-export function wageDemand(s: GameState, p: FootballPlayer, role: SquadRole = "First Team"): number {
-  const roleFactor = role === "Key Player" ? 1.15 : role === "First Team" ? 1 : role === "Rotation" ? 0.9 : 0.8;
+export function wageDemand(
+  s: GameState,
+  p: FootballPlayer,
+  role: SquadRole = "First Team",
+): number {
+  const roleFactor =
+    role === "Key Player" ? 1.15 : role === "First Team" ? 1 : role === "Rotation" ? 0.9 : 0.8;
   const ambitionGap = clamp(1 + (clubReputation(s, s.clubName) - p.reputation) / 240, 0.85, 1.2);
   const personality = p.personality === "Mercenary" ? 1.15 : p.personality === "Loyal" ? 0.92 : 1;
   // Canonical infrastructure signal: good training/medical/pitch facilities
@@ -596,7 +800,12 @@ export function wageDemand(s: GameState, p: FootballPlayer, role: SquadRole = "F
   const attraction = clamp(facilityModifiers(s).recruitmentAttraction, -15, 15);
   const facilityFactor = clamp(1 - attraction / 250, 0.94, 1.06);
   const growth = clubGrowthFactor(s);
-  return Math.max(250, int((p.wageExpectation * roleFactor * personality * facilityFactor * growth) / ambitionGap / 25) * 25);
+  return Math.max(
+    250,
+    int(
+      (p.wageExpectation * roleFactor * personality * facilityFactor * growth) / ambitionGap / 25,
+    ) * 25,
+  );
 }
 
 /**
@@ -618,14 +827,21 @@ export function availabilityReason(s: GameState, p: FootballPlayer): string | nu
   const squad = squadOf(s, club);
   const samePosition = squad.filter((x) => x.primaryPosition === p.primaryPosition);
   const rankInPosition = samePosition.findIndex((x) => x.id === p.id);
-  if (squad.length > SQUAD_SIZE && rankInPosition >= 2) return "Surplus to requirements in a crowded squad";
-  if (rankInPosition >= SQUAD_TEMPLATE[p.primaryPosition] - 1 && squad.length > MIN_SQUAD_SIZE + 2) {
+  if (squad.length > SQUAD_SIZE && rankInPosition >= 2)
+    return "Surplus to requirements in a crowded squad";
+  if (
+    rankInPosition >= SQUAD_TEMPLATE[p.primaryPosition] - 1 &&
+    squad.length > MIN_SQUAD_SIZE + 2
+  ) {
     return "Behind others in the pecking order";
   }
 
   const sellerRep = clubReputation(s, club);
   if (p.reputation > sellerRep + 18) return "Ambition outgrowing his club";
-  if (sellerRep < 35 && c.weeklyWage > wageForAbility(p.currentAbility, sellerRep, tierOfClub(s, club)) * 1.1) {
+  if (
+    sellerRep < 35 &&
+    c.weeklyWage > wageForAbility(p.currentAbility, sellerRep, tierOfClub(s, club)) * 1.1
+  ) {
     return "His club needs the wage off the books";
   }
   return null;
@@ -646,7 +862,10 @@ export function transferMarket(s: GameState): MarketEntry[] {
       reason,
     });
   }
-  return out.sort((a, b) => b.player.currentAbility - a.player.currentAbility || a.player.id.localeCompare(b.player.id));
+  return out.sort(
+    (a, b) =>
+      b.player.currentAbility - a.player.currentAbility || a.player.id.localeCompare(b.player.id),
+  );
 }
 
 /* =========================================================================
@@ -661,7 +880,11 @@ export interface NegotiationResult {
 
 const nowAbs = (s: GameState) => absoluteWeek(s.season, s.week);
 
-function log(n: TransferNegotiation, entry: Omit<NegotiationLogEntry, "absoluteWeek">, abs: number): void {
+function log(
+  n: TransferNegotiation,
+  entry: Omit<NegotiationLogEntry, "absoluteWeek">,
+  abs: number,
+): void {
   n.log.push({ ...entry, absoluteWeek: abs });
 }
 
@@ -685,7 +908,10 @@ function nextNegotiationId(s: GameState): string {
  * Mutates in place — callers own the clone.
  */
 export function openTransferNegotiationInPlace(
-  s: GameState, playerId: string, fee: number, role: SquadRole = "First Team",
+  s: GameState,
+  playerId: string,
+  fee: number,
+  role: SquadRole = "First Team",
 ): NegotiationResult {
   ensureRecruitment(s);
   const p = playerById(s, playerId);
@@ -694,8 +920,10 @@ export function openTransferNegotiationInPlace(
   if (openNegotiations(s).some((n) => n.playerId === playerId)) {
     return { ok: false, reason: "Talks for this player are already open" };
   }
-  if (!availabilityReason(s, p)) return { ok: false, reason: "His club will not entertain an approach" };
-  if (userSquad(s).length >= MAX_SQUAD_SIZE) return { ok: false, reason: "The squad is already full" };
+  if (!availabilityReason(s, p))
+    return { ok: false, reason: "His club will not entertain an approach" };
+  if (userSquad(s).length >= MAX_SQUAD_SIZE)
+    return { ok: false, reason: "The squad is already full" };
 
   const offerFee = p.currentClubId === null ? 0 : Math.max(0, int(fee));
   const auth = canAuthorisePurchase(s, offerFee);
@@ -721,11 +949,30 @@ export function openTransferNegotiationInPlace(
     expiresAtAbsoluteWeek: abs + NEGOTIATION_TTL_WEEKS,
     log: [],
   };
-  log(n, { round: 1, party: "club", action: "offer", note: `Offer of £${offerFee.toLocaleString()} tabled.` }, abs);
+  log(
+    n,
+    {
+      round: 1,
+      party: "club",
+      action: "offer",
+      note: `Offer of £${offerFee.toLocaleString()} tabled.`,
+    },
+    abs,
+  );
   s.football.negotiations.push(n);
 
   if (n.stage === "clubTalks") evaluateClubResponseInPlace(s, n);
-  else log(n, { round: 0, party: "player", action: "offer", note: "Free agent — straight to personal terms." }, abs);
+  else
+    log(
+      n,
+      {
+        round: 0,
+        party: "player",
+        action: "offer",
+        note: "Free agent — straight to personal terms.",
+      },
+      abs,
+    );
   return { ok: true, reason: "Offer submitted", negotiation: n };
 }
 
@@ -742,26 +989,58 @@ export function evaluateClubResponseInPlace(s: GameState, n: TransferNegotiation
   if (n.fee >= threshold) {
     n.stage = "playerTalks";
     n.playerRounds = 1;
-    log(n, { round: n.clubRounds, party: "club", action: "accept", note: `${n.fromClubId} accept £${n.fee.toLocaleString()}. Personal terms next.` }, abs);
+    log(
+      n,
+      {
+        round: n.clubRounds,
+        party: "club",
+        action: "accept",
+        note: `${n.fromClubId} accept £${n.fee.toLocaleString()}. Personal terms next.`,
+      },
+      abs,
+    );
     evaluatePlayerResponseInPlace(s, n);
     return;
   }
   if (n.clubRounds >= MAX_NEGOTIATION_ROUNDS || n.fee < threshold * 0.7) {
     n.stage = "rejected";
     n.resolvedAtAbsoluteWeek = abs;
-    log(n, { round: n.clubRounds, party: "club", action: "reject", note: `${n.fromClubId} reject the approach.` }, abs);
+    log(
+      n,
+      {
+        round: n.clubRounds,
+        party: "club",
+        action: "reject",
+        note: `${n.fromClubId} reject the approach.`,
+      },
+      abs,
+    );
     return;
   }
   n.clubCounterFee = Math.max(n.fee + 5_000, int(threshold / 5_000) * 5_000);
-  log(n, { round: n.clubRounds, party: "club", action: "counter", note: `${n.fromClubId} want £${n.clubCounterFee.toLocaleString()}.` }, abs);
+  log(
+    n,
+    {
+      round: n.clubRounds,
+      party: "club",
+      action: "counter",
+      note: `${n.fromClubId} want £${n.clubCounterFee.toLocaleString()}.`,
+    },
+    abs,
+  );
 }
 
 /** Improve the fee. Counts as a round; two rounds maximum. */
-export function counterClubOfferInPlace(s: GameState, negotiationId: string, fee?: number): NegotiationResult {
+export function counterClubOfferInPlace(
+  s: GameState,
+  negotiationId: string,
+  fee?: number,
+): NegotiationResult {
   const n = negotiationById(s, negotiationId);
   if (!n) return { ok: false, reason: "Unknown negotiation" };
   if (n.stage !== "clubTalks") return { ok: false, reason: "Club talks are closed" };
-  if (n.clubRounds >= MAX_NEGOTIATION_ROUNDS) return { ok: false, reason: "No negotiating rounds left" };
+  if (n.clubRounds >= MAX_NEGOTIATION_ROUNDS)
+    return { ok: false, reason: "No negotiating rounds left" };
   const newFee = int(fee ?? n.clubCounterFee ?? n.fee);
   if (newFee <= n.fee) return { ok: false, reason: "An improved offer must be higher" };
   const auth = canAuthorisePurchase(s, newFee);
@@ -770,7 +1049,16 @@ export function counterClubOfferInPlace(s: GameState, negotiationId: string, fee
   n.fee = newFee;
   n.proposedSigningBonus = int(newFee * 0.05);
   n.clubRounds += 1;
-  log(n, { round: n.clubRounds, party: "club", action: "offer", note: `Improved offer of £${newFee.toLocaleString()}.` }, nowAbs(s));
+  log(
+    n,
+    {
+      round: n.clubRounds,
+      party: "club",
+      action: "offer",
+      note: `Improved offer of £${newFee.toLocaleString()}.`,
+    },
+    nowAbs(s),
+  );
   evaluateClubResponseInPlace(s, n);
   return { ok: true, reason: "Improved offer submitted", negotiation: n };
 }
@@ -787,27 +1075,59 @@ export function evaluatePlayerResponseInPlace(s: GameState, n: TransferNegotiati
 
   if (n.proposedWeeklyWage >= threshold) {
     n.stage = "agreed";
-    log(n, { round: n.playerRounds, party: "player", action: "accept", note: `${playerName(p)} agrees personal terms at £${n.proposedWeeklyWage.toLocaleString()}/wk.` }, abs);
+    log(
+      n,
+      {
+        round: n.playerRounds,
+        party: "player",
+        action: "accept",
+        note: `${playerName(p)} agrees personal terms at £${n.proposedWeeklyWage.toLocaleString()}/wk.`,
+      },
+      abs,
+    );
     return;
   }
   if (n.playerRounds >= MAX_NEGOTIATION_ROUNDS || n.proposedWeeklyWage < threshold * 0.75) {
     n.stage = "rejected";
     n.resolvedAtAbsoluteWeek = abs;
-    log(n, { round: n.playerRounds, party: "player", action: "reject", note: `${playerName(p)} turns the club down.` }, abs);
+    log(
+      n,
+      {
+        round: n.playerRounds,
+        party: "player",
+        action: "reject",
+        note: `${playerName(p)} turns the club down.`,
+      },
+      abs,
+    );
     return;
   }
   n.playerCounterWage = int(threshold / 25) * 25;
-  log(n, { round: n.playerRounds, party: "player", action: "counter", note: `${playerName(p)} wants £${n.playerCounterWage.toLocaleString()}/wk.` }, abs);
+  log(
+    n,
+    {
+      round: n.playerRounds,
+      party: "player",
+      action: "counter",
+      note: `${playerName(p)} wants £${n.playerCounterWage.toLocaleString()}/wk.`,
+    },
+    abs,
+  );
 }
 
 /** Improve personal terms. Counts as a round; two rounds maximum. */
 export function improvePlayerTermsInPlace(
-  s: GameState, negotiationId: string, wage?: number, seasons?: number, role?: SquadRole,
+  s: GameState,
+  negotiationId: string,
+  wage?: number,
+  seasons?: number,
+  role?: SquadRole,
 ): NegotiationResult {
   const n = negotiationById(s, negotiationId);
   if (!n) return { ok: false, reason: "Unknown negotiation" };
   if (n.stage !== "playerTalks") return { ok: false, reason: "Personal terms are closed" };
-  if (n.playerRounds >= MAX_NEGOTIATION_ROUNDS) return { ok: false, reason: "No negotiating rounds left" };
+  if (n.playerRounds >= MAX_NEGOTIATION_ROUNDS)
+    return { ok: false, reason: "No negotiating rounds left" };
   const newWage = int(wage ?? n.playerCounterWage ?? n.proposedWeeklyWage);
   if (newWage <= n.proposedWeeklyWage && !seasons && !role) {
     return { ok: false, reason: "Improved terms must actually improve" };
@@ -819,7 +1139,16 @@ export function improvePlayerTermsInPlace(
   if (seasons) n.proposedLengthSeasons = clamp(int(seasons), 1, 5);
   if (role) n.proposedRole = role;
   n.playerRounds += 1;
-  log(n, { round: n.playerRounds, party: "club", action: "offer", note: `Terms improved to £${n.proposedWeeklyWage.toLocaleString()}/wk.` }, nowAbs(s));
+  log(
+    n,
+    {
+      round: n.playerRounds,
+      party: "club",
+      action: "offer",
+      note: `Terms improved to £${n.proposedWeeklyWage.toLocaleString()}/wk.`,
+    },
+    nowAbs(s),
+  );
   evaluatePlayerResponseInPlace(s, n);
   return { ok: true, reason: "Terms improved", negotiation: n };
 }
@@ -827,11 +1156,22 @@ export function improvePlayerTermsInPlace(
 export function withdrawNegotiationInPlace(s: GameState, negotiationId: string): NegotiationResult {
   const n = negotiationById(s, negotiationId);
   if (!n) return { ok: false, reason: "Unknown negotiation" };
-  if (n.stage === "completed") return { ok: false, reason: "The transfer has already gone through" };
-  if (n.stage === "withdrawn" || n.stage === "rejected") return { ok: false, reason: "Talks are already closed" };
+  if (n.stage === "completed")
+    return { ok: false, reason: "The transfer has already gone through" };
+  if (n.stage === "withdrawn" || n.stage === "rejected")
+    return { ok: false, reason: "Talks are already closed" };
   n.stage = "withdrawn";
   n.resolvedAtAbsoluteWeek = nowAbs(s);
-  log(n, { round: n.clubRounds, party: "club", action: "withdraw", note: "The club has withdrawn from talks." }, n.resolvedAtAbsoluteWeek);
+  log(
+    n,
+    {
+      round: n.clubRounds,
+      party: "club",
+      action: "withdraw",
+      note: "The club has withdrawn from talks.",
+    },
+    n.resolvedAtAbsoluteWeek,
+  );
   return { ok: true, reason: "Withdrawn" };
 }
 
@@ -839,7 +1179,10 @@ export function withdrawNegotiationInPlace(s: GameState, negotiationId: string):
 
 /** Respond to an incoming bid. Accepting moves straight to completion. */
 export function respondToIncomingOfferInPlace(
-  s: GameState, negotiationId: string, action: "accept" | "reject" | "counter", counterFee?: number,
+  s: GameState,
+  negotiationId: string,
+  action: "accept" | "reject" | "counter",
+  counterFee?: number,
 ): NegotiationResult {
   const n = negotiationById(s, negotiationId);
   if (!n) return { ok: false, reason: "Unknown negotiation" };
@@ -852,32 +1195,68 @@ export function respondToIncomingOfferInPlace(
   if (action === "reject") {
     n.stage = "rejected";
     n.resolvedAtAbsoluteWeek = abs;
-    log(n, { round: n.clubRounds, party: "club", action: "reject", note: "We turned the offer down." }, abs);
+    log(
+      n,
+      { round: n.clubRounds, party: "club", action: "reject", note: "We turned the offer down." },
+      abs,
+    );
     return { ok: true, reason: "Offer rejected" };
   }
   if (action === "counter") {
-    if (n.clubRounds >= MAX_NEGOTIATION_ROUNDS) return { ok: false, reason: "No negotiating rounds left" };
+    if (n.clubRounds >= MAX_NEGOTIATION_ROUNDS)
+      return { ok: false, reason: "No negotiating rounds left" };
     const ask = Math.max(int(counterFee ?? askingPrice(s, p) * 1.15), n.fee + 5_000);
     n.clubRounds += 1;
     n.clubCounterFee = ask;
-    log(n, { round: n.clubRounds, party: "club", action: "counter", note: `We want £${ask.toLocaleString()}.` }, abs);
+    log(
+      n,
+      {
+        round: n.clubRounds,
+        party: "club",
+        action: "counter",
+        note: `We want £${ask.toLocaleString()}.`,
+      },
+      abs,
+    );
     // Buying club's deterministic answer.
     const rng = seededRng(s.saveSeed, "aiBuyer", n.id, n.clubRounds);
     const ceiling = int(askingPrice(s, p) * rngRange(rng, 0.95, 1.3));
     if (ask <= ceiling) {
       n.fee = ask;
       n.stage = "agreed";
-      log(n, { round: n.clubRounds, party: "club", action: "accept", note: `${n.toClubId} meet our valuation.` }, abs);
+      log(
+        n,
+        {
+          round: n.clubRounds,
+          party: "club",
+          action: "accept",
+          note: `${n.toClubId} meet our valuation.`,
+        },
+        abs,
+      );
     } else {
       n.stage = "rejected";
       n.resolvedAtAbsoluteWeek = abs;
-      log(n, { round: n.clubRounds, party: "club", action: "reject", note: `${n.toClubId} walk away.` }, abs);
+      log(
+        n,
+        { round: n.clubRounds, party: "club", action: "reject", note: `${n.toClubId} walk away.` },
+        abs,
+      );
     }
     return { ok: true, reason: "Counter submitted" };
   }
 
   n.stage = "agreed";
-  log(n, { round: n.clubRounds, party: "club", action: "accept", note: `We accepted £${n.fee.toLocaleString()}.` }, abs);
+  log(
+    n,
+    {
+      round: n.clubRounds,
+      party: "club",
+      action: "accept",
+      note: `We accepted £${n.fee.toLocaleString()}.`,
+    },
+    abs,
+  );
   return { ok: true, reason: "Offer accepted" };
 }
 
@@ -898,7 +1277,10 @@ function newContractId(s: GameState): string {
 }
 
 function closeContract(
-  s: GameState, c: PlayerContract, outcome: PlayerContractRecord["outcome"], status: PlayerContract["status"],
+  s: GameState,
+  c: PlayerContract,
+  outcome: PlayerContractRecord["outcome"],
+  status: PlayerContract["status"],
 ): void {
   c.status = status;
   const p = playerById(s, c.playerId);
@@ -920,8 +1302,14 @@ function closeContract(
 }
 
 function issueContract(
-  s: GameState, playerId: string, clubId: string, wage: number, seasons: number,
-  role: SquadRole, signingBonus: number, fee: number,
+  s: GameState,
+  playerId: string,
+  clubId: string,
+  wage: number,
+  seasons: number,
+  role: SquadRole,
+  signingBonus: number,
+  fee: number,
 ): PlayerContract {
   const c: PlayerContract = {
     id: newContractId(s),
@@ -962,26 +1350,40 @@ export function completeTransferInPlace(s: GameState, negotiationId: string): Ne
 
     if (n.fee > 0 && n.fromClubId) {
       postEntry(s, {
-        category: "Transfers", subcategory: "Transfer fee",
+        category: "Transfers",
+        subcategory: "Transfer fee",
         description: `${playerName(p)} signed from ${n.fromClubId}`,
-        amount: n.fee, direction: "expense", sourceSystem: "transfers",
-        linkedEntityId: n.id, dedupeKey: `transfer:${n.id}:fee`,
+        amount: n.fee,
+        direction: "expense",
+        sourceSystem: "transfers",
+        linkedEntityId: n.id,
+        dedupeKey: `transfer:${n.id}:fee`,
       });
     }
     if (n.proposedSigningBonus > 0) {
       postEntry(s, {
-        category: "Transfers", subcategory: "Signing bonus",
+        category: "Transfers",
+        subcategory: "Signing bonus",
         description: `Signing bonus — ${playerName(p)}`,
-        amount: n.proposedSigningBonus, direction: "expense", sourceSystem: "transfers",
-        linkedEntityId: n.id, dedupeKey: `transfer:${n.id}:bonus`,
+        amount: n.proposedSigningBonus,
+        direction: "expense",
+        sourceSystem: "transfers",
+        linkedEntityId: n.id,
+        dedupeKey: `transfer:${n.id}:bonus`,
       });
     }
 
     const old = activeContract(s, p.id);
     if (old) closeContract(s, old, "transferred", "Expired");
     const fresh = issueContract(
-      s, p.id, s.clubName, n.proposedWeeklyWage, n.proposedLengthSeasons,
-      n.proposedRole, n.proposedSigningBonus, n.fee,
+      s,
+      p.id,
+      s.clubName,
+      n.proposedWeeklyWage,
+      n.proposedLengthSeasons,
+      n.proposedRole,
+      n.proposedSigningBonus,
+      n.fee,
     );
     p.currentClubId = s.clubName;
     p.contractId = fresh.id;
@@ -989,19 +1391,34 @@ export function completeTransferInPlace(s: GameState, negotiationId: string): Ne
   } else {
     if (n.fee > 0) {
       postEntry(s, {
-        category: "Transfers", subcategory: "Player sale",
+        category: "Transfers",
+        subcategory: "Player sale",
         description: `${playerName(p)} sold to ${n.toClubId}`,
-        amount: n.fee, direction: "income", sourceSystem: "transfers",
-        linkedEntityId: n.id, dedupeKey: `transfer:${n.id}:sale`,
+        amount: n.fee,
+        direction: "income",
+        sourceSystem: "transfers",
+        linkedEntityId: n.id,
+        dedupeKey: `transfer:${n.id}:sale`,
       });
     }
     const old = activeContract(s, p.id);
     if (old) closeContract(s, old, "transferred", "Expired");
     const buyerRep = clubReputation(s, n.toClubId);
     const fresh = issueContract(
-      s, p.id, n.toClubId,
-      wageForAbility(p.currentAbility, buyerRep, tierOfClub(s, n.toClubId), ageOf(p, s.season), p.potentialAbility),
-      3, "First Team", 0, n.fee,
+      s,
+      p.id,
+      n.toClubId,
+      wageForAbility(
+        p.currentAbility,
+        buyerRep,
+        tierOfClub(s, n.toClubId),
+        ageOf(p, s.season),
+        p.potentialAbility,
+      ),
+      3,
+      "First Team",
+      0,
+      n.fee,
     );
     p.currentClubId = n.toClubId;
     p.contractId = fresh.id;
@@ -1030,7 +1447,16 @@ export function completeTransferInPlace(s: GameState, negotiationId: string): Ne
   n.stage = "completed";
   n.completedTransferId = record.id;
   n.resolvedAtAbsoluteWeek = abs;
-  log(n, { round: n.clubRounds, party: "club", action: "complete", note: `Deal done: ${playerName(p)} to ${n.toClubId}.` }, abs);
+  log(
+    n,
+    {
+      round: n.clubRounds,
+      party: "club",
+      action: "complete",
+      note: `Deal done: ${playerName(p)} to ${n.toClubId}.`,
+    },
+    abs,
+  );
 
   syncLegacySquad(s);
   return { ok: true, reason: "Transfer completed", negotiation: n };
@@ -1069,7 +1495,9 @@ export function renewalTerms(s: GameState, playerId: string): RenewalTerms | nul
  * closed with a history record and exactly one contract stays active.
  */
 export function renewContractInPlace(
-  s: GameState, playerId: string, override?: Partial<RenewalTerms>,
+  s: GameState,
+  playerId: string,
+  override?: Partial<RenewalTerms>,
 ): NegotiationResult {
   const p = playerById(s, playerId);
   if (!p) return { ok: false, reason: "Unknown player" };
@@ -1083,7 +1511,10 @@ export function renewContractInPlace(
   const rng = seededRng(s.saveSeed, "renewalEval", p.id, s.season, old.id);
   const required = int(base.weeklyWage * (0.97 + rngRange(rng, -0.02, 0.06)));
   if (terms.weeklyWage < required) {
-    return { ok: false, reason: `${playerName(p)} wants at least £${required.toLocaleString()}/wk` };
+    return {
+      ok: false,
+      reason: `${playerName(p)} wants at least £${required.toLocaleString()}/wk`,
+    };
   }
   const wageAuth = canAuthoriseWage(s, terms.weeklyWage - old.weeklyWage);
   if (!wageAuth.allowed) return { ok: false, reason: wageAuth.reason };
@@ -1093,16 +1524,27 @@ export function renewContractInPlace(
 
   if (terms.signingBonus > 0) {
     postEntry(s, {
-      category: "Transfers", subcategory: "Signing bonus",
+      category: "Transfers",
+      subcategory: "Signing bonus",
       description: `Renewal bonus — ${playerName(p)}`,
-      amount: terms.signingBonus, direction: "expense", sourceSystem: "transfers",
-      linkedEntityId: old.id, dedupeKey: `renewal:${old.id}:s${s.season}:bonus`,
+      amount: terms.signingBonus,
+      direction: "expense",
+      sourceSystem: "transfers",
+      linkedEntityId: old.id,
+      dedupeKey: `renewal:${old.id}:s${s.season}:bonus`,
     });
   }
 
   closeContract(s, old, "renewed", "Expired");
   const fresh = issueContract(
-    s, p.id, s.clubName, terms.weeklyWage, terms.seasons, terms.role, terms.signingBonus, 0,
+    s,
+    p.id,
+    s.clubName,
+    terms.weeklyWage,
+    terms.seasons,
+    terms.role,
+    terms.signingBonus,
+    0,
   );
   p.contractId = fresh.id;
   p.transferStatus = "unlisted";
@@ -1123,10 +1565,14 @@ export function releasePlayerInPlace(s: GameState, playerId: string): Negotiatio
 
   if (compensation > 0) {
     postEntry(s, {
-      category: "Transfers", subcategory: "Compensation",
+      category: "Transfers",
+      subcategory: "Compensation",
       description: `Contract settlement — ${playerName(p)}`,
-      amount: compensation, direction: "expense", sourceSystem: "transfers",
-      linkedEntityId: c.id, dedupeKey: `release:${c.id}`,
+      amount: compensation,
+      direction: "expense",
+      sourceSystem: "transfers",
+      linkedEntityId: c.id,
+      dedupeKey: `release:${c.id}`,
     });
   }
   closeContract(s, c, "released", "Released");
@@ -1135,9 +1581,17 @@ export function releasePlayerInPlace(s: GameState, playerId: string): Negotiatio
   p.transferStatus = "listed";
   s.football.transferHistory.push({
     id: nextRecordId(s, "TR"),
-    playerId: p.id, playerName: playerName(p), position: p.primaryPosition,
-    fromClubId: s.clubName, toClubId: null, fee: 0, weeklyWage: 0,
-    signingBonus: 0, season: s.season, week: s.week, absoluteWeek: nowAbs(s),
+    playerId: p.id,
+    playerName: playerName(p),
+    position: p.primaryPosition,
+    fromClubId: s.clubName,
+    toClubId: null,
+    fee: 0,
+    weeklyWage: 0,
+    signingBonus: 0,
+    season: s.season,
+    week: s.week,
+    absoluteWeek: nowAbs(s),
     type: "release",
   });
   syncLegacySquad(s);
@@ -1145,7 +1599,9 @@ export function releasePlayerInPlace(s: GameState, playerId: string): Negotiatio
 }
 
 export function setTransferStatusInPlace(
-  s: GameState, playerId: string, status: FootballPlayer["transferStatus"],
+  s: GameState,
+  playerId: string,
+  status: FootballPlayer["transferStatus"],
 ): NegotiationResult {
   const p = playerById(s, playerId);
   if (!p) return { ok: false, reason: "Unknown player" };
@@ -1180,9 +1636,14 @@ function renewAiContract(s: GameState, c: PlayerContract, p: FootballPlayer): vo
   const age = ageOf(p, s.season);
   closeContract(s, c, "renewed", "Expired");
   const fresh = issueContract(
-    s, p.id, c.clubId,
+    s,
+    p.id,
+    c.clubId,
     wageForAbility(p.currentAbility, rep, tier, age, p.potentialAbility),
-    rngInt(rng, 1, 4), c.squadRole, 0, 0,
+    rngInt(rng, 1, 4),
+    c.squadRole,
+    0,
+    0,
   );
   p.currentClubId = c.clubId;
   p.contractId = fresh.id;
@@ -1207,12 +1668,17 @@ function processExpiries(s: GameState): void {
       c.status = "Expired";
       s.football.contractHistory.push({
         id: nextRecordId(s, "CR"),
-        contractId: c.id, playerId: c.playerId,
+        contractId: c.id,
+        playerId: c.playerId,
         playerName: p ? playerName(p) : c.playerId,
-        clubId: c.clubId, weeklyWage: c.weeklyWage,
-        startSeason: c.startSeason, endSeason: s.season,
+        clubId: c.clubId,
+        weeklyWage: c.weeklyWage,
+        startSeason: c.startSeason,
+        endSeason: s.season,
         seasons: Math.max(1, s.season - c.startSeason + 1),
-        outcome: "expired", season: s.season, week: s.week,
+        outcome: "expired",
+        season: s.season,
+        week: s.week,
       });
       if (p && p.contractId === c.id) {
         p.currentClubId = null;
@@ -1220,9 +1686,17 @@ function processExpiries(s: GameState): void {
         p.transferStatus = "listed";
         s.football.transferHistory.push({
           id: nextRecordId(s, "TR"),
-          playerId: p.id, playerName: playerName(p), position: p.primaryPosition,
-          fromClubId: c.clubId, toClubId: null, fee: 0, weeklyWage: 0,
-          signingBonus: 0, season: s.season, week: s.week, absoluteWeek: abs,
+          playerId: p.id,
+          playerName: playerName(p),
+          position: p.primaryPosition,
+          fromClubId: c.clubId,
+          toClubId: null,
+          fee: 0,
+          weeklyWage: 0,
+          signingBonus: 0,
+          season: s.season,
+          week: s.week,
+          absoluteWeek: abs,
           type: "contractExpiry",
         });
       }
@@ -1240,7 +1714,16 @@ function expireNegotiations(s: GameState): void {
     if (abs > n.expiresAtAbsoluteWeek) {
       n.stage = "withdrawn";
       n.resolvedAtAbsoluteWeek = abs;
-      log(n, { round: n.clubRounds, party: "club", action: "withdraw", note: "Talks lapsed without agreement." }, abs);
+      log(
+        n,
+        {
+          round: n.clubRounds,
+          party: "club",
+          action: "withdraw",
+          note: "Talks lapsed without agreement.",
+        },
+        abs,
+      );
     }
   }
 }
@@ -1260,12 +1743,13 @@ function generateIncomingOffers(s: GameState, windowOpen: boolean): void {
   if (!targets.length) return;
   const p = targets[rngInt(rng, 0, targets.length - 1)];
 
-  const rivals = buildWorldSimulationPlan(s).focusClubIds
-    .filter((c) => c !== s.clubName);
+  const rivals = buildWorldSimulationPlan(s).focusClubIds.filter((c) => c !== s.clubName);
   if (!rivals.length) return;
   // Clubs that can plausibly afford him show interest first.
   const suitors = rivals.filter((c) => clubReputation(s, c) >= p.reputation - 12);
-  const buyer = (suitors.length ? suitors : rivals)[rngInt(rng, 0, (suitors.length ? suitors : rivals).length - 1)];
+  const buyer = (suitors.length ? suitors : rivals)[
+    rngInt(rng, 0, (suitors.length ? suitors : rivals).length - 1)
+  ];
 
   const listedBoost = p.transferStatus === "listed" ? 1.0 : rngRange(rng, 0.72, 1.02);
   const fee = Math.max(20_000, int((askingPrice(s, p) * listedBoost) / 5_000) * 5_000);
@@ -1289,7 +1773,16 @@ function generateIncomingOffers(s: GameState, windowOpen: boolean): void {
     expiresAtAbsoluteWeek: abs + NEGOTIATION_TTL_WEEKS,
     log: [],
   };
-  log(n, { round: 1, party: "club", action: "offer", note: `${buyer} bid £${fee.toLocaleString()} for ${playerName(p)}.` }, abs);
+  log(
+    n,
+    {
+      round: 1,
+      party: "club",
+      action: "offer",
+      note: `${buyer} bid £${fee.toLocaleString()} for ${playerName(p)}.`,
+    },
+    abs,
+  );
   s.football.negotiations.push(n);
 }
 
@@ -1299,16 +1792,27 @@ function generateIncomingOffers(s: GameState, windowOpen: boolean): void {
  * history record are always written together, exactly once.
  */
 function registerFreeSigning(
-  s: GameState, pick: FootballPlayer, club: string, c: PlayerContract,
+  s: GameState,
+  pick: FootballPlayer,
+  club: string,
+  c: PlayerContract,
 ): void {
   pick.currentClubId = club;
   pick.contractId = c.id;
   pick.transferStatus = "unlisted";
   s.football.transferHistory.push({
     id: nextRecordId(s, "TR"),
-    playerId: pick.id, playerName: playerName(pick), position: pick.primaryPosition,
-    fromClubId: null, toClubId: club, fee: 0, weeklyWage: c.weeklyWage,
-    signingBonus: 0, season: s.season, week: s.week, absoluteWeek: nowAbs(s),
+    playerId: pick.id,
+    playerName: playerName(pick),
+    position: pick.primaryPosition,
+    fromClubId: null,
+    toClubId: club,
+    fee: 0,
+    weeklyWage: c.weeklyWage,
+    signingBonus: 0,
+    season: s.season,
+    week: s.week,
+    absoluteWeek: nowAbs(s),
     type: "freeTransfer",
   });
 }
@@ -1321,8 +1825,7 @@ function registerFreeSigning(
 function runAiRecruitment(s: GameState, windowOpen: boolean): void {
   if (!windowOpen) return;
   const rng = seededRng(s.saveSeed, "aiRecruit", s.season, s.week);
-  const clubs = buildWorldSimulationPlan(s).focusClubIds
-    .filter((c) => c !== s.clubName);
+  const clubs = buildWorldSimulationPlan(s).focusClubIds.filter((c) => c !== s.clubName);
 
   // Two clubs act each week, chosen deterministically by rotation.
   const start = (s.season * WEEKS_PER_SEASON + s.week) % Math.max(1, clubs.length);
@@ -1337,12 +1840,22 @@ function runAiRecruitment(s: GameState, windowOpen: boolean): void {
     if (!pool.length) continue;
     const pick = pool[Math.min(pool.length - 1, rngInt(rng, 0, 2))];
     const c = issueContract(
-      s, pick.id, club,
-      wageForAbility(pick.currentAbility, rep, tierOfClub(s, club), ageOf(pick, s.season), pick.potentialAbility),
-      rngInt(rng, 1, 3), "Rotation", 0, 0,
+      s,
+      pick.id,
+      club,
+      wageForAbility(
+        pick.currentAbility,
+        rep,
+        tierOfClub(s, club),
+        ageOf(pick, s.season),
+        pick.potentialAbility,
+      ),
+      rngInt(rng, 1, 3),
+      "Rotation",
+      0,
+      0,
     );
     registerFreeSigning(s, pick, club, c);
-
   }
 }
 
@@ -1362,15 +1875,14 @@ function coverSquadShortfall(s: GameState): void {
   for (let k = 0; k < needed; k++) {
     // Emergency cover is bought within the club's means, not on ambition:
     // the department signs the best player the wage structure can carry.
-    const ceiling = Math.max(
-      600,
-      sustainableWeeklyWageBill(tier, rep) - userWageBill(s),
-    );
+    const ceiling = Math.max(600, sustainableWeeklyWageBill(tier, rep) - userWageBill(s));
     const affordable = (p: FootballPlayer) =>
-      wageForAbility(p.currentAbility, rep, tier, ageOf(p, s.season), p.potentialAbility) <= ceiling;
+      wageForAbility(p.currentAbility, rep, tier, ageOf(p, s.season), p.potentialAbility) <=
+      ceiling;
     const all = freeAgents(s).filter((p) => p.reputation <= rep + 6);
     if (!all.length) return;
-    const within = all.filter(affordable)
+    const within = all
+      .filter(affordable)
       .sort((a, b) => b.currentAbility - a.currentAbility || a.id.localeCompare(b.id));
     const pool = within.length
       ? within
@@ -1378,12 +1890,16 @@ function coverSquadShortfall(s: GameState): void {
     const pick = pool[Math.min(pool.length - 1, rngInt(rng, 0, 2))];
     const age = ageOf(pick, s.season);
     const c = issueContract(
-      s, pick.id, s.clubName,
+      s,
+      pick.id,
+      s.clubName,
       wageForAbility(pick.currentAbility, rep, tier, age, pick.potentialAbility),
-      rngInt(rng, 1, 3), "Rotation", 0, 0,
+      rngInt(rng, 1, 3),
+      "Rotation",
+      0,
+      0,
     );
     registerFreeSigning(s, pick, s.clubName, c);
-
   }
 }
 
@@ -1398,10 +1914,7 @@ function replenishFreeAgents(s: GameState): void {
   const tier = Math.max(...(s.leagues ?? []).map((l) => l.tier ?? 1), 1);
   const seq = s.football.players.length;
   for (let i = 0; i < 12 - pool.length; i++) {
-    const p = makePlayerFor(
-      s.saveSeed, null, seq + i, 50,
-      s.season, tier, 45,
-    );
+    const p = makePlayerFor(s.saveSeed, null, seq + i, 50, s.season, tier, 45);
     p.id = `${p.id}-fa${s.season}-${s.week}-${i}`;
     p.contractId = null;
     p.transferStatus = "listed";
@@ -1422,13 +1935,18 @@ export function runRecruitmentWeek(s: GameState, windowOpen: boolean): void {
 }
 
 /** Season rollover: age the world, refresh values, write the season record. */
-export function closeRecruitmentSeason(s: GameState, season: number): RecruitmentSeasonSummary | null {
+export function closeRecruitmentSeason(
+  s: GameState,
+  season: number,
+): RecruitmentSeasonSummary | null {
   ensureRecruitment(s);
   if (s.football.seasonHistory.some((x) => x.season === season)) return null;
   const rows = s.football.transferHistory.filter((r) => r.season === season);
   const summary: RecruitmentSeasonSummary = {
     season,
-    spend: int(rows.filter((r) => r.toClubId === s.clubName).reduce((a, r) => a + r.fee + r.signingBonus, 0)),
+    spend: int(
+      rows.filter((r) => r.toClubId === s.clubName).reduce((a, r) => a + r.fee + r.signingBonus, 0),
+    ),
     income: int(rows.filter((r) => r.fromClubId === s.clubName).reduce((a, r) => a + r.fee, 0)),
     netSpend: 0,
     playersIn: rows.filter((r) => r.toClubId === s.clubName).length,
@@ -1448,7 +1966,11 @@ export function rollRecruitmentToNewSeason(s: GameState): void {
     const tier = p.currentClubId ? tierOfClub(s, p.currentClubId) : tierOfUser(s);
     p.marketValue = valueForPlayer(p.currentAbility, p.potentialAbility, age, tier);
     p.wageExpectation = wageForAbility(
-      p.currentAbility, p.currentClubId ? clubReputation(s, p.currentClubId) : 45, tier, age, p.potentialAbility,
+      p.currentAbility,
+      p.currentClubId ? clubReputation(s, p.currentClubId) : 45,
+      tier,
+      age,
+      p.potentialAbility,
     );
   }
   syncLegacySquad(s);
@@ -1519,14 +2041,16 @@ export function averageSquadAge(s: GameState): number {
 
 /** Count of players signed by the user's club this season. */
 export function incomingTransfersThisSeason(s: GameState): number {
-  return (s.football?.transferHistory ?? [])
-    .filter((r) => r.season === s.season && r.toClubId === s.clubName).length;
+  return (s.football?.transferHistory ?? []).filter(
+    (r) => r.season === s.season && r.toClubId === s.clubName,
+  ).length;
 }
 
 /** Count of contracts renewed at the user's club this season. */
 export function renewalsThisSeason(s: GameState): number {
-  return (s.football?.contractHistory ?? [])
-    .filter((r) => r.season === s.season && r.clubId === s.clubName && r.outcome === "renewed").length;
+  return (s.football?.contractHistory ?? []).filter(
+    (r) => r.season === s.season && r.clubId === s.clubName && r.outcome === "renewed",
+  ).length;
 }
 
 /** Persistent shortlist of player ids the chairman is watching. */
@@ -1550,31 +2074,49 @@ export function toggleShortlist(s: GameState, playerId: string): GameState {
 
 /* ---------- Cloning wrappers for UI callers ---------- */
 
-const cloned = (s: GameState, fn: (w: GameState) => unknown): { state: GameState; result: NegotiationResult } => {
+const cloned = (
+  s: GameState,
+  fn: (w: GameState) => unknown,
+): { state: GameState; result: NegotiationResult } => {
   const w = structuredClone(s);
   const result = fn(w) as NegotiationResult;
   syncLegacySquad(w);
   return { state: w, result };
 };
 
-export const submitTransferOffer = (s: GameState, playerId: string, fee: number, role?: SquadRole) =>
-  cloned(s, (w) => openTransferNegotiationInPlace(w, playerId, fee, role));
+export const submitTransferOffer = (
+  s: GameState,
+  playerId: string,
+  fee: number,
+  role?: SquadRole,
+) => cloned(s, (w) => openTransferNegotiationInPlace(w, playerId, fee, role));
 export const improveTransferOffer = (s: GameState, id: string, fee?: number) =>
   cloned(s, (w) => counterClubOfferInPlace(w, id, fee));
-export const improvePersonalTerms = (s: GameState, id: string, wage?: number, seasons?: number, role?: SquadRole) =>
-  cloned(s, (w) => improvePlayerTermsInPlace(w, id, wage, seasons, role));
+export const improvePersonalTerms = (
+  s: GameState,
+  id: string,
+  wage?: number,
+  seasons?: number,
+  role?: SquadRole,
+) => cloned(s, (w) => improvePlayerTermsInPlace(w, id, wage, seasons, role));
 export const withdrawFromTalks = (s: GameState, id: string) =>
   cloned(s, (w) => withdrawNegotiationInPlace(w, id));
 export const completeTransfer = (s: GameState, id: string) =>
   cloned(s, (w) => completeTransferInPlace(w, id));
 export const respondToIncomingOffer = (
-  s: GameState, id: string, action: "accept" | "reject" | "counter", fee?: number,
+  s: GameState,
+  id: string,
+  action: "accept" | "reject" | "counter",
+  fee?: number,
 ) => cloned(s, (w) => respondToIncomingOfferInPlace(w, id, action, fee));
 export const renewContract = (s: GameState, playerId: string, override?: Partial<RenewalTerms>) =>
   cloned(s, (w) => renewContractInPlace(w, playerId, override));
 export const releasePlayer = (s: GameState, playerId: string) =>
   cloned(s, (w) => releasePlayerInPlace(w, playerId));
-export const setTransferStatus = (s: GameState, playerId: string, status: FootballPlayer["transferStatus"]) =>
-  cloned(s, (w) => setTransferStatusInPlace(w, playerId, status));
+export const setTransferStatus = (
+  s: GameState,
+  playerId: string,
+  status: FootballPlayer["transferStatus"],
+) => cloned(s, (w) => setTransferStatusInPlace(w, playerId, status));
 
 export { SQUAD_ROLES };

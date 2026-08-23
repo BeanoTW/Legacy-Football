@@ -37,9 +37,7 @@ export function TopBar({
         <Trophy className="size-6 shrink-0" />
         <div className="flex-1 min-w-0">
           <h1 className="font-display text-xl leading-none truncate">{title}</h1>
-          {subtitle && (
-            <div className="text-xs opacity-80 mt-0.5 truncate">{subtitle}</div>
-          )}
+          {subtitle && <div className="text-xs opacity-80 mt-0.5 truncate">{subtitle}</div>}
         </div>
         {right}
       </div>
@@ -142,7 +140,8 @@ export function Stat({
 }
 
 export const ord = (n: number) => {
-  const s = ["th", "st", "nd", "rd"], v = n % 100;
+  const s = ["th", "st", "nd", "rd"],
+    v = n % 100;
   return s[(v - 20) % 10] || s[v] || s[0];
 };
 export const sum = (o: Record<string, number>) => Object.values(o).reduce((a, b) => a + b, 0);
@@ -184,7 +183,15 @@ export function initials(name: string) {
     .join("");
 }
 
-export function Info2({ label, value, tone }: { label: string; value: string; tone?: "bad" | "good" }) {
+export function Info2({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "bad" | "good";
+}) {
   return (
     <div>
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>

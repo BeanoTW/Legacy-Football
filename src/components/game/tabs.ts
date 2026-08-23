@@ -1,6 +1,17 @@
 import {
-  Briefcase, Building2, Calendar, CircleDollarSign, Gavel, Globe2, Handshake,
-  LineChart as LineIcon, Mail, Save, Ticket, Trophy, Users,
+  Briefcase,
+  Building2,
+  Calendar,
+  CircleDollarSign,
+  Gavel,
+  Globe2,
+  Handshake,
+  LineChart as LineIcon,
+  Mail,
+  Save,
+  Ticket,
+  Trophy,
+  Users,
 } from "lucide-react";
 
 export type Tab =

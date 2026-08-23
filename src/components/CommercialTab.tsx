@@ -187,7 +187,10 @@ function ContractCard({ state, contract }: { state: GameState; contract: Commerc
       </div>
       <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
         <div
-          className={cn("h-full", left <= contract.renewalWindowWeeks ? "bg-amber-500" : "bg-primary")}
+          className={cn(
+            "h-full",
+            left <= contract.renewalWindowWeeks ? "bg-amber-500" : "bg-primary",
+          )}
           style={{ width: `${total ? (elapsed / total) * 100 : 0}%` }}
         />
       </div>
@@ -226,18 +229,23 @@ function Vacancies({ state }: { state: GameState }) {
   return (
     <Panel title="Open categories">
       <p className="text-xs text-muted-foreground">
-        Offers arrive on their own — the department works the market each week and everything
-        lands in your inbox. Raising commercial power unlocks the bigger categories.
+        Offers arrive on their own — the department works the market each week and everything lands
+        in your inbox. Raising commercial power unlocks the bigger categories.
       </p>
       {open.length === 0 && (
-        <p className="text-sm text-muted-foreground">Every category is contracted. Excellent work.</p>
+        <p className="text-sm text-muted-foreground">
+          Every category is contracted. Excellent work.
+        </p>
       )}
       {open.map((cat) => {
         const min = CATEGORY_MIN_POWER[cat];
         const reachable = power >= min;
         const pool = reachable ? eligibleSponsors(state, cat).length : 0;
         return (
-          <div key={cat} className="rounded-lg border bg-background p-3 flex flex-wrap justify-between gap-2">
+          <div
+            key={cat}
+            className="rounded-lg border bg-background p-3 flex flex-wrap justify-between gap-2"
+          >
             <div>
               <div className="font-medium">{cat}</div>
               <div className="text-xs text-muted-foreground">
@@ -435,7 +443,8 @@ function History({ state }: { state: GameState }) {
               <div>
                 <div className="font-medium">{r.sponsorName}</div>
                 <div className="text-xs text-muted-foreground">
-                  {r.category} · s{r.startSeason}–s{r.endSeason} · {r.weeksActive} weeks · {r.outcome}
+                  {r.category} · s{r.startSeason}–s{r.endSeason} · {r.weeksActive} weeks ·{" "}
+                  {r.outcome}
                 </div>
               </div>
               <div className="text-right tnum">
