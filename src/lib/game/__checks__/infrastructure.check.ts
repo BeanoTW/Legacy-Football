@@ -637,10 +637,7 @@ console.log("\n[H] Cross-system modifiers");
   }
   const player = recGood.football.players.find((p) => p.currentClubId !== recGood.clubName)!;
   const dGood = wageDemand(recGood, player);
-  const dBad = wageDemand(
-    recBad,
-    recBad.football.players.find((p) => p.id === player.id)!,
-  );
+  const dBad = wageDemand(recBad, recBad.football.players.find((p) => p.id === player.id)!);
   check(
     "51. Recruitment reads recruitmentAttraction (better facilities, lower demand)",
     dGood < dBad,

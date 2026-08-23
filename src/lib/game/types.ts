@@ -41,7 +41,13 @@ export type InboxStatus = "unread" | "read" | "awaitingDecision" | "completed" |
 
 /** Ledger buckets an inbox cash effect may be booked against. */
 export type LedgerIncomeCategory =
-  "gate" | "tv" | "sponsor" | "merchandise" | "prize" | "transfers" | "other";
+  | "gate"
+  | "tv"
+  | "sponsor"
+  | "merchandise"
+  | "prize"
+  | "transfers"
+  | "other";
 export type LedgerExpenseCategory =
   | "playerWages"
   | "staffWages"
@@ -362,7 +368,12 @@ export interface SeasonHistoryEntry {
 
 /** Seasonal objective handed to a club, derived from predicted strength. */
 export type ExpectationLevel =
-  "winLeague" | "promotion" | "topHalf" | "midTable" | "avoidRelegation" | "survival";
+  | "winLeague"
+  | "promotion"
+  | "topHalf"
+  | "midTable"
+  | "avoidRelegation"
+  | "survival";
 
 /** One club's pre-season projection inside a division. */
 export interface ClubPrediction {
@@ -713,7 +724,10 @@ export interface SeasonFinancialSummary {
 }
 
 export type AffordabilityVerdict =
-  "affordable" | "affordableButRisky" | "requiresBoardApproval" | "unaffordable";
+  | "affordable"
+  | "affordableButRisky"
+  | "requiresBoardApproval"
+  | "unaffordable";
 
 export interface AffordabilityResult {
   verdict: AffordabilityVerdict;
@@ -805,7 +819,10 @@ export interface CommercialSponsor {
 }
 
 export type CommercialObjectiveKind =
-  "topHalf" | "promotion" | "avoidRelegation" | "maintainAttendance";
+  | "topHalf"
+  | "promotion"
+  | "avoidRelegation"
+  | "maintainAttendance";
 
 export interface CommercialObjective {
   id: string;
@@ -933,7 +950,12 @@ export interface CommercialDepartment {
 export type PreferredFoot = "Left" | "Right" | "Both";
 
 export type PlayerPersonality =
-  "Balanced" | "Ambitious" | "Loyal" | "Professional" | "Mercenary" | "Temperamental";
+  | "Balanced"
+  | "Ambitious"
+  | "Loyal"
+  | "Professional"
+  | "Mercenary"
+  | "Temperamental";
 
 export type PlayerTransferStatus = "unlisted" | "listed" | "wanted" | "agreedTransfer";
 
@@ -990,7 +1012,12 @@ export interface PlayerContract {
 }
 
 export type NegotiationStage =
-  "clubTalks" | "playerTalks" | "agreed" | "completed" | "rejected" | "withdrawn";
+  | "clubTalks"
+  | "playerTalks"
+  | "agreed"
+  | "completed"
+  | "rejected"
+  | "withdrawn";
 
 export type NegotiationParty = "club" | "player";
 
@@ -1136,7 +1163,12 @@ export type InfrastructureAssetType =
   | "fanZone";
 
 export type InfrastructureAssetStatus =
-  "operational" | "degraded" | "restricted" | "partiallyClosed" | "closed" | "underConstruction";
+  | "operational"
+  | "degraded"
+  | "restricted"
+  | "partiallyClosed"
+  | "closed"
+  | "underConstruction";
 
 export type MaintenancePolicy = "Minimal" | "Reduced" | "Standard" | "Preventative" | "Premium";
 
@@ -1195,7 +1227,12 @@ export type CapitalProjectType =
   | "facilityUpgrade";
 
 export type CapitalProjectStatus =
-  "proposed" | "approved" | "active" | "delayed" | "completed" | "cancelled";
+  | "proposed"
+  | "approved"
+  | "active"
+  | "delayed"
+  | "completed"
+  | "cancelled";
 
 export interface ProjectPayment {
   index: number;
@@ -1317,7 +1354,11 @@ export interface InfrastructureState {
 ========================================================================= */
 
 export type CommitmentCategory =
-  "football" | "infrastructure" | "commercial" | "supporters" | "financial";
+  | "football"
+  | "infrastructure"
+  | "commercial"
+  | "supporters"
+  | "financial";
 
 export type CommitmentStatus = "open" | "fulfilled" | "failed";
 
