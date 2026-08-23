@@ -44,7 +44,7 @@ function worldLeagueShell(def: WorldDivisionDefinition, clubIds: string[]): Leag
  * from the stable CLUBS pool in order. This gives the Focus/Fringe planner a
  * real outer world without making simulation fidelity itself tier-dependent.
  */
-export function makeWorldLeagues(clubName: string): League[] {
+export function makeExpandedLeagues(clubName: string): League[] {
   const requiredAiClubs = WORLD_DIVISIONS.length * WORLD_CLUBS_PER_DIVISION - 1;
   const pool = CLUBS.filter((club) => club !== clubName);
   if (pool.length < requiredAiClubs) {
@@ -62,3 +62,6 @@ export function makeWorldLeagues(clubName: string): League[] {
     return worldLeagueShell(def, clubIds);
   });
 }
+
+/** Backwards-compatible name for callers added during the world-builder phase. */
+export const makeWorldLeagues = makeExpandedLeagues;
