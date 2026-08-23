@@ -28,6 +28,8 @@ import { absoluteWeek, WEEKS_PER_SEASON } from "./time";
 import { postEntry } from "./finance";
 import { clubReputation } from "./reputation";
 import { facilityModifiers } from "./infrastructure";
+import { buildWorldSimulationPlan } from "./world";
+import { ensureFringeWorldState } from "./fringe";
 import {
   weeklyWageFor, profileForTier, tierOfClub, tierOfUser, sustainableWeeklyWageBill,
 } from "./economy";
@@ -176,13 +178,13 @@ function roleFor(indexInSquad: number): SquadRole {
   return "Prospect";
 }
 
-/** Build the entire world: every club's squad plus a free-agent pool. */
+/** Build detailed squads for the current Focus bubble plus a free-agent pool. */
 export function generateWorld(s: GameState): { players: FootballPlayer[]; contracts: PlayerContract[] } {
   const players: FootballPlayer[] = [];
   const contracts: PlayerContract[] = [];
   let contractSeq = 1;
 
-  const clubs = (s.leagues ?? []).flatMap((l) => l.clubIds).sort((a, b) => a.localeCompare(b));
+  const clubs = buildWorldSimulationPlan(s).focusClubIds;
 
   for (const club of clubs) {
     const rep = clubReputation(s, club);
@@ -254,6 +256,89 @@ function defaultDepartment(s: GameState): RecruitmentDepartment {
   };
 }
 
+
+function hydrationContractId(s: GameState, clubId: string, playerId: string): string {
+  return `PC-H-${(hashString(`${s.saveSeed}|hydrate|${clubId}|${playerId}`) >>> 0).toString(36)}`;
+}
+
+/**
+ * Moves the fidelity boundary without maintaining duplicate club state.
+ * A newly focused club is hydrated once; a club leaving Focus is reduced to
+ * its compact Fringe snapshot on the next recruitment reconciliation.
+ */
+export function reconcileRecruitmentFidelity(s: GameState): void {
+  if (!s.football) return;
+  const plan = buildWorldSimulationPlan(s);
+  const focus = new Set(plan.focusClubIds);
+  const fringe = new Set(plan.fringeClubIds);
+
+  const removedPlayerIds = new Set(
+    s.football.players
+      .filter((player) => player.currentClubId !== null && fringe.has(player.currentClubId))
+      .map((player) => player.id),
+  );
+  if (removedPlayerIds.size) {
+    s.football.players = s.football.players.filter((player) => !removedPlayerIds.has(player.id));
+    s.football.contracts = s.football.contracts.filter((contract) => !removedPlayerIds.has(contract.playerId));
+    s.football.negotiations = s.football.negotiations.filter(
+      (negotiation) => !removedPlayerIds.has(negotiation.playerId),
+    );
+  }
+
+  const detailedClubs = new Set(
+    s.football.players
+      .map((player) => player.currentClubId)
+      .filter((clubId): clubId is string => clubId !== null),
+  );
+
+  for (const club of plan.focusClubIds) {
+    if (detailedClubs.has(club)) continue;
+    const rep = clubReputation(s, club);
+    const tier = tierOfClub(s, club);
+    const tierRating = clamp(42 + rep * 0.42, 40, 88);
+    const squad = Array.from(
+      { length: SQUAD_SIZE },
+      (_, index) => makePlayerFor(s.saveSeed, club, index, tierRating, s.season, tier, rep),
+    ).sort((a, b) => b.currentAbility - a.currentAbility || a.id.localeCompare(b.id));
+
+    const rawBill = squad.reduce(
+      (sum, player) => sum + wageForAbility(
+        player.currentAbility, rep, tier, ageOf(player, s.season), player.potentialAbility,
+      ),
+      0,
+    );
+    const targetBill = sustainableWeeklyWageBill(tier, rep) * PLAYER_WAGE_SHARE * OPENING_WAGE_LOAD;
+    const wageScalar = rawBill > 0 ? clamp(targetBill / rawBill, 0.6, 1.5) : 1;
+
+    squad.forEach((player, index) => {
+      if (s.football.players.some((existing) => existing.id === player.id)) return;
+      const rng = seededRng(`${s.saveSeed}|contract|${player.id}`);
+      const base = wageForAbility(
+        player.currentAbility, rep, tier, ageOf(player, s.season), player.potentialAbility,
+      );
+      const contract: PlayerContract = {
+        id: hydrationContractId(s, club, player.id),
+        playerId: player.id,
+        clubId: club,
+        startSeason: s.season,
+        startWeek: s.week,
+        expirySeason: s.season + rngInt(rng, 1, 4) - 1,
+        expiryWeek: WEEKS_PER_SEASON,
+        weeklyWage: Math.max(200, int((base * wageScalar) / 25) * 25),
+        squadRole: roleFor(index),
+        signingBonus: 0,
+        agreedTransferFee: 0,
+        status: "Active",
+      };
+      player.contractId = contract.id;
+      s.football.players.push(player);
+      s.football.contracts.push(contract);
+    });
+  }
+
+  ensureFringeWorldState(s);
+}
+
 /** Idempotent. Builds the football world once, then leaves it alone. */
 export function ensureRecruitment(s: GameState): void {
   if (s.football && Array.isArray(s.football.players) && s.football.players.length > 0) {
@@ -262,6 +347,7 @@ export function ensureRecruitment(s: GameState): void {
     s.football.transferHistory ??= [];
     s.football.contractHistory ??= [];
     s.football.seasonHistory ??= [];
+    reconcileRecruitmentFidelity(s);
     syncLegacySquad(s);
     return;
   }
@@ -1174,10 +1260,8 @@ function generateIncomingOffers(s: GameState, windowOpen: boolean): void {
   if (!targets.length) return;
   const p = targets[rngInt(rng, 0, targets.length - 1)];
 
-  const rivals = (s.leagues ?? [])
-    .flatMap((l) => l.clubIds)
-    .filter((c) => c !== s.clubName)
-    .sort((a, b) => a.localeCompare(b));
+  const rivals = buildWorldSimulationPlan(s).focusClubIds
+    .filter((c) => c !== s.clubName);
   if (!rivals.length) return;
   // Clubs that can plausibly afford him show interest first.
   const suitors = rivals.filter((c) => clubReputation(s, c) >= p.reputation - 12);
@@ -1237,10 +1321,8 @@ function registerFreeSigning(
 function runAiRecruitment(s: GameState, windowOpen: boolean): void {
   if (!windowOpen) return;
   const rng = seededRng(s.saveSeed, "aiRecruit", s.season, s.week);
-  const clubs = (s.leagues ?? [])
-    .flatMap((l) => l.clubIds)
-    .filter((c) => c !== s.clubName)
-    .sort((a, b) => a.localeCompare(b));
+  const clubs = buildWorldSimulationPlan(s).focusClubIds
+    .filter((c) => c !== s.clubName);
 
   // Two clubs act each week, chosen deterministically by rotation.
   const start = (s.season * WEEKS_PER_SEASON + s.week) % Math.max(1, clubs.length);
