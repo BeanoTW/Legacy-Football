@@ -1,14 +1,18 @@
-# Welcome to your Lovable project
+# Football Finances Empire
+
+I wanna do a football chainan game focuses in finances. Nedd in depth features so you can see cash flows to make informed decision on things like ticket prices . Ube attached ro some photos for a rough layout idea and shows roughly how id like the gane to be
 
 This project was built with [Lovable](https://lovable.dev).
 
+**Live app**: https://kick-cash-crew.lovable.app
+
 ## Build with Lovable
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+Continue developing this project in the [Lovable editor](https://lovable.dev/projects/8354775c-7511-4989-b9ba-4d1fc5386b88).
 
 - **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+- **Stay in sync**: every change made in Lovable is committed straight to this repository.
+- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
 
 ## Development
 
@@ -20,10 +24,3 @@ cd <repository-name>
 npm i
 npm run dev
 ```
-
-## Built with
-
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
