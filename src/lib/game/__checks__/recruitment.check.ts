@@ -107,7 +107,7 @@ function agreedPurchase(
   s: GameState,
   opts: { requireSeller?: boolean } = {},
 ): TransferNegotiation | null {
-  const budget = Math.max((s.transferBudget ?? 0) * 0.5, 0);
+  const budget = Math.max(s.cash * 0.5, 0);
   const market = transferMarket(s)
     .filter((m) => m.askingPrice <= budget && m.askingPrice + m.wageDemand * 4 <= s.cash)
     .filter((m) => (opts.requireSeller ? m.clubId !== null : true));
@@ -462,7 +462,7 @@ console.log("\n[R5] Club negotiation");
   const mk = () => {
     const s = fixture("CLUBNEG");
     Object.assign(s, setTransferBudget(s, Math.min(20_000_000, Math.floor(s.cash))).state);
-    const t = transferMarket(s).find((m) => m.clubId && m.askingPrice > 100_000)!;
+    const t = transferMarket(s).find((m) => m.clubId)!;
     const r = openTransferNegotiationInPlace(s, t.player.id, Math.round(t.askingPrice * 0.8));
     return { s, n: r.negotiation!, t };
   };
@@ -653,12 +653,12 @@ console.log("\n[R7] Transfer completion");
         offer <= askingPrice(s, target.player) * 1.5,
     );
     check("52c. the buyer holds the cash", s.cash >= offer + target.wageDemand * 4);
-    check("52d. the transfer budget authorises the fee", canAuthorisePurchase(s, offer).allowed);
+    check("52d. available cash authorises the fee", canAuthorisePurchase(s, offer).allowed);
     check("52e. the wage demand is affordable", canAuthoriseWage(s, target.wageDemand).allowed);
   } else {
     check("52b. the offer is derived from canonical market value", false, "no target");
     check("52c. the buyer holds the cash", false, "no target");
-    check("52d. the transfer budget authorises the fee", false, "no target");
+    check("52d. available cash authorises the fee", false, "no target");
     check("52e. the wage demand is affordable", false, "no target");
   }
 
@@ -668,7 +668,6 @@ console.log("\n[R7] Transfer completion");
   } else {
     const beforeSave = reload(s);
     const cashBefore = s.cash;
-    const budgetBefore = s.transferBudget ?? 0;
     const historyBefore = s.football.transferHistory.length;
     const contractHistoryBefore = s.football.contractHistory.length;
     const r = completeTransferInPlace(s, n.id);
@@ -708,10 +707,7 @@ console.log("\n[R7] Transfer completion");
       bonuses.length === (n.proposedSigningBonus > 0 ? 1 : 0),
     );
     check("61. cash falls by fee + bonus", s.cash === cashBefore - n.fee - n.proposedSigningBonus);
-    check(
-      "62. budget authority is a separate pot from cash",
-      (s.transferBudget ?? 0) === budgetBefore,
-    );
+    check("62. the legacy transfer pot remains retired", (s.transferBudget ?? 0) === 0);
     check("62b. finance reconciles after the deal", reconciles(s));
     check(
       "63. a failed completion changes nothing",
@@ -917,15 +913,15 @@ console.log("\n[R9] Wages and finance");
     reconciles(buy) && reconciles(rel) && reconciles(season2),
   );
   check(
-    "88. transfer-budget conservation holds",
+    "88. transfer spending does not ring-fence cash",
     (() => {
       const g2 = fixture("BUDGET");
       const cash0 = g2.cash;
       const r = setTransferBudget(g2, 1_000_000);
       return (
         r.ok &&
-        r.state.transferBudget === 1_000_000 &&
-        r.state.cash === cash0 - 1_000_000 + (g2.transferBudget ?? 0) &&
+        r.state.transferBudget === 0 &&
+        r.state.cash === cash0 &&
         reconciles(r.state)
       );
     })(),
@@ -1207,8 +1203,8 @@ console.log("\n[R14] Migration");
     !("transferTargets" in m1) && !("incomingBids" in m1) && !("completedTransfers" in m1),
   );
   check(
-    "130. legacy transfer budgets remain conserved",
-    (m1.transferBudget ?? 0) === (src.transferBudget ?? 0) && m1.cash === src.cash,
+    "130. current saves keep the legacy transfer pot retired",
+    (m1.transferBudget ?? 0) === 0 && m1.cash === src.cash,
   );
   check(
     "131. the full older schema chain migrates",

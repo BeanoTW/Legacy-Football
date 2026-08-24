@@ -74,8 +74,8 @@ console.log("\n[1] Pyramid shape");
   );
   check("no club appears in two leagues", new Set(pyramidClubs(g)).size === pyramidClubs(g).length);
   check(
-    "user club is in Division One",
-    g.playerLeagueId === DIVISION_ONE && g.leagues[0].clubIds.includes(g.clubName),
+    "user club is in the bottom division",
+    g.playerLeagueId === g.leagues.at(-1)!.id && g.leagues.at(-1)!.clubIds.includes(g.clubName),
   );
   check(
     "tier 1 relegates 2, promotes 0",
@@ -125,7 +125,8 @@ console.log("\n[2] Every division generates a valid schedule");
 
 console.log("\n[3] Every division completes independently (player absent)");
 {
-  const t = playSeason(fresh());
+  const initial = fresh();
+  const t = playSeason(initial);
   for (const id of [DIVISION_ONE, DIVISION_TWO]) {
     const recs = t.matchRecords.filter((r) => r.season === 1 && r.league === id);
     check(`${id}: 380 season-1 records`, recs.length === 380, String(recs.length));
@@ -233,7 +234,10 @@ console.log("\n[4] Promotion and relegation are correct");
 
 console.log("\n[5] Player follows their club through the pyramid");
 {
-  const t = playSeason(fresh());
+  const initial = fresh();
+  const startingLeague = initial.leagues.find((league) => league.id === initial.playerLeagueId)!;
+  const promotionLeague = initial.leagues.find((league) => league.tier === startingLeague.tier - 1)!;
+  const t = playSeason(initial);
   const mine = t.leagues.find((l) => l.clubIds.includes(t.clubName))!;
   check("playerLeagueId matches the club's actual division", t.playerLeagueId === mine.id);
   check(
@@ -244,15 +248,15 @@ console.log("\n[5] Player follows their club through the pyramid");
     "user fixtures only involve their division opponents",
     t.fixtures.every((f) => mine.clubIds.includes(f.opponent)),
   );
-  const h1 = t.seasonHistory.find((h) => h.season === 1 && h.leagueId === DIVISION_ONE)!;
-  if (h1.relegated.includes(t.clubName)) {
-    check("relegated player moved to tier 2", t.playerLeagueId === DIVISION_TWO);
+  const h1 = t.seasonHistory.find((h) => h.season === 1 && h.leagueId === startingLeague.id)!;
+  if (h1.promoted.includes(t.clubName)) {
+    check("promoted player moved up one tier", t.playerLeagueId === promotionLeague.id);
     check(
-      "relegation inbox mail sent",
-      t.inbox.some((i) => i.eventKey.startsWith("club-relegated")),
+      "promotion inbox mail sent",
+      t.inbox.some((i) => i.eventKey.startsWith("club-promoted")),
     );
   } else {
-    check("surviving player stayed in tier 1", t.playerLeagueId === DIVISION_ONE);
+    check("non-promoted player stayed in the bottom tier", t.playerLeagueId === startingLeague.id);
     check(
       "champions mail exists for every division",
       t.inbox.filter((i) => i.eventKey.startsWith("league-champion")).length === t.leagues.length,

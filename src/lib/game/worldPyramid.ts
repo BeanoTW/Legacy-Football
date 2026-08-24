@@ -40,7 +40,7 @@ function worldLeagueShell(def: WorldDivisionDefinition, clubIds: string[]): Leag
 /**
  * Builds the complete persistent domestic world for a fresh save.
  *
- * The player's club occupies the first tier-1 slot. AI clubs are then consumed
+ * The player's club occupies the first bottom-tier slot. AI clubs are then consumed
  * from the stable CLUBS pool in order. This gives the Focus/Fringe planner a
  * real outer world without making simulation fidelity itself tier-dependent.
  */
@@ -54,11 +54,15 @@ export function makeExpandedLeagues(clubName: string): League[] {
   }
 
   let cursor = 0;
+  const startingTier = WORLD_DIVISIONS.length;
   return WORLD_DIVISIONS.map((def) => {
-    const slots = def.tier === 1 ? WORLD_CLUBS_PER_DIVISION - 1 : WORLD_CLUBS_PER_DIVISION;
+    const isStartingDivision = def.tier === startingTier;
+    const slots = isStartingDivision
+      ? WORLD_CLUBS_PER_DIVISION - 1
+      : WORLD_CLUBS_PER_DIVISION;
     const aiClubs = pool.slice(cursor, cursor + slots);
     cursor += slots;
-    const clubIds = def.tier === 1 ? [clubName, ...aiClubs] : aiClubs;
+    const clubIds = isStartingDivision ? [clubName, ...aiClubs] : aiClubs;
     return worldLeagueShell(def, clubIds);
   });
 }

@@ -10,7 +10,7 @@ import { ensureInfrastructure } from "./infrastructure";
 import { ensureSustainability } from "./sustainability";
 import { ensureCommercial } from "./commercial";
 import { initClubReputations, storePredictions } from "./reputation";
-import { makePyramidSchedule, makeClubRecords, DIVISION_ONE } from "./pyramid";
+import { makePyramidSchedule, makeClubRecords } from "./pyramid";
 import { makeExpandedLeagues } from "./worldPyramid";
 import { ensureFringeWorldState } from "./fringe";
 import { makeBoard, ensureBoard } from "./board";
@@ -26,7 +26,7 @@ import { fixturesForClub, makeLeagueRows } from "./schedule";
  * (src/lib/game/migrations) — no module holds per-version field knowledge
  * outside that registry.
  */
-export const SAVE_VERSION = 13;
+export const SAVE_VERSION = 14;
 
 export function newGame(clubName: string, managerName: string, seed?: string): GameState {
   // `seed` is optional: verification suites pass a fixed seed so the whole
@@ -55,8 +55,8 @@ export function newGame(clubName: string, managerName: string, seed?: string): G
 function _newGameSeed(clubName: string, managerName: string, seed?: string): GameState {
   const saveSeed = seed ?? `${clubName}|${managerName}|${Date.now().toString(36)}`;
 
-  // Sized for a Division One (League One analogue) club: a 12,000 ground and
-  // ticket prices around the £20 reference for the level.
+  // The chairman starts in the bottom modelled division. Existing saves keep
+  // their earned league position; this only affects newly created careers.
   const stands: Stand[] = [
     { key: "N", name: "North Stand", capacity: 3200, condition: 92, ticketPrice: 18 },
     { key: "E", name: "East Stand", capacity: 2600, condition: 88, ticketPrice: 21 },
@@ -64,6 +64,8 @@ function _newGameSeed(clubName: string, managerName: string, seed?: string): Gam
     { key: "W", name: "West Stand", capacity: 3000, condition: 94, ticketPrice: 26 },
   ];
   const leagues = makeExpandedLeagues(clubName);
+  const playerLeague = leagues.find((league) => league.clubIds.includes(clubName));
+  if (!playerLeague) throw new Error(`No starting division found for ${clubName}`);
   const leagueSchedule = makePyramidSchedule(leagues, `${saveSeed}|season1`);
   return {
     version: SAVE_VERSION,
@@ -73,8 +75,8 @@ function _newGameSeed(clubName: string, managerName: string, seed?: string): Gam
     season: 1,
     week: 1,
 
-    cash: 2_500_000,
-    reputation: 55,
+    cash: 3_000_000,
+    reputation: 30,
     fanHappiness: 70,
     stands,
     pitchCondition: 90,
@@ -92,7 +94,7 @@ function _newGameSeed(clubName: string, managerName: string, seed?: string): Gam
     ],
     fixtures: fixturesForClub(leagueSchedule, clubName),
     leagues,
-    playerLeagueId: DIVISION_ONE,
+    playerLeagueId: playerLeague.id,
     leagueSchedule,
     matchRecords: [],
     seasonHistory: [],
@@ -102,11 +104,11 @@ function _newGameSeed(clubName: string, managerName: string, seed?: string): Gam
     clubSnapshots: [],
     results: [],
     ledger: [],
-    league: makeLeagueRows(leagues[0].clubIds),
+    league: makeLeagueRows(playerLeague.clubIds),
     hiredStaff: [],
     staffCandidates: openingStaffPool(saveSeed),
     staffMarketRefreshedWeek: 1,
-    transferBudget: 500_000,
+    transferBudget: 0,
     wageBudgetWeekly: 5_000,
     liveMatch: null,
     inbox: [],

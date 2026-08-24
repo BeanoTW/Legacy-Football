@@ -29,7 +29,7 @@ import {
   weeksLeftOnContract,
   withdrawFromTalks,
 } from "@/lib/game/recruitment";
-import { fmtMoney, fmtMoneyExact, setTransferBudget } from "@/lib/game/engine";
+import { fmtMoney, fmtMoneyExact } from "@/lib/game/engine";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -85,9 +85,9 @@ export function RecruitmentTab({
           }
         />
         <Stat
-          label="Budget remaining"
-          value={fmtMoneyExact(snap.budgetRemaining)}
-          sub={`Net spend ${fmtMoney(snap.netSpend)}`}
+          label="Cash available"
+          value={fmtMoneyExact(state.cash)}
+          sub={`Net transfer spend ${fmtMoney(snap.netSpend)}`}
         />
         <Stat
           label="Contract security"
@@ -95,8 +95,6 @@ export function RecruitmentTab({
           sub={`${snap.expiringContracts} expiring`}
         />
       </div>
-
-      <BudgetPanel state={state} update={update} onNote={setNote} />
 
       <div className="flex flex-wrap gap-1">
         {(["squad", "market", "deals", "history"] as View[]).map((v) => (
@@ -138,53 +136,6 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="text-lg font-semibold tnum">{value}</div>
       {sub && <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>}
-    </div>
-  );
-}
-
-function BudgetPanel({
-  state,
-  update,
-  onNote,
-}: {
-  state: GameState;
-  update: (fn: (s: GameState) => GameState) => void;
-  onNote: (n: string) => void;
-}) {
-  const [input, setInput] = useState(String(state.transferBudget ?? 0));
-  return (
-    <div className="rounded-xl border bg-card p-4">
-      <div className="font-semibold">Transfer budget authority</div>
-      <p className="text-xs text-muted-foreground mt-0.5">
-        The budget authorises spending. A signing still needs real cash in the bank.
-      </p>
-      <div className="flex gap-2 mt-2">
-        <Input
-          value={input}
-          onChange={(e) => setInput(e.target.value.replace(/[^0-9]/g, ""))}
-          className="tnum"
-        />
-        <Button
-          variant="secondary"
-          onClick={() =>
-            update((s) => {
-              const r = setTransferBudget(s, Number(input) || 0);
-              onNote(r.ok ? "Budget updated." : (r.reason ?? "Could not set budget"));
-              return r.state;
-            })
-          }
-        >
-          Set
-        </Button>
-      </div>
-      <div className="text-xs text-muted-foreground mt-2 flex flex-wrap gap-x-4">
-        <span>
-          Authorised: <span className="tnum">{fmtMoneyExact(state.transferBudget ?? 0)}</span>
-        </span>
-        <span>
-          Cash: <span className="tnum">{fmtMoneyExact(state.cash)}</span>
-        </span>
-      </div>
     </div>
   );
 }

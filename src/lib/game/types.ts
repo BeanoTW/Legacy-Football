@@ -1416,7 +1416,7 @@ export type FringeWorldState = Record<string, FringeClubState>;
 
 export interface GameState {
   /** Save schema version. Bump + add a migration in loadGame when persisted shape changes. */
-  version: 13;
+  version: 14;
 
   /** Stable per-save seed. Used for deterministic inbox generation. */
   saveSeed: string;
@@ -1481,7 +1481,8 @@ export interface GameState {
   staffCandidates: Staff[];
   staffMarketRefreshedWeek: number;
 
-  // Transfers
+  // Transfers. transferBudget is retained as a zeroed legacy field so older
+  // saves and integrations remain readable; purchases use cash directly.
   transferBudget: number;
   wageBudgetWeekly: number;
 

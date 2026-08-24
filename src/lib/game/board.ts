@@ -446,7 +446,7 @@ export function makeObjectives(s: GameState, season: number, board: BoardState):
   );
 
   // Recruitment: measured from canonical football state, never the legacy squad.
-  const netSpendCap = Math.max(0, Math.round((s.transferBudget ?? 0) / 25_000) * 25_000);
+  const netSpendCap = Math.max(0, Math.round((s.cash * 0.4) / 25_000) * 25_000);
   const saleTarget = Math.round(Math.max(100_000, burn * 6) / 25_000) * 25_000;
   const ageNow = averageSquadAge(s);
   const ageTarget =
@@ -528,8 +528,8 @@ export function makeObjectives(s: GameState, season: number, board: BoardState):
     mk(
       "transferBudgetDiscipline",
       `Net transfer spend no higher than £${(netSpendCap / 1000).toFixed(0)}k`,
-      "Fees and signing bonuses paid, less fees received. The finance director treats the transfer budget " +
-        "as authority to spend, not a target to hit.",
+      "Fees and signing bonuses paid, less fees received. The finance director sets a sensible " +
+        "net-spend ceiling against the club's available cash.",
       netSpendCap,
       10,
     ),

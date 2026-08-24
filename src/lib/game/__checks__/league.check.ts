@@ -5,11 +5,10 @@ import {
   newGame,
   advanceWeek,
   makeLeagueSchedule,
-  leagueTeams,
   migrateSave,
   SAVE_VERSION,
 } from "../engine";
-import { DIVISION_ONE, DIVISION_TWO } from "../pyramid";
+import { DIVISION_ONE } from "../pyramid";
 import {
   buildTable,
   sortTable,
@@ -200,9 +199,11 @@ console.log("\n[4] Deterministic AI simulation");
 
 console.log("\n[5] Table is a pure projection of records");
 {
-  const t = playSeason(fresh());
-  const teams = leagueTeams(t.clubName);
-  const rebuilt = buildTable(teams, t.matchRecords, 1, DIVISION_ONE);
+  const initial = fresh();
+  const leagueId = initial.playerLeagueId;
+  const teams = initial.leagues.find((league) => league.id === leagueId)!.clubIds;
+  const t = playSeason(initial);
+  const rebuilt = buildTable(teams, t.matchRecords, 1, leagueId);
   const stored = t.season === 1 ? t.league : rebuilt;
   check(
     "stored table equals rebuild from records",
@@ -339,8 +340,11 @@ console.log("\n[8] Legacy (v2) save compatibility");
 
 console.log("\n[9] User club is not privileged");
 {
-  const t = playSeason(fresh());
-  const rows = buildTable(leagueTeams(t.clubName), t.matchRecords, 1, DIVISION_ONE);
+  const initial = fresh();
+  const leagueId = initial.playerLeagueId;
+  const teams = initial.leagues.find((league) => league.id === leagueId)!.clubIds;
+  const t = playSeason(initial);
+  const rows = buildTable(teams, t.matchRecords, 1, leagueId);
   const user = rows.find((r) => r.team === "Dalton Town")!;
   check("user club has 38 played like everyone else", user.p === 38);
   check(

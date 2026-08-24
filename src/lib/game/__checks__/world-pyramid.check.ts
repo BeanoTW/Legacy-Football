@@ -17,7 +17,7 @@ assert(
   new Set(leagues.flatMap((league) => league.clubIds)).size === 80,
   "world must contain 80 unique clubs",
 );
-assert(leagues[0]?.clubIds.includes(playerClub), "player club must start in Division One");
+assert(leagues[3]?.clubIds.includes(playerClub), "player club must start in Division Four");
 assert(
   leagues[3]?.relegationPlaces === 0,
   "bottom world division must not relegate outside the modelled pyramid",
@@ -34,22 +34,22 @@ assert(
 const plan = buildWorldSimulationPlan({
   season: 1,
   clubName: playerClub,
-  playerLeagueId: leagues[0]!.id,
+  playerLeagueId: leagues[3]!.id,
   leagues,
 });
 
 assert(plan.clubs.length === 80, "simulation plan must cover every persistent club");
 assert(
   plan.focusClubIds.length === 40,
-  "tier-1 start should fully simulate player and adjacent divisions",
+  "tier-4 start should fully simulate player and adjacent divisions",
 );
 assert(
   plan.fringeClubIds.length === 40,
-  "tier-1 start should leave distant divisions in fringe simulation",
+  "tier-4 start should leave distant divisions in fringe simulation",
 );
 assert(
-  plan.clubs.filter((club) => club.tier >= 3).every((club) => club.level === "fringe"),
-  "distant lower tiers should start fringe",
+  plan.clubs.filter((club) => club.tier <= 2).every((club) => club.level === "fringe"),
+  "distant upper tiers should start fringe",
 );
 
 console.log("world-pyramid.check.ts: PASS");

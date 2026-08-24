@@ -260,7 +260,7 @@ console.log("\n[G3] Malformed but recoverable legacy shapes");
           delete p.staffMarketRefreshedWeek;
         }),
       assert: (s) =>
-        s.transferBudget === 500_000 &&
+        s.transferBudget === 0 &&
         s.wageBudgetWeekly === 5_000 &&
         Array.isArray(s.staffCandidates) &&
         s.staffCandidates.length > 0,
@@ -333,6 +333,18 @@ console.log("\n[G3] Malformed but recoverable legacy shapes");
       check(c.label, c.assert(res.state));
     });
   }
+
+  safe("v13 transfer funds are returned to cash", () => {
+    const p = clone(base);
+    p.version = 13;
+    p.transferBudget = 400_000;
+    const beforeCash = p.cash as number;
+    const res = runMigrations(p, SAVE_VERSION, DEPS).state;
+    check(
+      "v13 transfer funds are returned to cash",
+      res.transferBudget === 0 && res.cash === beforeCash + 400_000,
+    );
+  });
   // Diagnostics must surface the drop rather than swallowing it.
   const dropped = runMigrations(
     mk((p) => {

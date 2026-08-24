@@ -2,6 +2,9 @@ import { advanceWeek, migrateSave, newGame, SAVE_VERSION } from "../engine";
 import { leagueOf } from "../league";
 import { buildWorldSimulationPlan } from "../world";
 import { WORLD_DIVISIONS } from "../worldPyramid";
+import { makePyramidSchedule } from "../pyramid";
+import { fixturesForClub, makeLeagueRows } from "../schedule";
+import { ensureRecruitment } from "../recruitment";
 import type { GameState } from "../types";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -17,13 +20,21 @@ const raw = (s: LegacyGame | GameState) => s as unknown as Record<string, unknow
 
 function legacyTwoTier(seed: string): LegacyGame {
   const s = newGame("Migration FC", "World Migrator", seed) as LegacyGame;
+  const top = s.leagues[0]!;
+  const startingLeague = s.leagues.find((league) => league.clubIds.includes(s.clubName))!;
+  const displaced = top.clubIds[0]!;
+  top.clubIds[0] = s.clubName;
+  startingLeague.clubIds[startingLeague.clubIds.indexOf(s.clubName)] = displaced;
+  s.playerLeagueId = top.id;
   const keptLeagues = s.leagues.slice(0, 2);
   const keptIds = new Set(keptLeagues.map((league) => league.id));
   const keptClubs = new Set(keptLeagues.flatMap((league) => league.clubIds));
 
   s.version = 12;
   s.leagues = keptLeagues;
-  s.leagueSchedule = s.leagueSchedule.filter((fixture) => keptIds.has(leagueOf(fixture)));
+  s.leagueSchedule = makePyramidSchedule(keptLeagues, `${s.saveSeed}|season${s.season}`);
+  s.fixtures = fixturesForClub(s.leagueSchedule, s.clubName);
+  s.league = makeLeagueRows(top.clubIds);
   s.matchRecords = s.matchRecords.filter((record) => keptIds.has(record.league));
   s.seasonHistory = s.seasonHistory.filter((entry) => keptIds.has(entry.leagueId));
   s.clubRecords = Object.fromEntries(
@@ -37,6 +48,8 @@ function legacyTwoTier(seed: string): LegacyGame {
     keptIds.has(prediction.leagueId),
   );
   delete s.fringeWorld;
+  delete (s as unknown as Record<string, unknown>).football;
+  ensureRecruitment(s as GameState);
   s.trackedClubIds = [];
   return s;
 }
@@ -49,10 +62,13 @@ source.week = 20;
 
 const migrated = migrateSave(raw(clone(source)));
 assert(
-  migrated.version === SAVE_VERSION && SAVE_VERSION === 13,
-  "migration must produce schema v13",
+  migrated.version === SAVE_VERSION && SAVE_VERSION === 14,
+  "migration must produce the current schema",
 );
-assert(migrated.leagues.length === WORLD_DIVISIONS.length, "v13 must contain every world division");
+assert(
+  migrated.leagues.length === WORLD_DIVISIONS.length,
+  "current saves must contain every world division",
+);
 assert(
   new Set(migrated.leagues.flatMap((league) => league.clubIds)).size === 80,
   "expanded world must contain 80 unique persistent clubs",

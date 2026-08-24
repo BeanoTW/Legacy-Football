@@ -725,9 +725,9 @@ export function transferIncomeThisSeason(s: GameState): number {
 export const netSpendThisSeason = (s: GameState) =>
   transferSpendThisSeason(s) - transferIncomeThisSeason(s);
 
-/** Remaining authority. Never negative, never spendable on its own. */
+/** Available transfer spending is simply the club's cash balance. */
 export function remainingTransferBudget(s: GameState): number {
-  return Math.max(0, int(s.transferBudget ?? 0) - transferSpendThisSeason(s));
+  return Math.max(0, int(s.cash));
 }
 
 export interface PurchaseAuthority {
@@ -742,15 +742,6 @@ export function canAuthorisePurchase(s: GameState, cost: number): PurchaseAuthor
   const budgetRemaining = remainingTransferBudget(s);
   const cashAvailable = int(s.cash);
   const c = int(cost);
-  if (c > budgetRemaining) {
-    return {
-      allowed: false,
-      reason: "Exceeds the authorised transfer budget",
-      cost: c,
-      cashAvailable,
-      budgetRemaining,
-    };
-  }
   if (c > cashAvailable) {
     return {
       allowed: false,
@@ -760,7 +751,7 @@ export function canAuthorisePurchase(s: GameState, cost: number): PurchaseAuthor
       budgetRemaining,
     };
   }
-  return { allowed: true, reason: "Authorised", cost: c, cashAvailable, budgetRemaining };
+  return { allowed: true, reason: "Affordable", cost: c, cashAvailable, budgetRemaining };
 }
 
 export function canAuthoriseWage(
@@ -2050,6 +2041,7 @@ export interface RecruitmentSnapshot {
   wageBillWeekly: number;
   wageBudgetWeekly: number;
   expiringContracts: number;
+  /** @deprecated transfer spending now comes directly from cash. */
   transferBudget: number;
   budgetRemaining: number;
   spendThisSeason: number;
@@ -2074,7 +2066,7 @@ export function recruitmentSnapshot(s: GameState): RecruitmentSnapshot {
       const c = activeContract(s, p.id);
       return !!c && weeksLeftOnContract(s, c) <= RENEWAL_WINDOW_WEEKS;
     }).length,
-    transferBudget: int(s.transferBudget ?? 0),
+    transferBudget: 0,
     budgetRemaining: remainingTransferBudget(s),
     spendThisSeason: transferSpendThisSeason(s),
     incomeThisSeason: transferIncomeThisSeason(s),

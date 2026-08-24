@@ -304,18 +304,17 @@ safe("unaffordable capital work is refused", () => {
   check("no entry added", r.state.financeLedger.length === s.financeLedger.length);
 });
 
-safe("transfer budget allocation is ring-fenced and booked", () => {
+safe("legacy transfer budget control cannot ring-fence cash", () => {
   const s = fixture("BUDGET");
   const cash = s.cash;
-  const pot = s.transferBudget;
-  const s1 = setTransferBudget(s, pot + 500_000).state;
-  check("cash reduced by allocation", s1.cash === cash - 500_000, `${s1.cash}`);
-  check("budget increased by allocation", s1.transferBudget === pot + 500_000);
-  check("allocation reconciles", reconciles(s1));
-  const s2 = setTransferBudget(s1, pot).state;
-  check("release returns cash", s2.cash === cash, `${s2.cash} vs ${cash}`);
-  check("release reconciles", reconciles(s2));
-  check("total club money conserved across allocation", s2.cash + s2.transferBudget === cash + pot);
+  const entries = s.financeLedger.length;
+  const s1 = setTransferBudget(s, 500_000).state;
+  check("cash remains in one bank balance", s1.cash === cash, `${s1.cash}`);
+  check("legacy transfer pot remains retired", s1.transferBudget === 0);
+  check("no allocation ledger entry is written", s1.financeLedger.length === entries);
+  check("compatibility call reconciles", reconciles(s1));
+  check("input state remains untouched", s.cash === cash && s.transferBudget === 0);
+  check("all club money remains available", s1.cash === cash);
 });
 
 safe("inbox effects post to the ledger", () => {
