@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { FootballPlayer, GameState, Position } from "@/lib/game/types";
 import {
@@ -265,7 +265,10 @@ function MarketView({
   const [maxFee, setMaxFee] = useState("");
   const [onlyFree, setOnlyFree] = useState(false);
   const [onlyShortlist, setOnlyShortlist] = useState(false);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const short = shortlistIds(state);
+  const pageSize = 30;
 
   const rows = useMemo(() => {
     const base = onlyFree
@@ -276,16 +279,28 @@ function MarketView({
           wage: wageDemand(state, e.player),
         }));
     const cap = Number(maxFee) || Infinity;
+    const query = search.trim().toLowerCase();
     return base
       .filter((r) => (pos === "ALL" ? true : r.player.primaryPosition === pos))
       .filter((r) => r.askingFee <= cap)
       .filter((r) => (onlyShortlist ? short.includes(r.player.id) : true))
-      .slice(0, 60);
-  }, [state, pos, maxFee, onlyFree, onlyShortlist, short]);
+      .filter((r) => (query ? playerName(r.player).toLowerCase().includes(query) : true));
+  }, [state, pos, maxFee, onlyFree, onlyShortlist, short, search]);
+
+  useEffect(() => setPage(1), [pos, maxFee, onlyFree, onlyShortlist, search]);
+
+  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+  const visibleRows = rows.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <div className="space-y-3">
       <div className="rounded-xl border bg-card p-3 flex flex-wrap gap-2 items-center">
+        <Input
+          placeholder="Search player"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-44 h-8"
+        />
         {(["ALL", ...POSITIONS] as (Position | "ALL")[]).map((p) => (
           <button
             key={p}
@@ -322,8 +337,15 @@ function MarketView({
         </label>
       </div>
 
+      <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+        <span>{rows.length.toLocaleString()} players match</span>
+        <span>
+          Page {page} of {pageCount}
+        </span>
+      </div>
+
       <div className="rounded-xl border bg-card divide-y">
-        {rows.map((r) => (
+        {visibleRows.map((r) => (
           <div key={r.player.id} className="p-3 flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="flex-1">
               <PlayerLine state={state} p={r.player} />
@@ -355,6 +377,26 @@ function MarketView({
           </div>
         )}
       </div>
+      {rows.length > pageSize && (
+        <div className="flex justify-end gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={page === 1}
+            onClick={() => setPage((value) => Math.max(1, value - 1))}
+          >
+            Previous
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={page === pageCount}
+            onClick={() => setPage((value) => Math.min(pageCount, value + 1))}
+          >
+            Next
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

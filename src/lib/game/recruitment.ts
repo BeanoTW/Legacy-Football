@@ -60,7 +60,12 @@ export const SQUAD_SIZE =
   SQUAD_TEMPLATE.GK + SQUAD_TEMPLATE.DEF + SQUAD_TEMPLATE.MID + SQUAD_TEMPLATE.FWD;
 export const MIN_SQUAD_SIZE = 16;
 export const MAX_SQUAD_SIZE = 30;
-export const FREE_AGENT_POOL = 24;
+/**
+ * A deep, persistent unattached-player market. This is deliberately large:
+ * lower-league recruitment should be about finding the right player among
+ * hundreds of plausible options, not choosing between a couple of names.
+ */
+export const FREE_AGENT_POOL = 900;
 /** Both club and player talks allow at most this many negotiation rounds. */
 export const MAX_NEGOTIATION_ROUNDS = 2;
 
@@ -272,8 +277,13 @@ function makePlayerFor(
   });
   const primaryPosition = slots[index % slots.length];
 
-  const spread = rngRange(rng, -9, 9);
-  const currentAbility = clamp(int(tierRating + spread), 35, 94);
+  // Free-agent ability is bottom-heavy across a broad band. Most are ordinary
+  // professionals, good players are uncommon and elite unattached players are
+  // exceptional. Club squads remain centred on the level of their division.
+  const currentAbility =
+    clubId === null
+      ? clamp(int(35 + Math.pow(rng(), 1.85) * 52), 35, 89)
+      : clamp(int(tierRating + rngRange(rng, -9, 9)), 35, 94);
   const age = rngInt(rng, 17, 35);
   const potentialAbility = clamp(
     int(currentAbility + (age < 24 ? rngRange(rng, 2, 16) : rngRange(rng, -1, 4))),
@@ -566,6 +576,17 @@ export function ensureRecruitment(s: GameState): void {
     s.football.transferHistory ??= [];
     s.football.contractHistory ??= [];
     s.football.seasonHistory ??= [];
+    // Expand older saves without replacing any existing player or history.
+    // Stable ids make this idempotent and preserve signed/released free agents.
+    const knownPlayerIds = new Set(s.football.players.map((player) => player.id));
+    const freeAgentTier = Math.max(...(s.leagues ?? []).map((league) => league.tier ?? 1), 1);
+    for (let index = 0; index < FREE_AGENT_POOL; index++) {
+      const player = makePlayerFor(s.saveSeed, null, index, 52, s.season, freeAgentTier, 45);
+      if (knownPlayerIds.has(player.id)) continue;
+      player.contractId = null;
+      player.transferStatus = "listed";
+      s.football.players.push(player);
+    }
     reconcileRecruitmentFidelity(s);
     syncLegacySquad(s);
     return;

@@ -189,22 +189,23 @@ export function makeCandidatePool(rand01: () => number = Math.random): Staff[] {
   // Deep talent pool with wide variance — journeymen through elite.
   // Each role gets many candidates across the whole ability spectrum.
   const spec: [StaffRole, number][] = [
-    ["Manager", 10],
-    ["Assistant Manager", 8],
-    ["Head Coach", 8],
-    ["Goalkeeping Coach", 6],
-    ["Fitness Coach", 6],
-    ["Head of Youth", 6],
-    ["Head of Transfers", 6],
-    ["Chief Scout", 6],
-    ["Scout", 16],
-    ["Head Physio", 6],
-    ["Sports Scientist", 6],
+    ["Manager", 22],
+    ["Assistant Manager", 18],
+    ["Head Coach", 22],
+    ["Goalkeeping Coach", 16],
+    ["Fitness Coach", 16],
+    ["Head of Youth", 18],
+    ["Head of Transfers", 16],
+    ["Chief Scout", 16],
+    ["Scout", 36],
+    ["Head Physio", 16],
+    ["Sports Scientist", 16],
   ];
   for (const [role, n] of spec) {
     for (let i = 0; i < n; i++) {
-      // Quality skewed across the full 35-92 band for real variance
-      const q = 35 + Math.round(Math.pow(rand01(), 0.9) * 57);
+      // Bottom-heavy across the full band: journeymen are plentiful, strong
+      // specialists are scarce and elite candidates are genuine discoveries.
+      const q = 35 + Math.round(Math.pow(rand01(), 1.85) * 57);
       pool.push(makeStaff(role, q, rand01));
     }
   }
