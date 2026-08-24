@@ -1,13 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import {
-  ChevronDown,
-  ChevronsRight,
-  CircleDollarSign,
-  RotateCcw,
-  Users,
-  Wallet,
-} from "lucide-react";
+import { ChevronDown, CircleDollarSign, RotateCcw, Users, Wallet } from "lucide-react";
 
 import { LeagueBrowser } from "@/components/LeagueBrowser";
 import { BoardTab } from "@/components/BoardTab";
@@ -16,6 +9,7 @@ import { RecruitmentTab } from "@/components/RecruitmentTab";
 import { FacilitiesTab } from "@/components/FacilitiesTab";
 import { ALL_TABS, DESKTOP_TAB_GROUPS, type Tab } from "@/components/game/tabs";
 import { MobileNav } from "@/components/game/MobileNav";
+import { ContinueCalendar } from "@/components/game/ContinueCalendar";
 import { NewGame } from "@/components/game/NewGame";
 import { Kpi, TopBar } from "@/components/game/shared/primitives";
 import { ScreenBoundary } from "@/components/game/shared/ScreenBoundary";
@@ -36,6 +30,7 @@ import {
   fmtMoneyExact,
   playerWagesWeekly,
   squadRating,
+  startMatchDay,
   totalWeeklyExpenses,
   weeklySponsorIncome,
   phaseOf,
@@ -95,6 +90,7 @@ function Game({
   reset: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("hub");
+  const [calendarDay, setCalendarDay] = useState(0);
   const kpi = useMemo(() => {
     const wIncome = weeklySponsorIncome(state),
       wExpenses = totalWeeklyExpenses(state);
@@ -113,16 +109,6 @@ function Game({
       <TopBar
         title={state.clubName}
         subtitle={`${state.managerName} · Season ${state.season} · Week ${state.week}/${CALENDAR.seasonEnd} · ${({ preseason: "Pre-season", firstHalf: "League — 1st half", midseason: "Mid-season break", secondHalf: "League — 2nd half" } as const)[phaseOf(state.week)]}`}
-        right={
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="secondary" onClick={() => advance(1)}>
-              <ChevronsRight className="size-4 mr-1" /> Advance week
-            </Button>
-            <Button size="sm" className="hidden sm:inline-flex" onClick={() => advance(4)}>
-              Advance 4
-            </Button>
-          </div>
-        }
       />
       <div className="border-b bg-panel text-panel-foreground">
         <div className="mx-auto max-w-6xl px-3 py-3 grid grid-cols-3 gap-2 sm:gap-3 tnum">
@@ -148,6 +134,14 @@ function Game({
           />
         </div>
       </div>
+      <ContinueCalendar
+        state={state}
+        day={calendarDay}
+        setDay={setCalendarDay}
+        advanceWeek={() => advance(1)}
+        startMatch={() => update((current) => startMatchDay(current))}
+        setTab={setTab}
+      />
       <nav className="border-b bg-card sticky top-0 z-10 hidden md:block">
         <div className="mx-auto flex max-w-6xl items-center gap-1 px-3 py-2 text-sm">
           <DesktopTabButton id="hub" tab={tab} setTab={setTab} />
@@ -190,7 +184,7 @@ function Game({
         <ScreenBoundary name={ALL_TABS.find(([id]) => id === tab)?.[1] ?? tab}>
           {tab === "inbox" && <InboxTab state={state} update={update} />}
           {tab === "hub" && (
-            <ClubHub state={state} advance={advance} update={update} setTab={setTab} />
+            <ClubHub state={state} matchReady={calendarDay >= 5} update={update} setTab={setTab} />
           )}
           {tab === "dashboard" && <DashboardTab state={state} />}
           {tab === "cashflow" && <CashFlowTab state={state} />}

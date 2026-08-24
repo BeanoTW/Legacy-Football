@@ -100,6 +100,16 @@ console.log("\n[U2] Navigation completeness");
     "primary mobile tabs prioritise weekly play",
     /PRIMARY_TAB_IDS: Tab\[\] = \["hub", "inbox", "recruitment", "fixtures"\]/.test(tabs),
   );
+  const calendar = read("src/components/game/ContinueCalendar.tsx");
+  check(
+    "calendar replaces direct multi-week skipping",
+    /<ContinueCalendar/.test(route) && !/advance\(4\)/.test(route),
+  );
+  check(
+    "continue flow exposes seven days and a matchday stop",
+    /"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"/.test(calendar) &&
+      /MATCH_DAY = 5/.test(calendar),
+  );
 }
 
 console.log("\n[U3] Mutation boundary");

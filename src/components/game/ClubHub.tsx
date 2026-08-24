@@ -28,12 +28,12 @@ import type { Tab } from "./tabs";
 
 export function ClubHub({
   state,
-  advance,
+  matchReady,
   update,
   setTab,
 }: {
   state: GameState;
-  advance: (weeks?: number) => void;
+  matchReady: boolean;
   update: (fn: (state: GameState) => GameState) => void;
   setTab: (tab: Tab) => void;
 }) {
@@ -122,8 +122,8 @@ export function ClubHub({
           <NextMatch
             state={state}
             fixture={nextFixture}
+            matchReady={matchReady}
             onPlay={() => update((current) => startMatchDay(current))}
-            onAdvance={() => advance(1)}
             onFixtures={() => setTab("fixtures")}
           />
 
@@ -261,14 +261,14 @@ function HeadlineStat({
 function NextMatch({
   state,
   fixture,
+  matchReady,
   onPlay,
-  onAdvance,
   onFixtures,
 }: {
   state: GameState;
   fixture: GameState["fixtures"][number] | undefined;
+  matchReady: boolean;
   onPlay: () => void;
-  onAdvance: () => void;
   onFixtures: () => void;
 }) {
   return (
@@ -286,9 +286,15 @@ function NextMatch({
             </div>
             <Team name={fixture.home ? fixture.opponent : state.clubName} player={!fixture.home} />
           </div>
-          <Button className="mt-5 w-full sm:mx-auto sm:flex sm:w-auto" onClick={onPlay}>
-            <Play className="mr-2 size-4 fill-current" /> Start matchday
-          </Button>
+          {matchReady ? (
+            <Button className="mt-5 w-full sm:mx-auto sm:flex sm:w-auto" onClick={onPlay}>
+              <Play className="mr-2 size-4 fill-current" /> Start matchday
+            </Button>
+          ) : (
+            <div className="mt-5 text-center text-xs font-medium text-primary">
+              Use Continue above to reach matchday.
+            </div>
+          )}
         </div>
       ) : (
         <div className="flex flex-col items-start gap-3 p-5 sm:flex-row sm:items-center">
@@ -299,9 +305,9 @@ function NextMatch({
             <div className="text-sm font-semibold">No match this week</div>
             <p className="text-xs text-muted-foreground">{breakMessage(state.week)}</p>
           </div>
-          <Button size="sm" onClick={onAdvance}>
-            Advance week <ArrowRight className="ml-1 size-4" />
-          </Button>
+          <div className="text-xs font-medium text-primary">
+            Use Continue above to move time on.
+          </div>
         </div>
       )}
     </section>

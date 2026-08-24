@@ -132,7 +132,7 @@ export function MatchDayOverlay({
                 className="w-full"
                 onClick={() => update((s) => commitLiveMatchAndAdvance(s))}
               >
-                Confirm & advance week <ChevronsRight className="size-4 ml-1" />
+                Confirm result & continue <ChevronsRight className="size-4 ml-1" />
               </Button>
             </div>
           )}
