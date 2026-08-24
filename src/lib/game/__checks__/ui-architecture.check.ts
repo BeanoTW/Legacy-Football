@@ -97,8 +97,8 @@ console.log("\n[U2] Navigation completeness");
     /grid-cols-5/.test(read("src/components/game/MobileNav.tsx")),
   );
   check(
-    "primary mobile tabs unchanged",
-    /PRIMARY_TAB_IDS: Tab\[\] = \["inbox", "hub", "recruitment", "board"\]/.test(tabs),
+    "primary mobile tabs prioritise weekly play",
+    /PRIMARY_TAB_IDS: Tab\[\] = \["hub", "inbox", "recruitment", "fixtures"\]/.test(tabs),
   );
 }
 

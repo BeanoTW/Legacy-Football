@@ -34,19 +34,25 @@ export type TabDef = [Tab, string, typeof LineIcon];
 
 export const ALL_TABS: TabDef[] = [
   ["inbox", "Inbox", Mail],
-  ["hub", "Club", Trophy],
+  ["hub", "Home", Trophy],
   ["board", "Board", Gavel],
   ["commercial", "Commercial", Handshake],
-  ["dashboard", "Overview", LineIcon],
-  ["cashflow", "Cash flow", CircleDollarSign],
+  ["dashboard", "Reports", LineIcon],
+  ["cashflow", "Finances", CircleDollarSign],
   ["tickets", "Tickets", Ticket],
-  ["recruitment", "Recruitment", Users],
+  ["recruitment", "Squad", Users],
   ["staff", "Staff", Briefcase],
   ["stadium", "Stadium", Building2],
-  ["fixtures", "Fixtures", Calendar],
+  ["fixtures", "Matches", Calendar],
   ["leagues", "Leagues", Trophy],
   ["world", "World", Globe2],
-  ["history", "Ledger", Save],
+  ["history", "Records", Save],
 ];
 
-export const PRIMARY_TAB_IDS: Tab[] = ["inbox", "hub", "recruitment", "board"];
+export const PRIMARY_TAB_IDS: Tab[] = ["hub", "inbox", "recruitment", "fixtures"];
+
+export const DESKTOP_TAB_GROUPS: { label: string; tabs: Tab[] }[] = [
+  { label: "Football", tabs: ["recruitment", "staff", "fixtures", "leagues"] },
+  { label: "Club", tabs: ["board", "cashflow", "tickets", "stadium", "commercial"] },
+  { label: "More", tabs: ["dashboard", "world", "history"] },
+];

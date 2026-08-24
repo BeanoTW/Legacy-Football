@@ -1,13 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { ChevronsRight, CircleDollarSign, RotateCcw, Ticket, Users, Wallet } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronsRight,
+  CircleDollarSign,
+  RotateCcw,
+  Users,
+  Wallet,
+} from "lucide-react";
 
 import { LeagueBrowser } from "@/components/LeagueBrowser";
 import { BoardTab } from "@/components/BoardTab";
 import { CommercialTab } from "@/components/CommercialTab";
 import { RecruitmentTab } from "@/components/RecruitmentTab";
 import { FacilitiesTab } from "@/components/FacilitiesTab";
-import { ALL_TABS, type Tab } from "@/components/game/tabs";
+import { ALL_TABS, DESKTOP_TAB_GROUPS, type Tab } from "@/components/game/tabs";
 import { MobileNav } from "@/components/game/MobileNav";
 import { NewGame } from "@/components/game/NewGame";
 import { Kpi, TopBar } from "@/components/game/shared/primitives";
@@ -25,12 +32,10 @@ import { WorldInspector } from "@/components/game/WorldInspector";
 import { useGame } from "@/hooks/useGame";
 import type { GameState } from "@/lib/game/types";
 import {
-  avgTicketPrice,
   fmtMoney,
   fmtMoneyExact,
   playerWagesWeekly,
   squadRating,
-  totalCapacity,
   totalWeeklyExpenses,
   weeklySponsorIncome,
   phaseOf,
@@ -38,6 +43,12 @@ import {
 } from "@/lib/game/engine";
 import { unreadCount } from "@/lib/game/inbox";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/")({
@@ -83,7 +94,7 @@ function Game({
   update: (fn: (s: GameState) => GameState) => void;
   reset: () => void;
 }) {
-  const [tab, setTab] = useState<Tab>("inbox");
+  const [tab, setTab] = useState<Tab>("hub");
   const kpi = useMemo(() => {
     const wIncome = weeklySponsorIncome(state),
       wExpenses = totalWeeklyExpenses(state);
@@ -93,8 +104,6 @@ function Game({
       weeklyExpenses: wExpenses,
       weeklyNetRecurring: wIncome - wExpenses,
       wageBill: playerWagesWeekly(state),
-      capacity: totalCapacity(state),
-      avgTicket: avgTicketPrice(state),
       rating: squadRating(state),
     };
   }, [state]);
@@ -109,14 +118,14 @@ function Game({
             <Button size="sm" variant="secondary" onClick={() => advance(1)}>
               <ChevronsRight className="size-4 mr-1" /> Advance week
             </Button>
-            <Button size="sm" onClick={() => advance(4)}>
+            <Button size="sm" className="hidden sm:inline-flex" onClick={() => advance(4)}>
               Advance 4
             </Button>
           </div>
         }
       />
       <div className="border-b bg-panel text-panel-foreground">
-        <div className="mx-auto max-w-6xl px-3 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3 tnum">
+        <div className="mx-auto max-w-6xl px-3 py-3 grid grid-cols-3 gap-2 sm:gap-3 tnum">
           <Kpi
             icon={<Wallet className="size-4" />}
             label="Bank balance"
@@ -137,39 +146,44 @@ function Game({
             value={kpi.rating.toFixed(1)}
             info="Average rating of your top 16 players — a rough gauge of your matchday strength."
           />
-          <Kpi
-            icon={<Ticket className="size-4" />}
-            label="Avg ticket"
-            value={`£${kpi.avgTicket.toFixed(2)}`}
-            info="Capacity-weighted average of ticket prices across all four stands. Fans compare this against a market reference set by your reputation."
-          />
         </div>
       </div>
       <nav className="border-b bg-card sticky top-0 z-10 hidden md:block">
-        <div className="mx-auto max-w-6xl px-2 overflow-x-auto">
-          <ul className="flex gap-1 text-sm">
-            {ALL_TABS.map(([id, label, Icon]) => (
-              <li key={id}>
-                <button
-                  onClick={() => setTab(id)}
-                  className={cn(
-                    "px-3 py-3 flex items-center gap-1.5 border-b-2 -mb-px whitespace-nowrap transition-colors",
-                    tab === id
-                      ? "border-primary text-foreground font-medium"
-                      : "border-transparent text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <Icon className="size-4" />
-                  {label}
-                  {id === "inbox" && unreadCount(state) > 0 && (
-                    <span className="ml-1 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[10px] leading-4 text-center font-semibold">
-                      {unreadCount(state)}
-                    </span>
-                  )}
-                </button>
-              </li>
-            ))}
-          </ul>
+        <div className="mx-auto flex max-w-6xl items-center gap-1 px-3 py-2 text-sm">
+          <DesktopTabButton id="hub" tab={tab} setTab={setTab} />
+          <DesktopTabButton id="inbox" tab={tab} setTab={setTab} unread={unreadCount(state)} />
+          <div className="mx-1 h-6 w-px bg-border" />
+          {DESKTOP_TAB_GROUPS.map((group) => {
+            const active = group.tabs.includes(tab);
+            return (
+              <DropdownMenu key={group.label}>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className={cn(
+                      "flex items-center gap-1 rounded-lg px-3 py-2 transition-colors",
+                      active
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                    )}
+                  >
+                    {group.label} <ChevronDown className="size-3.5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48">
+                  {group.tabs.map((id) => {
+                    const def = ALL_TABS.find(([tabId]) => tabId === id)!;
+                    const [, label, Icon] = def;
+                    return (
+                      <DropdownMenuItem key={id} onClick={() => setTab(id)}>
+                        <Icon className="size-4" />
+                        {label}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            );
+          })}
         </div>
       </nav>
       <main className="mx-auto max-w-6xl px-3 py-5 pb-24 md:pb-5">
@@ -209,5 +223,38 @@ function Game({
         </div>
       </footer>
     </div>
+  );
+}
+
+function DesktopTabButton({
+  id,
+  tab,
+  setTab,
+  unread = 0,
+}: {
+  id: Tab;
+  tab: Tab;
+  setTab: (tab: Tab) => void;
+  unread?: number;
+}) {
+  const [, label, Icon] = ALL_TABS.find(([tabId]) => tabId === id)!;
+  return (
+    <button
+      onClick={() => setTab(id)}
+      className={cn(
+        "relative flex items-center gap-1.5 rounded-lg px-3 py-2 transition-colors",
+        tab === id
+          ? "bg-primary text-primary-foreground"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+      )}
+    >
+      <Icon className="size-4" />
+      {label}
+      {unread > 0 && (
+        <span className="min-w-4 rounded-full bg-rose-500 px-1 text-center text-[10px] leading-4 text-white">
+          {unread > 9 ? "9+" : unread}
+        </span>
+      )}
+    </button>
   );
 }
