@@ -57,8 +57,8 @@ export function FacilitiesTab({
   if (!state.infrastructure || !snap) {
     return (
       <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">
-        The club's physical assets have not been surveyed yet. Advance a week to open the
-        facilities department.
+        The club's physical assets have not been surveyed yet. Advance a week to open the facilities
+        department.
       </div>
     );
   }
@@ -113,19 +113,12 @@ export function FacilitiesTab({
         ))}
       </div>
 
-      {note && (
-        <div className="rounded-lg border bg-secondary px-3 py-2 text-xs">{note}</div>
-      )}
+      {note && <div className="rounded-lg border bg-secondary px-3 py-2 text-xs">{note}</div>}
 
       {view === "assets" && (
         <div className="grid gap-3 md:grid-cols-2">
           {list.map((a) => (
-            <AssetCard
-              key={a.id}
-              state={state}
-              asset={a}
-              onOpen={() => setOpenAssetId(a.id)}
-            />
+            <AssetCard key={a.id} state={state} asset={a} onOpen={() => setOpenAssetId(a.id)} />
           ))}
         </div>
       )}
@@ -143,7 +136,7 @@ export function FacilitiesTab({
               project={p}
               onCancel={() => {
                 const r = cancelProject(state, p.id);
-                setNote(r.ok ? `${p.title} cancelled — a penalty was booked.` : r.reason ?? "");
+                setNote(r.ok ? `${p.title} cancelled — a penalty was booked.` : (r.reason ?? ""));
                 if (r.ok) update(() => r.state);
               }}
             />
@@ -232,7 +225,7 @@ export function FacilitiesTab({
           onClose={() => setOpenAssetId(null)}
           onApprove={(type) => {
             const r = approveProject(state, open.id, type);
-            setNote(r.ok ? `${PROJECT_LABEL[type]} approved on ${open.name}.` : r.reason ?? "");
+            setNote(r.ok ? `${PROJECT_LABEL[type]} approved on ${open.name}.` : (r.reason ?? ""));
             if (r.ok) {
               update(() => r.state);
               setOpenAssetId(null);
@@ -369,13 +362,7 @@ function AssetSheet({
   );
 }
 
-function ProjectRow({
-  project,
-  onCancel,
-}: {
-  project: CapitalProject;
-  onCancel: () => void;
-}) {
+function ProjectRow({ project, onCancel }: { project: CapitalProject; onCancel: () => void }) {
   const eta =
     project.expectedCompletionAbsoluteWeek != null
       ? fromAbsoluteWeek(project.expectedCompletionAbsoluteWeek)

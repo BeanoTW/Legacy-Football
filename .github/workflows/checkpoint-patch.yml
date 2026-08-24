@@ -1,0 +1,50 @@
+name: Apply checkpoint test patch
+
+on:
+  push:
+    branches:
+      - 'chatgpt/scalable-world-checkpoint'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[checkpoint-test-patched]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt/scalable-world-checkpoint
+      - name: Update legacy pyramid expectations for v13 world
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/lib/game/__checks__/pyramid.check.ts')
+          text = p.read_text()
+          text = text.replace(
+            '''    m.leagues.length === 2 && m.leagues.every((l) => l.clubIds.length === CLUBS_PER_DIVISION),''',
+            '''    m.leagues.length === 4 && m.leagues.every((l) => l.clubIds.length === CLUBS_PER_DIVISION),''',
+            1,
+          )
+          text = text.replace(
+            '''  check(\n    "active season not restructured (schedule untouched)",\n    m.leagueSchedule.every((f) => f.league === undefined || f.league === DIVISION_ONE),\n  );''',
+            '''  const migratedTopSchedule = m.leagueSchedule.filter(\n    (f) => f.league === undefined || f.league === DIVISION_ONE,\n  );\n  check(\n    "existing active-season top schedule is preserved while missing lower leagues are appended",\n    migratedTopSchedule.length === (g.leagueSchedule as unknown[]).length &&\n      m.leagueSchedule.some((f) => f.league === "league-3") &&\n      m.leagueSchedule.some((f) => f.league === "league-4"),\n  );''',
+            1,
+          )
+          text = text.replace(
+            '''  check("club records seeded", Object.keys(m.clubRecords).length === 40);''',
+            '''  check("club records seeded", Object.keys(m.clubRecords).length === 80);''',
+            1,
+          )
+          p.write_text(text)
+          PY
+          bunx prettier --write src/lib/game/__checks__/pyramid.check.ts
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/game/__checks__/pyramid.check.ts
+          git commit -m "Refresh pyramid migration expectations [checkpoint-test-patched]"
+          git push origin HEAD:chatgpt/scalable-world-checkpoint

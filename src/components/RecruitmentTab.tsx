@@ -47,10 +47,7 @@ export function RecruitmentTab({
   const [view, setView] = useState<View>("squad");
   const [note, setNote] = useState<string | null>(null);
 
-  const snap = useMemo(
-    () => (state.football ? recruitmentSnapshot(state) : null),
-    [state],
-  );
+  const snap = useMemo(() => (state.football ? recruitmentSnapshot(state) : null), [state]);
 
   if (!state.football || !snap) {
     return (
@@ -60,7 +57,9 @@ export function RecruitmentTab({
     );
   }
 
-  const act = (fn: (s: GameState) => { state: GameState; result: { ok: boolean; reason: string } }) => {
+  const act = (
+    fn: (s: GameState) => { state: GameState; result: { ok: boolean; reason: string } },
+  ) => {
     update((s) => {
       const r = fn(s);
       setNote(r.result.reason);
@@ -71,10 +70,30 @@ export function RecruitmentTab({
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Squad" value={`${snap.squadSize} players`} sub={`Avg age ${averageSquadAge(state).toFixed(1)}`} />
-        <Stat label="Wage bill" value={`${fmtMoneyExact(snap.wageBillWeekly)}/wk`} sub={snap.wageBudgetWeekly ? `Ceiling ${fmtMoneyExact(snap.wageBudgetWeekly)}/wk` : "No ceiling set"} />
-        <Stat label="Budget remaining" value={fmtMoneyExact(snap.budgetRemaining)} sub={`Net spend ${fmtMoney(snap.netSpend)}`} />
-        <Stat label="Contract security" value={`${contractSecurityPct(state).toFixed(0)}%`} sub={`${snap.expiringContracts} expiring`} />
+        <Stat
+          label="Squad"
+          value={`${snap.squadSize} players`}
+          sub={`Avg age ${averageSquadAge(state).toFixed(1)}`}
+        />
+        <Stat
+          label="Wage bill"
+          value={`${fmtMoneyExact(snap.wageBillWeekly)}/wk`}
+          sub={
+            snap.wageBudgetWeekly
+              ? `Ceiling ${fmtMoneyExact(snap.wageBudgetWeekly)}/wk`
+              : "No ceiling set"
+          }
+        />
+        <Stat
+          label="Budget remaining"
+          value={fmtMoneyExact(snap.budgetRemaining)}
+          sub={`Net spend ${fmtMoney(snap.netSpend)}`}
+        />
+        <Stat
+          label="Contract security"
+          value={`${contractSecurityPct(state).toFixed(0)}%`}
+          sub={`${snap.expiringContracts} expiring`}
+        />
       </div>
 
       <BudgetPanel state={state} update={update} onNote={setNote} />
@@ -86,7 +105,9 @@ export function RecruitmentTab({
             onClick={() => setView(v)}
             className={cn(
               "text-sm px-3 py-1.5 rounded-lg border capitalize",
-              view === v ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-muted",
+              view === v
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-card hover:bg-muted",
             )}
           >
             {v === "deals" ? `Negotiations (${openNegotiations(state).length})` : v}
@@ -97,7 +118,9 @@ export function RecruitmentTab({
       {note && (
         <div className="rounded-lg border bg-muted/40 px-3 py-2 text-sm flex items-start justify-between gap-3">
           <span>{note}</span>
-          <button className="text-xs text-muted-foreground" onClick={() => setNote(null)}>dismiss</button>
+          <button className="text-xs text-muted-foreground" onClick={() => setNote(null)}>
+            dismiss
+          </button>
         </div>
       )}
 
@@ -146,7 +169,7 @@ function BudgetPanel({
           onClick={() =>
             update((s) => {
               const r = setTransferBudget(s, Number(input) || 0);
-              onNote(r.ok ? "Budget updated." : r.reason ?? "Could not set budget");
+              onNote(r.ok ? "Budget updated." : (r.reason ?? "Could not set budget"));
               return r.state;
             })
           }
@@ -155,8 +178,12 @@ function BudgetPanel({
         </Button>
       </div>
       <div className="text-xs text-muted-foreground mt-2 flex flex-wrap gap-x-4">
-        <span>Authorised: <span className="tnum">{fmtMoneyExact(state.transferBudget ?? 0)}</span></span>
-        <span>Cash: <span className="tnum">{fmtMoneyExact(state.cash)}</span></span>
+        <span>
+          Authorised: <span className="tnum">{fmtMoneyExact(state.transferBudget ?? 0)}</span>
+        </span>
+        <span>
+          Cash: <span className="tnum">{fmtMoneyExact(state.cash)}</span>
+        </span>
       </div>
     </div>
   );
@@ -168,7 +195,9 @@ function PlayerLine({ state, p }: { state: GameState; p: FootballPlayer }) {
     <div className="min-w-0">
       <div className="flex items-center gap-2 flex-wrap">
         <span className="font-semibold truncate">{playerName(p)}</span>
-        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-muted">{p.primaryPosition}</span>
+        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-muted">
+          {p.primaryPosition}
+        </span>
         <span className="text-xs text-muted-foreground">
           {ageOf(p, state.season)}y · CA {p.currentAbility} · {fmtMoney(p.marketValue)}
         </span>
@@ -188,7 +217,9 @@ function SquadView({
   update,
 }: {
   state: GameState;
-  act: (fn: (s: GameState) => { state: GameState; result: { ok: boolean; reason: string } }) => void;
+  act: (
+    fn: (s: GameState) => { state: GameState; result: { ok: boolean; reason: string } },
+  ) => void;
   update: (fn: (s: GameState) => GameState) => void;
 }) {
   const squad = userSquad(state);
@@ -199,16 +230,24 @@ function SquadView({
         if (!group.length) return null;
         return (
           <div key={pos} className="rounded-xl border bg-card">
-            <div className="px-4 py-2 border-b font-semibold text-sm">{pos} ({group.length})</div>
+            <div className="px-4 py-2 border-b font-semibold text-sm">
+              {pos} ({group.length})
+            </div>
             <div className="divide-y">
               {group.map((p) => {
                 const terms = renewalTerms(state, p.id);
                 return (
                   <div key={p.id} className="p-3 flex flex-col sm:flex-row sm:items-center gap-3">
-                    <div className="flex-1"><PlayerLine state={state} p={p} /></div>
+                    <div className="flex-1">
+                      <PlayerLine state={state} p={p} />
+                    </div>
                     <div className="flex gap-2 flex-wrap">
                       {terms && (
-                        <Button size="sm" variant="secondary" onClick={() => act((s) => renewContract(s, p.id))}>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => act((s) => renewContract(s, p.id))}
+                        >
                           Renew {fmtMoney(terms.weeklyWage)}/wk
                         </Button>
                       )}
@@ -217,7 +256,11 @@ function SquadView({
                         variant="ghost"
                         onClick={() =>
                           act((s) =>
-                            setTransferStatus(s, p.id, p.transferStatus === "listed" ? "unlisted" : "listed"),
+                            setTransferStatus(
+                              s,
+                              p.id,
+                              p.transferStatus === "listed" ? "unlisted" : "listed",
+                            ),
                           )
                         }
                       >
@@ -227,7 +270,8 @@ function SquadView({
                         size="sm"
                         variant="ghost"
                         onClick={() => {
-                          if (confirm(`Release ${playerName(p)}?`)) act((s) => releasePlayer(s, p.id));
+                          if (confirm(`Release ${playerName(p)}?`))
+                            act((s) => releasePlayer(s, p.id));
                         }}
                       >
                         Release
@@ -241,11 +285,15 @@ function SquadView({
         );
       })}
       {!squad.length && (
-        <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">No registered players.</div>
+        <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">
+          No registered players.
+        </div>
       )}
       <div className="text-xs text-muted-foreground">
         Shortlisted: {shortlistIds(state).length}.{" "}
-        <button className="underline" onClick={() => update((s) => s)}>refresh</button>
+        <button className="underline" onClick={() => update((s) => s)}>
+          refresh
+        </button>
       </div>
     </div>
   );
@@ -257,7 +305,9 @@ function MarketView({
   update,
 }: {
   state: GameState;
-  act: (fn: (s: GameState) => { state: GameState; result: { ok: boolean; reason: string } }) => void;
+  act: (
+    fn: (s: GameState) => { state: GameState; result: { ok: boolean; reason: string } },
+  ) => void;
   update: (fn: (s: GameState) => GameState) => void;
 }) {
   const [pos, setPos] = useState<Position | "ALL">("ALL");
@@ -304,11 +354,19 @@ function MarketView({
           className="w-32 tnum h-8"
         />
         <label className="text-xs flex items-center gap-1">
-          <input type="checkbox" checked={onlyFree} onChange={(e) => setOnlyFree(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={onlyFree}
+            onChange={(e) => setOnlyFree(e.target.checked)}
+          />
           Free agents
         </label>
         <label className="text-xs flex items-center gap-1">
-          <input type="checkbox" checked={onlyShortlist} onChange={(e) => setOnlyShortlist(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={onlyShortlist}
+            onChange={(e) => setOnlyShortlist(e.target.checked)}
+          />
           Shortlist only
         </label>
       </div>
@@ -316,13 +374,18 @@ function MarketView({
       <div className="rounded-xl border bg-card divide-y">
         {rows.map((r) => (
           <div key={r.player.id} className="p-3 flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="flex-1"><PlayerLine state={state} p={r.player} /></div>
+            <div className="flex-1">
+              <PlayerLine state={state} p={r.player} />
+            </div>
             <div className="text-sm tnum sm:text-right">
               <div>Fee {fmtMoney(r.askingFee)}</div>
               <div className="text-xs text-muted-foreground">{fmtMoney(r.wage)}/wk asked</div>
             </div>
             <div className="flex gap-2">
-              <Button size="sm" onClick={() => act((s) => submitTransferOffer(s, r.player.id, r.askingFee))}>
+              <Button
+                size="sm"
+                onClick={() => act((s) => submitTransferOffer(s, r.player.id, r.askingFee))}
+              >
                 Bid
               </Button>
               <Button
@@ -350,7 +413,9 @@ function DealsView({
   act,
 }: {
   state: GameState;
-  act: (fn: (s: GameState) => { state: GameState; result: { ok: boolean; reason: string } }) => void;
+  act: (
+    fn: (s: GameState) => { state: GameState; result: { ok: boolean; reason: string } },
+  ) => void;
 }) {
   const open = openNegotiations(state);
   if (!open.length) {
@@ -375,8 +440,8 @@ function DealsView({
               </span>
             </div>
             <div className="text-sm tnum text-muted-foreground">
-              Fee {fmtMoneyExact(n.clubCounterFee ?? n.fee)} · Wage {fmtMoneyExact(n.proposedWeeklyWage)}/wk ·{" "}
-              {n.proposedLengthSeasons} season(s)
+              Fee {fmtMoneyExact(n.clubCounterFee ?? n.fee)} · Wage{" "}
+              {fmtMoneyExact(n.proposedWeeklyWage)}/wk · {n.proposedLengthSeasons} season(s)
             </div>
             <div className="text-xs text-muted-foreground space-y-0.5 max-h-32 overflow-auto">
               {n.log.slice(-4).map((l, i) => (
@@ -390,7 +455,11 @@ function DealsView({
                 </Button>
               )}
               {incoming && n.stage === "clubTalks" && (
-                <Button size="sm" variant="secondary" onClick={() => act((s) => improveTransferOffer(s, n.id))}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => act((s) => improveTransferOffer(s, n.id))}
+                >
                   Improve the fee
                 </Button>
               )}
@@ -405,25 +474,38 @@ function DealsView({
               )}
               {!incoming && n.stage === "clubTalks" && (
                 <>
-                  <Button size="sm" onClick={() => act((s) => respondToIncomingOffer(s, n.id, "accept"))}>
+                  <Button
+                    size="sm"
+                    onClick={() => act((s) => respondToIncomingOffer(s, n.id, "accept"))}
+                  >
                     Accept bid
                   </Button>
                   <Button
                     size="sm"
                     variant="secondary"
                     onClick={() =>
-                      act((s) => respondToIncomingOffer(s, n.id, "counter", Math.round(n.fee * 1.25)))
+                      act((s) =>
+                        respondToIncomingOffer(s, n.id, "counter", Math.round(n.fee * 1.25)),
+                      )
                     }
                   >
                     Counter {fmtMoney(Math.round(n.fee * 1.25))}
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => act((s) => respondToIncomingOffer(s, n.id, "reject"))}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => act((s) => respondToIncomingOffer(s, n.id, "reject"))}
+                  >
                     Reject
                   </Button>
                 </>
               )}
               {incoming && (
-                <Button size="sm" variant="ghost" onClick={() => act((s) => withdrawFromTalks(s, n.id))}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => act((s) => withdrawFromTalks(s, n.id))}
+                >
                   Withdraw
                 </Button>
               )}
@@ -473,7 +555,9 @@ function HistoryView({ state }: { state: GameState }) {
             );
           })}
           {!transfers.length && (
-            <div className="px-4 py-6 text-sm text-muted-foreground text-center">No completed transfers yet.</div>
+            <div className="px-4 py-6 text-sm text-muted-foreground text-center">
+              No completed transfers yet.
+            </div>
           )}
         </div>
       </div>
@@ -482,14 +566,17 @@ function HistoryView({ state }: { state: GameState }) {
         <div className="rounded-xl border bg-card">
           <div className="px-4 py-2 border-b font-semibold text-sm">Season summaries</div>
           <div className="divide-y text-sm">
-            {seasons.slice().reverse().map((y) => (
-              <div key={y.season} className="px-4 py-2 flex justify-between gap-2 tnum">
-                <span>Season {y.season}</span>
-                <span className="text-xs text-muted-foreground">
-                  In {y.playersIn} · Out {y.playersOut} · Net {fmtMoney(y.netSpend)}
-                </span>
-              </div>
-            ))}
+            {seasons
+              .slice()
+              .reverse()
+              .map((y) => (
+                <div key={y.season} className="px-4 py-2 flex justify-between gap-2 tnum">
+                  <span>Season {y.season}</span>
+                  <span className="text-xs text-muted-foreground">
+                    In {y.playersIn} · Out {y.playersOut} · Net {fmtMoney(y.netSpend)}
+                  </span>
+                </div>
+              ))}
           </div>
         </div>
       )}

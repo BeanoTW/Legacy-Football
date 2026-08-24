@@ -71,8 +71,15 @@ export interface CompactionResult {
 const emptyArchive = (): SaveArchive => ({
   seasons: [],
   finance: {
-    net: 0, income: 0, expense: 0, entryCount: 0, buckets: [], guardKeys: [],
-    trailingLossWeeks: 0, lastAbsoluteWeek: 0, commercialIncomeBySeason: {},
+    net: 0,
+    income: 0,
+    expense: 0,
+    entryCount: 0,
+    buckets: [],
+    guardKeys: [],
+    trailingLossWeeks: 0,
+    lastAbsoluteWeek: 0,
+    commercialIncomeBySeason: {},
   },
   inbox: { guardKeys: [], count: 0 },
   matches: { count: 0 },
@@ -83,7 +90,10 @@ const emptyArchive = (): SaveArchive => ({
 const bucketSignature = (b: ArchivedFinanceBucket) =>
   `${b.sourceSystem}|${b.category}|${b.subcategory}|${b.direction}`;
 
-function mergeBuckets(into: ArchivedFinanceBucket[], entries: FinanceEntry[]): ArchivedFinanceBucket[] {
+function mergeBuckets(
+  into: ArchivedFinanceBucket[],
+  entries: FinanceEntry[],
+): ArchivedFinanceBucket[] {
   const map = new Map<string, ArchivedFinanceBucket>();
   for (const b of into) map.set(bucketSignature(b), { ...b });
   for (const e of entries) {
@@ -128,13 +138,18 @@ function trailingLossRun(entries: FinanceEntry[]): number {
   }
   const weeks = [...byWeek.keys()].sort((a, b) => a - b);
   let run = 0;
-  for (const w of weeks) if ((byWeek.get(w) ?? 0) < 0) run++; else run = 0;
+  for (const w of weeks)
+    if ((byWeek.get(w) ?? 0) < 0) run++;
+    else run = 0;
   return run;
 }
 
 function pushChunk(chunks: HistoryChunk[], kind: ChunkKind, season: number, row: unknown): void {
   let c = chunks.find((x) => x.kind === kind && x.season === season);
-  if (!c) { c = { kind, season, rows: [] }; chunks.push(c); }
+  if (!c) {
+    c = { kind, season, rows: [] };
+    chunks.push(c);
+  }
   c.rows.push(row);
 }
 
@@ -158,7 +173,10 @@ export function compactState(state: GameState): CompactionResult {
   const hotMatches: MatchRecord[] = [];
   for (const r of core.matchRecords ?? []) {
     if (r.season >= season) hotMatches.push(r);
-    else { pushChunk(chunks, "history:matches", r.season, r); archive.matches.count += 1; }
+    else {
+      pushChunk(chunks, "history:matches", r.season, r);
+      archive.matches.count += 1;
+    }
   }
   core.matchRecords = hotMatches;
 
@@ -166,14 +184,17 @@ export function compactState(state: GameState): CompactionResult {
   const allEntries = core.financeLedger ?? [];
   const gateKeep = new Set(
     allEntries
-      .filter((e) => e.category === "Matchday" && e.subcategory === "Ticket sales" && e.metadata?.home === true)
+      .filter(
+        (e) =>
+          e.category === "Matchday" &&
+          e.subcategory === "Ticket sales" &&
+          e.metadata?.home === true,
+      )
       .slice(-RETAIN_GATE_ENTRIES)
       .map((e) => e.id),
   );
   const liveContractIds = new Set(
-    (core.commercial?.contracts ?? [])
-      .filter((c) => c.status === "Active")
-      .map((c) => c.id),
+    (core.commercial?.contracts ?? []).filter((c) => c.status === "Active").map((c) => c.id),
   );
   const hotEntries: FinanceEntry[] = [];
   const archivedEntries: FinanceEntry[] = [];
@@ -211,7 +232,8 @@ export function compactState(state: GameState): CompactionResult {
     archive.finance.entryCount += archivedEntries.length;
     archive.finance.buckets = mergeBuckets(archive.finance.buckets, archivedEntries);
     archive.finance.guardKeys = [...new Set(archive.finance.guardKeys)].sort();
-    archive.finance.trailingLossWeeks = trailingLossRun(archivedEntries) || archive.finance.trailingLossWeeks;
+    archive.finance.trailingLossWeeks =
+      trailingLossRun(archivedEntries) || archive.finance.trailingLossWeeks;
     core.financeLedger = hotEntries;
   }
 
@@ -231,7 +253,8 @@ export function compactState(state: GameState): CompactionResult {
   const hotInbox: InboxItem[] = [];
   const archivedInbox: InboxItem[] = [];
   for (const it of core.inbox ?? []) {
-    const unresolved = it.status === "awaitingDecision" || (it.choices?.length ? it.status === "unread" : false);
+    const unresolved =
+      it.status === "awaitingDecision" || (it.choices?.length ? it.status === "unread" : false);
     const unappliedConsequence =
       !!it.consequenceOnExpire && it.consequenceApplied !== true && it.status !== "completed";
     const old = it.season < season;
@@ -256,14 +279,20 @@ export function compactState(state: GameState): CompactionResult {
     for (const r of f.transferHistory ?? []) {
       const mine = r.toClubId === club || r.fromClubId === club;
       if (r.season >= season || mine) hotTransfers.push(r);
-      else { pushChunk(chunks, "history:transfers", r.season, r); archive.transfers.count += 1; }
+      else {
+        pushChunk(chunks, "history:transfers", r.season, r);
+        archive.transfers.count += 1;
+      }
     }
     f.transferHistory = hotTransfers;
 
     const hotRecords: PlayerContractRecord[] = [];
     for (const r of f.contractHistory ?? []) {
       if (r.season >= season || r.clubId === club) hotRecords.push(r);
-      else { pushChunk(chunks, "history:contracts", r.season, r); archive.contracts.recordCount += 1; }
+      else {
+        pushChunk(chunks, "history:contracts", r.season, r);
+        archive.contracts.recordCount += 1;
+      }
     }
     f.contractHistory = hotRecords;
 

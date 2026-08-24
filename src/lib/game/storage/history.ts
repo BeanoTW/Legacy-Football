@@ -78,7 +78,8 @@ export function createHistoryRepository(
     },
 
     async readAll<T>(kind: ChunkKind) {
-      const rows = (await index()).filter((r) => r.kind === kind)
+      const rows = (await index())
+        .filter((r) => r.kind === kind)
         .sort((a, b) => a.season - b.season);
       if (!rows.length) return [];
       const rec = await records.get(rows.map((r) => r.key));

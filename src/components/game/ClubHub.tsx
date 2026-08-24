@@ -4,10 +4,18 @@ import type { GameState, Staff } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
-  CALENDAR, fmtMoney, phaseOf, startMatchDay, totalCapacity, totalWeeklyExpenses,
+  CALENDAR,
+  fmtMoney,
+  phaseOf,
+  startMatchDay,
+  totalCapacity,
+  totalWeeklyExpenses,
   weeklySponsorIncome,
 } from "@/lib/game/engine";
-import { financialHealth as canonicalFinancialHealth, sustainabilitySnapshot } from "@/lib/game/sustainability";
+import {
+  financialHealth as canonicalFinancialHealth,
+  sustainabilitySnapshot,
+} from "@/lib/game/sustainability";
 import { HEALTH_TONE, initials, ord } from "./shared/primitives";
 import type { Tab } from "./tabs";
 
@@ -19,11 +27,13 @@ import type { Tab } from "./tabs";
 function financialHealth(state: GameState): { label: string; tone: "good" | "bad" | "muted" } {
   const h = canonicalFinancialHealth(state);
   const tone: "good" | "bad" | "muted" =
-    h.state === "secure" || h.state === "healthy" ? "good"
-      : h.state === "stressed" || h.state === "critical" ? "bad" : "muted";
+    h.state === "secure" || h.state === "healthy"
+      ? "good"
+      : h.state === "stressed" || h.state === "critical"
+        ? "bad"
+        : "muted";
   return { label: h.label, tone };
 }
-
 
 function fanbaseEstimate(state: GameState): number {
   const cap = totalCapacity(state);
@@ -32,8 +42,12 @@ function fanbaseEstimate(state: GameState): number {
 }
 
 export function HubStrategicStrip({
-  state, onOpenFinance,
-}: { state: GameState; onOpenFinance: () => void }) {
+  state,
+  onOpenFinance,
+}: {
+  state: GameState;
+  onOpenFinance: () => void;
+}) {
   const snap = useMemo(() => sustainabilitySnapshot(state), [state]);
   const { health, reserve, pressure } = snap;
   return (
@@ -42,7 +56,9 @@ export function HubStrategicStrip({
       className="w-full text-left rounded-xl border bg-card shadow-sm p-3 grid gap-3 sm:grid-cols-3 hover:bg-muted/40 transition-colors"
     >
       <div>
-        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Financial health</div>
+        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+          Financial health
+        </div>
         <div className={cn("font-display text-lg leading-none", HEALTH_TONE[health.state])}>
           {health.label}
         </div>
@@ -60,7 +76,9 @@ export function HubStrategicStrip({
         </div>
       </div>
       <div>
-        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Board pressure</div>
+        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+          Board pressure
+        </div>
         <div className="font-display text-lg leading-none tabular-nums">{pressure.score}/100</div>
         <div className="text-[11px] text-muted-foreground line-clamp-2">{pressure.headline}</div>
       </div>
@@ -79,7 +97,6 @@ export function ClubHub({
   update: (fn: (s: GameState) => GameState) => void;
   setTab: (t: Tab) => void;
 }) {
-
   const nextFixture = state.fixtures.find((f) => f.week === state.week);
   const health = financialHealth(state);
   const fanbase = fanbaseEstimate(state);
@@ -88,14 +105,17 @@ export function ClubHub({
     ? Math.round(state.hiredStaff.reduce((a, s) => a + s.rating, 0) / staffCount)
     : 0;
   const manager = state.hiredStaff.find((s) => s.role === "Manager");
-  const boardConf = Math.max(20, Math.min(99, Math.round(50 + state.fanHappiness / 4 + (state.cash > 0 ? 15 : -20))));
+  const boardConf = Math.max(
+    20,
+    Math.min(99, Math.round(50 + state.fanHappiness / 4 + (state.cash > 0 ? 15 : -20))),
+  );
   const mgrConf = manager
     ? Math.max(20, Math.min(99, Math.round(60 + (manager.rating - 60) + state.fanHappiness / 8)))
     : Math.max(20, Math.min(99, Math.round(50 + state.fanHappiness / 5)));
   const weeklyNet = weeklySponsorIncome(state) - totalWeeklyExpenses(state);
 
   const leagueSorted = [...state.league].sort(
-    (a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga) || b.gf - a.gf,
+    (a, b) => b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga) || b.gf - a.gf,
   );
   const myIdx = leagueSorted.findIndex((r) => r.team === state.clubName);
   const miniLeague = leagueSorted.slice(
@@ -115,7 +135,8 @@ export function ClubHub({
             <div className="min-w-0">
               <div className="font-display text-2xl leading-none truncate">{state.clubName}</div>
               <div className="text-xs opacity-80 mt-1">
-                {myIdx >= 0 ? `${myIdx + 1}${ord(myIdx + 1)}` : "—"} · Season {state.season} · Week {state.week}/{CALENDAR.seasonEnd}
+                {myIdx >= 0 ? `${myIdx + 1}${ord(myIdx + 1)}` : "—"} · Season {state.season} · Week{" "}
+                {state.week}/{CALENDAR.seasonEnd}
               </div>
             </div>
           </div>
@@ -141,7 +162,9 @@ export function ClubHub({
             </div>
             <div className="absolute inset-x-3 bottom-3 rounded-lg banner-strip px-3 py-2 flex items-center justify-between">
               <div className="min-w-0">
-                <div className="font-display text-lg leading-none truncate">{state.managerName}</div>
+                <div className="font-display text-lg leading-none truncate">
+                  {state.managerName}
+                </div>
                 <div className="text-[10px] uppercase tracking-wider opacity-80 mt-0.5">
                   Chairman
                 </div>
@@ -233,7 +256,6 @@ export function ClubHub({
             <Button size="sm" onClick={() => update((s) => startMatchDay(s))}>
               <ChevronsRight className="size-4 mr-1" /> Play
             </Button>
-
           </div>
         ) : (
           <div className="p-4 text-sm text-muted-foreground">

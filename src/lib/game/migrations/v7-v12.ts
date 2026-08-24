@@ -81,7 +81,11 @@ export const V10_TO_V11: Migration = {
       lm.homeClub ??= ident?.homeClub;
       lm.awayClub ??= ident?.awayClub;
       lm.committed ??= false;
-      if (!ident) ctx.warn("live-match/identity-derived", "no matching fixture; seed derived from calendar slot");
+      if (!ident)
+        ctx.warn(
+          "live-match/identity-derived",
+          "no matching fixture; seed derived from calendar slot",
+        );
     }
   },
 };
@@ -97,5 +101,10 @@ export const V11_TO_V12: Migration = {
 };
 
 export const LATE_MIGRATIONS: Migration[] = [
-  V6_TO_V7, V7_TO_V8, V8_TO_V9, V9_TO_V10, V10_TO_V11, V11_TO_V12,
+  V6_TO_V7,
+  V7_TO_V8,
+  V8_TO_V9,
+  V9_TO_V10,
+  V10_TO_V11,
+  V11_TO_V12,
 ];

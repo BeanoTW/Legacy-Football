@@ -21,6 +21,7 @@ import { StaffTab } from "@/components/game/StaffTab";
 import { ClubHub } from "@/components/game/ClubHub";
 import { MatchDayOverlay } from "@/components/game/MatchDayOverlay";
 import { InboxTab } from "@/components/game/InboxTab";
+import { WorldInspector } from "@/components/game/WorldInspector";
 import { useGame } from "@/hooks/useGame";
 import type { GameState } from "@/lib/game/types";
 import {
@@ -63,21 +64,14 @@ export const Route = createFileRoute("/")({
 
 function Page() {
   const { state, hydrated, start, advance, update, reset } = useGame();
-
-  if (!hydrated) {
+  if (!hydrated)
     return (
-      <div className="min-h-screen grid place-items-center text-muted-foreground">
-        Loading…
-      </div>
+      <div className="min-h-screen grid place-items-center text-muted-foreground">Loading…</div>
     );
-  }
   if (!state) return <NewGame onStart={start} />;
   return <Game state={state} advance={advance} update={update} reset={reset} />;
 }
 
-/* =========================================================================
-   MAIN GAME SHELL
-   ========================================================================= */
 function Game({
   state,
   advance,
@@ -90,10 +84,9 @@ function Game({
   reset: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("inbox");
-
   const kpi = useMemo(() => {
-    const wIncome = weeklySponsorIncome(state); // recurring
-    const wExpenses = totalWeeklyExpenses(state);
+    const wIncome = weeklySponsorIncome(state),
+      wExpenses = totalWeeklyExpenses(state);
     return {
       cash: state.cash,
       weeklyIncome: wIncome,
@@ -110,7 +103,7 @@ function Game({
     <div className="min-h-screen bg-background">
       <TopBar
         title={state.clubName}
-        subtitle={`${state.managerName} · Season ${state.season} · Week ${state.week}/${CALENDAR.seasonEnd} · ${({preseason:"Pre-season",firstHalf:"League — 1st half",midseason:"Mid-season break",secondHalf:"League — 2nd half"} as const)[phaseOf(state.week)]}`}
+        subtitle={`${state.managerName} · Season ${state.season} · Week ${state.week}/${CALENDAR.seasonEnd} · ${({ preseason: "Pre-season", firstHalf: "League — 1st half", midseason: "Mid-season break", secondHalf: "League — 2nd half" } as const)[phaseOf(state.week)]}`}
         right={
           <div className="flex items-center gap-2">
             <Button size="sm" variant="secondary" onClick={() => advance(1)}>
@@ -122,8 +115,6 @@ function Game({
           </div>
         }
       />
-
-      {/* KPI strip */}
       <div className="border-b bg-panel text-panel-foreground">
         <div className="mx-auto max-w-6xl px-3 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3 tnum">
           <Kpi
@@ -154,8 +145,6 @@ function Game({
           />
         </div>
       </div>
-
-      {/* Desktop tabs */}
       <nav className="border-b bg-card sticky top-0 z-10 hidden md:block">
         <div className="mx-auto max-w-6xl px-2 overflow-x-auto">
           <ul className="flex gap-1 text-sm">
@@ -178,18 +167,17 @@ function Game({
                     </span>
                   )}
                 </button>
-
               </li>
             ))}
           </ul>
         </div>
       </nav>
-
       <main className="mx-auto max-w-6xl px-3 py-5 pb-24 md:pb-5">
         <ScreenBoundary name={ALL_TABS.find(([id]) => id === tab)?.[1] ?? tab}>
           {tab === "inbox" && <InboxTab state={state} update={update} />}
-          {tab === "hub" && <ClubHub state={state} advance={advance} update={update} setTab={setTab} />}
-
+          {tab === "hub" && (
+            <ClubHub state={state} advance={advance} update={update} setTab={setTab} />
+          )}
           {tab === "dashboard" && <DashboardTab state={state} />}
           {tab === "cashflow" && <CashFlowTab state={state} />}
           {tab === "tickets" && <TicketsTab state={state} update={update} />}
@@ -200,24 +188,22 @@ function Game({
           {tab === "board" && <BoardTab state={state} />}
           {tab === "commercial" && <CommercialTab state={state} update={update} />}
           {tab === "leagues" && <LeagueBrowser state={state} />}
+          {tab === "world" && <WorldInspector state={state} />}
           {tab === "history" && <HistoryTab state={state} />}
         </ScreenBoundary>
       </main>
-
-
-      {/* Mobile bottom nav */}
       <MobileNav tab={tab} setTab={setTab} unread={unreadCount(state)} />
-
-
       {state.liveMatch && <MatchDayOverlay state={state} update={update} />}
-
-
       <footer className="border-t bg-card">
         <div className="mx-auto max-w-6xl px-3 py-4 flex flex-wrap gap-2 items-center justify-between text-sm text-muted-foreground">
           <span>Autosaved to this device.</span>
-          <Button variant="ghost" size="sm" onClick={() => {
-            if (confirm("Reset game and lose all progress?")) reset();
-          }}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (confirm("Reset game and lose all progress?")) reset();
+            }}
+          >
             <RotateCcw className="size-4 mr-1" /> Reset game
           </Button>
         </div>

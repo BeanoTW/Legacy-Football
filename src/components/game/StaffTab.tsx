@@ -7,18 +7,35 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import {
-  fmtMoneyExact, hireStaffMember, hiredStaffWagesWeekly, sackStaffMember,
-  severanceFor, staffJoinTerms,
+  fmtMoneyExact,
+  hireStaffMember,
+  hiredStaffWagesWeekly,
+  sackStaffMember,
+  severanceFor,
+  staffJoinTerms,
 } from "@/lib/game/engine";
 import { facilityModifiers } from "@/lib/game/infrastructure";
 import { Section, Stat } from "./shared/primitives";
 
 const STAT_KEYS: (keyof Staff["stats"])[] = [
-  "tactics","attack","defense","development","scouting","negotiation","medical","motivation",
+  "tactics",
+  "attack",
+  "defense",
+  "development",
+  "scouting",
+  "negotiation",
+  "medical",
+  "motivation",
 ];
 const STAT_LABEL: Record<keyof Staff["stats"], string> = {
-  tactics: "Tac", attack: "Att", defense: "Def", development: "Dev",
-  scouting: "Sct", negotiation: "Neg", medical: "Med", motivation: "Mot",
+  tactics: "Tac",
+  attack: "Att",
+  defense: "Def",
+  development: "Dev",
+  scouting: "Sct",
+  negotiation: "Neg",
+  medical: "Med",
+  motivation: "Mot",
 };
 
 export function StaffTab({
@@ -97,7 +114,11 @@ export function StaffTab({
         <div className="grid gap-3 md:grid-cols-4">
           <Stat label="Hired staff" value={String(state.hiredStaff.length)} />
           <Stat label="Weekly cost" value={fmtMoneyExact(weeklyStaffCost)} tone="bad" />
-          <Stat label="Club reputation" value={String(Math.round(state.reputation))} sub="drives who'll join" />
+          <Stat
+            label="Club reputation"
+            value={String(Math.round(state.reputation))}
+            sub="drives who'll join"
+          />
           <Stat
             label="Willing candidates"
             value={`${willingCount} / ${enriched.length}`}
@@ -109,8 +130,8 @@ export function StaffTab({
       <Section title="Your backroom staff">
         {state.hiredStaff.length === 0 ? (
           <div className="text-sm text-muted-foreground">
-            You haven't hired anyone yet. Browse the shortlist below and appoint your
-            manager and specialists.
+            You haven't hired anyone yet. Browse the shortlist below and appoint your manager and
+            specialists.
           </div>
         ) : (
           <div className="grid gap-3 md:grid-cols-2">
@@ -308,9 +329,7 @@ export function StaffCard({
             <span className="font-semibold">{fmtMoneyExact(wage)}</span>
             <span className="text-muted-foreground">/wk</span>
             {terms && premiumPct > 0 && (
-              <span className="text-muted-foreground">
-                {" "}(listed {fmtMoneyExact(staff.wage)})
-              </span>
+              <span className="text-muted-foreground"> (listed {fmtMoneyExact(staff.wage)})</span>
             )}
           </div>
           <div className="text-muted-foreground">

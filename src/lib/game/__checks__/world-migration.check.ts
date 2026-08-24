@@ -1,0 +1,127 @@
+import { advanceWeek, migrateSave, newGame, SAVE_VERSION } from "../engine";
+import { leagueOf } from "../league";
+import { buildWorldSimulationPlan } from "../world";
+import { WORLD_DIVISIONS } from "../worldPyramid";
+import type { GameState } from "../types";
+
+function assert(condition: unknown, message: string): asserts condition {
+  if (!condition) throw new Error(message);
+}
+
+function clone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+type LegacyGame = Omit<GameState, "version"> & { version: number };
+const raw = (s: LegacyGame | GameState) => s as unknown as Record<string, unknown>;
+
+function legacyTwoTier(seed: string): LegacyGame {
+  const s = newGame("Migration FC", "World Migrator", seed) as LegacyGame;
+  const keptLeagues = s.leagues.slice(0, 2);
+  const keptIds = new Set(keptLeagues.map((league) => league.id));
+  const keptClubs = new Set(keptLeagues.flatMap((league) => league.clubIds));
+
+  s.version = 12;
+  s.leagues = keptLeagues;
+  s.leagueSchedule = s.leagueSchedule.filter((fixture) => keptIds.has(leagueOf(fixture)));
+  s.matchRecords = s.matchRecords.filter((record) => keptIds.has(record.league));
+  s.seasonHistory = s.seasonHistory.filter((entry) => keptIds.has(entry.leagueId));
+  s.clubRecords = Object.fromEntries(
+    Object.entries(s.clubRecords).filter(([clubId]) => keptClubs.has(clubId)),
+  );
+  s.clubReputations = Object.fromEntries(
+    Object.entries(s.clubReputations).filter(([clubId]) => keptClubs.has(clubId)),
+  );
+  s.clubSnapshots = s.clubSnapshots.filter((snapshot) => keptClubs.has(snapshot.club));
+  s.seasonPredictions = s.seasonPredictions.filter((prediction) =>
+    keptIds.has(prediction.leagueId),
+  );
+  delete s.fringeWorld;
+  s.trackedClubIds = [];
+  return s;
+}
+
+const source = legacyTwoTier("WORLD|MIGRATION|V12");
+const originalMembership = source.leagues.map(
+  (league) => [league.id, [...league.clubIds]] as const,
+);
+source.week = 20;
+
+const migrated = migrateSave(raw(clone(source)));
+assert(
+  migrated.version === SAVE_VERSION && SAVE_VERSION === 13,
+  "migration must produce schema v13",
+);
+assert(migrated.leagues.length === WORLD_DIVISIONS.length, "v13 must contain every world division");
+assert(
+  new Set(migrated.leagues.flatMap((league) => league.clubIds)).size === 80,
+  "expanded world must contain 80 unique persistent clubs",
+);
+for (const [leagueId, clubIds] of originalMembership) {
+  const after = migrated.leagues.find((league) => league.id === leagueId);
+  assert(!!after, `existing league ${leagueId} must survive migration`);
+  assert(
+    JSON.stringify(after.clubIds) === JSON.stringify(clubIds),
+    `existing membership in ${leagueId} must be preserved exactly`,
+  );
+}
+
+const scheduledLeagueIds = new Set(migrated.leagueSchedule.map(leagueOf));
+assert(
+  WORLD_DIVISIONS.every((def) => scheduledLeagueIds.has(def.id)),
+  "a full-simulation v12 save must gain schedules for every added division",
+);
+assert(
+  migrated.matchRecords.some((record) => record.league === "league-3" && record.week < 20),
+  "elapsed AI fixtures in a newly added division must be caught up deterministically",
+);
+
+const plan = buildWorldSimulationPlan(migrated);
+assert(plan.focusClubIds.length === 40, "top-tier player must keep a 40-club Focus bubble");
+assert(plan.fringeClubIds.length === 40, "new distant divisions must remain lightweight Fringe");
+assert(
+  migrated.football.players.every(
+    (player) => player.currentClubId === null || plan.focusClubIds.includes(player.currentClubId),
+  ),
+  "migration must not materialise detailed players for Fringe clubs",
+);
+assert(
+  Object.keys(migrated.fringeWorld ?? {}).length === plan.fringeClubIds.length,
+  "every migrated Fringe club must receive compact persistent state",
+);
+for (const league of migrated.leagues) {
+  for (const clubId of league.clubIds) {
+    assert(!!migrated.clubRecords[clubId], `club record missing for ${clubId}`);
+    assert(
+      typeof migrated.clubReputations[clubId] === "number",
+      `reputation missing for ${clubId}`,
+    );
+  }
+}
+
+const replay = migrateSave(raw(clone(migrated)));
+assert(
+  JSON.stringify(replay) === JSON.stringify(migrated),
+  "reloading an already-migrated v13 world must be byte-stable",
+);
+
+// Legacy user-only seasons deliberately carry no full league schedule. Their
+// current season stays untouched; the complete four-tier competition begins
+// naturally at the next rollover.
+const userOnly = legacyTwoTier("WORLD|MIGRATION|USERONLY");
+userOnly.leagueSchedule = [];
+userOnly.matchRecords = [];
+userOnly.week = 46;
+const userOnlyMigrated = migrateSave(raw(clone(userOnly)));
+assert(
+  userOnlyMigrated.leagueSchedule.length === 0,
+  "user-only active season must not be rewritten",
+);
+const nextSeason = advanceWeek(userOnlyMigrated);
+assert(nextSeason.season === 2, "legacy user-only save must still roll into the next season");
+assert(
+  new Set(nextSeason.leagueSchedule.map(leagueOf)).size === WORLD_DIVISIONS.length,
+  "first new season after migration must schedule the complete four-tier world",
+);
+
+console.log("world-migration.check.ts: PASS");

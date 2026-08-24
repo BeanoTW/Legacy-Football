@@ -48,7 +48,10 @@ export const V1_TO_V2: Migration = {
         return { ...g, dueAtAbsoluteWeek: nowAbs };
       });
     if (p.scheduledGenerators.length !== before) {
-      ctx.warn("scheduled-generators/dropped", `${before - p.scheduledGenerators.length} malformed entries`);
+      ctx.warn(
+        "scheduled-generators/dropped",
+        `${before - p.scheduledGenerators.length} malformed entries`,
+      );
     }
 
     // Cooldown flag: convert week-of-season → absolute (using saved season)
@@ -94,8 +97,7 @@ export const V3_TO_V4: Migration = {
       p.leagues = fresh;
     }
     if (!p.playerLeagueId) {
-      p.playerLeagueId =
-        p.leagues.find((l) => l.clubIds.includes(p.clubName))?.id ?? DIVISION_ONE;
+      p.playerLeagueId = p.leagues.find((l) => l.clubIds.includes(p.clubName))?.id ?? DIVISION_ONE;
     }
     if (!p.leagues.some((l) => l.clubIds.includes(p.clubName))) {
       const home = p.leagues.find((l) => l.id === p.playerLeagueId) ?? p.leagues[0];

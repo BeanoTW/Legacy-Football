@@ -10,7 +10,9 @@ import { ensureInfrastructure } from "./infrastructure";
 import { ensureSustainability } from "./sustainability";
 import { ensureCommercial } from "./commercial";
 import { initClubReputations, storePredictions } from "./reputation";
-import { makeLeagues, makePyramidSchedule, makeClubRecords, DIVISION_ONE } from "./pyramid";
+import { makePyramidSchedule, makeClubRecords, DIVISION_ONE } from "./pyramid";
+import { makeExpandedLeagues } from "./worldPyramid";
+import { ensureFringeWorldState } from "./fringe";
 import { makeBoard, ensureBoard } from "./board";
 import { initFinance } from "./finance";
 import { openingStaffPool } from "./staff";
@@ -24,7 +26,7 @@ import { fixturesForClub, makeLeagueRows } from "./schedule";
  * (src/lib/game/migrations) — no module holds per-version field knowledge
  * outside that registry.
  */
-export const SAVE_VERSION = 12;
+export const SAVE_VERSION = 13;
 
 export function newGame(clubName: string, managerName: string, seed?: string): GameState {
   // `seed` is optional: verification suites pass a fixed seed so the whole
@@ -37,7 +39,9 @@ export function newGame(clubName: string, managerName: string, seed?: string): G
   // Opening cash is booked as a real ledger entry, so the books reconcile
   // from the very first week.
   initFinance(base);
-  // Canonical football world: players, contracts and squads for every club.
+  // Persist the lightweight outer world before detailed Focus squads are built.
+  ensureFringeWorldState(base);
+  // Canonical football world: detailed squads and contracts only for Focus clubs.
   ensureRecruitment(base);
   // Canonical physical club: stands, pitch, facilities and capital projects.
   ensureInfrastructure(base);
@@ -55,11 +59,11 @@ function _newGameSeed(clubName: string, managerName: string, seed?: string): Gam
   // ticket prices around the £20 reference for the level.
   const stands: Stand[] = [
     { key: "N", name: "North Stand", capacity: 3200, condition: 92, ticketPrice: 18 },
-    { key: "E", name: "East Stand",  capacity: 2600, condition: 88, ticketPrice: 21 },
+    { key: "E", name: "East Stand", capacity: 2600, condition: 88, ticketPrice: 21 },
     { key: "S", name: "South Stand", capacity: 3200, condition: 90, ticketPrice: 18 },
-    { key: "W", name: "West Stand",  capacity: 3000, condition: 94, ticketPrice: 26 },
+    { key: "W", name: "West Stand", capacity: 3000, condition: 94, ticketPrice: 26 },
   ];
-  const leagues = makeLeagues(clubName);
+  const leagues = makeExpandedLeagues(clubName);
   const leagueSchedule = makePyramidSchedule(leagues, `${saveSeed}|season1`);
   return {
     version: SAVE_VERSION,
@@ -83,8 +87,8 @@ function _newGameSeed(clubName: string, managerName: string, seed?: string): Gam
     squad: [],
     sponsors: [
       { name: "Main Kit Sponsor", weekly: 15_000, weeksLeft: 38 * 2 },
-      { name: "Stadium Naming",   weekly: 6_000,  weeksLeft: 38 * 3 },
-      { name: "Training Wear",    weekly: 2_500,  weeksLeft: 20 },
+      { name: "Stadium Naming", weekly: 6_000, weeksLeft: 38 * 3 },
+      { name: "Training Wear", weekly: 2_500, weeksLeft: 20 },
     ],
     fixtures: fixturesForClub(leagueSchedule, clubName),
     leagues,

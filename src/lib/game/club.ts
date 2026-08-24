@@ -19,8 +19,15 @@
  *    lying — Phase 1 fills those in, and `null` is where it will plug in.
  */
 import type {
-  GameState, FinanceState, BoardState, InfrastructureState,
-  CommercialDepartment, RecruitmentState, League, LeagueRow, FinanceEntry,
+  GameState,
+  FinanceState,
+  BoardState,
+  InfrastructureState,
+  CommercialDepartment,
+  RecruitmentState,
+  League,
+  LeagueRow,
+  FinanceEntry,
 } from "./types";
 import { type ClubId, controlledClubId, isControlledClub } from "./ids";
 import { playerLeagueId, tableFor } from "./league";
@@ -32,12 +39,18 @@ export const hasRichClubState = (s: GameState, clubId: ClubId): boolean =>
   isControlledClub(s, clubId);
 
 /** Finance state for a club. `null` for AI clubs until Phase 1. */
-export function clubFinance(s: GameState, clubId: ClubId = controlledClubId(s)): FinanceState | null {
+export function clubFinance(
+  s: GameState,
+  clubId: ClubId = controlledClubId(s),
+): FinanceState | null {
   return hasRichClubState(s, clubId) ? s.finance : null;
 }
 
 /** Append-only cash ledger for a club. `null` for AI clubs until Phase 1. */
-export function clubLedger(s: GameState, clubId: ClubId = controlledClubId(s)): FinanceEntry[] | null {
+export function clubLedger(
+  s: GameState,
+  clubId: ClubId = controlledClubId(s),
+): FinanceEntry[] | null {
   return hasRichClubState(s, clubId) ? s.financeLedger : null;
 }
 
@@ -48,14 +61,16 @@ export function clubBoard(s: GameState, clubId: ClubId = controlledClubId(s)): B
 
 /** Physical plant for a club. `null` for AI clubs until Phase 1. */
 export function clubInfrastructure(
-  s: GameState, clubId: ClubId = controlledClubId(s),
+  s: GameState,
+  clubId: ClubId = controlledClubId(s),
 ): InfrastructureState | null {
   return hasRichClubState(s, clubId) ? s.infrastructure : null;
 }
 
 /** Commercial department for a club. `null` for AI clubs until Phase 1. */
 export function clubCommercial(
-  s: GameState, clubId: ClubId = controlledClubId(s),
+  s: GameState,
+  clubId: ClubId = controlledClubId(s),
 ): CommercialDepartment | null {
   return hasRichClubState(s, clubId) ? s.commercial : null;
 }
@@ -68,7 +83,10 @@ export function clubCommercial(
  * `clubId`. The accessor exists so call sites read as "the football world seen
  * from this club" rather than "the user's squad".
  */
-export function clubFootball(s: GameState, _clubId: ClubId = controlledClubId(s)): RecruitmentState {
+export function clubFootball(
+  s: GameState,
+  _clubId: ClubId = controlledClubId(s),
+): RecruitmentState {
   void _clubId;
   return s.football;
 }
@@ -97,7 +115,10 @@ export function clubTable(s: GameState, clubId: ClubId = controlledClubId(s)): L
 }
 
 /** A club's row in its own division's table. */
-export function clubTableRow(s: GameState, clubId: ClubId = controlledClubId(s)): LeagueRow | undefined {
+export function clubTableRow(
+  s: GameState,
+  clubId: ClubId = controlledClubId(s),
+): LeagueRow | undefined {
   return clubTable(s, clubId).find((r) => r.team === (clubId as string));
 }
 
@@ -119,7 +140,10 @@ export function clubCash(s: GameState, clubId: ClubId = controlledClubId(s)): nu
 }
 
 /** Supporter mood 0-100. Controlled club only until Phase 1. */
-export function clubFanHappiness(s: GameState, clubId: ClubId = controlledClubId(s)): number | null {
+export function clubFanHappiness(
+  s: GameState,
+  clubId: ClubId = controlledClubId(s),
+): number | null {
   return hasRichClubState(s, clubId) ? s.fanHappiness : null;
 }
 

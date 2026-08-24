@@ -2,26 +2,33 @@ import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { BoardObjective, Director, GameState } from "@/lib/game/types";
 import {
-  BAND_CLASS, BAND_LABEL, TRAIT_DESC, TRAIT_LABEL,
-  confidenceBand, directorConcern, directorSatisfaction,
-  evaluateObjective, recomputeConfidence,
+  BAND_CLASS,
+  BAND_LABEL,
+  TRAIT_DESC,
+  TRAIT_LABEL,
+  confidenceBand,
+  directorConcern,
+  directorSatisfaction,
+  evaluateObjective,
+  recomputeConfidence,
 } from "@/lib/game/board";
 import { fmtMoneyExact } from "@/lib/game/engine";
 
 type View = "overview" | "directors" | "objectives" | "reviews";
 
 const PRIORITY_LABEL: Record<string, string> = {
-  results: "Results", finance: "Finance", fans: "Supporters",
-  facilities: "Facilities", squad: "Squad", commercial: "Commercial",
+  results: "Results",
+  finance: "Finance",
+  fans: "Supporters",
+  facilities: "Facilities",
+  squad: "Squad",
+  commercial: "Commercial",
 };
 
 export function BoardTab({ state }: { state: GameState }) {
   const [view, setView] = useState<View>("overview");
   const board = state.board;
-  const confidence = useMemo(
-    () => (board ? recomputeConfidence(board) : 50),
-    [board],
-  );
+  const confidence = useMemo(() => (board ? recomputeConfidence(board) : 50), [board]);
 
   if (!board?.directors?.length) {
     return (
@@ -40,9 +47,7 @@ export function BoardTab({ state }: { state: GameState }) {
         <div className="p-4 flex flex-wrap items-center gap-4">
           <ConfidenceDial value={confidence} />
           <div className="min-w-40">
-            <div className={cn("text-lg font-semibold", BAND_CLASS[band])}>
-              {BAND_LABEL[band]}
-            </div>
+            <div className={cn("text-lg font-semibold", BAND_CLASS[band])}>{BAND_LABEL[band]}</div>
             <p className="text-xs text-muted-foreground max-w-md">
               Board confidence is the influence-weighted view of {board.directors.length} directors.
               They do not agree with each other — each judges you on the part of the club they own.
@@ -51,12 +56,14 @@ export function BoardTab({ state }: { state: GameState }) {
         </div>
         <div className="px-3 pb-3">
           <Segmented
-            options={[
-              ["overview", "Overview"],
-              ["directors", "Directors"],
-              ["objectives", "Objectives"],
-              ["reviews", "Reviews"],
-            ] as const}
+            options={
+              [
+                ["overview", "Overview"],
+                ["directors", "Directors"],
+                ["objectives", "Objectives"],
+                ["reviews", "Reviews"],
+              ] as const
+            }
             value={view}
             onChange={(v) => setView(v as View)}
           />
@@ -90,14 +97,11 @@ function Overview({ state }: { state: GameState }) {
         <h3 className="text-sm font-semibold">Season {state.season} at a glance</h3>
         <Stat label="Objectives on track" value={`${onTrack} of ${objectives.length}`} />
         <Stat label="Next review" value={nextReview} />
-        <Stat
-          label="Reviews on file"
-          value={String((board.reviews ?? []).length)}
-        />
+        <Stat label="Reviews on file" value={String((board.reviews ?? []).length)} />
         <p className="text-xs text-muted-foreground">
-          Objectives are set from the club's own pre-season projection, then tightened by
-          however much ambition sits around the table. Missing one does not end your
-          tenure; consistently missing the ones your most influential directors care about does.
+          Objectives are set from the club's own pre-season projection, then tightened by however
+          much ambition sits around the table. Missing one does not end your tenure; consistently
+          missing the ones your most influential directors care about does.
         </p>
       </div>
 
@@ -205,7 +209,11 @@ function DirectorCard({ state, d }: { state: GameState; d: Director }) {
 function Objectives({ state }: { state: GameState }) {
   const objectives = state.board.objectives ?? [];
   if (!objectives.length) {
-    return <div className="rounded-xl border bg-card p-4 text-sm text-muted-foreground">No objectives set.</div>;
+    return (
+      <div className="rounded-xl border bg-card p-4 text-sm text-muted-foreground">
+        No objectives set.
+      </div>
+    );
   }
   return (
     <div className="space-y-3">
@@ -230,26 +238,37 @@ function ObjectiveRow({ state, o }: { state: GameState; o: BoardObjective }) {
         <span
           className={cn(
             "shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium border",
-            o.status === "met" ? "text-emerald-600 border-emerald-300"
-              : o.status === "missed" ? "text-rose-600 border-rose-300"
-              : p.onTrack ? "text-teal-600 border-teal-300"
-              : "text-amber-600 border-amber-300",
+            o.status === "met"
+              ? "text-emerald-600 border-emerald-300"
+              : o.status === "missed"
+                ? "text-rose-600 border-rose-300"
+                : p.onTrack
+                  ? "text-teal-600 border-teal-300"
+                  : "text-amber-600 border-amber-300",
           )}
         >
-          {o.status === "active" ? (p.onTrack ? "On track" : "Behind") : o.status === "met" ? "Met" : "Missed"}
+          {o.status === "active"
+            ? p.onTrack
+              ? "On track"
+              : "Behind"
+            : o.status === "met"
+              ? "Met"
+              : "Missed"}
         </span>
       </div>
 
       <div className="h-2 rounded-full bg-muted overflow-hidden">
-        <div className={cn("h-full rounded-full", barClass(pct))} style={{ width: `${Math.max(2, pct)}%` }} />
+        <div
+          className={cn("h-full rounded-full", barClass(pct))}
+          style={{ width: `${Math.max(2, pct)}%` }}
+        />
       </div>
 
       <div className="flex flex-wrap justify-between gap-2 text-[11px] text-muted-foreground">
         <span>{p.detail}</span>
         <span>
           Target {o.kind === "cashReserve" ? fmtMoneyExact(o.target) : o.target}
-          {o.kind === "wageControl" ? "%" : ""} ·{" "}
-          {PRIORITY_LABEL[o.priority]} · weight {o.weight}
+          {o.kind === "wageControl" ? "%" : ""} · {PRIORITY_LABEL[o.priority]} · weight {o.weight}
           {owner ? ` · owned by ${owner.name}` : ""}
         </span>
       </div>
@@ -282,13 +301,16 @@ function Reviews({ state }: { state: GameState }) {
               <div className={cn("text-sm font-bold tabular-nums", BAND_CLASS[band])}>
                 {r.confidenceAfter}%{" "}
                 <span className="text-[11px] font-normal">
-                  ({delta >= 0 ? "+" : ""}{delta})
+                  ({delta >= 0 ? "+" : ""}
+                  {delta})
                 </span>
               </div>
             </div>
             <p className="text-xs">{r.verdict}</p>
             <ul className="text-[11px] text-muted-foreground space-y-0.5">
-              {r.lines.map((l, i) => <li key={i}>• {l}</li>)}
+              {r.lines.map((l, i) => (
+                <li key={i}>• {l}</li>
+              ))}
             </ul>
             <div className="flex flex-wrap gap-1 pt-1">
               {r.outcomes.map((o) => (
@@ -327,7 +349,12 @@ function ConfidenceDial({ value }: { value: number }) {
       <svg viewBox="0 0 36 36" className="size-24 -rotate-90">
         <circle cx="18" cy="18" r="15.9" fill="none" strokeWidth="3.4" className="stroke-muted" />
         <circle
-          cx="18" cy="18" r="15.9" fill="none" strokeWidth="3.4" strokeLinecap="round"
+          cx="18"
+          cy="18"
+          r="15.9"
+          fill="none"
+          strokeWidth="3.4"
+          strokeLinecap="round"
           className={cn(BAND_CLASS[band], "transition-all")}
           stroke="currentColor"
           strokeDasharray={`${Math.max(1, value)} 100`}
@@ -351,7 +378,9 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 function Segmented<T extends string>({
-  options, value, onChange,
+  options,
+  value,
+  onChange,
 }: {
   options: readonly (readonly [T, string])[];
   value: string;

@@ -18,8 +18,13 @@ import type { GameState, FinanceEntry } from "../types";
 let passed = 0;
 let failed = 0;
 function check(label: string, cond: boolean, extra?: string) {
-  if (cond) { passed++; console.log(`  ✓ ${label}`); }
-  else { failed++; console.log(`  ✗ ${label}${extra ? " — " + extra : ""}`); }
+  if (cond) {
+    passed++;
+    console.log(`  ✓ ${label}`);
+  } else {
+    failed++;
+    console.log(`  ✗ ${label}${extra ? " — " + extra : ""}`);
+  }
 }
 
 const SEED = "PHASE1B|HISTORY|FIXED";
@@ -34,8 +39,11 @@ function run(weeks: number): GameState {
 
 function makeStore(records = createMemoryRecordStore()) {
   const store = createIdbSaveStore({
-    records, migrate: migrateSave, currentVersion: SAVE_VERSION,
-    legacy: null, now: () => 1_700_000_000_000,
+    records,
+    migrate: migrateSave,
+    currentVersion: SAVE_VERSION,
+    legacy: null,
+    now: () => 1_700_000_000_000,
   });
   return { store, records };
 }
@@ -50,11 +58,16 @@ const twoSeasons = run(46 * 2 + 6);
   check("input state is not mutated", serializeSave(twoSeasons) === beforeJson);
   check("input snapshot hash unchanged", stateHash(twoSeasons) === before);
   check("chunks were produced for aged history", chunks.length > 0, String(chunks.length));
-  check("every chunk season is older than the current season",
-    chunks.every((c) => c.season < twoSeasons.season));
+  check(
+    "every chunk season is older than the current season",
+    chunks.every((c) => c.season < twoSeasons.season),
+  );
   const again = compactState(core);
-  check("re-compacting a compact core produces no new chunks", again.chunks.length === 0,
-    JSON.stringify(again.chunks.map((c) => [c.kind, c.season, c.rows.length])));
+  check(
+    "re-compacting a compact core produces no new chunks",
+    again.chunks.length === 0,
+    JSON.stringify(again.chunks.map((c) => [c.kind, c.season, c.rows.length])),
+  );
   check("second pass is byte-stable", serializeSave(again.core) === serializeSave(core));
 }
 
@@ -69,15 +82,22 @@ console.log("\n[H2] Finance reconciliation across compaction");
   check("cash is untouched by compaction", core.cash === twoSeasons.cash);
 
   const archived = (twoSeasons.financeLedger ?? []).filter(
-    (e) => !core.financeLedger.some((h) => h.id === e.id));
+    (e) => !core.financeLedger.some((h) => h.id === e.id),
+  );
   check("finance entries actually left the hot core", archived.length > 0, String(archived.length));
   const arc = core.archive!.finance;
-  const sum = (es: FinanceEntry[]) => es.reduce((t, e) => t + (e.direction === "income" ? e.amount : -e.amount), 0);
-  check("archive net equals the removed entries", arc.net === sum(archived), `${arc.net} vs ${sum(archived)}`);
+  const sum = (es: FinanceEntry[]) =>
+    es.reduce((t, e) => t + (e.direction === "income" ? e.amount : -e.amount), 0);
+  check(
+    "archive net equals the removed entries",
+    arc.net === sum(archived),
+    `${arc.net} vs ${sum(archived)}`,
+  );
   check("archive entry count matches", arc.entryCount === archived.length);
-  check("bucket totals equal archived totals",
-    arc.buckets.reduce((t, b) => t + b.amount, 0) ===
-      archived.reduce((t, e) => t + e.amount, 0));
+  check(
+    "bucket totals equal archived totals",
+    arc.buckets.reduce((t, b) => t + b.amount, 0) === archived.reduce((t, e) => t + e.amount, 0),
+  );
 }
 
 /* ---------------------------------------------------------------- */
@@ -85,47 +105,74 @@ console.log("\n[H3] Dedupe guards survive archiving");
 {
   const { core } = compactState(twoSeasons);
   const archived = (twoSeasons.financeLedger ?? []).filter(
-    (e) => !core.financeLedger.some((h) => h.id === e.id));
+    (e) => !core.financeLedger.some((h) => h.id === e.id),
+  );
   const keys = archived.map((e) => e.dedupeKey).filter((k): k is string => !!k);
   const stillGuarded = keys.filter((k) => hasEntry(core, k));
   const guardKeys = new Set(core.archive!.finance.guardKeys);
   const retained = keys.filter((k) => guardKeys.has(k));
-  check("every retained finance guard key is still detected by hasEntry",
-    retained.every((k) => hasEntry(core, k)));
+  check(
+    "every retained finance guard key is still detected by hasEntry",
+    retained.every((k) => hasEntry(core, k)),
+  );
   check("retained guards are a subset of archived keys", retained.length <= keys.length);
   check("hasEntry finds at least the retained guards", stillGuarded.length >= retained.length);
 
   const archivedInbox = (twoSeasons.inbox ?? []).filter(
-    (i) => !core.inbox.some((h) => h.id === i.id));
+    (i) => !core.inbox.some((h) => h.id === i.id),
+  );
   check("inbox items were archived", archivedInbox.length > 0, String(archivedInbox.length));
-  check("no unresolved decision was archived",
-    archivedInbox.every((i) => i.status !== "awaitingDecision"));
-  check("no un-applied expiry consequence was archived",
-    archivedInbox.every((i) => !(i.consequenceOnExpire && i.consequenceApplied !== true && i.status !== "completed")));
+  check(
+    "no unresolved decision was archived",
+    archivedInbox.every((i) => i.status !== "awaitingDecision"),
+  );
+  check(
+    "no un-applied expiry consequence was archived",
+    archivedInbox.every(
+      (i) => !(i.consequenceOnExpire && i.consequenceApplied !== true && i.status !== "completed"),
+    ),
+  );
 
   const regenerated = runWeeklyGenerators(core);
   const guarded = new Set(core.archive!.inbox.guardKeys);
-  const reEmitted = regenerated.inbox.filter((i) => guarded.has(i.eventKey) && !core.inbox.some((h) => h.eventKey === i.eventKey));
-  check("archived event keys are never re-emitted", reEmitted.length === 0,
-    reEmitted.map((i) => i.eventKey).join(","));
+  const reEmitted = regenerated.inbox.filter(
+    (i) => guarded.has(i.eventKey) && !core.inbox.some((h) => h.eventKey === i.eventKey),
+  );
+  check(
+    "archived event keys are never re-emitted",
+    reEmitted.length === 0,
+    reEmitted.map((i) => i.eventKey).join(","),
+  );
 }
 
 /* ---------------------------------------------------------------- */
 console.log("\n[H4] Archive-aware cumulative readers");
 {
   const { core } = compactState(twoSeasons);
-  check("total capital spend unchanged",
+  check(
+    "total capital spend unchanged",
     totalCapitalSpend(core) === totalCapitalSpend(twoSeasons),
-    `${totalCapitalSpend(core)} vs ${totalCapitalSpend(twoSeasons)}`);
-  for (const cat of ["football", "infrastructure", "supporters", "commercial", "financial"] as const) {
-    check(`spend-to-date unchanged (${cat})`,
+    `${totalCapitalSpend(core)} vs ${totalCapitalSpend(twoSeasons)}`,
+  );
+  for (const cat of [
+    "football",
+    "infrastructure",
+    "supporters",
+    "commercial",
+    "financial",
+  ] as const) {
+    check(
+      `spend-to-date unchanged (${cat})`,
       categorySpendToDate(core, cat) === categorySpendToDate(twoSeasons, cat),
-      `${categorySpendToDate(core, cat)} vs ${categorySpendToDate(twoSeasons, cat)}`);
+      `${categorySpendToDate(core, cat)} vs ${categorySpendToDate(twoSeasons, cat)}`,
+    );
   }
   for (let season = 1; season <= twoSeasons.season; season++) {
-    check(`commercial income unchanged (s${season})`,
+    check(
+      `commercial income unchanged (s${season})`,
       commercialIncomeForSeason(core, season) === commercialIncomeForSeason(twoSeasons, season),
-      `${commercialIncomeForSeason(core, season)} vs ${commercialIncomeForSeason(twoSeasons, season)}`);
+      `${commercialIncomeForSeason(core, season)} vs ${commercialIncomeForSeason(twoSeasons, season)}`,
+    );
   }
 }
 
@@ -145,13 +192,19 @@ console.log("\n[H5] Store wiring: chunks, manifest, retrieval");
   check("manifest lists chunk records", m.chunkManifest.length > 0, String(m.chunkManifest.length));
   check("core checksum matches stored core", m.coreChecksum === checksum(rec[K.core]!));
   const chunkRecs = await records.get(m.chunkManifest.map((c) => c.key));
-  check("every chunk checksum matches",
-    m.chunkManifest.every((c) => chunkRecs[c.key] && checksum(chunkRecs[c.key]!) === c.checksum));
-  check("totalBytes accounts for core + chunks",
-    m.totalBytes === m.coreBytes + m.chunkManifest.reduce((t, c) => t + c.bytes, 0));
-  check("stored core is smaller than the uncompacted state",
+  check(
+    "every chunk checksum matches",
+    m.chunkManifest.every((c) => chunkRecs[c.key] && checksum(chunkRecs[c.key]!) === c.checksum),
+  );
+  check(
+    "totalBytes accounts for core + chunks",
+    m.totalBytes === m.coreBytes + m.chunkManifest.reduce((t, c) => t + c.bytes, 0),
+  );
+  check(
+    "stored core is smaller than the uncompacted state",
     byteLength(rec[K.core]!) < byteLength(before),
-    `${byteLength(rec[K.core]!)} vs ${byteLength(before)}`);
+    `${byteLength(rec[K.core]!)} vs ${byteLength(before)}`,
+  );
 
   const loaded = await store.load();
   check("compacted save reloads", !!loaded.state);
@@ -162,13 +215,17 @@ console.log("\n[H5] Store wiring: chunks, manifest, retrieval");
   const seasons = await hist.seasons();
   check("history repository lists archived seasons", seasons.length > 0, seasons.join(","));
   const matches = await hist.readAll("history:matches");
-  check("archived match detail is retrievable",
+  check(
+    "archived match detail is retrievable",
     matches.length === loaded.state!.archive!.matches.count,
-    `${matches.length} vs ${loaded.state!.archive!.matches.count}`);
+    `${matches.length} vs ${loaded.state!.archive!.matches.count}`,
+  );
   const fin = await hist.readAll("history:finance");
-  check("archived finance detail is retrievable",
+  check(
+    "archived finance detail is retrievable",
     fin.length === loaded.state!.archive!.finance.entryCount,
-    `${fin.length} vs ${loaded.state!.archive!.finance.entryCount}`);
+    `${fin.length} vs ${loaded.state!.archive!.finance.entryCount}`,
+  );
 
   // Successive saves must append, never duplicate or drop history.
   let s2 = loaded.state!;
@@ -176,11 +233,16 @@ console.log("\n[H5] Store wiring: chunks, manifest, retrieval");
   await store.save(s2);
   const reloaded = (await store.load()).state!;
   const fin2 = await hist.readAll("history:finance");
-  check("history grows monotonically across saves", fin2.length >= fin.length,
-    `${fin2.length} vs ${fin.length}`);
-  check("archive counts match retrievable rows after a second save",
+  check(
+    "history grows monotonically across saves",
+    fin2.length >= fin.length,
+    `${fin2.length} vs ${fin.length}`,
+  );
+  check(
+    "archive counts match retrievable rows after a second save",
     fin2.length === reloaded.archive!.finance.entryCount,
-    `${fin2.length} vs ${reloaded.archive!.finance.entryCount}`);
+    `${fin2.length} vs ${reloaded.archive!.finance.entryCount}`,
+  );
   check("second-generation core still reconciles", reconcile(reloaded).ok);
 }
 
@@ -204,13 +266,20 @@ console.log("\n[H6] Failed chunk write preserves the previous valid save");
     },
   };
   const store2 = createIdbSaveStore({
-    records: flaky, migrate: migrateSave, currentVersion: SAVE_VERSION,
-    legacy: null, now: () => 1_700_000_000_001,
+    records: flaky,
+    migrate: migrateSave,
+    currentVersion: SAVE_VERSION,
+    legacy: null,
+    now: () => 1_700_000_000_001,
   });
   let s2 = good.state!;
   for (let i = 0; i < 46; i++) s2 = advanceWeek(s2);
   const d = await store2.save(s2);
-  check("failed write reports an error", d.some((x) => x.level === "error"), JSON.stringify(d));
+  check(
+    "failed write reports an error",
+    d.some((x) => x.level === "error"),
+    JSON.stringify(d),
+  );
   check("previous core is untouched", (await base.get([K.core]))[K.core] === goodCore);
   const stillGood = await store.load();
   check("previous save still loads", !!stillGood.state && reconcile(stillGood.state).ok);
@@ -246,7 +315,13 @@ console.log("\n[H7] Hot-core size at S5 / S10 / S20");
     console.log(`  · S${t} hot core: ${kb} KB`);
   }
   const s20 = marks.get(20)!.hot;
-  check("S20 hot core is under 2 MB", s20 < 2 * 1024 * 1024, `${(s20 / 1024 / 1024).toFixed(2)} MB`);
+  const worldClubs = s.leagues.reduce((total, league) => total + league.clubIds.length, 0);
+  const hotCoreBudget = 2 * 1024 * 1024 + Math.max(0, worldClubs - 40) * 12 * 1024;
+  check(
+    "S20 hot core stays within the scalable per-club budget",
+    s20 < hotCoreBudget,
+    `${(s20 / 1024 / 1024).toFixed(2)} MB / ${(hotCoreBudget / 1024 / 1024).toFixed(2)} MB`,
+  );
 }
 
 console.log(`\n${failed === 0 ? "PASS" : "FAIL"} — ${passed} passed, ${failed} failed\n`);

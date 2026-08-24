@@ -38,7 +38,10 @@ export function byteLength(s: string): number {
     if (c < 0x80) bytes += 1;
     else if (c < 0x800) bytes += 2;
     else if (c < 0x10000) bytes += 3;
-    else { bytes += 4; i++; }
+    else {
+      bytes += 4;
+      i++;
+    }
   }
   return bytes;
 }

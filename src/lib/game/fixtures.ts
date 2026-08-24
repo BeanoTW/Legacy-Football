@@ -65,9 +65,7 @@ function circleMethod(teams: string[]): ScheduledMatch[][] {
       const b = ring[(r - i + ring.length * 2) % ring.length];
       if (a === "__BYE__" || b === "__BYE__") continue;
       matches.push(
-        i % 2 === 0
-          ? { round: r + 1, home: a, away: b }
-          : { round: r + 1, home: b, away: a },
+        i % 2 === 0 ? { round: r + 1, home: a, away: b } : { round: r + 1, home: b, away: a },
       );
     }
     rounds.push(matches);

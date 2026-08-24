@@ -22,9 +22,10 @@ export function setTransferBudget(
     postEntry(ns, {
       category: "Transfers",
       subcategory: delta > 0 ? "Budget ring-fence" : "Budget release",
-      description: delta > 0
-        ? "Cash ring-fenced into the transfer budget"
-        : "Unused transfer budget returned to spendable cash",
+      description:
+        delta > 0
+          ? "Cash ring-fenced into the transfer budget"
+          : "Unused transfer budget returned to spendable cash",
       amount: Math.abs(delta),
       direction: delta > 0 ? "expense" : "income",
       sourceSystem: "transfers",

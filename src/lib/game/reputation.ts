@@ -17,8 +17,14 @@
 ========================================================================= */
 
 import type {
-  GameState, League, LeagueRow, ClubPrediction, ExpectationLevel,
-  SeasonPrediction, ClubSeasonSnapshot, ClubRecord,
+  GameState,
+  League,
+  LeagueRow,
+  ClubPrediction,
+  ExpectationLevel,
+  SeasonPrediction,
+  ClubSeasonSnapshot,
+  ClubRecord,
 } from "./types";
 import { mulberry32, hashString } from "./rng";
 
@@ -79,7 +85,11 @@ export function setClubReputation(s: GameState, club: string, value: number): vo
 const record = (s: GameState, club: string): ClubRecord | undefined => s.clubRecords?.[club];
 
 /** Finishing position in the given season, if it has been played. */
-export function finishIn(s: GameState, club: string, season: number): { position: number; leagueId: string } | null {
+export function finishIn(
+  s: GameState,
+  club: string,
+  season: number,
+): { position: number; leagueId: string } | null {
   const h = record(s, club)?.leagueHistory.find((e) => e.season === season);
   return h ? { position: h.position, leagueId: h.leagueId } : null;
 }
@@ -108,7 +118,7 @@ export function strengthParts(s: GameState, club: string, season: number): Stren
   const rep = clubReputation(s, club);
   const tier = tierOfClub(s, club);
 
-  const base = 28 + rep * 0.52;                    // 28 - 80
+  const base = 28 + rep * 0.52; // 28 - 80
   const tierBonus = tier === 1 ? 5 : 0;
 
   const prev = finishIn(s, club, season - 1);
@@ -167,7 +177,12 @@ export const EXPECTATION_LABEL: Record<ExpectationLevel, string> = {
 /** Pre-season projection for one division. Pure. */
 export function predictLeague(s: GameState, league: League, season: number): SeasonPrediction {
   const clubs: ClubPrediction[] = league.clubIds
-    .map((club) => ({ club, strength: clubStrengthFor(s, club, season), rank: 0, expectation: "midTable" as ExpectationLevel }))
+    .map((club) => ({
+      club,
+      strength: clubStrengthFor(s, club, season),
+      rank: 0,
+      expectation: "midTable" as ExpectationLevel,
+    }))
     .sort((a, b) => b.strength - a.strength || a.club.localeCompare(b.club))
     .map((c, i) => ({ ...c, rank: i + 1, expectation: expectationFor(i + 1, league) }));
 
@@ -178,9 +193,10 @@ export function predictLeague(s: GameState, league: League, season: number): Sea
     leagueId: league.id,
     predictedChampion: clubs[0]?.club ?? "",
     promotionFavourites: clubs.slice(0, promoCount || 0).map((c) => c.club),
-    relegationFavourites: league.relegationPlaces > 0
-      ? clubs.slice(size - Math.max(league.relegationPlaces, 3)).map((c) => c.club)
-      : [],
+    relegationFavourites:
+      league.relegationPlaces > 0
+        ? clubs.slice(size - Math.max(league.relegationPlaces, 3)).map((c) => c.club)
+        : [],
     clubs,
   };
 }
@@ -200,12 +216,20 @@ export function storePredictions(s: GameState, season: number): SeasonPrediction
   return fresh;
 }
 
-export function predictionFor(s: GameState, season: number, leagueId: string): SeasonPrediction | undefined {
+export function predictionFor(
+  s: GameState,
+  season: number,
+  leagueId: string,
+): SeasonPrediction | undefined {
   return (s.seasonPredictions ?? []).find((p) => p.season === season && p.leagueId === leagueId);
 }
 
 /** A club's own projection this season (falls back to a live calculation). */
-export function clubPrediction(s: GameState, club: string, season: number): ClubPrediction | undefined {
+export function clubPrediction(
+  s: GameState,
+  club: string,
+  season: number,
+): ClubPrediction | undefined {
   const lg = leagueOfClubIn(s.leagues, club);
   if (!lg) return undefined;
   const stored = predictionFor(s, season, lg.id);
@@ -262,11 +286,16 @@ function streakFor(s: GameState, club: string, season: number): number {
     .filter((x) => x.club === club && x.season < season)
     .sort((a, b) => b.season - a.season)
     .slice(0, 3);
-  let up = 0, down = 0;
+  let up = 0,
+    down = 0;
   for (const p of past) {
-    if (p.actualFinish < p.expectedFinish) { if (down) break; up++; }
-    else if (p.actualFinish > p.expectedFinish) { if (up) break; down++; }
-    else break;
+    if (p.actualFinish < p.expectedFinish) {
+      if (down) break;
+      up++;
+    } else if (p.actualFinish > p.expectedFinish) {
+      if (up) break;
+      down++;
+    } else break;
   }
   return up ? up : -down;
 }
@@ -283,13 +312,16 @@ export function applySeasonIdentity(
 ): { changes: ReputationChange[]; snapshots: ClubSeasonSnapshot[] } {
   const changes: ReputationChange[] = [];
   const snapshots: ClubSeasonSnapshot[] = [];
-  const already = new Set((s.clubSnapshots ?? []).filter((x) => x.season === season).map((x) => x.club));
+  const already = new Set(
+    (s.clubSnapshots ?? []).filter((x) => x.season === season).map((x) => x.club),
+  );
 
   for (const r of results) {
     const league = (s.leagues ?? []).find((l) => l.id === r.leagueId);
     const size = r.table.length || 20;
-    const pred = predictionFor(s, season, r.leagueId)
-      ?? (league ? predictLeague(s, league, season) : undefined);
+    const pred =
+      predictionFor(s, season, r.leagueId) ??
+      (league ? predictLeague(s, league, season) : undefined);
 
     r.table.forEach((row, idx) => {
       const club = row.team;

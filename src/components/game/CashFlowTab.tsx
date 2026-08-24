@@ -10,8 +10,14 @@ export function CashFlowTab({ state }: { state: GameState }) {
   const totals = useMemo(() => {
     const inc = { gate: 0, tv: 0, sponsor: 0, merchandise: 0, prize: 0, transfers: 0, other: 0 };
     const exp = {
-      playerWages: 0, staffWages: 0, stadiumOps: 0, trainingOps: 0,
-      maintenance: 0, matchday: 0, transfers: 0, other: 0,
+      playerWages: 0,
+      staffWages: 0,
+      stadiumOps: 0,
+      trainingOps: 0,
+      maintenance: 0,
+      matchday: 0,
+      transfers: 0,
+      other: 0,
     };
     // Only the current season is guaranteed hot: older weekly roll-ups are
     // compacted out of the save, and the panel is labelled per-season anyway.
@@ -120,7 +126,9 @@ export function BreakdownTable({
           <span
             className={cn(
               "tnum",
-              tone === "income" ? "text-[color:var(--color-income)]" : "text-[color:var(--color-expense)]",
+              tone === "income"
+                ? "text-[color:var(--color-income)]"
+                : "text-[color:var(--color-expense)]",
             )}
           >
             {fmtMoneyExact(v)}

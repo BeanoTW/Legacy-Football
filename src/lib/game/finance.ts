@@ -37,12 +37,17 @@ import type {
 } from "./types";
 import { absoluteWeek } from "./time";
 import {
-  profileForTier, clubSizeFactor, revenueBaseline, sustainableWeeklyWageBill,
-  wageStructureFrom, tierOfUser, SEASON_MATCH_WEEKS, type WageStructure,
+  profileForTier,
+  clubSizeFactor,
+  revenueBaseline,
+  sustainableWeeklyWageBill,
+  wageStructureFrom,
+  tierOfUser,
+  SEASON_MATCH_WEEKS,
+  type WageStructure,
 } from "./economy";
 import { clubReputation } from "./reputation";
 import { archivedFinanceGuard, archivedNet, archivedTrailingLossWeeks } from "./archive";
-
 
 export const SEASON_WEEKS = 46;
 /** Four playing weeks = one "month" for reporting cadence. */
@@ -163,8 +168,11 @@ export interface PeriodTotals {
 
 export function totalsFor(entries: FinanceEntry[]): PeriodTotals {
   const t: PeriodTotals = {
-    income: 0, expenditure: 0, operatingResult: 0,
-    incomeByCategory: {}, expenseByCategory: {},
+    income: 0,
+    expenditure: 0,
+    operatingResult: 0,
+    incomeByCategory: {},
+    expenseByCategory: {},
   };
   for (const e of entries) {
     if (e.direction === "income") {
@@ -179,8 +187,7 @@ export function totalsFor(entries: FinanceEntry[]): PeriodTotals {
   return t;
 }
 
-export const seasonTotals = (s: GameState, season = s.season) =>
-  totalsFor(entriesFor(s, season));
+export const seasonTotals = (s: GameState, season = s.season) => totalsFor(entriesFor(s, season));
 
 /** Operating result over the last `weeks` banked weeks (excludes this week). */
 export function recentOperatingResult(s: GameState, weeks = FINANCE_PERIOD_WEEKS): number {
@@ -204,7 +211,10 @@ export function consecutiveLossWeeks(s: GameState): number {
   let allLosses = true;
   for (const w of weeks) {
     if ((byWeek.get(w) ?? 0) < 0) run++;
-    else { run = 0; allLosses = false; }
+    else {
+      run = 0;
+      allLosses = false;
+    }
   }
   // When every hot week is a loss the run continues into archived history.
   if (allLosses) run += archivedTrailingLossWeeks(s);
@@ -225,7 +235,10 @@ type ExpenseBucket = keyof WeekLedger["expenses"];
 
 export function legacyIncomeBucket(e: FinanceEntry): IncomeBucket {
   const forced = e.metadata?.legacyBucket;
-  if (typeof forced === "string" && forced in { gate: 0, tv: 0, sponsor: 0, merchandise: 0, prize: 0, transfers: 0, other: 0 }) {
+  if (
+    typeof forced === "string" &&
+    forced in { gate: 0, tv: 0, sponsor: 0, merchandise: 0, prize: 0, transfers: 0, other: 0 }
+  ) {
     return forced as IncomeBucket;
   }
   if (e.category === "Matchday") return e.subcategory === "Broadcast" ? "tv" : "gate";
@@ -241,10 +254,20 @@ export function legacyIncomeBucket(e: FinanceEntry): IncomeBucket {
 
 export function legacyExpenseBucket(e: FinanceEntry): ExpenseBucket {
   const forced = e.metadata?.legacyBucket;
-  if (typeof forced === "string" && forced in {
-    playerWages: 0, staffWages: 0, stadiumOps: 0, trainingOps: 0,
-    maintenance: 0, matchday: 0, transfers: 0, other: 0,
-  }) {
+  if (
+    typeof forced === "string" &&
+    forced in
+      {
+        playerWages: 0,
+        staffWages: 0,
+        stadiumOps: 0,
+        trainingOps: 0,
+        maintenance: 0,
+        matchday: 0,
+        transfers: 0,
+        other: 0,
+      }
+  ) {
     return forced as ExpenseBucket;
   }
   if (e.category === "Wages") return e.subcategory === "Staff wages" ? "staffWages" : "playerWages";
@@ -256,7 +279,8 @@ export function legacyExpenseBucket(e: FinanceEntry): ExpenseBucket {
     if (e.subcategory === "Stadium maintenance") return "maintenance";
     return "stadiumOps";
   }
-  if (e.category === "Operations") return e.subcategory === "Stadium operations" ? "stadiumOps" : "other";
+  if (e.category === "Operations")
+    return e.subcategory === "Stadium operations" ? "stadiumOps" : "other";
   return "other";
 }
 
@@ -268,20 +292,34 @@ export function syncWeekLedger(s: GameState, season: number, week: number): void
   let row = s.ledger.find((l) => l.season === season && l.week === week);
   if (!row) {
     row = {
-      week, season,
+      week,
+      season,
       income: { gate: 0, tv: 0, sponsor: 0, merchandise: 0, prize: 0, transfers: 0, other: 0 },
       expenses: {
-        playerWages: 0, staffWages: 0, stadiumOps: 0, trainingOps: 0,
-        maintenance: 0, matchday: 0, transfers: 0, other: 0,
+        playerWages: 0,
+        staffWages: 0,
+        stadiumOps: 0,
+        trainingOps: 0,
+        maintenance: 0,
+        matchday: 0,
+        transfers: 0,
+        other: 0,
       },
-      net: 0, balance: 0,
+      net: 0,
+      balance: 0,
     };
     s.ledger.push(row);
   }
   row.income = { gate: 0, tv: 0, sponsor: 0, merchandise: 0, prize: 0, transfers: 0, other: 0 };
   row.expenses = {
-    playerWages: 0, staffWages: 0, stadiumOps: 0, trainingOps: 0,
-    maintenance: 0, matchday: 0, transfers: 0, other: 0,
+    playerWages: 0,
+    staffWages: 0,
+    stadiumOps: 0,
+    trainingOps: 0,
+    maintenance: 0,
+    matchday: 0,
+    transfers: 0,
+    other: 0,
   };
   for (const e of entries) {
     if (e.direction === "income") row.income[legacyIncomeBucket(e)] += e.amount;
@@ -305,9 +343,13 @@ export function syncWeekLedger(s: GameState, season: number, week: number): void
 export const playerWageBill = (s: GameState) => {
   const contracts = s.football?.contracts;
   if (contracts) {
-    return int(contracts
-      .filter((c) => c.clubId === s.clubName && (c.status === "Active" || c.status === "Expiring"))
-      .reduce((a, c) => a + c.weeklyWage, 0));
+    return int(
+      contracts
+        .filter(
+          (c) => c.clubId === s.clubName && (c.status === "Active" || c.status === "Expiring"),
+        )
+        .reduce((a, c) => a + c.weeklyWage, 0),
+    );
   }
   return int((s.squad ?? []).reduce((a, p) => a + p.wage, 0));
 };
@@ -359,8 +401,9 @@ export function leagueDistributionWeekly(s: GameState): number {
 }
 
 export function leagueTierOf(s: GameState): number {
-  const l = (s.leagues ?? []).find((x) => x.id === s.playerLeagueId)
-    ?? (s.leagues ?? []).find((x) => x.clubIds?.includes(s.clubName));
+  const l =
+    (s.leagues ?? []).find((x) => x.id === s.playerLeagueId) ??
+    (s.leagues ?? []).find((x) => x.clubIds?.includes(s.clubName));
   return l?.tier ?? 1;
 }
 
@@ -374,17 +417,20 @@ export const sponsorWeeklyIncome = (s: GameState) =>
  */
 export const merchandiseWeeklyIncome = (s: GameState) => {
   const base = revenueBaseline(leagueTierOf(s), s.reputation ?? 50);
-  const mood = 0.6 + (s.fanHappiness ?? 60) / 150;   // 0.6 - 1.27
-  return int((base.commercialSeason * 0.3 / SEASON_WEEKS) * mood);
+  const mood = 0.6 + (s.fanHappiness ?? 60) / 150; // 0.6 - 1.27
+  return int(((base.commercialSeason * 0.3) / SEASON_WEEKS) * mood);
 };
 
 export const recurringWeeklyIncome = (s: GameState) =>
   sponsorWeeklyIncome(s) + merchandiseWeeklyIncome(s) + leagueDistributionWeekly(s);
 
 export const recurringWeeklyExpenditure = (s: GameState) =>
-  playerWageBill(s) + staffWageBill(s) +
-  int(s.utilitiesWeekly ?? 0) + int(s.maintenanceWeekly ?? 0) +
-  int(s.trainingWeeklyCost ?? 0) + adminWeeklyCost(s);
+  playerWageBill(s) +
+  staffWageBill(s) +
+  int(s.utilitiesWeekly ?? 0) +
+  int(s.maintenanceWeekly ?? 0) +
+  int(s.trainingWeeklyCost ?? 0) +
+  adminWeeklyCost(s);
 
 /** Recurring revenue used for wage-ratio and forecasting denominators. */
 export function weeklyRevenueEstimate(s: GameState): number {
@@ -407,7 +453,6 @@ export function weeklyRevenueEstimate(s: GameState): number {
   const rep = clubReputation(s, s.clubName);
   const baseline = revenueBaseline(tier, rep).totalSeason / SEASON_MATCH_WEEKS;
   return Math.max(1, int(Math.max(baseline, recurringWeeklyIncome(s))));
-
 }
 
 /**
@@ -417,37 +462,102 @@ export function weeklyRevenueEstimate(s: GameState): number {
 export function postRecurringWeek(s: GameState): void {
   const key = (what: string) => `recurring:s${s.season}:w${s.week}:${what}`;
   const post = (
-    category: FinanceCategory, subcategory: string, description: string,
-    amount: number, direction: FinanceDirection, what: string,
-  ) => postEntry(s, {
-    category, subcategory, description, amount, direction,
-    sourceSystem: "engine.recurring", recurring: true, dedupeKey: key(what),
-  });
+    category: FinanceCategory,
+    subcategory: string,
+    description: string,
+    amount: number,
+    direction: FinanceDirection,
+    what: string,
+  ) =>
+    postEntry(s, {
+      category,
+      subcategory,
+      description,
+      amount,
+      direction,
+      sourceSystem: "engine.recurring",
+      recurring: true,
+      dedupeKey: key(what),
+    });
 
   // Income
-  post("Commercial", "Sponsorship", "Contracted sponsorship income",
-    sponsorWeeklyIncome(s), "income", "sponsor");
-  post("Commercial", "Merchandise", "Retail and merchandise takings",
-    merchandiseWeeklyIncome(s), "income", "merchandise");
-  post("Commercial", "League distribution", "Basic league distribution (placeholder)",
-    leagueDistributionWeekly(s), "income", "distribution");
+  post(
+    "Commercial",
+    "Sponsorship",
+    "Contracted sponsorship income",
+    sponsorWeeklyIncome(s),
+    "income",
+    "sponsor",
+  );
+  post(
+    "Commercial",
+    "Merchandise",
+    "Retail and merchandise takings",
+    merchandiseWeeklyIncome(s),
+    "income",
+    "merchandise",
+  );
+  post(
+    "Commercial",
+    "League distribution",
+    "Basic league distribution (placeholder)",
+    leagueDistributionWeekly(s),
+    "income",
+    "distribution",
+  );
 
   // Expenditure
-  post("Wages", "Player wages", "Weekly playing-squad wages",
-    playerWageBill(s), "expense", "playerWages");
-  post("Wages", "Staff wages", "Weekly backroom and club staff wages",
-    staffWageBill(s), "expense", "staffWages");
+  post(
+    "Wages",
+    "Player wages",
+    "Weekly playing-squad wages",
+    playerWageBill(s),
+    "expense",
+    "playerWages",
+  );
+  post(
+    "Wages",
+    "Staff wages",
+    "Weekly backroom and club staff wages",
+    staffWageBill(s),
+    "expense",
+    "staffWages",
+  );
   // Facility upkeep belongs to infrastructure.ts once the asset model exists;
   // posting the legacy mirrors as well would charge the club twice.
-  const legacyUpkeep = !(s.infrastructure?.assets?.length);
-  post("Operations", "Stadium operations", "Utilities and general operating costs",
-    legacyUpkeep ? int(s.utilitiesWeekly ?? 0) : 0, "expense", "operations");
-  post("Facilities", "Stadium maintenance", "Stadium upkeep",
-    legacyUpkeep ? int(s.maintenanceWeekly ?? 0) : 0, "expense", "stadiumMaintenance");
-  post("Facilities", "Training ground", "Training ground running costs",
-    legacyUpkeep ? int(s.trainingWeeklyCost ?? 0) : 0, "expense", "trainingMaintenance");
-  post("Operations", "Administration", "Club administration and compliance",
-    adminWeeklyCost(s), "expense", "admin");
+  const legacyUpkeep = !s.infrastructure?.assets?.length;
+  post(
+    "Operations",
+    "Stadium operations",
+    "Utilities and general operating costs",
+    legacyUpkeep ? int(s.utilitiesWeekly ?? 0) : 0,
+    "expense",
+    "operations",
+  );
+  post(
+    "Facilities",
+    "Stadium maintenance",
+    "Stadium upkeep",
+    legacyUpkeep ? int(s.maintenanceWeekly ?? 0) : 0,
+    "expense",
+    "stadiumMaintenance",
+  );
+  post(
+    "Facilities",
+    "Training ground",
+    "Training ground running costs",
+    legacyUpkeep ? int(s.trainingWeeklyCost ?? 0) : 0,
+    "expense",
+    "trainingMaintenance",
+  );
+  post(
+    "Operations",
+    "Administration",
+    "Club administration and compliance",
+    adminWeeklyCost(s),
+    "expense",
+    "admin",
+  );
 }
 
 /* =========================================================================
@@ -501,8 +611,7 @@ export const matchdayKey = (i: { season: number; week: number; opponent: string 
  * `level` scales spend per head with the level of football: supporters in the
  * top flight spend several times what a National Division crowd does.
  */
-export const spendLevelFactor = (tier: number) =>
-  profileForTier(tier).ticketPriceReference / 20;
+export const spendLevelFactor = (tier: number) => profileForTier(tier).ticketPriceReference / 20;
 
 export const hospitalityFor = (attendance: number, mult = 1, level = 1) =>
   int(attendance * 1.35 * mult * level);
@@ -512,7 +621,8 @@ export const parkingFor = (attendance: number, mult = 1, level = 1) =>
   int(attendance * 0.5 * mult * level);
 
 export function postMatchdayFinance(
-  s: GameState, i: MatchdayFinanceInput,
+  s: GameState,
+  i: MatchdayFinanceInput,
 ): MatchdayFinanceBreakdown {
   const base = matchdayKey(i);
   const home = i.home;
@@ -527,29 +637,63 @@ export function postMatchdayFinance(
   const ops = int(i.matchdayOps * (home ? (m.matchdayOperatingCost ?? 1) : 1));
   const winBonus = int(i.winBonus ?? 0);
   const meta = {
-    opponent: i.opponent, home, attendance,
-    tickets, hospitality, concessions, parking, broadcast,
+    opponent: i.opponent,
+    home,
+    attendance,
+    tickets,
+    hospitality,
+    concessions,
+    parking,
+    broadcast,
   };
   const post = (
-    sub: string, desc: string, amount: number, direction: FinanceDirection, suffix: string,
-  ) => postEntry(s, {
-    category: "Matchday", subcategory: sub, description: desc, amount, direction,
-    sourceSystem: "engine.matchday", linkedEntityId: i.fixtureId,
-    dedupeKey: `${base}:${suffix}`, metadata: meta,
-  });
+    sub: string,
+    desc: string,
+    amount: number,
+    direction: FinanceDirection,
+    suffix: string,
+  ) =>
+    postEntry(s, {
+      category: "Matchday",
+      subcategory: sub,
+      description: desc,
+      amount,
+      direction,
+      sourceSystem: "engine.matchday",
+      linkedEntityId: i.fixtureId,
+      dedupeKey: `${base}:${suffix}`,
+      metadata: meta,
+    });
 
   const where = home ? "vs" : "away at";
   post("Ticket sales", `Gate receipts ${where} ${i.opponent}`, tickets, "income", "tickets");
-  post("Hospitality", `Matchday hospitality ${where} ${i.opponent}`, hospitality, "income", "hospitality");
-  post("Concessions", `Matchday concessions ${where} ${i.opponent}`, concessions, "income", "concessions");
+  post(
+    "Hospitality",
+    `Matchday hospitality ${where} ${i.opponent}`,
+    hospitality,
+    "income",
+    "hospitality",
+  );
+  post(
+    "Concessions",
+    `Matchday concessions ${where} ${i.opponent}`,
+    concessions,
+    "income",
+    "concessions",
+  );
   post("Parking", `Matchday parking ${where} ${i.opponent}`, parking, "income", "parking");
   post("Broadcast", `Broadcast fee ${where} ${i.opponent}`, broadcast, "income", "broadcast");
   post("Operations", `Matchday operating costs ${where} ${i.opponent}`, ops, "expense", "ops");
   post("Win bonus", `Squad win bonus ${where} ${i.opponent}`, winBonus, "expense", "winBonus");
 
   return {
-    tickets, hospitality, concessions, parking, broadcast,
-    operatingCost: ops, winBonus,
+    tickets,
+    hospitality,
+    concessions,
+    parking,
+    broadcast,
+    operatingCost: ops,
+    winBonus,
     net: tickets + hospitality + concessions + parking + broadcast - ops - winBonus,
   };
 }
@@ -580,19 +724,23 @@ export interface PrizeBreakdown {
   rulesUsed: LeaguePrizeRules;
 }
 
-export function prizeMoneyFor(
-  league: League, position: number, size: number,
-): PrizeBreakdown {
+export function prizeMoneyFor(league: League, position: number, size: number): PrizeBreakdown {
   const r = prizeRulesFor(league);
   const base = r.basePayment + int(league.prizeMoney ?? 0);
   const positionPay = int(r.positionStep * Math.max(0, size - position));
   const champion = position === 1 ? r.championBonus : 0;
-  const promotion = league.promotionPlaces > 0 && position <= league.promotionPlaces
-    ? r.promotionBonus : 0;
-  const relegation = league.relegationPlaces > 0 && position > size - league.relegationPlaces
-    ? r.relegationSupport : 0;
+  const promotion =
+    league.promotionPlaces > 0 && position <= league.promotionPlaces ? r.promotionBonus : 0;
+  const relegation =
+    league.relegationPlaces > 0 && position > size - league.relegationPlaces
+      ? r.relegationSupport
+      : 0;
   return {
-    base, position: positionPay, champion, promotion, relegation,
+    base,
+    position: positionPay,
+    champion,
+    promotion,
+    relegation,
     total: base + positionPay + champion + promotion + relegation,
     rulesUsed: r,
   };
@@ -602,7 +750,10 @@ export const prizeKey = (season: number, leagueId: string) => `prize:s${season}:
 
 /** Award the user's club its end-of-season prize money. Exactly once. */
 export function awardPrizeMoney(
-  s: GameState, season: number, league: League, position: number,
+  s: GameState,
+  season: number,
+  league: League,
+  position: number,
 ): PrizeBreakdown | null {
   const size = league.clubIds?.length || 20;
   const b = prizeMoneyFor(league, position, size);
@@ -618,9 +769,13 @@ export function awardPrizeMoney(
     season,
     week: SEASON_WEEKS,
     metadata: {
-      position, size,
-      base: b.base, positionPay: b.position, champion: b.champion,
-      promotion: b.promotion, relegation: b.relegation,
+      position,
+      size,
+      base: b.base,
+      positionPay: b.position,
+      champion: b.champion,
+      promotion: b.promotion,
+      relegation: b.relegation,
     },
   });
   return posted ? b : null;
@@ -631,15 +786,19 @@ export function awardPrizeMoney(
 ========================================================================= */
 
 export const POLICIES: BoardSpendingPolicy[] = [
-  "Aggressive Investment", "Controlled Growth", "Balanced", "Cautious", "Emergency Cost Control",
+  "Aggressive Investment",
+  "Controlled Growth",
+  "Balanced",
+  "Cautious",
+  "Emergency Cost Control",
 ];
 
 /** Weeks of outgoings the board wants held back, by policy. */
 const RESERVE_WEEKS: Record<BoardSpendingPolicy, number> = {
   "Aggressive Investment": 4,
   "Controlled Growth": 6,
-  "Balanced": 8,
-  "Cautious": 12,
+  Balanced: 8,
+  Cautious: 12,
   "Emergency Cost Control": 14,
 };
 
@@ -647,16 +806,16 @@ const RESERVE_WEEKS: Record<BoardSpendingPolicy, number> = {
 export const WAGE_TOLERANCE: Record<BoardSpendingPolicy, number> = {
   "Aggressive Investment": 0.78,
   "Controlled Growth": 0.68,
-  "Balanced": 0.60,
-  "Cautious": 0.50,
+  Balanced: 0.6,
+  Cautious: 0.5,
   "Emergency Cost Control": 0.42,
 };
 
 export const POLICY_DESC: Record<BoardSpendingPolicy, string> = {
   "Aggressive Investment": "The board will back heavy investment now and accept a thin reserve.",
   "Controlled Growth": "Spend to improve, but only from money the club is actually generating.",
-  "Balanced": "Steady operation — invest what the club can comfortably absorb.",
-  "Cautious": "Protect the balance sheet. Only clearly justified expenditure.",
+  Balanced: "Steady operation — invest what the club can comfortably absorb.",
+  Cautious: "Protect the balance sheet. Only clearly justified expenditure.",
   "Emergency Cost Control": "Cost control across every department until trading recovers.",
 };
 
@@ -680,8 +839,8 @@ export function derivePolicy(s: GameState): BoardSpendingPolicy {
   const frugal = !!fd?.traits.includes("frugal");
   const ambitious = (s.board?.directors ?? []).filter((d) => d.traits.includes("ambitious")).length;
 
-  let score = 0;                                   // higher = more permissive
-  score += clamp(weeksOfCash, 0, 40) / 4;          // 0 – 10
+  let score = 0; // higher = more permissive
+  score += clamp(weeksOfCash, 0, 40) / 4; // 0 – 10
   score += projected > int(s.cash) ? 3 : projected > 0 ? 1 : -4;
   score += recent >= 0 ? 2 : recent < -250_000 ? -4 : -2;
   score += wagePct > 85 ? -4 : wagePct > 70 ? -2 : wagePct < 50 ? 2 : 0;
@@ -699,16 +858,18 @@ export function derivePolicy(s: GameState): BoardSpendingPolicy {
 
 /** Budgets are authorisation limits derived from policy — never new cash. */
 export function deriveBudgets(
-  s: GameState, policy: BoardSpendingPolicy, minimumReserve: number,
+  s: GameState,
+  policy: BoardSpendingPolicy,
+  minimumReserve: number,
 ): Record<BudgetKey, number> {
   const revenue = weeklyRevenueEstimate(s);
   const headroom = Math.max(0, int(s.cash) - minimumReserve);
   const share: Record<BoardSpendingPolicy, [number, number, number]> = {
     // [transfers, facilities, commercial] as a share of discretionary headroom
     "Aggressive Investment": [0.55, 0.22, 0.13],
-    "Controlled Growth": [0.42, 0.20, 0.12],
-    "Balanced": [0.32, 0.16, 0.10],
-    "Cautious": [0.18, 0.12, 0.07],
+    "Controlled Growth": [0.42, 0.2, 0.12],
+    Balanced: [0.32, 0.16, 0.1],
+    Cautious: [0.18, 0.12, 0.07],
     "Emergency Cost Control": [0.06, 0.06, 0.04],
   };
   const [t, f, c] = share[policy];
@@ -741,9 +902,8 @@ export function applyBoardPolicy(s: GameState, season = s.season): BoardSpending
 export function setBudget(s: GameState, key: BudgetKey, amount: number): GameState {
   const next = structuredClone(s);
   ensureFinance(next);
-  const cap = key === "wages"
-    ? int(weeklyRevenueEstimate(next) * 1.6)
-    : Math.max(0, int(next.cash));
+  const cap =
+    key === "wages" ? int(weeklyRevenueEstimate(next) * 1.6) : Math.max(0, int(next.cash));
   next.finance.budgets[key] = clamp(int(amount), 0, cap);
   return next;
 }
@@ -785,7 +945,8 @@ export function budgetUsage(s: GameState, season = s.season): BudgetUsage[] {
     else if (key === "contingency") committed = Math.max(0, approved - Math.max(0, int(s.cash)));
     else {
       const cats = BUDGET_CATEGORIES[key];
-      committed = entries.filter((e) => cats.includes(e.category))
+      committed = entries
+        .filter((e) => cats.includes(e.category))
         .reduce((a, e) => a + e.amount, 0);
     }
     return {
@@ -805,7 +966,9 @@ export function budgetUsage(s: GameState, season = s.season): BudgetUsage[] {
 ========================================================================= */
 
 export function assessSpend(
-  s: GameState, amount: number, opts?: { recurringWeekly?: number },
+  s: GameState,
+  amount: number,
+  opts?: { recurringWeekly?: number },
 ): AffordabilityResult {
   ensureFinance(s);
   const spend = Math.max(0, int(amount));
@@ -819,27 +982,38 @@ export function assessSpend(
   const projectedAfter = projected - spend - ongoing;
 
   const base = {
-    amount: spend, cashNow, cashAfter,
+    amount: spend,
+    cashNow,
+    cashAfter,
     minimumReserve: reserve,
     projectedSeasonEndBalance: projected,
     projectedAfterSpend: projectedAfter,
   };
   const verdict = (v: AffordabilityVerdict, reason: string): AffordabilityResult => ({
-    ...base, verdict: v, allowed: v === "affordable" || v === "affordableButRisky", reason,
+    ...base,
+    verdict: v,
+    allowed: v === "affordable" || v === "affordableButRisky",
+    reason,
   });
 
   if (spend === 0) return verdict("affordable", "No cost.");
   if (spend > cashNow) {
-    return verdict("unaffordable",
-      `The club holds ${cashNow.toLocaleString()} — ${(spend - cashNow).toLocaleString()} short.`);
+    return verdict(
+      "unaffordable",
+      `The club holds ${cashNow.toLocaleString()} — ${(spend - cashNow).toLocaleString()} short.`,
+    );
   }
   if (cashAfter < reserve) {
-    return verdict("requiresBoardApproval",
-      `Funds exist, but this breaks the board's minimum reserve of £${reserve.toLocaleString()}.`);
+    return verdict(
+      "requiresBoardApproval",
+      `Funds exist, but this breaks the board's minimum reserve of £${reserve.toLocaleString()}.`,
+    );
   }
   if (projectedAfter < reserve) {
-    return verdict("affordableButRisky",
-      `Affordable today, but the forecast closes the season below the minimum reserve.`);
+    return verdict(
+      "affordableButRisky",
+      `Affordable today, but the forecast closes the season below the minimum reserve.`,
+    );
   }
   return verdict("affordable", "Comfortably within the club's means.");
 }
@@ -911,8 +1085,13 @@ export function projectedPrizeMoney(s: GameState): number {
    9. Financial risk — always derived, never stored as an authored value
 ========================================================================= */
 
-export const RISK_ORDER: FinancialRiskLevel[] =
-  ["Secure", "Stable", "Watch", "High Risk", "Critical"];
+export const RISK_ORDER: FinancialRiskLevel[] = [
+  "Secure",
+  "Stable",
+  "Watch",
+  "High Risk",
+  "Critical",
+];
 
 export interface RiskAssessment {
   level: FinancialRiskLevel;
@@ -931,38 +1110,75 @@ export function assessRisk(s: GameState): RiskAssessment {
   const losses = consecutiveLossWeeks(s);
 
   let score = 0;
-  if (weeksOfCash < 2) { score += 5; reasons.push("Under two weeks of cash cover."); }
-  else if (weeksOfCash < 6) { score += 3; reasons.push("Thin cash cover."); }
-  else if (weeksOfCash < 12) { score += 1; reasons.push("Moderate cash cover."); }
+  if (weeksOfCash < 2) {
+    score += 5;
+    reasons.push("Under two weeks of cash cover.");
+  } else if (weeksOfCash < 6) {
+    score += 3;
+    reasons.push("Thin cash cover.");
+  } else if (weeksOfCash < 12) {
+    score += 1;
+    reasons.push("Moderate cash cover.");
+  }
 
-  if (int(s.cash) < reserve) { score += 2; reasons.push("Below the board's minimum reserve."); }
-  if (projected < 0) { score += 3; reasons.push("Forecast closes the season in deficit."); }
-  else if (projected < reserve) { score += 1; reasons.push("Forecast closes below the reserve."); }
+  if (int(s.cash) < reserve) {
+    score += 2;
+    reasons.push("Below the board's minimum reserve.");
+  }
+  if (projected < 0) {
+    score += 3;
+    reasons.push("Forecast closes the season in deficit.");
+  } else if (projected < reserve) {
+    score += 1;
+    reasons.push("Forecast closes below the reserve.");
+  }
 
-  if (wagePct > 95) { score += 3; reasons.push("Wages exceed recurring revenue."); }
-  else if (wagePct > 75) { score += 2; reasons.push("Wage-to-revenue ratio is high."); }
-  else if (wagePct > 60) { score += 1; reasons.push("Wage-to-revenue ratio is elevated."); }
+  if (wagePct > 95) {
+    score += 3;
+    reasons.push("Wages exceed recurring revenue.");
+  } else if (wagePct > 75) {
+    score += 2;
+    reasons.push("Wage-to-revenue ratio is high.");
+  } else if (wagePct > 60) {
+    score += 1;
+    reasons.push("Wage-to-revenue ratio is elevated.");
+  }
 
-  if (losses >= 8) { score += 2; reasons.push(`${losses} consecutive weeks of operating losses.`); }
-  else if (losses >= 4) { score += 1; reasons.push(`${losses} straight weeks of operating losses.`); }
+  if (losses >= 8) {
+    score += 2;
+    reasons.push(`${losses} consecutive weeks of operating losses.`);
+  } else if (losses >= 4) {
+    score += 1;
+    reasons.push(`${losses} straight weeks of operating losses.`);
+  }
 
-  if (int(s.cash) <= 0) { score += 4; reasons.push("The club has no cash."); }
+  if (int(s.cash) <= 0) {
+    score += 4;
+    reasons.push("The club has no cash.");
+  }
   if (!reasons.length) reasons.push("Trading comfortably within the club's means.");
 
   const level: FinancialRiskLevel =
-    score >= 9 ? "Critical" : score >= 6 ? "High Risk" : score >= 4 ? "Watch"
-    : score >= 2 ? "Stable" : "Secure";
+    score >= 9
+      ? "Critical"
+      : score >= 6
+        ? "High Risk"
+        : score >= 4
+          ? "Watch"
+          : score >= 2
+            ? "Stable"
+            : "Secure";
   return { level, score, reasons };
 }
 
 export const financialRisk = (s: GameState): FinancialRiskLevel => assessRisk(s).level;
 
 export const RISK_CLASS: Record<FinancialRiskLevel, string> = {
-  "Secure": "text-emerald-600",
-  "Stable": "text-teal-600",
-  "Watch": "text-amber-600",
+  Secure: "text-emerald-600",
+  Stable: "text-teal-600",
+  Watch: "text-amber-600",
   "High Risk": "text-orange-600",
-  "Critical": "text-rose-600",
+  Critical: "text-rose-600",
 };
 
 /* =========================================================================
@@ -971,8 +1187,8 @@ export const RISK_CLASS: Record<FinancialRiskLevel, string> = {
 
 export function averageHomeAttendance(s: GameState, season: number): number {
   const gates = entriesFor(s, season).filter(
-    (e) => e.category === "Matchday" && e.subcategory === "Ticket sales" &&
-      e.metadata?.home === true,
+    (e) =>
+      e.category === "Matchday" && e.subcategory === "Ticket sales" && e.metadata?.home === true,
   );
   if (!gates.length) return 0;
   const total = gates.reduce((a, e) => a + Number(e.metadata?.attendance ?? 0), 0);
@@ -988,9 +1204,10 @@ export function closeSeasonFinance(s: GameState, season: number, leagueId: strin
   const summary: SeasonFinancialSummary = {
     season,
     leagueId,
-    openingBalance: s.finance.openingSeasonNumber === season
-      ? int(s.finance.openingSeasonBalance)
-      : int(s.cash) - t.operatingResult,
+    openingBalance:
+      s.finance.openingSeasonNumber === season
+        ? int(s.finance.openingSeasonBalance)
+        : int(s.cash) - t.operatingResult,
     totalIncome: t.income,
     totalExpenditure: t.expenditure,
     operatingProfit: t.operatingResult,
@@ -1000,12 +1217,15 @@ export function closeSeasonFinance(s: GameState, season: number, leagueId: strin
       .filter((e) => e.category === "Matchday" && e.direction === "income")
       .reduce((a, e) => a + e.amount, 0),
     prizeMoney: entries
-      .filter((e) => e.category === "Prize Money").reduce((a, e) => a + e.amount, 0),
+      .filter((e) => e.category === "Prize Money")
+      .reduce((a, e) => a + e.amount, 0),
     averageAttendance: averageHomeAttendance(s, season),
     financialRiskAtClose: financialRisk(s),
     boardPolicy: s.finance.boardSpendingPolicy,
     budgetPerformance: budgetUsage(s, season).map((b) => ({
-      key: b.key, approved: b.approved, committed: b.committed,
+      key: b.key,
+      approved: b.approved,
+      committed: b.committed,
     })),
   };
   s.financeHistory.push(summary);
@@ -1138,19 +1358,31 @@ export function migrateLegacyLedger(s: GameState): void {
     for (const [bucket, value] of Object.entries(r.income)) {
       const [category, subcategory, description] = INCOME_MAP[bucket];
       postEntry(s, {
-        category, subcategory, description, amount: int(value), direction: "income",
-        sourceSystem: "migration", recurring: true,
+        category,
+        subcategory,
+        description,
+        amount: int(value),
+        direction: "income",
+        sourceSystem: "migration",
+        recurring: true,
         dedupeKey: `migrated:s${r.season}:w${r.week}:in:${bucket}`,
-        season: r.season, week: r.week,
+        season: r.season,
+        week: r.week,
       });
     }
     for (const [bucket, value] of Object.entries(r.expenses)) {
       const [category, subcategory, description] = EXPENSE_MAP[bucket];
       postEntry(s, {
-        category, subcategory, description, amount: int(value), direction: "expense",
-        sourceSystem: "migration", recurring: true,
+        category,
+        subcategory,
+        description,
+        amount: int(value),
+        direction: "expense",
+        sourceSystem: "migration",
+        recurring: true,
         dedupeKey: `migrated:s${r.season}:w${r.week}:out:${bucket}`,
-        season: r.season, week: r.week,
+        season: r.season,
+        week: r.week,
       });
     }
   }
@@ -1215,21 +1447,38 @@ export interface EconomyBenchmark {
 }
 
 /** Operating vs transfer-trading split for one season, from the ledger. */
-export function operatingSplit(s: GameState, season: number): {
-  operatingIncome: number; operatingExpense: number; operatingResult: number;
-  tradingIncome: number; tradingExpense: number; tradingResult: number;
+export function operatingSplit(
+  s: GameState,
+  season: number,
+): {
+  operatingIncome: number;
+  operatingExpense: number;
+  operatingResult: number;
+  tradingIncome: number;
+  tradingExpense: number;
+  tradingResult: number;
 } {
   const es = entriesFor(s, season);
   const isTrading = (c: string) => c === "Transfers";
-  let oi = 0, oe = 0, ti = 0, te = 0;
+  let oi = 0,
+    oe = 0,
+    ti = 0,
+    te = 0;
   for (const e of es) {
     const trading = isTrading(e.category);
-    if (e.direction === "income") { if (trading) ti += e.amount; else oi += e.amount; }
-    else if (trading) te += e.amount; else oe += e.amount;
+    if (e.direction === "income") {
+      if (trading) ti += e.amount;
+      else oi += e.amount;
+    } else if (trading) te += e.amount;
+    else oe += e.amount;
   }
   return {
-    operatingIncome: oi, operatingExpense: oe, operatingResult: oi - oe,
-    tradingIncome: ti, tradingExpense: te, tradingResult: ti - te,
+    operatingIncome: oi,
+    operatingExpense: oe,
+    operatingResult: oi - oe,
+    tradingIncome: ti,
+    tradingExpense: te,
+    tradingResult: ti - te,
   };
 }
 
@@ -1249,7 +1498,7 @@ export function economyBenchmark(s: GameState): EconomyBenchmark {
     revenueBenchmark: benchmark,
     wageBillWeekly: wages,
     sustainableWageBillWeekly: sustainableWeeklyWageBill(tier, rep),
-    wageToRevenuePct: (wages * SEASON_WEEKS / Math.max(1, annualised || benchmark)) * 100,
+    wageToRevenuePct: ((wages * SEASON_WEEKS) / Math.max(1, annualised || benchmark)) * 100,
     expectedWageToRevenuePct: p.expectedWageRevenueRatio * 100,
     operatingResultSeason: split.operatingResult,
     tradingResultSeason: split.tradingResult,

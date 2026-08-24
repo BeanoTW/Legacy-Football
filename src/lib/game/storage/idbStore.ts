@@ -17,8 +17,15 @@ import { compactState } from "./compaction";
 import { createHistoryRepository, historyChunkKey, type HistoryRepository } from "./history";
 import { parseSave, serializeSave, byteLength } from "./serialize";
 import {
-  DEFAULT_SAVE_ID, STORAGE_FORMAT_VERSION, checksum, coreKey, manifestKey,
-  unreadableKey, isManifest, type SaveManifest, type ChunkManifestEntry,
+  DEFAULT_SAVE_ID,
+  STORAGE_FORMAT_VERSION,
+  checksum,
+  coreKey,
+  manifestKey,
+  unreadableKey,
+  isManifest,
+  type SaveManifest,
+  type ChunkManifestEntry,
 } from "./manifest";
 
 export interface IdbStoreDeps {
@@ -52,7 +59,11 @@ export interface IdbSaveStore extends SaveStore {
 export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
   const saveId = deps.saveId ?? DEFAULT_SAVE_ID;
   const now = deps.now ?? (() => Date.now());
-  const K = { manifest: manifestKey(saveId), core: coreKey(saveId), unreadable: unreadableKey(saveId) };
+  const K = {
+    manifest: manifestKey(saveId),
+    core: coreKey(saveId),
+    unreadable: unreadableKey(saveId),
+  };
 
   /* Set when a stored save could not be read (corrupt, checksum mismatch,
    * future game schema, future storage format, failed migration). While set,
@@ -64,8 +75,11 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
   const history = createHistoryRepository(deps.records, saveId);
 
   const metrics: StorageMetrics = {
-    lastLoadMs: null, lastSaveMs: null, lastLegacyMigrationMs: null,
-    lastCoreBytes: null, recordCount: null,
+    lastLoadMs: null,
+    lastSaveMs: null,
+    lastLegacyMigrationMs: null,
+    lastCoreBytes: null,
+    recordCount: null,
   };
 
   /** Keep an unreadable payload verbatim, in the same store. */
@@ -73,7 +87,11 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
     unreadable = true;
     try {
       await deps.records.putAll([{ key: K.unreadable, value: raw }]);
-      return { level: "warn", code: "save/preserved", detail: `${reason}; original kept at ${K.unreadable}` };
+      return {
+        level: "warn",
+        code: "save/preserved",
+        detail: `${reason}; original kept at ${K.unreadable}`,
+      };
     } catch (e) {
       return { level: "warn", code: "save/preserve-failed", detail: (e as Error).message };
     }
@@ -83,9 +101,13 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
   async function decode(raw: string, origin: string): Promise<LoadResult> {
     const { parsed, diagnostics } = parseSave(raw);
     if (!parsed) {
-      return { state: null, diagnostics: [...diagnostics, await preserve(raw, `${origin} could not be parsed`)] };
+      return {
+        state: null,
+        diagnostics: [...diagnostics, await preserve(raw, `${origin} could not be parsed`)],
+      };
     }
-    const v = typeof parsed.version === "number" && Number.isFinite(parsed.version) ? parsed.version : 1;
+    const v =
+      typeof parsed.version === "number" && Number.isFinite(parsed.version) ? parsed.version : 1;
     if (v > deps.currentVersion) {
       return {
         state: null,
@@ -154,7 +176,9 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
         existing = await deps.records.get(keys);
       } catch (e) {
         return {
-          diagnostics: [{ level: "error", code: "save/chunk-read-failed", detail: (e as Error).message }],
+          diagnostics: [
+            { level: "error", code: "save/chunk-read-failed", detail: (e as Error).message },
+          ],
           core,
         };
       }
@@ -166,7 +190,9 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
           try {
             const parsed = JSON.parse(raw) as unknown;
             if (Array.isArray(parsed)) rows = parsed;
-          } catch { /* unreadable chunk: rebuilt from the rows we hold */ }
+          } catch {
+            /* unreadable chunk: rebuilt from the rows we hold */
+          }
         }
         const value = JSON.stringify([...rows, ...c.rows]);
         chunkRecords.push({ key, value });
@@ -175,7 +201,13 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
     }
 
     // Manifest must describe the post-write world, including new chunks.
-    for (const e of pendingEntries) chunkEntries.set(e.key, e);
+    // Snapshot any entries being replaced so a failed transaction can restore
+    // the exact previously committed manifest state rather than deleting them.
+    const previousEntries = new Map<string, ChunkManifestEntry | undefined>();
+    for (const e of pendingEntries) {
+      previousEntries.set(e.key, chunkEntries.get(e.key));
+      chunkEntries.set(e.key, e);
+    }
     const manifest = buildManifest(compactCore, core);
     try {
       await deps.records.putAll([
@@ -187,11 +219,12 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
       metrics.recordCount = 2 + manifest.chunkManifest.length;
       return { diagnostics: [], core };
     } catch (e) {
-      // Nothing landed (putAll is atomic): forget the speculative entries so
-      // the in-memory manifest still describes the previous valid save.
+      // Nothing landed (putAll is atomic): restore the in-memory manifest to
+      // exactly the state of the previous valid save.
       for (const en of pendingEntries) {
-        if (!chunkEntries.has(en.key)) continue;
-        chunkEntries.delete(en.key);
+        const previous = previousEntries.get(en.key);
+        if (previous) chunkEntries.set(en.key, previous);
+        else chunkEntries.delete(en.key);
       }
       return {
         diagnostics: [{ level: "error", code: "save/write-failed", detail: (e as Error).message }],
@@ -213,7 +246,11 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
         state: null,
         diagnostics: [
           ...decoded.diagnostics,
-          { level: "error", code: "save/legacy-migration-failed", detail: "legacy save left untouched" },
+          {
+            level: "error",
+            code: "save/legacy-migration-failed",
+            detail: "legacy save left untouched",
+          },
         ],
       };
     }
@@ -221,12 +258,21 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
     const { diagnostics } = await commit(decoded.state);
     if (diagnostics.length) {
       // Partial/failed write: drop anything we may have written, keep legacy.
-      try { await deps.records.deleteKeys([K.core, K.manifest]); } catch { /* best effort */ }
+      try {
+        await deps.records.deleteKeys([K.core, K.manifest]);
+      } catch {
+        /* best effort */
+      }
       return {
         state: decoded.state,
         diagnostics: [
-          ...decoded.diagnostics, ...diagnostics,
-          { level: "error", code: "save/legacy-migration-failed", detail: "legacy save left untouched" },
+          ...decoded.diagnostics,
+          ...diagnostics,
+          {
+            level: "error",
+            code: "save/legacy-migration-failed",
+            detail: "legacy save left untouched",
+          },
         ],
       };
     }
@@ -236,12 +282,20 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
     const m = verify[K.manifest] ? (JSON.parse(verify[K.manifest]!) as unknown) : null;
     const ok = !!verify[K.core] && isManifest(m) && m.coreChecksum === checksum(verify[K.core]!);
     if (!ok) {
-      try { await deps.records.deleteKeys([K.core, K.manifest]); } catch { /* best effort */ }
+      try {
+        await deps.records.deleteKeys([K.core, K.manifest]);
+      } catch {
+        /* best effort */
+      }
       return {
         state: decoded.state,
         diagnostics: [
           ...decoded.diagnostics,
-          { level: "error", code: "save/legacy-migration-unverified", detail: "legacy save left untouched" },
+          {
+            level: "error",
+            code: "save/legacy-migration-unverified",
+            detail: "legacy save left untouched",
+          },
         ],
       };
     }
@@ -253,7 +307,11 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
       state: decoded.state,
       diagnostics: [
         ...decoded.diagnostics,
-        { level: "info", code: "save/migrated-to-idb", detail: `legacy save moved to ${deps.records.kind}` },
+        {
+          level: "info",
+          code: "save/migrated-to-idb",
+          detail: `legacy save moved to ${deps.records.kind}`,
+        },
       ],
     };
   }
@@ -280,14 +338,19 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
       try {
         rec = await deps.records.get([K.manifest, K.core, K.unreadable]);
       } catch (e) {
-        return { state: null, diagnostics: [{ level: "error", code: "save/read-failed", detail: (e as Error).message }] };
+        return {
+          state: null,
+          diagnostics: [{ level: "error", code: "save/read-failed", detail: (e as Error).message }],
+        };
       }
 
       if (rec[K.unreadable] && !rec[K.manifest] && !rec[K.core]) {
         unreadable = true;
         return {
           state: null,
-          diagnostics: [{ level: "warn", code: "save/preserved", detail: "an unreadable save is present" }],
+          diagnostics: [
+            { level: "warn", code: "save/preserved", detail: "an unreadable save is present" },
+          ],
         };
       }
 
@@ -303,12 +366,20 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
         try {
           const m = JSON.parse(rec[K.manifest]!) as unknown;
           if (isManifest(m)) manifest = m;
-        } catch { /* handled below */ }
+        } catch {
+          /* handled below */
+        }
       }
 
       if (!manifest) {
         diagnostics.push({ level: "error", code: "save/manifest-invalid" });
-        return { state: null, diagnostics: [...diagnostics, await preserve(rec[K.core] ?? "", "manifest missing or invalid")] };
+        return {
+          state: null,
+          diagnostics: [
+            ...diagnostics,
+            await preserve(rec[K.core] ?? "", "manifest missing or invalid"),
+          ],
+        };
       }
       if (manifest.storageFormatVersion > STORAGE_FORMAT_VERSION) {
         return {
@@ -321,7 +392,10 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
                 `this save uses a newer storage format (v${manifest.storageFormatVersion}; ` +
                 `this build understands v${STORAGE_FORMAT_VERSION}). Update the game to load it.`,
             },
-            await preserve(rec[K.core] ?? "", `future storage format v${manifest.storageFormatVersion}`),
+            await preserve(
+              rec[K.core] ?? "",
+              `future storage format v${manifest.storageFormatVersion}`,
+            ),
           ],
         };
       }
@@ -333,7 +407,11 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
         return {
           state: null,
           diagnostics: [
-            { level: "error", code: "save/checksum-mismatch", detail: "stored state does not match its manifest" },
+            {
+              level: "error",
+              code: "save/checksum-mismatch",
+              detail: "stored state does not match its manifest",
+            },
             await preserve(rec[K.core]!, "checksum mismatch"),
           ],
         };
@@ -351,11 +429,14 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
 
     async save(state: GameState): Promise<Diagnostic[]> {
       if (unreadable) {
-        return [{
-          level: "error",
-          code: "save/write-blocked",
-          detail: "an unreadable save is present; refusing to overwrite it until the slot is cleared",
-        }];
+        return [
+          {
+            level: "error",
+            code: "save/write-blocked",
+            detail:
+              "an unreadable save is present; refusing to overwrite it until the slot is cleared",
+          },
+        ];
       }
       const t0 = performance.now();
       const { diagnostics } = await commit(state);

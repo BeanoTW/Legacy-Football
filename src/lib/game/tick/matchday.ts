@@ -15,14 +15,24 @@ import { facilityModifiers } from "../infrastructure";
 import { postMatchdayFinance } from "../finance";
 import { clubStrengthFor } from "../reputation";
 import {
-  makeRecord, resolveWeek, simulateFixture, hasFullSchedule, fixtureId, leagueOf, playerLeagueId,
+  makeRecord,
+  resolveWeek,
+  simulateFixture,
+  hasFullSchedule,
+  fixtureId,
+  leagueOf,
+  playerLeagueId,
 } from "../league";
 import { avgTicketPrice, squadRating, simAttendance, simGoals, usableCapacity } from "../sim";
 import { FRIENDLY_WEEKS } from "../calendar";
 
 export interface MatchOverride {
-  gf: number; ga: number; attendance: number;
-  gate: number; tv: number; matchdayOps: number;
+  gf: number;
+  ga: number;
+  attendance: number;
+  gate: number;
+  tv: number;
+  matchdayOps: number;
   winBonus: number;
 }
 
@@ -42,9 +52,10 @@ export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOu
     // The scheduled fixture this result belongs to (schedule-backed saves).
     const sched = hasFullSchedule(s)
       ? s.leagueSchedule.find(
-          (f) => f.week === s.week &&
+          (f) =>
+            f.week === s.week &&
             ((f.home === s.clubName && f.away === fixture.opponent) ||
-             (f.away === s.clubName && f.home === fixture.opponent)),
+              (f.away === s.clubName && f.home === fixture.opponent)),
         )
       : undefined;
     const homeClub = fixture.home ? s.clubName : fixture.opponent;
@@ -71,7 +82,7 @@ export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOu
       // Central broadcast money arrives weekly through the league
       // distribution; this is only the per-fixture facility/host fee.
       const econ = profileForTier(tierOfUser(s));
-      tv = Math.round((econ.broadcastSeason * 0.07) / 23 * (0.85 + rng() * 0.3));
+      tv = Math.round(((econ.broadcastSeason * 0.07) / 23) * (0.85 + rng() * 0.3));
       matchdayOps = fixture.home
         ? Math.round((4_200 + attendance * 1.35) * econ.matchdayCostFactor)
         : Math.round(3_200 * econ.matchdayCostFactor);
@@ -80,12 +91,20 @@ export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOu
     // Single matchday-finance path shared by auto-resolved and live matches.
     // Away fixtures book no gate, hospitality or concessions.
     postMatchdayFinance(s, {
-      season: s.season, week: s.week,
-      opponent: fixture.opponent, home: fixture.home,
-      attendance, gate, tv, matchdayOps,
+      season: s.season,
+      week: s.week,
+      opponent: fixture.opponent,
+      home: fixture.home,
+      attendance,
+      gate,
+      tv,
+      matchdayOps,
       winBonus: override?.winBonus ?? 0,
       fixtureId: fixtureId(
-        s.season, sched?.round ?? s.week, homeClub, awayClub,
+        s.season,
+        sched?.round ?? s.week,
+        homeClub,
+        awayClub,
         sched ? leagueOf(sched) : playerLeagueId(s),
       ),
       modifiers: facilityModifiers(s),
@@ -93,14 +112,23 @@ export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOu
 
     const result: "W" | "D" | "L" = gf > ga ? "W" : gf === ga ? "D" : "L";
     fxResult = {
-      week: s.week, opponent: fixture.opponent, home: fixture.home,
-      goalsFor: gf, goalsAgainst: ga, attendance: fixture.home ? attendance : 0,
-      gateReceipts: fixture.home ? gate : 0, tvIncome: tv, result,
+      week: s.week,
+      opponent: fixture.opponent,
+      home: fixture.home,
+      goalsFor: gf,
+      goalsAgainst: ga,
+      attendance: fixture.home ? attendance : 0,
+      gateReceipts: fixture.home ? gate : 0,
+      tvIncome: tv,
+      result,
     };
 
     const swing = result === "W" ? 4 : result === "D" ? 0 : -5;
     s.fanHappiness = Math.max(5, Math.min(100, s.fanHappiness + swing));
-    s.reputation = Math.max(20, Math.min(95, s.reputation + (result === "W" ? 0.4 : result === "L" ? -0.3 : 0)));
+    s.reputation = Math.max(
+      20,
+      Math.min(95, s.reputation + (result === "W" ? 0.4 : result === "L" ? -0.3 : 0)),
+    );
 
     if (hasFullSchedule(s)) {
       // Record-driven league: store the user's fixture, resolve every AI
@@ -111,14 +139,19 @@ export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOu
         const lid = leagueOf(sched);
         const id = fixtureId(s.season, sched.round, home, away, lid);
         const already = s.matchRecords.some((r) => r.id === id);
-        const userRecord: MatchRecord | undefined = already ? undefined : makeRecord({
-          leagueId: lid,
-          season: s.season, week: s.week, round: sched.round,
-          home, away,
-          homeGoals: fixture.home ? gf : ga,
-          awayGoals: fixture.home ? ga : gf,
-          userInvolved: true,
-        });
+        const userRecord: MatchRecord | undefined = already
+          ? undefined
+          : makeRecord({
+              leagueId: lid,
+              season: s.season,
+              week: s.week,
+              round: sched.round,
+              home,
+              away,
+              homeGoals: fixture.home ? gf : ga,
+              awayGoals: fixture.home ? ga : gf,
+              userInvolved: true,
+            });
         resolveWeek(s, s.week, userRecord);
       }
     } else {
@@ -127,12 +160,26 @@ export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOu
       const my = s.league.find((r) => r.team === s.clubName)!;
       const opp = s.league.find((r) => r.team === fixture.opponent)!;
       if (my && opp) {
-        my.p++; opp.p++;
-        my.gf += gf; my.ga += ga;
-        opp.gf += ga; opp.ga += gf;
-        if (result === "W") { my.w++; my.pts += 3; opp.l++; }
-        else if (result === "L") { my.l++; opp.w++; opp.pts += 3; }
-        else { my.d++; my.pts += 1; opp.d++; opp.pts += 1; }
+        my.p++;
+        opp.p++;
+        my.gf += gf;
+        my.ga += ga;
+        opp.gf += ga;
+        opp.ga += gf;
+        if (result === "W") {
+          my.w++;
+          my.pts += 3;
+          opp.l++;
+        } else if (result === "L") {
+          my.l++;
+          opp.w++;
+          opp.pts += 3;
+        } else {
+          my.d++;
+          my.pts += 1;
+          opp.d++;
+          opp.pts += 1;
+        }
       }
     }
     matchdayNote = `${fixture.home ? "H" : "A"} vs ${fixture.opponent} — ${gf}-${ga} ${result}`;
@@ -153,18 +200,32 @@ export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOu
     const gate = Math.round(attendance * avgTicketPrice(s) * 0.7);
     const matchdayOps = Math.round(4_200 + attendance * 0.3);
     postMatchdayFinance(s, {
-      season: s.season, week: s.week,
-      opponent: `${opp} (friendly)`, home: true,
-      attendance, gate, tv: 0, matchdayOps,
+      season: s.season,
+      week: s.week,
+      opponent: `${opp} (friendly)`,
+      home: true,
+      attendance,
+      gate,
+      tv: 0,
+      matchdayOps,
       modifiers: facilityModifiers(s),
     });
     const result: "W" | "D" | "L" = gf > ga ? "W" : gf === ga ? "D" : "L";
     // Friendlies don't touch the league table; tiny happiness swing only
-    s.fanHappiness = Math.max(5, Math.min(100, s.fanHappiness + (result === "W" ? 1 : result === "L" ? -1 : 0)));
+    s.fanHappiness = Math.max(
+      5,
+      Math.min(100, s.fanHappiness + (result === "W" ? 1 : result === "L" ? -1 : 0)),
+    );
     fxResult = {
-      week: s.week, opponent: `${opp} (friendly)`, home: true,
-      goalsFor: gf, goalsAgainst: ga, attendance,
-      gateReceipts: gate, tvIncome: 0, result,
+      week: s.week,
+      opponent: `${opp} (friendly)`,
+      home: true,
+      goalsFor: gf,
+      goalsAgainst: ga,
+      attendance,
+      gateReceipts: gate,
+      tvIncome: 0,
+      result,
     };
     matchdayNote = `Friendly vs ${opp} — ${gf}-${ga} ${result}`;
   }

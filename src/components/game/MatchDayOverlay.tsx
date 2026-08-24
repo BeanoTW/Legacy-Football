@@ -3,7 +3,11 @@ import { ChevronsRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
-  applyHalfTimeChoice, cancelLiveMatch, commitLiveMatchAndAdvance, fmtMoney, kickoff,
+  applyHalfTimeChoice,
+  cancelLiveMatch,
+  commitLiveMatchAndAdvance,
+  fmtMoney,
+  kickoff,
 } from "@/lib/game/engine";
 import { Info2 } from "./shared/primitives";
 
@@ -40,7 +44,9 @@ export function MatchDayOverlay({
           {/* Scoreline */}
           <div className="p-5 grid grid-cols-3 items-center gap-3 text-center">
             <div>
-              <div className="font-display text-xl truncate">{lm.fixture.home ? usName : themName}</div>
+              <div className="font-display text-xl truncate">
+                {lm.fixture.home ? usName : themName}
+              </div>
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 {lm.fixture.home ? "Home" : "Away"}
               </div>
@@ -51,7 +57,9 @@ export function MatchDayOverlay({
               {lm.fixture.home ? lm.theirGoals : lm.ourGoals}
             </div>
             <div>
-              <div className="font-display text-xl truncate">{lm.fixture.home ? themName : usName}</div>
+              <div className="font-display text-xl truncate">
+                {lm.fixture.home ? themName : usName}
+              </div>
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 {lm.fixture.home ? "Away" : "Home"}
               </div>
@@ -115,16 +123,15 @@ export function MatchDayOverlay({
                 <Info2 label="Attendance" value={lm.attendance.toLocaleString()} />
                 <Info2 label="Gate" value={fmtMoney(lm.gateReceipts)} />
                 <Info2 label="TV" value={fmtMoney(lm.tvIncome)} />
-                <Info2
-                  label="Matchday ops"
-                  value={`-${fmtMoney(lm.matchdayOps)}`}
-                  tone="bad"
-                />
+                <Info2 label="Matchday ops" value={`-${fmtMoney(lm.matchdayOps)}`} tone="bad" />
                 {lm.winBonus > 0 && (
                   <Info2 label="Win bonus" value={`-${fmtMoney(lm.winBonus)}`} tone="bad" />
                 )}
               </div>
-              <Button className="w-full" onClick={() => update((s) => commitLiveMatchAndAdvance(s))}>
+              <Button
+                className="w-full"
+                onClick={() => update((s) => commitLiveMatchAndAdvance(s))}
+              >
                 Confirm & advance week <ChevronsRight className="size-4 ml-1" />
               </Button>
             </div>

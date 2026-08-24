@@ -4,20 +4,21 @@
  * shape, then applies every step whose `from` is >= the save's version, in
  * strict ascending order. Adding a schema version means adding one step file
  * and one entry to MIGRATIONS — never editing an existing step.
- *
- * Not wired into engine.ts yet: engine.ts still owns the inline chain. The
- * cutover is the next edit, and migrations.check.ts asserts both paths produce
- * an identical state hash before the inline chain is deleted.
  */
 import type { AnySave, Migration, MigrationCtx, MigrationDeps, MigrationDiagnostic } from "./types";
 import { MigrationError } from "./types";
 import { EARLY_MIGRATIONS } from "./v1-v6";
 import { LATE_MIGRATIONS } from "./v7-v12";
+import { WORLD_MIGRATIONS } from "./v12-v13";
 import type { GameState } from "../types";
 
 export * from "./types";
 
-export const MIGRATIONS: Migration[] = [...EARLY_MIGRATIONS, ...LATE_MIGRATIONS];
+export const MIGRATIONS: Migration[] = [
+  ...EARLY_MIGRATIONS,
+  ...LATE_MIGRATIONS,
+  ...WORLD_MIGRATIONS,
+];
 
 /** Highest version any registered step can produce. */
 export const LATEST_MIGRATED_VERSION = MIGRATIONS.reduce((m, s) => Math.max(m, s.to), 1);
@@ -31,11 +32,12 @@ function normalise(p: AnySave, deps: MigrationDeps) {
   // Versioning arrived late, so an absent version means "the very first schema".
   if (typeof p.version !== "number" || !Number.isFinite(p.version)) p.version = 1;
 
-  const arr = <T,>(v: unknown, fallback: T[]): T[] => (Array.isArray(v) ? (v as T[]) : fallback);
+  const arr = <T>(v: unknown, fallback: T[]): T[] => (Array.isArray(v) ? (v as T[]) : fallback);
   const raw = p as unknown as Record<string, unknown>;
 
   p.hiredStaff = arr(p.hiredStaff, []);
-  if (!Array.isArray(p.staffCandidates)) p.staffCandidates = deps.staffPoolFor(p as unknown as GameState);
+  if (!Array.isArray(p.staffCandidates))
+    p.staffCandidates = deps.staffPoolFor(p as unknown as GameState);
   if (p.staffMarketRefreshedWeek == null) p.staffMarketRefreshedWeek = p.week;
   if (p.transferBudget == null) p.transferBudget = 500_000;
   if (p.wageBudgetWeekly == null) p.wageBudgetWeekly = 5_000;

@@ -42,7 +42,6 @@ import {
   userSquad,
 } from "./recruitment";
 
-
 /* ---------- Calendar anchors (kept local to avoid an engine import) ---------- */
 export const MID_SEASON_REVIEW_WEEK = 24;
 export const END_SEASON_REVIEW_WEEK = 46;
@@ -58,19 +57,53 @@ export const DIRECTOR_ROLES: DirectorRole[] = [
 ];
 
 const ZERO: Record<BoardPriority, number> = {
-  results: 0, finance: 0, fans: 0, facilities: 0, squad: 0, commercial: 0,
+  results: 0,
+  finance: 0,
+  fans: 0,
+  facilities: 0,
+  squad: 0,
+  commercial: 0,
 };
 
 const ROLE_PRIORITIES: Record<DirectorRole, Record<BoardPriority, number>> = {
-  "Chairman":              { ...ZERO, results: 30, finance: 25, fans: 15, facilities: 10, squad: 10, commercial: 10 },
-  "Finance Director":      { ...ZERO, finance: 55, commercial: 20, squad: 10, results: 10, facilities: 5 },
-  "Football Director":     { ...ZERO, results: 45, squad: 30, facilities: 10, finance: 10, fans: 5 },
-  "Commercial Director":   { ...ZERO, commercial: 40, facilities: 20, fans: 15, results: 15, finance: 10 },
-  "Supporters' Director":  { ...ZERO, fans: 50, results: 20, facilities: 15, commercial: 5, squad: 10 },
+  Chairman: {
+    ...ZERO,
+    results: 30,
+    finance: 25,
+    fans: 15,
+    facilities: 10,
+    squad: 10,
+    commercial: 10,
+  },
+  "Finance Director": {
+    ...ZERO,
+    finance: 55,
+    commercial: 20,
+    squad: 10,
+    results: 10,
+    facilities: 5,
+  },
+  "Football Director": { ...ZERO, results: 45, squad: 30, facilities: 10, finance: 10, fans: 5 },
+  "Commercial Director": {
+    ...ZERO,
+    commercial: 40,
+    facilities: 20,
+    fans: 15,
+    results: 15,
+    finance: 10,
+  },
+  "Supporters' Director": {
+    ...ZERO,
+    fans: 50,
+    results: 20,
+    facilities: 15,
+    commercial: 5,
+    squad: 10,
+  },
 };
 
 const ROLE_INFLUENCE: Record<DirectorRole, [number, number]> = {
-  "Chairman": [30, 38],
+  Chairman: [30, 38],
   "Finance Director": [18, 24],
   "Football Director": [16, 22],
   "Commercial Director": [10, 16],
@@ -80,8 +113,14 @@ const ROLE_INFLUENCE: Record<DirectorRole, [number, number]> = {
 /* ---------- Traits ---------- */
 
 const TRAIT_POOL: DirectorTrait[] = [
-  "patient", "ruthless", "ambitious", "frugal",
-  "pragmatic", "loyal", "populist", "traditionalist",
+  "patient",
+  "ruthless",
+  "ambitious",
+  "frugal",
+  "pragmatic",
+  "loyal",
+  "populist",
+  "traditionalist",
 ];
 
 export const TRAIT_LABEL: Record<DirectorTrait, string> = {
@@ -108,10 +147,10 @@ export const TRAIT_DESC: Record<DirectorTrait, string> = {
 
 /** How a trait bends this director's priority weights. */
 const TRAIT_PRIORITY_MOD: Partial<Record<DirectorTrait, Partial<Record<BoardPriority, number>>>> = {
-  frugal:         { finance: 20, commercial: 5 },
-  populist:       { fans: 20, results: 5 },
+  frugal: { finance: 20, commercial: 5 },
+  populist: { fans: 20, results: 5 },
   traditionalist: { facilities: 18, fans: 5 },
-  ambitious:      { results: 15, squad: 8 },
+  ambitious: { results: 15, squad: 8 },
 };
 
 const hasTrait = (d: Director, t: DirectorTrait) => d.traits.includes(t);
@@ -136,20 +175,61 @@ export function confidenceFloor(d: Director): number {
 /* ---------- Director generation ---------- */
 
 const FIRST_NAMES = [
-  "Alan", "Margaret", "Douglas", "Priya", "Ronald", "Eileen", "Malcolm", "Yvonne",
-  "Gerald", "Hazel", "Stuart", "Nadia", "Clive", "Rosalind", "Fraser", "Bernice",
-  "Duncan", "Marion", "Nigel", "Cathy", "Rupert", "Sandra", "Iain", "Deborah",
+  "Alan",
+  "Margaret",
+  "Douglas",
+  "Priya",
+  "Ronald",
+  "Eileen",
+  "Malcolm",
+  "Yvonne",
+  "Gerald",
+  "Hazel",
+  "Stuart",
+  "Nadia",
+  "Clive",
+  "Rosalind",
+  "Fraser",
+  "Bernice",
+  "Duncan",
+  "Marion",
+  "Nigel",
+  "Cathy",
+  "Rupert",
+  "Sandra",
+  "Iain",
+  "Deborah",
 ];
 const LAST_NAMES = [
-  "Roberts", "Whitcombe", "Kearney", "Ballantyne", "Okoro", "Fairbairn", "Naismith",
-  "Ashworth", "Tulloch", "Rennie", "Hollis", "Craddock", "Sandhu", "Marchetti",
-  "Purcell", "Lindsay", "Beaumont", "Gallacher", "Ferris", "Docherty",
+  "Roberts",
+  "Whitcombe",
+  "Kearney",
+  "Ballantyne",
+  "Okoro",
+  "Fairbairn",
+  "Naismith",
+  "Ashworth",
+  "Tulloch",
+  "Rennie",
+  "Hollis",
+  "Craddock",
+  "Sandhu",
+  "Marchetti",
+  "Purcell",
+  "Lindsay",
+  "Beaumont",
+  "Gallacher",
+  "Ferris",
+  "Docherty",
 ];
 
 function nameFor(rng: () => number, used: Set<string>): string {
   for (let i = 0; i < 40; i++) {
     const n = `${FIRST_NAMES[rngInt(rng, 0, FIRST_NAMES.length - 1)]} ${LAST_NAMES[rngInt(rng, 0, LAST_NAMES.length - 1)]}`;
-    if (!used.has(n)) { used.add(n); return n; }
+    if (!used.has(n)) {
+      used.add(n);
+      return n;
+    }
   }
   const fallback = `Director ${used.size + 1}`;
   used.add(fallback);
@@ -159,7 +239,7 @@ function nameFor(rng: () => number, used: Set<string>): string {
 function bioFor(role: DirectorRole, traits: DirectorTrait[]): string {
   const t = traits[0];
   const base: Record<DirectorRole, string> = {
-    "Chairman": "Chairs the board and carries the casting vote on strategy.",
+    Chairman: "Chairs the board and carries the casting vote on strategy.",
     "Finance Director": "Owns the balance sheet, wage ratio and cash position.",
     "Football Director": "Answers for results, the squad and the football department.",
     "Commercial Director": "Drives sponsorship, matchday revenue and the club's market value.",
@@ -193,8 +273,8 @@ export function makeDirectors(saveSeed: string, clubName: string): Director[] {
     const patience = traits.includes("patient")
       ? rngInt(rng, 62, 88)
       : traits.includes("ruthless")
-      ? rngInt(rng, 12, 38)
-      : rngInt(rng, 35, 70);
+        ? rngInt(rng, 12, 38)
+        : rngInt(rng, 35, 70);
 
     const d: Director = {
       id: `dir-${role.toLowerCase().replace(/[^a-z]+/g, "-")}`,
@@ -276,25 +356,57 @@ const OBJ_META: Record<
   BoardObjective["kind"],
   { priority: BoardPriority; ownerRole: DirectorRole; higherIsBetter: boolean }
 > = {
-  leaguePosition:   { priority: "results",    ownerRole: "Football Director",    higherIsBetter: false },
-  cashReserve:      { priority: "finance",    ownerRole: "Finance Director",     higherIsBetter: true  },
-  wageControl:      { priority: "finance",    ownerRole: "Finance Director",     higherIsBetter: false },
-  fanHappiness:     { priority: "fans",       ownerRole: "Supporters' Director", higherIsBetter: true  },
-  stadiumCondition: { priority: "facilities", ownerRole: "Commercial Director",  higherIsBetter: true  },
-  squadRating:      { priority: "squad",      ownerRole: "Football Director",    higherIsBetter: true  },
-  commercialIncome: { priority: "commercial", ownerRole: "Commercial Director",  higherIsBetter: true  },
+  leaguePosition: { priority: "results", ownerRole: "Football Director", higherIsBetter: false },
+  cashReserve: { priority: "finance", ownerRole: "Finance Director", higherIsBetter: true },
+  wageControl: { priority: "finance", ownerRole: "Finance Director", higherIsBetter: false },
+  fanHappiness: { priority: "fans", ownerRole: "Supporters' Director", higherIsBetter: true },
+  stadiumCondition: {
+    priority: "facilities",
+    ownerRole: "Commercial Director",
+    higherIsBetter: true,
+  },
+  squadRating: { priority: "squad", ownerRole: "Football Director", higherIsBetter: true },
+  commercialIncome: {
+    priority: "commercial",
+    ownerRole: "Commercial Director",
+    higherIsBetter: true,
+  },
 
-  transferBudgetDiscipline: { priority: "finance", ownerRole: "Finance Director",  higherIsBetter: false },
-  playerSaleIncome:         { priority: "finance", ownerRole: "Finance Director",  higherIsBetter: true  },
-  squadAge:                 { priority: "squad",   ownerRole: "Football Director", higherIsBetter: false },
-  contractSecurity:         { priority: "squad",   ownerRole: "Football Director", higherIsBetter: true  },
-  recruitmentActivity:      { priority: "squad",   ownerRole: "Football Director", higherIsBetter: true  },
+  transferBudgetDiscipline: {
+    priority: "finance",
+    ownerRole: "Finance Director",
+    higherIsBetter: false,
+  },
+  playerSaleIncome: { priority: "finance", ownerRole: "Finance Director", higherIsBetter: true },
+  squadAge: { priority: "squad", ownerRole: "Football Director", higherIsBetter: false },
+  contractSecurity: { priority: "squad", ownerRole: "Football Director", higherIsBetter: true },
+  recruitmentActivity: { priority: "squad", ownerRole: "Football Director", higherIsBetter: true },
 
-  avoidCriticalAssets:   { priority: "facilities", ownerRole: "Commercial Director",  higherIsBetter: false },
-  trainingGroundLevel:   { priority: "facilities", ownerRole: "Football Director",    higherIsBetter: true  },
-  stadiumCapacity:       { priority: "facilities", ownerRole: "Commercial Director",  higherIsBetter: true  },
-  supporterFacilities:   { priority: "fans",       ownerRole: "Supporters' Director", higherIsBetter: true  },
-  capitalSpendControl:   { priority: "finance",    ownerRole: "Finance Director",     higherIsBetter: false },
+  avoidCriticalAssets: {
+    priority: "facilities",
+    ownerRole: "Commercial Director",
+    higherIsBetter: false,
+  },
+  trainingGroundLevel: {
+    priority: "facilities",
+    ownerRole: "Football Director",
+    higherIsBetter: true,
+  },
+  stadiumCapacity: {
+    priority: "facilities",
+    ownerRole: "Commercial Director",
+    higherIsBetter: true,
+  },
+  supporterFacilities: {
+    priority: "fans",
+    ownerRole: "Supporters' Director",
+    higherIsBetter: true,
+  },
+  capitalSpendControl: {
+    priority: "finance",
+    ownerRole: "Finance Director",
+    higherIsBetter: false,
+  },
 };
 
 /** Does the board contain an ambitious voice? Ambition tightens targets. */
@@ -337,10 +449,10 @@ export function makeObjectives(s: GameState, season: number, board: BoardState):
   const netSpendCap = Math.max(0, Math.round((s.transferBudget ?? 0) / 25_000) * 25_000);
   const saleTarget = Math.round(Math.max(100_000, burn * 6) / 25_000) * 25_000;
   const ageNow = averageSquadAge(s);
-  const ageTarget = ageNow > 0 ? Math.min(29, Math.max(23, Math.round((ageNow - 0.5) * 10) / 10)) : 27;
+  const ageTarget =
+    ageNow > 0 ? Math.min(29, Math.max(23, Math.round((ageNow - 0.5) * 10) / 10)) : 27;
   const securityTarget = Math.min(95, Math.max(60, Math.round(contractSecurityPct(s) + 5)));
   const activityTarget = Math.max(1, 2 + amb);
-
 
   const mk = (
     kind: BoardObjective["kind"],
@@ -450,11 +562,11 @@ export function makeObjectives(s: GameState, season: number, board: BoardState):
       5,
     ),
   ];
-
 }
 
 function ordinal(n: number): string {
-  const s = ["th", "st", "nd", "rd"], v = n % 100;
+  const s = ["th", "st", "nd", "rd"],
+    v = n % 100;
   return s[(v - 20) % 10] || s[v] || s[0];
 }
 export { ordinal as ordinalSuffix };
@@ -485,9 +597,8 @@ export function evaluateObjective(s: GameState, o: BoardObjective): ObjectivePro
       current = currentPosition(s);
       detail = `Currently ${current}${ordinal(current)} of ${size}`;
       // Position progress: at or better than target = 1, last place = 0.
-      progress = current <= o.target
-        ? 1
-        : clamp01(1 - (current - o.target) / Math.max(1, size - o.target));
+      progress =
+        current <= o.target ? 1 : clamp01(1 - (current - o.target) / Math.max(1, size - o.target));
       break;
     }
     case "cashReserve": {
@@ -540,9 +651,10 @@ export function evaluateObjective(s: GameState, o: BoardObjective): ObjectivePro
     }
     case "squadAge": {
       current = averageSquadAge(s);
-      detail = current > 0
-        ? `Average age ${current.toFixed(1)} across ${userSquad(s).length} players`
-        : "No players registered";
+      detail =
+        current > 0
+          ? `Average age ${current.toFixed(1)} across ${userSquad(s).length} players`
+          : "No players registered";
       progress = current === 0 ? 0 : ratioProgress(current, o.target, false);
       break;
     }
@@ -559,7 +671,6 @@ export function evaluateObjective(s: GameState, o: BoardObjective): ObjectivePro
       break;
     }
   }
-
 
   return {
     objectiveId: o.id,
@@ -602,9 +713,13 @@ export function directorSatisfaction(s: GameState, d: Director): number {
 }
 
 /** The single priority a director is currently least happy about. */
-export function directorConcern(s: GameState, d: Director): { objective: BoardObjective; progress: ObjectiveProgress } | null {
+export function directorConcern(
+  s: GameState,
+  d: Director,
+): { objective: BoardObjective; progress: ObjectiveProgress } | null {
   const objectives = s.board?.objectives ?? [];
-  let worst: { objective: BoardObjective; progress: ObjectiveProgress; score: number } | null = null;
+  let worst: { objective: BoardObjective; progress: ObjectiveProgress; score: number } | null =
+    null;
   for (const o of objectives) {
     const w = d.priorities[o.priority] ?? 0;
     if (w <= 0) continue;
@@ -661,16 +776,20 @@ function verdictFor(type: BoardReview["type"], after: number, delta: number): st
   if (type === "midSeason") {
     if (band === "secure") return "The board is delighted with the direction of the club.";
     if (band === "stable") return "The board is content and sees no reason to intervene.";
-    if (band === "watchful") return "The board wants visible improvement in the second half of the season.";
-    if (band === "strained") return "The board has issued a formal warning about the club's direction.";
+    if (band === "watchful")
+      return "The board wants visible improvement in the second half of the season.";
+    if (band === "strained")
+      return "The board has issued a formal warning about the club's direction.";
     return "The board has placed the chairman's position under formal review.";
   }
   if (band === "secure") return "A season the board regards as an unqualified success.";
   if (band === "stable") return "The board considers the season a solid, if unspectacular, return.";
-  if (band === "watchful") return delta < 0
-    ? "The board judges the season a step backwards and expects a response."
-    : "The board accepts the season but expects more next year.";
-  if (band === "strained") return "The board regards this season as a serious failure of stewardship.";
+  if (band === "watchful")
+    return delta < 0
+      ? "The board judges the season a step backwards and expects a response."
+      : "The board accepts the season but expects more next year.";
+  if (band === "strained")
+    return "The board regards this season as a serious failure of stewardship.";
   return "The board has recorded a vote of no confidence in the chairman.";
 }
 
@@ -678,10 +797,7 @@ function verdictFor(type: BoardReview["type"], after: number, delta: number): st
  * Run one review. MUTATES the passed state — call it once per review window
  * from the engine only, guarded by `hasReview`.
  */
-export function runBoardReview(
-  s: GameState,
-  type: BoardReview["type"],
-): BoardReview {
+export function runBoardReview(s: GameState, type: BoardReview["type"]): BoardReview {
   const board = s.board;
   const before = recomputeConfidence(board);
   const lines: string[] = [];
@@ -701,17 +817,13 @@ export function runBoardReview(
     // applied only here — reviews are guarded to run once per window.
     const strategic = sustainabilityConfidenceAdjustment(s, d.role) * severity;
     const move = gap * 0.55 * reactivity(d) * severity + strategic;
-    const next = Math.round(
-      Math.max(confidenceFloor(d), Math.min(100, d.confidence + move)),
-    );
+    const next = Math.round(Math.max(confidenceFloor(d), Math.min(100, d.confidence + move)));
     d.confidence = next;
     directorConfidence[d.id] = next;
 
     const concern = directorConcern(s, d);
     if (concern && concern.progress.progress < 0.9) {
-      lines.push(
-        `${d.name} (${d.role}) — ${concern.objective.label}: ${concern.progress.detail}.`,
-      );
+      lines.push(`${d.name} (${d.role}) — ${concern.objective.label}: ${concern.progress.detail}.`);
     } else {
       lines.push(`${d.name} (${d.role}) — satisfied across their portfolio.`);
     }

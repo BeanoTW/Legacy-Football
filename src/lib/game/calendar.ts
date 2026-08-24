@@ -5,13 +5,13 @@ import type { GameState } from "./types";
 
 export const CALENDAR = {
   preSeasonStart: 1,
-  preSeasonEnd: 4,        // weeks 1-4: pre-season window open, friendlies
+  preSeasonEnd: 4, // weeks 1-4: pre-season window open, friendlies
   firstHalfStart: 5,
-  firstHalfEnd: 23,       // weeks 5-23: league round 1 (19 home)
+  firstHalfEnd: 23, // weeks 5-23: league round 1 (19 home)
   midSeasonStart: 24,
-  midSeasonEnd: 27,       // weeks 24-27: mid-season window open, friendlies
+  midSeasonEnd: 27, // weeks 24-27: mid-season window open, friendlies
   secondHalfStart: 28,
-  secondHalfEnd: 46,      // weeks 28-46: league round 2 (19 away)
+  secondHalfEnd: 46, // weeks 28-46: league round 2 (19 away)
   seasonEnd: 46,
 } as const;
 

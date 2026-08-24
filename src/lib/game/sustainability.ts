@@ -149,10 +149,13 @@ export function operatingPicture(s: GameState, weeks = TRAILING_WEEKS): Operatin
     const wkInc = structuralWeeklyIncome(s);
     return {
       weeksSampled: 0,
-      income: int(wkInc * weeks), expenditure: int(wkExp * weeks),
+      income: int(wkInc * weeks),
+      expenditure: int(wkExp * weeks),
       profit: int((wkInc - wkExp) * weeks),
-      weeklyIncome: int(wkInc), weeklyExpenditure: int(wkExp),
-      weeklyProfit: int(wkInc - wkExp), volatility: 0,
+      weeklyIncome: int(wkInc),
+      weeklyExpenditure: int(wkExp),
+      weeklyProfit: int(wkInc - wkExp),
+      volatility: 0,
     };
   }
 
@@ -171,8 +174,7 @@ export function operatingPicture(s: GameState, weeks = TRAILING_WEEKS): Operatin
 /** Run-rate weekly cost of simply existing: wages, staff, ops, maintenance. */
 export function structuralWeeklyExpenditure(s: GameState): number {
   return int(
-    playerWageBill(s) + staffWageBill(s) +
-    weeklyOperatingCost(s) + weeklyMaintenanceCost(s),
+    playerWageBill(s) + staffWageBill(s) + weeklyOperatingCost(s) + weeklyMaintenanceCost(s),
   );
 }
 
@@ -311,7 +313,10 @@ export function reservePicture(s: GameState): ReservePicture {
     coverWeeks: Math.round((cash / weekly) * 10) / 10,
     coverMonths: Math.round((cash / weekly / FINANCE_PERIOD_WEEKS) * 10) / 10,
     targetCoverWeeks: Math.round((recommended / weekly) * 10) / 10,
-    strategicCapital: Math.max(0, cash - recommended - Math.max(0, commitments - capitalCommitmentsWithin(s, 26))),
+    strategicCapital: Math.max(
+      0,
+      cash - recommended - Math.max(0, commitments - capitalCommitmentsWithin(s, 26)),
+    ),
   };
 }
 
@@ -356,7 +361,8 @@ export function squadNeed(s: GameState): number {
   const league = s.leagues?.find((l) => l.id === s.playerLeagueId);
   const rivals = (league?.clubIds ?? []).filter((c: string) => c !== s.clubName);
   if (!rivals.length) return clamp01((60 - ours) / 25);
-  const par = rivals.reduce((a: number, c: string) => a + clubStrengthFor(s, c, s.season), 0) / rivals.length;
+  const par =
+    rivals.reduce((a: number, c: string) => a + clubStrengthFor(s, c, s.season), 0) / rivals.length;
   // clubStrength and player ability share a 0-100 scale by construction.
   return clamp01((par - ours) / 20);
 }
@@ -368,11 +374,14 @@ export function supporterNeed(s: GameState): number {
   const sanitary = scoreOfAsset(s, "sanitary");
   const fanZone = scoreOfAsset(s, "fanZone");
   const parking = scoreOfAsset(s, "parking");
-  const facilities = (100 - standCond) * 0.45 + (100 - sanitary) * 0.25
-    + (100 - fanZone) * 0.15 + (100 - parking) * 0.15;
+  const facilities =
+    (100 - standCond) * 0.45 +
+    (100 - sanitary) * 0.25 +
+    (100 - fanZone) * 0.15 +
+    (100 - parking) * 0.15;
   const mood = clamp(60 - (s.fanHappiness ?? 60), 0, 60) / 60;
   const capacity = capacityPressure(s) / 100;
-  return clamp01(facilities / 100 * 0.55 + mood * 0.25 + capacity * 0.2);
+  return clamp01((facilities / 100) * 0.55 + mood * 0.25 + capacity * 0.2);
 }
 
 /** Untapped revenue-generating capacity: shop, hospitality, offices. */
@@ -394,16 +403,22 @@ export function needs(s: GameState): NeedPicture {
   const supporters = supporterNeed(s);
   const commercial = commercialNeed(s);
   const entries: [keyof Omit<NeedPicture, "worst" | "overall">, number][] = [
-    ["infrastructure", infrastructure], ["squad", squad],
-    ["supporters", supporters], ["commercial", commercial],
+    ["infrastructure", infrastructure],
+    ["squad", squad],
+    ["supporters", supporters],
+    ["commercial", commercial],
   ];
   const worst = entries.reduce((m, e) => (e[1] > m[1] ? e : m), entries[0]);
   return {
-    infrastructure, squad, supporters, commercial,
+    infrastructure,
+    squad,
+    supporters,
+    commercial,
     worst: { area: worst[0], value: Math.round(worst[1] * 100) / 100 },
-    overall: Math.round(
-      (infrastructure * 0.3 + squad * 0.3 + supporters * 0.25 + commercial * 0.15) * 100,
-    ) / 100,
+    overall:
+      Math.round(
+        (infrastructure * 0.3 + squad * 0.3 + supporters * 0.25 + commercial * 0.15) * 100,
+      ) / 100,
   };
 }
 
@@ -424,8 +439,10 @@ export function capacityPicture(s: GameState): CapacityPicture {
   // Attendance is owned by the finance ledger (gate receipts carry it as
   // metadata); we never keep a second copy of it.
   const gates = (s.financeLedger ?? [])
-    .filter((e) => e.category === "Matchday" && e.subcategory === "Ticket sales"
-      && e.metadata?.home === true)
+    .filter(
+      (e) =>
+        e.category === "Matchday" && e.subcategory === "Ticket sales" && e.metadata?.home === true,
+    )
     .slice(-19);
   const atts = gates.map((e) => Number(e.metadata?.attendance ?? 0)).filter((n) => n > 0);
   const avg = atts.length ? atts.reduce((a, b) => a + b, 0) / atts.length : 0;
@@ -433,10 +450,7 @@ export function capacityPicture(s: GameState): CapacityPicture {
   const sellOuts = usable > 0 ? atts.filter((a) => a >= usable * 0.97).length : 0;
   const sellOutRate = atts.length ? sellOuts / atts.length : 0;
   // Selling out repeatedly is the signal; high occupancy alone is healthy.
-  const pressure = clamp(
-    int((clamp01((occupancy - 0.82) / 0.18) * 60 + sellOutRate * 40)),
-    0, 100,
-  );
+  const pressure = clamp(int(clamp01((occupancy - 0.82) / 0.18) * 60 + sellOutRate * 40), 0, 100);
   return {
     usableCapacity: usable,
     averageAttendance: int(avg),
@@ -485,14 +499,14 @@ export function reinvestmentPressure(s: GameState): ReinvestmentPressure {
   const patience = clamp(0.6 + weeksIdle / 90, 0.6, 1.25);
 
   // A club that just went up is expected to back it up.
-  const promoted = (s.clubRecords?.[s.clubName]?.promotions ?? 0) > 0
-    && (s.seasonHistory ?? []).some(
+  const promoted =
+    (s.clubRecords?.[s.clubName]?.promotions ?? 0) > 0 &&
+    (s.seasonHistory ?? []).some(
       (h) => h.season === s.season - 1 && h.promoted?.includes?.(s.clubName),
     );
   const ambition = promoted ? 1.15 : 1;
 
-  const area = (need: number) =>
-    clamp(int(100 * means * need * patience * ambition), 0, 100);
+  const area = (need: number) => clamp(int(100 * means * need * patience * ambition), 0, 100);
 
   const byArea = {
     infrastructure: area(n.infrastructure),
@@ -503,25 +517,33 @@ export function reinvestmentPressure(s: GameState): ReinvestmentPressure {
 
   const score = clamp(int(100 * means * n.overall * patience * ambition), 0, 100);
 
-  const headline = score < 15
-    ? "No pressure to spend — the club's means and needs are in balance."
-    : score < 40
-      ? `Some spare capital and a case for ${labelFor(n.worst.area)} work.`
-      : score < 70
-        ? `The Board expects reinvestment, particularly in ${labelFor(n.worst.area)}.`
-        : `Serious pressure: money is sitting idle while ${labelFor(n.worst.area)} is being neglected.`;
+  const headline =
+    score < 15
+      ? "No pressure to spend — the club's means and needs are in balance."
+      : score < 40
+        ? `Some spare capital and a case for ${labelFor(n.worst.area)} work.`
+        : score < 70
+          ? `The Board expects reinvestment, particularly in ${labelFor(n.worst.area)}.`
+          : `Serious pressure: money is sitting idle while ${labelFor(n.worst.area)} is being neglected.`;
 
   return {
-    score, means: Math.round(means * 100) / 100, need: n.overall,
+    score,
+    means: Math.round(means * 100) / 100,
+    need: n.overall,
     patience: Math.round(patience * 100) / 100,
-    strategicCapital: res.strategicCapital, byArea, headline,
+    strategicCapital: res.strategicCapital,
+    byArea,
+    headline,
   };
 }
 
 function labelFor(area: string): string {
-  return area === "infrastructure" ? "the facilities"
-    : area === "squad" ? "the squad"
-      : area === "supporters" ? "supporter facilities"
+  return area === "infrastructure"
+    ? "the facilities"
+    : area === "squad"
+      ? "the squad"
+      : area === "supporters"
+        ? "supporter facilities"
         : "commercial development";
 }
 
@@ -585,16 +607,26 @@ export function financialHealth(s: GameState): HealthPicture {
   score -= capitalCommitments(s) > Math.max(1, res.cash) ? 15 : 0;
 
   const state: FinancialHealthState =
-    score >= 92 ? "secure"
-      : score >= 68 ? "healthy"
-        : score >= 46 ? "tight"
-          : score >= 24 ? "stressed"
+    score >= 92
+      ? "secure"
+      : score >= 68
+        ? "healthy"
+        : score >= 46
+          ? "tight"
+          : score >= 24
+            ? "stressed"
             : "critical";
 
-  const label = state === "secure" ? "Secure"
-    : state === "healthy" ? "Healthy"
-      : state === "tight" ? "Tight"
-        : state === "stressed" ? "Stressed" : "Critical";
+  const label =
+    state === "secure"
+      ? "Secure"
+      : state === "healthy"
+        ? "Healthy"
+        : state === "tight"
+          ? "Tight"
+          : state === "stressed"
+            ? "Stressed"
+            : "Critical";
 
   const cover = `${res.coverMonths.toFixed(1)} months operating cover`;
   const summary =
@@ -609,9 +641,14 @@ export function financialHealth(s: GameState): HealthPicture {
             : `Secure — ${cover}, and trading comfortably.`;
 
   return {
-    state, label, summary,
-    coverWeeks: res.coverWeeks, coverMonths: res.coverMonths,
-    wageRatio: wr, operatingWeeklyProfit: op.weeklyProfit, trajectory: traj,
+    state,
+    label,
+    summary,
+    coverWeeks: res.coverWeeks,
+    coverMonths: res.coverMonths,
+    wageRatio: wr,
+    operatingWeeklyProfit: op.weeklyProfit,
+    trajectory: traj,
   };
 }
 
@@ -649,8 +686,12 @@ export function directorStance(s: GameState, role: DirectorRole): DirectorStance
   const n = needs(s);
   const covered = res.deficit === 0;
 
-  const mk = (stance: number, wants: CommitmentCategory | null, note: string): DirectorStance =>
-    ({ role, stance: clamp(int(stance), -100, 100), wants, note });
+  const mk = (stance: number, wants: CommitmentCategory | null, note: string): DirectorStance => ({
+    role,
+    stance: clamp(int(stance), -100, 100),
+    wants,
+    note,
+  });
 
   switch (role) {
     case "Finance Director": {
@@ -661,10 +702,12 @@ export function directorStance(s: GameState, role: DirectorRole): DirectorStance
       const tradingComfort = h.operatingWeeklyProfit >= 0 ? 15 : -25;
       const wageStrain = h.wageRatio > 80 ? -20 : h.wageRatio < 50 ? 8 : 0;
       // Only supports deployment once cover is comfortably beyond target.
-      const willingness = covered && res.coverWeeks > res.targetCoverWeeks * 1.6
-        ? clamp(p.score * 0.4, 0, 35) : -clamp(res.deficit / Math.max(1, res.recommended) * 60, 0, 60);
-      const stance = willingness - clamp(reserveComfort * 0.25, -15, 15)
-        + (tradingComfort + wageStrain) * 0.3;
+      const willingness =
+        covered && res.coverWeeks > res.targetCoverWeeks * 1.6
+          ? clamp(p.score * 0.4, 0, 35)
+          : -clamp((res.deficit / Math.max(1, res.recommended)) * 60, 0, 60);
+      const stance =
+        willingness - clamp(reserveComfort * 0.25, -15, 15) + (tradingComfort + wageStrain) * 0.3;
       return mk(
         stance,
         covered ? "financial" : "financial",
@@ -684,8 +727,10 @@ export function directorStance(s: GameState, role: DirectorRole): DirectorStance
       );
     }
     case "Commercial Director": {
-      const stance = p.byArea.commercial * 0.9 + (res.excess > 0 ? 15 : -10)
-        + (commercialConcentration(s) > 55 ? 10 : 0);
+      const stance =
+        p.byArea.commercial * 0.9 +
+        (res.excess > 0 ? 15 : -10) +
+        (commercialConcentration(s) > 55 ? 10 : 0);
       return mk(
         stance,
         "commercial",
@@ -697,7 +742,8 @@ export function directorStance(s: GameState, role: DirectorRole): DirectorStance
     case "Supporters' Director": {
       // Especially sensitive to visible neglect alongside big reserves.
       const optics = res.excess > 0 && n.supporters > 0.35 ? 25 : 0;
-      const stance = p.byArea.supporters * 0.9 + optics + clamp(40 - (s.fanHappiness ?? 60), -10, 30);
+      const stance =
+        p.byArea.supporters * 0.9 + optics + clamp(40 - (s.fanHappiness ?? 60), -10, 30);
       return mk(
         stance,
         "supporters",
@@ -708,12 +754,17 @@ export function directorStance(s: GameState, role: DirectorRole): DirectorStance
     }
     default: {
       // Chairman: balances growth, ambition, security and reputation.
-      const stance = p.score * 0.5 - (covered ? 0 : 30)
-        + (clubReputation(s, s.clubName) < 45 ? 10 : 0);
+      const stance =
+        p.score * 0.5 - (covered ? 0 : 30) + (clubReputation(s, s.clubName) < 45 ? 10 : 0);
       return mk(
-        stance, n.worst.area === "squad" ? "football"
-          : n.worst.area === "supporters" ? "supporters"
-            : n.worst.area === "commercial" ? "commercial" : "infrastructure",
+        stance,
+        n.worst.area === "squad"
+          ? "football"
+          : n.worst.area === "supporters"
+            ? "supporters"
+            : n.worst.area === "commercial"
+              ? "commercial"
+              : "infrastructure",
         covered
           ? "We have to grow the club without gambling it."
           : "Security first. Ambition follows solvency.",
@@ -764,15 +815,21 @@ export function categorySpendToDate(s: GameState, category: CommitmentCategory):
   const entries = s.financeLedger ?? [];
   const match = (c: string, sub: string): boolean => {
     switch (category) {
-      case "football": return c === "Transfers" || (c === "Wages" && /player/i.test(sub));
+      case "football":
+        return c === "Transfers" || (c === "Wages" && /player/i.test(sub));
       case "infrastructure":
-      case "supporters": return c === "Facilities" || c === "Capital";
-      case "commercial": return c === "Capital" || c === "Operations";
-      case "financial": return false;
+      case "supporters":
+        return c === "Facilities" || c === "Capital";
+      case "commercial":
+        return c === "Capital" || c === "Operations";
+      case "financial":
+        return false;
     }
   };
   const archived = archivedBucketSum(
-    s, (b) => b.direction === "expense" && match(b.category, b.subcategory));
+    s,
+    (b) => b.direction === "expense" && match(b.category, b.subcategory),
+  );
   return int(
     archived +
       entries
@@ -805,9 +862,7 @@ export function createCommitmentInPlace(
   ensureSustainability(s);
   const now = absoluteWeek(s.season, s.week);
   const st = s.sustainability;
-  const dup = st.commitments.find(
-    (c) => c.category === category && c.createdAbsoluteWeek === now,
-  );
+  const dup = st.commitments.find((c) => c.category === category && c.createdAbsoluteWeek === now);
   if (dup) return dup;
   const c: StrategicCommitment = {
     id: `commit-${st.nextCommitmentId++}`,
@@ -857,22 +912,29 @@ export function settleCommitmentsInPlace(s: GameState): CommitmentSettlement[] {
     const priorFailures = s.sustainability.history.filter(
       (h) => h.outcome === "failed" && h.category === c.category,
     ).length;
-    const confidenceDelta = outcome === "fulfilled"
-      ? 4
-      : -(3 + Math.min(4, priorFailures));
-    const fanDelta = c.category === "supporters"
-      ? (outcome === "fulfilled" ? 3 : -3)
-      : outcome === "fulfilled" ? 1 : -1;
+    const confidenceDelta = outcome === "fulfilled" ? 4 : -(3 + Math.min(4, priorFailures));
+    const fanDelta =
+      c.category === "supporters"
+        ? outcome === "fulfilled"
+          ? 3
+          : -3
+        : outcome === "fulfilled"
+          ? 1
+          : -1;
     const reputationDelta = outcome === "failed" && priorFailures >= 1 ? -1 : 0;
 
     c.status = outcome;
     c.settled = true;
     c.resolvedAbsoluteWeek = now;
     s.sustainability.history.push({
-      id: c.id, category: c.category, outcome, absoluteWeek: now,
-      note: outcome === "fulfilled"
-        ? `Delivered on ${CATEGORY_LABEL[c.category]}.`
-        : `Promised ${CATEGORY_LABEL[c.category]} and did not deliver.`,
+      id: c.id,
+      category: c.category,
+      outcome,
+      absoluteWeek: now,
+      note:
+        outcome === "fulfilled"
+          ? `Delivered on ${CATEGORY_LABEL[c.category]}.`
+          : `Promised ${CATEGORY_LABEL[c.category]} and did not deliver.`,
     });
 
     // Consequences: political and emotional only. No cash movement here.
@@ -903,7 +965,8 @@ export function runSustainabilityWeek(s: GameState): void {
   if (res.excess > 0) {
     s.sustainability.excessWeeks += 1;
     s.sustainability.peakExcessWeeks = Math.max(
-      s.sustainability.peakExcessWeeks, s.sustainability.excessWeeks,
+      s.sustainability.peakExcessWeeks,
+      s.sustainability.excessWeeks,
     );
   } else {
     s.sustainability.excessWeeks = 0;
@@ -1010,8 +1073,15 @@ export function tierShock(s: GameState): TierShockPicture {
         ? "Relegation cuts the club's revenue potential immediately. Existing wages, maintenance and project commitments do not fall with it."
         : "The club remains in the same division.";
   return {
-    movement, tier: leagueTierOf(s), weeklyIncome, weeklyCost,
-    committedWages: committedWages(s, 46), reserve, health, needs: n, summary,
+    movement,
+    tier: leagueTierOf(s),
+    weeklyIncome,
+    weeklyCost,
+    committedWages: committedWages(s, 46),
+    reserve,
+    health,
+    needs: n,
+    summary,
   };
 }
 
@@ -1028,10 +1098,7 @@ export function tierShock(s: GameState): TierShockPicture {
 /** Hard bound on how far the strategic picture can move one director. */
 export const SUSTAINABILITY_CONFIDENCE_BOUND = 6;
 
-export function sustainabilityConfidenceAdjustment(
-  s: GameState,
-  role: DirectorRole,
-): number {
+export function sustainabilityConfidenceAdjustment(s: GameState, role: DirectorRole): number {
   const res = reservePicture(s);
   const h = financialHealth(s);
   const p = reinvestmentPressure(s);
@@ -1106,8 +1173,10 @@ export function staffWagePressureFactor(s: GameState): number {
   const tier = leagueTierOf(s);
   const rep = clubReputation(s, s.clubName);
   const move = tierMovement(s);
-  const growth = 1 + clamp((rep - 50) / 250, -0.2, 0.2)
-    + (tier === 1 ? 0.08 : 0)
-    + (move === "promoted" ? 0.06 : move === "relegated" ? -0.04 : 0);
+  const growth =
+    1 +
+    clamp((rep - 50) / 250, -0.2, 0.2) +
+    (tier === 1 ? 0.08 : 0) +
+    (move === "promoted" ? 0.06 : move === "relegated" ? -0.04 : 0);
   return Math.round(clamp(growth, 0.8, 1.4) * 100) / 100;
 }

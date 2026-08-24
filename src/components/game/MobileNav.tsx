@@ -1,12 +1,25 @@
 import { useState } from "react";
 import { Menu } from "lucide-react";
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  SheetClose,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { ALL_TABS, PRIMARY_TAB_IDS, type Tab } from "./tabs";
 
-export function MobileNav({ tab, setTab, unread }: { tab: Tab; setTab: (t: Tab) => void; unread: number }) {
+export function MobileNav({
+  tab,
+  setTab,
+  unread,
+}: {
+  tab: Tab;
+  setTab: (t: Tab) => void;
+  unread: number;
+}) {
   const [open, setOpen] = useState(false);
   const primary = ALL_TABS.filter(([id]) => PRIMARY_TAB_IDS.includes(id));
   return (
