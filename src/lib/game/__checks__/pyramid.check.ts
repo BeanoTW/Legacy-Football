@@ -384,11 +384,12 @@ console.log("\n[9] v3 save migration");
   g.leagueSchedule = (g.leagueSchedule as { league?: string }[])
     .filter((f) => f.league === DIVISION_ONE)
     .map(({ league, ...rest }) => rest);
+  const originalTopScheduleLength = (g.leagueSchedule as unknown[]).length;
   const m = migrateSave(g);
   check("migrated to current schema", (m.version as number) === SAVE_VERSION);
   check(
     "pyramid created",
-    m.leagues.length === 2 && m.leagues.every((l) => l.clubIds.length === CLUBS_PER_DIVISION),
+    m.leagues.length === 4 && m.leagues.every((l) => l.clubIds.length === CLUBS_PER_DIVISION),
   );
   check(
     "user club placed in exactly one league",
@@ -403,12 +404,17 @@ console.log("\n[9] v3 save migration");
     m.leagues[0].clubIds.length === 20 &&
       m.leagues[0].clubIds.every((c) => (g.league as { team: string }[]).some((r) => r.team === c)),
   );
+  const migratedTopSchedule = m.leagueSchedule.filter(
+    (f) => f.league === undefined || f.league === DIVISION_ONE,
+  );
   check(
-    "active season not restructured (schedule untouched)",
-    m.leagueSchedule.every((f) => f.league === undefined || f.league === DIVISION_ONE),
+    "existing active-season top schedule is preserved while missing lower leagues are appended",
+    migratedTopSchedule.length === originalTopScheduleLength &&
+      m.leagueSchedule.some((f) => f.league === "league-3") &&
+      m.leagueSchedule.some((f) => f.league === "league-4"),
   );
   check("history starts empty", m.seasonHistory.length === 0);
-  check("club records seeded", Object.keys(m.clubRecords).length === 40);
+  check("club records seeded", Object.keys(m.clubRecords).length === 80);
   const after = advanceWeek(m, {
     gf: 1,
     ga: 0,

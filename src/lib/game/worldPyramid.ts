@@ -63,5 +63,58 @@ export function makeExpandedLeagues(clubName: string): League[] {
   });
 }
 
+/**
+ * Add any missing lower divisions to an existing save without reshuffling a
+ * club that already exists. This is intentionally different from fresh-world
+ * construction: promoted/relegated memberships in the live save are canonical
+ * and must survive a schema upgrade exactly.
+ *
+ * The returned leagues contain NO new-season fixtures. A newly introduced
+ * division joins competitive simulation at the next rollover, preserving the
+ * active season that existed before the world expansion.
+ */
+export function expandExistingLeagues(existing: readonly League[], clubName: string): League[] {
+  const out = existing.map((league) => ({ ...league, clubIds: [...league.clubIds] }));
+  const target = makeExpandedLeagues(clubName);
+  const used = new Set(out.flatMap((league) => league.clubIds));
+
+  for (const def of WORLD_DIVISIONS) {
+    const present = out.find((league) => league.id === def.id);
+    if (present) continue;
+
+    const preferred = target.find((league) => league.id === def.id)?.clubIds ?? [];
+    const candidates = [...preferred, ...CLUBS].filter((clubId) => clubId !== clubName);
+    const clubIds: string[] = [];
+    for (const clubId of candidates) {
+      if (used.has(clubId) || clubIds.includes(clubId)) continue;
+      clubIds.push(clubId);
+      if (clubIds.length === WORLD_CLUBS_PER_DIVISION) break;
+    }
+    if (clubIds.length !== WORLD_CLUBS_PER_DIVISION) {
+      throw new Error(
+        `Cannot expand ${def.name}: expected ${WORLD_CLUBS_PER_DIVISION} unused clubs, found ${clubIds.length}.`,
+      );
+    }
+    clubIds.forEach((clubId) => used.add(clubId));
+    out.push(worldLeagueShell(def, clubIds));
+  }
+
+  // The old bottom division becomes an interior division once a lower tier is
+  // appended. Re-derive only structural competition settings; membership and
+  // every historical field remain untouched.
+  const bottomTier = WORLD_DIVISIONS.length;
+  for (const league of out) {
+    const def = WORLD_DIVISIONS.find((candidate) => candidate.id === league.id);
+    if (!def) continue;
+    league.name = def.name;
+    league.tier = def.tier;
+    league.promotionPlaces = def.tier === 1 ? 0 : 2;
+    league.relegationPlaces = def.tier === bottomTier ? 0 : 2;
+    league.reputationRange = def.reputationRange;
+  }
+
+  return out.sort((a, b) => a.tier - b.tier || a.id.localeCompare(b.id));
+}
+
 /** Backwards-compatible name for callers added during the world-builder phase. */
 export const makeWorldLeagues = makeExpandedLeagues;

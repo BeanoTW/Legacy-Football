@@ -4,20 +4,21 @@
  * shape, then applies every step whose `from` is >= the save's version, in
  * strict ascending order. Adding a schema version means adding one step file
  * and one entry to MIGRATIONS — never editing an existing step.
- *
- * Not wired into engine.ts yet: engine.ts still owns the inline chain. The
- * cutover is the next edit, and migrations.check.ts asserts both paths produce
- * an identical state hash before the inline chain is deleted.
  */
 import type { AnySave, Migration, MigrationCtx, MigrationDeps, MigrationDiagnostic } from "./types";
 import { MigrationError } from "./types";
 import { EARLY_MIGRATIONS } from "./v1-v6";
 import { LATE_MIGRATIONS } from "./v7-v12";
+import { WORLD_MIGRATIONS } from "./v12-v13";
 import type { GameState } from "../types";
 
 export * from "./types";
 
-export const MIGRATIONS: Migration[] = [...EARLY_MIGRATIONS, ...LATE_MIGRATIONS];
+export const MIGRATIONS: Migration[] = [
+  ...EARLY_MIGRATIONS,
+  ...LATE_MIGRATIONS,
+  ...WORLD_MIGRATIONS,
+];
 
 /** Highest version any registered step can produce. */
 export const LATEST_MIGRATED_VERSION = MIGRATIONS.reduce((m, s) => Math.max(m, s.to), 1);

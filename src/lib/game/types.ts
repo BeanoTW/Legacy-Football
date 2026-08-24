@@ -1416,7 +1416,7 @@ export type FringeWorldState = Record<string, FringeClubState>;
 
 export interface GameState {
   /** Save schema version. Bump + add a migration in loadGame when persisted shape changes. */
-  version: 12;
+  version: 13;
 
   /** Stable per-save seed. Used for deterministic inbox generation. */
   saveSeed: string;
@@ -1466,8 +1466,8 @@ export interface GameState {
 
   /**
    * Lightweight state for clubs outside the detailed simulation bubble.
-   * Optional so version-12 saves written before the expanded world hydrate it
-   * deterministically on first load without requiring a schema-version bump.
+   * Optional because v12 saves written before the expanded world do not carry it;
+   * the v12->v13 migration hydrates it deterministically.
    */
   fringeWorld?: FringeWorldState;
 
