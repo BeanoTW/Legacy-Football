@@ -33,18 +33,17 @@ import { fmtMoney, fmtMoneyExact } from "@/lib/game/engine";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-type View = "squad" | "market" | "deals" | "history";
+type View = "hub" | "market" | "free" | "shortlist" | "deals" | "history";
 
 const POSITIONS: Position[] = ["GK", "DEF", "MID", "FWD"];
 
-export function RecruitmentTab({
+export function SquadTab({
   state,
   update,
 }: {
   state: GameState;
   update: (fn: (s: GameState) => GameState) => void;
 }) {
-  const [view, setView] = useState<View>("squad");
   const [note, setNote] = useState<string | null>(null);
 
   const snap = useMemo(() => (state.football ? recruitmentSnapshot(state) : null), [state]);
@@ -96,23 +95,6 @@ export function RecruitmentTab({
         />
       </div>
 
-      <div className="flex flex-wrap gap-1">
-        {(["squad", "market", "deals", "history"] as View[]).map((v) => (
-          <button
-            key={v}
-            onClick={() => setView(v)}
-            className={cn(
-              "text-sm px-3 py-1.5 rounded-lg border capitalize",
-              view === v
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-card hover:bg-muted",
-            )}
-          >
-            {v === "deals" ? `Negotiations (${openNegotiations(state).length})` : v}
-          </button>
-        ))}
-      </div>
-
       {note && (
         <div className="rounded-lg border bg-muted/40 px-3 py-2 text-sm flex items-start justify-between gap-3">
           <span>{note}</span>
@@ -122,10 +104,172 @@ export function RecruitmentTab({
         </div>
       )}
 
-      {view === "squad" && <SquadView state={state} act={act} update={update} />}
+      <SquadView state={state} act={act} update={update} />
+    </div>
+  );
+}
+
+export function TransfersTab({
+  state,
+  update,
+}: {
+  state: GameState;
+  update: (fn: (s: GameState) => GameState) => void;
+}) {
+  const [view, setView] = useState<View>("hub");
+  const [note, setNote] = useState<string | null>(null);
+  if (!state.football) return null;
+
+  const act = (
+    fn: (s: GameState) => { state: GameState; result: { ok: boolean; reason: string } },
+  ) => {
+    update((s) => {
+      const result = fn(s);
+      setNote(result.result.reason);
+      return result.state;
+    });
+  };
+
+  const labels: Record<View, string> = {
+    hub: "Transfer Hub",
+    market: "Player Search",
+    free: "Free Agents",
+    shortlist: "Shortlist",
+    deals: `Negotiations (${openNegotiations(state).length})`,
+    history: "History",
+  };
+
+  return (
+    <div className="space-y-4">
+      <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+        <div className="panel-strip px-4 py-4 sm:px-6">
+          <p className="text-[10px] uppercase tracking-[0.2em] opacity-70">Recruitment desk</p>
+          <h2 className="font-display text-3xl">Transfers</h2>
+          <p className="mt-1 text-sm opacity-80">
+            Search the market, track targets and take every deal from first contact to signature.
+          </p>
+        </div>
+        <div className="grid grid-cols-3 divide-x text-center">
+          <div className="p-3">
+            <div className="font-display text-xl">{freeAgents(state).length}</div>
+            <div className="text-[10px] uppercase text-muted-foreground">Free agents</div>
+          </div>
+          <div className="p-3">
+            <div className="font-display text-xl">{shortlistIds(state).length}</div>
+            <div className="text-[10px] uppercase text-muted-foreground">Shortlisted</div>
+          </div>
+          <div className="p-3">
+            <div className="font-display text-xl">{openNegotiations(state).length}</div>
+            <div className="text-[10px] uppercase text-muted-foreground">Live deals</div>
+          </div>
+        </div>
+      </section>
+
+      <div className="flex gap-1 overflow-x-auto pb-1">
+        {(Object.keys(labels) as View[]).map((item) => (
+          <button
+            key={item}
+            onClick={() => setView(item)}
+            className={cn(
+              "shrink-0 rounded-lg border px-3 py-2 text-xs font-semibold",
+              view === item
+                ? "border-primary bg-primary text-primary-foreground"
+                : "bg-card hover:bg-muted",
+            )}
+          >
+            {labels[item]}
+          </button>
+        ))}
+      </div>
+
+      {note && (
+        <div className="flex items-start justify-between gap-3 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
+          <span>{note}</span>
+          <button className="text-xs text-muted-foreground" onClick={() => setNote(null)}>
+            dismiss
+          </button>
+        </div>
+      )}
+      {view === "hub" && <TransferHub state={state} setView={setView} />}
       {view === "market" && <MarketView state={state} act={act} update={update} />}
+      {view === "free" && (
+        <MarketView key="free" state={state} act={act} update={update} initialOnlyFree />
+      )}
+      {view === "shortlist" && (
+        <MarketView key="shortlist" state={state} act={act} update={update} initialOnlyShortlist />
+      )}
       {view === "deals" && <DealsView state={state} act={act} />}
       {view === "history" && <HistoryView state={state} />}
+    </div>
+  );
+}
+
+function TransferHub({ state, setView }: { state: GameState; setView: (view: View) => void }) {
+  const liveDeals = openNegotiations(state);
+  const recent = state.football?.transferHistory.slice(-3).reverse() ?? [];
+  const cards: Array<[View, string, string]> = [
+    [
+      "market",
+      "Search the market",
+      "Filter hundreds of players by position, price and availability.",
+    ],
+    [
+      "free",
+      "Free agents",
+      `${freeAgents(state).length} unattached players available without a transfer fee.`,
+    ],
+    [
+      "shortlist",
+      "Your shortlist",
+      `${shortlistIds(state).length} watched targets ready for comparison.`,
+    ],
+    [
+      "deals",
+      "Negotiation room",
+      liveDeals.length
+        ? `${liveDeals.length} live deal${liveDeals.length === 1 ? "" : "s"} need attention.`
+        : "No active talks. Start by approaching a target.",
+    ],
+  ];
+  return (
+    <div className="grid gap-4 lg:grid-cols-[1.4fr_0.8fr]">
+      <div className="grid gap-3 sm:grid-cols-2">
+        {cards.map(([target, title, detail]) => (
+          <button
+            key={target}
+            onClick={() => setView(target)}
+            className="rounded-xl border bg-card p-4 text-left shadow-sm transition hover:border-primary/50 hover:bg-muted/30"
+          >
+            <div className="font-display text-xl">{title}</div>
+            <p className="mt-1 text-sm text-muted-foreground">{detail}</p>
+            <div className="mt-4 text-xs font-semibold text-primary">Open →</div>
+          </button>
+        ))}
+      </div>
+      <aside className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <h3 className="font-display text-xl">Recent business</h3>
+          <button onClick={() => setView("history")} className="text-xs text-primary">
+            View all
+          </button>
+        </div>
+        <div className="mt-3 space-y-3">
+          {recent.map((record) => (
+            <div key={record.id} className="border-b pb-3 text-sm last:border-0">
+              <div className="font-semibold">{record.playerName}</div>
+              <div className="text-xs text-muted-foreground">
+                {record.fromClubId ?? "Free agent"} → {record.toClubId ?? "Released"}
+              </div>
+              <div className="mt-1 font-mono text-xs">{fmtMoney(record.fee)}</div>
+            </div>
+          ))}
+          {!recent.length && (
+            <p className="text-sm text-muted-foreground">
+              Your transfer story is waiting for its first signing.
+            </p>
+          )}
+        </div>
+      </aside>
     </div>
   );
 }
@@ -254,17 +398,21 @@ function MarketView({
   state,
   act,
   update,
+  initialOnlyFree = false,
+  initialOnlyShortlist = false,
 }: {
   state: GameState;
   act: (
     fn: (s: GameState) => { state: GameState; result: { ok: boolean; reason: string } },
   ) => void;
   update: (fn: (s: GameState) => GameState) => void;
+  initialOnlyFree?: boolean;
+  initialOnlyShortlist?: boolean;
 }) {
   const [pos, setPos] = useState<Position | "ALL">("ALL");
   const [maxFee, setMaxFee] = useState("");
-  const [onlyFree, setOnlyFree] = useState(false);
-  const [onlyShortlist, setOnlyShortlist] = useState(false);
+  const [onlyFree, setOnlyFree] = useState(initialOnlyFree);
+  const [onlyShortlist, setOnlyShortlist] = useState(initialOnlyShortlist);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const short = shortlistIds(state);

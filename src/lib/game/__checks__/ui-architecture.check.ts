@@ -63,6 +63,7 @@ console.log("\n[U2] Navigation completeness");
     "cashflow",
     "tickets",
     "recruitment",
+    "transfers",
     "staff",
     "stadium",
     "fixtures",
@@ -87,7 +88,7 @@ console.log("\n[U2] Navigation completeness");
     unresolved.length === 0,
     unresolved.join(","),
   );
-  const RETIRED = ["squad", "transfers", "scouting", "finances"];
+  const RETIRED = ["squad", "scouting", "finances"];
   check(
     "no retired legacy tab has returned",
     RETIRED.every((t) => !registered.includes(t)),
@@ -98,7 +99,7 @@ console.log("\n[U2] Navigation completeness");
   );
   check(
     "primary mobile tabs prioritise weekly play",
-    /PRIMARY_TAB_IDS: Tab\[\] = \["hub", "inbox", "recruitment", "fixtures"\]/.test(tabs),
+    /PRIMARY_TAB_IDS: Tab\[\] = \["hub", "inbox", "transfers", "fixtures"\]/.test(tabs),
   );
   const calendar = read("src/components/game/ContinueCalendar.tsx");
   check(

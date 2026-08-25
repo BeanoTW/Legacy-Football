@@ -5,7 +5,7 @@ import { ChevronDown, CircleDollarSign, RotateCcw, Users, Wallet } from "lucide-
 import { LeagueBrowser } from "@/components/LeagueBrowser";
 import { BoardTab } from "@/components/BoardTab";
 import { CommercialTab } from "@/components/CommercialTab";
-import { RecruitmentTab } from "@/components/RecruitmentTab";
+import { SquadTab, TransfersTab } from "@/components/RecruitmentTab";
 import { FacilitiesTab } from "@/components/FacilitiesTab";
 import { ALL_TABS, DESKTOP_TAB_GROUPS, type Tab } from "@/components/game/tabs";
 import { MobileNav } from "@/components/game/MobileNav";
@@ -146,6 +146,7 @@ function Game({
         <div className="mx-auto flex max-w-6xl items-center gap-1 px-3 py-2 text-sm">
           <DesktopTabButton id="hub" tab={tab} setTab={setTab} />
           <DesktopTabButton id="inbox" tab={tab} setTab={setTab} unread={unreadCount(state)} />
+          <DesktopTabButton id="transfers" tab={tab} setTab={setTab} />
           <div className="mx-1 h-6 w-px bg-border" />
           {DESKTOP_TAB_GROUPS.map((group) => {
             const active = group.tabs.includes(tab);
@@ -189,7 +190,8 @@ function Game({
           {tab === "dashboard" && <DashboardTab state={state} />}
           {tab === "cashflow" && <CashFlowTab state={state} />}
           {tab === "tickets" && <TicketsTab state={state} update={update} />}
-          {tab === "recruitment" && <RecruitmentTab state={state} update={update} />}
+          {tab === "recruitment" && <SquadTab state={state} update={update} />}
+          {tab === "transfers" && <TransfersTab state={state} update={update} />}
           {tab === "staff" && <StaffTab state={state} update={update} />}
           {tab === "stadium" && <FacilitiesTab state={state} update={update} />}
           {tab === "fixtures" && <FixturesTab state={state} update={update} />}

@@ -11,6 +11,7 @@ import {
   Save,
   Ticket,
   Trophy,
+  UserRoundSearch,
   Users,
 } from "lucide-react";
 
@@ -23,6 +24,7 @@ export type Tab =
   | "cashflow"
   | "tickets"
   | "recruitment"
+  | "transfers"
   | "staff"
   | "stadium"
   | "fixtures"
@@ -41,6 +43,7 @@ export const ALL_TABS: TabDef[] = [
   ["cashflow", "Finances", CircleDollarSign],
   ["tickets", "Tickets", Ticket],
   ["recruitment", "Squad", Users],
+  ["transfers", "Transfers", UserRoundSearch],
   ["staff", "Staff", Briefcase],
   ["stadium", "Stadium", Building2],
   ["fixtures", "Matches", Calendar],
@@ -49,7 +52,7 @@ export const ALL_TABS: TabDef[] = [
   ["history", "Records", Save],
 ];
 
-export const PRIMARY_TAB_IDS: Tab[] = ["hub", "inbox", "recruitment", "fixtures"];
+export const PRIMARY_TAB_IDS: Tab[] = ["hub", "inbox", "transfers", "fixtures"];
 
 export const DESKTOP_TAB_GROUPS: { label: string; tabs: Tab[] }[] = [
   { label: "Football", tabs: ["recruitment", "staff", "fixtures", "leagues"] },
