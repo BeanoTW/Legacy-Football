@@ -3,7 +3,9 @@ import { cn } from "@/lib/utils";
 import type { FootballPlayer, GameState, Position } from "@/lib/game/types";
 import {
   activeContract,
+  activeScoutingAssignments,
   ageOf,
+  assignScout,
   askingPrice,
   averageSquadAge,
   completeTransfer,
@@ -21,6 +23,8 @@ import {
   respondToIncomingOffer,
   setTransferStatus,
   shortlistIds,
+  scoutingCapacity,
+  scoutingView,
   submitTransferOffer,
   toggleShortlist,
   transferMarket,
@@ -149,7 +153,7 @@ export function TransfersTab({
             Search the market, track targets and take every deal from first contact to signature.
           </p>
         </div>
-        <div className="grid grid-cols-3 divide-x text-center">
+        <div className="grid grid-cols-2 divide-x divide-y text-center sm:grid-cols-4 sm:divide-y-0">
           <div className="p-3">
             <div className="font-display text-xl">{freeAgents(state).length}</div>
             <div className="text-[10px] uppercase text-muted-foreground">Free agents</div>
@@ -161,6 +165,12 @@ export function TransfersTab({
           <div className="p-3">
             <div className="font-display text-xl">{openNegotiations(state).length}</div>
             <div className="text-[10px] uppercase text-muted-foreground">Live deals</div>
+          </div>
+          <div className="p-3">
+            <div className="font-display text-xl">
+              {activeScoutingAssignments(state)}/{scoutingCapacity(state)}
+            </div>
+            <div className="text-[10px] uppercase text-muted-foreground">Scouting</div>
           </div>
         </div>
       </section>
@@ -286,6 +296,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
 
 function PlayerLine({ state, p }: { state: GameState; p: FootballPlayer }) {
   const c = activeContract(state, p.id);
+  const knowledge = scoutingView(state, p);
   return (
     <div className="min-w-0">
       <div className="flex items-center gap-2 flex-wrap">
@@ -294,7 +305,8 @@ function PlayerLine({ state, p }: { state: GameState; p: FootballPlayer }) {
           {p.primaryPosition}
         </span>
         <span className="text-xs text-muted-foreground">
-          {ageOf(p, state.season)}y · CA {p.currentAbility} · {fmtMoney(p.marketValue)}
+          {ageOf(p, state.season)}y · Ability {rangeLabel(knowledge.ability)} ·{" "}
+          {fmtMoney(p.marketValue)}
         </span>
       </div>
       <div className="text-xs text-muted-foreground mt-0.5">
@@ -452,18 +464,27 @@ function MarketView({
         const age = ageOf(r.player, state.season);
         return age >= ageFloor && age <= ageCeiling;
       })
-      .filter((r) => r.player.currentAbility >= abilityFloor)
+      .filter((r) => {
+        const estimate = scoutingView(state, r.player).ability;
+        return (estimate.min + estimate.max) / 2 >= abilityFloor;
+      })
       .filter((r) => r.askingFee <= cap)
       .filter((r) => r.wage <= wageCap)
       .filter((r) => (interestedOnly ? r.player.reputation <= state.reputation + 25 : true))
       .filter((r) => (onlyShortlist ? short.includes(r.player.id) : true))
       .filter((r) => (query ? playerName(r.player).toLowerCase().includes(query) : true))
       .sort((a, b) => {
-        if (sort === "potential") return b.player.potentialAbility - a.player.potentialAbility;
+        if (sort === "potential") {
+          const aRange = scoutingView(state, a.player).potential;
+          const bRange = scoutingView(state, b.player).potential;
+          return bRange.min + bRange.max - (aRange.min + aRange.max);
+        }
         if (sort === "value") return b.player.marketValue - a.player.marketValue;
         if (sort === "wage") return a.wage - b.wage;
         if (sort === "age") return ageOf(a.player, state.season) - ageOf(b.player, state.season);
-        return b.player.currentAbility - a.player.currentAbility;
+        const aRange = scoutingView(state, a.player).ability;
+        const bRange = scoutingView(state, b.player).ability;
+        return bRange.min + bRange.max - (aRange.min + aRange.max);
       });
   }, [
     state,
@@ -737,6 +758,10 @@ function MarketView({
             setSelectedPlayer(null);
           }}
           onWatch={() => update((s) => toggleShortlist(s, selectedPlayer.id))}
+          onScout={() => {
+            act((s) => assignScout(s, selectedPlayer.id));
+            setSelectedPlayer(null);
+          }}
           watched={short.includes(selectedPlayer.id)}
         />
       )}
@@ -761,6 +786,7 @@ function PlayerProfile({
   onClose,
   onBid,
   onWatch,
+  onScout,
   watched,
 }: {
   state: GameState;
@@ -768,10 +794,12 @@ function PlayerProfile({
   onClose: () => void;
   onBid: () => void;
   onWatch: () => void;
+  onScout: () => void;
   watched: boolean;
 }) {
   const contract = activeContract(state, player.id);
   const fee = askingPrice(state, player);
+  const knowledge = scoutingView(state, player);
   return (
     <div
       className="fixed inset-0 z-50 grid place-items-end bg-black/60 p-0 sm:place-items-center sm:p-4"
@@ -801,9 +829,9 @@ function PlayerProfile({
           </button>
         </div>
         <div className="grid grid-cols-3 divide-x border-b text-center">
-          <ProfileStat label="Ability" value={player.currentAbility} />
-          <ProfileStat label="Potential" value={player.potentialAbility} />
-          <ProfileStat label="Reputation" value={player.reputation} />
+          <ProfileStat label="Ability" value={rangeLabel(knowledge.ability)} />
+          <ProfileStat label="Potential" value={rangeLabel(knowledge.potential)} />
+          <ProfileStat label="Knowledge" value={`${knowledge.knowledge}%`} />
         </div>
         <div className="grid gap-4 p-5 sm:grid-cols-2">
           <ProfileDetail label="Current club" value={player.currentClubId ?? "Free agent"} />
@@ -818,7 +846,10 @@ function PlayerProfile({
           />
           <ProfileDetail label="Market value" value={fmtMoneyExact(player.marketValue)} />
           <ProfileDetail label="Preferred foot" value={player.preferredFoot} />
-          <ProfileDetail label="Personality" value={player.personality} />
+          <ProfileDetail
+            label="Personality"
+            value={knowledge.knowledge >= 65 ? player.personality : "Scout report required"}
+          />
           <ProfileDetail
             label="Contract"
             value={
@@ -826,17 +857,28 @@ function PlayerProfile({
             }
           />
         </div>
-        <div className="flex gap-2 border-t p-4">
+        <div className="flex flex-wrap gap-2 border-t p-4">
           <Button className="flex-1" onClick={onBid}>
             {fee ? `Make offer · ${fmtMoney(fee)}` : "Open contract talks"}
           </Button>
           <Button variant="secondary" onClick={onWatch}>
             {watched ? "Remove from shortlist" : "Add to shortlist"}
           </Button>
+          {!knowledge.complete && (
+            <Button variant="secondary" disabled={knowledge.assigned} onClick={onScout}>
+              {knowledge.assigned
+                ? `Scouting in progress · ${knowledge.knowledge}%`
+                : "Assign scout"}
+            </Button>
+          )}
         </div>
       </section>
     </div>
   );
+}
+
+function rangeLabel(range: { min: number; max: number }): string {
+  return range.min === range.max ? String(range.min) : `${range.min}–${range.max}`;
 }
 
 function ProfileStat({ label, value }: { label: string; value: string | number }) {

@@ -62,7 +62,7 @@ source.week = 20;
 
 const migrated = migrateSave(raw(clone(source)));
 assert(
-  migrated.version === SAVE_VERSION && SAVE_VERSION === 14,
+  migrated.version === SAVE_VERSION && SAVE_VERSION === 15,
   "migration must produce the current schema",
 );
 assert(

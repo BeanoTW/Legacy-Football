@@ -576,6 +576,7 @@ export function ensureRecruitment(s: GameState): void {
     s.football.transferHistory ??= [];
     s.football.contractHistory ??= [];
     s.football.seasonHistory ??= [];
+    s.football.scoutingReports ??= [];
     // Expand older saves without replacing any existing player or history.
     // Stable ids make this idempotent and preserve signed/released free agents.
     const knownPlayerIds = new Set(s.football.players.map((player) => player.id));
@@ -597,6 +598,7 @@ export function ensureRecruitment(s: GameState): void {
     contracts,
     negotiations: [],
     shortlist: [],
+    scoutingReports: [],
     department: defaultDepartment(s),
     transferHistory: [],
     contractHistory: [],
@@ -616,6 +618,108 @@ export function ensureRecruitment(s: GameState): void {
 
 export const playerById = (s: GameState, id: string): FootballPlayer | undefined =>
   s.football?.players.find((p) => p.id === id);
+
+export interface ScoutingView {
+  knowledge: number;
+  assigned: boolean;
+  complete: boolean;
+  ability: { min: number; max: number };
+  potential: { min: number; max: number };
+}
+
+function scoutingStaff(s: GameState) {
+  return (s.hiredStaff ?? [])
+    .filter((staff) => ["Scout", "Chief Scout", "Head of Transfers"].includes(staff.role))
+    .sort((a, b) => b.rating - a.rating || a.id.localeCompare(b.id));
+}
+
+/** Knowledge is derived from persistent assignment time, so advancing a week is enough. */
+export function scoutingView(s: GameState, player: FootballPlayer): ScoutingView {
+  if (player.currentClubId === s.clubName) {
+    return {
+      knowledge: 100,
+      assigned: false,
+      complete: true,
+      ability: { min: player.currentAbility, max: player.currentAbility },
+      potential: { min: player.potentialAbility, max: player.potentialAbility },
+    };
+  }
+
+  const report = s.football?.scoutingReports?.find((item) => item.playerId === player.id);
+  const baseKnowledge = player.currentClubId === null ? 38 : 18;
+  const scout = report?.scoutId
+    ? (s.hiredStaff ?? []).find((staff) => staff.id === report.scoutId)
+    : undefined;
+  const rating = scout?.rating ?? s.football?.department.recruitmentRating ?? 45;
+  const elapsed = report
+    ? Math.max(0, absoluteWeek(s.season, s.week) - report.assignedAbsoluteWeek)
+    : 0;
+  const weeklyGain = 10 + Math.round(rating / 10);
+  const knowledge = clamp(baseKnowledge + elapsed * weeklyGain, baseKnowledge, 100);
+  const abilityRadius = knowledge >= 90 ? 0 : knowledge >= 65 ? 2 : knowledge >= 40 ? 5 : 9;
+  const potentialRadius = knowledge >= 90 ? 0 : knowledge >= 65 ? 4 : knowledge >= 40 ? 8 : 13;
+  return {
+    knowledge,
+    assigned: Boolean(report),
+    complete: knowledge >= 90,
+    ability: {
+      min: clamp(player.currentAbility - abilityRadius, 1, 99),
+      max: clamp(player.currentAbility + abilityRadius, 1, 99),
+    },
+    potential: {
+      min: clamp(player.potentialAbility - potentialRadius, 1, 99),
+      max: clamp(player.potentialAbility + potentialRadius, 1, 99),
+    },
+  };
+}
+
+export function activeScoutingAssignments(s: GameState): number {
+  return (s.football?.scoutingReports ?? []).filter((report) => {
+    const player = playerById(s, report.playerId);
+    return player ? !scoutingView(s, player).complete : false;
+  }).length;
+}
+
+export function scoutingCapacity(s: GameState): number {
+  return 1 + scoutingStaff(s).length * 2;
+}
+
+export function assignScout(
+  s: GameState,
+  playerId: string,
+): { state: GameState; result: { ok: boolean; reason: string } } {
+  const next = structuredClone(s);
+  ensureRecruitment(next);
+  const player = playerById(next, playerId);
+  if (!player) return { state: s, result: { ok: false, reason: "Player not found" } };
+  if (player.currentClubId === next.clubName) {
+    return { state: s, result: { ok: false, reason: "Your own players are already fully known" } };
+  }
+  const existing = next.football.scoutingReports.find((report) => report.playerId === playerId);
+  if (existing) {
+    return { state: s, result: { ok: false, reason: "This player is already being scouted" } };
+  }
+  if (activeScoutingAssignments(next) >= scoutingCapacity(next)) {
+    return {
+      state: s,
+      result: { ok: false, reason: "All scouting assignments are currently occupied" },
+    };
+  }
+  const scout = scoutingStaff(next)[0];
+  next.football.scoutingReports.push({
+    playerId,
+    assignedAbsoluteWeek: absoluteWeek(next.season, next.week),
+    scoutId: scout?.id ?? null,
+  });
+  if (!next.football.shortlist.includes(playerId)) next.football.shortlist.push(playerId);
+  return {
+    state: next,
+    result: {
+      ok: true,
+      reason: `${scout?.name ?? "Recruitment team"} has started scouting ${playerName(player)}`,
+    },
+  };
+}
 
 export const contractById = (
   s: GameState,

@@ -1118,6 +1118,12 @@ export interface RecruitmentDepartment {
   historicTransfers: number;
 }
 
+export interface PlayerScoutingReport {
+  playerId: string;
+  assignedAbsoluteWeek: number;
+  scoutId: string | null;
+}
+
 export interface RecruitmentState {
   /** Every player in the world. Append-only; players are never deleted. */
   players: FootballPlayer[];
@@ -1126,6 +1132,8 @@ export interface RecruitmentState {
   negotiations: TransferNegotiation[];
   /** Player ids the chairman is tracking. UI-facing, never affects simulation. */
   shortlist: string[];
+  /** Persistent assignments; knowledge grows from elapsed in-world weeks. */
+  scoutingReports: PlayerScoutingReport[];
   department: RecruitmentDepartment;
   /** Append-only immutable histories. */
   transferHistory: TransferRecord[];
@@ -1416,7 +1424,7 @@ export type FringeWorldState = Record<string, FringeClubState>;
 
 export interface GameState {
   /** Save schema version. Bump + add a migration in loadGame when persisted shape changes. */
-  version: 14;
+  version: 15;
 
   /** Stable per-save seed. Used for deterministic inbox generation. */
   saveSeed: string;
