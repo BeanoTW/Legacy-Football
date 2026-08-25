@@ -414,6 +414,16 @@ function MarketView({
   const [onlyFree, setOnlyFree] = useState(initialOnlyFree);
   const [onlyShortlist, setOnlyShortlist] = useState(initialOnlyShortlist);
   const [search, setSearch] = useState("");
+  const [secondaryPos, setSecondaryPos] = useState<Position | "ALL">("ALL");
+  const [nationality, setNationality] = useState("ALL");
+  const [minAge, setMinAge] = useState("");
+  const [maxAge, setMaxAge] = useState("");
+  const [minAbility, setMinAbility] = useState("");
+  const [maxWage, setMaxWage] = useState("");
+  const [interestedOnly, setInterestedOnly] = useState(true);
+  const [sort, setSort] = useState<"ability" | "potential" | "value" | "wage" | "age">("ability");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [selectedPlayer, setSelectedPlayer] = useState<FootballPlayer | null>(null);
   const [page, setPage] = useState(1);
   const short = shortlistIds(state);
   const pageSize = 30;
@@ -427,15 +437,70 @@ function MarketView({
           wage: wageDemand(state, e.player),
         }));
     const cap = Number(maxFee) || Infinity;
+    const wageCap = Number(maxWage) || Infinity;
+    const ageFloor = Number(minAge) || 0;
+    const ageCeiling = Number(maxAge) || 99;
+    const abilityFloor = Number(minAbility) || 0;
     const query = search.trim().toLowerCase();
     return base
       .filter((r) => (pos === "ALL" ? true : r.player.primaryPosition === pos))
+      .filter((r) =>
+        secondaryPos === "ALL" ? true : r.player.secondaryPositions.includes(secondaryPos),
+      )
+      .filter((r) => (nationality === "ALL" ? true : r.player.nationality === nationality))
+      .filter((r) => {
+        const age = ageOf(r.player, state.season);
+        return age >= ageFloor && age <= ageCeiling;
+      })
+      .filter((r) => r.player.currentAbility >= abilityFloor)
       .filter((r) => r.askingFee <= cap)
+      .filter((r) => r.wage <= wageCap)
+      .filter((r) => (interestedOnly ? r.player.reputation <= state.reputation + 25 : true))
       .filter((r) => (onlyShortlist ? short.includes(r.player.id) : true))
-      .filter((r) => (query ? playerName(r.player).toLowerCase().includes(query) : true));
-  }, [state, pos, maxFee, onlyFree, onlyShortlist, short, search]);
+      .filter((r) => (query ? playerName(r.player).toLowerCase().includes(query) : true))
+      .sort((a, b) => {
+        if (sort === "potential") return b.player.potentialAbility - a.player.potentialAbility;
+        if (sort === "value") return b.player.marketValue - a.player.marketValue;
+        if (sort === "wage") return a.wage - b.wage;
+        if (sort === "age") return ageOf(a.player, state.season) - ageOf(b.player, state.season);
+        return b.player.currentAbility - a.player.currentAbility;
+      });
+  }, [
+    state,
+    pos,
+    secondaryPos,
+    nationality,
+    minAge,
+    maxAge,
+    minAbility,
+    maxFee,
+    maxWage,
+    interestedOnly,
+    onlyFree,
+    onlyShortlist,
+    short,
+    search,
+    sort,
+  ]);
 
-  useEffect(() => setPage(1), [pos, maxFee, onlyFree, onlyShortlist, search]);
+  useEffect(
+    () => setPage(1),
+    [
+      pos,
+      secondaryPos,
+      nationality,
+      minAge,
+      maxAge,
+      minAbility,
+      maxFee,
+      maxWage,
+      interestedOnly,
+      onlyFree,
+      onlyShortlist,
+      search,
+      sort,
+    ],
+  );
 
   const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
   const visibleRows = rows.slice((page - 1) * pageSize, page * pageSize);
@@ -467,6 +532,15 @@ function MarketView({
           onChange={(e) => setMaxFee(e.target.value.replace(/[^0-9]/g, ""))}
           className="w-32 tnum h-8"
         />
+        <button
+          onClick={() => setFiltersOpen((open) => !open)}
+          className={cn(
+            "h-8 rounded-md border px-3 text-xs font-semibold",
+            filtersOpen && "border-primary bg-primary text-primary-foreground",
+          )}
+        >
+          {filtersOpen ? "Hide filters" : "More filters"}
+        </button>
         <label className="text-xs flex items-center gap-1">
           <input
             type="checkbox"
@@ -484,6 +558,111 @@ function MarketView({
           Shortlist only
         </label>
       </div>
+
+      {filtersOpen && (
+        <div className="grid gap-3 rounded-xl border bg-card p-4 sm:grid-cols-2 lg:grid-cols-4">
+          <FilterField label="Secondary position">
+            <select
+              value={secondaryPos}
+              onChange={(e) => setSecondaryPos(e.target.value as Position | "ALL")}
+              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+            >
+              <option value="ALL">Any</option>
+              {POSITIONS.map((position) => (
+                <option key={position} value={position}>
+                  {position}
+                </option>
+              ))}
+            </select>
+          </FilterField>
+          <FilterField label="Nationality">
+            <select
+              value={nationality}
+              onChange={(e) => setNationality(e.target.value)}
+              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+            >
+              <option value="ALL">Any</option>
+              {[...new Set((state.football?.players ?? []).map((player) => player.nationality))]
+                .sort()
+                .map((nation) => (
+                  <option key={nation} value={nation}>
+                    {nation}
+                  </option>
+                ))}
+            </select>
+          </FilterField>
+          <FilterField label="Age range">
+            <div className="flex gap-2">
+              <Input
+                aria-label="Minimum age"
+                placeholder="Min"
+                value={minAge}
+                onChange={(e) => setMinAge(e.target.value.replace(/[^0-9]/g, ""))}
+                className="h-9"
+              />
+              <Input
+                aria-label="Maximum age"
+                placeholder="Max"
+                value={maxAge}
+                onChange={(e) => setMaxAge(e.target.value.replace(/[^0-9]/g, ""))}
+                className="h-9"
+              />
+            </div>
+          </FilterField>
+          <FilterField label="Minimum ability">
+            <Input
+              placeholder="Any"
+              value={minAbility}
+              onChange={(e) => setMinAbility(e.target.value.replace(/[^0-9]/g, ""))}
+              className="h-9"
+            />
+          </FilterField>
+          <FilterField label="Maximum weekly wage">
+            <Input
+              placeholder="Any"
+              value={maxWage}
+              onChange={(e) => setMaxWage(e.target.value.replace(/[^0-9]/g, ""))}
+              className="h-9"
+            />
+          </FilterField>
+          <FilterField label="Sort players">
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as typeof sort)}
+              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+            >
+              <option value="ability">Ability: high to low</option>
+              <option value="potential">Potential: high to low</option>
+              <option value="value">Value: high to low</option>
+              <option value="wage">Wage: low to high</option>
+              <option value="age">Age: young to old</option>
+            </select>
+          </FilterField>
+          <label className="flex items-center gap-2 self-end rounded-md border px-3 py-2 text-sm">
+            <input
+              type="checkbox"
+              checked={interestedOnly}
+              onChange={(e) => setInterestedOnly(e.target.checked)}
+            />
+            Interested only
+          </label>
+          <button
+            onClick={() => {
+              setSecondaryPos("ALL");
+              setNationality("ALL");
+              setMinAge("");
+              setMaxAge("");
+              setMinAbility("");
+              setMaxWage("");
+              setInterestedOnly(true);
+              setSort("ability");
+            }}
+            className="self-end rounded-md border px-3 py-2 text-sm hover:bg-muted"
+          >
+            Reset advanced filters
+          </button>
+        </div>
+      )}
 
       <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
         <span>{rows.length.toLocaleString()} players match</span>
@@ -503,6 +682,9 @@ function MarketView({
               <div className="text-xs text-muted-foreground">{fmtMoney(r.wage)}/wk asked</div>
             </div>
             <div className="flex gap-2">
+              <Button size="sm" variant="secondary" onClick={() => setSelectedPlayer(r.player)}>
+                Profile
+              </Button>
               <Button
                 size="sm"
                 onClick={() => act((s) => submitTransferOffer(s, r.player.id, r.askingFee))}
@@ -545,6 +727,132 @@ function MarketView({
           </Button>
         </div>
       )}
+      {selectedPlayer && (
+        <PlayerProfile
+          state={state}
+          player={selectedPlayer}
+          onClose={() => setSelectedPlayer(null)}
+          onBid={() => {
+            act((s) => submitTransferOffer(s, selectedPlayer.id, askingPrice(s, selectedPlayer)));
+            setSelectedPlayer(null);
+          }}
+          onWatch={() => update((s) => toggleShortlist(s, selectedPlayer.id))}
+          watched={short.includes(selectedPlayer.id)}
+        />
+      )}
+    </div>
+  );
+}
+
+function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="space-y-1">
+      <span className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+function PlayerProfile({
+  state,
+  player,
+  onClose,
+  onBid,
+  onWatch,
+  watched,
+}: {
+  state: GameState;
+  player: FootballPlayer;
+  onClose: () => void;
+  onBid: () => void;
+  onWatch: () => void;
+  watched: boolean;
+}) {
+  const contract = activeContract(state, player.id);
+  const fee = askingPrice(state, player);
+  return (
+    <div
+      className="fixed inset-0 z-50 grid place-items-end bg-black/60 p-0 sm:place-items-center sm:p-4"
+      onClick={onClose}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${playerName(player)} profile`}
+        onClick={(event) => event.stopPropagation()}
+        className="max-h-[92vh] w-full overflow-auto rounded-t-2xl border bg-card shadow-2xl sm:max-w-2xl sm:rounded-2xl"
+      >
+        <div className="panel-strip flex items-start justify-between gap-4 p-5">
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.2em] opacity-70">Player profile</div>
+            <h3 className="font-display text-3xl">{playerName(player)}</h3>
+            <p className="text-sm opacity-80">
+              {player.primaryPosition}
+              {player.secondaryPositions.length
+                ? ` / ${player.secondaryPositions.join(", ")}`
+                : ""}{" "}
+              · {player.nationality} · {ageOf(player, state.season)} years old
+            </p>
+          </div>
+          <button onClick={onClose} className="rounded-md border border-white/30 px-3 py-1 text-sm">
+            Close
+          </button>
+        </div>
+        <div className="grid grid-cols-3 divide-x border-b text-center">
+          <ProfileStat label="Ability" value={player.currentAbility} />
+          <ProfileStat label="Potential" value={player.potentialAbility} />
+          <ProfileStat label="Reputation" value={player.reputation} />
+        </div>
+        <div className="grid gap-4 p-5 sm:grid-cols-2">
+          <ProfileDetail label="Current club" value={player.currentClubId ?? "Free agent"} />
+          <ProfileDetail
+            label="Availability"
+            value={player.currentClubId ? player.transferStatus : "Out of contract"}
+          />
+          <ProfileDetail label="Estimated fee" value={fmtMoneyExact(fee)} />
+          <ProfileDetail
+            label="Expected wage"
+            value={`${fmtMoneyExact(wageDemand(state, player))}/wk`}
+          />
+          <ProfileDetail label="Market value" value={fmtMoneyExact(player.marketValue)} />
+          <ProfileDetail label="Preferred foot" value={player.preferredFoot} />
+          <ProfileDetail label="Personality" value={player.personality} />
+          <ProfileDetail
+            label="Contract"
+            value={
+              contract ? `${weeksLeftOnContract(state, contract)} weeks remaining` : "No contract"
+            }
+          />
+        </div>
+        <div className="flex gap-2 border-t p-4">
+          <Button className="flex-1" onClick={onBid}>
+            {fee ? `Make offer · ${fmtMoney(fee)}` : "Open contract talks"}
+          </Button>
+          <Button variant="secondary" onClick={onWatch}>
+            {watched ? "Remove from shortlist" : "Add to shortlist"}
+          </Button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ProfileStat({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="p-3">
+      <div className="font-display text-2xl">{value}</div>
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+    </div>
+  );
+}
+
+function ProfileDetail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-muted/40 p-3">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-1 text-sm font-semibold capitalize">{value}</div>
     </div>
   );
 }

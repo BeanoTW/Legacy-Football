@@ -11,7 +11,7 @@
  */
 import type { GameState, FixtureResult } from "./types";
 import { runWeeklyGenerators } from "./inbox";
-import { runRecruitmentWeek } from "./recruitment";
+import { ensureRecruitment, runRecruitmentWeek } from "./recruitment";
 import { runInfrastructureWeek } from "./infrastructure";
 import { runSustainabilityWeek } from "./sustainability";
 import { runCommercialWeek } from "./commercial";
@@ -206,6 +206,10 @@ export const saveStore: SaveStore = createSaveStore({
   migrate: migrateSave,
   currentVersion: SAVE_VERSION,
   afterMigrate: (state, rawVersion) => {
+    // Reconcile deterministic world-depth upgrades for current-version saves
+    // too. This preserves every existing player and history row while adding
+    // any missing canonical free agents before the UI first renders.
+    ensureRecruitment(state);
     // If this save had no inbox at all (older than v2 introduction), seed it.
     const needsSeed = state.inbox.length === 0 && rawVersion < 2;
     return needsSeed ? runWeeklyGenerators(state) : state;
