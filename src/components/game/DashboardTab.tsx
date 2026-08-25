@@ -13,13 +13,8 @@ import {
 } from "recharts";
 import type { GameState } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
-import {
-  fmtMoney,
-  fmtMoneyExact,
-  hiredStaffWagesWeekly,
-  playerWagesWeekly,
-  weeklySponsorIncome,
-} from "@/lib/game/engine";
+import { fmtMoney, fmtMoneyExact, hiredStaffWagesWeekly } from "@/lib/game/engine";
+import { canonicalPlayerWagesWeekly, clubKpi } from "@/lib/game/selectors/club";
 import { commitmentProgress, sustainabilitySnapshot } from "@/lib/game/sustainability";
 import { WEEKS_PER_SEASON } from "@/lib/game/time";
 import { HEALTH_TONE, Meter, Row, Section, Stat, ord, sum } from "./shared/primitives";
@@ -217,14 +212,29 @@ export function DashboardTab({ state }: { state: GameState }) {
 }
 
 export function RecurringBreakdown({ state }: { state: GameState }) {
+  const canonical = clubKpi(state);
+  const playerWages = canonicalPlayerWagesWeekly(state);
+  const hiredStaffWages = hiredStaffWagesWeekly(state);
   const rows = [
-    { label: "Sponsors (weekly)", v: weeklySponsorIncome(state), tone: "good" as const },
-    { label: "Player wages", v: -playerWagesWeekly(state), tone: "bad" as const },
+    { label: "Recurring income", v: canonical.weeklyIncome, tone: "good" as const },
+    { label: "Player wages", v: -playerWages, tone: "bad" as const },
     { label: "Admin staff wages", v: -state.staffWagesWeekly, tone: "bad" as const },
-    { label: "Hired staff wages", v: -hiredStaffWagesWeekly(state), tone: "bad" as const },
+    { label: "Hired staff wages", v: -hiredStaffWages, tone: "bad" as const },
     { label: "Stadium utilities", v: -state.utilitiesWeekly, tone: "bad" as const },
     { label: "Training ops", v: -state.trainingWeeklyCost, tone: "bad" as const },
     { label: "Maintenance", v: -state.maintenanceWeekly, tone: "bad" as const },
+    {
+      label: "Club administration",
+      v:
+        -canonical.weeklyExpenses +
+        playerWages +
+        state.staffWagesWeekly +
+        hiredStaffWages +
+        state.utilitiesWeekly +
+        state.trainingWeeklyCost +
+        state.maintenanceWeekly,
+      tone: "bad" as const,
+    },
   ];
   const net = rows.reduce((a, r) => a + r.v, 0);
   return (

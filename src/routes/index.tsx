@@ -25,17 +25,8 @@ import { InboxTab } from "@/components/game/InboxTab";
 import { WorldInspector } from "@/components/game/WorldInspector";
 import { useGame } from "@/hooks/useGame";
 import type { GameState } from "@/lib/game/types";
-import {
-  fmtMoney,
-  fmtMoneyExact,
-  playerWagesWeekly,
-  squadRating,
-  startMatchDay,
-  totalWeeklyExpenses,
-  weeklySponsorIncome,
-  phaseOf,
-  CALENDAR,
-} from "@/lib/game/engine";
+import { fmtMoney, fmtMoneyExact, startMatchDay, phaseOf, CALENDAR } from "@/lib/game/engine";
+import { clubKpi } from "@/lib/game/selectors/club";
 import { unreadCount } from "@/lib/game/inbox";
 import { Button } from "@/components/ui/button";
 import {
@@ -91,18 +82,7 @@ function Game({
 }) {
   const [tab, setTab] = useState<Tab>("hub");
   const [calendarDay, setCalendarDay] = useState(0);
-  const kpi = useMemo(() => {
-    const wIncome = weeklySponsorIncome(state),
-      wExpenses = totalWeeklyExpenses(state);
-    return {
-      cash: state.cash,
-      weeklyIncome: wIncome,
-      weeklyExpenses: wExpenses,
-      weeklyNetRecurring: wIncome - wExpenses,
-      wageBill: playerWagesWeekly(state),
-      rating: squadRating(state),
-    };
-  }, [state]);
+  const kpi = useMemo(() => clubKpi(state), [state]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -124,7 +104,7 @@ function Game({
             label="Weekly net (fixed)"
             value={fmtMoney(kpi.weeklyNetRecurring)}
             tone={kpi.weeklyNetRecurring >= 0 ? "good" : "bad"}
-            info="Recurring sponsor income minus fixed weekly outgoings (player + staff wages, utilities, maintenance, training). Match income and one-offs come on top."
+            info="Recurring income (sponsorship, merchandise, league distribution) minus fixed weekly outgoings (player + staff wages, utilities, maintenance, training, administration). Matchday income, prize money and one-offs come on top."
           />
           <Kpi
             icon={<Users className="size-4" />}

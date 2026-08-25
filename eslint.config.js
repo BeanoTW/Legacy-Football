@@ -37,6 +37,44 @@ export default tseslint.config(
     },
   },
   {
+    // UI code reads canonical selectors, never legacy compatibility projections.
+    files: ["src/components/**/*.{ts,tsx}", "src/routes/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "server-only",
+              message:
+                "TanStack Start does not use the Next.js `server-only` package. Rename the module to `*.server.ts` or mark it with `@tanstack/react-start/server-only`.",
+            },
+            {
+              name: "@/lib/game/engine",
+              importNames: [
+                "playerWagesWeekly",
+                "totalWeeklyExpenses",
+                "weeklySponsorIncome",
+                "squadRating",
+              ],
+              message: "Legacy projection reader. Use the canonical club selectors instead.",
+            },
+            {
+              name: "@/lib/game/sim",
+              importNames: [
+                "playerWagesWeekly",
+                "totalWeeklyExpenses",
+                "weeklySponsorIncome",
+                "squadRating",
+              ],
+              message: "Legacy projection reader. Use the canonical club selectors instead.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["src/lib/game/__checks__/**/*.ts"],
     rules: {
       "@typescript-eslint/no-explicit-any": "off",

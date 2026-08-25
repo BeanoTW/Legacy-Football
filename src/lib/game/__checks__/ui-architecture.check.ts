@@ -193,5 +193,65 @@ console.log("\n[U5] Canonical selectors, not UI arithmetic");
   );
 }
 
+console.log("\n[U6] Single source of truth for club money");
+{
+  const LEGACY_READERS = [
+    "playerWagesWeekly",
+    "totalWeeklyExpenses",
+    "weeklySponsorIncome",
+    "squadRating",
+  ];
+  const importsLegacy = (src: string) =>
+    [...src.matchAll(/import\s*\{([^}]*)\}\s*from\s*"@\/lib\/game\/(engine|sim)"/g)].some(
+      ([, names]) =>
+        names
+          .split(",")
+          .map((name) =>
+            name
+              .trim()
+              .split(/\s+as\s+/)[0]
+              .trim(),
+          )
+          .some((name) => LEGACY_READERS.includes(name)),
+    );
+  const offenders = uiFiles.filter((file) => importsLegacy(read(file)));
+  check(
+    "no UI file imports a legacy financial projection reader",
+    offenders.length === 0,
+    offenders.join(","),
+  );
+
+  const selectors = read("src/lib/game/selectors/club.ts");
+  check(
+    "canonical club selector exists",
+    /export function clubKpi\(/.test(selectors) &&
+      /export function canonicalSquadRating\(/.test(selectors),
+  );
+  check(
+    "club selector reads recurring finance, not legacy projections",
+    /recurringWeeklyIncome/.test(selectors) && /recurringWeeklyExpenditure/.test(selectors),
+  );
+  check(
+    "squad rating reads canonical football state",
+    /userSquad\(s\)/.test(selectors) && /currentAbility/.test(selectors),
+  );
+  check("KPI bar consumes the canonical selector", /clubKpi\(state\)/.test(route));
+  check(
+    "hub weekly net consumes the canonical selector",
+    /weeklyNetRecurring\(state\)/.test(read("src/components/game/ClubHub.tsx")),
+  );
+
+  const eslintConfig = read("eslint.config.js");
+  check(
+    "lint guard bans legacy readers in components and routes",
+    /src\/components\/\*\*\/\*\.\{ts,tsx\}/.test(eslintConfig) &&
+      LEGACY_READERS.every((name) => new RegExp(`"${name}"`).test(eslintConfig)),
+  );
+  check(
+    "lint guard leaves shared stadium readers alone",
+    !/"avgTicketPrice"/.test(eslintConfig) && !/"totalCapacity"/.test(eslintConfig),
+  );
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);

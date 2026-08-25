@@ -11,14 +11,8 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  CALENDAR,
-  fmtMoney,
-  phaseOf,
-  startMatchDay,
-  totalWeeklyExpenses,
-  weeklySponsorIncome,
-} from "@/lib/game/engine";
+import { CALENDAR, fmtMoney, phaseOf, startMatchDay } from "@/lib/game/engine";
+import { weeklyNetRecurring } from "@/lib/game/selectors/club";
 import { recomputeConfidence } from "@/lib/game/board";
 import { financialHealth as canonicalFinancialHealth } from "@/lib/game/sustainability";
 import type { FixtureResult, GameState } from "@/lib/game/types";
@@ -45,7 +39,7 @@ export function ClubHub({
     (item) => item.status === "unread" || item.status === "awaitingDecision",
   ).length;
   const recentResults = state.results.slice(-5).reverse();
-  const weeklyNet = weeklySponsorIncome(state) - totalWeeklyExpenses(state);
+  const weeklyNet = useMemo(() => weeklyNetRecurring(state), [state]);
 
   const leagueSorted = [...state.league].sort(
     (a, b) => b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga) || b.gf - a.gf,
