@@ -59,8 +59,10 @@ const twoSeasons = run(46 * 2 + 6);
   check("input snapshot hash unchanged", stateHash(twoSeasons) === before);
   check("chunks were produced for aged history", chunks.length > 0, String(chunks.length));
   check(
-    "every chunk season is older than the current season",
-    chunks.every((c) => c.season < twoSeasons.season),
+    "only inbox may archive detail from the current season",
+    chunks.every(
+      (c) => c.season < twoSeasons.season || (c.kind === "history:inbox" && c.season === twoSeasons.season),
+    ),
   );
   const again = compactState(core);
   check(
