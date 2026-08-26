@@ -1,12 +1,13 @@
 import { CalendarDays } from "lucide-react";
 import type { GameState } from "@/lib/game/types";
+import { calendarDay } from "@/lib/game/calendar";
 import { cn } from "@/lib/utils";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 const MATCH_DAY = 5;
 
 export function ContinueCalendar({ state, isContinuing }: { state: GameState; isContinuing: boolean }) {
-  const day = isContinuing ? DAYS.length - 1 : 0;
+  const day = calendarDay(state);
   const fixture = state.fixtures.find((item) => item.week === state.week);
 
   return (
@@ -44,7 +45,7 @@ export function ContinueCalendar({ state, isContinuing }: { state: GameState; is
           })}
         </div>
         <div className="hidden min-w-28 text-right text-[10px] leading-tight text-muted-foreground md:block">
-          {isContinuing ? "Time advancing…" : fixture ? `${fixture.home ? "Home" : "Away"} vs ${fixture.opponent}` : "No fixture this week"}
+          {isContinuing ? `Advancing · ${DAYS[day]}` : fixture ? `${fixture.home ? "Home" : "Away"} vs ${fixture.opponent}` : "No fixture this week"}
         </div>
       </div>
     </div>
