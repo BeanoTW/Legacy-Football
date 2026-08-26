@@ -49,6 +49,24 @@ const awaitingDecision: InboxItem = {
   status: "awaitingDecision",
   choices: [{ id: "ok", label: "OK", effects: [] }],
 };
+const staleActionable: InboxItem = {
+  ...base,
+  id: "check:stale-action",
+  eventKey: `check:stale-action:s${Math.max(1, state.season - 1)}`,
+  season: Math.max(1, state.season - 1),
+  category: "decision",
+  status: "unread",
+  choices: [{ id: "ok", label: "OK", effects: [] }],
+};
+const staleAwaiting: InboxItem = {
+  ...base,
+  id: "check:stale-awaiting",
+  eventKey: `check:stale-awaiting:s${Math.max(1, state.season - 1)}`,
+  season: Math.max(1, state.season - 1),
+  category: "decision",
+  status: "awaitingDecision",
+  choices: [{ id: "ok", label: "OK", effects: [] }],
+};
 const unresolvedConsequence: InboxItem = {
   ...base,
   id: "check:consequence",
@@ -66,6 +84,8 @@ state = {
     informationalUnread,
     actionableUnread,
     awaitingDecision,
+    staleActionable,
+    staleAwaiting,
     unresolvedConsequence,
   ],
 };
@@ -74,15 +94,21 @@ const hotIds = new Set(core.inbox.map((item) => item.id));
 const archivedRows = chunks
   .filter((chunk) => chunk.kind === "history:inbox")
   .flatMap((chunk) => chunk.rows) as InboxItem[];
-const archivedIds = new Set(archivedRows.map((item) => item.id));
+const archivedById = new Map(archivedRows.map((item) => [item.id, item]));
+const archivedIds = new Set(archivedById.keys());
 const guards = new Set(core.archive?.inbox.guardKeys ?? []);
 
 assert(archivedIds.has(resolved.id), "aged resolved communication should leave the hot core");
 assert(archivedIds.has(informationalUnread.id), "aged informational unread should leave the hot core");
 assert(!hotIds.has(resolved.id), "aged resolved communication should not remain duplicated in hot inbox");
 assert(!hotIds.has(informationalUnread.id), "aged informational unread should not remain duplicated in hot inbox");
-assert(hotIds.has(actionableUnread.id), "unread actionable communication must remain hot");
-assert(hotIds.has(awaitingDecision.id), "awaiting decision must remain hot");
+assert(hotIds.has(actionableUnread.id), "current-season unread actionable communication must remain hot");
+assert(hotIds.has(awaitingDecision.id), "current-season awaiting decision must remain hot");
+assert(archivedIds.has(staleActionable.id), "prior-season untimed unread decision should become history");
+assert(archivedIds.has(staleAwaiting.id), "prior-season untimed awaiting decision should become history");
+assert(archivedById.get(staleActionable.id)?.status === "expired", "stale unread decision must archive as expired");
+assert(archivedById.get(staleAwaiting.id)?.status === "expired", "stale awaiting decision must archive as expired");
+assert(!hotIds.has(staleActionable.id) && !hotIds.has(staleAwaiting.id), "stale decisions must not remain duplicated in hot inbox");
 assert(hotIds.has(unresolvedConsequence.id), "unapplied expiry consequence must remain hot");
 assert(
   guards.has(informationalUnread.eventKey),
