@@ -40,6 +40,24 @@ if (state.football) {
   }
 }
 
+console.log("\n[CORE-SIZE] inbox breakdown");
+const statusCounts = new Map<string, number>();
+const generatorCounts = new Map<string, { count: number; bytes: number; oldestSeason: number; newestSeason: number }>();
+for (const item of state.inbox) {
+  statusCounts.set(item.status, (statusCounts.get(item.status) ?? 0) + 1);
+  const cur = generatorCounts.get(item.generatorId) ?? { count: 0, bytes: 0, oldestSeason: item.season, newestSeason: item.season };
+  cur.count += 1;
+  cur.bytes += bytes(item);
+  cur.oldestSeason = Math.min(cur.oldestSeason, item.season);
+  cur.newestSeason = Math.max(cur.newestSeason, item.season);
+  generatorCounts.set(item.generatorId, cur);
+}
+console.log(`  items: ${state.inbox.length}`);
+console.log(`  statuses: ${[...statusCounts.entries()].map(([k, v]) => `${k}=${v}`).join(", ")}`);
+for (const [generator, info] of [...generatorCounts.entries()].sort((a, b) => b[1].bytes - a[1].bytes).slice(0, 12)) {
+  console.log(`  ${generator.padEnd(34)} ${String(info.count).padStart(4)} items  ${(info.bytes / 1024).toFixed(0).padStart(5)} KB  s${info.oldestSeason}-s${info.newestSeason}`);
+}
+
 const clubRecordBytes = bytes(state.clubRecords);
 const seasonHistoryBytes = bytes(state.seasonHistory);
 console.log("\n[CORE-SIZE] known longitudinal structures");
