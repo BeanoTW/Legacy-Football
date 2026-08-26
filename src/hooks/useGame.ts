@@ -54,7 +54,7 @@ export function useGame() {
 
   const stopContinue = useCallback(() => {
     setIsContinuing(false);
-    setContinueReason("Stopped by you");
+    setContinueReason(null);
   }, []);
 
   useEffect(() => {

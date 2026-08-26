@@ -11,12 +11,12 @@
  * This module NEVER mutates the state it is given and never runs inside
  * `advanceWeek`. It lives at the persistence boundary only.
  *
- * Retention rule of thumb: the CURRENT season stays hot in full. Older detail
- * moves out, except for narrow tails that the live simulation reads across a
- * season boundary (recent ledger weeks, recent gate receipts and live
- * commercial contract payments). Historical football and identity detail
- * remains available through history chunks rather than growing forever in the
- * hot core.
+ * Retention rule of thumb: the CURRENT season stays hot where live readers
+ * genuinely need it. Ordinary inbox mail is a short-lived weekly feed: once
+ * it is a week old it can move to history. Unresolved decisions and unapplied
+ * consequences stay hot until gameplay has dealt with them. Historical
+ * football and identity detail remains available through history chunks rather
+ * than growing forever.
  */
 import type {
   ArchivedFinanceBucket,
@@ -39,6 +39,8 @@ export const RETAIN_LEDGER_WEEKS = 12;
 export const RETAIN_GATE_ENTRIES = 24;
 /** Trailing WeekLedger projection rows kept hot (board income estimate). */
 export const RETAIN_WEEK_ROWS = 8;
+/** Ordinary inbox detail is a weekly feed; after one week it moves to history. */
+export const RETAIN_INBOX_WEEKS = 1;
 /** Prior identity seasons needed by the three-season reputation streak reader. */
 export const RETAIN_SNAPSHOT_SEASONS = 3;
 
@@ -123,13 +125,13 @@ function mergeBuckets(
 
 /**
  * Would this dedupe key ever be produced again by a future week?
- * Season-scoped and absolute-week-scoped keys never can, so archiving them
- * costs nothing and keeping them would grow forever.
+ * Season-scoped keys can only be dropped once their entire season is behind
+ * the live timeline. Absolute-week keys are intrinsically one-shot.
  */
-function isReplayableKey(key: string, archivedSeasons: Set<number>): boolean {
+function isReplayableKey(key: string, fullyArchivedSeasons: Set<number>): boolean {
   if (/:s(\d+)\b/.test(key)) {
     const m = key.match(/:s(\d+)\b/);
-    if (m && archivedSeasons.has(Number(m[1]))) return false;
+    if (m && fullyArchivedSeasons.has(Number(m[1]))) return false;
   }
   if (/^migrated:/.test(key)) return false;
   if (/:w\d+:/.test(key)) return false;
@@ -174,6 +176,7 @@ export function compactState(state: GameState): CompactionResult {
   const season = core.season;
   const nowAbs = absoluteWeek(core.season, core.week);
   const ledgerFloor = nowAbs - RETAIN_LEDGER_WEEKS;
+  const inboxFloor = nowAbs - RETAIN_INBOX_WEEKS;
 
   /* ---- 1. Match records ---- */
   const hotMatches: MatchRecord[] = [];
@@ -255,23 +258,41 @@ export function compactState(state: GameState): CompactionResult {
     core.ledger = hotRows;
   }
 
-  /* ---- 4. Inbox ---- */
+  /* ---- 4. Inbox ----
+   * The live inbox is a weekly management feed, not permanent storage.
+   * Ordinary mail remains hot for the week after it arrives, then moves to
+   * history. Decisions remain hot while unresolved; untimed decisions that
+   * somehow survive into a later season become expired history. Anything with
+   * an unapplied expiry consequence is protected until that consequence has
+   * been processed. Full archived message detail and dedupe identity survive. */
   const hotInbox: InboxItem[] = [];
   const archivedInbox: InboxItem[] = [];
   for (const it of core.inbox ?? []) {
-    const unresolved =
-      it.status === "awaitingDecision" || (it.choices?.length ? it.status === "unread" : false);
+    const actionableUnread = it.status === "unread" && (it.choices?.length ?? 0) > 0;
+    const decisionState = it.status === "awaitingDecision" || actionableUnread;
+    const staleUntimedDecision =
+      decisionState && it.expiresAtAbsoluteWeek == null && it.season < season;
+    const unresolved = decisionState && !staleUntimedDecision;
     const unappliedConsequence =
       !!it.consequenceOnExpire && it.consequenceApplied !== true && it.status !== "completed";
-    const old = it.season < season;
-    if (old && !unresolved && !unappliedConsequence) archivedInbox.push(it);
-    else hotInbox.push(it);
+    const itemAbs = it.resolvedAtAbsoluteWeek ?? absoluteWeek(it.season, it.week);
+    const aged = itemAbs <= inboxFloor;
+    const canArchive = !unresolved && !unappliedConsequence && aged;
+    if (canArchive) {
+      archivedInbox.push(staleUntimedDecision ? { ...it, status: "expired" } : it);
+    } else {
+      hotInbox.push(it);
+    }
   }
   if (archivedInbox.length) {
-    const archivedSeasons = new Set(archivedInbox.map((i) => i.season));
+    const fullyArchivedSeasons = new Set(
+      archivedInbox.filter((i) => i.season < season).map((i) => i.season),
+    );
     for (const it of archivedInbox) {
       pushChunk(chunks, "history:inbox", it.season, it);
-      if (isReplayableKey(it.eventKey, archivedSeasons)) archive.inbox.guardKeys.push(it.eventKey);
+      if (isReplayableKey(it.eventKey, fullyArchivedSeasons)) {
+        archive.inbox.guardKeys.push(it.eventKey);
+      }
     }
     archive.inbox.count += archivedInbox.length;
     archive.inbox.guardKeys = [...new Set(archive.inbox.guardKeys)].sort();
