@@ -6,7 +6,7 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 const MATCH_DAY = 5;
 
 export function ContinueCalendar({ state, isContinuing }: { state: GameState; isContinuing: boolean }) {
-  const day = Math.max(0, Math.min(DAYS.length - 1, (state.day ?? 1) - 1));
+  const day = isContinuing ? DAYS.length - 1 : 0;
   const fixture = state.fixtures.find((item) => item.week === state.week);
 
   return (
