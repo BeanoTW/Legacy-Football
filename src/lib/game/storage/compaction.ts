@@ -13,10 +13,9 @@
  *
  * Retention rule of thumb: the CURRENT season stays hot where live readers
  * genuinely need it. Resolved communications and older detail can move out
- * sooner, while unresolved decisions, unread actionable messages and narrow
- * historical tails remain in the core. Historical football and identity detail
- * remains available through history chunks rather than growing forever in the
- * hot core.
+ * sooner, while unresolved current decisions, unread actionable messages and
+ * narrow historical tails remain in the core. Historical football and identity
+ * detail remains available through history chunks rather than growing forever.
  */
 import type {
   ArchivedFinanceBucket,
@@ -259,24 +258,30 @@ export function compactState(state: GameState): CompactionResult {
   }
 
   /* ---- 4. Inbox ----
-   * Actionable unread items and unresolved decisions stay hot regardless of age.
-   * Informational unread rows are not simulation state: after the recent tail
-   * they move to history exactly like read/resolved/expired communications.
-   * This preserves decisions while preventing unopened news from pinning
-   * hundreds of kilobytes in every long-career save. */
+   * Current actionable items stay hot. Untimed decisions from a completed
+   * season have missed their gameplay context, so they become expired history
+   * at the persistence boundary. Their full text and event keys are retained
+   * in chunks; they simply stop pinning live state forever. Informational and
+   * resolved rows also move out after the recent tail. */
   const hotInbox: InboxItem[] = [];
   const archivedInbox: InboxItem[] = [];
   for (const it of core.inbox ?? []) {
     const actionableUnread = it.status === "unread" && (it.choices?.length ?? 0) > 0;
-    const unresolved = it.status === "awaitingDecision" || actionableUnread;
+    const decisionState = it.status === "awaitingDecision" || actionableUnread;
+    const staleUntimedDecision =
+      decisionState && it.expiresAtAbsoluteWeek == null && it.season < season;
+    const unresolved = decisionState && !staleUntimedDecision;
     const unappliedConsequence =
       !!it.consequenceOnExpire && it.consequenceApplied !== true && it.status !== "completed";
     const itemAbs = it.resolvedAtAbsoluteWeek ?? absoluteWeek(it.season, it.week);
     const aged = itemAbs <= inboxFloor;
     const fromPriorSeason = it.season < season;
     const canArchive = !unresolved && !unappliedConsequence && (fromPriorSeason || aged);
-    if (canArchive) archivedInbox.push(it);
-    else hotInbox.push(it);
+    if (canArchive) {
+      archivedInbox.push(staleUntimedDecision ? { ...it, status: "expired" } : it);
+    } else {
+      hotInbox.push(it);
+    }
   }
   if (archivedInbox.length) {
     const archivedSeasons = new Set(archivedInbox.map((i) => i.season));
