@@ -17,6 +17,7 @@ import {
 import { renewStaffContract } from "@/lib/game/staffCareers";
 import { facilityModifiers } from "@/lib/game/infrastructure";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { OverviewScreen, WorkflowTile } from "./shared/layout";
 
 const STAT_KEYS: (keyof Staff["stats"])[] = [
   "tactics",
