@@ -13,11 +13,14 @@
  *
  * Retention rule of thumb: the CURRENT season stays hot in full. Older detail
  * moves out, except for narrow tails that the live simulation reads across a
- * season boundary (recent ledger weeks, recent gate receipts, the user club's
- * own transfer/contract record, live commercial contract payments).
+ * season boundary (recent ledger weeks, recent gate receipts and live
+ * commercial contract payments). Historical football and identity detail
+ * remains available through history chunks rather than growing forever in the
+ * hot core.
  */
 import type {
   ArchivedFinanceBucket,
+  ClubSeasonSnapshot,
   FinanceEntry,
   GameState,
   InboxItem,
@@ -36,6 +39,8 @@ export const RETAIN_LEDGER_WEEKS = 12;
 export const RETAIN_GATE_ENTRIES = 24;
 /** Trailing WeekLedger projection rows kept hot (board income estimate). */
 export const RETAIN_WEEK_ROWS = 8;
+/** Prior identity seasons needed by the three-season reputation streak reader. */
+export const RETAIN_SNAPSHOT_SEASONS = 3;
 
 export type ChunkKind =
   | "history:matches"
@@ -43,6 +48,7 @@ export type ChunkKind =
   | "history:transfers"
   | "history:contracts"
   | "history:expired-contracts"
+  | "history:club-snapshots"
   | "history:inbox";
 
 export const CHUNK_KINDS: ChunkKind[] = [
@@ -51,6 +57,7 @@ export const CHUNK_KINDS: ChunkKind[] = [
   "history:transfers",
   "history:contracts",
   "history:expired-contracts",
+  "history:club-snapshots",
   "history:inbox",
 ];
 
@@ -166,7 +173,6 @@ export function compactState(state: GameState): CompactionResult {
 
   const season = core.season;
   const nowAbs = absoluteWeek(core.season, core.week);
-  const club = core.clubName;
   const ledgerFloor = nowAbs - RETAIN_LEDGER_WEEKS;
 
   /* ---- 1. Match records ---- */
@@ -272,13 +278,27 @@ export function compactState(state: GameState): CompactionResult {
     core.inbox = hotInbox;
   }
 
-  /* ---- 5. Football: transfers, contract records, expired contracts ---- */
+  /* ---- 5. Club identity snapshots ----
+   * Reputation streak logic reads at most the previous three seasons. Older
+   * immutable snapshots are historical detail and belong in chunks. */
+  const hotSnapshots: ClubSeasonSnapshot[] = [];
+  const snapshotFloor = season - RETAIN_SNAPSHOT_SEASONS;
+  for (const snapshot of core.clubSnapshots ?? []) {
+    if (snapshot.season >= snapshotFloor) hotSnapshots.push(snapshot);
+    else pushChunk(chunks, "history:club-snapshots", snapshot.season, snapshot);
+  }
+  core.clubSnapshots = hotSnapshots;
+
+  /* ---- 6. Football: transfers, contract records, expired contracts ----
+   * Current-season detail stays hot for all live recruitment/board readers.
+   * Older immutable detail belongs in the history repository, including the
+   * user club's own rows; RecruitmentSeasonSummary already preserves the
+   * season-level figures needed by the live simulation. */
   const f = core.football;
   if (f) {
     const hotTransfers: TransferRecord[] = [];
     for (const r of f.transferHistory ?? []) {
-      const mine = r.toClubId === club || r.fromClubId === club;
-      if (r.season >= season || mine) hotTransfers.push(r);
+      if (r.season >= season) hotTransfers.push(r);
       else {
         pushChunk(chunks, "history:transfers", r.season, r);
         archive.transfers.count += 1;
@@ -288,7 +308,7 @@ export function compactState(state: GameState): CompactionResult {
 
     const hotRecords: PlayerContractRecord[] = [];
     for (const r of f.contractHistory ?? []) {
-      if (r.season >= season || r.clubId === club) hotRecords.push(r);
+      if (r.season >= season) hotRecords.push(r);
       else {
         pushChunk(chunks, "history:contracts", r.season, r);
         archive.contracts.recordCount += 1;
@@ -305,7 +325,7 @@ export function compactState(state: GameState): CompactionResult {
     const hotContracts: PlayerContract[] = [];
     for (const c of f.contracts ?? []) {
       const dead = c.status === "Expired" || c.status === "Released";
-      if (dead && c.expirySeason < season && c.clubId !== club && !referenced.has(c.id)) {
+      if (dead && c.expirySeason < season && !referenced.has(c.id)) {
         pushChunk(chunks, "history:expired-contracts", c.expirySeason, c);
         archive.contracts.expiredCount += 1;
       } else hotContracts.push(c);
@@ -313,7 +333,7 @@ export function compactState(state: GameState): CompactionResult {
     f.contracts = hotContracts;
   }
 
-  /* ---- 6. Archive bookkeeping ---- */
+  /* ---- 7. Archive bookkeeping ---- */
   const touched = new Set<number>([...(archive.seasons ?? []), ...chunks.map((c) => c.season)]);
   archive.seasons = [...touched].sort((a, b) => a - b);
 

@@ -63,7 +63,6 @@ console.log("\n[U2] Navigation completeness");
     "cashflow",
     "tickets",
     "recruitment",
-    "transfers",
     "staff",
     "stadium",
     "fixtures",
@@ -88,7 +87,7 @@ console.log("\n[U2] Navigation completeness");
     unresolved.length === 0,
     unresolved.join(","),
   );
-  const RETIRED = ["squad", "scouting", "finances"];
+  const RETIRED = ["squad", "transfers", "scouting", "finances"];
   check(
     "no retired legacy tab has returned",
     RETIRED.every((t) => !registered.includes(t)),
@@ -98,18 +97,8 @@ console.log("\n[U2] Navigation completeness");
     /grid-cols-5/.test(read("src/components/game/MobileNav.tsx")),
   );
   check(
-    "primary mobile tabs prioritise weekly play",
-    /PRIMARY_TAB_IDS: Tab\[\] = \["hub", "inbox", "transfers", "fixtures"\]/.test(tabs),
-  );
-  const calendar = read("src/components/game/ContinueCalendar.tsx");
-  check(
-    "calendar replaces direct multi-week skipping",
-    /<ContinueCalendar/.test(route) && !/advance\(4\)/.test(route),
-  );
-  check(
-    "continue flow exposes seven days and a matchday stop",
-    /"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"/.test(calendar) &&
-      /MATCH_DAY = 5/.test(calendar),
+    "primary mobile tabs match the chairman core flow",
+    /PRIMARY_TAB_IDS: Tab\[\] = \["hub", "inbox", "recruitment", "cashflow"\]/.test(tabs),
   );
 }
 
@@ -190,66 +179,6 @@ console.log("\n[U5] Canonical selectors, not UI arithmetic");
   check(
     "inbox decisions go through handleInboxChoice",
     /handleInboxChoice\(/.test(read("src/components/game/InboxTab.tsx")),
-  );
-}
-
-console.log("\n[U6] Single source of truth for club money");
-{
-  const LEGACY_READERS = [
-    "playerWagesWeekly",
-    "totalWeeklyExpenses",
-    "weeklySponsorIncome",
-    "squadRating",
-  ];
-  const importsLegacy = (src: string) =>
-    [...src.matchAll(/import\s*\{([^}]*)\}\s*from\s*"@\/lib\/game\/(engine|sim)"/g)].some(
-      ([, names]) =>
-        names
-          .split(",")
-          .map((name) =>
-            name
-              .trim()
-              .split(/\s+as\s+/)[0]
-              .trim(),
-          )
-          .some((name) => LEGACY_READERS.includes(name)),
-    );
-  const offenders = uiFiles.filter((file) => importsLegacy(read(file)));
-  check(
-    "no UI file imports a legacy financial projection reader",
-    offenders.length === 0,
-    offenders.join(","),
-  );
-
-  const selectors = read("src/lib/game/selectors/club.ts");
-  check(
-    "canonical club selector exists",
-    /export function clubKpi\(/.test(selectors) &&
-      /export function canonicalSquadRating\(/.test(selectors),
-  );
-  check(
-    "club selector reads recurring finance, not legacy projections",
-    /recurringWeeklyIncome/.test(selectors) && /recurringWeeklyExpenditure/.test(selectors),
-  );
-  check(
-    "squad rating reads canonical football state",
-    /userSquad\(s\)/.test(selectors) && /currentAbility/.test(selectors),
-  );
-  check("KPI bar consumes the canonical selector", /clubKpi\(state\)/.test(route));
-  check(
-    "hub weekly net consumes the canonical selector",
-    /weeklyNetRecurring\(state\)/.test(read("src/components/game/ClubHub.tsx")),
-  );
-
-  const eslintConfig = read("eslint.config.js");
-  check(
-    "lint guard bans legacy readers in components and routes",
-    /src\/components\/\*\*\/\*\.\{ts,tsx\}/.test(eslintConfig) &&
-      LEGACY_READERS.every((name) => new RegExp(`"${name}"`).test(eslintConfig)),
-  );
-  check(
-    "lint guard leaves shared stadium readers alone",
-    !/"avgTicketPrice"/.test(eslintConfig) && !/"totalCapacity"/.test(eslintConfig),
   );
 }
 

@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
+import { Archive, ChevronRight, Filter, MailOpen } from "lucide-react";
 import type { GameState, InboxItem, InboxCategory, InboxDepartment } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
   CATEGORY_META,
   DEPARTMENTS_ALL,
-  PRIORITY_META,
   clearReadInbox,
   dismissInboxItem,
   evaluateChoice,
@@ -14,7 +14,6 @@ import {
   markInboxRead,
   unreadCount,
 } from "@/lib/game/inbox";
-import { Section } from "./shared/primitives";
 
 export type InboxFilter = "all" | "unread" | "decisions" | "archive";
 
@@ -31,21 +30,17 @@ export function InboxTab({
   const [openId, setOpenId] = useState<string | null>(null);
 
   const items = useMemo(() => {
-    // Newest first
     const all = [...state.inbox].sort(
       (a, b) => b.season - a.season || b.week - a.week || b.id.localeCompare(a.id),
     );
     return all.filter((i) => {
-      if (filter === "unread" && i.status !== "unread" && i.status !== "awaitingDecision")
+      if (filter === "unread" && i.status !== "unread" && i.status !== "awaitingDecision") {
         return false;
+      }
       if (filter === "decisions" && i.status !== "awaitingDecision") return false;
-      if (
-        filter === "archive" &&
-        i.status !== "completed" &&
-        i.status !== "expired" &&
-        i.status !== "read"
-      )
+      if (filter === "archive" && !["completed", "expired", "read"].includes(i.status)) {
         return false;
+      }
       if (category !== "any" && i.category !== category) return false;
       if (department !== "any" && i.department !== department) return false;
       return true;
@@ -56,153 +51,165 @@ export function InboxTab({
   const unread = unreadCount(state);
   const decisions = state.inbox.filter((i) => i.status === "awaitingDecision").length;
 
+  const openItem = (item: InboxItem) => {
+    setOpenId(item.id);
+    if (item.status === "unread") update((s) => markInboxRead(s, item.id));
+  };
+
   return (
-    <div className="space-y-4">
-      <Section
-        title="Inbox — Club communications"
-        info="Every department, sponsor, journalist and official routes their reports and decisions through here. This is the club's central nervous system. Unread items are shown first; decisions won't disappear until you answer them."
-        right={
-          <span className="flex items-center gap-2 text-[10px]">
-            <span className="rounded-full bg-rose-500 text-white px-2 py-0.5">{unread} unread</span>
-            {decisions > 0 && (
-              <span className="rounded-full bg-amber-500 text-white px-2 py-0.5">
-                {decisions} decision{decisions > 1 ? "s" : ""}
-              </span>
-            )}
-          </span>
-        }
-      >
-        {/* Filter bar */}
-        <div className="flex flex-wrap gap-2 mb-3">
-          {(["all", "unread", "decisions", "archive"] as InboxFilter[]).map((f) => (
+    <div className="space-y-5">
+      <div>
+        <h1 className="font-display text-3xl">Inbox</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Deal with decisions first. Everything else can wait.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          onClick={() => setFilter("decisions")}
+          className={cn(
+            "min-h-28 rounded-2xl border p-4 text-left flex flex-col justify-between transition-colors",
+            filter === "decisions"
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-card hover:border-primary/40",
+          )}
+        >
+          <span className="text-sm font-semibold">Needs your decision</span>
+          <span className="font-display text-3xl">{decisions}</span>
+        </button>
+        <button
+          onClick={() => setFilter("unread")}
+          className={cn(
+            "min-h-28 rounded-2xl border p-4 text-left flex flex-col justify-between transition-colors",
+            filter === "unread"
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-card hover:border-primary/40",
+          )}
+        >
+          <span className="text-sm font-semibold">Unread</span>
+          <span className="font-display text-3xl">{unread}</span>
+        </button>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Button variant={filter === "all" ? "default" : "outline"} onClick={() => setFilter("all")}>
+          All messages
+        </Button>
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="outline">
+              <Filter className="size-4 mr-2" /> Filters
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="rounded-t-3xl">
+            <SheetHeader>
+              <SheetTitle>Filter inbox</SheetTitle>
+            </SheetHeader>
+            <div className="space-y-4 mt-5">
+              <label className="block space-y-1.5">
+                <span className="text-sm font-medium">Category</span>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value as InboxCategory | "any")}
+                  className="w-full h-12 px-3 rounded-xl border bg-card"
+                >
+                  <option value="any">All categories</option>
+                  {(Object.keys(CATEGORY_META) as InboxCategory[]).map((c) => (
+                    <option key={c} value={c}>
+                      {CATEGORY_META[c].label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block space-y-1.5">
+                <span className="text-sm font-medium">Department</span>
+                <select
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value as InboxDepartment | "any")}
+                  className="w-full h-12 px-3 rounded-xl border bg-card"
+                >
+                  <option value="any">All departments</option>
+                  {DEPARTMENTS_ALL.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Button
+                variant="outline"
+                className="w-full h-12"
+                onClick={() => setFilter("archive")}
+              >
+                <Archive className="size-4 mr-2" /> View archive
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
+        {items.some((i) => ["read", "completed", "expired"].includes(i.status)) && (
+          <Button
+            variant="ghost"
+            className="ml-auto"
+            onClick={() => update((s) => clearReadInbox(s))}
+          >
+            Clear read
+          </Button>
+        )}
+      </div>
+
+      {items.length === 0 ? (
+        <div className="rounded-2xl border bg-card py-14 text-center">
+          <MailOpen className="size-8 mx-auto text-muted-foreground mb-3" />
+          <div className="font-display text-xl">Nothing waiting here</div>
+          <div className="text-sm text-muted-foreground mt-1">
+            You can get back to running the club.
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {items.map((it) => (
             <button
-              key={f}
-              onClick={() => setFilter(f)}
+              key={it.id}
+              onClick={() => openItem(it)}
               className={cn(
-                "text-xs px-2.5 py-1 rounded-full border transition-colors",
-                filter === f
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-card hover:bg-muted",
+                "w-full min-h-24 rounded-2xl border bg-card p-4 text-left flex items-center gap-4 hover:border-primary/40 transition-colors",
+                it.status === "awaitingDecision" && "border-amber-500/60 bg-amber-500/5",
               )}
             >
-              {f === "all"
-                ? "All"
-                : f === "unread"
-                  ? "Unread"
-                  : f === "decisions"
-                    ? "Decisions"
-                    : "Archive"}
-            </button>
-          ))}
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value as InboxCategory | "any")}
-            className="text-xs px-2 py-1 rounded-md border bg-card"
-          >
-            <option value="any">All categories</option>
-            {(Object.keys(CATEGORY_META) as InboxCategory[]).map((c) => (
-              <option key={c} value={c}>
-                {CATEGORY_META[c].label}
-              </option>
-            ))}
-          </select>
-          <select
-            value={department}
-            onChange={(e) => setDepartment(e.target.value as InboxDepartment | "any")}
-            className="text-xs px-2 py-1 rounded-md border bg-card"
-          >
-            <option value="any">All departments</option>
-            {DEPARTMENTS_ALL.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
-          {items.some(
-            (i) => i.status === "read" || i.status === "completed" || i.status === "expired",
-          ) && (
-            <button
-              onClick={() => update((s) => clearReadInbox(s))}
-              className="ml-auto text-xs px-2.5 py-1 rounded-full border text-muted-foreground hover:text-foreground"
-            >
-              Clear read
-            </button>
-          )}
-        </div>
-
-        {items.length === 0 ? (
-          <div className="text-sm text-muted-foreground py-8 text-center">
-            Nothing to show under this filter.
-          </div>
-        ) : (
-          <ul className="divide-y">
-            {items.map((it) => (
-              <li key={it.id}>
-                <button
-                  onClick={() => {
-                    setOpenId(it.id);
-                    if (it.status === "unread") update((s) => markInboxRead(s, it.id));
-                  }}
+              <div
+                className={cn(
+                  "size-3 rounded-full shrink-0",
+                  it.status === "awaitingDecision"
+                    ? "bg-amber-500"
+                    : it.status === "unread"
+                      ? "bg-primary"
+                      : "bg-muted-foreground/30",
+                )}
+              />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span>{it.department}</span>
+                  {it.status === "awaitingDecision" && (
+                    <span className="font-semibold text-amber-600">Decision</span>
+                  )}
+                  <span className="ml-auto">W{it.week}</span>
+                </div>
+                <div
                   className={cn(
-                    "w-full text-left py-2.5 px-1 flex items-start gap-3 hover:bg-muted/60 transition-colors",
-                    (it.status === "unread" || it.status === "awaitingDecision") && "bg-muted/30",
+                    "text-base mt-1 truncate",
+                    (it.status === "unread" || it.status === "awaitingDecision") && "font-semibold",
                   )}
                 >
-                  <span
-                    className={cn(
-                      "mt-1 shrink-0 size-2 rounded-full",
-                      it.status === "unread"
-                        ? "bg-primary"
-                        : it.status === "awaitingDecision"
-                          ? "bg-amber-500"
-                          : it.status === "expired"
-                            ? "bg-rose-400"
-                            : "bg-transparent border border-muted-foreground/40",
-                    )}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-muted-foreground">
-                      <span
-                        className={cn(
-                          "rounded px-1.5 py-0.5 text-white text-[9px]",
-                          CATEGORY_META[it.category].color,
-                        )}
-                      >
-                        {CATEGORY_META[it.category].label}
-                      </span>
-                      <span className="truncate">{it.department}</span>
-                      <span className="ml-auto shrink-0">
-                        S{it.season} · W{it.week}
-                      </span>
-                    </div>
-                    <div
-                      className={cn(
-                        "text-sm mt-0.5 truncate",
-                        it.status === "unread" || it.status === "awaitingDecision"
-                          ? "font-medium"
-                          : "text-muted-foreground",
-                      )}
-                    >
-                      {it.subject}
-                    </div>
-                    <div className="text-xs text-muted-foreground flex items-center gap-2 mt-0.5">
-                      <span className="truncate">{it.sender}</span>
-                      <span className={PRIORITY_META[it.priority].className}>
-                        · {PRIORITY_META[it.priority].label}
-                      </span>
-                      {it.expiresWeek != null && it.status === "awaitingDecision" && (
-                        <span className="text-amber-600 ml-auto shrink-0">
-                          Expires W{it.expiresWeek}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Section>
+                  {it.subject}
+                </div>
+                <div className="text-sm text-muted-foreground truncate mt-0.5">{it.sender}</div>
+              </div>
+              <ChevronRight className="size-5 text-muted-foreground shrink-0" />
+            </button>
+          ))}
+        </div>
+      )}
 
       {open && (
         <InboxDetail
@@ -237,58 +244,35 @@ export function InboxDetail({
   onDismiss: () => void;
 }) {
   return (
-    <Sheet
-      open
-      onOpenChange={(v) => {
-        if (!v) onClose();
-      }}
-    >
-      <SheetContent side="bottom" className="rounded-t-2xl max-h-[90vh] overflow-y-auto">
+    <Sheet open onOpenChange={(v) => !v && onClose()}>
+      <SheetContent side="bottom" className="rounded-t-3xl max-h-[90vh] overflow-y-auto">
         <SheetHeader className="text-left">
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-            <span
-              className={cn(
-                "rounded px-1.5 py-0.5 text-white text-[9px]",
-                CATEGORY_META[item.category].color,
-              )}
-            >
-              {CATEGORY_META[item.category].label}
-            </span>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
             <span>{item.department}</span>
-            <span className="ml-auto">
-              S{item.season} · W{item.week}
+            <span>·</span>
+            <span>
+              S{item.season} W{item.week}
             </span>
           </div>
-          <SheetTitle className="text-base leading-tight">{item.subject}</SheetTitle>
-          <div className="text-xs text-muted-foreground">
-            From <span className="font-medium text-foreground">{item.sender}</span>
-            <span className={cn("ml-2", PRIORITY_META[item.priority].className)}>
-              · {PRIORITY_META[item.priority].label} priority
-            </span>
-            {item.status === "expired" && <span className="ml-2 text-rose-500">· Expired</span>}
-            {item.status === "completed" && (
-              <span className="ml-2 text-emerald-600">· Completed</span>
-            )}
-          </div>
+          <SheetTitle className="text-xl leading-tight">{item.subject}</SheetTitle>
+          <div className="text-sm text-muted-foreground">From {item.sender}</div>
         </SheetHeader>
 
-        <div className="mt-4 text-sm whitespace-pre-wrap leading-relaxed">{item.body}</div>
+        <div className="mt-5 text-base whitespace-pre-wrap leading-relaxed">{item.body}</div>
 
         {item.choices && item.choices.length > 0 && (
-          <div className="mt-5 space-y-2">
+          <div className="mt-6 space-y-3">
             {item.status === "completed" && item.chosenChoiceId ? (
-              <div className="rounded-md border bg-muted/40 p-3 text-xs">
+              <div className="rounded-xl border bg-muted/40 p-4 text-sm">
                 Decided: {item.choices.find((c) => c.id === item.chosenChoiceId)?.label}
               </div>
             ) : item.status === "expired" ? (
-              <div className="rounded-md border border-rose-300 bg-rose-50 p-3 text-xs text-rose-700">
-                This message expired before you responded. Consequences have been applied.
+              <div className="rounded-xl border border-rose-300 bg-rose-50 p-4 text-sm text-rose-700">
+                This decision expired before you responded.
               </div>
             ) : (
               <>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  Decision required
-                </div>
+                <div className="font-display text-lg">Choose your response</div>
                 {item.choices.map((c) => {
                   const avail = evaluateChoice(state, c);
                   return (
@@ -297,20 +281,16 @@ export function InboxDetail({
                       onClick={() => avail.available && onChoose(c.id)}
                       disabled={!avail.available}
                       className={cn(
-                        "w-full text-left rounded-md border p-3 transition-colors",
+                        "w-full min-h-20 text-left rounded-2xl border p-4 transition-colors",
                         avail.available
                           ? "hover:border-primary hover:bg-muted/50"
                           : "opacity-60 cursor-not-allowed bg-muted/30",
                       )}
                     >
-                      <div className="text-sm font-medium">{c.label}</div>
-                      {c.hint && (
-                        <div className="text-xs text-muted-foreground mt-0.5">{c.hint}</div>
-                      )}
+                      <div className="text-base font-semibold">{c.label}</div>
+                      {c.hint && <div className="text-sm text-muted-foreground mt-1">{c.hint}</div>}
                       {!avail.available && (
-                        <div className="text-[11px] text-rose-600 mt-1">
-                          {avail.reasons.join(" ")}
-                        </div>
+                        <div className="text-sm text-rose-600 mt-2">{avail.reasons.join(" ")}</div>
                       )}
                     </button>
                   );
@@ -321,11 +301,9 @@ export function InboxDetail({
         )}
 
         {(!item.choices || item.status === "read" || item.status === "completed") && (
-          <div className="mt-5 flex justify-end">
-            <Button variant="ghost" size="sm" onClick={onDismiss}>
-              Close
-            </Button>
-          </div>
+          <Button variant="outline" className="w-full h-12 mt-6" onClick={onDismiss}>
+            Close
+          </Button>
         )}
       </SheetContent>
     </Sheet>

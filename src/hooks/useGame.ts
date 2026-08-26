@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { GameState } from "@/lib/game/types";
-import { advanceWeek, loadGame, saveGame, clearGame, newGame } from "@/lib/game/engine";
+import { advanceDay, advanceWeek, loadGame, saveGame, clearGame, newGame } from "@/lib/game/engine";
+import { continuationInterrupt } from "@/lib/game/attention";
+
+const CONTINUE_STEP_MS = 800;
 
 export function useGame() {
   const [state, setState] = useState<GameState | null>(null);
   const [hydrated, setHydrated] = useState(false);
-  // Persistence is async (and will stay async when storage moves to IndexedDB),
-  // so writes are fire-and-forget and must never be applied out of order.
+  const [isContinuing, setIsContinuing] = useState(false);
+  const [continueReason, setContinueReason] = useState<string | null>(null);
   const writeSeq = useRef(0);
 
   useEffect(() => {
@@ -25,8 +28,6 @@ export function useGame() {
     if (!state) return;
     const seq = ++writeSeq.current;
     void saveGame(state).then(() => {
-      // A newer write already landed; nothing to do. Kept explicit so the
-      // ordering guarantee is visible rather than accidental.
       if (seq !== writeSeq.current) return;
     });
   }, [state]);
@@ -36,6 +37,8 @@ export function useGame() {
   }, []);
 
   const advance = useCallback((weeks = 1) => {
+    setIsContinuing(false);
+    setContinueReason(null);
     setState((prev) => {
       if (!prev) return prev;
       let s = prev;
@@ -44,14 +47,62 @@ export function useGame() {
     });
   }, []);
 
+  const startContinue = useCallback(() => {
+    setContinueReason(null);
+    setIsContinuing(true);
+  }, []);
+
+  const stopContinue = useCallback(() => {
+    setIsContinuing(false);
+    setContinueReason("Stopped by you");
+  }, []);
+
+  useEffect(() => {
+    if (!isContinuing || !state) return;
+    const before = continuationInterrupt(state);
+    if (before) {
+      setIsContinuing(false);
+      setContinueReason(before);
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setState((prev) => {
+        if (!prev) return prev;
+        const next = advanceDay(prev);
+        const reason = continuationInterrupt(next);
+        if (reason) {
+          setIsContinuing(false);
+          setContinueReason(reason);
+        }
+        return next;
+      });
+    }, CONTINUE_STEP_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [isContinuing, state]);
+
   const update = useCallback((updater: (s: GameState) => GameState) => {
     setState((prev) => (prev ? updater(prev) : prev));
   }, []);
 
   const reset = useCallback(() => {
     void clearGame();
+    setIsContinuing(false);
+    setContinueReason(null);
     setState(null);
   }, []);
 
-  return { state, hydrated, start, advance, update, reset };
+  return {
+    state,
+    hydrated,
+    start,
+    advance,
+    update,
+    reset,
+    isContinuing,
+    continueReason,
+    startContinue,
+    stopContinue,
+  };
 }

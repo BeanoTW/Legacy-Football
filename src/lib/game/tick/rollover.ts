@@ -12,6 +12,8 @@ import { runEndOfSeasonReview, rollBoardToNewSeason } from "../board";
 import { awardPrizeMoney, closeSeasonFinance, openSeasonFinance } from "../finance";
 import { closeCommercialSeason } from "../commercial";
 import { closeRecruitmentSeason, rollRecruitmentToNewSeason } from "../recruitment";
+import { runPlayerCareerRollover } from "../careers";
+import { runStaffCareerRollover } from "../staffCareers";
 import { advanceFringeWorldToSeason } from "../fringe";
 import { rollInfrastructureToNewSeason } from "../infrastructure";
 import { SEASON_END_WEEK } from "../calendar";
@@ -81,8 +83,15 @@ export function tickSeasonRollover(s: GameState): void {
     if (!s.inbox.some((x) => x.eventKey === it.eventKey))
       s.inbox.push({ ...it, week: 1, season: s.season });
   }
-  // Player ageing and revaluation happen in the canonical football world;
-  // GameState.squad is re-projected from it.
+  // Detailed Focus players now follow deterministic age/potential development
+  // and decline curves. Fringe clubs continue to evolve through their compact
+  // aggregate and hydrate coherently when they cross into Focus.
+  runPlayerCareerRollover(s);
+  // Staff careers advance on the same yearly boundary: hired staff age,
+  // develop/decline, may retire, and the new-season market is refreshed.
+  runStaffCareerRollover(s);
+  // Player values and wage expectations are then recalculated from the evolved
+  // abilities; GameState.squad is re-projected from canonical football state.
   rollRecruitmentToNewSeason(s);
   // Physical plant ages one year and re-derives its projections.
   rollInfrastructureToNewSeason(s);

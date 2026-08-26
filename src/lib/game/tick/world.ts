@@ -3,9 +3,10 @@
  * Sponsor and staff contract clocks, the ticket-price backlash, and the
  * pre-v3 legacy AI-result fallback. Nothing here posts to the finance ledger.
  */
-import type { GameState } from "../types";
+import type { GameState, Staff } from "../types";
 import { hasFullSchedule } from "../league";
 import { avgTicketPrice } from "../sim";
+import { hashString } from "../rng";
 import { staffPoolFor } from "../staff";
 import { phaseOf } from "../calendar";
 
@@ -53,11 +54,46 @@ export function tickLegacyAiResults(s: GameState): void {
   }
 }
 
-/** Legacy sponsor clock, staff contract clock + 4-weekly staff market refresh. */
+function staffContractMessage(s: GameState, st: Staff, kind: "warning" | "expired"): void {
+  const eventKey = `staff-contract-${kind}:${st.id}:s${s.season}`;
+  if (s.inbox.some((i) => i.eventKey === eventKey)) return;
+  const isManager = st.role === "Manager";
+  s.inbox.push({
+    id: `IN-${hashString(eventKey).toString(16)}`,
+    generatorId: "staff-contract",
+    eventKey,
+    sender: "Club",
+    department: "Club",
+    category: "staff",
+    subject:
+      kind === "warning" ? `${st.name}'s contract is running down` : `${st.name} leaves the club`,
+    body:
+      kind === "warning"
+        ? `${st.name} (${st.role}) has 12 weeks remaining on their contract. Renew it from Staff if you want them to stay.`
+        : `${st.name}'s ${st.role.toLowerCase()} contract has expired. The role is now vacant and can be filled from the staff market.`,
+    priority: isManager ? "high" : kind === "expired" ? "high" : "normal",
+    week: s.week,
+    season: s.season,
+    status: "unread",
+  });
+}
+
+/** Legacy sponsor clock, staff contract lifecycle + 4-weekly staff market refresh. */
 export function tickContractsAndMarkets(s: GameState): void {
   for (const sp of s.sponsors) sp.weeksLeft = Math.max(0, sp.weeksLeft - 1);
 
-  for (const st of s.hiredStaff) st.contractWeeks = Math.max(0, st.contractWeeks - 1);
+  const retained: Staff[] = [];
+  for (const st of s.hiredStaff) {
+    st.contractWeeks = Math.max(0, st.contractWeeks - 1);
+    if (st.contractWeeks === 12) staffContractMessage(s, st, "warning");
+    if (st.contractWeeks === 0) {
+      staffContractMessage(s, st, "expired");
+      continue;
+    }
+    retained.push(st);
+  }
+  s.hiredStaff = retained;
+
   if (s.week - (s.staffMarketRefreshedWeek ?? 0) >= 4) {
     s.staffCandidates = staffPoolFor(s);
     s.staffMarketRefreshedWeek = s.week;

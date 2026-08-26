@@ -1,215 +1,172 @@
-import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, Eye, Gauge, Globe2, Search } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, Globe2 } from "lucide-react";
 
 import type { GameState } from "@/lib/game/types";
-import { buildWorldSimulationPlan, type WorldSimulationLevel } from "@/lib/game/world";
+import { playerLeagueId, tableFor } from "@/lib/game/league";
 import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
 
 export function WorldInspector({ state }: { state: GameState }) {
-  const [filter, setFilter] = useState<"all" | WorldSimulationLevel>("all");
-  const [query, setQuery] = useState("");
-  const plan = useMemo(() => buildWorldSimulationPlan(state), [state]);
-  const [expandedLeagueIds, setExpandedLeagueIds] = useState<string[]>([
-    plan.playerLeagueId,
-  ]);
   const leagues = useMemo(
     () => [...state.leagues].sort((a, b) => a.tier - b.tier),
     [state.leagues],
   );
-  const visible = useMemo(() => {
-    const normalizedQuery = query.trim().toLocaleLowerCase();
-    return plan.clubs.filter(
-      (club) =>
-        (filter === "all" || club.level === filter) &&
-        (!normalizedQuery || club.clubId.toLocaleLowerCase().includes(normalizedQuery)),
-    );
-  }, [filter, plan.clubs, query]);
+  const playerLeague = playerLeagueId(state);
+  const initialIndex = Math.max(
+    0,
+    leagues.findIndex((league) => league.id === playerLeague),
+  );
+  const [index, setIndex] = useState(initialIndex);
+  const safeIndex = Math.min(index, Math.max(0, leagues.length - 1));
+  const league = leagues[safeIndex];
+  const rows = league ? tableFor(state, league.id) : [];
 
-  useEffect(() => {
-    setExpandedLeagueIds((current) =>
-      current.includes(plan.playerLeagueId) ? current : [...current, plan.playerLeagueId],
-    );
-  }, [plan.playerLeagueId]);
+  if (!league) return null;
 
-  const toggleLeague = (leagueId: string) => {
-    setExpandedLeagueIds((current) =>
-      current.includes(leagueId)
-        ? current.filter((id) => id !== leagueId)
-        : [...current, leagueId],
-    );
+  const move = (delta: number) => {
+    setIndex((current) => Math.max(0, Math.min(leagues.length - 1, current + delta)));
   };
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border bg-card p-4 sm:p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-lg font-semibold">
-              <Globe2 className="size-5" /> World simulation
-            </div>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              Live view of how the football world is being simulated. Focus clubs receive
-              high-fidelity simulation; fringe clubs use the lightweight world path.
-            </p>
+      <header className="flex items-end justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
+            <Globe2 className="size-4" /> Football world
           </div>
-          <div className="text-xs text-muted-foreground sm:text-right">
-            <div>Season {plan.season}</div>
-            <div>
-              {plan.clubs.length} clubs · {leagues.length} divisions
-            </div>
-          </div>
+          <h1 className="mt-1 font-display text-3xl">League tables</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Swipe sideways on mobile, or use the arrows, to move through the pyramid.
+          </p>
         </div>
+        <div className="hidden text-right text-xs text-muted-foreground sm:block">
+          Season {state.season}
+          <br />
+          {leagues.length} divisions
+        </div>
+      </header>
 
-        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat
-            label="Focus clubs"
-            value={plan.focusClubIds.length}
-            icon={<Eye className="size-4" />}
-          />
-          <Stat
-            label="Fringe clubs"
-            value={plan.fringeClubIds.length}
-            icon={<Gauge className="size-4" />}
-          />
-          <Stat label="Focus divisions" value={plan.focusLeagueIds.length} />
-          <Stat label="Total divisions" value={leagues.length} />
-        </div>
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+        {leagues.map((item, itemIndex) => (
+          <button
+            key={item.id}
+            onClick={() => setIndex(itemIndex)}
+            className={cn(
+              "shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+              itemIndex === safeIndex
+                ? "border-primary bg-primary text-primary-foreground"
+                : "bg-card text-muted-foreground hover:bg-muted",
+            )}
+          >
+            {item.name}
+          </button>
+        ))}
       </div>
 
-      <div className="rounded-xl border bg-card p-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap gap-2">
-            {(["all", "focus", "fringe"] as const).map((value) => (
-              <button
-                key={value}
-                onClick={() => setFilter(value)}
-                className={cn(
-                  "rounded-full border px-3 py-1.5 text-sm capitalize transition-colors",
-                  filter === value
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background hover:bg-muted",
-                )}
-              >
-                {value}
-              </button>
-            ))}
+      <div
+        className="touch-pan-y overflow-hidden rounded-[1.5rem] border bg-card shadow-sm"
+        onTouchStart={(event) => {
+          event.currentTarget.dataset.touchX = String(event.touches[0]?.clientX ?? 0);
+        }}
+        onTouchEnd={(event) => {
+          const start = Number(event.currentTarget.dataset.touchX ?? 0);
+          const end = event.changedTouches[0]?.clientX ?? start;
+          if (Math.abs(end - start) < 55) return;
+          move(end < start ? 1 : -1);
+        }}
+      >
+        <div className="panel-strip flex items-center justify-between gap-3 px-3 py-3 sm:px-4">
+          <button
+            aria-label="Previous division"
+            disabled={safeIndex === 0}
+            onClick={() => move(-1)}
+            className="grid size-9 place-items-center rounded-xl bg-black/15 disabled:opacity-25"
+          >
+            <ChevronLeft className="size-5" />
+          </button>
+          <div className="min-w-0 text-center">
+            <div className="truncate font-display text-xl sm:text-2xl">{league.name}</div>
+            <div className="text-xs opacity-70">
+              Tier {league.tier} · {league.clubIds.length} clubs
+              {league.id === playerLeague ? " · Your division" : ""}
+            </div>
           </div>
-          <div className="relative w-full sm:w-64">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Find a club"
-              aria-label="Find a club"
-              className="pl-9"
-            />
-          </div>
+          <button
+            aria-label="Next division"
+            disabled={safeIndex === leagues.length - 1}
+            onClick={() => move(1)}
+            className="grid size-9 place-items-center rounded-xl bg-black/15 disabled:opacity-25"
+          >
+            <ChevronRight className="size-5" />
+          </button>
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Divisions stay collapsed until you open them. Your current division is shown first.
-        </p>
-      </div>
 
-      <div className="space-y-3">
-        {leagues.map((league) => {
-          const clubs = visible.filter((club) => club.leagueId === league.id);
-          if (!clubs.length) return null;
-          const isPlayerLeague = league.id === plan.playerLeagueId;
-          const expanded = query.trim().length > 0 || expandedLeagueIds.includes(league.id);
-          return (
-            <section key={league.id} className="overflow-hidden rounded-xl border bg-card">
-              <button
-                type="button"
-                onClick={() => toggleLeague(league.id)}
-                aria-expanded={expanded}
-                aria-controls={`world-league-${league.id}`}
-                className={cn(
-                  "flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50",
-                  expanded && "border-b",
-                )}
-              >
-                <div className="min-w-0">
-                  <div className="font-semibold">{league.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    Tier {league.tier}
-                    {isPlayerLeague ? " · Your division" : ""}
-                  </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
-                  <span>{clubs.length} clubs</span>
-                  <ChevronDown
-                    className={cn("size-4 transition-transform", expanded && "rotate-180")}
-                  />
-                </div>
-              </button>
-              {expanded && (
-                <div id={`world-league-${league.id}`} className="divide-y">
-                  {clubs.map((club) => (
-                    <div
-                      key={club.clubId}
-                      className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div>
-                        <div className="font-medium">
-                          {club.clubId}
-                          {club.clubId === state.clubName ? " · YOU" : ""}
-                        </div>
-                        <div className="mt-0.5 text-xs text-muted-foreground">
-                          {club.reasons.length
-                            ? club.reasons.map(reasonLabel).join(" · ")
-                            : "Distant world club"}
-                        </div>
-                      </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[430px] text-sm tnum">
+            <thead className="border-b bg-muted/30 text-[10px] uppercase tracking-wide text-muted-foreground">
+              <tr>
+                <th className="w-10 px-3 py-2 text-left">#</th>
+                <th className="py-2 text-left">Club</th>
+                <th className="px-2 py-2 text-right">P</th>
+                <th className="px-2 py-2 text-right">W</th>
+                <th className="px-2 py-2 text-right">D</th>
+                <th className="px-2 py-2 text-right">L</th>
+                <th className="px-2 py-2 text-right">GD</th>
+                <th className="px-3 py-2 text-right">Pts</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, rowIndex) => {
+                const isMe = row.team === state.clubName;
+                const promotion = league.promotionPlaces > 0 && rowIndex < league.promotionPlaces;
+                const relegation =
+                  league.relegationPlaces > 0 && rowIndex >= rows.length - league.relegationPlaces;
+                return (
+                  <tr
+                    key={row.team}
+                    className={cn("border-b last:border-0", isMe && "bg-primary/10 font-semibold")}
+                  >
+                    <td className="px-3 py-2.5 text-muted-foreground">
                       <span
                         className={cn(
-                          "w-fit rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide",
-                          club.level === "focus"
-                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                            : "bg-muted text-muted-foreground",
+                          "inline-flex min-w-6 justify-center rounded-md px-1 py-0.5",
+                          promotion && "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+                          relegation && "bg-rose-500/10 text-rose-700 dark:text-rose-300",
                         )}
                       >
-                        {club.level}
+                        {rowIndex + 1}
                       </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-          );
-        })}
+                    </td>
+                    <td className="max-w-48 truncate py-2.5 pr-2">
+                      {row.team}
+                      {isMe ? " · YOU" : ""}
+                    </td>
+                    <td className="px-2 py-2.5 text-right text-muted-foreground">{row.p}</td>
+                    <td className="px-2 py-2.5 text-right">{row.w}</td>
+                    <td className="px-2 py-2.5 text-right">{row.d}</td>
+                    <td className="px-2 py-2.5 text-right">{row.l}</td>
+                    <td className="px-2 py-2.5 text-right">{row.gf - row.ga}</td>
+                    <td className="px-3 py-2.5 text-right font-display text-base">{row.pts}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-center gap-1.5">
+        {leagues.map((item, itemIndex) => (
+          <button
+            key={item.id}
+            aria-label={`Open ${item.name}`}
+            onClick={() => setIndex(itemIndex)}
+            className={cn(
+              "h-1.5 rounded-full transition-all",
+              itemIndex === safeIndex ? "w-7 bg-primary" : "w-1.5 bg-muted-foreground/30",
+            )}
+          />
+        ))}
       </div>
     </div>
   );
-}
-
-function Stat({ label, value, icon }: { label: string; value: number; icon?: React.ReactNode }) {
-  return (
-    <div className="rounded-lg border bg-background p-3">
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        {icon}
-        {label}
-      </div>
-      <div className="mt-1 text-xl font-semibold tnum">{value}</div>
-    </div>
-  );
-}
-
-function reasonLabel(reason: string): string {
-  switch (reason) {
-    case "playerClub":
-      return "Your club";
-    case "sameLeague":
-      return "Same division";
-    case "promotionNeighbour":
-      return "Promotion neighbour";
-    case "relegationNeighbour":
-      return "Relegation neighbour";
-    case "recentOpponent":
-      return "Recent opponent";
-    case "tracked":
-      return "Tracked";
-    default:
-      return reason;
-  }
 }

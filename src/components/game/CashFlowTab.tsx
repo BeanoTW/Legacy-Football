@@ -1,14 +1,36 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  CircleDollarSign,
+  Landmark,
+  PieChart as PieChartIcon,
+  ReceiptText,
+} from "lucide-react";
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip as RTooltip } from "recharts";
 import type { GameState } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
-import { fmtMoneyExact } from "@/lib/game/engine";
+import { fmtMoney, fmtMoneyExact } from "@/lib/game/engine";
+import { weeklyNetRecurring } from "@/lib/game/selectors/club";
+import { financialHealth, recommendedReserve } from "@/lib/game/sustainability";
+import { Button } from "@/components/ui/button";
 import { Section } from "./shared/primitives";
 import { FinancialHealthPanel } from "./DashboardTab";
 
+type FinanceView = "home" | "health" | "income" | "expenses";
+
 export function CashFlowTab({ state }: { state: GameState }) {
+  const [view, setView] = useState<FinanceView>("home");
   const totals = useMemo(() => {
-    const inc = { gate: 0, tv: 0, sponsor: 0, merchandise: 0, prize: 0, transfers: 0, other: 0 };
+    const inc = {
+      gate: 0,
+      tv: 0,
+      sponsor: 0,
+      merchandise: 0,
+      prize: 0,
+      transfers: 0,
+      other: 0,
+    };
     const exp = {
       playerWages: 0,
       staffWages: 0,
@@ -19,8 +41,6 @@ export function CashFlowTab({ state }: { state: GameState }) {
       transfers: 0,
       other: 0,
     };
-    // Only the current season is guaranteed hot: older weekly roll-ups are
-    // compacted out of the save, and the panel is labelled per-season anyway.
     for (const l of state.ledger.filter((r) => r.season === state.season)) {
       (Object.keys(inc) as (keyof typeof inc)[]).forEach((k) => (inc[k] += l.income[k]));
       (Object.keys(exp) as (keyof typeof exp)[]).forEach((k) => (exp[k] += l.expenses[k]));
@@ -28,36 +48,162 @@ export function CashFlowTab({ state }: { state: GameState }) {
     return { inc, exp };
   }, [state.ledger, state.season]);
 
-  const incomePie = Object.entries(totals.inc)
-    .filter(([, v]) => v > 0)
-    .map(([k, v]) => ({ name: label(k), value: v }));
-  const expensePie = Object.entries(totals.exp)
-    .filter(([, v]) => v > 0)
-    .map(([k, v]) => ({ name: label(k), value: v }));
+  const incomeTotal = Object.values(totals.inc).reduce((a, b) => a + b, 0);
+  const expenseTotal = Object.values(totals.exp).reduce((a, b) => a + b, 0);
+  const recurringNet = weeklyNetRecurring(state);
+  const health = financialHealth(state);
+  const reserve = recommendedReserve(state);
 
-  const CHART_COLORS = [
-    "var(--color-chart-1)",
-    "var(--color-chart-2)",
-    "var(--color-chart-3)",
-    "var(--color-chart-4)",
-    "var(--color-chart-5)",
-    "var(--color-primary)",
-    "var(--color-accent)",
-  ];
+  if (view !== "home") {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" onClick={() => setView("home")}>
+          <ArrowLeft className="size-4 mr-2" /> Back to finances
+        </Button>
+        {view === "health" && <FinancialHealthPanel state={state} />}
+        {view === "income" && (
+          <Section title="Season income">
+            <PieBlock data={pieData(totals.inc)} colors={CHART_COLORS} />
+            <BreakdownTable totals={totals.inc} tone="income" />
+          </Section>
+        )}
+        {view === "expenses" && (
+          <Section title="Season expenses">
+            <PieBlock data={pieData(totals.exp)} colors={CHART_COLORS} />
+            <BreakdownTable totals={totals.exp} tone="expense" />
+          </Section>
+        )}
+      </div>
+    );
+  }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <FinancialHealthPanel state={state} />
-      <Section title="Season income">
-        <PieBlock data={incomePie} colors={CHART_COLORS} />
-        <BreakdownTable totals={totals.inc} tone="income" />
-      </Section>
-      <Section title="Season expenses">
-        <PieBlock data={expensePie} colors={CHART_COLORS} />
-        <BreakdownTable totals={totals.exp} tone="expense" />
-      </Section>
+    <div className="space-y-5">
+      <div>
+        <h1 className="font-display text-3xl">Finances</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          See the answer first. Open the detail only when you need it.
+        </p>
+      </div>
+
+      <section className="rounded-2xl border bg-card p-5 shadow-sm">
+        <div className="text-sm text-muted-foreground">Cash in the bank</div>
+        <div
+          className={cn(
+            "font-display text-4xl mt-1",
+            state.cash < 0 && "text-[color:var(--color-expense)]",
+          )}
+        >
+          {fmtMoneyExact(state.cash)}
+        </div>
+        <div className="grid grid-cols-2 gap-3 mt-5">
+          <div className="rounded-xl bg-muted/50 p-3">
+            <div className="text-xs text-muted-foreground">Weekly fixed net</div>
+            <div
+              className={cn(
+                "font-display text-xl",
+                recurringNet >= 0
+                  ? "text-[color:var(--color-income)]"
+                  : "text-[color:var(--color-expense)]",
+              )}
+            >
+              {recurringNet >= 0 ? "+" : ""}
+              {fmtMoney(recurringNet)}
+            </div>
+          </div>
+          <div className="rounded-xl bg-muted/50 p-3">
+            <div className="text-xs text-muted-foreground">Recommended reserve</div>
+            <div className="font-display text-xl">{fmtMoney(reserve)}</div>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid grid-cols-2 gap-3">
+        <FinanceAction
+          icon={<Landmark className="size-7" />}
+          title="Financial health"
+          value={health.label}
+          sub={`${health.coverMonths.toFixed(1)} months cover`}
+          onClick={() => setView("health")}
+        />
+        <FinanceAction
+          icon={<ArrowUpRight className="size-7" />}
+          title="Income"
+          value={fmtMoney(incomeTotal)}
+          sub="This season"
+          onClick={() => setView("income")}
+        />
+        <FinanceAction
+          icon={<ReceiptText className="size-7" />}
+          title="Expenses"
+          value={fmtMoney(expenseTotal)}
+          sub="This season"
+          onClick={() => setView("expenses")}
+        />
+        <FinanceAction
+          icon={<CircleDollarSign className="size-7" />}
+          title="Season result"
+          value={`${incomeTotal - expenseTotal >= 0 ? "+" : ""}${fmtMoney(incomeTotal - expenseTotal)}`}
+          sub="Income minus expenses"
+          onClick={() => setView(incomeTotal >= expenseTotal ? "income" : "expenses")}
+        />
+      </div>
+
+      <div className="rounded-2xl border bg-card p-4 text-sm text-muted-foreground flex items-start gap-3">
+        <PieChartIcon className="size-5 shrink-0 mt-0.5" />
+        <span>
+          Charts and category breakdowns are still here, but they now sit behind Income and Expenses
+          rather than dominating the first screen.
+        </span>
+      </div>
     </div>
   );
+}
+
+function FinanceAction({
+  icon,
+  title,
+  value,
+  sub,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  value: string;
+  sub: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="min-h-32 rounded-2xl border bg-card p-4 text-left flex flex-col justify-between hover:border-primary/50 transition-colors"
+    >
+      <div className="size-11 rounded-xl bg-primary/10 text-primary grid place-items-center">
+        {icon}
+      </div>
+      <div className="mt-4">
+        <div className="text-sm font-semibold text-muted-foreground">{title}</div>
+        <div className="font-display text-2xl leading-tight mt-0.5">{value}</div>
+        <div className="text-xs text-muted-foreground mt-1">{sub}</div>
+      </div>
+    </button>
+  );
+}
+
+const CHART_COLORS = [
+  "var(--color-chart-1)",
+  "var(--color-chart-2)",
+  "var(--color-chart-3)",
+  "var(--color-chart-4)",
+  "var(--color-chart-5)",
+  "var(--color-primary)",
+  "var(--color-accent)",
+];
+
+function pieData(totals: Record<string, number>) {
+  return Object.entries(totals)
+    .filter(([, v]) => v > 0)
+    .map(([k, v]) => ({ name: label(k), value: v }));
 }
 
 function label(k: string) {
@@ -121,7 +267,7 @@ export function BreakdownTable({
   return (
     <div className="mt-3 divide-y text-sm">
       {Object.entries(totals).map(([k, v]) => (
-        <div key={k} className="flex justify-between py-1.5">
+        <div key={k} className="flex justify-between py-2">
           <span className="text-muted-foreground">{label(k)}</span>
           <span
             className={cn(
@@ -135,7 +281,7 @@ export function BreakdownTable({
           </span>
         </div>
       ))}
-      <div className="flex justify-between py-2 font-semibold">
+      <div className="flex justify-between py-3 font-semibold">
         <span>Total</span>
         <span className="tnum">{fmtMoneyExact(total)}</span>
       </div>

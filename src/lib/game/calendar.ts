@@ -1,27 +1,28 @@
 /* Season calendar — extracted from engine.ts in Phase 0c.
- * Pure calendar knowledge: no state mutation, no domain logic.
+ * Pure calendar knowledge: no domain mutation outside the dedicated clock flag.
  */
 import type { GameState } from "./types";
 
 export const CALENDAR = {
   preSeasonStart: 1,
-  preSeasonEnd: 4, // weeks 1-4: pre-season window open, friendlies
+  preSeasonEnd: 4,
   firstHalfStart: 5,
-  firstHalfEnd: 23, // weeks 5-23: league round 1 (19 home)
+  firstHalfEnd: 23,
   midSeasonStart: 24,
-  midSeasonEnd: 27, // weeks 24-27: mid-season window open, friendlies
+  midSeasonEnd: 27,
   secondHalfStart: 28,
-  secondHalfEnd: 46, // weeks 28-46: league round 2 (19 away)
+  secondHalfEnd: 46,
   seasonEnd: 46,
 } as const;
 
 export const SEASON_END_WEEK = CALENDAR.seasonEnd;
-// Legacy exports kept for compatibility
 export const WINDOW_PRESEASON_END = CALENDAR.preSeasonEnd;
 export const WINDOW_MIDSEASON = CALENDAR.midSeasonStart;
 
-/** Weeks within pre/mid windows that stage a friendly (small gate, no league impact). */
 export const FRIENDLY_WEEKS = new Set<number>([2, 4, 25, 27]);
+export const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+export const MATCHDAY_INDEX = 5;
+const DAY_FLAG = "calendar.dayOfWeek";
 
 export type SeasonPhase = "preseason" | "firstHalf" | "midseason" | "secondHalf";
 
@@ -30,6 +31,25 @@ export function phaseOf(week: number): SeasonPhase {
   if (week <= CALENDAR.firstHalfEnd) return "firstHalf";
   if (week <= CALENDAR.midSeasonEnd) return "midseason";
   return "secondHalf";
+}
+
+export function calendarDay(state: GameState): number {
+  const raw = state.inboxFlags?.[DAY_FLAG];
+  if (typeof raw !== "number" || !Number.isInteger(raw)) return 0;
+  return Math.max(0, Math.min(6, raw));
+}
+
+export function calendarDayName(state: GameState): (typeof DAY_NAMES)[number] {
+  return DAY_NAMES[calendarDay(state)];
+}
+
+export function setCalendarDay(state: GameState, day: number): void {
+  state.inboxFlags ??= {};
+  state.inboxFlags[DAY_FLAG] = Math.max(0, Math.min(6, Math.trunc(day)));
+}
+
+export function isMatchday(state: GameState): boolean {
+  return calendarDay(state) === MATCHDAY_INDEX;
 }
 
 export function isTransferWindowOpen(s: GameState): boolean {
