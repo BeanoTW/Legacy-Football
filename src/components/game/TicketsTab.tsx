@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { Slider } from "@/components/ui/slider";
 import { avgTicketPrice, fmtMoney, fmtMoneyExact, totalCapacity } from "@/lib/game/engine";
 import { InfoTip, Section } from "./shared/primitives";
+import { DetailScreen } from "./shared/layout";
 
 export function TicketsTab({
   state,
@@ -66,7 +67,7 @@ export function TicketsTab({
           : null;
 
   return (
-    <div className="space-y-4">
+    <DetailScreen title="Ticket pricing" subtitle="Set prices per stand and watch demand respond.">
       <Section
         title="Ticket pricing model"
         info={
@@ -146,7 +147,7 @@ export function TicketsTab({
           </div>
         )}
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {rows.map(({ st, estAtt, revenue, priceFactor, rec, delta }) => {
             const overStand = st.ticketPrice / rec;
             const deltaTone =
@@ -251,6 +252,6 @@ export function TicketsTab({
           </div>
         </div>
       </Section>
-    </div>
+    </DetailScreen>
   );
 }
