@@ -124,13 +124,13 @@ function mergeBuckets(
 
 /**
  * Would this dedupe key ever be produced again by a future week?
- * Season-scoped and absolute-week-scoped keys never can, so archiving them
- * costs nothing and keeping them would grow forever.
+ * Season-scoped keys can only be dropped once their entire season is behind
+ * the live timeline. Absolute-week keys are intrinsically one-shot.
  */
-function isReplayableKey(key: string, archivedSeasons: Set<number>): boolean {
+function isReplayableKey(key: string, fullyArchivedSeasons: Set<number>): boolean {
   if (/:s(\d+)\b/.test(key)) {
     const m = key.match(/:s(\d+)\b/);
-    if (m && archivedSeasons.has(Number(m[1]))) return false;
+    if (m && fullyArchivedSeasons.has(Number(m[1]))) return false;
   }
   if (/^migrated:/.test(key)) return false;
   if (/:w\d+:/.test(key)) return false;
@@ -262,7 +262,8 @@ export function compactState(state: GameState): CompactionResult {
    * season have missed their gameplay context, so they become expired history
    * at the persistence boundary. Their full text and event keys are retained
    * in chunks; they simply stop pinning live state forever. Informational and
-   * resolved rows also move out after the recent tail. */
+   * resolved rows also move out after the recent tail. Current-season compacted
+   * events keep a dedupe guard so generators cannot recreate them. */
   const hotInbox: InboxItem[] = [];
   const archivedInbox: InboxItem[] = [];
   for (const it of core.inbox ?? []) {
@@ -284,10 +285,14 @@ export function compactState(state: GameState): CompactionResult {
     }
   }
   if (archivedInbox.length) {
-    const archivedSeasons = new Set(archivedInbox.map((i) => i.season));
+    const fullyArchivedSeasons = new Set(
+      archivedInbox.filter((i) => i.season < season).map((i) => i.season),
+    );
     for (const it of archivedInbox) {
       pushChunk(chunks, "history:inbox", it.season, it);
-      if (isReplayableKey(it.eventKey, archivedSeasons)) archive.inbox.guardKeys.push(it.eventKey);
+      if (isReplayableKey(it.eventKey, fullyArchivedSeasons)) {
+        archive.inbox.guardKeys.push(it.eventKey);
+      }
     }
     archive.inbox.count += archivedInbox.length;
     archive.inbox.guardKeys = [...new Set(archive.inbox.guardKeys)].sort();
