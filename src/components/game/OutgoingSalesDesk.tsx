@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, BadgePoundSterling, Handshake, Tag } from "lucide-react";
+import { ArrowLeft, BadgePoundSterling, Tag } from "lucide-react";
 import type { FootballPlayer, GameState } from "@/lib/game/types";
 import {
   activeContract,
@@ -51,10 +51,13 @@ export function OutgoingSalesDesk({
         <div className="panel-strip p-5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <div className="text-[10px] uppercase tracking-[0.2em] opacity-70">Transfer department</div>
+              <div className="text-[10px] uppercase tracking-[0.2em] opacity-70">
+                Transfer department
+              </div>
               <h1 className="font-display text-3xl">Sell players</h1>
               <p className="mt-1 max-w-2xl text-sm opacity-80">
-                Put players on the market, set your preferred asking price and negotiate when clubs make an approach.
+                Put players on the market, set your preferred asking price and negotiate when clubs
+                make an approach.
               </p>
             </div>
             <BadgePoundSterling className="size-8 opacity-70" />
@@ -70,15 +73,15 @@ export function OutgoingSalesDesk({
         </div>
       </section>
 
-      {note && (
-        <div className="rounded-xl border bg-muted/40 px-4 py-3 text-sm">{note}</div>
-      )}
+      {note && <div className="rounded-xl border bg-muted/40 px-4 py-3 text-sm">{note}</div>}
 
       {offers.length > 0 && (
         <section className="space-y-3">
           <div>
             <h2 className="font-display text-2xl">Offers on the table</h2>
-            <p className="text-sm text-muted-foreground">These are actionable bids from other clubs.</p>
+            <p className="text-sm text-muted-foreground">
+              These are actionable bids from other clubs.
+            </p>
           </div>
           {offers.map((offer) => {
             const player = playerById(state, offer.playerId);
@@ -96,20 +99,31 @@ export function OutgoingSalesDesk({
                 </div>
                 <div className="mt-3 rounded-xl bg-muted/40 p-3 text-sm">
                   Your preferred asking price is <strong>{fmtMoneyExact(ask)}</strong>.
-                  {offerFee >= ask ? " The bid meets it." : ` The bid is ${fmtMoneyExact(ask - offerFee)} short.`}
+                  {offerFee >= ask
+                    ? " The bid meets it."
+                    : ` The bid is ${fmtMoneyExact(ask - offerFee)} short.`}
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Button size="sm" onClick={() => act((s) => respondToIncomingOffer(s, offer.id, "accept"))}>
+                  <Button
+                    size="sm"
+                    onClick={() => act((s) => respondToIncomingOffer(s, offer.id, "accept"))}
+                  >
                     Accept {fmtMoney(offerFee)}
                   </Button>
                   <Button
                     size="sm"
                     variant="secondary"
-                    onClick={() => act((s) => respondToIncomingOffer(s, offer.id, "counter", ask))}
+                    onClick={() =>
+                      act((s) => respondToIncomingOffer(s, offer.id, "counter", ask))
+                    }
                   >
                     Counter at {fmtMoney(ask)}
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => act((s) => respondToIncomingOffer(s, offer.id, "reject"))}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => act((s) => respondToIncomingOffer(s, offer.id, "reject"))}
+                  >
                     Reject
                   </Button>
                 </div>
@@ -126,7 +140,8 @@ export function OutgoingSalesDesk({
             <h2 className="font-display text-xl">Your squad</h2>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Listing a player makes him available to AI clubs during the transfer window. The asking price is your negotiation target, not a guaranteed sale price.
+            Listing a player makes him available to AI clubs during the transfer window. The asking
+            price is your negotiation target, not a guaranteed sale price.
           </p>
         </div>
         <div className="divide-y">
@@ -134,7 +149,13 @@ export function OutgoingSalesDesk({
             .slice()
             .sort((a, b) => b.marketValue - a.marketValue)
             .map((player) => (
-              <SaleRow key={player.id} state={state} player={player} update={update} act={act} />
+              <SaleRow
+                key={player.id}
+                state={state}
+                player={player}
+                update={update}
+                act={act}
+              />
             ))}
         </div>
       </section>
@@ -184,7 +205,9 @@ function SaleRow({
         <Button
           size="sm"
           variant={listed ? "secondary" : "default"}
-          onClick={() => act((s) => setTransferStatus(s, player.id, listed ? "unlisted" : "listed"))}
+          onClick={() =>
+            act((s) => setTransferStatus(s, player.id, listed ? "unlisted" : "listed"))
+          }
         >
           {listed ? "Remove listing" : "List for transfer"}
         </Button>
@@ -199,7 +222,9 @@ function PlayerSummary({ player, state }: { player: FootballPlayer; state: GameS
     <div className="min-w-0">
       <div className="flex flex-wrap items-center gap-2">
         <div className="truncate font-semibold">{playerName(player)}</div>
-        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold">{player.primaryPosition}</span>
+        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold">
+          {player.primaryPosition}
+        </span>
         {player.transferStatus === "listed" && (
           <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">
             LISTED
