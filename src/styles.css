@@ -170,7 +170,13 @@
   height: 100%;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
+  /* Safety net: the outer shell never scrolls, so any screen that overflows
+     its bounded region scrolls internally rather than clipping behind the
+     fixed Continue bar. */
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 @utility screen-scroll {
