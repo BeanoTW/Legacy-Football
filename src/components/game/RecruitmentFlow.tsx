@@ -8,6 +8,7 @@ import { OutgoingSalesDesk } from "./OutgoingSalesDesk";
 import { Button } from "@/components/ui/button";
 import { fmtMoneyExact } from "@/lib/game/engine";
 import { openNegotiations, recruitmentSnapshot, shortlistIds } from "@/lib/game/recruitment";
+import { OverviewScreen, WorkflowTile } from "./shared/layout";
 
 type View = "home" | "operations" | "scout" | "squad" | "sales";
 
