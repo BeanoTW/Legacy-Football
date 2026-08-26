@@ -14,7 +14,9 @@ import {
   playerById,
   playerName,
   respondToIncomingOffer,
+  userWageBill,
   userSquad,
+  weeksLeftOnContract,
   withdrawFromTalks,
 } from "@/lib/game/recruitment";
 
@@ -27,6 +29,7 @@ export function RecruitmentOperations({
 }) {
   const [view, setView] = useState<"squad" | "deals">("squad");
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  const [squadLens, setSquadLens] = useState<"position" | "contracts" | "wages">("position");
   const [wageOffers, setWageOffers] = useState<Record<string, string>>({});
   const [actionNote, setActionNote] = useState<string | null>(null);
   const act = (
@@ -50,6 +53,54 @@ export function RecruitmentOperations({
       })),
     [squad],
   );
+  const squadWithContracts = squad.map((player) => ({
+    player,
+    contract: activeContract(state, player.id),
+  }));
+  const expiringCount = squadWithContracts.filter(
+    ({ contract }) => contract && weeksLeftOnContract(state, contract) <= 52,
+  ).length;
+  const positionNeeds = positionGroups
+    .filter(({ position, players }) =>
+      position === "GK" ? players.length < 2 : players.length < (position === "FWD" ? 4 : 5),
+    )
+    .map(({ position }) => position);
+  const lensPlayers = [...squadWithContracts].sort((a, b) => {
+    if (squadLens === "wages") return (b.contract?.weeklyWage ?? 0) - (a.contract?.weeklyWage ?? 0);
+    return (
+      (a.contract ? weeksLeftOnContract(state, a.contract) : -1) -
+      (b.contract ? weeksLeftOnContract(state, b.contract) : -1)
+    );
+  });
+
+  const playerRow = (player: (typeof squad)[number]) => {
+    const contract = activeContract(state, player.id);
+    const weeksLeft = contract ? weeksLeftOnContract(state, contract) : 0;
+    return (
+      <button
+        key={player.id}
+        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
+        onClick={() => setSelectedPlayerId(player.id)}
+      >
+        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-xs font-bold text-primary">
+          {player.primaryPosition}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-semibold">{playerName(player)}</span>
+          <span className="block truncate text-xs text-muted-foreground">
+            Age {ageOf(player, state.season)} · {contract?.squadRole ?? "Unregistered"}
+          </span>
+        </span>
+        <span className="shrink-0 text-right text-sm">
+          <span className="block">{contract ? `${fmtMoneyExact(contract.weeklyWage)}/wk` : "No deal"}</span>
+          <span className={weeksLeft <= 52 ? "block text-xs font-semibold text-amber-600" : "block text-xs text-muted-foreground"}>
+            {contract ? `${weeksLeft} weeks left` : "No contract"}
+          </span>
+        </span>
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+      </button>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -73,41 +124,47 @@ export function RecruitmentOperations({
           <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
             Select a player to view abilities, profile and contract details.
           </div>
-          {positionGroups.map(({ position, players }) =>
-            players.length ? (
-              <section key={position} className="overflow-hidden rounded-2xl border bg-card">
-                <div className="border-b bg-muted/40 px-4 py-2 text-xs font-bold uppercase tracking-wider">
-                  {position} · {players.length}
-                </div>
-                <div className="divide-y">
-                  {players.map((player) => {
-                    const contract = activeContract(state, player.id);
-                    return (
-                      <button
-                        key={player.id}
-                        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
-                        onClick={() => setSelectedPlayerId(player.id)}
-                      >
-                        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-xs font-bold text-primary">
-                          {player.primaryPosition}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate font-semibold">{playerName(player)}</span>
-                          <span className="block truncate text-xs text-muted-foreground">
-                            Age {ageOf(player, state.season)} · {contract?.squadRole ?? "Unregistered"}
-                          </span>
-                        </span>
-                        <span className="shrink-0 text-right text-sm">
-                          <span className="block">{contract ? `${fmtMoneyExact(contract.weeklyWage)}/wk` : "No deal"}</span>
-                          <span className="block text-xs text-muted-foreground">{fmtMoney(player.marketValue)}</span>
-                        </span>
-                        <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-                      </button>
-                    );
-                  })}
-                </div>
-              </section>
-            ) : null,
+          <div className="grid grid-cols-3 gap-2">
+            <PlanningMetric label="Squad" value={String(squad.length)} />
+            <PlanningMetric label="Expiring" value={String(expiringCount)} urgent={expiringCount > 0} />
+            <PlanningMetric label="Wages" value={`${fmtMoney(userWageBill(state))}/wk`} />
+          </div>
+          {positionNeeds.length > 0 && (
+            <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+              <strong>Depth warning:</strong> recruitment cover recommended at {positionNeeds.join(", ")}.
+            </div>
+          )}
+          <div className="grid grid-cols-3 gap-2">
+            {(["position", "contracts", "wages"] as const).map((lens) => (
+              <Button
+                key={lens}
+                size="sm"
+                variant={squadLens === lens ? "default" : "outline"}
+                onClick={() => setSquadLens(lens)}
+                className="capitalize"
+              >
+                {lens}
+              </Button>
+            ))}
+          </div>
+          {squadLens === "position" ? (
+            positionGroups.map(({ position, players }) =>
+              players.length ? (
+                <section key={position} className="overflow-hidden rounded-2xl border bg-card">
+                  <div className="border-b bg-muted/40 px-4 py-2 text-xs font-bold uppercase tracking-wider">
+                    {position} · {players.length}
+                  </div>
+                  <div className="divide-y">{players.map(playerRow)}</div>
+                </section>
+              ) : null,
+            )
+          ) : (
+            <section className="overflow-hidden rounded-2xl border bg-card">
+              <div className="border-b bg-muted/40 px-4 py-2 text-xs font-bold uppercase tracking-wider">
+                {squadLens === "contracts" ? "Shortest contracts first" : "Highest wages first"}
+              </div>
+              <div className="divide-y">{lensPlayers.map(({ player }) => playerRow(player))}</div>
+            </section>
           )}
         </div>
       ) : (
@@ -299,6 +356,23 @@ function ProfileFact({ label, value }: { label: string; value: string }) {
     <div className="rounded-xl bg-muted/40 p-3">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="mt-1 font-semibold">{value}</div>
+    </div>
+  );
+}
+
+function PlanningMetric({
+  label,
+  value,
+  urgent = false,
+}: {
+  label: string;
+  value: string;
+  urgent?: boolean;
+}) {
+  return (
+    <div className="rounded-xl border bg-card p-3 text-center">
+      <div className={urgent ? "font-display text-xl text-amber-600" : "font-display text-xl"}>{value}</div>
+      <div className="text-xs text-muted-foreground">{label}</div>
     </div>
   );
 }
