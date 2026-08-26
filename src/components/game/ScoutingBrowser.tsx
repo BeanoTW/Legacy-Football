@@ -1,12 +1,15 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, Binoculars, CheckCircle2, Handshake } from "lucide-react";
+import { ArrowLeft, Binoculars, CheckCircle2, Handshake, Star } from "lucide-react";
 import type { GameState, Position } from "@/lib/game/types";
 import {
   askingPrice,
   transferMarket,
   playerName,
   ageOf,
+  playerInterestAssessment,
+  shortlistIds,
   submitTransferOffer,
+  toggleShortlist,
 } from "@/lib/game/recruitment";
 import { scoutingAssignment, scoutingReport, startScouting } from "@/lib/game/scouting";
 import { fmtMoney } from "@/lib/game/engine";
@@ -25,13 +28,15 @@ export function ScoutingBrowser({
   onBack: () => void;
 }) {
   const [position, setPosition] = useState<Position | "ALL">("ALL");
+  const [watchedOnly, setWatchedOnly] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const rows = useMemo(
     () =>
       transferMarket(state)
         .filter((entry) => position === "ALL" || entry.player.primaryPosition === position)
+        .filter((entry) => !watchedOnly || shortlistIds(state).includes(entry.player.id))
         .slice(0, 40),
-    [state, position],
+    [state, position, watchedOnly],
   );
   const bid = (playerId: string, fee: number) =>
     update((s) => {
@@ -66,11 +71,22 @@ export function ScoutingBrowser({
             {p}
           </button>
         ))}
+        <button
+          onClick={() => setWatchedOnly((value) => !value)}
+          className={cn(
+            "ml-auto px-3 py-2 rounded-xl border text-sm font-semibold",
+            watchedOnly ? "bg-amber-500 text-white border-amber-500" : "bg-card",
+          )}
+        >
+          <Star className="mr-1 inline size-4" /> Watched
+        </button>
       </div>
       <div className="space-y-3">
         {rows.map(({ player }) => {
           const assignment = scoutingAssignment(state, player.id);
           const report = scoutingReport(state, player);
+          const interest = playerInterestAssessment(state, player);
+          const watched = shortlistIds(state).includes(player.id);
           const canBid = report.weeksObserved >= 2;
           return (
             <article key={player.id} className="rounded-2xl border bg-card p-4 shadow-sm">
@@ -126,8 +142,16 @@ export function ScoutingBrowser({
                     : "Unknown"}
                 </span>
                 <span>Personality {report.personalityKnown ? player.personality : "Unknown"}</span>
+                <span title={interest.reason}>Interest <strong>{interest.label}</strong></span>
               </div>
               <div className="mt-4 flex gap-2 flex-wrap items-center">
+                <Button
+                  variant={watched ? "default" : "outline"}
+                  onClick={() => update((s) => toggleShortlist(s, player.id))}
+                >
+                  <Star className={cn("size-4 mr-2", watched && "fill-current")} />
+                  {watched ? "Watched" : "Add to shortlist"}
+                </Button>
                 {!assignment ? (
                   <Button onClick={() => update((s) => startScouting(s, player.id))}>
                     <Binoculars className="size-4 mr-2" /> Scout player
@@ -158,3 +182,4 @@ export function ScoutingBrowser({
     </div>
   );
 }
+

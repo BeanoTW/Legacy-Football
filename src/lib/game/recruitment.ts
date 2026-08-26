@@ -1026,6 +1026,28 @@ export function availabilityReason(s: GameState, p: FootballPlayer): string | nu
   return null;
 }
 
+export interface PlayerInterestAssessment {
+  level: "keen" | "open" | "uncertain" | "unlikely";
+  label: string;
+  reason: string;
+}
+
+/** A readable pre-negotiation interest signal; precise terms still require talks. */
+export function playerInterestAssessment(s: GameState, p: FootballPlayer): PlayerInterestAssessment {
+  if (p.currentClubId === s.clubName)
+    return { level: "keen", label: "At your club", reason: "Already contracted to the club." };
+  const gap = clubReputation(s, s.clubName) - p.reputation;
+  if (p.currentClubId === null && gap >= -4)
+    return { level: "keen", label: "Keen", reason: "A suitable free agent who wants a route back into football." };
+  if (gap >= 8)
+    return { level: "keen", label: "Keen", reason: "The club's standing represents a clear step up." };
+  if (gap >= -4)
+    return { level: "open", label: "Open to talks", reason: "The move broadly matches his current reputation." };
+  if (gap >= -12)
+    return { level: "uncertain", label: "Needs convincing", reason: "Wages, role and the club's plans will matter." };
+  return { level: "unlikely", label: "Unlikely", reason: "He currently expects a club with a stronger reputation." };
+}
+
 /** Every player the user could realistically approach. Pure — no mutation. */
 export function transferMarket(s: GameState): MarketEntry[] {
   const out: MarketEntry[] = [];
@@ -2300,3 +2322,4 @@ export const setTransferStatus = (
 ) => cloned(s, (w) => setTransferStatusInPlace(w, playerId, status));
 
 export { SQUAD_ROLES };
+

@@ -31,6 +31,7 @@ export function RecruitmentOperations({
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [squadLens, setSquadLens] = useState<"position" | "contracts" | "wages">("position");
   const [wageOffers, setWageOffers] = useState<Record<string, string>>({});
+  const [feeOffers, setFeeOffers] = useState<Record<string, string>>({});
   const [actionNote, setActionNote] = useState<string | null>(null);
   const act = (
     fn: (s: GameState) => { state: GameState; result: { ok: boolean; reason: string } },
@@ -203,6 +204,32 @@ export function RecruitmentOperations({
                   Fee {fmtMoneyExact(n.clubCounterFee ?? n.fee)} · Wage{" "}
                   {fmtMoneyExact(n.proposedWeeklyWage)}/wk
                 </div>
+                {incoming && n.stage === "clubTalks" && (
+                  <div className="mt-4 rounded-xl border bg-muted/30 p-3">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Club negotiation
+                    </div>
+                    {n.clubCounterFee && (
+                      <div className="mt-1 text-sm">
+                        Selling club asks: <strong>{fmtMoneyExact(n.clubCounterFee)}</strong>
+                      </div>
+                    )}
+                    <label className="mt-3 block text-xs text-muted-foreground" htmlFor={`fee-${n.id}`}>
+                      Your revised transfer fee
+                    </label>
+                    <input
+                      id={`fee-${n.id}`}
+                      type="number"
+                      min={n.fee + 5000}
+                      step={5000}
+                      value={feeOffers[n.id] ?? String(n.clubCounterFee ?? n.fee + 5000)}
+                      onChange={(event) =>
+                        setFeeOffers((current) => ({ ...current, [n.id]: event.target.value }))
+                      }
+                      className="mt-1 h-10 w-full rounded-lg border bg-background px-3 tabular-nums"
+                    />
+                  </div>
+                )}
                 {incoming && n.stage === "playerTalks" && (
                   <div className="mt-4 rounded-xl border bg-muted/30 p-3">
                     <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -239,9 +266,13 @@ export function RecruitmentOperations({
                     <Button
                       size="sm"
                       variant="secondary"
-                      onClick={() => act((s) => improveTransferOffer(s, n.id))}
+                      onClick={() => {
+                        const fallback = n.clubCounterFee ?? n.fee + 5000;
+                        const fee = Number(feeOffers[n.id] ?? fallback);
+                        act((s) => improveTransferOffer(s, n.id, fee));
+                      }}
                     >
-                      Improve fee
+                      Submit counter-offer
                     </Button>
                   )}
                   {incoming && n.stage === "playerTalks" && (
