@@ -27,31 +27,31 @@ export function WorldInspector({ state }: { state: GameState }) {
   };
 
   return (
-    <div className="space-y-4">
-      <header className="flex items-end justify-between gap-4">
+    <div className="flex min-h-0 flex-col gap-3 lg:h-full">
+      <header className="flex shrink-0 items-end justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
+          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground sm:text-xs">
             <Globe2 className="size-4" /> Football world
           </div>
-          <h1 className="mt-1 font-display text-3xl">League tables</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Swipe sideways on mobile, or use the arrows, to move through the pyramid.
-          </p>
+          <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3">
+            <h1 className="font-display text-2xl sm:text-3xl">League tables</h1>
+            <p className="text-xs text-muted-foreground sm:text-sm">
+              Slide sideways to change division.
+            </p>
+          </div>
         </div>
         <div className="hidden text-right text-xs text-muted-foreground sm:block">
-          Season {state.season}
-          <br />
-          {leagues.length} divisions
+          Season {state.season} · {leagues.length} divisions
         </div>
       </header>
 
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">
+      <div className="flex shrink-0 items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none]">
         {leagues.map((item, itemIndex) => (
           <button
             key={item.id}
             onClick={() => setIndex(itemIndex)}
             className={cn(
-              "shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+              "shrink-0 rounded-full border px-3 py-1 text-xs font-semibold transition-colors",
               itemIndex === safeIndex
                 ? "border-primary bg-primary text-primary-foreground"
                 : "bg-card text-muted-foreground hover:bg-muted",
@@ -63,7 +63,7 @@ export function WorldInspector({ state }: { state: GameState }) {
       </div>
 
       <div
-        className="touch-pan-y overflow-hidden rounded-[1.5rem] border bg-card shadow-sm"
+        className="touch-pan-y flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-card shadow-sm"
         onTouchStart={(event) => {
           event.currentTarget.dataset.touchX = String(event.touches[0]?.clientX ?? 0);
         }}
@@ -74,18 +74,18 @@ export function WorldInspector({ state }: { state: GameState }) {
           move(end < start ? 1 : -1);
         }}
       >
-        <div className="panel-strip flex items-center justify-between gap-3 px-3 py-3 sm:px-4">
+        <div className="panel-strip flex shrink-0 items-center justify-between gap-3 px-3 py-2.5 sm:px-4">
           <button
             aria-label="Previous division"
             disabled={safeIndex === 0}
             onClick={() => move(-1)}
-            className="grid size-9 place-items-center rounded-xl bg-black/15 disabled:opacity-25"
+            className="grid size-8 place-items-center rounded-lg bg-black/15 disabled:opacity-25"
           >
-            <ChevronLeft className="size-5" />
+            <ChevronLeft className="size-4" />
           </button>
           <div className="min-w-0 text-center">
-            <div className="truncate font-display text-xl sm:text-2xl">{league.name}</div>
-            <div className="text-xs opacity-70">
+            <div className="truncate font-display text-lg sm:text-xl">{league.name}</div>
+            <div className="text-[11px] opacity-70">
               Tier {league.tier} · {league.clubIds.length} clubs
               {league.id === playerLeague ? " · Your division" : ""}
             </div>
@@ -94,24 +94,24 @@ export function WorldInspector({ state }: { state: GameState }) {
             aria-label="Next division"
             disabled={safeIndex === leagues.length - 1}
             onClick={() => move(1)}
-            className="grid size-9 place-items-center rounded-xl bg-black/15 disabled:opacity-25"
+            className="grid size-8 place-items-center rounded-lg bg-black/15 disabled:opacity-25"
           >
-            <ChevronRight className="size-5" />
+            <ChevronRight className="size-4" />
           </button>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="contained-scroll flex-1">
           <table className="w-full min-w-[430px] text-sm tnum">
-            <thead className="border-b bg-muted/30 text-[10px] uppercase tracking-wide text-muted-foreground">
+            <thead className="sticky top-0 z-[1] border-b bg-card text-[10px] uppercase tracking-wide text-muted-foreground shadow-sm">
               <tr>
-                <th className="w-10 px-3 py-2 text-left">#</th>
-                <th className="py-2 text-left">Club</th>
-                <th className="px-2 py-2 text-right">P</th>
-                <th className="px-2 py-2 text-right">W</th>
-                <th className="px-2 py-2 text-right">D</th>
-                <th className="px-2 py-2 text-right">L</th>
-                <th className="px-2 py-2 text-right">GD</th>
-                <th className="px-3 py-2 text-right">Pts</th>
+                <th className="w-10 px-3 py-1.5 text-left">#</th>
+                <th className="py-1.5 text-left">Club</th>
+                <th className="px-2 py-1.5 text-right">P</th>
+                <th className="px-2 py-1.5 text-right">W</th>
+                <th className="px-2 py-1.5 text-right">D</th>
+                <th className="px-2 py-1.5 text-right">L</th>
+                <th className="px-2 py-1.5 text-right">GD</th>
+                <th className="px-3 py-1.5 text-right">Pts</th>
               </tr>
             </thead>
             <tbody>
@@ -125,7 +125,7 @@ export function WorldInspector({ state }: { state: GameState }) {
                     key={row.team}
                     className={cn("border-b last:border-0", isMe && "bg-primary/10 font-semibold")}
                   >
-                    <td className="px-3 py-2.5 text-muted-foreground">
+                    <td className="px-3 py-1.5 text-muted-foreground">
                       <span
                         className={cn(
                           "inline-flex min-w-6 justify-center rounded-md px-1 py-0.5",
@@ -136,16 +136,16 @@ export function WorldInspector({ state }: { state: GameState }) {
                         {rowIndex + 1}
                       </span>
                     </td>
-                    <td className="max-w-48 truncate py-2.5 pr-2">
+                    <td className="max-w-48 truncate py-1.5 pr-2">
                       {row.team}
                       {isMe ? " · YOU" : ""}
                     </td>
-                    <td className="px-2 py-2.5 text-right text-muted-foreground">{row.p}</td>
-                    <td className="px-2 py-2.5 text-right">{row.w}</td>
-                    <td className="px-2 py-2.5 text-right">{row.d}</td>
-                    <td className="px-2 py-2.5 text-right">{row.l}</td>
-                    <td className="px-2 py-2.5 text-right">{row.gf - row.ga}</td>
-                    <td className="px-3 py-2.5 text-right font-display text-base">{row.pts}</td>
+                    <td className="px-2 py-1.5 text-right text-muted-foreground">{row.p}</td>
+                    <td className="px-2 py-1.5 text-right">{row.w}</td>
+                    <td className="px-2 py-1.5 text-right">{row.d}</td>
+                    <td className="px-2 py-1.5 text-right">{row.l}</td>
+                    <td className="px-2 py-1.5 text-right">{row.gf - row.ga}</td>
+                    <td className="px-3 py-1.5 text-right font-display text-base">{row.pts}</td>
                   </tr>
                 );
               })}
@@ -154,7 +154,7 @@ export function WorldInspector({ state }: { state: GameState }) {
         </div>
       </div>
 
-      <div className="flex items-center justify-center gap-1.5">
+      <div className="flex shrink-0 items-center justify-center gap-1.5">
         {leagues.map((item, itemIndex) => (
           <button
             key={item.id}
