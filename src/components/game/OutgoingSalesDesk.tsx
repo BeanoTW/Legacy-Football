@@ -42,25 +42,31 @@ export function OutgoingSalesDesk({
   };
 
   return (
-    <div className="space-y-5">
-      <Button variant="ghost" onClick={onBack}>
-        <ArrowLeft className="mr-2 size-4" /> Back to transfers
-      </Button>
+    <div className="flex min-h-0 flex-col gap-3 lg:h-full">
+      <div className="flex shrink-0 items-center gap-3">
+        <Button variant="ghost" size="sm" onClick={onBack}>
+          <ArrowLeft className="mr-2 size-4" /> Back to transfers
+        </Button>
+        {note && (
+          <div className="min-w-0 flex-1 truncate rounded-lg border bg-muted/40 px-3 py-2 text-xs">
+            {note}
+          </div>
+        )}
+      </div>
 
-      <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-        <div className="panel-strip p-5">
+      <section className="shrink-0 overflow-hidden rounded-xl border bg-card shadow-sm">
+        <div className="panel-strip px-4 py-3">
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="text-[10px] uppercase tracking-[0.2em] opacity-70">
                 Transfer department
               </div>
-              <h1 className="font-display text-3xl">Sell players</h1>
-              <p className="mt-1 max-w-2xl text-sm opacity-80">
-                Put players on the market, set your preferred asking price and negotiate when clubs
-                make an approach.
+              <h1 className="font-display text-2xl">Sell players</h1>
+              <p className="mt-0.5 max-w-2xl text-xs opacity-80 sm:text-sm">
+                Put players on the market, set an asking price and negotiate incoming bids.
               </p>
             </div>
-            <BadgePoundSterling className="size-8 opacity-70" />
+            <BadgePoundSterling className="size-7 opacity-70" />
           </div>
         </div>
         <div className="grid grid-cols-3 divide-x text-center">
@@ -73,92 +79,97 @@ export function OutgoingSalesDesk({
         </div>
       </section>
 
-      {note && <div className="rounded-xl border bg-muted/40 px-4 py-3 text-sm">{note}</div>}
+      <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.5fr)]">
+        <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border bg-card shadow-sm">
+          <div className="shrink-0 border-b px-4 py-2.5">
+            <h2 className="font-display text-lg">Offers on the table</h2>
+            <p className="text-[11px] text-muted-foreground">Actionable bids from other clubs.</p>
+          </div>
+          <div className="contained-scroll flex-1 p-3">
+            {offers.length === 0 ? (
+              <div className="grid h-full min-h-28 place-items-center rounded-lg border border-dashed text-center text-xs text-muted-foreground">
+                No live bids. Listing players makes them available to AI clubs during the window.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {offers.map((offer) => {
+                  const player = playerById(state, offer.playerId);
+                  if (!player) return null;
+                  const ask = askingPricePreference(state, player);
+                  const offerFee = offer.clubCounterFee ?? offer.fee;
+                  return (
+                    <div key={offer.id} className="rounded-lg border bg-background/40 p-3">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <PlayerSummary player={player} state={state} />
+                        <div className="text-right">
+                          <div className="font-display text-xl">{fmtMoneyExact(offerFee)}</div>
+                          <div className="text-[9px] uppercase text-muted-foreground">Current bid</div>
+                        </div>
+                      </div>
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        Ask {fmtMoneyExact(ask)}
+                        {offerFee >= ask
+                          ? " · meets your target"
+                          : ` · ${fmtMoneyExact(ask - offerFee)} short`}
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        <Button
+                          size="sm"
+                          onClick={() => act((s) => respondToIncomingOffer(s, offer.id, "accept"))}
+                        >
+                          Accept
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() =>
+                            act((s) => respondToIncomingOffer(s, offer.id, "counter", ask))
+                          }
+                        >
+                          Counter {fmtMoney(ask)}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => act((s) => respondToIncomingOffer(s, offer.id, "reject"))}
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </section>
 
-      {offers.length > 0 && (
-        <section className="space-y-3">
-          <div>
-            <h2 className="font-display text-2xl">Offers on the table</h2>
-            <p className="text-sm text-muted-foreground">
-              These are actionable bids from other clubs.
+        <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border bg-card shadow-sm">
+          <div className="shrink-0 border-b px-4 py-2.5">
+            <div className="flex items-center gap-2">
+              <Tag className="size-4 text-primary" />
+              <h2 className="font-display text-lg">Your squad</h2>
+            </div>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Set an asking target and list players without turning this into a long page.
             </p>
           </div>
-          {offers.map((offer) => {
-            const player = playerById(state, offer.playerId);
-            if (!player) return null;
-            const ask = askingPricePreference(state, player);
-            const offerFee = offer.clubCounterFee ?? offer.fee;
-            return (
-              <div key={offer.id} className="rounded-2xl border bg-card p-4 shadow-sm">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <PlayerSummary player={player} state={state} />
-                  <div className="text-right">
-                    <div className="font-display text-2xl">{fmtMoneyExact(offerFee)}</div>
-                    <div className="text-[10px] uppercase text-muted-foreground">Current bid</div>
-                  </div>
-                </div>
-                <div className="mt-3 rounded-xl bg-muted/40 p-3 text-sm">
-                  Your preferred asking price is <strong>{fmtMoneyExact(ask)}</strong>.
-                  {offerFee >= ask
-                    ? " The bid meets it."
-                    : ` The bid is ${fmtMoneyExact(ask - offerFee)} short.`}
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() => act((s) => respondToIncomingOffer(s, offer.id, "accept"))}
-                  >
-                    Accept {fmtMoney(offerFee)}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() =>
-                      act((s) => respondToIncomingOffer(s, offer.id, "counter", ask))
-                    }
-                  >
-                    Counter at {fmtMoney(ask)}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => act((s) => respondToIncomingOffer(s, offer.id, "reject"))}
-                  >
-                    Reject
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
-        </section>
-      )}
-
-      <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-        <div className="border-b px-4 py-3">
-          <div className="flex items-center gap-2">
-            <Tag className="size-5 text-primary" />
-            <h2 className="font-display text-xl">Your squad</h2>
+          <div className="contained-scroll flex-1 divide-y">
+            {squad
+              .slice()
+              .sort((a, b) => b.marketValue - a.marketValue)
+              .map((player) => (
+                <SaleRow
+                  key={player.id}
+                  state={state}
+                  player={player}
+                  update={update}
+                  act={act}
+                />
+              ))}
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Listing a player makes him available to AI clubs during the transfer window. The asking
-            price is your negotiation target, not a guaranteed sale price.
-          </p>
-        </div>
-        <div className="divide-y">
-          {squad
-            .slice()
-            .sort((a, b) => b.marketValue - a.marketValue)
-            .map((player) => (
-              <SaleRow
-                key={player.id}
-                state={state}
-                player={player}
-                update={update}
-                act={act}
-              />
-            ))}
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
   );
 }
@@ -189,19 +200,17 @@ function SaleRow({
   };
 
   return (
-    <div className="grid gap-3 px-4 py-4 lg:grid-cols-[1fr_auto] lg:items-center">
+    <div className="grid gap-2 px-3 py-2.5 sm:grid-cols-[1fr_auto] sm:items-center">
       <PlayerSummary player={player} state={state} />
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] uppercase text-muted-foreground">Ask</span>
-          <Input
-            aria-label={`Asking price for ${playerName(player)}`}
-            value={draft}
-            onChange={(event) => setDraft(event.target.value.replace(/[^0-9]/g, ""))}
-            onBlur={saveAsk}
-            className="h-8 w-28 tnum"
-          />
-        </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-[9px] uppercase text-muted-foreground">Ask</span>
+        <Input
+          aria-label={`Asking price for ${playerName(player)}`}
+          value={draft}
+          onChange={(event) => setDraft(event.target.value.replace(/[^0-9]/g, ""))}
+          onBlur={saveAsk}
+          className="h-8 w-24 tnum text-xs"
+        />
         <Button
           size="sm"
           variant={listed ? "secondary" : "default"}
@@ -209,7 +218,7 @@ function SaleRow({
             act((s) => setTransferStatus(s, player.id, listed ? "unlisted" : "listed"))
           }
         >
-          {listed ? "Remove listing" : "List for transfer"}
+          {listed ? "Unlist" : "List"}
         </Button>
       </div>
     </div>
@@ -220,18 +229,18 @@ function PlayerSummary({ player, state }: { player: FootballPlayer; state: GameS
   const contract = activeContract(state, player.id);
   return (
     <div className="min-w-0">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="truncate font-semibold">{playerName(player)}</div>
-        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <div className="truncate text-sm font-semibold">{playerName(player)}</div>
+        <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-bold">
           {player.primaryPosition}
         </span>
         {player.transferStatus === "listed" && (
-          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 dark:text-amber-300">
+          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 dark:text-amber-300">
             LISTED
           </span>
         )}
       </div>
-      <div className="mt-0.5 text-xs text-muted-foreground">
+      <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
         Ability {player.currentAbility} · Value {fmtMoneyExact(player.marketValue)}
         {contract ? ` · ${fmtMoneyExact(contract.weeklyWage)}/wk` : ""}
       </div>
@@ -248,9 +257,9 @@ function askingPricePreference(state: GameState, player: FootballPlayer): number
 
 function Summary({ label, value }: { label: string; value: string }) {
   return (
-    <div className="p-3">
-      <div className="font-display text-2xl">{value}</div>
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+    <div className="px-2 py-2">
+      <div className="font-display text-xl">{value}</div>
+      <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</div>
     </div>
   );
 }
