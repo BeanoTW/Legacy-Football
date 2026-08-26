@@ -11,12 +11,11 @@
  * This module NEVER mutates the state it is given and never runs inside
  * `advanceWeek`. It lives at the persistence boundary only.
  *
- * Retention rule of thumb: the CURRENT season stays hot in full. Older detail
- * moves out, except for narrow tails that the live simulation reads across a
- * season boundary (recent ledger weeks, recent gate receipts and live
- * commercial contract payments). Historical football and identity detail
- * remains available through history chunks rather than growing forever in the
- * hot core.
+ * Retention rule of thumb: the CURRENT season stays hot where live readers
+ * genuinely need it. Resolved communications and older detail can move out
+ * sooner, while unresolved decisions, unread messages and narrow historical
+ * tails remain in the core. Historical football and identity detail remains
+ * available through history chunks rather than growing forever in the hot core.
  */
 import type {
   ArchivedFinanceBucket,
@@ -39,6 +38,8 @@ export const RETAIN_LEDGER_WEEKS = 12;
 export const RETAIN_GATE_ENTRIES = 24;
 /** Trailing WeekLedger projection rows kept hot (board income estimate). */
 export const RETAIN_WEEK_ROWS = 8;
+/** Resolved inbox detail newer than this remains immediately available. */
+export const RETAIN_INBOX_WEEKS = 8;
 /** Prior identity seasons needed by the three-season reputation streak reader. */
 export const RETAIN_SNAPSHOT_SEASONS = 3;
 
@@ -174,6 +175,7 @@ export function compactState(state: GameState): CompactionResult {
   const season = core.season;
   const nowAbs = absoluteWeek(core.season, core.week);
   const ledgerFloor = nowAbs - RETAIN_LEDGER_WEEKS;
+  const inboxFloor = nowAbs - RETAIN_INBOX_WEEKS;
 
   /* ---- 1. Match records ---- */
   const hotMatches: MatchRecord[] = [];
@@ -255,16 +257,22 @@ export function compactState(state: GameState): CompactionResult {
     core.ledger = hotRows;
   }
 
-  /* ---- 4. Inbox ---- */
+  /* ---- 4. Inbox ----
+   * Unread messages and unresolved decisions stay hot regardless of age.
+   * Resolved/read/expired communications are retained for a short recent tail,
+   * then move to history even inside the current season. This prevents a busy
+   * inbox from becoming one of the largest permanent save structures. */
   const hotInbox: InboxItem[] = [];
   const archivedInbox: InboxItem[] = [];
   for (const it of core.inbox ?? []) {
-    const unresolved =
-      it.status === "awaitingDecision" || (it.choices?.length ? it.status === "unread" : false);
+    const unresolved = it.status === "awaitingDecision" || it.status === "unread";
     const unappliedConsequence =
       !!it.consequenceOnExpire && it.consequenceApplied !== true && it.status !== "completed";
-    const old = it.season < season;
-    if (old && !unresolved && !unappliedConsequence) archivedInbox.push(it);
+    const itemAbs = it.resolvedAtAbsoluteWeek ?? absoluteWeek(it.season, it.week);
+    const aged = itemAbs <= inboxFloor;
+    const fromPriorSeason = it.season < season;
+    const canArchive = !unresolved && !unappliedConsequence && (fromPriorSeason || aged);
+    if (canArchive) archivedInbox.push(it);
     else hotInbox.push(it);
   }
   if (archivedInbox.length) {
