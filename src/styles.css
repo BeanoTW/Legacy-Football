@@ -53,36 +53,25 @@
 
 :root {
   --radius: 0.5rem;
-
-  /* Football Chairman inspired: teal panels, cream cards, orange accent */
   --background: oklch(0.96 0.012 180);
   --foreground: oklch(0.2 0.02 220);
-
   --card: oklch(0.99 0.005 180);
   --card-foreground: oklch(0.2 0.02 220);
-
   --popover: oklch(0.99 0.005 180);
   --popover-foreground: oklch(0.2 0.02 220);
-
   --primary: oklch(0.55 0.08 190);
   --primary-foreground: oklch(0.99 0 0);
-
   --secondary: oklch(0.92 0.015 190);
   --secondary-foreground: oklch(0.25 0.03 220);
-
   --muted: oklch(0.94 0.01 200);
   --muted-foreground: oklch(0.48 0.02 220);
-
   --accent: oklch(0.75 0.15 65);
   --accent-foreground: oklch(0.2 0.02 220);
-
   --destructive: oklch(0.55 0.22 27);
   --destructive-foreground: oklch(0.99 0 0);
-
   --border: oklch(0.88 0.015 200);
   --input: oklch(0.88 0.015 200);
   --ring: oklch(0.55 0.08 190);
-
   --pitch: oklch(0.55 0.14 145);
   --banner: oklch(0.75 0.15 65);
   --banner-foreground: oklch(0.18 0.03 40);
@@ -91,7 +80,6 @@
   --subtle: oklch(0.92 0.008 200);
   --income: oklch(0.55 0.16 145);
   --expense: oklch(0.58 0.2 25);
-
   --chart-1: oklch(0.55 0.08 190);
   --chart-2: oklch(0.75 0.15 65);
   --chart-3: oklch(0.55 0.16 145);
@@ -125,9 +113,7 @@
 }
 
 @layer base {
-  * {
-    border-color: var(--color-border);
-  }
+  * { border-color: var(--color-border); }
   html,
   body {
     background-color: var(--color-background);
@@ -143,9 +129,7 @@
     font-family: var(--font-display);
     letter-spacing: 0.01em;
   }
-  .tnum {
-    font-variant-numeric: tabular-nums;
-  }
+  .tnum { font-variant-numeric: tabular-nums; }
 }
 
 @utility banner-strip {
@@ -165,26 +149,35 @@
 /*
  * Game-shell density contract
  * ---------------------------
- * Desktop behaves like a game UI, not a long document: chrome stays put and
- * the active screen owns the remaining viewport. Long collections scroll in
- * their own panels. Small screens keep natural document flow where forcing a
- * fixed viewport would make controls too cramped.
+ * The game owns one viewport. Persistent chrome stays fixed in the flex shell;
+ * only the active game surface gets the remaining space. Long data collections
+ * scroll inside bounded panels. Mobile navigation sits at the top and Continue
+ * remains thumb-reachable at the bottom.
  */
 @utility game-shell {
-  min-height: 100dvh;
+  height: 100dvh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background-color: var(--color-background);
 }
 
 @utility game-main {
+  flex: 1 1 0%;
+  min-height: 0;
   width: 100%;
   max-width: 72rem;
   margin-inline: auto;
-  padding: 0.75rem;
-  padding-bottom: 6rem;
+  padding: 0.5rem 0.65rem 4.5rem;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 @utility game-screen {
   min-width: 0;
+  min-height: 100%;
 }
 
 @utility contained-scroll {
@@ -194,33 +187,17 @@
   scrollbar-gutter: stable;
 }
 
-@media (min-width: 1024px) {
-  .game-shell {
-    height: 100dvh;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
+@media (min-width: 768px) {
   .game-main {
-    flex: 1 1 0%;
-    min-height: 0;
-    overflow: auto;
+    padding: 0.75rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .game-main {
     padding-block: 0.75rem;
-    overscroll-behavior: contain;
-    scrollbar-gutter: stable;
   }
 
-  .game-screen {
-    min-height: 100%;
-  }
-
-  .dense-panel {
-    border-radius: 0.75rem;
-  }
-
-  .dense-panel-row {
-    padding-block: 0.375rem;
-  }
+  .dense-panel { border-radius: 0.75rem; }
+  .dense-panel-row { padding-block: 0.375rem; }
 }

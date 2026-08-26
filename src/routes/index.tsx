@@ -16,6 +16,7 @@ import { BoardTab } from "@/components/BoardTab";
 import { CommercialTab } from "@/components/CommercialTab";
 import { ALL_TABS, DESKTOP_PRIMARY_TAB_IDS, type Tab } from "@/components/game/tabs";
 import { MobileNav } from "@/components/game/MobileNav";
+import { MobileContinueBar } from "@/components/game/MobileContinueBar";
 import { NewGame } from "@/components/game/NewGame";
 import { Kpi, TopBar } from "@/components/game/shared/primitives";
 import { ScreenBoundary } from "@/components/game/shared/ScreenBoundary";
@@ -98,30 +99,54 @@ function Game({
   stopContinue: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("hub");
+  const [decisionQueue, setDecisionQueue] = useState(false);
   const kpi = useMemo(() => ({ ...clubKpi(state), avgTicket: avgTicketPrice(state) }), [state]);
   const desktopPrimary = ALL_TABS.filter(([id]) => DESKTOP_PRIMARY_TAB_IDS.includes(id));
   const desktopMore = ALL_TABS.filter(([id]) => !DESKTOP_PRIMARY_TAB_IDS.includes(id));
+  const blockingDecisions = state.inbox.filter((item) => item.status === "awaitingDecision");
+  const phaseLabel = ({
+    preseason: "Pre-season",
+    firstHalf: "League — 1st half",
+    midseason: "Mid-season break",
+    secondHalf: "League — 2nd half",
+  } as const)[phaseOf(state.week)];
+
+  const requestContinue = () => {
+    if (blockingDecisions.length > 0) {
+      stopContinue();
+      setDecisionQueue(true);
+      setTab("inbox");
+      return;
+    }
+    startContinue();
+  };
+
+  const continueAction = isContinuing ? stopContinue : requestContinue;
 
   return (
     <div className="game-shell">
       <div className="shrink-0">
         <TopBar
           title={state.clubName}
-          subtitle={`Season ${state.season} · Week ${state.week}/${CALENDAR.seasonEnd} · ${({ preseason: "Pre-season", firstHalf: "League — 1st half", midseason: "Mid-season break", secondHalf: "League — 2nd half" } as const)[phaseOf(state.week)]}`}
+          subtitle={`Season ${state.season} · Week ${state.week}/${CALENDAR.seasonEnd} · ${phaseLabel}`}
           right={
-            <Button
-              size="sm"
-              variant={isContinuing ? "destructive" : "secondary"}
-              onClick={isContinuing ? stopContinue : startContinue}
-            >
-              {isContinuing ? <Pause className="size-4 mr-1" /> : <Play className="size-4 mr-1" />}
-              {isContinuing ? "Stop" : "Continue"}
-            </Button>
+            <div className="hidden md:block">
+              <Button
+                size="sm"
+                variant={isContinuing ? "destructive" : "secondary"}
+                onClick={continueAction}
+              >
+                {isContinuing ? <Pause className="size-4 mr-1" /> : <Play className="size-4 mr-1" />}
+                {isContinuing ? "Stop" : "Continue"}
+              </Button>
+            </div>
           }
         />
       </div>
 
-      {continueReason && !isContinuing && (
+      <MobileNav tab={tab} setTab={(next) => { setDecisionQueue(false); setTab(next); }} unread={unreadCount(state)} />
+
+      {continueReason && !isContinuing && !decisionQueue && (
         <div className="shrink-0 border-b bg-amber-500/10 text-amber-800 dark:text-amber-200">
           <div className="mx-auto max-w-6xl px-3 py-1.5 text-xs font-medium sm:text-sm">
             Time stopped: {continueReason}
@@ -166,7 +191,7 @@ function Game({
             {desktopPrimary.map(([id, label, Icon]) => (
               <button
                 key={id}
-                onClick={() => setTab(id)}
+                onClick={() => { setDecisionQueue(false); setTab(id); }}
                 className={cn(
                   "relative min-h-12 rounded-lg border px-3 py-1.5 flex items-center gap-2 transition-colors",
                   tab === id
@@ -192,19 +217,15 @@ function Game({
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[360px] sm:w-[420px]">
-              <SheetHeader>
-                <SheetTitle>More club areas</SheetTitle>
-              </SheetHeader>
+              <SheetHeader><SheetTitle>More club areas</SheetTitle></SheetHeader>
               <div className="grid grid-cols-2 gap-3 mt-6">
                 {desktopMore.map(([id, label, Icon]) => (
                   <SheetClose asChild key={id}>
                     <button
-                      onClick={() => setTab(id)}
+                      onClick={() => { setDecisionQueue(false); setTab(id); }}
                       className={cn(
                         "min-h-20 rounded-xl border p-3 flex flex-col items-start justify-between text-left font-semibold transition-colors",
-                        tab === id
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-card hover:bg-muted",
+                        tab === id ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-muted",
                       )}
                     >
                       <Icon className="size-5" />
@@ -221,16 +242,28 @@ function Game({
       <main className="game-main">
         <div className="game-screen">
           <ScreenBoundary name={ALL_TABS.find(([id]) => id === tab)?.[1] ?? tab}>
-            {tab === "inbox" && <InboxTab state={state} update={update} />}
+            {tab === "inbox" && (
+              <InboxTab
+                state={state}
+                update={update}
+                decisionQueue={decisionQueue}
+                onDecisionQueueCleared={() => {
+                  setDecisionQueue(false);
+                  setTab("hub");
+                }}
+              />
+            )}
             {tab === "hub" && (
-              <div className="space-y-3 lg:space-y-4">
-                <ChairmanContinuePanel
-                  state={state}
-                  isContinuing={isContinuing}
-                  startContinue={startContinue}
-                  stopContinue={stopContinue}
-                  openInbox={() => setTab("inbox")}
-                />
+              <div className="space-y-2 md:space-y-3 lg:space-y-4">
+                <div className="hidden md:block">
+                  <ChairmanContinuePanel
+                    state={state}
+                    isContinuing={isContinuing}
+                    startContinue={requestContinue}
+                    stopContinue={stopContinue}
+                    openInbox={() => setTab("inbox")}
+                  />
+                </div>
                 <ClubHub state={state} update={update} setTab={setTab} />
               </div>
             )}
@@ -250,10 +283,16 @@ function Game({
         </div>
       </main>
 
-      <MobileNav tab={tab} setTab={setTab} unread={unreadCount(state)} />
+      <MobileContinueBar
+        isContinuing={isContinuing}
+        startContinue={requestContinue}
+        stopContinue={stopContinue}
+        label={`W${state.week} · ${phaseLabel}`}
+      />
+
       {state.liveMatch && <MatchDayOverlay state={state} update={update} />}
 
-      <footer className="shrink-0 border-t bg-card lg:hidden">
+      <footer className="hidden shrink-0 border-t bg-card md:block lg:hidden">
         <div className="mx-auto max-w-6xl px-3 py-3 flex flex-wrap gap-2 items-center justify-between text-sm text-muted-foreground">
           <span>Autosaved to this device.</span>
           <Button
