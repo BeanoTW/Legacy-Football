@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { ArrowRight, Briefcase, Building2, CircleDollarSign, Heart, Mail, Play, Users } from "lucide-react";
 import type { GameState } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
-import { fmtMoney, phaseOf, startMatchDay, totalCapacity } from "@/lib/game/engine";
+import { fmtMoney, isMatchday, phaseOf, startMatchDay, totalCapacity } from "@/lib/game/engine";
 import { weeklyNetRecurring } from "@/lib/game/selectors/club";
 import { unreadCount } from "@/lib/game/inbox";
 import { financialHealth as canonicalFinancialHealth, sustainabilitySnapshot } from "@/lib/game/sustainability";
@@ -91,7 +91,8 @@ export function ClubHub({ state, update, setTab }: { state: GameState; update: (
 }
 
 function MatchStrip({ state, nextFixture, update }: { state: GameState; nextFixture: GameState["fixtures"][number] | undefined; update: (fn: (s: GameState) => GameState) => void }) {
-  return <div className="flex items-center gap-2 px-3 py-2 md:px-4"><div className="min-w-0 flex-1"><div className="text-[9px] md:text-xs font-bold uppercase tracking-wide text-muted-foreground">Next match · W{state.week}</div>{nextFixture ? <div className="mt-0.5 flex min-w-0 items-center gap-2"><span className="truncate font-display text-base md:text-xl">{nextFixture.home ? state.clubName : nextFixture.opponent}</span><span className="text-[10px] font-bold text-muted-foreground">v</span><span className="truncate font-display text-base md:text-xl">{nextFixture.home ? nextFixture.opponent : state.clubName}</span></div> : <div className="mt-0.5 truncate text-xs md:text-sm text-muted-foreground">{phaseOf(state.week) === "preseason" ? "Pre-season preparation" : phaseOf(state.week) === "midseason" ? "Mid-season break" : "No fixture this week"}</div>}</div>{nextFixture && <button onClick={() => update((s) => startMatchDay(s))} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground"><Play className="size-4" /> Match</button>}</div>;
+  const matchReady = !!nextFixture && isMatchday(state);
+  return <div className="flex items-center gap-2 px-3 py-2 md:px-4"><div className="min-w-0 flex-1"><div className="text-[9px] md:text-xs font-bold uppercase tracking-wide text-muted-foreground">Next match · W{state.week}</div>{nextFixture ? <div className="mt-0.5 flex min-w-0 items-center gap-2"><span className="truncate font-display text-base md:text-xl">{nextFixture.home ? state.clubName : nextFixture.opponent}</span><span className="text-[10px] font-bold text-muted-foreground">v</span><span className="truncate font-display text-base md:text-xl">{nextFixture.home ? nextFixture.opponent : state.clubName}</span></div> : <div className="mt-0.5 truncate text-xs md:text-sm text-muted-foreground">{phaseOf(state.week) === "preseason" ? "Pre-season preparation" : phaseOf(state.week) === "midseason" ? "Mid-season break" : "No fixture this week"}</div>}</div>{matchReady ? <button onClick={() => update((s) => startMatchDay(s))} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground"><Play className="size-4" /> Match</button> : nextFixture ? <div className="shrink-0 rounded-lg border px-3 py-2 text-[10px] font-semibold text-muted-foreground">Saturday</div> : null}</div>;
 }
 
 function LeaguePanel({ state, miniLeague, leagueSorted, setTab }: { state: GameState; miniLeague: GameState["league"]; leagueSorted: GameState["league"]; setTab: (t: Tab) => void }) {
