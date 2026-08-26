@@ -7,8 +7,10 @@ function assert(condition: unknown, message: string): asserts condition {
 }
 
 let state = newGame("Inbox City", "Ada Inbox", "INBOX|COMPACTION|FIXED");
-for (let i = 0; i < RETAIN_INBOX_WEEKS + 4; i++) state = advanceWeek(state);
+for (let i = 0; i < 46 + RETAIN_INBOX_WEEKS + 4; i++) state = advanceWeek(state);
+assert(state.season > 1, "verification must reach a later season");
 
+const priorSeason = state.season - 1;
 const base = {
   generatorId: "inbox-compaction-check",
   sender: "Club Secretary",
@@ -52,8 +54,8 @@ const awaitingDecision: InboxItem = {
 const staleActionable: InboxItem = {
   ...base,
   id: "check:stale-action",
-  eventKey: `check:stale-action:s${Math.max(1, state.season - 1)}`,
-  season: Math.max(1, state.season - 1),
+  eventKey: `check:stale-action:s${priorSeason}`,
+  season: priorSeason,
   category: "decision",
   status: "unread",
   choices: [{ id: "ok", label: "OK", effects: [] }],
@@ -61,8 +63,8 @@ const staleActionable: InboxItem = {
 const staleAwaiting: InboxItem = {
   ...base,
   id: "check:stale-awaiting",
-  eventKey: `check:stale-awaiting:s${Math.max(1, state.season - 1)}`,
-  season: Math.max(1, state.season - 1),
+  eventKey: `check:stale-awaiting:s${priorSeason}`,
+  season: priorSeason,
   category: "decision",
   status: "awaitingDecision",
   choices: [{ id: "ok", label: "OK", effects: [] }],
