@@ -1,18 +1,22 @@
 name: CI cleanup formatter
 
 on:
-  push:
+  pull_request:
     branches:
-      - chatgpt/ci-cleanup-final
+      - main
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
 
 jobs:
   format-and-verify:
+    if: github.head_ref == 'chatgpt/ci-cleanup-final'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -30,4 +34,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "Normalize formatting and line endings"
-          git push
+          git push origin HEAD:${{ github.head_ref }}
