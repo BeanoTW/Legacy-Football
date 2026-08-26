@@ -303,25 +303,24 @@ export function StaffTab({
   }
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="font-display text-3xl">Staff</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Appoint the right people and keep an eye on contracts as careers move on.
-        </p>
-      </div>
-
-      <section className="rounded-2xl border bg-card p-5 shadow-sm">
-        <div className="text-sm text-muted-foreground">Manager</div>
-        <div className="font-display text-3xl mt-1">{manager ? manager.name : "Vacant"}</div>
-        <div className="text-sm text-muted-foreground mt-1">
+    <OverviewScreen
+      title="Staff"
+      subtitle="Appoint the right people and keep an eye on contracts."
+      className="grid content-start gap-2 md:gap-3 xl:grid-cols-[minmax(320px,.9fr)_minmax(0,1.6fr)] xl:content-stretch"
+    >
+      <section className="flex flex-col justify-center rounded-xl border bg-card p-3 shadow-sm md:p-4">
+        <div className="text-xs text-muted-foreground">Manager</div>
+        <div className="truncate font-display text-2xl leading-tight md:text-3xl">
+          {manager ? manager.name : "Vacant"}
+        </div>
+        <div className="mt-0.5 text-xs text-muted-foreground md:text-sm">
           {manager
             ? `Rating ${manager.rating} · ${fmtMoneyExact(manager.wage)}/wk · ${manager.contractWeeks} weeks left`
             : "Your most important football appointment"}
         </div>
         {!manager && (
           <Button
-            className="w-full h-12 mt-4"
+            className="mt-2 h-11 w-full md:mt-3"
             onClick={() => {
               setFilter("Manager");
               setView("market");
@@ -331,15 +330,15 @@ export function StaffTab({
           </Button>
         )}
         {manager && manager.contractWeeks <= 24 && (
-          <Button className="w-full h-12 mt-4" onClick={() => renew(manager.id)}>
+          <Button className="mt-2 h-11 w-full md:mt-3" onClick={() => renew(manager.id)}>
             Renew manager contract
           </Button>
         )}
       </section>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2 md:gap-3">
         <StaffAction
-          icon={<Users className="size-7" />}
+          icon={<Users className="size-5 md:size-6" />}
           title="Your team"
           value={`${state.hiredStaff.length} staff`}
           sub={
@@ -350,33 +349,28 @@ export function StaffTab({
           onClick={() => setView("team")}
         />
         <StaffAction
-          icon={<Search className="size-7" />}
+          icon={<Search className="size-5 md:size-6" />}
           title="Hire someone"
           value={`${willingCount} willing`}
           sub="Live staff market"
           onClick={() => setView("market")}
         />
         <StaffAction
-          icon={<BriefcaseBusiness className="size-7" />}
+          icon={<BriefcaseBusiness className="size-5 md:size-6" />}
           title="Football staff"
           value={String(footballStaffCount)}
           sub="Coaching team"
           onClick={() => setView("team")}
         />
         <StaffAction
-          icon={<BriefcaseBusiness className="size-7" />}
+          icon={<BriefcaseBusiness className="size-5 md:size-6" />}
           title="Specialists"
           value={String(specialistCount)}
           sub="Recruitment, youth & medical"
           onClick={() => setView("team")}
         />
       </div>
-
-      <div className="rounded-2xl border bg-card p-4 text-sm text-muted-foreground">
-        Staff age every season and can improve, decline or eventually retire. Club reputation and
-        facilities affect who is willing to join.
-      </div>
-    </div>
+    </OverviewScreen>
   );
 }
 
