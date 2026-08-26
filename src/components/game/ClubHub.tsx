@@ -101,12 +101,10 @@ function Metric({
 
 export function ClubHub({
   state,
-  advance,
   update,
   setTab,
 }: {
   state: GameState;
-  advance: (w?: number) => void;
   update: (fn: (s: GameState) => GameState) => void;
   setTab: (t: Tab) => void;
 }) {
@@ -193,16 +191,13 @@ export function ClubHub({
           </div>
         ) : (
           <div className="p-5">
-            <div className="mb-4 text-sm text-muted-foreground">
+            <div className="text-sm text-muted-foreground">
               {phaseOf(state.week) === "preseason"
                 ? "Pre-season. Build the club before the league starts."
                 : phaseOf(state.week) === "midseason"
                   ? "Mid-season break. The transfer window is open."
                   : "No fixture this week."}
             </div>
-            <Button className="h-12 w-full text-base" onClick={() => advance(1)}>
-              <ChevronsRight className="mr-2 size-5" /> Advance week
-            </Button>
           </div>
         )}
       </section>
@@ -402,3 +397,4 @@ export function MatchSide({ name, sub, self }: { name: string; sub: string; self
     </div>
   );
 }
+

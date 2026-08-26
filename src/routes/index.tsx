@@ -82,7 +82,6 @@ function Page() {
 
 function Game({
   state,
-  advance,
   update,
   reset,
   isContinuing,
@@ -91,7 +90,6 @@ function Game({
   stopContinue,
 }: {
   state: GameState;
-  advance: (w?: number) => void;
   update: (fn: (s: GameState) => GameState) => void;
   reset: () => void;
   isContinuing: boolean;
@@ -226,7 +224,7 @@ function Game({
                 stopContinue={stopContinue}
                 openInbox={() => setTab("inbox")}
               />
-              <ClubHub state={state} advance={advance} update={update} setTab={setTab} />
+              <ClubHub state={state} update={update} setTab={setTab} />
             </div>
           )}
           {tab === "dashboard" && <DashboardTab state={state} />}
@@ -262,3 +260,4 @@ function Game({
     </div>
   );
 }
+
