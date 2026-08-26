@@ -388,21 +388,7 @@ function StaffAction({
   sub: string;
   onClick: () => void;
 }) {
-  return (
-    <button
-      onClick={onClick}
-      className="min-h-32 rounded-2xl border bg-card p-4 text-left flex flex-col justify-between hover:border-primary/50 transition-colors"
-    >
-      <div className="size-11 rounded-xl bg-primary/10 text-primary grid place-items-center">
-        {icon}
-      </div>
-      <div className="mt-4">
-        <div className="text-sm font-semibold text-muted-foreground">{title}</div>
-        <div className="font-display text-2xl leading-tight mt-0.5">{value}</div>
-        <div className="text-xs text-muted-foreground mt-1">{sub}</div>
-      </div>
-    </button>
-  );
+  return <WorkflowTile icon={icon} title={title} value={value} sub={sub} onClick={onClick} />;
 }
 
 export function StaffCard({
