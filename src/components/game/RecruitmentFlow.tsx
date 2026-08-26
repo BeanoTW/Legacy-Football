@@ -8,6 +8,7 @@ import { OutgoingSalesDesk } from "./OutgoingSalesDesk";
 import { Button } from "@/components/ui/button";
 import { fmtMoneyExact } from "@/lib/game/engine";
 import { openNegotiations, recruitmentSnapshot, shortlistIds } from "@/lib/game/recruitment";
+import { OverviewScreen, WorkflowTile } from "./shared/layout";
 
 type View = "home" | "operations" | "scout" | "squad" | "sales";
 
@@ -49,69 +50,66 @@ export function RecruitmentFlow({
     state.football?.scouting?.assignments.filter((a) => a.status === "active").length ?? 0;
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="font-display text-3xl">Transfers</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Buy, sell and plan the squad without turning scouting into an artificial permission gate.
-        </p>
-      </div>
+    <OverviewScreen
+      title="Transfers"
+      subtitle="Buy, sell and plan the squad."
+      className="grid content-start gap-2 md:gap-3 xl:grid-cols-[minmax(320px,.9fr)_minmax(0,1.6fr)] xl:content-stretch"
+    >
       {snap && (
-        <section className="rounded-2xl border bg-card p-5 shadow-sm">
-          <div className="text-sm text-muted-foreground">Transfer budget remaining</div>
-          <div className="font-display text-4xl mt-1">{fmtMoneyExact(snap.budgetRemaining)}</div>
-          <div className="grid grid-cols-4 gap-2 mt-5 text-center">
-            <div className="rounded-xl bg-muted/50 p-3">
-              <div className="font-display text-xl">{snap.squadSize}</div>
-              <div className="text-xs text-muted-foreground">Players</div>
-            </div>
-            <div className="rounded-xl bg-muted/50 p-3">
-              <div className="font-display text-xl">{deals}</div>
-              <div className="text-xs text-muted-foreground">Live deals</div>
-            </div>
-            <div className="rounded-xl bg-muted/50 p-3">
-              <div className="font-display text-xl">{sales}</div>
-              <div className="text-xs text-muted-foreground">Offers in</div>
-            </div>
-            <div className="rounded-xl bg-muted/50 p-3">
-              <div className="font-display text-xl">{scouting}</div>
-              <div className="text-xs text-muted-foreground">Scouted</div>
-            </div>
+        <section className="flex flex-col justify-center rounded-xl border bg-card p-3 shadow-sm md:p-4">
+          <div className="text-xs text-muted-foreground">Transfer budget remaining</div>
+          <div className="font-display text-2xl leading-tight md:text-3xl xl:text-4xl">
+            {fmtMoneyExact(snap.budgetRemaining)}
+          </div>
+          <div className="mt-2 grid grid-cols-4 gap-1.5 text-center md:mt-3 md:gap-2">
+            <MiniStat value={snap.squadSize} label="Players" />
+            <MiniStat value={deals} label="Live deals" />
+            <MiniStat value={sales} label="Offers in" />
+            <MiniStat value={scouting} label="Scouted" />
           </div>
         </section>
       )}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-2 md:gap-3 xl:grid-cols-3">
         <TransferAction
-          icon={<Binoculars className="size-7" />}
+          icon={<Binoculars className="size-5 md:size-6" />}
           title="Scout players"
           sub={scouting ? `${scouting} reports developing` : "Knowledge improves over time"}
           onClick={() => setView("scout")}
         />
         <TransferAction
-          icon={<Handshake className="size-7" />}
+          icon={<Handshake className="size-5 md:size-6" />}
           title="Buy players"
           sub={deals ? `${deals} live negotiation${deals === 1 ? "" : "s"}` : "Search and negotiate"}
           onClick={() => setView("operations")}
         />
         <TransferAction
-          icon={<Shield className="size-7" />}
+          icon={<Shield className="size-5 md:size-6" />}
           title="Sell players"
-          sub={sales ? `${sales} offer${sales === 1 ? "" : "s"} waiting` : "List players and set asking prices"}
+          sub={sales ? `${sales} offer${sales === 1 ? "" : "s"} waiting` : "List and set asking prices"}
           onClick={() => setView("sales")}
         />
         <TransferAction
-          icon={<Users className="size-7" />}
+          icon={<Users className="size-5 md:size-6" />}
           title="Squad & selection"
           sub={snap ? `${snap.squadSize} players · pitch-based XI` : "Open football department"}
           onClick={() => setView("squad")}
         />
         <TransferAction
-          icon={<Shield className="size-7" />}
+          icon={<Shield className="size-5 md:size-6" />}
           title="Contracts"
           sub={snap ? `${snap.expiringContracts} expiring · ${shortlist} watched` : "Review contracts"}
           onClick={() => setView("operations")}
         />
       </div>
+    </OverviewScreen>
+  );
+}
+
+function MiniStat({ value, label }: { value: number; label: string }) {
+  return (
+    <div className="rounded-lg bg-muted/50 p-1.5 md:p-2">
+      <div className="font-display text-base md:text-lg">{value}</div>
+      <div className="text-[10px] text-muted-foreground md:text-xs">{label}</div>
     </div>
   );
 }
@@ -128,17 +126,6 @@ function TransferAction({
   onClick: () => void;
 }) {
   return (
-    <button
-      onClick={onClick}
-      className="min-h-32 rounded-2xl border bg-card p-4 text-left flex flex-col justify-between hover:border-primary/50 transition-colors"
-    >
-      <div className="size-11 rounded-xl bg-primary/10 text-primary grid place-items-center">
-        {icon}
-      </div>
-      <div className="mt-4">
-        <div className="font-display text-xl">{title}</div>
-        <div className="text-sm text-muted-foreground mt-1">{sub}</div>
-      </div>
-    </button>
+    <WorkflowTile icon={icon} title={title} value={sub} onClick={onClick} />
   );
 }
