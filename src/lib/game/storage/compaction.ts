@@ -13,9 +13,10 @@
  *
  * Retention rule of thumb: the CURRENT season stays hot where live readers
  * genuinely need it. Resolved communications and older detail can move out
- * sooner, while unresolved decisions, unread messages and narrow historical
- * tails remain in the core. Historical football and identity detail remains
- * available through history chunks rather than growing forever in the hot core.
+ * sooner, while unresolved decisions, unread actionable messages and narrow
+ * historical tails remain in the core. Historical football and identity detail
+ * remains available through history chunks rather than growing forever in the
+ * hot core.
  */
 import type {
   ArchivedFinanceBucket,
@@ -38,7 +39,7 @@ export const RETAIN_LEDGER_WEEKS = 12;
 export const RETAIN_GATE_ENTRIES = 24;
 /** Trailing WeekLedger projection rows kept hot (board income estimate). */
 export const RETAIN_WEEK_ROWS = 8;
-/** Resolved inbox detail newer than this remains immediately available. */
+/** Resolved/informational inbox detail newer than this remains immediately available. */
 export const RETAIN_INBOX_WEEKS = 8;
 /** Prior identity seasons needed by the three-season reputation streak reader. */
 export const RETAIN_SNAPSHOT_SEASONS = 3;
@@ -258,14 +259,16 @@ export function compactState(state: GameState): CompactionResult {
   }
 
   /* ---- 4. Inbox ----
-   * Unread messages and unresolved decisions stay hot regardless of age.
-   * Resolved/read/expired communications are retained for a short recent tail,
-   * then move to history even inside the current season. This prevents a busy
-   * inbox from becoming one of the largest permanent save structures. */
+   * Actionable unread items and unresolved decisions stay hot regardless of age.
+   * Informational unread rows are not simulation state: after the recent tail
+   * they move to history exactly like read/resolved/expired communications.
+   * This preserves decisions while preventing unopened news from pinning
+   * hundreds of kilobytes in every long-career save. */
   const hotInbox: InboxItem[] = [];
   const archivedInbox: InboxItem[] = [];
   for (const it of core.inbox ?? []) {
-    const unresolved = it.status === "awaitingDecision" || it.status === "unread";
+    const actionableUnread = it.status === "unread" && (it.choices?.length ?? 0) > 0;
+    const unresolved = it.status === "awaitingDecision" || actionableUnread;
     const unappliedConsequence =
       !!it.consequenceOnExpire && it.consequenceApplied !== true && it.status !== "completed";
     const itemAbs = it.resolvedAtAbsoluteWeek ?? absoluteWeek(it.season, it.week);
