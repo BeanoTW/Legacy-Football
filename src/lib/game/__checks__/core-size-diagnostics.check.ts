@@ -42,20 +42,45 @@ if (state.football) {
 
 console.log("\n[CORE-SIZE] inbox breakdown");
 const statusCounts = new Map<string, number>();
-const generatorCounts = new Map<string, { count: number; bytes: number; oldestSeason: number; newestSeason: number }>();
+const generatorCounts = new Map<
+  string,
+  {
+    count: number;
+    bytes: number;
+    oldestSeason: number;
+    newestSeason: number;
+    withChoices: number;
+    withConsequence: number;
+    timed: number;
+  }
+>();
 for (const item of state.inbox) {
   statusCounts.set(item.status, (statusCounts.get(item.status) ?? 0) + 1);
-  const cur = generatorCounts.get(item.generatorId) ?? { count: 0, bytes: 0, oldestSeason: item.season, newestSeason: item.season };
+  const cur = generatorCounts.get(item.generatorId) ?? {
+    count: 0,
+    bytes: 0,
+    oldestSeason: item.season,
+    newestSeason: item.season,
+    withChoices: 0,
+    withConsequence: 0,
+    timed: 0,
+  };
   cur.count += 1;
   cur.bytes += bytes(item);
   cur.oldestSeason = Math.min(cur.oldestSeason, item.season);
   cur.newestSeason = Math.max(cur.newestSeason, item.season);
+  if ((item.choices?.length ?? 0) > 0) cur.withChoices += 1;
+  if ((item.consequenceOnExpire?.length ?? 0) > 0 && item.consequenceApplied !== true) cur.withConsequence += 1;
+  if (item.expiresAtAbsoluteWeek != null) cur.timed += 1;
   generatorCounts.set(item.generatorId, cur);
 }
 console.log(`  items: ${state.inbox.length}`);
 console.log(`  statuses: ${[...statusCounts.entries()].map(([k, v]) => `${k}=${v}`).join(", ")}`);
 for (const [generator, info] of [...generatorCounts.entries()].sort((a, b) => b[1].bytes - a[1].bytes).slice(0, 12)) {
-  console.log(`  ${generator.padEnd(34)} ${String(info.count).padStart(4)} items  ${(info.bytes / 1024).toFixed(0).padStart(5)} KB  s${info.oldestSeason}-s${info.newestSeason}`);
+  console.log(
+    `  ${generator.padEnd(34)} ${String(info.count).padStart(4)} items  ${(info.bytes / 1024).toFixed(0).padStart(5)} KB  ` +
+      `s${info.oldestSeason}-s${info.newestSeason} choices=${info.withChoices} consequences=${info.withConsequence} timed=${info.timed}`,
+  );
 }
 
 const clubRecordBytes = bytes(state.clubRecords);
