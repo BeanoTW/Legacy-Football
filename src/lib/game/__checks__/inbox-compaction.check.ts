@@ -1,5 +1,6 @@
 import { advanceWeek, newGame } from "../engine";
 import { compactState, RETAIN_INBOX_WEEKS } from "../storage/compaction";
+import { absoluteWeek } from "../time";
 import type { InboxItem } from "../types";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -9,8 +10,10 @@ function assert(condition: unknown, message: string): asserts condition {
 let state = newGame("Inbox City", "Ada Inbox", "INBOX|COMPACTION|FIXED");
 for (let i = 0; i < 46 + RETAIN_INBOX_WEEKS + 4; i++) state = advanceWeek(state);
 assert(state.season > 1, "verification must reach a later season");
+assert(RETAIN_INBOX_WEEKS === 1, "ordinary inbox retention must remain a one-week feed");
 
 const priorSeason = state.season - 1;
+const nowAbs = absoluteWeek(state.season, state.week);
 const base = {
   generatorId: "inbox-compaction-check",
   sender: "Club Secretary",
@@ -34,6 +37,20 @@ const informationalUnread: InboxItem = {
   id: "check:info-unread",
   eventKey: `check:info-unread:s${state.season}`,
   status: "unread",
+};
+const freshInformational: InboxItem = {
+  ...base,
+  id: "check:fresh-info",
+  eventKey: `check:fresh-info:s${state.season}:w${state.week}`,
+  status: "unread",
+  week: state.week,
+};
+const justOneWeekOld: InboxItem = {
+  ...base,
+  id: "check:one-week-old",
+  eventKey: `check:one-week-old:s${state.season}`,
+  status: "read",
+  resolvedAtAbsoluteWeek: nowAbs - 1,
 };
 const actionableUnread: InboxItem = {
   ...base,
@@ -84,6 +101,8 @@ state = {
     ...state.inbox,
     resolved,
     informationalUnread,
+    freshInformational,
+    justOneWeekOld,
     actionableUnread,
     awaitingDecision,
     staleActionable,
@@ -104,6 +123,8 @@ assert(archivedIds.has(resolved.id), "aged resolved communication should leave t
 assert(archivedIds.has(informationalUnread.id), "aged informational unread should leave the hot core");
 assert(!hotIds.has(resolved.id), "aged resolved communication should not remain duplicated in hot inbox");
 assert(!hotIds.has(informationalUnread.id), "aged informational unread should not remain duplicated in hot inbox");
+assert(hotIds.has(freshInformational.id), "mail from the current week must remain visible");
+assert(archivedIds.has(justOneWeekOld.id), "ordinary mail should archive at the next weekly boundary");
 assert(hotIds.has(actionableUnread.id), "current-season unread actionable communication must remain hot");
 assert(hotIds.has(awaitingDecision.id), "current-season awaiting decision must remain hot");
 assert(archivedIds.has(staleActionable.id), "prior-season untimed unread decision should become history");
