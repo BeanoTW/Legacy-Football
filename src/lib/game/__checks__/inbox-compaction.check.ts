@@ -27,11 +27,19 @@ const resolved: InboxItem = {
   eventKey: `check:resolved:s${state.season}`,
   status: "read",
 };
-const unread: InboxItem = {
+const informationalUnread: InboxItem = {
   ...base,
-  id: "check:unread",
-  eventKey: `check:unread:s${state.season}`,
+  id: "check:info-unread",
+  eventKey: `check:info-unread:s${state.season}`,
   status: "unread",
+};
+const actionableUnread: InboxItem = {
+  ...base,
+  id: "check:action-unread",
+  eventKey: `check:action-unread:s${state.season}`,
+  category: "decision",
+  status: "unread",
+  choices: [{ id: "ok", label: "OK", effects: [] }],
 };
 const awaitingDecision: InboxItem = {
   ...base,
@@ -50,20 +58,35 @@ const unresolvedConsequence: InboxItem = {
   consequenceApplied: false,
 };
 
-state = { ...state, inbox: [...state.inbox, resolved, unread, awaitingDecision, unresolvedConsequence] };
+state = {
+  ...state,
+  inbox: [
+    ...state.inbox,
+    resolved,
+    informationalUnread,
+    actionableUnread,
+    awaitingDecision,
+    unresolvedConsequence,
+  ],
+};
 const { core, chunks } = compactState(state);
 const hotIds = new Set(core.inbox.map((item) => item.id));
-const archivedIds = new Set(
-  chunks
-    .filter((chunk) => chunk.kind === "history:inbox")
-    .flatMap((chunk) => chunk.rows)
-    .map((row) => (row as InboxItem).id),
-);
+const archivedRows = chunks
+  .filter((chunk) => chunk.kind === "history:inbox")
+  .flatMap((chunk) => chunk.rows) as InboxItem[];
+const archivedIds = new Set(archivedRows.map((item) => item.id));
+const guards = new Set(core.archive?.inbox.guardKeys ?? []);
 
 assert(archivedIds.has(resolved.id), "aged resolved communication should leave the hot core");
+assert(archivedIds.has(informationalUnread.id), "aged informational unread should leave the hot core");
 assert(!hotIds.has(resolved.id), "aged resolved communication should not remain duplicated in hot inbox");
-assert(hotIds.has(unread.id), "unread communication must remain hot regardless of age");
-assert(hotIds.has(awaitingDecision.id), "awaiting decision must remain hot regardless of age");
+assert(!hotIds.has(informationalUnread.id), "aged informational unread should not remain duplicated in hot inbox");
+assert(hotIds.has(actionableUnread.id), "unread actionable communication must remain hot");
+assert(hotIds.has(awaitingDecision.id), "awaiting decision must remain hot");
 assert(hotIds.has(unresolvedConsequence.id), "unapplied expiry consequence must remain hot");
+assert(
+  guards.has(informationalUnread.eventKey),
+  "same-season archived communication must keep its season-scoped dedupe guard",
+);
 
 console.log("inbox-compaction.check.ts: PASS");
