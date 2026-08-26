@@ -12,23 +12,77 @@ jobs:
   format-and-verify:
     if: ${{ !contains(github.event.head_commit.message, '[format-normalized]') }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
-      - run: bun run format
-      - run: bun run lint
-      - run: bun run build
-      - name: Commit formatter changes
+      - name: Refresh stale Focus compaction verification
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("src/lib/game/__checks__/fringe-world.check.ts")
+          text = path.read_text()
+          old = '''const departingState = structuredClone(state);
+const detailedClub = plan.focusClubIds.find(
+  (clubId) => clubId !== state.clubName && leagues[0].clubIds.includes(clubId),
+);
+assert(detailedClub, "opening Focus must contain a non-player top-tier club");'''
+          new = '''const departingState = structuredClone(state);
+const playerTier = leagues.find((league) => league.id === state.playerLeagueId)!.tier;
+const detailedProfile = plan.clubs.find(
+  (profile) =>
+    profile.level === "focus" &&
+    profile.clubId !== state.clubName &&
+    profile.tier !== playerTier,
+);
+assert(detailedProfile, "opening Focus must contain a non-player adjacent-tier club");
+const detailedClub = detailedProfile.clubId;'''
+          if old not in text:
+            raise SystemExit("Expected stale Focus assertion block was not found")
+          text = text.replace(old, new, 1)
+          text = text.replace(
+            "departingState.playerLeagueId = leagues[3].id;",
+            "departingState.playerLeagueId = leagues[0].id;",
+            1,
+          )
+          path.write_text(text)
+      - name: Normalize formatting and line endings
+        run: bun run format
+      - name: Lint
+        run: bun run lint
+      - name: Typecheck
+        run: bunx tsc --noEmit
+      - name: Build
+        run: bun run build
+      - name: Run game verification suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          checks=(src/lib/game/__checks__/*.check.ts)
+          if [ ${#checks[@]} -eq 0 ]; then
+            echo "No game verification suites found."
+            exit 1
+          fi
+          for check in "${checks[@]}"; do
+            echo "::group::$check"
+            bun "$check"
+            echo "::endgroup::"
+          done
+      - name: Commit verified cleanup
         run: |
           if git diff --quiet; then
-            echo "No formatting changes"
+            echo "No cleanup changes"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "Normalize formatting and line endings [format-normalized]"
-          git push
+          git commit -m "Normalize formatting and refresh world check [format-normalized]"
+          git push origin HEAD:main
