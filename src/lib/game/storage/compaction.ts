@@ -12,10 +12,11 @@
  * `advanceWeek`. It lives at the persistence boundary only.
  *
  * Retention rule of thumb: the CURRENT season stays hot where live readers
- * genuinely need it. Resolved communications and older detail can move out
- * sooner, while unresolved current decisions, unread actionable messages and
- * narrow historical tails remain in the core. Historical football and identity
- * detail remains available through history chunks rather than growing forever.
+ * genuinely need it. Ordinary inbox mail is a short-lived weekly feed: once
+ * it is a week old it can move to history. Unresolved decisions and unapplied
+ * consequences stay hot until gameplay has dealt with them. Historical
+ * football and identity detail remains available through history chunks rather
+ * than growing forever.
  */
 import type {
   ArchivedFinanceBucket,
@@ -38,8 +39,8 @@ export const RETAIN_LEDGER_WEEKS = 12;
 export const RETAIN_GATE_ENTRIES = 24;
 /** Trailing WeekLedger projection rows kept hot (board income estimate). */
 export const RETAIN_WEEK_ROWS = 8;
-/** Resolved/informational inbox detail newer than this remains immediately available. */
-export const RETAIN_INBOX_WEEKS = 8;
+/** Ordinary inbox detail is a weekly feed; after one week it moves to history. */
+export const RETAIN_INBOX_WEEKS = 1;
 /** Prior identity seasons needed by the three-season reputation streak reader. */
 export const RETAIN_SNAPSHOT_SEASONS = 3;
 
@@ -258,12 +259,12 @@ export function compactState(state: GameState): CompactionResult {
   }
 
   /* ---- 4. Inbox ----
-   * Current actionable items stay hot. Untimed decisions from a completed
-   * season have missed their gameplay context, so they become expired history
-   * at the persistence boundary. Their full text and event keys are retained
-   * in chunks; they simply stop pinning live state forever. Informational and
-   * resolved rows also move out after the recent tail. Current-season compacted
-   * events keep a dedupe guard so generators cannot recreate them. */
+   * The live inbox is a weekly management feed, not permanent storage.
+   * Ordinary mail remains hot for the week after it arrives, then moves to
+   * history. Decisions remain hot while unresolved; untimed decisions that
+   * somehow survive into a later season become expired history. Anything with
+   * an unapplied expiry consequence is protected until that consequence has
+   * been processed. Full archived message detail and dedupe identity survive. */
   const hotInbox: InboxItem[] = [];
   const archivedInbox: InboxItem[] = [];
   for (const it of core.inbox ?? []) {
@@ -276,8 +277,7 @@ export function compactState(state: GameState): CompactionResult {
       !!it.consequenceOnExpire && it.consequenceApplied !== true && it.status !== "completed";
     const itemAbs = it.resolvedAtAbsoluteWeek ?? absoluteWeek(it.season, it.week);
     const aged = itemAbs <= inboxFloor;
-    const fromPriorSeason = it.season < season;
-    const canArchive = !unresolved && !unappliedConsequence && (fromPriorSeason || aged);
+    const canArchive = !unresolved && !unappliedConsequence && aged;
     if (canArchive) {
       archivedInbox.push(staleUntimedDecision ? { ...it, status: "expired" } : it);
     } else {
