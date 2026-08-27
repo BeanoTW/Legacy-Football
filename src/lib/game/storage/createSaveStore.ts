@@ -15,6 +15,8 @@ export interface CreateSaveStoreDeps {
   migrate: (parsed: Record<string, unknown>) => GameState;
   afterMigrate?: (state: GameState, rawVersion: number) => GameState;
   currentVersion: number;
+  saveId?: string;
+  migrateLegacy?: boolean;
 }
 
 export function createSaveStore(deps: CreateSaveStoreDeps): SaveStore {
@@ -26,7 +28,7 @@ export function createSaveStore(deps: CreateSaveStoreDeps): SaveStore {
     return createIdbSaveStore({
       ...deps,
       records: createIdbRecordStore(),
-      legacy: createLegacyLocalSource(),
+      legacy: deps.migrateLegacy === false ? null : createLegacyLocalSource(),
     });
   }
   if (typeof localStorage !== "undefined") {
@@ -34,7 +36,7 @@ export function createSaveStore(deps: CreateSaveStoreDeps): SaveStore {
       "[save] IndexedDB is unavailable; falling back to localStorage. " +
         "Saves are capped at roughly 5 MB and will report an error past that point.",
     );
-    return createLocalSaveStore(deps);
+    return createLocalSaveStore({ ...deps, storageKey: deps.saveId ? `chairman.save.${deps.saveId}` : undefined });
   }
   console.warn("[save] no persistent storage available; progress will not survive a reload.");
   return createIdbSaveStore({ ...deps, records: createMemoryRecordStore(), legacy: null });

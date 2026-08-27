@@ -83,6 +83,22 @@
   --chart-5: oklch(0.55 0.15 285);
 }
 
+:root[data-club-theme="heritage"] {
+  --primary: oklch(0.48 0.12 155);
+  --ring: oklch(0.48 0.12 155);
+  --panel: oklch(0.38 0.09 155);
+  --banner: oklch(0.78 0.13 82);
+  --background: oklch(0.96 0.018 92);
+}
+
+:root[data-club-theme="floodlights"] {
+  --primary: oklch(0.55 0.17 255);
+  --ring: oklch(0.55 0.17 255);
+  --panel: oklch(0.36 0.12 255);
+  --banner: oklch(0.7 0.18 45);
+  --background: oklch(0.955 0.014 255);
+}
+
 .dark {
   --background: oklch(0.2 0.02 220);
   --foreground: oklch(0.96 0.01 180);
@@ -119,6 +135,9 @@
   html,
   body {
     background-color: var(--color-background);
+    background-image:
+      radial-gradient(circle at 8% 0%, color-mix(in oklab, var(--color-primary) 9%, transparent) 0, transparent 30rem),
+      linear-gradient(180deg, color-mix(in oklab, var(--color-background) 92%, white) 0, var(--color-background) 22rem);
     color: var(--color-foreground);
     font-family: var(--font-sans);
     font-feature-settings: "cv02", "cv03", "cv04", "tnum";
@@ -130,6 +149,16 @@
   }
   .tnum { font-variant-numeric: tabular-nums; }
 }
+
+.theme-swatch {
+  display: block;
+  width: 100%;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-banner));
+}
+.theme-swatch-heritage { background: linear-gradient(90deg, oklch(0.48 0.12 155), oklch(0.78 0.13 82)); }
+.theme-swatch-floodlights { background: linear-gradient(90deg, oklch(0.55 0.17 255), oklch(0.7 0.18 45)); }
 
 @utility banner-strip {
   background-color: var(--color-banner);

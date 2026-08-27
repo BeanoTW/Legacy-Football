@@ -24,8 +24,10 @@ import { InboxTab } from "@/components/game/InboxTab";
 import { WorldInspector } from "@/components/game/WorldInspector";
 import { RecruitmentFlow } from "@/components/game/RecruitmentFlow";
 import { FacilitiesFlow } from "@/components/game/FacilitiesFlow";
+import { SettingsTab } from "@/components/game/SettingsTab";
 import { useGame } from "@/hooks/useGame";
 import type { GameState } from "@/lib/game/types";
+import type { SaveSlotId, SaveSlotSummary } from "@/lib/game/engine";
 import { avgTicketPrice, fmtMoney, fmtMoneyExact, phaseOf, CALENDAR } from "@/lib/game/engine";
 import { clubKpi } from "@/lib/game/selectors/club";
 import { unreadCount } from "@/lib/game/inbox";
@@ -49,12 +51,16 @@ export const Route = createFileRoute("/")({
 
 function Page() {
   const game = useGame();
+  useEffect(() => {
+    const theme = localStorage.getItem("chairman.colour-theme");
+    if (theme) document.documentElement.dataset.clubTheme = theme;
+  }, []);
   if (!game.hydrated) return <div className="h-dvh grid place-items-center text-muted-foreground">Loading…</div>;
-  if (!game.state) return <NewGame onStart={game.start} />;
+  if (!game.state) return <NewGame onStart={game.start} activeSlot={game.activeSlot} slots={game.saveSlots} onSelectSlot={game.switchSlot} />;
   return <Game {...game} state={game.state} />;
 }
 
-function Game({ state, update, isContinuing, startContinue, stopContinue }: {
+function Game({ state, update, isContinuing, startContinue, stopContinue, activeSlot, saveSlots, switchSlot, deleteSlot }: {
   state: GameState;
   update: (fn: (s: GameState) => GameState) => void;
   reset: () => void;
@@ -62,6 +68,10 @@ function Game({ state, update, isContinuing, startContinue, stopContinue }: {
   continueReason: string | null;
   startContinue: () => void;
   stopContinue: () => void;
+  activeSlot: SaveSlotId;
+  saveSlots: SaveSlotSummary[];
+  switchSlot: (slot: SaveSlotId) => void;
+  deleteSlot: (slot: SaveSlotId) => Promise<void>;
 }) {
   const [tab, setTab] = useState<Tab>("hub");
   const [decisionQueue, setDecisionQueue] = useState(false);
@@ -148,6 +158,7 @@ function Game({ state, update, isContinuing, startContinue, stopContinue }: {
             {tab === "leagues" && <LeagueBrowser state={state} />}
             {tab === "world" && <WorldInspector state={state} />}
             {tab === "history" && <HistoryTab state={state} />}
+            {tab === "settings" && <SettingsTab activeSlot={activeSlot} slots={saveSlots} onSwitch={switchSlot} onDelete={deleteSlot} />}
           </ScreenBoundary>
         </div>
       </main>

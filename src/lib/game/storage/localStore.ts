@@ -53,6 +53,7 @@ export interface LocalStoreDeps {
   currentVersion: number;
   /** Injectable for tests. */
   backend?: Pick<Storage, "getItem" | "setItem" | "removeItem">;
+  storageKey?: string;
 }
 
 function defaultBackend(): LocalStoreDeps["backend"] | null {
@@ -62,6 +63,7 @@ function defaultBackend(): LocalStoreDeps["backend"] | null {
 
 export function createLocalSaveStore(deps: LocalStoreDeps): SaveStore {
   const backend = deps.backend ?? defaultBackend();
+  const storageKey = deps.storageKey ?? STORAGE_KEY;
   /* Set when a stored save could not be read (parse, migration or future
    * version). While set, writes are refused so a new game can never silently
    * destroy the original save. Cleared only by an explicit clear(). */
@@ -87,7 +89,7 @@ export function createLocalSaveStore(deps: LocalStoreDeps): SaveStore {
 
     async load(): Promise<LoadResult> {
       if (!backend) return { state: null, diagnostics: [] };
-      const raw = backend.getItem(STORAGE_KEY);
+      const raw = backend.getItem(storageKey);
       if (!raw) return { state: null, diagnostics: [] };
 
       const { parsed, diagnostics } = parseSave(raw);
@@ -157,7 +159,7 @@ export function createLocalSaveStore(deps: LocalStoreDeps): SaveStore {
         out.push({ level: "warn", code: "save/size", detail: formatBytes(bytes) });
       }
       try {
-        backend.setItem(STORAGE_KEY, raw);
+        backend.setItem(storageKey, raw);
       } catch (e) {
         // Quota exceeded used to be swallowed silently; surface it instead.
         out.push({ level: "error", code: "save/write-failed", detail: (e as Error).message });
@@ -167,7 +169,7 @@ export function createLocalSaveStore(deps: LocalStoreDeps): SaveStore {
 
     async clear(): Promise<void> {
       unreadable = false;
-      backend?.removeItem(STORAGE_KEY);
+      backend?.removeItem(storageKey);
     },
   };
 }

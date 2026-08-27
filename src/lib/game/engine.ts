@@ -160,14 +160,38 @@ export function migrateSave(parsed: Record<string, unknown>): GameState {
   return result.state;
 }
 
-export const saveStore: SaveStore = createSaveStore({
+const saveStoreDeps = {
   migrate: migrateSave,
   currentVersion: SAVE_VERSION,
-  afterMigrate: (state, rawVersion) => {
+  afterMigrate: (state: GameState, rawVersion: number) => {
     const needsSeed = state.inbox.length === 0 && rawVersion < 2;
     return needsSeed ? runWeeklyGenerators(state) : state;
   },
-});
+};
+
+export const SAVE_SLOT_IDS = ["slot-1", "slot-2", "slot-3"] as const;
+export type SaveSlotId = (typeof SAVE_SLOT_IDS)[number];
+export interface SaveSlotSummary {
+  id: SaveSlotId;
+  state: GameState | null;
+}
+
+const slotStores = new Map<SaveSlotId, SaveStore>();
+function storeFor(slot: SaveSlotId): SaveStore {
+  let store = slotStores.get(slot);
+  if (!store) {
+    store = createSaveStore({
+      ...saveStoreDeps,
+      saveId: slot === "slot-1" ? undefined : slot,
+      migrateLegacy: slot === "slot-1",
+    });
+    slotStores.set(slot, store);
+  }
+  return store;
+}
+
+/** Backwards-compatible primary store export used by storage diagnostics. */
+export const saveStore: SaveStore = storeFor("slot-1");
 
 function reportDiagnostics(diags: Diagnostic[]) {
   for (const d of diags) {
@@ -177,18 +201,28 @@ function reportDiagnostics(diags: Diagnostic[]) {
   }
 }
 
-export async function loadGame(): Promise<GameState | null> {
-  const { state, diagnostics } = await saveStore.load();
+export async function loadGame(slot: SaveSlotId = "slot-1"): Promise<GameState | null> {
+  const { state, diagnostics } = await storeFor(slot).load();
   reportDiagnostics(diagnostics);
   return state;
 }
 
-export async function saveGame(state: GameState): Promise<void> {
-  reportDiagnostics(await saveStore.save(state));
+export async function saveGame(state: GameState, slot: SaveSlotId = "slot-1"): Promise<void> {
+  reportDiagnostics(await storeFor(slot).save(state));
 }
 
-export async function clearGame(): Promise<void> {
-  await saveStore.clear();
+export async function clearGame(slot: SaveSlotId = "slot-1"): Promise<void> {
+  await storeFor(slot).clear();
+}
+
+export async function listSaveSlots(): Promise<SaveSlotSummary[]> {
+  return Promise.all(
+    SAVE_SLOT_IDS.map(async (id) => {
+      const { state, diagnostics } = await storeFor(id).load();
+      reportDiagnostics(diagnostics);
+      return { id, state };
+    }),
+  );
 }
 
 export { setTransferBudget, setWageBudget } from "./budgets";

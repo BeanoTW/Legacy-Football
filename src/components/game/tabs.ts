@@ -11,6 +11,7 @@ import {
   Mail,
   MoreHorizontal,
   Save,
+  Settings,
   Ticket,
   Trophy,
   Users,
@@ -30,7 +31,8 @@ export type Tab =
   | "fixtures"
   | "leagues"
   | "world"
-  | "history";
+  | "history"
+  | "settings";
 
 export type TabDef = [Tab, string, typeof LineIcon];
 
@@ -49,6 +51,7 @@ export const ALL_TABS: TabDef[] = [
   ["leagues", "Leagues", Trophy],
   ["world", "World", Globe2],
   ["history", "Ledger", Save],
+  ["settings", "Settings", Settings],
 ];
 
 /** The five things a chairman should be able to reach without hunting. */
