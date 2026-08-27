@@ -112,8 +112,8 @@ export function RecruitmentOperations({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
-      <div className="grid shrink-0 grid-cols-2 gap-2">
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
+      <div className="grid shrink-0 grid-cols-2 gap-2" aria-label="Recruitment view">
         <Button variant={view === "squad" ? "default" : "outline"} onClick={() => setView("squad")}>
           Your squad
         </Button>
@@ -126,7 +126,7 @@ export function RecruitmentOperations({
           {actionNote}
         </div>
       )}
-      <div className="contained-scroll min-h-0 flex-1 pr-0.5">
+      <div className="contained-scroll touch-pan-y min-h-0 flex-1 pr-0.5">
         {view === "squad" && selectedPlayer ? (
           <PlayerProfile
             state={state}

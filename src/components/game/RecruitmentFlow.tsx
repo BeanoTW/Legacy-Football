@@ -33,7 +33,7 @@ export function RecruitmentFlow({
   }
   if (view === "operations") {
     return (
-      <div className="flex h-full min-h-0 flex-col gap-3">
+      <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
         <Button
           className="w-fit shrink-0"
           variant="ghost"
@@ -42,7 +42,7 @@ export function RecruitmentFlow({
         >
           <ArrowLeft className="size-4 mr-2" /> Back to transfers
         </Button>
-        <div className="min-h-0 flex-1">
+        <div className="min-h-0 flex-1 overflow-hidden">
           <RecruitmentOperations state={state} update={update} />
         </div>
       </div>
