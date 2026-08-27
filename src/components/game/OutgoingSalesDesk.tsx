@@ -34,11 +34,9 @@ export function OutgoingSalesDesk({
   const act = (
     fn: (s: GameState) => { state: GameState; result: { ok: boolean; reason: string } },
   ) => {
-    update((s) => {
-      const result = fn(s);
-      setNote(result.result.reason);
-      return result.state;
-    });
+    const result = fn(state);
+    setNote(result.result.reason);
+    update(() => result.state);
   };
 
   return (
@@ -103,7 +101,9 @@ export function OutgoingSalesDesk({
                         <PlayerSummary player={player} state={state} />
                         <div className="text-right">
                           <div className="font-display text-xl">{fmtMoneyExact(offerFee)}</div>
-                          <div className="text-[9px] uppercase text-muted-foreground">Current bid</div>
+                          <div className="text-[9px] uppercase text-muted-foreground">
+                            Current bid
+                          </div>
                         </div>
                       </div>
                       <div className="mt-2 text-xs text-muted-foreground">
@@ -159,13 +159,7 @@ export function OutgoingSalesDesk({
               .slice()
               .sort((a, b) => b.marketValue - a.marketValue)
               .map((player) => (
-                <SaleRow
-                  key={player.id}
-                  state={state}
-                  player={player}
-                  update={update}
-                  act={act}
-                />
+                <SaleRow key={player.id} state={state} player={player} update={update} act={act} />
               ))}
           </div>
         </section>

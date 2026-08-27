@@ -524,7 +524,9 @@ function mk(s: GameState, generatorId: string, draft: InboxItemDraft): InboxItem
     generatorId,
     week: s.week,
     season: s.season,
-    status: "unread",
+    // Actionable messages must enter the queue immediately. Waiting until the
+    // user opens one hides the decision count and makes Continue appear broken.
+    status: draft.status ?? (draft.choices?.length ? "awaitingDecision" : "unread"),
     ...rest,
     expiresAtAbsoluteWeek,
     expiresWeek,

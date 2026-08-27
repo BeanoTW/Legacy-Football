@@ -187,13 +187,17 @@ export function totalsFor(entries: FinanceEntry[]): PeriodTotals {
   return t;
 }
 
-export const seasonTotals = (s: GameState, season = s.season) => totalsFor(entriesFor(s, season));
+const operatingEntries = (entries: FinanceEntry[]) =>
+  entries.filter((entry) => entry.sourceSystem !== "engine.opening");
+
+export const seasonTotals = (s: GameState, season = s.season) =>
+  totalsFor(operatingEntries(entriesFor(s, season)));
 
 /** Operating result over the last `weeks` banked weeks (excludes this week). */
 export function recentOperatingResult(s: GameState, weeks = FINANCE_PERIOD_WEEKS): number {
   const nowAbs = absoluteWeek(s.season, s.week);
   const from = nowAbs - weeks;
-  const rows = (s.financeLedger ?? []).filter(
+  const rows = operatingEntries(s.financeLedger ?? []).filter(
     (e) => e.absoluteWeek > from && e.absoluteWeek <= nowAbs,
   );
   return totalsFor(rows).operatingResult;
@@ -202,7 +206,7 @@ export function recentOperatingResult(s: GameState, weeks = FINANCE_PERIOD_WEEKS
 /** Number of consecutive completed weeks that closed at an operating loss. */
 export function consecutiveLossWeeks(s: GameState): number {
   const byWeek = new Map<number, number>();
-  for (const e of s.financeLedger ?? []) {
+  for (const e of operatingEntries(s.financeLedger ?? [])) {
     const v = byWeek.get(e.absoluteWeek) ?? 0;
     byWeek.set(e.absoluteWeek, v + (e.direction === "income" ? e.amount : -e.amount));
   }
@@ -322,6 +326,7 @@ export function syncWeekLedger(s: GameState, season: number, week: number): void
     other: 0,
   };
   for (const e of entries) {
+    if (e.sourceSystem === "engine.opening") continue;
     if (e.direction === "income") row.income[legacyIncomeBucket(e)] += e.amount;
     else row.expenses[legacyExpenseBucket(e)] += e.amount;
   }

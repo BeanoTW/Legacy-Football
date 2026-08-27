@@ -316,13 +316,17 @@ export function weeklyWageBill(s: GameState): number {
 
 /** Recurring weekly income used as the wage-ratio denominator. */
 export function weeklyIncomeEstimate(s: GameState): number {
-  const recent = (s.ledger ?? []).filter((l) => !l.synthetic).slice(-6);
-  if (recent.length) {
-    const total = recent.reduce(
-      (a, l) => a + Object.values(l.income).reduce((x, y) => x + y, 0),
-      0,
-    );
-    return total / recent.length;
+  const banked = (s.financeLedger ?? []).filter(
+    (entry) => entry.direction === "income" && entry.sourceSystem !== "engine.opening",
+  );
+  if (banked.length) {
+    const weeks = [...new Set(banked.map((entry) => entry.absoluteWeek))]
+      .sort((a, b) => b - a)
+      .slice(0, 6);
+    const total = banked
+      .filter((entry) => weeks.includes(entry.absoluteWeek))
+      .reduce((sum, entry) => sum + entry.amount, 0);
+    return total / weeks.length;
   }
   // No banked weeks yet (fresh save): project the recurring streams instead of
   // guessing, otherwise the wage ratio reads as several hundred percent in

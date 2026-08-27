@@ -145,7 +145,9 @@ safe("season simulation", () => {
   let projOk = true;
   const detail: string[] = [];
   for (const row of s.ledger) {
-    const es = entriesFor(s, row.season, row.week);
+    const es = entriesFor(s, row.season, row.week).filter(
+      (entry) => entry.sourceSystem !== "engine.opening",
+    );
     const inc = es.filter((e) => e.direction === "income").reduce((a, e) => a + e.amount, 0);
     const exp = es.filter((e) => e.direction === "expense").reduce((a, e) => a + e.amount, 0);
     if (sum(row.income) !== inc || sum(row.expenses) !== exp || row.net !== inc - exp) {
@@ -156,7 +158,7 @@ safe("season simulation", () => {
     }
   }
   check(
-    "weekly ledger is a faithful projection of finance entries",
+    "weekly ledger is a faithful projection of operating entries",
     projOk,
     detail.slice(0, 3).join(" | "),
   );
@@ -171,13 +173,14 @@ safe("season simulation", () => {
 
   // Season totals agree with the entry stream.
   const t = seasonTotals(s, 1);
-  const es1 = entriesFor(s, 1);
+  const es1 = entriesFor(s, 1).filter((entry) => entry.sourceSystem !== "engine.opening");
   check(
-    "season totals agree with entries",
+    "season totals agree with operating entries",
     t.income === es1.filter((e) => e.direction === "income").reduce((a, e) => a + e.amount, 0) &&
       t.expenditure ===
         es1.filter((e) => e.direction === "expense").reduce((a, e) => a + e.amount, 0),
   );
+  check("opening capital is not reported as season income", t.income < s.cash);
 
   check(
     "prize money awarded exactly once",

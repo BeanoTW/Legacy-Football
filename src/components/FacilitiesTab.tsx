@@ -330,7 +330,7 @@ function AssetSheet({
                 <div className="mt-1 text-xs text-muted-foreground">{spec.description}</div>
                 <div className="mt-2 grid grid-cols-3 gap-2 text-[11px] tnum">
                   <Mini label="Duration" value={`${spec.durationWeeks} wks`} />
-                  <Mini label="Risk" value={`${Math.round(spec.risk * 100)}%`} />
+                  <Mini label="Risk" value={`${Math.round(spec.risk)}%`} />
                   <Mini
                     label="Disruption"
                     value={`${Math.round((1 - spec.disruption.capacityFactor) * 100)}% cap`}
