@@ -66,7 +66,7 @@ export function SquadSelectionTab({
         <ArrowLeft className="mr-2 size-4" /> Back to transfers
       </Button>
 
-      <div className="contained-scroll grid min-h-0 flex-1 auto-rows-max gap-3 pr-0.5 lg:grid-cols-[minmax(0,0.9fr)_minmax(22rem,1.1fr)] lg:grid-rows-[auto_auto_minmax(0,1fr)]">
+      <div className="contained-scroll touch-pan-y grid min-h-0 flex-1 auto-rows-max gap-3 pr-0.5 lg:grid-cols-[minmax(0,0.9fr)_minmax(22rem,1.1fr)] lg:grid-rows-[auto_auto_minmax(0,1fr)]">
         <section className="overflow-hidden rounded-xl border bg-card shadow-sm lg:col-start-1">
           <div className="panel-strip p-4">
             <div className="flex items-start justify-between gap-4">
@@ -136,14 +136,14 @@ export function SquadSelectionTab({
           <Pitch xi={xi} />
         </section>
 
-        <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border bg-card shadow-sm lg:col-start-2 lg:row-span-3 lg:row-start-1">
+        <section className="flex min-h-0 flex-col rounded-xl border bg-card shadow-sm lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:overflow-hidden">
           <div className="border-b px-4 py-3">
             <div className="font-display text-xl">Wider squad</div>
             <div className="text-xs text-muted-foreground">
               Exact ability is visible because these are your contracted players.
             </div>
           </div>
-          <div className="contained-scroll min-h-0 flex-1 divide-y">
+          <div className="min-h-0 flex-1 divide-y lg:overflow-auto lg:overscroll-contain lg:[scrollbar-gutter:stable]">
             {bench.map((player) => (
               <PlayerRow key={player.id} state={state} player={player} />
             ))}
@@ -221,7 +221,7 @@ function Pitch({ xi }: { xi: FootballPlayer[] }) {
   }
 
   return (
-    <div className="relative overflow-hidden rounded-xl border border-white/20 bg-emerald-800/70 px-3 py-3">
+    <div className="relative touch-pan-y overflow-hidden rounded-xl border border-white/20 bg-emerald-800/70 px-3 py-3">
       <div className="pointer-events-none absolute inset-x-4 top-1/2 border-t border-white/25" />
       <div className="pointer-events-none absolute left-1/2 top-1/2 size-20 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/25" />
       <div className="relative space-y-3 xl:space-y-4">
