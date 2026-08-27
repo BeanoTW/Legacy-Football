@@ -93,8 +93,16 @@ export function RecruitmentOperations({
           </span>
         </span>
         <span className="shrink-0 text-right text-sm">
-          <span className="block">{contract ? `${fmtMoneyExact(contract.weeklyWage)}/wk` : "No deal"}</span>
-          <span className={weeksLeft <= 52 ? "block text-xs font-semibold text-amber-600" : "block text-xs text-muted-foreground"}>
+          <span className="block">
+            {contract ? `${fmtMoneyExact(contract.weeklyWage)}/wk` : "No deal"}
+          </span>
+          <span
+            className={
+              weeksLeft <= 52
+                ? "block text-xs font-semibold text-amber-600"
+                : "block text-xs text-muted-foreground"
+            }
+          >
             {contract ? `${weeksLeft} weeks left` : "No contract"}
           </span>
         </span>
@@ -104,8 +112,8 @@ export function RecruitmentOperations({
   };
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-2">
+    <div className="flex h-full min-h-0 flex-col gap-3">
+      <div className="grid shrink-0 grid-cols-2 gap-2">
         <Button variant={view === "squad" ? "default" : "outline"} onClick={() => setView("squad")}>
           Your squad
         </Button>
@@ -113,218 +121,240 @@ export function RecruitmentOperations({
           Negotiations ({deals.length})
         </Button>
       </div>
-      {actionNote && <div className="rounded-xl border bg-muted/40 px-4 py-3 text-sm">{actionNote}</div>}
-      {view === "squad" && selectedPlayer ? (
-        <PlayerProfile
-          state={state}
-          player={selectedPlayer}
-          onBack={() => setSelectedPlayerId(null)}
-        />
-      ) : view === "squad" ? (
-        <div className="space-y-3">
-          <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-            Select a player to view abilities, profile and contract details.
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <PlanningMetric label="Squad" value={String(squad.length)} />
-            <PlanningMetric label="Expiring" value={String(expiringCount)} urgent={expiringCount > 0} />
-            <PlanningMetric label="Wages" value={`${fmtMoney(userWageBill(state))}/wk`} />
-          </div>
-          {positionNeeds.length > 0 && (
-            <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
-              <strong>Depth warning:</strong> recruitment cover recommended at {positionNeeds.join(", ")}.
-            </div>
-          )}
-          <div className="grid grid-cols-3 gap-2">
-            {(["position", "contracts", "wages"] as const).map((lens) => (
-              <Button
-                key={lens}
-                size="sm"
-                variant={squadLens === lens ? "default" : "outline"}
-                onClick={() => setSquadLens(lens)}
-                className="capitalize"
-              >
-                {lens}
-              </Button>
-            ))}
-          </div>
-          {squadLens === "position" ? (
-            positionGroups.map(({ position, players }) =>
-              players.length ? (
-                <section key={position} className="overflow-hidden rounded-2xl border bg-card">
-                  <div className="border-b bg-muted/40 px-4 py-2 text-xs font-bold uppercase tracking-wider">
-                    {position} · {players.length}
-                  </div>
-                  <div className="divide-y">{players.map(playerRow)}</div>
-                </section>
-              ) : null,
-            )
-          ) : (
-            <section className="overflow-hidden rounded-2xl border bg-card">
-              <div className="border-b bg-muted/40 px-4 py-2 text-xs font-bold uppercase tracking-wider">
-                {squadLens === "contracts" ? "Shortest contracts first" : "Highest wages first"}
-              </div>
-              <div className="divide-y">{lensPlayers.map(({ player }) => playerRow(player))}</div>
-            </section>
-          )}
+      {actionNote && (
+        <div className="shrink-0 truncate rounded-xl border bg-muted/40 px-4 py-2 text-sm">
+          {actionNote}
         </div>
-      ) : (
-        <div className="space-y-3">
-          {deals.map((n) => {
-            const p = playerById(state, n.playerId);
-            if (!p) return null;
-            const incoming = n.direction === "in";
-            const report = scoutingReport(state, p);
-            return (
-              <article key={n.id} className="rounded-2xl border bg-card p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="font-display text-xl">{playerName(p)}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {p.primaryPosition} ·{" "}
-                      {incoming ? `${report.knowledgePct}% scouted` : `Overall ${p.currentAbility}`}
+      )}
+      <div className="contained-scroll min-h-0 flex-1 pr-0.5">
+        {view === "squad" && selectedPlayer ? (
+          <PlayerProfile
+            state={state}
+            player={selectedPlayer}
+            onBack={() => setSelectedPlayerId(null)}
+          />
+        ) : view === "squad" ? (
+          <div className="space-y-3">
+            <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+              Select a player to view abilities, profile and contract details.
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <PlanningMetric label="Squad" value={String(squad.length)} />
+              <PlanningMetric
+                label="Expiring"
+                value={String(expiringCount)}
+                urgent={expiringCount > 0}
+              />
+              <PlanningMetric label="Wages" value={`${fmtMoney(userWageBill(state))}/wk`} />
+            </div>
+            {positionNeeds.length > 0 && (
+              <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+                <strong>Depth warning:</strong> recruitment cover recommended at{" "}
+                {positionNeeds.join(", ")}.
+              </div>
+            )}
+            <div className="grid grid-cols-3 gap-2">
+              {(["position", "contracts", "wages"] as const).map((lens) => (
+                <Button
+                  key={lens}
+                  size="sm"
+                  variant={squadLens === lens ? "default" : "outline"}
+                  onClick={() => setSquadLens(lens)}
+                  className="capitalize"
+                >
+                  {lens}
+                </Button>
+              ))}
+            </div>
+            {squadLens === "position" ? (
+              positionGroups.map(({ position, players }) =>
+                players.length ? (
+                  <section key={position} className="overflow-hidden rounded-2xl border bg-card">
+                    <div className="border-b bg-muted/40 px-4 py-2 text-xs font-bold uppercase tracking-wider">
+                      {position} · {players.length}
                     </div>
-                  </div>
-                  <span className="text-xs font-bold bg-muted rounded px-2 py-1">{n.stage}</span>
+                    <div className="divide-y">{players.map(playerRow)}</div>
+                  </section>
+                ) : null,
+              )
+            ) : (
+              <section className="overflow-hidden rounded-2xl border bg-card">
+                <div className="border-b bg-muted/40 px-4 py-2 text-xs font-bold uppercase tracking-wider">
+                  {squadLens === "contracts" ? "Shortest contracts first" : "Highest wages first"}
                 </div>
-                {incoming && (
-                  <div className="grid grid-cols-5 gap-2 mt-4">
-                    {report.attributes
-                      .filter((a) => a.known)
-                      .slice(0, 5)
-                      .map((a) => (
-                        <div key={a.key} className="rounded-lg bg-muted/50 p-2">
-                          <div className="text-[10px] text-muted-foreground">{a.label}</div>
-                          <div className="font-semibold">{a.exact ?? `${a.min}–${a.max}`}</div>
-                        </div>
-                      ))}
-                  </div>
-                )}
-                <div className="text-sm text-muted-foreground mt-4">
-                  Fee {fmtMoneyExact(n.clubCounterFee ?? n.fee)} · Wage{" "}
-                  {fmtMoneyExact(n.proposedWeeklyWage)}/wk
-                </div>
-                {incoming && n.stage === "clubTalks" && (
-                  <div className="mt-4 rounded-xl border bg-muted/30 p-3">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Club negotiation
-                    </div>
-                    {n.clubCounterFee && (
-                      <div className="mt-1 text-sm">
-                        Selling club asks: <strong>{fmtMoneyExact(n.clubCounterFee)}</strong>
+                <div className="divide-y">{lensPlayers.map(({ player }) => playerRow(player))}</div>
+              </section>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {deals.map((n) => {
+              const p = playerById(state, n.playerId);
+              if (!p) return null;
+              const incoming = n.direction === "in";
+              const report = scoutingReport(state, p);
+              return (
+                <article key={n.id} className="rounded-2xl border bg-card p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="font-display text-xl">{playerName(p)}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {p.primaryPosition} ·{" "}
+                        {incoming
+                          ? `${report.knowledgePct}% scouted`
+                          : `Overall ${p.currentAbility}`}
                       </div>
-                    )}
-                    <label className="mt-3 block text-xs text-muted-foreground" htmlFor={`fee-${n.id}`}>
-                      Your revised transfer fee
-                    </label>
-                    <input
-                      id={`fee-${n.id}`}
-                      type="number"
-                      min={n.fee + 5000}
-                      step={5000}
-                      value={feeOffers[n.id] ?? String(n.clubCounterFee ?? n.fee + 5000)}
-                      onChange={(event) =>
-                        setFeeOffers((current) => ({ ...current, [n.id]: event.target.value }))
-                      }
-                      className="mt-1 h-10 w-full rounded-lg border bg-background px-3 tabular-nums"
-                    />
-                  </div>
-                )}
-                {incoming && n.stage === "playerTalks" && (
-                  <div className="mt-4 rounded-xl border bg-muted/30 p-3">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Personal terms
                     </div>
-                    {n.playerCounterWage && (
-                      <div className="mt-1 text-sm">
-                        Player demand: <strong>{fmtMoneyExact(n.playerCounterWage)}/wk</strong>
-                      </div>
-                    )}
-                    <label className="mt-3 block text-xs text-muted-foreground" htmlFor={`wage-${n.id}`}>
-                      Your revised weekly wage
-                    </label>
-                    <input
-                      id={`wage-${n.id}`}
-                      type="number"
-                      min={n.proposedWeeklyWage + 25}
-                      step={25}
-                      value={wageOffers[n.id] ?? String(n.playerCounterWage ?? n.proposedWeeklyWage + 25)}
-                      onChange={(event) =>
-                        setWageOffers((current) => ({ ...current, [n.id]: event.target.value }))
-                      }
-                      className="mt-1 h-10 w-full rounded-lg border bg-background px-3 tabular-nums"
-                    />
+                    <span className="text-xs font-bold bg-muted rounded px-2 py-1">{n.stage}</span>
                   </div>
-                )}
-                <div className="flex gap-2 flex-wrap mt-3">
-                  {n.stage === "agreed" && (
-                    <Button size="sm" onClick={() => act((s) => completeTransfer(s, n.id))}>
-                      Complete deal
-                    </Button>
+                  {incoming && (
+                    <div className="grid grid-cols-5 gap-2 mt-4">
+                      {report.attributes
+                        .filter((a) => a.known)
+                        .slice(0, 5)
+                        .map((a) => (
+                          <div key={a.key} className="rounded-lg bg-muted/50 p-2">
+                            <div className="text-[10px] text-muted-foreground">{a.label}</div>
+                            <div className="font-semibold">{a.exact ?? `${a.min}–${a.max}`}</div>
+                          </div>
+                        ))}
+                    </div>
                   )}
+                  <div className="text-sm text-muted-foreground mt-4">
+                    Fee {fmtMoneyExact(n.clubCounterFee ?? n.fee)} · Wage{" "}
+                    {fmtMoneyExact(n.proposedWeeklyWage)}/wk
+                  </div>
                   {incoming && n.stage === "clubTalks" && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => {
-                        const fallback = n.clubCounterFee ?? n.fee + 5000;
-                        const fee = Number(feeOffers[n.id] ?? fallback);
-                        act((s) => improveTransferOffer(s, n.id, fee));
-                      }}
-                    >
-                      Submit counter-offer
-                    </Button>
+                    <div className="mt-4 rounded-xl border bg-muted/30 p-3">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Club negotiation
+                      </div>
+                      {n.clubCounterFee && (
+                        <div className="mt-1 text-sm">
+                          Selling club asks: <strong>{fmtMoneyExact(n.clubCounterFee)}</strong>
+                        </div>
+                      )}
+                      <label
+                        className="mt-3 block text-xs text-muted-foreground"
+                        htmlFor={`fee-${n.id}`}
+                      >
+                        Your revised transfer fee
+                      </label>
+                      <input
+                        id={`fee-${n.id}`}
+                        type="number"
+                        min={n.fee + 5000}
+                        step={5000}
+                        value={feeOffers[n.id] ?? String(n.clubCounterFee ?? n.fee + 5000)}
+                        onChange={(event) =>
+                          setFeeOffers((current) => ({ ...current, [n.id]: event.target.value }))
+                        }
+                        className="mt-1 h-10 w-full rounded-lg border bg-background px-3 tabular-nums"
+                      />
+                    </div>
                   )}
                   {incoming && n.stage === "playerTalks" && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => {
-                        const fallback = n.playerCounterWage ?? n.proposedWeeklyWage + 25;
-                        const wage = Number(wageOffers[n.id] ?? fallback);
-                        act((s) => improvePersonalTerms(s, n.id, wage));
-                      }}
-                    >
-                      Submit counter-offer
-                    </Button>
+                    <div className="mt-4 rounded-xl border bg-muted/30 p-3">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Personal terms
+                      </div>
+                      {n.playerCounterWage && (
+                        <div className="mt-1 text-sm">
+                          Player demand: <strong>{fmtMoneyExact(n.playerCounterWage)}/wk</strong>
+                        </div>
+                      )}
+                      <label
+                        className="mt-3 block text-xs text-muted-foreground"
+                        htmlFor={`wage-${n.id}`}
+                      >
+                        Your revised weekly wage
+                      </label>
+                      <input
+                        id={`wage-${n.id}`}
+                        type="number"
+                        min={n.proposedWeeklyWage + 25}
+                        step={25}
+                        value={
+                          wageOffers[n.id] ??
+                          String(n.playerCounterWage ?? n.proposedWeeklyWage + 25)
+                        }
+                        onChange={(event) =>
+                          setWageOffers((current) => ({ ...current, [n.id]: event.target.value }))
+                        }
+                        className="mt-1 h-10 w-full rounded-lg border bg-background px-3 tabular-nums"
+                      />
+                    </div>
                   )}
-                  {!incoming && n.stage === "clubTalks" && (
-                    <>
+                  <div className="flex gap-2 flex-wrap mt-3">
+                    {n.stage === "agreed" && (
+                      <Button size="sm" onClick={() => act((s) => completeTransfer(s, n.id))}>
+                        Complete deal
+                      </Button>
+                    )}
+                    {incoming && n.stage === "clubTalks" && (
                       <Button
                         size="sm"
-                        onClick={() => act((s) => respondToIncomingOffer(s, n.id, "accept"))}
+                        variant="secondary"
+                        onClick={() => {
+                          const fallback = n.clubCounterFee ?? n.fee + 5000;
+                          const fee = Number(feeOffers[n.id] ?? fallback);
+                          act((s) => improveTransferOffer(s, n.id, fee));
+                        }}
                       >
-                        Accept
+                        Submit counter-offer
                       </Button>
+                    )}
+                    {incoming && n.stage === "playerTalks" && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          const fallback = n.playerCounterWage ?? n.proposedWeeklyWage + 25;
+                          const wage = Number(wageOffers[n.id] ?? fallback);
+                          act((s) => improvePersonalTerms(s, n.id, wage));
+                        }}
+                      >
+                        Submit counter-offer
+                      </Button>
+                    )}
+                    {!incoming && n.stage === "clubTalks" && (
+                      <>
+                        <Button
+                          size="sm"
+                          onClick={() => act((s) => respondToIncomingOffer(s, n.id, "accept"))}
+                        >
+                          Accept
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => act((s) => respondToIncomingOffer(s, n.id, "reject"))}
+                        >
+                          Reject
+                        </Button>
+                      </>
+                    )}
+                    {incoming && (
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => act((s) => respondToIncomingOffer(s, n.id, "reject"))}
+                        onClick={() => act((s) => withdrawFromTalks(s, n.id))}
                       >
-                        Reject
+                        Withdraw
                       </Button>
-                    </>
-                  )}
-                  {incoming && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => act((s) => withdrawFromTalks(s, n.id))}
-                    >
-                      Withdraw
-                    </Button>
-                  )}
-                </div>
-              </article>
-            );
-          })}
-          {!deals.length && (
-            <div className="rounded-2xl border bg-card p-8 text-center text-sm text-muted-foreground">
-              No live negotiations.
-            </div>
-          )}
-        </div>
-      )}
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+            {!deals.length && (
+              <div className="rounded-2xl border bg-card p-8 text-center text-sm text-muted-foreground">
+                No live negotiations.
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -363,7 +393,10 @@ function PlayerProfile({
         <div className="p-5">
           <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
             <ProfileFact label="Value" value={fmtMoney(player.marketValue)} />
-            <ProfileFact label="Wage" value={contract ? `${fmtMoneyExact(contract.weeklyWage)}/wk` : "—"} />
+            <ProfileFact
+              label="Wage"
+              value={contract ? `${fmtMoneyExact(contract.weeklyWage)}/wk` : "—"}
+            />
             <ProfileFact label="Role" value={contract?.squadRole ?? "—"} />
             <ProfileFact label="Preferred foot" value={player.preferredFoot} />
           </div>
@@ -402,9 +435,10 @@ function PlanningMetric({
 }) {
   return (
     <div className="rounded-xl border bg-card p-3 text-center">
-      <div className={urgent ? "font-display text-xl text-amber-600" : "font-display text-xl"}>{value}</div>
+      <div className={urgent ? "font-display text-xl text-amber-600" : "font-display text-xl"}>
+        {value}
+      </div>
       <div className="text-xs text-muted-foreground">{label}</div>
     </div>
   );
 }
-
