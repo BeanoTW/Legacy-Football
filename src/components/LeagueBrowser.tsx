@@ -17,6 +17,7 @@ import {
   tierOfClub,
   finishIn,
 } from "@/lib/game/reputation";
+import { DetailScreen } from "@/components/game/shared/layout";
 
 type View = "table" | "fixtures" | "predictions";
 
@@ -42,11 +43,9 @@ export function LeagueBrowser({ state }: { state: GameState }) {
 
   if (!league) return null;
 
-  return (
-    <div className="space-y-4">
-      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-        <div className="banner-strip px-3 py-2 text-xs">League browser</div>
-        <div className="p-3 flex flex-wrap gap-2">
+  const toolbar = (
+    <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+        <div className="flex gap-2 overflow-x-auto p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <Segmented
             options={leagues.map((l) => [l.id, l.name] as const)}
             value={leagueId}
@@ -75,14 +74,22 @@ export function LeagueBrowser({ state }: { state: GameState }) {
             onChange={(v) => setView(v as View)}
           />
         </div>
-        <div className="px-3 pb-3 text-xs text-muted-foreground">
+        <div className="truncate px-3 pb-2 text-xs text-muted-foreground">
           Tier {league.tier} · {league.clubIds.length} clubs ·{" "}
           {league.promotionPlaces > 0 ? `${league.promotionPlaces} promoted` : "top division"} ·{" "}
           {league.relegationPlaces > 0 ? `${league.relegationPlaces} relegated` : "no relegation"}
           {isPast && " · final records"}
         </div>
       </div>
+  );
 
+  return (
+    <DetailScreen
+      title="League browser"
+      subtitle="Tables, fixtures and predictions across the football pyramid."
+      toolbar={toolbar}
+      className="touch-pan-y space-y-3"
+    >
       {view === "table" && <TableView state={state} rows={rows} season={season} onPick={setClub} />}
       {view === "fixtures" && <FixturesView fixtures={fixtures} userClub={state.clubName} />}
       {view === "predictions" && (
@@ -96,7 +103,7 @@ export function LeagueBrowser({ state }: { state: GameState }) {
       )}
 
       {club && <ClubCard state={state} club={club} season={season} onClose={() => setClub(null)} />}
-    </div>
+    </DetailScreen>
   );
 }
 
