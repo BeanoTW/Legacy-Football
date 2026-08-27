@@ -15,6 +15,7 @@ import { scoutingAssignment, scoutingReport, startScouting } from "@/lib/game/sc
 import { fmtMoney } from "@/lib/game/engine";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { DetailScreen } from "./shared/layout";
 
 const POSITIONS: (Position | "ALL")[] = ["ALL", "GK", "DEF", "MID", "FWD"];
 
@@ -45,31 +46,17 @@ export function ScoutingBrowser({
       return result.state;
     });
 
-  return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
-      <Button className="w-fit shrink-0" variant="ghost" size="sm" onClick={onBack}>
-        <ArrowLeft className="size-4 mr-2" /> Back to transfers
-      </Button>
-      <div className="shrink-0">
-        <h1 className="font-display text-2xl md:text-3xl">Scout players</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          There is no magic overall rating. Send scouts, build knowledge and decide from the
-          evidence.
-        </p>
-      </div>
-      {note && (
-        <div className="shrink-0 truncate rounded-xl border bg-muted/40 px-4 py-2 text-sm">
-          {note}
-        </div>
-      )}
-      <div className="flex shrink-0 flex-wrap gap-2">
+  const toolbar = (
+    <div className="space-y-2">
+      {note && <div className="truncate rounded-xl border bg-muted/40 px-4 py-2 text-sm">{note}</div>}
+      <div className="flex flex-wrap gap-2" aria-label="Scouting filters">
         {POSITIONS.map((p) => (
           <button
             key={p}
             onClick={() => setPosition(p)}
             className={cn(
-              "px-3 py-2 rounded-xl border text-sm font-semibold",
-              position === p ? "bg-primary text-primary-foreground border-primary" : "bg-card",
+              "rounded-xl border px-3 py-2 text-sm font-semibold",
+              position === p ? "border-primary bg-primary text-primary-foreground" : "bg-card",
             )}
           >
             {p}
@@ -78,14 +65,28 @@ export function ScoutingBrowser({
         <button
           onClick={() => setWatchedOnly((value) => !value)}
           className={cn(
-            "ml-auto px-3 py-2 rounded-xl border text-sm font-semibold",
-            watchedOnly ? "bg-amber-500 text-white border-amber-500" : "bg-card",
+            "ml-auto rounded-xl border px-3 py-2 text-sm font-semibold",
+            watchedOnly ? "border-amber-500 bg-amber-500 text-white" : "bg-card",
           )}
         >
           <Star className="mr-1 inline size-4" /> Watched
         </button>
       </div>
-      <div className="contained-scroll grid min-h-0 flex-1 gap-3 pr-0.5 xl:grid-cols-2 xl:items-start">
+    </div>
+  );
+
+  return (
+    <DetailScreen
+      title="Scout players"
+      subtitle="Send scouts, build knowledge and decide from the evidence."
+      actions={
+        <Button variant="ghost" size="sm" onClick={onBack}>
+          <ArrowLeft className="mr-2 size-4" /> Back
+        </Button>
+      }
+      toolbar={toolbar}
+      className="touch-pan-y grid gap-3 xl:grid-cols-2 xl:items-start"
+    >
         {rows.map(({ player }) => {
           const assignment = scoutingAssignment(state, player.id);
           const report = scoutingReport(state, player);
@@ -184,7 +185,6 @@ export function ScoutingBrowser({
             </article>
           );
         })}
-      </div>
-    </div>
+    </DetailScreen>
   );
 }
