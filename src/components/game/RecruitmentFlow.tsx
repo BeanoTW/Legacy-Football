@@ -33,11 +33,18 @@ export function RecruitmentFlow({
   }
   if (view === "operations") {
     return (
-      <div className="space-y-4">
-        <Button variant="ghost" onClick={() => setView("home")}>
+      <div className="flex h-full min-h-0 flex-col gap-3">
+        <Button
+          className="w-fit shrink-0"
+          variant="ghost"
+          size="sm"
+          onClick={() => setView("home")}
+        >
           <ArrowLeft className="size-4 mr-2" /> Back to transfers
         </Button>
-        <RecruitmentOperations state={state} update={update} />
+        <div className="min-h-0 flex-1">
+          <RecruitmentOperations state={state} update={update} />
+        </div>
       </div>
     );
   }
@@ -79,13 +86,17 @@ export function RecruitmentFlow({
         <TransferAction
           icon={<Handshake className="size-5 md:size-6" />}
           title="Buy players"
-          sub={deals ? `${deals} live negotiation${deals === 1 ? "" : "s"}` : "Search and negotiate"}
+          sub={
+            deals ? `${deals} live negotiation${deals === 1 ? "" : "s"}` : "Search and negotiate"
+          }
           onClick={() => setView("operations")}
         />
         <TransferAction
           icon={<Shield className="size-5 md:size-6" />}
           title="Sell players"
-          sub={sales ? `${sales} offer${sales === 1 ? "" : "s"} waiting` : "List and set asking prices"}
+          sub={
+            sales ? `${sales} offer${sales === 1 ? "" : "s"} waiting` : "List and set asking prices"
+          }
           onClick={() => setView("sales")}
         />
         <TransferAction
@@ -97,7 +108,9 @@ export function RecruitmentFlow({
         <TransferAction
           icon={<Shield className="size-5 md:size-6" />}
           title="Contracts"
-          sub={snap ? `${snap.expiringContracts} expiring · ${shortlist} watched` : "Review contracts"}
+          sub={
+            snap ? `${snap.expiringContracts} expiring · ${shortlist} watched` : "Review contracts"
+          }
           onClick={() => setView("operations")}
         />
       </div>
@@ -125,7 +138,5 @@ function TransferAction({
   sub: string;
   onClick: () => void;
 }) {
-  return (
-    <WorkflowTile icon={icon} title={title} value={sub} onClick={onClick} />
-  );
+  return <WorkflowTile icon={icon} title={title} value={sub} onClick={onClick} />;
 }

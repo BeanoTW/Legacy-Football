@@ -46,19 +46,23 @@ export function ScoutingBrowser({
     });
 
   return (
-    <div className="space-y-4">
-      <Button variant="ghost" onClick={onBack}>
+    <div className="flex h-full min-h-0 flex-col gap-3">
+      <Button className="w-fit shrink-0" variant="ghost" size="sm" onClick={onBack}>
         <ArrowLeft className="size-4 mr-2" /> Back to transfers
       </Button>
-      <div>
-        <h1 className="font-display text-3xl">Scout players</h1>
+      <div className="shrink-0">
+        <h1 className="font-display text-2xl md:text-3xl">Scout players</h1>
         <p className="text-sm text-muted-foreground mt-1">
           There is no magic overall rating. Send scouts, build knowledge and decide from the
           evidence.
         </p>
       </div>
-      {note && <div className="rounded-xl border bg-muted/40 px-4 py-3 text-sm">{note}</div>}
-      <div className="flex gap-2 flex-wrap">
+      {note && (
+        <div className="shrink-0 truncate rounded-xl border bg-muted/40 px-4 py-2 text-sm">
+          {note}
+        </div>
+      )}
+      <div className="flex shrink-0 flex-wrap gap-2">
         {POSITIONS.map((p) => (
           <button
             key={p}
@@ -81,7 +85,7 @@ export function ScoutingBrowser({
           <Star className="mr-1 inline size-4" /> Watched
         </button>
       </div>
-      <div className="space-y-3">
+      <div className="contained-scroll grid min-h-0 flex-1 gap-3 pr-0.5 xl:grid-cols-2 xl:items-start">
         {rows.map(({ player }) => {
           const assignment = scoutingAssignment(state, player.id);
           const report = scoutingReport(state, player);
@@ -142,7 +146,9 @@ export function ScoutingBrowser({
                     : "Unknown"}
                 </span>
                 <span>Personality {report.personalityKnown ? player.personality : "Unknown"}</span>
-                <span title={interest.reason}>Interest <strong>{interest.label}</strong></span>
+                <span title={interest.reason}>
+                  Interest <strong>{interest.label}</strong>
+                </span>
               </div>
               <div className="mt-4 flex gap-2 flex-wrap items-center">
                 <Button
@@ -182,4 +188,3 @@ export function ScoutingBrowser({
     </div>
   );
 }
-
