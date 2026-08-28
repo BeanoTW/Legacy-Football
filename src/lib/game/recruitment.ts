@@ -42,13 +42,9 @@ import { clubReputation } from "./reputation";
 import { facilityModifiers } from "./infrastructure";
 import { buildWorldSimulationPlan } from "./world";
 import { ensureFringeWorldState, makeFringeClubState } from "./fringe";
-import {
-  weeklyWageFor,
-  profileForTier,
-  tierOfClub,
-  tierOfUser,
-  sustainableWeeklyWageBill,
-} from "./economy";
+import { tierOfClub, tierOfUser, sustainableWeeklyWageBill } from "./economy";
+import { legacyTierToFootballLevel } from "./footballLevel";
+import { recruitmentPlayerValue, recruitmentWageForLevel } from "./recruitmentEconomy";
 
 const int = (n: number) => Math.round(n) || 0;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -235,6 +231,7 @@ export function ageOf(p: FootballPlayer, season: number): number {
  * The real economics live in economy.ts: the level of football a club plays
  * at sets the scale, the club's own standing nudges it up or down.
  */
+/** @deprecated Compatibility boundary: tier is the persisted legacy economic tier. */
 export function wageForAbility(
   ability: number,
   clubRep = 55,
@@ -242,16 +239,13 @@ export function wageForAbility(
   age?: number,
   potential?: number,
 ): number {
-  return weeklyWageFor({ ability, tier, clubReputation: clubRep, age, potential });
+  return recruitmentWageForLevel(legacyTierToFootballLevel(tier), ability, clubRep, age, potential);
 }
 
 /** Market value of an ability/age pair, £. Single definition. */
+/** @deprecated Compatibility boundary: tier is the persisted legacy economic tier. */
 export function valueForPlayer(ability: number, potential: number, age: number, tier = 1): number {
-  const peak = clamp(1.25 - Math.abs(age - 25) * 0.045, 0.35, 1.25);
-  const upside = 1 + Math.max(0, potential - ability) / 90;
-  const scale = profileForTier(tier).transferMarketScale;
-  const raw = ability ** 3 * 0.55 * peak * upside * scale;
-  return Math.max(10_000, int(raw / 5_000) * 5_000);
+  return recruitmentPlayerValue(ability, potential, age, legacyTierToFootballLevel(tier));
 }
 
 /* =========================================================================
@@ -1033,19 +1027,42 @@ export interface PlayerInterestAssessment {
 }
 
 /** A readable pre-negotiation interest signal; precise terms still require talks. */
-export function playerInterestAssessment(s: GameState, p: FootballPlayer): PlayerInterestAssessment {
+export function playerInterestAssessment(
+  s: GameState,
+  p: FootballPlayer,
+): PlayerInterestAssessment {
   if (p.currentClubId === s.clubName)
     return { level: "keen", label: "At your club", reason: "Already contracted to the club." };
   const gap = clubReputation(s, s.clubName) - p.reputation;
   if (p.currentClubId === null && gap >= -4)
-    return { level: "keen", label: "Keen", reason: "A suitable free agent who wants a route back into football." };
+    return {
+      level: "keen",
+      label: "Keen",
+      reason: "A suitable free agent who wants a route back into football.",
+    };
   if (gap >= 8)
-    return { level: "keen", label: "Keen", reason: "The club's standing represents a clear step up." };
+    return {
+      level: "keen",
+      label: "Keen",
+      reason: "The club's standing represents a clear step up.",
+    };
   if (gap >= -4)
-    return { level: "open", label: "Open to talks", reason: "The move broadly matches his current reputation." };
+    return {
+      level: "open",
+      label: "Open to talks",
+      reason: "The move broadly matches his current reputation.",
+    };
   if (gap >= -12)
-    return { level: "uncertain", label: "Needs convincing", reason: "Wages, role and the club's plans will matter." };
-  return { level: "unlikely", label: "Unlikely", reason: "He currently expects a club with a stronger reputation." };
+    return {
+      level: "uncertain",
+      label: "Needs convincing",
+      reason: "Wages, role and the club's plans will matter.",
+    };
+  return {
+    level: "unlikely",
+    label: "Unlikely",
+    reason: "He currently expects a club with a stronger reputation.",
+  };
 }
 
 /** Every player the user could realistically approach. Pure — no mutation. */
@@ -2322,4 +2339,3 @@ export const setTransferStatus = (
 ) => cloned(s, (w) => setTransferStatusInPlace(w, playerId, status));
 
 export { SQUAD_ROLES };
-
