@@ -10,12 +10,10 @@ import {
   type RevenueBaseline,
   type WageInputs,
 } from "./economy";
-import {
-  footballLevelToLegacyTier,
-  type FootballLevel,
-} from "./footballLevel";
+import { footballLevelToLegacyTier, type FootballLevel } from "./footballLevel";
 
 const int = (n: number) => Math.round(n);
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 /**
  * Native profiles only exist where the old economy had no calibrated analogue.
@@ -126,6 +124,27 @@ export function weeklyWageForLevel(inputs: LevelWageInputs): number {
   if (inputs.level >= 7) return nativeWeeklyWage(inputs);
   const { level, ...legacyInputs } = inputs;
   return weeklyWageFor({ ...legacyInputs, tier: footballLevelToLegacyTier(level) });
+}
+
+/**
+ * Canonical market value for a player at a football level.
+ *
+ * The formula is intentionally identical to recruitment's historic valuation
+ * formula for levels 1-6. Only the transfer-market scale comes from the new
+ * level profile, allowing levels 7-8 to enter the market without inventing a
+ * second valuation model.
+ */
+export function playerValueForLevel(
+  ability: number,
+  potential: number,
+  age: number,
+  level: FootballLevel,
+): number {
+  const peak = clamp(1.25 - Math.abs(age - 25) * 0.045, 0.35, 1.25);
+  const upside = 1 + Math.max(0, potential - ability) / 90;
+  const scale = economicProfileForLevel(level).transferMarketScale;
+  const raw = ability ** 3 * 0.55 * peak * upside * scale;
+  return Math.max(10_000, int(raw / 5_000) * 5_000);
 }
 
 export function revenueBaselineForLevel(
