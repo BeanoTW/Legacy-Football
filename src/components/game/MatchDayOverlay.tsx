@@ -41,10 +41,10 @@ export function MatchDayOverlay({
   const atmosphere = lm.fixture.home ? Math.round((lm.projectedAttendance / Math.max(1, lm.projectedAttendance + 1200)) * 100) : 72;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#07130f] text-white">
-      <div className="mx-auto min-h-screen max-w-5xl p-0 sm:px-4 sm:py-6">
-        <div className="min-h-screen overflow-hidden bg-card text-card-foreground shadow-2xl sm:min-h-0 sm:rounded-[2rem] sm:border">
-          <div className="flex items-center justify-between gap-3 bg-[#0c211a] px-4 py-3 text-white sm:px-6">
+    <div className="fixed inset-0 z-50 h-dvh overflow-hidden bg-[#07130f] text-white">
+      <div className="mx-auto h-full max-w-5xl p-0 sm:px-4 sm:py-3">
+        <div className="flex h-full min-h-0 flex-col overflow-hidden bg-card text-card-foreground shadow-2xl sm:rounded-[2rem] sm:border">
+          <div className="flex shrink-0 items-center justify-between gap-3 bg-[#0c211a] px-4 py-2 text-white sm:px-6 sm:py-3">
             <div>
               <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.24em] text-emerald-300"><span className="size-2 animate-pulse rounded-full bg-emerald-400" /> Chairman match centre</div>
               <div className="text-sm font-semibold mt-0.5">
@@ -52,7 +52,7 @@ export function MatchDayOverlay({
               </div>
             </div>
             <button
-              className="size-10 rounded-xl bg-black/15 grid place-items-center hover:bg-black/25 transition-colors"
+              className="grid size-9 place-items-center rounded-xl bg-black/15 transition-colors hover:bg-black/25 sm:size-10"
               aria-label="Close matchday"
               onClick={() => {
                 if (confirm("Abandon the match? Progress this fixture will be lost.")) {
@@ -64,15 +64,15 @@ export function MatchDayOverlay({
             </button>
           </div>
 
-          <section className="relative overflow-hidden bg-[radial-gradient(circle_at_50%_120%,#258660_0%,#123d2e_36%,#07130f_78%)] px-4 py-6 text-center text-white sm:px-8 sm:py-9">
+          <section className="relative shrink-0 overflow-hidden bg-[radial-gradient(circle_at_50%_120%,#258660_0%,#123d2e_36%,#07130f_78%)] px-3 py-3 text-center text-white sm:px-8 sm:py-6">
             <div className="absolute inset-x-10 bottom-0 h-px bg-white/20" />
             <div className="inline-flex rounded-full border border-white/15 bg-black/20 px-3 py-1 text-[10px] font-bold tracking-[0.2em] text-emerald-100 backdrop-blur">
               {statusLabel}
             </div>
-            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 sm:gap-6 mt-5">
+            <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:mt-5 sm:gap-6">
               <TeamBadge name={homeName} label="Home" active={lm.fixture.home} />
               <div>
-                <div className="font-display text-5xl sm:text-6xl tnum leading-none whitespace-nowrap">
+                <div className="whitespace-nowrap font-display text-4xl leading-none tnum sm:text-6xl">
                   {homeGoals}
                   <span className="text-muted-foreground mx-2 sm:mx-3">–</span>
                   {awayGoals}
@@ -84,15 +84,17 @@ export function MatchDayOverlay({
           </section>
 
           {lm.status !== "brief" && (
-            <section className="grid grid-cols-3 border-b bg-[#0c211a] text-white">
+            <section className="grid shrink-0 grid-cols-3 border-b bg-[#0c211a] text-white">
               <MatchPulse icon={Activity} label="Possession" value={`${possession}%`} />
               <MatchPulse icon={Target} label="Moments" value={`${ourMoments}–${theirMoments}`} />
               <MatchPulse icon={Users} label="Atmosphere" value={`${atmosphere}%`} />
             </section>
           )}
 
+          <div className={cn("min-h-0 flex-1", lm.status === "brief" ? "block" : "grid grid-rows-[minmax(0,3fr)_minmax(8rem,2fr)] lg:grid-cols-[minmax(0,1.15fr)_minmax(20rem,.85fr)] lg:grid-rows-1")}>
+
           {lm.status === "brief" && (
-            <section className="border-t p-4 sm:p-5 space-y-4">
+            <section className="h-full overflow-y-auto overscroll-contain border-t p-3 sm:p-5 space-y-3 sm:space-y-4">
               <div>
                 <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">The boardroom view</div>
                 <h2 className="font-display text-3xl">The doors close. The noise rises.</h2>
@@ -131,7 +133,7 @@ export function MatchDayOverlay({
           )}
 
           {lm.status === "halfTime" && lm.halfTimeOptions && (
-            <section className="border-t p-4 sm:p-5 space-y-4">
+            <section className="min-h-0 overflow-y-auto overscroll-contain border-t p-3 sm:p-5 space-y-3 sm:space-y-4">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Half time
@@ -146,7 +148,7 @@ export function MatchDayOverlay({
                   <button
                     key={o.id}
                     onClick={() => update((s) => applyHalfTimeChoice(s, o.id))}
-                    className="group min-h-24 rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary hover:bg-primary/5 hover:shadow-md"
+                    className="group min-h-20 rounded-2xl border p-3 text-left transition-all hover:-translate-y-0.5 hover:border-primary hover:bg-primary/5 hover:shadow-md sm:min-h-24 sm:p-4"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <span className="font-display text-xl">{o.label}</span>
@@ -160,7 +162,7 @@ export function MatchDayOverlay({
           )}
 
           {lm.status === "fullTime" && (
-            <section className="border-t p-4 sm:p-5 space-y-4">
+            <section className="min-h-0 overflow-y-auto overscroll-contain border-t p-3 sm:p-5 space-y-3 sm:space-y-4">
               <div className="text-center py-1">
                 <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Result
@@ -187,17 +189,17 @@ export function MatchDayOverlay({
             </section>
           )}
 
-          <section className="border-t bg-muted/20">
+          {lm.status !== "brief" && <section className="flex min-h-0 flex-col border-t bg-muted/20 lg:border-l lg:border-t-0">
             <div className="px-4 py-3 flex items-center justify-between">
               <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 The story of the match
               </div>
               <div className="text-xs text-muted-foreground">{lm.events.length} events</div>
             </div>
-            <div className="max-h-80 overflow-y-auto border-t">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain border-t">
               {lm.events.length === 0 ? (
                 <div className="p-5 text-sm text-muted-foreground text-center">
-                  {lm.status === "brief" ? "Pre-match — ready to kick off." : "No events yet."}
+                  No events yet.
                 </div>
               ) : (
                 <ul className="text-sm divide-y">
@@ -229,7 +231,8 @@ export function MatchDayOverlay({
                 </ul>
               )}
             </div>
-          </section>
+          </section>}
+          </div>
         </div>
       </div>
     </div>
