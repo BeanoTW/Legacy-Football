@@ -1,0 +1,88 @@
+import type { GameState } from "./types";
+import { clubReputation } from "./reputation";
+import {
+  footballLevelOfClub,
+  footballLevelOfUser,
+  type FootballLevel,
+} from "./footballLevel";
+import {
+  playerValueForLevel,
+  sustainableWeeklyWageBillForLevel,
+  weeklyWageForLevel,
+} from "./levelEconomy";
+
+/**
+ * Recruitment-facing economic adapters.
+ *
+ * Recruitment should reason in football levels, never persisted legacy tiers.
+ * Keeping these lookups here also prevents transfer, contract and squad code
+ * from duplicating the legacy-tier bridge while old saves are still supported.
+ */
+export function recruitmentLevelOfClub(state: GameState, clubId: string): FootballLevel {
+  return footballLevelOfClub(state, clubId);
+}
+
+export function recruitmentLevelOfUser(state: GameState): FootballLevel {
+  return footballLevelOfUser(state);
+}
+
+export function recruitmentWageForClub(
+  state: GameState,
+  clubId: string,
+  ability: number,
+  age?: number,
+  potential?: number,
+): number {
+  return weeklyWageForLevel({
+    ability,
+    level: recruitmentLevelOfClub(state, clubId),
+    clubReputation: clubReputation(state, clubId),
+    age,
+    potential,
+  });
+}
+
+export function recruitmentWageForLevel(
+  level: FootballLevel,
+  ability: number,
+  clubRep = 55,
+  age?: number,
+  potential?: number,
+): number {
+  return weeklyWageForLevel({
+    ability,
+    level,
+    clubReputation: clubRep,
+    age,
+    potential,
+  });
+}
+
+export function recruitmentPlayerValue(
+  ability: number,
+  potential: number,
+  age: number,
+  level: FootballLevel,
+): number {
+  return playerValueForLevel(ability, potential, age, level);
+}
+
+export function recruitmentSustainableWageBill(
+  state: GameState,
+  clubId: string,
+  homeMatches = 23,
+): number {
+  return sustainableWeeklyWageBillForLevel(
+    recruitmentLevelOfClub(state, clubId),
+    clubReputation(state, clubId),
+    homeMatches,
+  );
+}
+
+export function recruitmentUserSustainableWageBill(state: GameState, homeMatches = 23): number {
+  return sustainableWeeklyWageBillForLevel(
+    recruitmentLevelOfUser(state),
+    clubReputation(state, state.clubName),
+    homeMatches,
+  );
+}
