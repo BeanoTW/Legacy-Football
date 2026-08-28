@@ -7,6 +7,7 @@ import {
 } from "../footballLevel.ts";
 import {
   economicProfileForLevel,
+  playerValueForLevel,
   revenueBaselineForLevel,
   sustainableWeeklyWageBillForLevel,
   weeklyWageForLevel,
@@ -24,6 +25,15 @@ const expectedPairs: ReadonlyArray<readonly [number, FootballLevel]> = [
   [3, 5],
   [4, 6],
 ];
+
+function legacyPlayerValue(ability: number, potential: number, age: number, tier: number): number {
+  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+  const peak = clamp(1.25 - Math.abs(age - 25) * 0.045, 0.35, 1.25);
+  const upside = 1 + Math.max(0, potential - ability) / 90;
+  const scale = profileForTier(tier).transferMarketScale;
+  const raw = ability ** 3 * 0.55 * peak * upside * scale;
+  return Math.max(10_000, Math.round(raw / 5_000) * 5_000);
+}
 
 for (const [tier, level] of expectedPairs) {
   if (legacyTierToFootballLevel(tier) !== level) {
@@ -57,6 +67,12 @@ for (const [tier, level] of expectedPairs) {
     throw new Error(`Football level ${level} changed weekly wage calibration`);
   }
 
+  const legacyValue = legacyPlayerValue(67, 72, 25, tier);
+  const levelValue = playerValueForLevel(67, 72, 25, level);
+  if (legacyValue !== levelValue) {
+    throw new Error(`Football level ${level} changed player valuation calibration`);
+  }
+
   const legacyRevenue = revenueBaseline(tier, 54, 23);
   const levelRevenue = revenueBaselineForLevel(level, 54, 23);
   if (JSON.stringify(legacyRevenue) !== JSON.stringify(levelRevenue)) {
@@ -85,6 +101,12 @@ if (!(lowerWage7 > lowerWage8 && lowerWage8 >= 25)) {
   throw new Error(`Unexpected lower-league wages: level 7 £${lowerWage7}, level 8 £${lowerWage8}`);
 }
 
+const lowerValue7 = playerValueForLevel(52, 58, 24, 7);
+const lowerValue8 = playerValueForLevel(52, 58, 24, 8);
+if (!(lowerValue7 >= lowerValue8 && lowerValue8 >= 10_000)) {
+  throw new Error(`Unexpected lower-league values: level 7 £${lowerValue7}, level 8 £${lowerValue8}`);
+}
+
 const lowerRevenue7 = revenueBaselineForLevel(7, 50, 23).totalSeason;
 const lowerRevenue8 = revenueBaselineForLevel(8, 50, 23).totalSeason;
 if (lowerRevenue7 <= lowerRevenue8) {
@@ -107,4 +129,4 @@ for (const badTier of [-2, 7]) {
   if (!threw) throw new Error(`Out-of-range legacy tier ${badTier} was accepted`);
 }
 
-console.log("✓ canonical football levels preserve legacy economics and define native levels 7-8");
+console.log("✓ canonical football levels preserve legacy wages, values and revenues with native levels 7-8");
