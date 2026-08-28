@@ -8,6 +8,7 @@ import {
 import {
   economicProfileForLevel,
   revenueBaselineForLevel,
+  sustainableWeeklyWageBillForLevel,
   weeklyWageForLevel,
 } from "../levelEconomy.ts";
 
@@ -63,6 +64,39 @@ for (const [tier, level] of expectedPairs) {
   }
 }
 
+const level7 = economicProfileForLevel(7);
+const level8 = economicProfileForLevel(8);
+if (level7.label !== "Regional Premier" || level8.label !== "Regional Division One") {
+  throw new Error("Native level 7-8 economy labels are missing");
+}
+if (level7.typicalAttendance <= level8.typicalAttendance) {
+  throw new Error("Level 7 attendance should exceed level 8 attendance");
+}
+if (level7.wageMultiplier <= level8.wageMultiplier) {
+  throw new Error("Level 7 wage pressure should exceed level 8 wage pressure");
+}
+if (level7.transferMarketScale <= level8.transferMarketScale) {
+  throw new Error("Level 7 transfer market should exceed level 8 transfer market");
+}
+
+const lowerWage7 = weeklyWageForLevel({ ability: 52, level: 7, clubReputation: 45, age: 25 });
+const lowerWage8 = weeklyWageForLevel({ ability: 52, level: 8, clubReputation: 45, age: 25 });
+if (!(lowerWage7 > lowerWage8 && lowerWage8 >= 25)) {
+  throw new Error(`Unexpected lower-league wages: level 7 £${lowerWage7}, level 8 £${lowerWage8}`);
+}
+
+const lowerRevenue7 = revenueBaselineForLevel(7, 50, 23).totalSeason;
+const lowerRevenue8 = revenueBaselineForLevel(8, 50, 23).totalSeason;
+if (lowerRevenue7 <= lowerRevenue8) {
+  throw new Error("Level 7 revenue baseline should exceed level 8");
+}
+
+const wageBudget7 = sustainableWeeklyWageBillForLevel(7, 50, 23);
+const wageBudget8 = sustainableWeeklyWageBillForLevel(8, 50, 23);
+if (!(wageBudget7 > wageBudget8 && wageBudget8 > 0)) {
+  throw new Error("Native lower-level sustainable wage budgets are not ordered correctly");
+}
+
 for (const badTier of [-2, 7]) {
   let threw = false;
   try {
@@ -73,4 +107,4 @@ for (const badTier of [-2, 7]) {
   if (!threw) throw new Error(`Out-of-range legacy tier ${badTier} was accepted`);
 }
 
-console.log("✓ canonical football levels preserve legacy economic calibration");
+console.log("✓ canonical football levels preserve legacy economics and define native levels 7-8");
