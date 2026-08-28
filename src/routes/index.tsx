@@ -9,6 +9,7 @@ import { ALL_TABS, DESKTOP_PRIMARY_TAB_IDS, type Tab } from "@/components/game/t
 import { MobileNav } from "@/components/game/MobileNav";
 import { MobileContinueBar } from "@/components/game/MobileContinueBar";
 import { ContinueCalendar } from "@/components/game/ContinueCalendar";
+import { AdvanceInboxPreview } from "@/components/game/AdvanceInboxPreview";
 import { NewGame } from "@/components/game/NewGame";
 import { Kpi, TopBar } from "@/components/game/shared/primitives";
 import { ScreenBoundary } from "@/components/game/shared/ScreenBoundary";
@@ -61,7 +62,7 @@ function Page() {
   return <Game {...game} state={game.state} />;
 }
 
-function Game({ state, update, isContinuing, startContinue, stopContinue, activeSlot, saveSlots, switchSlot, deleteSlot }: {
+function Game({ state, update, isContinuing, continueReason, startContinue, stopContinue, activeSlot, saveSlots, switchSlot, deleteSlot }: {
   state: GameState;
   update: (fn: (s: GameState) => GameState) => void;
   reset: () => void;
@@ -76,18 +77,28 @@ function Game({ state, update, isContinuing, startContinue, stopContinue, active
 }) {
   const [tab, setTab] = useState<Tab>("hub");
   const [decisionQueue, setDecisionQueue] = useState(false);
+  const [showAdvancePreview, setShowAdvancePreview] = useState(false);
+  const [continueBaselineIds, setContinueBaselineIds] = useState<string[]>([]);
   const kpi = useMemo(() => ({ ...clubKpi(state), avgTicket: avgTicketPrice(state) }), [state]);
   const desktopPrimary = ALL_TABS.filter(([id]) => DESKTOP_PRIMARY_TAB_IDS.includes(id));
   const desktopMore = ALL_TABS.filter(([id]) => !DESKTOP_PRIMARY_TAB_IDS.includes(id));
   const blockingDecisions = actionableInbox(state);
+  const advanceItems = useMemo(() => {
+    const baseline = new Set(continueBaselineIds);
+    return state.inbox
+      .filter((item) => !baseline.has(item.id))
+      .slice()
+      .sort((a, b) => b.season - a.season || b.week - a.week || b.id.localeCompare(a.id));
+  }, [continueBaselineIds, state.inbox]);
   const phaseLabel = ({ preseason: "Pre-season", firstHalf: "League — 1st half", midseason: "Mid-season break", secondHalf: "League — 2nd half" } as const)[phaseOf(state.week)];
 
   useEffect(() => {
-    if (!isContinuing || blockingDecisions.length === 0) return;
+    if (blockingDecisions.length === 0 || (!isContinuing && !continueReason)) return;
     stopContinue();
+    setShowAdvancePreview(false);
     setDecisionQueue(true);
     setTab("inbox");
-  }, [blockingDecisions.length, isContinuing, stopContinue]);
+  }, [blockingDecisions.length, continueReason, isContinuing, stopContinue]);
 
   const requestContinue = () => {
     if (blockingDecisions.length > 0) {
@@ -96,6 +107,8 @@ function Game({ state, update, isContinuing, startContinue, stopContinue, active
       setTab("inbox");
       return;
     }
+    setContinueBaselineIds(state.inbox.map((item) => item.id));
+    setShowAdvancePreview(true);
     startContinue();
   };
 
@@ -165,6 +178,21 @@ function Game({ state, update, isContinuing, startContinue, stopContinue, active
       </main>
 
       <MobileContinueBar isContinuing={isContinuing} startContinue={requestContinue} stopContinue={stopContinue} label={`W${state.week} · ${phaseLabel}`} />
+      {showAdvancePreview && (
+        <AdvanceInboxPreview
+          items={advanceItems}
+          isContinuing={isContinuing}
+          reason={continueReason}
+          onStop={stopContinue}
+          onClose={() => setShowAdvancePreview(false)}
+          onOpenInbox={() => {
+            stopContinue();
+            setShowAdvancePreview(false);
+            setDecisionQueue(blockingDecisions.length > 0);
+            setTab("inbox");
+          }}
+        />
+      )}
       {state.liveMatch && <MatchDayOverlay state={state} update={update} />}
     </div>
   );
