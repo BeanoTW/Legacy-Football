@@ -1,0 +1,75 @@
+name: Apply world generation economy migration patch
+
+on:
+  push:
+    branches:
+      - 'chatgpt/economic-unification'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[worldgen-economy-patched]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt/economic-unification
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Move world generation wage budgets onto football levels
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('src/lib/game/recruitment.ts')
+          text = p.read_text()
+
+          old_import = 'import { recruitmentPlayerValue, recruitmentWageForLevel } from "./recruitmentEconomy";'
+          new_import = '''import {
+            recruitmentContractWageForLevel,
+            recruitmentLevelOfClub,
+            recruitmentPlayerValue,
+            recruitmentSustainableWageBill,
+            recruitmentWageForLevel,
+          } from "./recruitmentEconomy";'''
+          if text.count(old_import) != 1:
+            raise SystemExit(f'expected recruitmentEconomy import once, found {text.count(old_import)}')
+          text = text.replace(old_import, new_import, 1)
+
+          old_generate = '''    const rep = clubReputation(s, club);
+            const tier = tierOfClub(s, club);
+            const tierRating = clamp(42 + rep * 0.42, 40, 88);'''
+          new_generate = '''    const rep = clubReputation(s, club);
+            const tier = tierOfClub(s, club);
+            const level = recruitmentLevelOfClub(s, club);
+            const tierRating = clamp(42 + rep * 0.42, 40, 88);'''
+          if text.count(old_generate) != 2:
+            raise SystemExit(f'expected two focus-club setup blocks, found {text.count(old_generate)}')
+          text = text.replace(old_generate, new_generate, 2)
+
+          old_target = 'const targetBill = sustainableWeeklyWageBill(tier, rep) * PLAYER_WAGE_SHARE * OPENING_WAGE_LOAD;'
+          new_target = 'const targetBill = recruitmentSustainableWageBill(s, club) * PLAYER_WAGE_SHARE * OPENING_WAGE_LOAD;'
+          if text.count(old_target) != 2:
+            raise SystemExit(f'expected two opening target bill calculations, found {text.count(old_target)}')
+          text = text.replace(old_target, new_target, 2)
+
+          old_contract = 'weeklyWage: Math.max(200, int((base * wageScalar) / 25) * 25),'
+          new_contract = 'weeklyWage: recruitmentContractWageForLevel(base, wageScalar, level),'
+          if text.count(old_contract) != 2:
+            raise SystemExit(f'expected two opening contract wage calculations, found {text.count(old_contract)}')
+          text = text.replace(old_contract, new_contract, 2)
+
+          p.write_text(text)
+          PY
+          bunx prettier --write src/lib/game/recruitment.ts
+      - name: Commit migration patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- src/lib/game/recruitment.ts
+          git commit -m "Move generated squad wages onto football levels [worldgen-economy-patched]"
+          git push origin HEAD:chatgpt/economic-unification
