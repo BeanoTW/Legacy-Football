@@ -6,6 +6,7 @@ import {
   type FootballLevel,
 } from "./footballLevel";
 import {
+  contractWageForLevel,
   playerValueForLevel,
   sustainableWeeklyWageBillForLevel,
   weeklyWageForLevel,
@@ -56,6 +57,27 @@ export function recruitmentWageForLevel(
     age,
     potential,
   });
+}
+
+export function recruitmentContractWageForLevel(
+  level: FootballLevel,
+  baseWeeklyWage: number,
+  scalar: number,
+): number {
+  return contractWageForLevel(baseWeeklyWage, scalar, level);
+}
+
+export function recruitmentContractWageForClub(
+  state: GameState,
+  clubId: string,
+  baseWeeklyWage: number,
+  scalar: number,
+): number {
+  return contractWageForLevel(
+    baseWeeklyWage,
+    scalar,
+    recruitmentLevelOfClub(state, clubId),
+  );
 }
 
 export function recruitmentPlayerValue(
