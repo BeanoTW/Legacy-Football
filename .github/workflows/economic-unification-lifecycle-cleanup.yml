@@ -1,0 +1,62 @@
+name: Cleanup recruitment lifecycle migration
+
+on:
+  push:
+    branches:
+      - 'chatgpt/economic-unification'
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: ${{ !contains(github.event.head_commit.message, '[recruitment-lifecycle-clean]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt/economic-unification
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Remove obsolete legacy tier locals
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/lib/game/recruitment.ts')
+          text = p.read_text()
+
+          old = '''function renewAiContract(s: GameState, c: PlayerContract, p: FootballPlayer): void {
+            const rng = seededRng(s.saveSeed, "aiRenewTerms", c.id, s.season);
+            const rep = clubReputation(s, c.clubId);
+            const age = ageOf(p, s.season);'''.replace('            ', '  ')
+          new = '''function renewAiContract(s: GameState, c: PlayerContract, p: FootballPlayer): void {
+            const rng = seededRng(s.saveSeed, "aiRenewTerms", c.id, s.season);
+            const age = ageOf(p, s.season);'''.replace('            ', '  ')
+          if text.count(old) != 1:
+            raise SystemExit(f'AI renewal cleanup expected once, found {text.count(old)}')
+          text = text.replace(old, new, 1)
+
+          old = '''  const rep = clubReputation(s, s.clubName);
+            const tier = tierOfClub(s, s.clubName);
+            const level = recruitmentLevelOfUser(s);'''.replace('            ', '  ')
+          new = '''  const rep = clubReputation(s, s.clubName);
+            const level = recruitmentLevelOfUser(s);'''.replace('            ', '  ')
+          if text.count(old) != 1:
+            raise SystemExit(f'emergency cover cleanup expected once, found {text.count(old)}')
+          text = text.replace(old, new, 1)
+
+          if text.count('tierOfUser') == 1:
+            text = text.replace('import { tierOfClub, tierOfUser } from "./economy";', 'import { tierOfClub } from "./economy";')
+
+          p.write_text(text)
+          PY
+          bunx prettier --write src/lib/game/recruitment.ts
+      - name: Commit cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- src/lib/game/recruitment.ts
+          git commit -m "Clean recruitment lifecycle migration [recruitment-lifecycle-clean]"
+          git push origin HEAD:chatgpt/economic-unification
