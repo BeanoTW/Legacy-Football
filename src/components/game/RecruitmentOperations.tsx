@@ -19,6 +19,7 @@ import {
   weeksLeftOnContract,
   withdrawFromTalks,
 } from "@/lib/game/recruitment";
+import { MOOD_TONE_CLASS, playerMood } from "@/lib/game/character";
 
 export function RecruitmentOperations({
   state,
@@ -77,6 +78,7 @@ export function RecruitmentOperations({
   const playerRow = (player: (typeof squad)[number]) => {
     const contract = activeContract(state, player.id);
     const weeksLeft = contract ? weeksLeftOnContract(state, contract) : 0;
+    const mood = playerMood(state, player);
     return (
       <button
         key={player.id}
@@ -88,8 +90,9 @@ export function RecruitmentOperations({
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold">{playerName(player)}</span>
-          <span className="block truncate text-xs text-muted-foreground">
-            Age {ageOf(player, state.season)} · {contract?.squadRole ?? "Unregistered"}
+          <span className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
+            <span className="truncate">Age {ageOf(player, state.season)} · {contract?.squadRole ?? "Unregistered"}</span>
+            <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${MOOD_TONE_CLASS[mood.tone]}`}>{mood.label}</span>
           </span>
         </span>
         <span className="shrink-0 text-right text-sm">
@@ -370,6 +373,7 @@ function PlayerProfile({
 }) {
   const attrs = playerAttributes(player);
   const contract = activeContract(state, player.id);
+  const mood = playerMood(state, player);
   return (
     <div className="space-y-4">
       <Button variant="ghost" onClick={onBack}>
@@ -391,7 +395,7 @@ function PlayerProfile({
           </div>
         </div>
         <div className="p-5">
-          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
             <ProfileFact label="Value" value={fmtMoney(player.marketValue)} />
             <ProfileFact
               label="Wage"
@@ -399,7 +403,10 @@ function PlayerProfile({
             />
             <ProfileFact label="Role" value={contract?.squadRole ?? "—"} />
             <ProfileFact label="Preferred foot" value={player.preferredFoot} />
+            <ProfileFact label="Personality" value={player.personality} />
+            <ProfileFact label="Mood" value={mood.label} />
           </div>
+          <div className={`mt-3 rounded-xl px-3 py-2 text-xs ${MOOD_TONE_CLASS[mood.tone]}`}>{mood.detail}</div>
           <h3 className="mt-6 font-display text-xl">Abilities</h3>
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
             {Object.entries(attrs).map(([key, value]) => (

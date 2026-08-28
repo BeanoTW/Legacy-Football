@@ -8,6 +8,7 @@ import { unreadCount } from "@/lib/game/inbox";
 import { financialHealth as canonicalFinancialHealth, sustainabilitySnapshot } from "@/lib/game/sustainability";
 import { HEALTH_TONE, initials, ord } from "./shared/primitives";
 import type { Tab } from "./tabs";
+import { chairmanStyle, clubNickname } from "@/lib/game/character";
 
 function financialHealth(state: GameState): { label: string; tone: "good" | "bad" | "muted" } {
   const h = canonicalFinancialHealth(state);
@@ -51,13 +52,14 @@ export function ClubHub({ state, update, setTab }: { state: GameState; update: (
   const leagueSorted = [...state.league].sort((a, b) => b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga) || b.gf - a.gf);
   const myIdx = leagueSorted.findIndex((r) => r.team === state.clubName);
   const miniLeague = leagueSorted.slice(Math.max(0, myIdx - 2), Math.min(leagueSorted.length, myIdx + 3));
+  const ownership = chairmanStyle(state);
 
   return (
     <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-2 md:gap-3 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,.85fr)] xl:grid-rows-[auto_minmax(0,1fr)]">
       <section className="overflow-hidden rounded-xl border shadow-sm xl:col-span-2">
         <div className="panel-strip flex items-center justify-between gap-2 px-3 py-2 md:px-5">
-          <div className="flex min-w-0 items-center gap-2 md:gap-4"><div className="grid size-9 md:size-11 shrink-0 place-items-center rounded-lg bg-black/25 font-display text-base md:text-xl">{initials(state.clubName)}</div><div className="min-w-0"><div className="truncate font-display text-xl md:text-2xl leading-none">{state.clubName}</div><div className="mt-0.5 text-[10px] md:text-xs opacity-80">{myIdx >= 0 ? `${myIdx + 1}${ord(myIdx + 1)}` : "—"} · S{state.season} · W{state.week}</div></div></div>
-          <div className="shrink-0 text-right"><div className="text-[9px] md:text-xs opacity-70">Reputation</div><div className="font-display text-xl md:text-2xl leading-none">{Math.round(state.reputation)}</div></div>
+          <div className="flex min-w-0 items-center gap-2 md:gap-4"><div className="club-crest grid size-9 md:size-11 shrink-0 place-items-center rounded-lg bg-black/25 font-display text-base md:text-xl">{initials(state.clubName)}</div><div className="min-w-0"><div className="truncate font-display text-xl md:text-2xl leading-none">{state.clubName}</div><div className="mt-0.5 truncate text-[10px] opacity-80 md:text-xs">{clubNickname(state)} · {myIdx >= 0 ? `${myIdx + 1}${ord(myIdx + 1)}` : "—"} · S{state.season} · W{state.week}</div></div></div>
+          <div className="shrink-0 text-right"><div className="text-[9px] md:text-xs opacity-70">{ownership.label}</div><div className="font-display text-xl md:text-2xl leading-none">{Math.round(state.reputation)}</div></div>
         </div>
       </section>
 

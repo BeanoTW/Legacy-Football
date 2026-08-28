@@ -10,6 +10,7 @@ import {
 } from "@/lib/game/recruitment";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { MOOD_TONE_CLASS, playerMood } from "@/lib/game/character";
 
 const FORMATION: Position[] = [
   "GK",
@@ -245,6 +246,7 @@ function Pitch({ xi }: { xi: FootballPlayer[] }) {
 
 function PlayerRow({ state, player }: { state: GameState; player: FootballPlayer }) {
   const contract = activeContract(state, player.id);
+  const mood = playerMood(state, player);
   return (
     <div className="grid grid-cols-[1fr_auto] gap-3 px-4 py-3">
       <div className="min-w-0">
@@ -258,10 +260,11 @@ function PlayerRow({ state, player }: { state: GameState; player: FootballPlayer
           {ageOf(player, state.season)}y · {player.nationality} · Ability {player.currentAbility} ·
           Potential {player.potentialAbility}
         </div>
-        <div className="mt-0.5 text-[11px] text-muted-foreground">
-          {contract
+        <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span className="truncate">{contract
             ? `${contract.squadRole} · ${weeksLeftOnContract(state, contract)} weeks left`
-            : "No active contract"}
+            : "No active contract"}</span>
+          <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${MOOD_TONE_CLASS[mood.tone]}`}>{mood.label}</span>
         </div>
       </div>
       <div className="text-right">
