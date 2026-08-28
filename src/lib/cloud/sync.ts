@@ -2,8 +2,9 @@ import { createClient, type Session, type SupabaseClient } from "@supabase/supab
 import type { GameState } from "@/lib/game/types";
 import { loadGame, saveGame, SAVE_SLOT_IDS, type SaveSlotId } from "@/lib/game/engine";
 
-const URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const KEY = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY) as string | undefined;
+const URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? "https://uctylgwwqeqrycjekeor.supabase.co";
+const KEY = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY) as string | undefined
+  ?? "sb_publishable_LaJwXU-Q1yLUT0wwCUhlaQ_Lko8HA1q";
 const MODIFIED_PREFIX = "chairman.save-modified.";
 
 export const cloudConfigured = Boolean(URL && KEY);

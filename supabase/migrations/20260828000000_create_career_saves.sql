@@ -25,16 +25,3 @@ with check (auth.uid() = user_id);
 create policy "Players can delete their own careers"
 on public.career_saves for delete
 using (auth.uid() = user_id);
-
-create or replace function public.touch_career_save_updated_at()
-returns trigger language plpgsql set search_path = public as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$;
-
-drop trigger if exists career_saves_touch_updated_at on public.career_saves;
-create trigger career_saves_touch_updated_at
-before update on public.career_saves
-for each row execute function public.touch_career_save_updated_at();
