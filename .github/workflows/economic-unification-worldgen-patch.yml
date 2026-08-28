@@ -42,14 +42,25 @@ jobs:
 
           old_generate = '''    const rep = clubReputation(s, club);
             const tier = tierOfClub(s, club);
-            const tierRating = clamp(42 + rep * 0.42, 40, 88);'''
+            const tierRating = clamp(42 + rep * 0.42, 40, 88);'''.replace('            ', '    ')
           new_generate = '''    const rep = clubReputation(s, club);
             const tier = tierOfClub(s, club);
             const level = recruitmentLevelOfClub(s, club);
-            const tierRating = clamp(42 + rep * 0.42, 40, 88);'''
-          if text.count(old_generate) != 2:
-            raise SystemExit(f'expected two focus-club setup blocks, found {text.count(old_generate)}')
-          text = text.replace(old_generate, new_generate, 2)
+            const tierRating = clamp(42 + rep * 0.42, 40, 88);'''.replace('            ', '    ')
+          if text.count(old_generate) != 1:
+            raise SystemExit(f'expected generateWorld club setup once, found {text.count(old_generate)}')
+          text = text.replace(old_generate, new_generate, 1)
+
+          old_hydrate = '''    const rep = clubReputation(s, club);
+            const tier = tierOfClub(s, club);
+            const tierRating = clamp(previousFringe[club]?.strength ?? 42 + rep * 0.42, 40, 88);'''.replace('            ', '    ')
+          new_hydrate = '''    const rep = clubReputation(s, club);
+            const tier = tierOfClub(s, club);
+            const level = recruitmentLevelOfClub(s, club);
+            const tierRating = clamp(previousFringe[club]?.strength ?? 42 + rep * 0.42, 40, 88);'''.replace('            ', '    ')
+          if text.count(old_hydrate) != 1:
+            raise SystemExit(f'expected hydration club setup once, found {text.count(old_hydrate)}')
+          text = text.replace(old_hydrate, new_hydrate, 1)
 
           old_target = 'const targetBill = sustainableWeeklyWageBill(tier, rep) * PLAYER_WAGE_SHARE * OPENING_WAGE_LOAD;'
           new_target = 'const targetBill = recruitmentSustainableWageBill(s, club) * PLAYER_WAGE_SHARE * OPENING_WAGE_LOAD;'
