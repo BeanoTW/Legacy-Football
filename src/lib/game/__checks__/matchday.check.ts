@@ -331,10 +331,7 @@ console.log("\n[E] Half-time");
       attack.liveMatch!.theirGoals !== shut.liveMatch!.theirGoals ||
       attack.fanHappiness !== shut.fanHappiness,
   );
-  check(
-    "E23. win bonus only when the match was actually won",
-    attack.liveMatch!.winBonus > 0 === attack.liveMatch!.ourGoals > attack.liveMatch!.theirGoals,
-  );
+  check("E23. chairman choices never buy a result with a cash bonus", attack.liveMatch!.winBonus === 0);
   check("E24. no cash moved at half-time (nothing booked yet)", attack.cash === ht.cash);
   check(
     "E25. an unknown choice is rejected",
@@ -491,18 +488,14 @@ console.log("\n[H] Finance");
    Uses fixed seeds whose canonical full-time result is asserted first, so the
    test verifies the posting rule rather than whether a seed happens to win.
 ========================================================================= */
-console.log("\n[H34] Win bonus");
+console.log("\n[H34] No artificial win bonus");
 {
   const ftOf = (seed: string, choice: string) =>
     applyHalfTimeChoice(kickoff(startMatchDay(atFixture(seed))), choice);
 
   const win = ftOf("MD_AUDIT_1", "attack");
   const wlm = win.liveMatch!;
-  check(
-    "H34a. precondition: canonical result is a win with a bonus on offer",
-    wlm.status === "fullTime" && wlm.ourGoals > wlm.theirGoals && wlm.winBonus > 0,
-    `${wlm.ourGoals}-${wlm.theirGoals} bonus=${wlm.winBonus}`,
-  );
+  check("H34a. attacking choice carries no cash bonus", wlm.winBonus === 0);
 
   const wAfter = commitLiveMatchAndAdvance(clone(win));
   const wBase = matchdayKey({
@@ -512,21 +505,14 @@ console.log("\n[H34] Win bonus");
   });
   const bonuses = (s: GameState) =>
     (s.financeLedger ?? []).filter((e) => e.dedupeKey === `${wBase}:winBonus`);
-  check("H34b. exactly one bonus entry posts", bonuses(wAfter).length === 1);
-  check(
-    "H34c. amount equals the canonical win bonus",
-    bonuses(wAfter)[0]?.amount === wlm.winBonus && bonuses(wAfter)[0]?.direction === "expense",
-  );
-  check(
-    "H34d. dedupe key is fixture-derived and stable",
-    bonuses(wAfter)[0]?.dedupeKey === `${wBase}:winBonus` &&
-      bonuses(wAfter)[0]?.linkedEntityId === wlm.fixtureId,
-  );
+  check("H34b. no bonus ledger entry posts", bonuses(wAfter).length === 0);
+  check("H34c. attacking football is funded by risk, not cash", wlm.winBonus === 0);
+  check("H34d. fixture still commits normally", wAfter.liveMatch === null);
 
   const wDup = commitLiveMatchAndAdvance({ ...clone(wAfter), liveMatch: clone(wlm) });
   check(
     "H34e. re-committing posts no second bonus",
-    bonuses(wDup).length === 1 && wDup.cash === wAfter.cash,
+    bonuses(wDup).length === 0 && wDup.cash === wAfter.cash,
   );
   const wReload = commitLiveMatchAndAdvance({
     ...reload(wAfter),
@@ -534,7 +520,7 @@ console.log("\n[H34] Win bonus");
   } as GameState);
   check(
     "H34f. reloading after commit posts no second bonus",
-    bonuses(wReload).length === 1 && wReload.cash === wAfter.cash,
+    bonuses(wReload).length === 0 && wReload.cash === wAfter.cash,
   );
 
   const bonusCount = (s: GameState, lm: NonNullable<GameState["liveMatch"]>) => {
@@ -561,12 +547,11 @@ console.log("\n[H34] Win bonus");
   const draw = ftOf("MD_AUDIT_0", "attack");
   const dlm = draw.liveMatch!;
   check(
-    "H34i. precondition: canonical result is a draw",
-    dlm.ourGoals === dlm.theirGoals,
-    `${dlm.ourGoals}-${dlm.theirGoals}`,
+    "H34i. another attacking match also carries no bonus",
+    dlm.winBonus === 0,
   );
   check(
-    "H34j. a draw posts no bonus",
+    "H34j. no result posts a bonus",
     dlm.winBonus === 0 && bonusCount(commitLiveMatchAndAdvance(clone(draw)), dlm) === 0,
   );
 

@@ -127,14 +127,14 @@ export function kickoff(s: GameState): GameState {
     },
     {
       id: "attack",
-      label: trailing ? "Throw men forward" : "Push for a win bonus",
+      label: trailing ? "Demand a response" : "Turn the screw",
       desc: trailing
-        ? "All-out attack. Big risk at the back."
-        : "Offer players a win bonus. Higher attack, cash out if we win.",
+        ? "Send the team out on the front foot. The crowd will respond, but space opens behind."
+        : "Insist on a statement second half. More threat, more exposure, no cheque-book shortcut.",
       attackMod: 1.3,
       defenseMod: 0.85,
       fanMod: 2,
-      winBonusCost: level || trailing ? 40_000 : 75_000,
+      winBonusCost: 0,
     },
     {
       id: "shutup",

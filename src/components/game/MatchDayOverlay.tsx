@@ -1,5 +1,5 @@
 import type { GameState } from "@/lib/game/types";
-import { ChevronsRight, Play, X } from "lucide-react";
+import { Activity, ChevronsRight, Flame, Landmark, Newspaper, Play, Target, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,14 +33,20 @@ export function MatchDayOverlay({
         : lm.status === "fullTime"
           ? "FULL TIME"
           : "LIVE";
+  const ourMoments = lm.events.filter((event) => event.side === "us" && event.type !== "card").length;
+  const theirMoments = lm.events.filter((event) => event.side === "them" && event.type !== "card").length;
+  const possession = Math.max(34, Math.min(66, Math.round(50 + (lm.ourStrength - lm.oppStrength) * 0.7)));
+  const result = lm.ourGoals > lm.theirGoals ? "Victory" : lm.ourGoals < lm.theirGoals ? "Defeat" : "Draw";
+  const expectationMet = lm.boardExpectation === "Any result" || (lm.boardExpectation === "Win" ? result === "Victory" : result !== "Defeat");
+  const atmosphere = lm.fixture.home ? Math.round((lm.projectedAttendance / Math.max(1, lm.projectedAttendance + 1200)) * 100) : 72;
 
   return (
-    <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
-      <div className="mx-auto max-w-3xl min-h-screen px-3 py-4 sm:py-8">
-        <div className="rounded-3xl border bg-card shadow-xl overflow-hidden">
-          <div className="panel-strip px-4 py-3 flex items-center justify-between gap-3">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#07130f] text-white">
+      <div className="mx-auto min-h-screen max-w-5xl p-0 sm:px-4 sm:py-6">
+        <div className="min-h-screen overflow-hidden bg-card text-card-foreground shadow-2xl sm:min-h-0 sm:rounded-[2rem] sm:border">
+          <div className="flex items-center justify-between gap-3 bg-[#0c211a] px-4 py-3 text-white sm:px-6">
             <div>
-              <div className="text-[10px] uppercase tracking-[0.2em] opacity-70">Matchday</div>
+              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.24em] text-emerald-300"><span className="size-2 animate-pulse rounded-full bg-emerald-400" /> Chairman match centre</div>
               <div className="text-sm font-semibold mt-0.5">
                 Week {lm.fixture.week} · {lm.fixture.home ? "Home" : "Away"}
               </div>
@@ -58,8 +64,9 @@ export function MatchDayOverlay({
             </button>
           </div>
 
-          <section className="p-5 sm:p-7 text-center">
-            <div className="inline-flex rounded-full bg-muted px-3 py-1 text-[10px] font-bold tracking-[0.16em] text-muted-foreground">
+          <section className="relative overflow-hidden bg-[radial-gradient(circle_at_50%_120%,#258660_0%,#123d2e_36%,#07130f_78%)] px-4 py-6 text-center text-white sm:px-8 sm:py-9">
+            <div className="absolute inset-x-10 bottom-0 h-px bg-white/20" />
+            <div className="inline-flex rounded-full border border-white/15 bg-black/20 px-3 py-1 text-[10px] font-bold tracking-[0.2em] text-emerald-100 backdrop-blur">
               {statusLabel}
             </div>
             <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 sm:gap-6 mt-5">
@@ -70,18 +77,27 @@ export function MatchDayOverlay({
                   <span className="text-muted-foreground mx-2 sm:mx-3">–</span>
                   {awayGoals}
                 </div>
-                <div className="text-xs text-muted-foreground mt-2">League</div>
+                <div className="mt-2 text-xs text-white/60">Division Four · {lm.weather}</div>
               </div>
               <TeamBadge name={awayName} label="Away" active={!lm.fixture.home} />
             </div>
           </section>
 
+          {lm.status !== "brief" && (
+            <section className="grid grid-cols-3 border-b bg-[#0c211a] text-white">
+              <MatchPulse icon={Activity} label="Possession" value={`${possession}%`} />
+              <MatchPulse icon={Target} label="Moments" value={`${ourMoments}–${theirMoments}`} />
+              <MatchPulse icon={Users} label="Atmosphere" value={`${atmosphere}%`} />
+            </section>
+          )}
+
           {lm.status === "brief" && (
             <section className="border-t p-4 sm:p-5 space-y-4">
               <div>
-                <h2 className="font-display text-2xl">Ready for kick-off</h2>
+                <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">The boardroom view</div>
+                <h2 className="font-display text-3xl">The doors close. The noise rises.</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  The essentials are here. You can get straight into the match.
+                  You picked the squad and funded the club. Now watch what your decisions have built.
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -101,6 +117,10 @@ export function MatchDayOverlay({
                 <StrengthCard label="Your team" value={Math.round(lm.ourStrength)} />
                 <StrengthCard label="Opposition" value={Math.round(lm.oppStrength)} />
               </div>
+              <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-left">
+                <div className="flex items-center gap-2 font-semibold"><Landmark className="size-4 text-primary" /> Boardroom pressure</div>
+                <p className="mt-1 text-sm text-muted-foreground">The board expects <strong className="text-foreground">{lm.boardExpectation.toLowerCase()}</strong>. Supporters want intent as much as points.</p>
+              </div>
               <Button
                 className="w-full h-14 text-base font-semibold"
                 onClick={() => update((s) => kickoff(s))}
@@ -116,9 +136,9 @@ export function MatchDayOverlay({
                 <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Half time
                 </div>
-                <h2 className="font-display text-2xl mt-1">Your call</h2>
+                <h2 className="font-display text-3xl mt-1">The dressing-room door opens</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Pick the chairman response. The match continues immediately.
+                  One message. No tactical whiteboard. Decide what sort of club walks back out.
                 </p>
               </div>
               <div className="grid gap-3">
@@ -126,15 +146,11 @@ export function MatchDayOverlay({
                   <button
                     key={o.id}
                     onClick={() => update((s) => applyHalfTimeChoice(s, o.id))}
-                    className="min-h-24 text-left rounded-2xl border p-4 hover:border-primary hover:bg-muted/40 transition-colors"
+                    className="group min-h-24 rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary hover:bg-primary/5 hover:shadow-md"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <span className="font-display text-xl">{o.label}</span>
-                      {o.winBonusCost > 0 && (
-                        <span className="shrink-0 rounded-lg bg-[color:var(--color-expense)]/10 px-2 py-1 text-xs text-[color:var(--color-expense)] tnum">
-                          {fmtMoney(o.winBonusCost)} bonus
-                        </span>
-                      )}
+                      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground"><ChevronsRight className="size-4" /></span>
                     </div>
                     <div className="text-sm text-muted-foreground mt-1">{o.desc}</div>
                   </button>
@@ -149,22 +165,18 @@ export function MatchDayOverlay({
                 <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Result
                 </div>
-                <div className="font-display text-3xl mt-1">
-                  {lm.ourGoals > lm.theirGoals
-                    ? "Victory"
-                    : lm.ourGoals < lm.theirGoals
-                      ? "Defeat"
-                      : "Draw"}
-                </div>
+                <div className="font-display text-4xl mt-1">{result}</div>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm tnum">
                 <Info2 label="Attendance" value={lm.attendance.toLocaleString()} />
                 <Info2 label="Gate" value={fmtMoney(lm.gateReceipts)} />
                 <Info2 label="TV" value={fmtMoney(lm.tvIncome)} />
                 <Info2 label="Matchday ops" value={`-${fmtMoney(lm.matchdayOps)}`} tone="bad" />
-                {lm.winBonus > 0 && (
-                  <Info2 label="Win bonus" value={`-${fmtMoney(lm.winBonus)}`} tone="bad" />
-                )}
+              </div>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <ReactionCard icon={Users} label="Supporters" text={result === "Victory" ? "They spill out singing. Belief is building." : result === "Defeat" ? "Frustrated, but they noticed the level of intent." : "Respectful applause, with a sense of opportunity missed."} tone={result === "Victory" ? "good" : "neutral"} />
+                <ReactionCard icon={Landmark} label="Board" text={expectationMet ? "Expectation met. The room stays calm." : "Expectation missed. Questions will follow."} tone={expectationMet ? "good" : "bad"} />
+                <ReactionCard icon={Newspaper} label="Back page" text={result === "Victory" ? `${state.clubName} make their point.` : result === "Defeat" ? `${state.clubName} leave with hard lessons.` : `Nothing settled after a tense draw.`} tone="neutral" />
               </div>
               <Button
                 className="w-full h-14 text-base font-semibold"
@@ -178,11 +190,11 @@ export function MatchDayOverlay({
           <section className="border-t bg-muted/20">
             <div className="px-4 py-3 flex items-center justify-between">
               <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Match feed
+                The story of the match
               </div>
               <div className="text-xs text-muted-foreground">{lm.events.length} events</div>
             </div>
-            <div className="max-h-64 overflow-y-auto border-t">
+            <div className="max-h-80 overflow-y-auto border-t">
               {lm.events.length === 0 ? (
                 <div className="p-5 text-sm text-muted-foreground text-center">
                   {lm.status === "brief" ? "Pre-match — ready to kick off." : "No events yet."}
@@ -190,7 +202,7 @@ export function MatchDayOverlay({
               ) : (
                 <ul className="text-sm divide-y">
                   {lm.events.map((e, i) => (
-                    <li key={i} className="px-4 py-3 flex items-center gap-3">
+                    <li key={i} className={cn("flex items-center gap-3 border-l-4 px-4 py-3", e.type === "goal" ? e.side === "us" ? "border-l-emerald-500 bg-emerald-500/5" : "border-l-rose-500 bg-rose-500/5" : "border-l-transparent")}>
                       <span className="text-xs w-8 text-muted-foreground tnum">{e.minute}'</span>
                       <span
                         className={cn(
@@ -230,17 +242,25 @@ function TeamBadge({ name, label, active }: { name: string; label: string; activ
       <div
         className={cn(
           "size-14 sm:size-16 rounded-2xl grid place-items-center font-display text-xl sm:text-2xl",
-          active ? "bg-panel text-panel-foreground" : "bg-muted text-foreground",
+          active ? "bg-emerald-400 text-[#07130f] shadow-lg shadow-emerald-950/40" : "border border-white/15 bg-white/10 text-white",
         )}
       >
         {initials(name)}
       </div>
-      <div className="font-display text-base sm:text-lg leading-tight truncate max-w-full">
+      <div className="font-display text-base sm:text-lg leading-tight truncate max-w-full text-white">
         {name}
       </div>
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="text-[10px] uppercase tracking-wider text-white/50">{label}</div>
     </div>
   );
+}
+
+function MatchPulse({ icon: Icon, label, value }: { icon: typeof Activity; label: string; value: string }) {
+  return <div className="flex items-center justify-center gap-2 border-r border-white/10 px-2 py-3 last:border-r-0"><Icon className="size-4 text-emerald-300" /><div className="text-left"><div className="text-sm font-bold tabular-nums">{value}</div><div className="text-[8px] uppercase tracking-wider text-white/45">{label}</div></div></div>;
+}
+
+function ReactionCard({ icon: Icon, label, text, tone }: { icon: typeof Flame; label: string; text: string; tone: "good" | "bad" | "neutral" }) {
+  return <div className={cn("rounded-2xl border p-3", tone === "good" ? "border-emerald-500/20 bg-emerald-500/5" : tone === "bad" ? "border-rose-500/20 bg-rose-500/5" : "bg-muted/40")}><div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider"><Icon className={cn("size-4", tone === "good" ? "text-emerald-600" : tone === "bad" ? "text-rose-600" : "text-primary")} />{label}</div><p className="mt-2 text-xs leading-relaxed text-muted-foreground">{text}</p></div>;
 }
 
 function StrengthCard({ label, value }: { label: string; value: number }) {
