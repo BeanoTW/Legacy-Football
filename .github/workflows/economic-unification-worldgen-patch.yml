@@ -24,6 +24,7 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
           p = Path('src/lib/game/recruitment.ts')
           text = p.read_text()
@@ -40,27 +41,15 @@ jobs:
             raise SystemExit(f'expected recruitmentEconomy import once, found {text.count(old_import)}')
           text = text.replace(old_import, new_import, 1)
 
-          old_generate = '''    const rep = clubReputation(s, club);
-            const tier = tierOfClub(s, club);
-            const tierRating = clamp(42 + rep * 0.42, 40, 88);'''.replace('            ', '    ')
-          new_generate = '''    const rep = clubReputation(s, club);
-            const tier = tierOfClub(s, club);
-            const level = recruitmentLevelOfClub(s, club);
-            const tierRating = clamp(42 + rep * 0.42, 40, 88);'''.replace('            ', '    ')
-          if text.count(old_generate) != 1:
-            raise SystemExit(f'expected generateWorld club setup once, found {text.count(old_generate)}')
-          text = text.replace(old_generate, new_generate, 1)
+          pattern_generate = re.compile(r'(for \(const club of clubs\) \{\n\s+const rep = clubReputation\(s, club\);\n\s+const tier = tierOfClub\(s, club\);)')
+          text, n = pattern_generate.subn(r'\1\n    const level = recruitmentLevelOfClub(s, club);', text, count=1)
+          if n != 1:
+            raise SystemExit(f'expected generateWorld setup once, found {n}')
 
-          old_hydrate = '''    const rep = clubReputation(s, club);
-            const tier = tierOfClub(s, club);
-            const tierRating = clamp(previousFringe[club]?.strength ?? 42 + rep * 0.42, 40, 88);'''.replace('            ', '    ')
-          new_hydrate = '''    const rep = clubReputation(s, club);
-            const tier = tierOfClub(s, club);
-            const level = recruitmentLevelOfClub(s, club);
-            const tierRating = clamp(previousFringe[club]?.strength ?? 42 + rep * 0.42, 40, 88);'''.replace('            ', '    ')
-          if text.count(old_hydrate) != 1:
-            raise SystemExit(f'expected hydration club setup once, found {text.count(old_hydrate)}')
-          text = text.replace(old_hydrate, new_hydrate, 1)
+          pattern_hydrate = re.compile(r'(for \(const club of plan\.focusClubIds\) \{\n\s+if \(detailedClubs\.has\(club\)\) continue;\n\s+const rep = clubReputation\(s, club\);\n\s+const tier = tierOfClub\(s, club\);)')
+          text, n = pattern_hydrate.subn(r'\1\n    const level = recruitmentLevelOfClub(s, club);', text, count=1)
+          if n != 1:
+            raise SystemExit(f'expected hydration setup once, found {n}')
 
           old_target = 'const targetBill = sustainableWeeklyWageBill(tier, rep) * PLAYER_WAGE_SHARE * OPENING_WAGE_LOAD;'
           new_target = 'const targetBill = recruitmentSustainableWageBill(s, club) * PLAYER_WAGE_SHARE * OPENING_WAGE_LOAD;'
