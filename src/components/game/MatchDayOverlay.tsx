@@ -91,7 +91,7 @@ export function MatchDayOverlay({
             </section>
           )}
 
-          <div className={cn("min-h-0 flex-1", lm.status === "brief" ? "block" : "grid grid-rows-[minmax(0,3fr)_minmax(8rem,2fr)] lg:grid-cols-[minmax(0,1.15fr)_minmax(20rem,.85fr)] lg:grid-rows-1")}>
+          <div className={cn("min-h-0 flex-1", lm.status === "brief" ? "block" : "grid lg:grid-cols-[minmax(0,1.15fr)_minmax(20rem,.85fr)] lg:grid-rows-1", lm.status === "halfTime" ? "grid-rows-[minmax(0,4fr)_minmax(6rem,1fr)]" : "grid-rows-[minmax(0,3fr)_minmax(8rem,2fr)]")}>
 
           {lm.status === "brief" && (
             <section className="h-full overflow-y-auto overscroll-contain border-t p-3 sm:p-5 space-y-3 sm:space-y-4">
@@ -133,28 +133,28 @@ export function MatchDayOverlay({
           )}
 
           {lm.status === "halfTime" && lm.halfTimeOptions && (
-            <section className="min-h-0 overflow-y-auto overscroll-contain border-t p-3 sm:p-5 space-y-3 sm:space-y-4">
+            <section className="min-h-0 overflow-hidden border-t p-2.5 sm:overflow-y-auto sm:p-5 space-y-2 sm:space-y-4">
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="hidden text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:block">
                   Half time
                 </div>
-                <h2 className="font-display text-3xl mt-1">The dressing-room door opens</h2>
-                <p className="text-sm text-muted-foreground mt-1">
+                <h2 className="font-display text-2xl leading-tight sm:mt-1 sm:text-3xl">The dressing-room door opens</h2>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground sm:mt-1 sm:text-sm">
                   One message. No tactical whiteboard. Decide what sort of club walks back out.
                 </p>
               </div>
-              <div className="grid gap-3">
+              <div className="grid gap-1.5 sm:gap-3">
                 {lm.halfTimeOptions.map((o) => (
                   <button
                     key={o.id}
                     onClick={() => update((s) => applyHalfTimeChoice(s, o.id))}
-                    className="group min-h-20 rounded-2xl border p-3 text-left transition-all hover:-translate-y-0.5 hover:border-primary hover:bg-primary/5 hover:shadow-md sm:min-h-24 sm:p-4"
+                    className="group min-h-0 rounded-xl border px-3 py-2 text-left transition-all hover:-translate-y-0.5 hover:border-primary hover:bg-primary/5 hover:shadow-md sm:min-h-24 sm:rounded-2xl sm:p-4"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <span className="font-display text-xl">{o.label}</span>
-                      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground"><ChevronsRight className="size-4" /></span>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-display text-lg leading-tight sm:text-xl">{o.label}</span>
+                      <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground sm:size-8"><ChevronsRight className="size-4" /></span>
                     </div>
-                    <div className="text-sm text-muted-foreground mt-1">{o.desc}</div>
+                    <div className="mt-0.5 truncate pr-8 text-[11px] leading-tight text-muted-foreground sm:mt-1 sm:whitespace-normal sm:pr-0 sm:text-sm">{o.desc}</div>
                   </button>
                 ))}
               </div>
