@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Archive, ChevronRight, Filter, MailOpen } from "lucide-react";
+import { Archive, ChevronRight, Filter, MailOpen, Trash2 } from "lucide-react";
 import type { GameState, InboxItem, InboxCategory, InboxDepartment } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -8,10 +8,12 @@ import {
   CATEGORY_META,
   DEPARTMENTS_ALL,
   clearReadInbox,
+  deleteInboxItem,
   dismissInboxItem,
   evaluateChoice,
   handleInboxChoice,
   markInboxRead,
+  requiresInboxDecision,
   unreadCount,
 } from "@/lib/game/inbox";
 
@@ -36,7 +38,7 @@ export function InboxTab({
   const awaiting = useMemo(
     () =>
       state.inbox
-        .filter((item) => item.status === "awaitingDecision")
+        .filter(requiresInboxDecision)
         .slice()
         .sort(
           (a, b) =>
@@ -51,7 +53,7 @@ export function InboxTab({
 
   useEffect(() => {
     if (!decisionQueue) return;
-    if (openId && state.inbox.some((item) => item.id === openId && item.status === "awaitingDecision")) {
+    if (openId && state.inbox.some((item) => item.id === openId && requiresInboxDecision(item))) {
       return;
     }
     const next = awaiting[0];
@@ -70,7 +72,7 @@ export function InboxTab({
     );
     return all.filter((i) => {
       if (filter === "unread" && i.status !== "unread" && i.status !== "awaitingDecision") return false;
-      if (filter === "decisions" && i.status !== "awaitingDecision") return false;
+      if (filter === "decisions" && !requiresInboxDecision(i)) return false;
       if (filter === "archive" && !["completed", "expired", "read"].includes(i.status)) return false;
       if (category !== "any" && i.category !== category) return false;
       if (department !== "any" && i.department !== department) return false;
@@ -84,7 +86,9 @@ export function InboxTab({
 
   const openItem = (item: InboxItem) => {
     setOpenId(item.id);
-    if (item.status === "unread") update((s) => markInboxRead(s, item.id));
+    if (item.status === "unread" || (item.status === "awaitingDecision" && !requiresInboxDecision(item))) {
+      update((s) => markInboxRead(s, item.id));
+    }
   };
 
   return (
@@ -162,20 +166,22 @@ export function InboxTab({
         </div>
       ) : (
         <div className="contained-scroll touch-pan-y min-h-0 flex-1 space-y-1.5 pr-0.5 md:space-y-3">
-          {items.map((it) => (
+          {items.map((it) => {
+            const decision = requiresInboxDecision(it);
+            return (
             <button
               key={it.id}
               onClick={() => openItem(it)}
               className={cn(
                 "flex min-h-12 w-full items-center gap-2 rounded-xl border bg-card px-2.5 py-1.5 text-left transition-colors hover:border-primary/40 md:min-h-24 md:gap-4 md:rounded-2xl md:p-4",
-                it.status === "awaitingDecision" && "border-amber-500/60 bg-amber-500/5",
+                decision && "border-amber-500/60 bg-amber-500/5",
               )}
             >
-              <div className={cn("size-2 md:size-3 rounded-full shrink-0", it.status === "awaitingDecision" ? "bg-amber-500" : it.status === "unread" ? "bg-primary" : "bg-muted-foreground/30")} />
+              <div className={cn("size-2 md:size-3 rounded-full shrink-0", decision ? "bg-amber-500" : (it.status === "unread" || it.status === "awaitingDecision") ? "bg-primary" : "bg-muted-foreground/30")} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 text-[10px] md:text-xs text-muted-foreground">
                   <span>{it.department}</span>
-                  {it.status === "awaitingDecision" && <span className="font-semibold text-amber-600">Decision</span>}
+                  {decision && <span className="font-semibold text-amber-600">Decision</span>}
                   <span className="ml-auto">W{it.week}</span>
                 </div>
                 <div className={cn("truncate text-sm leading-tight md:mt-1 md:text-base", (it.status === "unread" || it.status === "awaitingDecision") && "font-semibold")}>{it.subject}</div>
@@ -183,7 +189,7 @@ export function InboxTab({
               </div>
               <ChevronRight className="size-4 md:size-5 text-muted-foreground shrink-0" />
             </button>
-          ))}
+          );})}
         </div>
       )}
 
@@ -200,13 +206,18 @@ export function InboxTab({
             update((s) => dismissInboxItem(s, open.id));
             setOpenId(null);
           }}
+          onDelete={() => {
+            update((s) => deleteInboxItem(s, open.id));
+            setOpenId(null);
+          }}
         />
       )}
     </div>
   );
 }
 
-export function InboxDetail({ item, state, onClose, onChoose, onDismiss }: { item: InboxItem; state: GameState; onClose: () => void; onChoose: (choiceId: string) => void; onDismiss: () => void }) {
+export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelete }: { item: InboxItem; state: GameState; onClose: () => void; onChoose: (choiceId: string) => void; onDismiss: () => void; onDelete: () => void }) {
+  const decision = requiresInboxDecision(item);
   return (
     <Sheet open onOpenChange={(v) => !v && onClose()}>
       <SheetContent side="bottom" className="rounded-t-3xl max-h-[90vh] overflow-y-auto">
@@ -216,7 +227,7 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss }: { ite
           <div className="text-sm text-muted-foreground">From {item.sender}</div>
         </SheetHeader>
         <div className="mt-5 text-base whitespace-pre-wrap leading-relaxed">{item.body}</div>
-        {item.choices && item.choices.length > 0 && (
+        {decision && item.choices && item.choices.length > 0 && (
           <div className="mt-6 space-y-3">
             {item.status === "completed" && item.chosenChoiceId ? (
               <div className="rounded-xl border bg-muted/40 p-4 text-sm">Decided: {item.choices.find((c) => c.id === item.chosenChoiceId)?.label}</div>
@@ -239,7 +250,12 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss }: { ite
             )}
           </div>
         )}
-        {(!item.choices || item.status === "read" || item.status === "completed") && <Button variant="outline" className="w-full h-12 mt-6" onClick={onDismiss}>Close</Button>}
+        {!decision && item.status !== "completed" && (
+          <Button variant="outline" className="w-full h-12 mt-6 text-destructive hover:text-destructive" onClick={onDelete}>
+            <Trash2 className="mr-2 size-4" /> Delete message
+          </Button>
+        )}
+        {item.status === "completed" && <Button variant="outline" className="w-full h-12 mt-6" onClick={onDismiss}>Close</Button>}
       </SheetContent>
     </Sheet>
   );

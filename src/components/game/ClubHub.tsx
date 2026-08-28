@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { fmtMoney, isMatchday, phaseOf, startMatchDay, totalCapacity } from "@/lib/game/engine";
 import { weeklyNetRecurring } from "@/lib/game/selectors/club";
 import { unreadCount } from "@/lib/game/inbox";
+import { actionableInbox } from "@/lib/game/attention";
 import { financialHealth as canonicalFinancialHealth, sustainabilitySnapshot } from "@/lib/game/sustainability";
 import { HEALTH_TONE, initials, ord } from "./shared/primitives";
 import type { Tab } from "./tabs";
@@ -47,7 +48,7 @@ export function ClubHub({ state, update, setTab }: { state: GameState; update: (
   const mgrConf = manager ? Math.max(20, Math.min(99, Math.round(60 + (manager.rating - 60) + state.fanHappiness / 8))) : Math.max(20, Math.min(99, Math.round(50 + state.fanHappiness / 5)));
   const weeklyNet = weeklyNetRecurring(state);
   const unread = unreadCount(state);
-  const decisions = state.inbox.filter((item) => item.status === "awaitingDecision").length;
+  const decisions = actionableInbox(state).length;
   const activeNegotiations = state.football?.negotiations?.filter((n) => n.stage !== "completed" && n.stage !== "withdrawn" && n.stage !== "rejected").length ?? 0;
   const leagueSorted = [...state.league].sort((a, b) => b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga) || b.gf - a.gf);
   const myIdx = leagueSorted.findIndex((r) => r.team === state.clubName);

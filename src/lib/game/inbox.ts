@@ -441,10 +441,18 @@ export function evaluateChoice(s: GameState, choice: InboxChoice): ChoiceAvailab
 }
 
 /* ---------- Player actions ---------- */
+export function requiresInboxDecision(item: InboxItem): boolean {
+  // Older saves gave routine post-match press reports a single fake
+  // "Read and file" choice. They are information, not board decisions.
+  return item.status === "awaitingDecision" && item.generatorId !== "media-post-match";
+}
+
 export function markInboxRead(s: GameState, id: string): GameState {
   const ns = structuredClone(s);
   const it = ns.inbox.find((i) => i.id === id);
-  if (it && it.status === "unread") it.status = it.choices ? "awaitingDecision" : "read";
+  if (it && (it.status === "unread" || (it.status === "awaitingDecision" && !requiresInboxDecision(it)))) {
+    it.status = it.choices && it.generatorId !== "media-post-match" ? "awaitingDecision" : "read";
+  }
   return ns;
 }
 
@@ -475,6 +483,14 @@ export function dismissInboxItem(s: GameState, id: string): GameState {
   const ns = structuredClone(s);
   const it = ns.inbox.find((i) => i.id === id);
   if (it && it.status !== "awaitingDecision") it.status = "read";
+  return ns;
+}
+
+export function deleteInboxItem(s: GameState, id: string): GameState {
+  const item = s.inbox.find((i) => i.id === id);
+  if (!item || requiresInboxDecision(item)) return s;
+  const ns = structuredClone(s);
+  ns.inbox = ns.inbox.filter((i) => i.id !== id);
   return ns;
 }
 
@@ -1006,15 +1022,6 @@ const G_MEDIA_MATCH: Generator = {
         priority: "low",
         subject: `${label} press after ${r.opponent} (${r.result})`,
         body,
-        choices: [
-          {
-            id: "noted",
-            label: "Read and file",
-            effects: [
-              { kind: "flag", key: `mediaShown-s${prev.season}-w${prev.week}`, value: true },
-            ],
-          },
-        ],
       }),
     ];
   },

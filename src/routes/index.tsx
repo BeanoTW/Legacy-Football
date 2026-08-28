@@ -31,6 +31,7 @@ import type { SaveSlotId, SaveSlotSummary } from "@/lib/game/engine";
 import { avgTicketPrice, fmtMoney, fmtMoneyExact, phaseOf, CALENDAR } from "@/lib/game/engine";
 import { clubKpi } from "@/lib/game/selectors/club";
 import { unreadCount } from "@/lib/game/inbox";
+import { actionableInbox } from "@/lib/game/attention";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -78,7 +79,7 @@ function Game({ state, update, isContinuing, startContinue, stopContinue, active
   const kpi = useMemo(() => ({ ...clubKpi(state), avgTicket: avgTicketPrice(state) }), [state]);
   const desktopPrimary = ALL_TABS.filter(([id]) => DESKTOP_PRIMARY_TAB_IDS.includes(id));
   const desktopMore = ALL_TABS.filter(([id]) => !DESKTOP_PRIMARY_TAB_IDS.includes(id));
-  const blockingDecisions = state.inbox.filter((item) => item.status === "awaitingDecision");
+  const blockingDecisions = actionableInbox(state);
   const phaseLabel = ({ preseason: "Pre-season", firstHalf: "League — 1st half", midseason: "Mid-season break", secondHalf: "League — 2nd half" } as const)[phaseOf(state.week)];
 
   useEffect(() => {

@@ -1,9 +1,10 @@
 import type { GameState, InboxItem } from "./types";
 import { isMatchday } from "./calendar";
+import { requiresInboxDecision } from "./inbox";
 
 export function actionableInbox(state: GameState): InboxItem[] {
   return state.inbox
-    .filter((item) => item.status === "awaitingDecision")
+    .filter(requiresInboxDecision)
     .sort((a, b) => {
       const priority = { urgent: 4, high: 3, normal: 2, low: 1 } as const;
       return priority[b.priority] - priority[a.priority] || b.season - a.season || b.week - a.week;

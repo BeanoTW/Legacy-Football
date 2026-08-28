@@ -53,14 +53,18 @@ export function MatchDayOverlay({
             </div>
             <button
               className="grid size-9 place-items-center rounded-xl bg-black/15 transition-colors hover:bg-black/25 sm:size-10"
-              aria-label="Close matchday"
+              aria-label={lm.status === "fullTime" ? "Continue to next week" : "Close matchday"}
               onClick={() => {
+                if (lm.status === "fullTime") {
+                  update((s) => commitLiveMatchAndAdvance(s));
+                  return;
+                }
                 if (confirm("Abandon the match? Progress this fixture will be lost.")) {
                   update((s) => cancelLiveMatch(s));
                 }
               }}
             >
-              <X className="size-5" />
+              {lm.status === "fullTime" ? <ChevronsRight className="size-5" /> : <X className="size-5" />}
             </button>
           </div>
 
@@ -162,7 +166,8 @@ export function MatchDayOverlay({
           )}
 
           {lm.status === "fullTime" && (
-            <section className="min-h-0 overflow-y-auto overscroll-contain border-t p-3 sm:p-5 space-y-3 sm:space-y-4">
+            <section className="flex min-h-0 flex-col overflow-hidden border-t">
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-3 sm:space-y-4 sm:p-5">
               <div className="text-center py-1">
                 <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Result
@@ -180,12 +185,15 @@ export function MatchDayOverlay({
                 <ReactionCard icon={Landmark} label="Board" text={expectationMet ? "Expectation met. The room stays calm." : "Expectation missed. Questions will follow."} tone={expectationMet ? "good" : "bad"} />
                 <ReactionCard icon={Newspaper} label="Back page" text={result === "Victory" ? `${state.clubName} make their point.` : result === "Defeat" ? `${state.clubName} leave with hard lessons.` : `Nothing settled after a tense draw.`} tone="neutral" />
               </div>
-              <Button
-                className="w-full h-14 text-base font-semibold"
+              </div>
+              <div className="shrink-0 border-t bg-card p-3 sm:p-4">
+                <Button
+                className="h-12 w-full text-base font-semibold sm:h-14"
                 onClick={() => update((s) => commitLiveMatchAndAdvance(s))}
               >
                 Continue to next week <ChevronsRight className="size-5 ml-1" />
               </Button>
+              </div>
             </section>
           )}
 
