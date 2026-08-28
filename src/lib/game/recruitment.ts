@@ -42,7 +42,7 @@ import { clubReputation } from "./reputation";
 import { facilityModifiers } from "./infrastructure";
 import { buildWorldSimulationPlan } from "./world";
 import { ensureFringeWorldState, makeFringeClubState } from "./fringe";
-import { tierOfClub, tierOfUser } from "./economy";
+import { tierOfClub } from "./economy";
 import { legacyTierToFootballLevel } from "./footballLevel";
 import {
   recruitmentContractWageForLevel,
@@ -1860,7 +1860,6 @@ function aiRenews(s: GameState, c: PlayerContract, p: FootballPlayer): boolean {
 /** Roll one AI contract over onto fresh, level-appropriate terms. */
 function renewAiContract(s: GameState, c: PlayerContract, p: FootballPlayer): void {
   const rng = seededRng(s.saveSeed, "aiRenewTerms", c.id, s.season);
-  const rep = clubReputation(s, c.clubId);
   const age = ageOf(p, s.season);
   closeContract(s, c, "renewed", "Expired");
   const fresh = issueContract(
@@ -2097,7 +2096,6 @@ function coverSquadShortfall(s: GameState): void {
   if (squad.length >= MIN_SQUAD_SIZE) return;
   const rng = seededRng(s.saveSeed, "squadCover", s.season, s.week);
   const rep = clubReputation(s, s.clubName);
-  const tier = tierOfClub(s, s.clubName);
   const level = recruitmentLevelOfUser(s);
   const needed = Math.min(2, MIN_SQUAD_SIZE - squad.length);
 
