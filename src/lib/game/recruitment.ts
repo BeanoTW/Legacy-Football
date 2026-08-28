@@ -44,7 +44,13 @@ import { buildWorldSimulationPlan } from "./world";
 import { ensureFringeWorldState, makeFringeClubState } from "./fringe";
 import { tierOfClub, tierOfUser, sustainableWeeklyWageBill } from "./economy";
 import { legacyTierToFootballLevel } from "./footballLevel";
-import { recruitmentPlayerValue, recruitmentWageForLevel } from "./recruitmentEconomy";
+import {
+  recruitmentContractWageForLevel,
+  recruitmentLevelOfClub,
+  recruitmentPlayerValue,
+  recruitmentSustainableWageBill,
+  recruitmentWageForLevel,
+} from "./recruitmentEconomy";
 
 const int = (n: number) => Math.round(n) || 0;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -342,6 +348,7 @@ export function generateWorld(s: GameState): {
   for (const club of clubs) {
     const rep = clubReputation(s, club);
     const tier = tierOfClub(s, club);
+    const level = recruitmentLevelOfClub(s, club);
     const tierRating = clamp(42 + rep * 0.42, 40, 88);
     const squad: FootballPlayer[] = [];
     for (let i = 0; i < SQUAD_SIZE; i++) {
@@ -359,7 +366,8 @@ export function generateWorld(s: GameState): {
         a + wageForAbility(p.currentAbility, rep, tier, ageOf(p, s.season), p.potentialAbility),
       0,
     );
-    const targetBill = sustainableWeeklyWageBill(tier, rep) * PLAYER_WAGE_SHARE * OPENING_WAGE_LOAD;
+    const targetBill =
+      recruitmentSustainableWageBill(s, club) * PLAYER_WAGE_SHARE * OPENING_WAGE_LOAD;
     const wageScalar = rawBill > 0 ? clamp(targetBill / rawBill, 0.6, 1.5) : 1;
 
     squad.forEach((p, i) => {
@@ -380,7 +388,7 @@ export function generateWorld(s: GameState): {
         startWeek: 1,
         expirySeason: s.season + seasons - 1,
         expiryWeek: WEEKS_PER_SEASON,
-        weeklyWage: Math.max(200, int((base * wageScalar) / 25) * 25),
+        weeklyWage: recruitmentContractWageForLevel(base, wageScalar, level),
         squadRole: roleFor(i),
         signingBonus: 0,
         agreedTransferFee: 0,
@@ -486,6 +494,7 @@ export function reconcileRecruitmentFidelity(s: GameState): void {
     if (detailedClubs.has(club)) continue;
     const rep = clubReputation(s, club);
     const tier = tierOfClub(s, club);
+    const level = recruitmentLevelOfClub(s, club);
     const tierRating = clamp(previousFringe[club]?.strength ?? 42 + rep * 0.42, 40, 88);
     const squad = Array.from({ length: SQUAD_SIZE }, (_, index) =>
       makePlayerFor(s.saveSeed, club, index, tierRating, s.season, tier, rep),
@@ -503,7 +512,8 @@ export function reconcileRecruitmentFidelity(s: GameState): void {
         ),
       0,
     );
-    const targetBill = sustainableWeeklyWageBill(tier, rep) * PLAYER_WAGE_SHARE * OPENING_WAGE_LOAD;
+    const targetBill =
+      recruitmentSustainableWageBill(s, club) * PLAYER_WAGE_SHARE * OPENING_WAGE_LOAD;
     const baseWageScalar = rawBill > 0 ? clamp(targetBill / rawBill, 0.6, 1.5) : 1;
     const wageScalar = clamp(
       baseWageScalar * fringeFinanceWageFactor(previousFringe[club]?.financeBand),
@@ -529,7 +539,7 @@ export function reconcileRecruitmentFidelity(s: GameState): void {
         startWeek: s.week,
         expirySeason: s.season + rngInt(rng, 1, 4) - 1,
         expiryWeek: WEEKS_PER_SEASON,
-        weeklyWage: Math.max(200, int((base * wageScalar) / 25) * 25),
+        weeklyWage: recruitmentContractWageForLevel(base, wageScalar, level),
         squadRole: roleFor(index),
         signingBonus: 0,
         agreedTransferFee: 0,
