@@ -1,8 +1,11 @@
-import { AlertTriangle, ChevronRight, Inbox, Mail, Pause, X } from "lucide-react";
-import type { InboxItem } from "@/lib/game/types";
+import { AlertTriangle, ChevronRight, Inbox, Mail, Pause, Trophy, X } from "lucide-react";
+import type { GameState, InboxItem } from "@/lib/game/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { requiresInboxDecision } from "@/lib/game/inbox";
+import { calendarDay } from "@/lib/game/calendar";
+
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
 
 export function AdvanceInboxPreview({
   items,
@@ -11,6 +14,8 @@ export function AdvanceInboxPreview({
   onStop,
   onClose,
   onOpenInbox,
+  onOpenMatchday,
+  state,
 }: {
   items: InboxItem[];
   isContinuing: boolean;
@@ -18,26 +23,38 @@ export function AdvanceInboxPreview({
   onStop: () => void;
   onClose: () => void;
   onOpenInbox: () => void;
+  onOpenMatchday: () => void;
+  state: GameState;
 }) {
   const interrupted = !isContinuing && !!reason;
+  const isMatchday = interrupted && reason?.toLowerCase().includes("matchday");
+  const fixture = state.fixtures.find((item) => item.week === state.week);
+  const matchdayLabel = fixture ? `${fixture.home ? "Home" : "Away"} vs ${fixture.opponent}. The week pauses here until the match is played.` : undefined;
 
   return (
     <div className="fixed inset-0 z-40 bg-black/45 px-3 pb-20 pt-20 backdrop-blur-[2px] md:px-6 md:pb-24">
       <section className="mx-auto flex h-full max-h-[34rem] w-full max-w-xl flex-col overflow-hidden rounded-3xl border bg-card shadow-2xl">
-        <header className={cn("shrink-0 border-b px-4 py-3", interrupted ? "bg-amber-500/10" : "bg-primary/5")}>
+        <header className={cn("shrink-0 border-b px-4 py-3", isMatchday ? "bg-emerald-500/10" : interrupted ? "bg-amber-500/10" : "bg-primary/5")}>
           <div className="flex items-start gap-3">
-            <div className={cn("grid size-10 shrink-0 place-items-center rounded-xl", interrupted ? "bg-amber-500/15 text-amber-700" : "bg-primary/10 text-primary")}>
-              {interrupted ? <AlertTriangle className="size-5" /> : <Inbox className="size-5" />}
+            <div className={cn("grid size-10 shrink-0 place-items-center rounded-xl", isMatchday ? "bg-emerald-500/15 text-emerald-700" : interrupted ? "bg-amber-500/15 text-amber-700" : "bg-primary/10 text-primary")}>
+              {isMatchday ? <Trophy className="size-5" /> : interrupted ? <AlertTriangle className="size-5" /> : <Inbox className="size-5" />}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="font-display text-xl">{interrupted ? "Time stopped" : "Time is moving"}</div>
+              <div className="font-display text-xl">{isMatchday ? "It’s matchday" : interrupted ? "Time stopped" : "Time is moving"}</div>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {interrupted ? reason : "New club updates will appear here as the days pass."}
+                {isMatchday ? (matchdayLabel ?? "The week pauses here. Your team is ready and the fixture is waiting.") : interrupted ? reason : "New club updates will appear here as the days pass."}
               </p>
             </div>
             {!isContinuing && <button onClick={onClose} aria-label="Close preview" className="grid size-9 place-items-center rounded-xl hover:bg-muted"><X className="size-5" /></button>}
           </div>
         </header>
+
+        <div className="grid shrink-0 grid-cols-4 divide-x border-b bg-muted/25 text-center">
+          <PreviewMetric label="Week" value={`${state.week}`} />
+          <PreviewMetric label="Today" value={DAYS[calendarDay(state)].slice(0, 3)} />
+          <PreviewMetric label="New" value={`${items.length}`} />
+          <PreviewMetric label="Status" value={isMatchday ? "MATCH" : isContinuing ? "LIVE" : "PAUSED"} accent={isMatchday || isContinuing} />
+        </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
           {items.length === 0 ? (
@@ -64,10 +81,14 @@ export function AdvanceInboxPreview({
           {isContinuing ? (
             <Button variant="destructive" className="col-span-2 h-12" onClick={onStop}><Pause className="mr-2 size-5" /> Stop advancing</Button>
           ) : (
-            <><Button variant="outline" className="h-12" onClick={onClose}>Close</Button><Button className="h-12" onClick={onOpenInbox}>Open inbox <ChevronRight className="ml-1 size-4" /></Button></>
+            <><Button variant="outline" className="h-12" onClick={onClose}>Close</Button><Button className="h-12" onClick={isMatchday ? onOpenMatchday : onOpenInbox}>{isMatchday ? "Go to matchday" : "Open inbox"} <ChevronRight className="ml-1 size-4" /></Button></>
           )}
         </footer>
       </section>
     </div>
   );
+}
+
+function PreviewMetric({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+  return <div className="px-2 py-2"><div className="text-[8px] font-bold uppercase tracking-[0.18em] text-muted-foreground">{label}</div><div className={cn("mt-0.5 font-display text-base leading-none", accent && "text-primary")}>{value}</div></div>;
 }

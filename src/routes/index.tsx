@@ -183,6 +183,7 @@ function Game({ state, update, isContinuing, continueReason, startContinue, stop
           items={advanceItems}
           isContinuing={isContinuing}
           reason={continueReason}
+          state={state}
           onStop={stopContinue}
           onClose={() => setShowAdvancePreview(false)}
           onOpenInbox={() => {
@@ -190,6 +191,11 @@ function Game({ state, update, isContinuing, continueReason, startContinue, stop
             setShowAdvancePreview(false);
             setDecisionQueue(blockingDecisions.length > 0);
             setTab("inbox");
+          }}
+          onOpenMatchday={() => {
+            stopContinue();
+            setShowAdvancePreview(false);
+            setTab("hub");
           }}
         />
       )}
