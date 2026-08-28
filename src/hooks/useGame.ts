@@ -13,6 +13,7 @@ import {
   type SaveSlotSummary,
 } from "@/lib/game/engine";
 import { continuationInterrupt } from "@/lib/game/attention";
+import { deleteCloudCareer, markLocalSaveModified, uploadCareer } from "@/lib/cloud/sync";
 
 const CONTINUE_STEP_MS = 800;
 const ACTIVE_SLOT_KEY = "chairman.active-save-slot";
@@ -31,12 +32,15 @@ export function useGame() {
   const [activeSlot, setActiveSlot] = useState<SaveSlotId>(initialSlot);
   const [saveSlots, setSaveSlots] = useState<SaveSlotSummary[]>([]);
   const writeSeq = useRef(0);
+  const cloudTimer = useRef<number | null>(null);
+  const skipCloudWrite = useRef(true);
 
   useEffect(() => {
     let cancelled = false;
     setHydrated(false);
     void loadGame(activeSlot).then((loaded) => {
       if (cancelled) return;
+      skipCloudWrite.current = true;
       setState(loaded);
       setHydrated(true);
       void listSaveSlots().then(setSaveSlots);
@@ -49,13 +53,23 @@ export function useGame() {
   useEffect(() => {
     if (!state || !hydrated) return;
     const seq = ++writeSeq.current;
+    const localOnly = skipCloudWrite.current;
+    skipCloudWrite.current = false;
+    if (!localOnly) markLocalSaveModified(activeSlot);
     void saveGame(state, activeSlot).then(() => {
       if (seq !== writeSeq.current) return;
       void listSaveSlots().then(setSaveSlots);
+      if (localOnly) return;
+      if (cloudTimer.current) window.clearTimeout(cloudTimer.current);
+      cloudTimer.current = window.setTimeout(() => void uploadCareer(activeSlot, state), 2_000);
     });
+    return () => {
+      if (cloudTimer.current) window.clearTimeout(cloudTimer.current);
+    };
   }, [activeSlot, hydrated, state]);
 
   const start = useCallback((clubName: string, managerName: string) => {
+    skipCloudWrite.current = false;
     setState(newGame(clubName, managerName));
   }, []);
 
@@ -127,6 +141,7 @@ export function useGame() {
 
   const deleteSlot = useCallback(async (slot: SaveSlotId) => {
     await clearGame(slot);
+    await deleteCloudCareer(slot);
     if (slot === activeSlot) setState(null);
     setSaveSlots(await listSaveSlots());
   }, [activeSlot]);

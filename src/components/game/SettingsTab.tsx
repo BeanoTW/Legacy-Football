@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
-import { Check, Cloud, HardDrive, Palette, Trash2 } from "lucide-react";
+import { Check, Cloud, HardDrive, LogOut, Mail, Palette, RefreshCw, Trash2 } from "lucide-react";
+import type { Session } from "@supabase/supabase-js";
 import type { SaveSlotId, SaveSlotSummary } from "@/lib/game/engine";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { DetailScreen } from "./shared/layout";
 import { cn } from "@/lib/utils";
+import { cloudClient, cloudConfigured, syncAllCareers } from "@/lib/cloud/sync";
 
 type Theme = "club" | "heritage" | "floodlights";
 const THEME_KEY = "chairman.colour-theme";
@@ -25,6 +28,11 @@ export function SettingsTab({
   onDelete: (slot: SaveSlotId) => Promise<void>;
 }) {
   const [theme, setTheme] = useState<Theme>("club");
+  const [session, setSession] = useState<Session | null>(null);
+  const [email, setEmail] = useState("");
+  const [cloudMessage, setCloudMessage] = useState<string | null>(null);
+  const [cloudBusy, setCloudBusy] = useState(false);
+  const [lastSync, setLastSync] = useState<string | null>(() => typeof localStorage === "undefined" ? null : localStorage.getItem("chairman.cloud-last-sync"));
 
   useEffect(() => {
     const stored = localStorage.getItem(THEME_KEY) as Theme | null;
@@ -32,6 +40,43 @@ export function SettingsTab({
     setTheme(next);
     applyTheme(next);
   }, []);
+
+  useEffect(() => {
+    const client = cloudClient();
+    if (!client) return;
+    void client.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data } = client.auth.onAuthStateChange((_event, next) => setSession(next));
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  async function sendSignInLink() {
+    const client = cloudClient();
+    if (!client || !email.trim()) return;
+    setCloudBusy(true);
+    setCloudMessage(null);
+    const { error } = await client.auth.signInWithOtp({
+      email: email.trim(),
+      options: { emailRedirectTo: `${window.location.origin}${window.location.pathname}` },
+    });
+    setCloudBusy(false);
+    setCloudMessage(error ? error.message : "Sign-in link sent. Open it on this device to connect your careers.");
+  }
+
+  async function syncNow() {
+    setCloudBusy(true);
+    setCloudMessage(null);
+    try {
+      const result = await syncAllCareers();
+      const now = new Date().toISOString();
+      setLastSync(now);
+      setCloudMessage(`Synced: ${result.uploaded} uploaded, ${result.downloaded} downloaded.`);
+      if (result.downloaded) window.location.reload();
+    } catch (error) {
+      setCloudMessage((error as Error).message);
+    } finally {
+      setCloudBusy(false);
+    }
+  }
 
   return (
     <DetailScreen
@@ -127,23 +172,56 @@ export function SettingsTab({
         </div>
       </section>
 
-      <section className="rounded-xl border border-dashed bg-card/70 p-4">
+      <section className="rounded-xl border bg-card p-4 shadow-sm">
         <div className="flex items-start gap-3">
           <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
             <Cloud className="size-5" />
           </span>
-          <div>
+          <div className="min-w-0 flex-1">
             <div className="font-display text-lg">Cloud sync</div>
-            <p className="text-xs text-muted-foreground sm:text-sm">
-              Local careers are ready for cloud storage. Account sign-in and cross-device conflict protection are the next connection step.
-            </p>
-            <span className="mt-2 inline-block rounded-full bg-amber-500/15 px-2 py-1 text-[10px] font-bold text-amber-700">
-              Not connected
-            </span>
+            {!cloudConfigured ? (
+              <>
+                <p className="text-xs text-muted-foreground sm:text-sm">Cloud services are being connected. Your careers remain safely stored on this device.</p>
+                <CloudStatus tone="amber">Backend connection pending</CloudStatus>
+              </>
+            ) : session ? (
+              <div className="space-y-3">
+                <p className="truncate text-xs text-muted-foreground sm:text-sm">Connected as {session.user.email}. New progress uploads automatically.</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => void syncNow()} disabled={cloudBusy}>
+                    <RefreshCw className={cn("size-4", cloudBusy && "animate-spin")} /> Sync now
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => void cloudClient()?.auth.signOut()}>
+                    <LogOut className="size-4" /> Sign out
+                  </Button>
+                </div>
+                <CloudStatus tone="green">Connected{lastSync ? ` · synced ${new Date(lastSync).toLocaleString()}` : ""}</CloudStatus>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground sm:text-sm">Sign in by email to keep all three careers available on every device.</p>
+                <div className="flex gap-2">
+                  <Input type="email" inputMode="email" autoComplete="email" placeholder="Your email" value={email} onChange={(event) => setEmail(event.target.value)} />
+                  <Button onClick={() => void sendSignInLink()} disabled={cloudBusy || !email.trim()}>
+                    <Mail className="size-4" /> Send link
+                  </Button>
+                </div>
+                <CloudStatus tone="amber">Not signed in</CloudStatus>
+              </div>
+            )}
+            {cloudMessage && <p className="mt-2 rounded-lg bg-muted px-3 py-2 text-xs">{cloudMessage}</p>}
           </div>
         </div>
       </section>
     </DetailScreen>
+  );
+}
+
+function CloudStatus({ children, tone }: { children: React.ReactNode; tone: "amber" | "green" }) {
+  return (
+    <span className={cn("mt-2 inline-block rounded-full px-2 py-1 text-[10px] font-bold", tone === "green" ? "bg-emerald-500/15 text-emerald-700" : "bg-amber-500/15 text-amber-700")}>
+      {children}
+    </span>
   );
 }
 
