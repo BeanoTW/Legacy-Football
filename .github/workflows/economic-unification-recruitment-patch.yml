@@ -16,6 +16,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: chatgpt/economic-unification
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
       - name: Route legacy recruitment helpers through canonical football levels
         shell: bash
         run: |
