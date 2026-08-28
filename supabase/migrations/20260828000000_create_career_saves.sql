@@ -9,6 +9,8 @@ create table if not exists public.career_saves (
 
 alter table public.career_saves enable row level security;
 
+grant select, insert, update, delete on table public.career_saves to authenticated;
+
 create policy "Players can read their own careers"
 on public.career_saves for select
 using (auth.uid() = user_id);
