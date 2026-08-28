@@ -6,6 +6,7 @@ import {
   type FootballLevel,
 } from "../footballLevel.ts";
 import {
+  contractWageForLevel,
   economicProfileForLevel,
   playerValueForLevel,
   revenueBaselineForLevel,
@@ -78,6 +79,17 @@ for (const [tier, level] of expectedPairs) {
   if (JSON.stringify(legacyRevenue) !== JSON.stringify(levelRevenue)) {
     throw new Error(`Football level ${level} changed revenue calibration`);
   }
+
+  const baseContractWage = 137;
+  const contractScalar = 1.08;
+  const legacyContractWage = Math.max(
+    200,
+    Math.round((baseContractWage * contractScalar) / 25) * 25,
+  );
+  const levelContractWage = contractWageForLevel(baseContractWage, contractScalar, level);
+  if (legacyContractWage !== levelContractWage) {
+    throw new Error(`Football level ${level} changed historic opening-contract wage policy`);
+  }
 }
 
 const level7 = economicProfileForLevel(7);
@@ -99,6 +111,17 @@ const lowerWage7 = weeklyWageForLevel({ ability: 52, level: 7, clubReputation: 4
 const lowerWage8 = weeklyWageForLevel({ ability: 52, level: 8, clubReputation: 45, age: 25 });
 if (!(lowerWage7 > lowerWage8 && lowerWage8 >= 25)) {
   throw new Error(`Unexpected lower-league wages: level 7 £${lowerWage7}, level 8 £${lowerWage8}`);
+}
+
+const lowerContractWage7 = contractWageForLevel(110, 1.05, 7);
+const lowerContractWage8 = contractWageForLevel(70, 1.05, 8);
+if (!(lowerContractWage7 > lowerContractWage8 && lowerContractWage8 >= 25)) {
+  throw new Error(
+    `Unexpected lower-level contract wages: level 7 £${lowerContractWage7}, level 8 £${lowerContractWage8}`,
+  );
+}
+if (lowerContractWage7 >= 200 || lowerContractWage8 >= 200) {
+  throw new Error("Semi-professional contract policy is still pinned to the historic £200 floor");
 }
 
 const lowerValue7 = playerValueForLevel(52, 58, 24, 7);
@@ -129,4 +152,6 @@ for (const badTier of [-2, 7]) {
   if (!threw) throw new Error(`Out-of-range legacy tier ${badTier} was accepted`);
 }
 
-console.log("✓ canonical football levels preserve legacy wages, values and revenues with native levels 7-8");
+console.log(
+  "✓ canonical football levels preserve legacy wages, values and revenues with native levels 7-8",
+);
