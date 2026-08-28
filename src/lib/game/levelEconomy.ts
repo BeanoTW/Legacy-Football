@@ -127,6 +127,25 @@ export function weeklyWageForLevel(inputs: LevelWageInputs): number {
 }
 
 /**
+ * Applies the opening-contract wage scalar at the correct football level.
+ *
+ * Levels 1-6 intentionally preserve recruitment's historic £200 floor and
+ * £25 rounding. Semi-professional levels 7-8 need finer increments and a lower
+ * floor or the compatibility rule would flatten most of their wage market.
+ */
+export function contractWageForLevel(
+  baseWeeklyWage: number,
+  scalar: number,
+  level: FootballLevel,
+): number {
+  const raw = Math.max(0, baseWeeklyWage * scalar);
+  if (level <= 6) return Math.max(200, int(raw / 25) * 25);
+
+  const step = raw < 500 ? 10 : 25;
+  return Math.max(25, int(raw / step) * step);
+}
+
+/**
  * Canonical market value for a player at a football level.
  *
  * The formula is intentionally identical to recruitment's historic valuation
