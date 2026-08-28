@@ -24,144 +24,88 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
           p = Path('src/lib/game/recruitment.ts')
           text = p.read_text()
 
-          old_import = '''  recruitmentContractWageForLevel,
-            recruitmentLevelOfClub,
-            recruitmentPlayerValue,
-            recruitmentSustainableWageBill,
-            recruitmentWageForLevel,'''.replace('            ', '  ')
-          new_import = '''  recruitmentContractWageForLevel,
-            recruitmentLevelOfClub,
-            recruitmentLevelOfUser,
-            recruitmentPlayerValue,
-            recruitmentSustainableWageBill,
-            recruitmentWageForClub,
-            recruitmentWageForLevel,'''.replace('            ', '  ')
-          if text.count(old_import) != 1:
-            raise SystemExit(f'expected recruitment economy import slice once, found {text.count(old_import)}')
-          text = text.replace(old_import, new_import, 1)
+          def sub(pattern, repl, label, count=1):
+            global text
+            text, n = re.subn(pattern, repl, text, count=count, flags=re.MULTILINE)
+            if n != count:
+              raise SystemExit(f'{label}: expected {count}, found {n}')
 
-          old_renew = '''  const rep = clubReputation(s, c.clubId);
-            const tier = tierOfClub(s, c.clubId);
-            const age = ageOf(p, s.season);'''.replace('            ', '  ')
-          new_renew = '''  const rep = clubReputation(s, c.clubId);
-            const age = ageOf(p, s.season);'''.replace('            ', '  ')
-          if text.count(old_renew) != 1:
-            raise SystemExit(f'expected AI renewal setup once, found {text.count(old_renew)}')
-          text = text.replace(old_renew, new_renew, 1)
+          sub(
+            r'(recruitmentContractWageForLevel,\n\s+recruitmentLevelOfClub,\n)',
+            r'\1  recruitmentLevelOfUser,\n',
+            'recruitmentLevelOfUser import',
+          )
+          sub(
+            r'(recruitmentSustainableWageBill,\n)',
+            r'\1  recruitmentWageForClub,\n',
+            'recruitmentWageForClub import',
+          )
 
-          old_renew_wage = 'wageForAbility(p.currentAbility, rep, tier, age, p.potentialAbility),'
-          new_renew_wage = 'recruitmentWageForClub(s, c.clubId, p.currentAbility, age, p.potentialAbility),'
-          if text.count(old_renew_wage) != 1:
-            raise SystemExit(f'expected AI renewal wage once, found {text.count(old_renew_wage)}')
-          text = text.replace(old_renew_wage, new_renew_wage, 1)
+          sub(
+            r'  const rep = clubReputation\(s, c\.clubId\);\n  const tier = tierOfClub\(s, c\.clubId\);\n  const age = ageOf\(p, s\.season\);',
+            '  const rep = clubReputation(s, c.clubId);\n  const age = ageOf(p, s.season);',
+            'AI renewal setup',
+          )
+          sub(
+            r'wageForAbility\(p\.currentAbility, rep, tier, age, p\.potentialAbility\),',
+            'recruitmentWageForClub(s, c.clubId, p.currentAbility, age, p.potentialAbility),',
+            'AI renewal wage',
+          )
 
-          old_ai = '''      wageForAbility(
-                    pick.currentAbility,
-                    rep,
-                    tierOfClub(s, club),
-                    ageOf(pick, s.season),
-                    pick.potentialAbility,
-                  ),'''.replace('                  ', '      ')
-          new_ai = '''      recruitmentWageForClub(
-                    s,
-                    club,
-                    pick.currentAbility,
-                    ageOf(pick, s.season),
-                    pick.potentialAbility,
-                  ),'''.replace('                  ', '      ')
-          if text.count(old_ai) != 1:
-            raise SystemExit(f'expected AI recruitment wage once, found {text.count(old_ai)}')
-          text = text.replace(old_ai, new_ai, 1)
+          sub(
+            r'wageForAbility\(\s*pick\.currentAbility,\s*rep,\s*tierOfClub\(s, club\),\s*ageOf\(pick, s\.season\),\s*pick\.potentialAbility,\s*\),',
+            'recruitmentWageForClub(\n        s,\n        club,\n        pick.currentAbility,\n        ageOf(pick, s.season),\n        pick.potentialAbility,\n      ),',
+            'AI recruitment wage',
+          )
 
-          old_cover_setup = '''  const rep = clubReputation(s, s.clubName);
-            const tier = tierOfClub(s, s.clubName);
-            const needed = Math.min(2, MIN_SQUAD_SIZE - squad.length);'''.replace('            ', '  ')
-          new_cover_setup = '''  const rep = clubReputation(s, s.clubName);
-            const tier = tierOfClub(s, s.clubName);
-            const level = recruitmentLevelOfUser(s);
-            const needed = Math.min(2, MIN_SQUAD_SIZE - squad.length);'''.replace('            ', '  ')
-          if text.count(old_cover_setup) != 1:
-            raise SystemExit(f'expected cover setup once, found {text.count(old_cover_setup)}')
-          text = text.replace(old_cover_setup, new_cover_setup, 1)
+          sub(
+            r'  const rep = clubReputation\(s, s\.clubName\);\n  const tier = tierOfClub\(s, s\.clubName\);\n  const needed = Math\.min\(2, MIN_SQUAD_SIZE - squad\.length\);',
+            '  const rep = clubReputation(s, s.clubName);\n  const tier = tierOfClub(s, s.clubName);\n  const level = recruitmentLevelOfUser(s);\n  const needed = Math.min(2, MIN_SQUAD_SIZE - squad.length);',
+            'emergency cover setup',
+          )
+          sub(
+            r'const ceiling = Math\.max\(600, sustainableWeeklyWageBill\(tier, rep\) - userWageBill\(s\)\);',
+            'const ceiling = Math.max(\n      level <= 6 ? 600 : 25,\n      recruitmentSustainableWageBill(s, s.clubName) - userWageBill(s),\n    );',
+            'emergency wage ceiling',
+          )
+          sub(
+            r'wageForAbility\(p\.currentAbility, rep, tier, ageOf\(p, s\.season\), p\.potentialAbility\) <=\s*ceiling;',
+            'recruitmentWageForClub(\n        s,\n        s.clubName,\n        p.currentAbility,\n        ageOf(p, s.season),\n        p.potentialAbility,\n      ) <= ceiling;',
+            'emergency affordability',
+          )
+          sub(
+            r'wageForAbility\(pick\.currentAbility, rep, tier, age, pick\.potentialAbility\),',
+            'recruitmentWageForClub(s, s.clubName, pick.currentAbility, age, pick.potentialAbility),',
+            'emergency signing wage',
+          )
 
-          old_ceiling = 'const ceiling = Math.max(600, sustainableWeeklyWageBill(tier, rep) - userWageBill(s));'
-          new_ceiling = '''const ceiling = Math.max(
-                level <= 6 ? 600 : 25,
-                recruitmentSustainableWageBill(s, s.clubName) - userWageBill(s),
-              );'''.replace('              ', '    ')
-          if text.count(old_ceiling) != 1:
-            raise SystemExit(f'expected emergency cover ceiling once, found {text.count(old_ceiling)}')
-          text = text.replace(old_ceiling, new_ceiling, 1)
+          sub(
+            r'    const age = ageOf\(p, s\.season\);\n    const tier = p\.currentClubId \? tierOfClub\(s, p\.currentClubId\) : tierOfUser\(s\);\n    p\.marketValue = valueForPlayer\(p\.currentAbility, p\.potentialAbility, age, tier\);\n    p\.wageExpectation = wageForAbility\(\s*p\.currentAbility,\s*p\.currentClubId \? clubReputation\(s, p\.currentClubId\) : 45,\s*tier,\s*age,\s*p\.potentialAbility,\s*\);',
+            '    const age = ageOf(p, s.season);\n    const level = p.currentClubId\n      ? recruitmentLevelOfClub(s, p.currentClubId)\n      : recruitmentLevelOfUser(s);\n    p.marketValue = recruitmentPlayerValue(p.currentAbility, p.potentialAbility, age, level);\n    p.wageExpectation = p.currentClubId\n      ? recruitmentWageForClub(s, p.currentClubId, p.currentAbility, age, p.potentialAbility)\n      : recruitmentWageForLevel(level, p.currentAbility, 45, age, p.potentialAbility);',
+            'season rollover economy',
+          )
 
-          old_affordable = '''      wageForAbility(p.currentAbility, rep, tier, ageOf(p, s.season), p.potentialAbility) <=
-            ceiling;'''.replace('            ', '      ')
-          new_affordable = '''      recruitmentWageForClub(
-              s,
-              s.clubName,
-              p.currentAbility,
-              ageOf(p, s.season),
-              p.potentialAbility,
-            ) <= ceiling;'''.replace('            ', '      ')
-          if text.count(old_affordable) != 1:
-            raise SystemExit(f'expected emergency affordable predicate once, found {text.count(old_affordable)}')
-          text = text.replace(old_affordable, new_affordable, 1)
+          sub(
+            r'    const buyerRep = clubReputation\(s, n\.toClubId\);\n',
+            '',
+            'outgoing buyer rep cleanup',
+          )
+          sub(
+            r'wageForAbility\(\s*p\.currentAbility,\s*buyerRep,\s*tierOfClub\(s, n\.toClubId\),\s*ageOf\(p, s\.season\),\s*p\.potentialAbility,\s*\),',
+            'recruitmentWageForClub(\n        s,\n        n.toClubId,\n        p.currentAbility,\n        ageOf(p, s.season),\n        p.potentialAbility,\n      ),',
+            'outgoing buyer wage',
+          )
 
-          old_cover_wage = 'wageForAbility(pick.currentAbility, rep, tier, age, pick.potentialAbility),'
-          new_cover_wage = 'recruitmentWageForClub(s, s.clubName, pick.currentAbility, age, pick.potentialAbility),'
-          if text.count(old_cover_wage) != 1:
-            raise SystemExit(f'expected emergency signing wage once, found {text.count(old_cover_wage)}')
-          text = text.replace(old_cover_wage, new_cover_wage, 1)
-
-          old_roll = '''    const age = ageOf(p, s.season);
-            const tier = p.currentClubId ? tierOfClub(s, p.currentClubId) : tierOfUser(s);
-            p.marketValue = valueForPlayer(p.currentAbility, p.potentialAbility, age, tier);
-            p.wageExpectation = wageForAbility(
-              p.currentAbility,
-              p.currentClubId ? clubReputation(s, p.currentClubId) : 45,
-              tier,
-              age,
-              p.potentialAbility,
-            );'''.replace('            ', '    ')
-          new_roll = '''    const age = ageOf(p, s.season);
-            const level = p.currentClubId
-              ? recruitmentLevelOfClub(s, p.currentClubId)
-              : recruitmentLevelOfUser(s);
-            p.marketValue = recruitmentPlayerValue(p.currentAbility, p.potentialAbility, age, level);
-            p.wageExpectation = p.currentClubId
-              ? recruitmentWageForClub(s, p.currentClubId, p.currentAbility, age, p.potentialAbility)
-              : recruitmentWageForLevel(level, p.currentAbility, 45, age, p.potentialAbility);'''.replace('            ', '    ')
-          if text.count(old_roll) != 1:
-            raise SystemExit(f'expected rollover economy block once, found {text.count(old_roll)}')
-          text = text.replace(old_roll, new_roll, 1)
-
-          old_outgoing = '''      wageForAbility(
-                    p.currentAbility,
-                    buyerRep,
-                    tierOfClub(s, n.toClubId),
-                    ageOf(p, s.season),
-                    p.potentialAbility,
-                  ),'''.replace('                  ', '      ')
-          new_outgoing = '''      recruitmentWageForClub(
-                    s,
-                    n.toClubId,
-                    p.currentAbility,
-                    ageOf(p, s.season),
-                    p.potentialAbility,
-                  ),'''.replace('                  ', '      ')
-          if text.count(old_outgoing) != 1:
-            raise SystemExit(f'expected outgoing buyer wage once, found {text.count(old_outgoing)}')
-          text = text.replace(old_outgoing, new_outgoing, 1)
-
-          # buyerRep is no longer required after the canonical club wage lookup.
-          text = text.replace('    const buyerRep = clubReputation(s, n.toClubId);\n', '', 1)
-
-          # Drop legacy sustainable wage import only when this pass removed its final use.
           if 'sustainableWeeklyWageBill(' not in text:
-            text = text.replace('import { tierOfClub, tierOfUser, sustainableWeeklyWageBill } from "./economy";', 'import { tierOfClub, tierOfUser } from "./economy";')
+            text = text.replace(
+              'import { tierOfClub, tierOfUser, sustainableWeeklyWageBill } from "./economy";',
+              'import { tierOfClub, tierOfUser } from "./economy";',
+            )
 
           p.write_text(text)
           PY
