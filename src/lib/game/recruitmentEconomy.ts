@@ -7,6 +7,7 @@ import {
 } from "./footballLevel";
 import {
   contractWageForLevel,
+  negotiationWageForLevel,
   playerValueForLevel,
   sustainableWeeklyWageBillForLevel,
   weeklyWageForLevel,
@@ -50,13 +51,7 @@ export function recruitmentWageForLevel(
   age?: number,
   potential?: number,
 ): number {
-  return weeklyWageForLevel({
-    ability,
-    level,
-    clubReputation: clubRep,
-    age,
-    potential,
-  });
+  return weeklyWageForLevel({ ability, level, clubReputation: clubRep, age, potential });
 }
 
 export function recruitmentContractWageForLevel(
@@ -73,11 +68,18 @@ export function recruitmentContractWageForClub(
   baseWeeklyWage: number,
   scalar: number,
 ): number {
-  return contractWageForLevel(
-    baseWeeklyWage,
-    scalar,
-    recruitmentLevelOfClub(state, clubId),
-  );
+  return contractWageForLevel(baseWeeklyWage, scalar, recruitmentLevelOfClub(state, clubId));
+}
+
+export function recruitmentNegotiationWageForLevel(
+  level: FootballLevel,
+  rawWeeklyWage: number,
+): number {
+  return negotiationWageForLevel(rawWeeklyWage, level);
+}
+
+export function recruitmentUserNegotiationWage(state: GameState, rawWeeklyWage: number): number {
+  return negotiationWageForLevel(rawWeeklyWage, recruitmentLevelOfUser(state));
 }
 
 export function recruitmentPlayerValue(
