@@ -50,6 +50,7 @@ import {
   recruitmentLevelOfUser,
   recruitmentPlayerValue,
   recruitmentSustainableWageBill,
+  recruitmentUserNegotiationWage,
   recruitmentWageForClub,
   recruitmentWageForLevel,
 } from "./recruitmentEconomy";
@@ -996,12 +997,9 @@ export function wageDemand(
   const attraction = clamp(facilityModifiers(s).recruitmentAttraction, -15, 15);
   const facilityFactor = clamp(1 - attraction / 250, 0.94, 1.06);
   const growth = clubGrowthFactor(s);
-  return Math.max(
-    250,
-    int(
-      (p.wageExpectation * roleFactor * personality * facilityFactor * growth) / ambitionGap / 25,
-    ) * 25,
-  );
+  const rawDemand =
+    (p.wageExpectation * roleFactor * personality * facilityFactor * growth) / ambitionGap;
+  return recruitmentUserNegotiationWage(s, rawDemand);
 }
 
 /**
@@ -1343,7 +1341,7 @@ export function evaluatePlayerResponseInPlace(s: GameState, n: TransferNegotiati
     );
     return;
   }
-  n.playerCounterWage = int(threshold / 25) * 25;
+  n.playerCounterWage = recruitmentUserNegotiationWage(s, threshold);
   log(
     n,
     {
@@ -1720,7 +1718,10 @@ export function renewalTerms(s: GameState, playerId: string): RenewalTerms | nul
   if (!p || !c) return null;
   const rng = seededRng(s.saveSeed, "renewal", p.id, c.id, s.season);
   const uplift = 1 + clamp((p.currentAbility - 55) / 120, 0, 0.5) + rngRange(rng, 0, 0.12);
-  const wage = Math.max(c.weeklyWage, int((wageDemand(s, p, c.squadRole) * uplift) / 25) * 25);
+  const wage = Math.max(
+    c.weeklyWage,
+    recruitmentUserNegotiationWage(s, wageDemand(s, p, c.squadRole) * uplift),
+  );
   const age = ageOf(p, s.season);
   return {
     weeklyWage: wage,
