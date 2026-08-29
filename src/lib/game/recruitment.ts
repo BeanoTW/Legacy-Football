@@ -43,7 +43,7 @@ import { facilityModifiers } from "./infrastructure";
 import { buildWorldSimulationPlan } from "./world";
 import { ensureFringeWorldState, makeFringeClubState } from "./fringe";
 import { tierOfClub } from "./economy";
-import { legacyTierToFootballLevel } from "./footballLevel";
+import { legacyTierToFootballLevel, type FootballLevel } from "./footballLevel";
 import {
   recruitmentContractWageForLevel,
   recruitmentLevelOfClub,
@@ -56,6 +56,12 @@ import {
 
 const int = (n: number) => Math.round(n) || 0;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+/** Compatibility edge: persisted leagues still store legacy tiers. */
+function deepestWorldFootballLevel(s: GameState): FootballLevel {
+  const deepestLegacyTier = Math.max(...(s.leagues ?? []).map((league) => league.tier ?? 1), 1);
+  return legacyTierToFootballLevel(deepestLegacyTier);
+}
 
 /* ---------- Constants ---------- */
 
@@ -266,7 +272,7 @@ function makePlayerFor(
   index: number,
   tierRating: number,
   season: number,
-  tier = 1,
+  level: FootballLevel = 3,
   clubRep = 50,
 ): FootballPlayer {
   const key = `${saveSeed}|player|${clubId ?? "free"}|${index}`;
@@ -319,8 +325,8 @@ function makePlayerFor(
     reputation,
     currentAbility,
     potentialAbility,
-    marketValue: valueForPlayer(currentAbility, potentialAbility, age, tier),
-    wageExpectation: wageForAbility(currentAbility, clubRep, tier, age, potentialAbility),
+    marketValue: recruitmentPlayerValue(currentAbility, potentialAbility, age, level),
+    wageExpectation: recruitmentWageForLevel(level, currentAbility, clubRep, age, potentialAbility),
     personality: PERSONALITIES[rngInt(rng, 0, PERSONALITIES.length - 1)],
     contractId: null,
     transferStatus: "unlisted",
@@ -349,12 +355,11 @@ export function generateWorld(s: GameState): {
 
   for (const club of clubs) {
     const rep = clubReputation(s, club);
-    const tier = tierOfClub(s, club);
     const level = recruitmentLevelOfClub(s, club);
     const tierRating = clamp(42 + rep * 0.42, 40, 88);
     const squad: FootballPlayer[] = [];
     for (let i = 0; i < SQUAD_SIZE; i++) {
-      squad.push(makePlayerFor(s.saveSeed, club, i, tierRating, s.season, tier, rep));
+      squad.push(makePlayerFor(s.saveSeed, club, i, tierRating, s.season, level, rep));
     }
     squad.sort((a, b) => b.currentAbility - a.currentAbility || a.id.localeCompare(b.id));
 
@@ -365,7 +370,14 @@ export function generateWorld(s: GameState): {
     // room to sign anybody. Bounded so the curve stays authoritative.
     const rawBill = squad.reduce(
       (a, p) =>
-        a + wageForAbility(p.currentAbility, rep, tier, ageOf(p, s.season), p.potentialAbility),
+        a +
+        recruitmentWageForLevel(
+          level,
+          p.currentAbility,
+          rep,
+          ageOf(p, s.season),
+          p.potentialAbility,
+        ),
       0,
     );
     const targetBill =
@@ -375,10 +387,10 @@ export function generateWorld(s: GameState): {
     squad.forEach((p, i) => {
       const rng = seededRng(`${s.saveSeed}|contract|${p.id}`);
       const seasons = rngInt(rng, 1, 4);
-      const base = wageForAbility(
+      const base = recruitmentWageForLevel(
+        level,
         p.currentAbility,
         rep,
-        tier,
         ageOf(p, s.season),
         p.potentialAbility,
       );
@@ -402,9 +414,9 @@ export function generateWorld(s: GameState): {
     });
   }
 
-  const freeAgentTier = Math.max(...(s.leagues ?? []).map((l) => l.tier ?? 1), 1);
+  const freeAgentLevel = deepestWorldFootballLevel(s);
   for (let i = 0; i < FREE_AGENT_POOL; i++) {
-    const p = makePlayerFor(s.saveSeed, null, i, 52, s.season, freeAgentTier, 45);
+    const p = makePlayerFor(s.saveSeed, null, i, 52, s.season, freeAgentLevel, 45);
     p.contractId = null;
     p.transferStatus = "listed";
     players.push(p);
@@ -495,20 +507,19 @@ export function reconcileRecruitmentFidelity(s: GameState): void {
   for (const club of plan.focusClubIds) {
     if (detailedClubs.has(club)) continue;
     const rep = clubReputation(s, club);
-    const tier = tierOfClub(s, club);
     const level = recruitmentLevelOfClub(s, club);
     const tierRating = clamp(previousFringe[club]?.strength ?? 42 + rep * 0.42, 40, 88);
     const squad = Array.from({ length: SQUAD_SIZE }, (_, index) =>
-      makePlayerFor(s.saveSeed, club, index, tierRating, s.season, tier, rep),
+      makePlayerFor(s.saveSeed, club, index, tierRating, s.season, level, rep),
     ).sort((a, b) => b.currentAbility - a.currentAbility || a.id.localeCompare(b.id));
 
     const rawBill = squad.reduce(
       (sum, player) =>
         sum +
-        wageForAbility(
+        recruitmentWageForLevel(
+          level,
           player.currentAbility,
           rep,
-          tier,
           ageOf(player, s.season),
           player.potentialAbility,
         ),
@@ -526,10 +537,10 @@ export function reconcileRecruitmentFidelity(s: GameState): void {
     squad.forEach((player, index) => {
       if (s.football.players.some((existing) => existing.id === player.id)) return;
       const rng = seededRng(`${s.saveSeed}|contract|${player.id}`);
-      const base = wageForAbility(
+      const base = recruitmentWageForLevel(
+        level,
         player.currentAbility,
         rep,
-        tier,
         ageOf(player, s.season),
         player.potentialAbility,
       );
@@ -586,9 +597,9 @@ export function ensureRecruitment(s: GameState): void {
     // Expand older saves without replacing any existing player or history.
     // Stable ids make this idempotent and preserve signed/released free agents.
     const knownPlayerIds = new Set(s.football.players.map((player) => player.id));
-    const freeAgentTier = Math.max(...(s.leagues ?? []).map((league) => league.tier ?? 1), 1);
+    const freeAgentLevel = deepestWorldFootballLevel(s);
     for (let index = 0; index < FREE_AGENT_POOL; index++) {
-      const player = makePlayerFor(s.saveSeed, null, index, 52, s.season, freeAgentTier, 45);
+      const player = makePlayerFor(s.saveSeed, null, index, 52, s.season, freeAgentLevel, 45);
       if (knownPlayerIds.has(player.id)) continue;
       player.contractId = null;
       player.transferStatus = "listed";
@@ -2146,10 +2157,10 @@ function coverSquadShortfall(s: GameState): void {
 function replenishFreeAgents(s: GameState): void {
   const pool = freeAgents(s);
   if (pool.length >= 12) return;
-  const tier = Math.max(...(s.leagues ?? []).map((l) => l.tier ?? 1), 1);
+  const level = deepestWorldFootballLevel(s);
   const seq = s.football.players.length;
   for (let i = 0; i < 12 - pool.length; i++) {
-    const p = makePlayerFor(s.saveSeed, null, seq + i, 50, s.season, tier, 45);
+    const p = makePlayerFor(s.saveSeed, null, seq + i, 50, s.season, level, 45);
     p.id = `${p.id}-fa${s.season}-${s.week}-${i}`;
     p.contractId = null;
     p.transferStatus = "listed";
