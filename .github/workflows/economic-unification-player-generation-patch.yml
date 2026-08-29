@@ -1,0 +1,145 @@
+name: Migrate recruitment player generation economy
+
+on:
+  push:
+    branches:
+      - 'chatgpt/economic-unification'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[player-generation-levels]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt/economic-unification
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Move player generation onto football levels
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path('src/lib/game/recruitment.ts')
+          text = p.read_text()
+
+          def sub(pattern, repl, label, count=1):
+            global text
+            text, n = re.subn(pattern, repl, text, count=count, flags=re.MULTILINE)
+            if n != count:
+              raise SystemExit(f'{label}: expected {count}, found {n}')
+
+          sub(
+            r'import \{ legacyTierToFootballLevel \} from "\./footballLevel";',
+            'import { legacyTierToFootballLevel, type FootballLevel } from "./footballLevel";',
+            'FootballLevel import',
+          )
+
+          anchor = 'const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));\n'
+          helper = '''const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+/** Compatibility edge: persisted leagues still store legacy tiers. */
+function deepestWorldFootballLevel(s: GameState): FootballLevel {
+  const deepestLegacyTier = Math.max(...(s.leagues ?? []).map((league) => league.tier ?? 1), 1);
+  return legacyTierToFootballLevel(deepestLegacyTier);
+}
+'''
+          if text.count(anchor) != 1:
+            raise SystemExit(f'deepest level helper anchor expected once, found {text.count(anchor)}')
+          text = text.replace(anchor, helper, 1)
+
+          sub(
+            r'(function makePlayerFor\(\n(?:.|\n)*?  season: number,\n)  tier = 1,(\n  clubRep = 50,\n\): FootballPlayer \{)',
+            r'\1  level: FootballLevel = 3,\2',
+            'makePlayerFor level parameter',
+          )
+          sub(
+            r'marketValue: valueForPlayer\(currentAbility, potentialAbility, age, tier\),\n    wageExpectation: wageForAbility\(currentAbility, clubRep, tier, age, potentialAbility\),',
+            'marketValue: recruitmentPlayerValue(currentAbility, potentialAbility, age, level),\n    wageExpectation: recruitmentWageForLevel(level, currentAbility, clubRep, age, potentialAbility),',
+            'generated player economy',
+          )
+
+          # Fresh Focus squads: resolve the club level once and keep generation canonical.
+          sub(
+            r'    const rep = clubReputation\(s, club\);\n    const tier = tierOfClub\(s, club\);\n    const level = recruitmentLevelOfClub\(s, club\);',
+            '    const rep = clubReputation(s, club);\n    const level = recruitmentLevelOfClub(s, club);',
+            'generateWorld tier removal',
+          )
+          sub(
+            r'makePlayerFor\(s\.saveSeed, club, i, tierRating, s\.season, tier, rep\)',
+            'makePlayerFor(s.saveSeed, club, i, tierRating, s.season, level, rep)',
+            'generateWorld player level',
+          )
+          sub(
+            r'a \+ wageForAbility\(p\.currentAbility, rep, tier, ageOf\(p, s\.season\), p\.potentialAbility\)',
+            'a + recruitmentWageForLevel(level, p.currentAbility, rep, ageOf(p, s.season), p.potentialAbility)',
+            'generateWorld raw wage bill',
+          )
+          sub(
+            r'const base = wageForAbility\(\s*p\.currentAbility,\s*rep,\s*tier,\s*ageOf\(p, s\.season\),\s*p\.potentialAbility,\s*\);',
+            'const base = recruitmentWageForLevel(\n        level,\n        p.currentAbility,\n        rep,\n        ageOf(p, s.season),\n        p.potentialAbility,\n      );',
+            'generateWorld opening wage',
+          )
+          sub(
+            r'  const freeAgentTier = Math\.max\(\.\.\.\(s\.leagues \?\? \[\]\)\.map\(\(l\) => l\.tier \?\? 1\), 1\);\n  for \(let i = 0; i < FREE_AGENT_POOL; i\+\+\) \{\n    const p = makePlayerFor\(s\.saveSeed, null, i, 52, s\.season, freeAgentTier, 45\);',
+            '  const freeAgentLevel = deepestWorldFootballLevel(s);\n  for (let i = 0; i < FREE_AGENT_POOL; i++) {\n    const p = makePlayerFor(s.saveSeed, null, i, 52, s.season, freeAgentLevel, 45);',
+            'generateWorld free agents',
+          )
+
+          # Focus hydration uses the exact same football-level economy as fresh generation.
+          sub(
+            r'    const rep = clubReputation\(s, club\);\n    const tier = tierOfClub\(s, club\);\n    const level = recruitmentLevelOfClub\(s, club\);',
+            '    const rep = clubReputation(s, club);\n    const level = recruitmentLevelOfClub(s, club);',
+            'hydration tier removal',
+          )
+          sub(
+            r'makePlayerFor\(s\.saveSeed, club, index, tierRating, s\.season, tier, rep\)',
+            'makePlayerFor(s.saveSeed, club, index, tierRating, s.season, level, rep)',
+            'hydration player level',
+          )
+          sub(
+            r'sum \+\s*wageForAbility\(\s*player\.currentAbility,\s*rep,\s*tier,\s*ageOf\(player, s\.season\),\s*player\.potentialAbility,\s*\)',
+            'sum +\n        recruitmentWageForLevel(\n          level,\n          player.currentAbility,\n          rep,\n          ageOf(player, s.season),\n          player.potentialAbility,\n        )',
+            'hydration raw wage bill',
+          )
+          sub(
+            r'const base = wageForAbility\(\s*player\.currentAbility,\s*rep,\s*tier,\s*ageOf\(player, s\.season\),\s*player\.potentialAbility,\s*\);',
+            'const base = recruitmentWageForLevel(\n        level,\n        player.currentAbility,\n        rep,\n        ageOf(player, s.season),\n        player.potentialAbility,\n      );',
+            'hydration opening wage',
+          )
+
+          # Older-save expansion and weekly replenishment resolve the deepest loaded level once.
+          sub(
+            r'    const freeAgentTier = Math\.max\(\.\.\.\(s\.leagues \?\? \[\]\)\.map\(\(league\) => league\.tier \?\? 1\), 1\);\n    for \(let index = 0; index < FREE_AGENT_POOL; index\+\+\) \{\n      const player = makePlayerFor\(s\.saveSeed, null, index, 52, s\.season, freeAgentTier, 45\);',
+            '    const freeAgentLevel = deepestWorldFootballLevel(s);\n    for (let index = 0; index < FREE_AGENT_POOL; index++) {\n      const player = makePlayerFor(s.saveSeed, null, index, 52, s.season, freeAgentLevel, 45);',
+            'older-save free agent expansion',
+          )
+          sub(
+            r'  const tier = Math\.max\(\.\.\.\(s\.leagues \?\? \[\]\)\.map\(\(l\) => l\.tier \?\? 1\), 1\);\n  const seq = s\.football\.players\.length;\n  for \(let i = 0; i < 12 - pool\.length; i\+\+\) \{\n    const p = makePlayerFor\(s\.saveSeed, null, seq \+ i, 50, s\.season, tier, 45\);',
+            '  const level = deepestWorldFootballLevel(s);\n  const seq = s.football.players.length;\n  for (let i = 0; i < 12 - pool.length; i++) {\n    const p = makePlayerFor(s.saveSeed, null, seq + i, 50, s.season, level, 45);',
+            'weekly free agent replenishment',
+          )
+
+          p.write_text(text)
+          PY
+          bunx prettier --write src/lib/game/recruitment.ts
+
+          # This pass must not leave generation using the legacy wrappers.
+          if grep -nE 'makePlayerFor\([^;]*(freeAgentTier|tier, rep)' src/lib/game/recruitment.ts; then
+            echo 'Legacy tier still reaches makePlayerFor' >&2
+            exit 1
+          fi
+      - name: Commit player generation migration
+        run: |
+          rm .github/workflows/economic-unification-player-generation-patch.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- src/lib/game/recruitment.ts .github/workflows/economic-unification-player-generation-patch.yml
+          git commit -m "Move recruitment player generation onto football levels [player-generation-levels]"
+          git push origin HEAD:chatgpt/economic-unification
