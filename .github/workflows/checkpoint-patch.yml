@@ -23,115 +23,49 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
-
           p = Path('src/lib/game/recruitment.ts')
           text = p.read_text()
 
-          old = '''  recruitmentPlayerValue,
-  recruitmentSustainableWageBill,
-  recruitmentWageForClub,'''
-          new = '''  recruitmentPlayerValue,
-  recruitmentSustainableWageBill,
-  recruitmentUserNegotiationWage,
-  recruitmentWageForClub,'''
-          if text.count(old) != 1:
-            raise SystemExit(f'import anchor expected once, found {text.count(old)}')
-          text = text.replace(old, new, 1)
+          replacements = [
+            (
+              '''  recruitmentPlayerValue,\n  recruitmentSustainableWageBill,\n  recruitmentWageForClub,''',
+              '''  recruitmentPlayerValue,\n  recruitmentSustainableWageBill,\n  recruitmentUserNegotiationWage,\n  recruitmentWageForClub,''',
+              'import anchor',
+            ),
+            (
+              '''  const growth = clubGrowthFactor(s);\n  return Math.max(\n    250,\n    int(\n      (p.wageExpectation * roleFactor * personality * facilityFactor * growth) / ambitionGap / 25,\n    ) * 25,\n  );''',
+              '''  const growth = clubGrowthFactor(s);\n  const rawDemand =\n    (p.wageExpectation * roleFactor * personality * facilityFactor * growth) / ambitionGap;\n  return recruitmentUserNegotiationWage(s, rawDemand);''',
+              'wageDemand block',
+            ),
+            (
+              '''  n.playerCounterWage = int(threshold / 25) * 25;''',
+              '''  n.playerCounterWage = recruitmentUserNegotiationWage(s, threshold);''',
+              'counter wage block',
+            ),
+            (
+              '''  const uplift = 1 + clamp((p.currentAbility - 55) / 120, 0, 0.5) + rngRange(rng, 0, 0.12);\n  const wage = Math.max(c.weeklyWage, int((wageDemand(s, p, c.squadRole) * uplift) / 25) * 25);''',
+              '''  const uplift = 1 + clamp((p.currentAbility - 55) / 120, 0, 0.5) + rngRange(rng, 0, 0.12);\n  const wage = Math.max(\n    c.weeklyWage,\n    recruitmentUserNegotiationWage(s, wageDemand(s, p, c.squadRole) * uplift),\n  );''',
+              'renewal wage block',
+            ),
+          ]
 
-          old = '''  const growth = clubGrowthFactor(s);
-  return Math.max(
-    250,
-    int(
-      (p.wageExpectation * roleFactor * personality * facilityFactor * growth) / ambitionGap / 25,
-    ) * 25,
-  );'''
-          new = '''  const growth = clubGrowthFactor(s);
-  const rawDemand =
-    (p.wageExpectation * roleFactor * personality * facilityFactor * growth) / ambitionGap;
-  return recruitmentUserNegotiationWage(s, rawDemand);'''
-          if text.count(old) != 1:
-            raise SystemExit(f'wageDemand block expected once, found {text.count(old)}')
-          text = text.replace(old, new, 1)
-
-          old = '''  n.playerCounterWage = int(threshold / 25) * 25;'''
-          new = '''  n.playerCounterWage = recruitmentUserNegotiationWage(s, threshold);'''
-          if text.count(old) != 1:
-            raise SystemExit(f'counter wage block expected once, found {text.count(old)}')
-          text = text.replace(old, new, 1)
-
-          old = '''  const uplift = 1 + clamp((p.currentAbility - 55) / 120, 0, 0.5) + rngRange(rng, 0, 0.12);
-  const wage = Math.max(c.weeklyWage, int((wageDemand(s, p, c.squadRole) * uplift) / 25) * 25);'''
-          new = '''  const uplift = 1 + clamp((p.currentAbility - 55) / 120, 0, 0.5) + rngRange(rng, 0, 0.12);
-  const wage = Math.max(
-    c.weeklyWage,
-    recruitmentUserNegotiationWage(s, wageDemand(s, p, c.squadRole) * uplift),
-  );'''
-          if text.count(old) != 1:
-            raise SystemExit(f'renewal wage block expected once, found {text.count(old)}')
-          text = text.replace(old, new, 1)
+          for old, new, label in replacements:
+            if text.count(old) != 1:
+              raise SystemExit(f'{label}: expected once, found {text.count(old)}')
+            text = text.replace(old, new, 1)
 
           p.write_text(text)
-
-          workflow = Path('.github/workflows/checkpoint-patch.yml')
-          workflow.write_text('''name: Apply checkpoint test patch
-
-on:
-  push:
-    branches:
-      - 'chatgpt/scalable-world-checkpoint'
-
-permissions:
-  contents: write
-
-jobs:
-  patch:
-    if: ${{ !contains(github.event.head_commit.message, '[checkpoint-test-patched]') }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: chatgpt/scalable-world-checkpoint
-      - name: Update legacy pyramid expectations for v13 world
+      - name: Format and verify
         shell: bash
         run: |
-          python - <<'PY'
-          from pathlib import Path
-          p = Path('src/lib/game/__checks__/pyramid.check.ts')
-          text = p.read_text()
-          text = text.replace(
-            '''    m.leagues.length === 2 && m.leagues.every((l) => l.clubIds.length === CLUBS_PER_DIVISION),''',
-            '''    m.leagues.length === 4 && m.leagues.every((l) => l.clubIds.length === CLUBS_PER_DIVISION),''',
-            1,
-          )
-          text = text.replace(
-            '''  check(\\n    "active season not restructured (schedule untouched)",\\n    m.leagueSchedule.every((f) => f.league === undefined || f.league === DIVISION_ONE),\\n  );''',
-            '''  const migratedTopSchedule = m.leagueSchedule.filter(\\n    (f) => f.league === undefined || f.league === DIVISION_ONE,\\n  );\\n  check(\\n    "existing active-season top schedule is preserved while missing lower leagues are appended",\\n    migratedTopSchedule.length === (g.leagueSchedule as unknown[]).length &&\\n      m.leagueSchedule.some((f) => f.league === "league-3") &&\\n      m.leagueSchedule.some((f) => f.league === "league-4"),\\n  );''',
-            1,
-          )
-          text = text.replace(
-            '''  check("club records seeded", Object.keys(m.clubRecords).length === 40);''',
-            '''  check("club records seeded", Object.keys(m.clubRecords).length === 80);''',
-            1,
-          )
-          p.write_text(text)
-          PY
-          bunx prettier --write src/lib/game/__checks__/pyramid.check.ts
-      - name: Commit patch
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/lib/game/__checks__/pyramid.check.ts
-          git commit -m "Refresh pyramid migration expectations [checkpoint-test-patched]"
-          git push origin HEAD:chatgpt/scalable-world-checkpoint
-''')
-      - name: Format, verify, and commit
-        shell: bash
-        run: |
-          bunx prettier --write src/lib/game/recruitment.ts .github/workflows/checkpoint-patch.yml
+          bunx prettier --write src/lib/game/recruitment.ts
           bun src/lib/game/__checks__/recruitment-economy.check.ts
           bun src/lib/game/__checks__/negotiation-wage-economy.check.ts
+      - name: Commit patch
+        shell: bash
+        run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- src/lib/game/recruitment.ts .github/workflows/checkpoint-patch.yml
+          git add -- src/lib/game/recruitment.ts
           git commit -m "Move negotiation wages onto football levels [negotiation-levels]"
           git push origin HEAD:chatgpt/scalable-world-checkpoint
