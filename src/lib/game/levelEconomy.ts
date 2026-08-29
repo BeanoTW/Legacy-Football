@@ -81,13 +81,6 @@ const NATIVE_LOWER_LEVEL_PROFILES: Partial<Record<FootballLevel, LeagueEconomicP
   },
 };
 
-/**
- * Canonical football-level facade over the economy.
- *
- * Levels 1-6 route through the old calibrated tier model using the explicit
- * fixed-offset bridge. Levels 7-8 are native because no historic save could
- * have occupied them and therefore no backwards-compatibility number exists.
- */
 export function economicProfileForLevel(level: FootballLevel): LeagueEconomicProfile {
   return NATIVE_LOWER_LEVEL_PROFILES[level] ?? profileForTier(footballLevelToLegacyTier(level));
 }
@@ -106,7 +99,6 @@ function nativeWeeklyWage({
   const profile = economicProfileForLevel(level);
   const size = 0.78 + clubSizeFactor(clubReputation) * 0.26;
   let wage = abilityWageIndex(ability) * profile.wageMultiplier * size;
-
   if (typeof age === "number") {
     const ageFactor =
       age < 21 ? 0.6 + (age - 16) * 0.06 : age > 32 ? Math.max(0.6, 1 - (age - 32) * 0.08) : 1;
@@ -115,7 +107,6 @@ function nativeWeeklyWage({
   if (typeof potential === "number" && potential > ability) {
     wage *= 1 + Math.min(0.18, (potential - ability) / 120);
   }
-
   const step = wage < 500 ? 10 : wage < 2_000 ? 25 : 100;
   return Math.max(25, int(wage / step) * step);
 }
@@ -126,13 +117,6 @@ export function weeklyWageForLevel(inputs: LevelWageInputs): number {
   return weeklyWageFor({ ...legacyInputs, tier: footballLevelToLegacyTier(level) });
 }
 
-/**
- * Applies the opening-contract wage scalar at the correct football level.
- *
- * Levels 1-6 intentionally preserve recruitment's historic £200 floor and
- * £25 rounding. Semi-professional levels 7-8 need finer increments and a lower
- * floor or the compatibility rule would flatten most of their wage market.
- */
 export function contractWageForLevel(
   baseWeeklyWage: number,
   scalar: number,
@@ -140,19 +124,23 @@ export function contractWageForLevel(
 ): number {
   const raw = Math.max(0, baseWeeklyWage * scalar);
   if (level <= 6) return Math.max(200, int(raw / 25) * 25);
-
   const step = raw < 500 ? 10 : 25;
   return Math.max(25, int(raw / step) * step);
 }
 
 /**
- * Canonical market value for a player at a football level.
- *
- * The formula is intentionally identical to recruitment's historic valuation
- * formula for levels 1-6. Only the transfer-market scale comes from the new
- * level profile, allowing levels 7-8 to enter the market without inventing a
- * second valuation model.
+ * Normalises a wage produced during player talks or renewal negotiations.
+ * Levels 1-6 exactly preserve recruitment's historic £250 floor and £25
+ * increments. Levels 7-8 use semi-professional £25 floors with £10 increments
+ * below £500 so negotiation does not erase the lower-level wage curve.
  */
+export function negotiationWageForLevel(rawWeeklyWage: number, level: FootballLevel): number {
+  const raw = Math.max(0, rawWeeklyWage);
+  if (level <= 6) return Math.max(250, int(raw / 25) * 25);
+  const step = raw < 500 ? 10 : 25;
+  return Math.max(25, int(raw / step) * step);
+}
+
 export function playerValueForLevel(
   ability: number,
   potential: number,
@@ -171,10 +159,7 @@ export function revenueBaselineForLevel(
   reputation = 50,
   homeMatches = 23,
 ): RevenueBaseline {
-  if (level <= 6) {
-    return revenueBaseline(footballLevelToLegacyTier(level), reputation, homeMatches);
-  }
-
+  if (level <= 6) return revenueBaseline(footballLevelToLegacyTier(level), reputation, homeMatches);
   const profile = economicProfileForLevel(level);
   const size = clubSizeFactor(reputation);
   const attendance = profile.typicalAttendance * size;
@@ -197,10 +182,7 @@ export function sustainableWeeklyWageBillForLevel(
   reputation = 50,
   homeMatches = 23,
 ): number {
-  if (level <= 6) {
-    return sustainableWeeklyWageBill(footballLevelToLegacyTier(level), reputation);
-  }
-
+  if (level <= 6) return sustainableWeeklyWageBill(footballLevelToLegacyTier(level), reputation);
   const profile = economicProfileForLevel(level);
   const revenue = revenueBaselineForLevel(level, reputation, homeMatches);
   return int((revenue.totalSeason * profile.expectedWageRevenueRatio) / SEASON_MATCH_WEEKS);
