@@ -234,14 +234,15 @@ console.log("\n[R5] Stronger clubs win more often over large simulations");
     `${strongWins} vs ${weakWins}`,
   );
 
-  // Table-level: strength should produce a positive points relationship over
-  // several deterministic seasons. A single-season top-half rank threshold is
-  // too noisy once the wider football world is active.
+  // Table-level: detailed reputation strength is a Focus-simulation input.
+  // Distant divisions may deliberately use compact fringe strength, so verify
+  // the correlation in the player's current Focus division rather than tier 1.
   let rankScore = 0;
   let samples = 0;
   for (const seed of ["REP_SEED_5A", "REP_SEED_5B", "REP_SEED_5C", "REP_SEED_5D"]) {
     const sample = fresh(seed);
-    const sampleClubs = sample.leagues[0].clubIds;
+    const focusLeague = sample.leagues.find((league) => league.id === sample.playerLeagueId)!;
+    const sampleClubs = focusLeague.clubIds;
     const preRank = new Map(
       [...sampleClubs]
         .sort((x, y) => clubStrengthFor(sample, y, 1) - clubStrengthFor(sample, x, 1))
@@ -249,7 +250,7 @@ console.log("\n[R5] Stronger clubs win more often over large simulations");
     );
     const played = playSeason(sample);
     const finalTable = played.seasonHistory.find(
-      (h) => h.season === 1 && h.leagueId === DIVISION_ONE,
+      (h) => h.season === 1 && h.leagueId === focusLeague.id,
     )!.finalTable;
     const finalRank = new Map(finalTable.map((row, index) => [row.team, index + 1]));
     for (const club of sampleClubs) {
@@ -260,7 +261,7 @@ console.log("\n[R5] Stronger clubs win more often over large simulations");
     }
   }
   check(
-    "pre-season strength is positively associated with final position",
+    "focus-league strength is positively associated with final position",
     samples > 0 && rankScore > 0,
     `rank association ${rankScore.toFixed(1)} across ${samples} club-seasons`,
   );
