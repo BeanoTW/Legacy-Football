@@ -1,0 +1,97 @@
+name: Patch storage regressions
+
+on:
+  push:
+    branches:
+      - chatgpt/persistent-world-foundation
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[storage-regressions-patched]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt/persistent-world-foundation
+          fetch-depth: 0
+      - name: Restore dropped storage protections
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/lib/game/__checks__/idb-storage.check.ts')
+          s = p.read_text()
+          checksum_block = '''{
+  const records = createMemoryRecordStore();
+  const { store } = makeStore(records);
+  await store.save(fresh());
+  const core = (await records.get([K.core]))[K.core]!;
+  await records.putAll([{ key: K.core, value: core.replace("IDB City", "IDB Citz") }]);
+  check("checksum mismatch is detected", (await store.load()).diagnostics.some((d) => d.code === "save/checksum-mismatch"));
+  check("mismatched save is preserved", (await store.save(fresh())).some((d) => d.code === "save/write-blocked"));
+}
+'''
+          invalid_manifest = checksum_block + '''{
+  const records = createMemoryRecordStore();
+  const { store } = makeStore(records);
+  await store.save(fresh());
+  await records.putAll([{ key: K.manifest, value: JSON.stringify({ saveId: SAVE_ID, broken: true }) }]);
+  const loaded = await store.load();
+  check("invalid manifest is detected", loaded.state === null && loaded.diagnostics.some((d) => d.code === "save/manifest-invalid"));
+  check("invalid-manifest save cannot be overwritten", (await store.save(fresh())).some((d) => d.code === "save/write-blocked"));
+}
+'''
+          if checksum_block not in s:
+              raise SystemExit('checksum insertion point not found')
+          s = s.replace(checksum_block, invalid_manifest, 1)
+
+          reset_block = '''{
+  const legacy = localBackend();
+  legacy.map.set(STORAGE_KEY, "{not json");
+  const { store } = makeStore(createMemoryRecordStore(), legacy);
+  await store.load();
+  await store.clear();
+  check("reset after failed migration clears legacy slot", legacy.map.size === 0);
+  check("reset after failed migration allows new save", (await store.save(fresh())).length === 0);
+}
+'''
+          future_reset = reset_block + '''{
+  const records = createMemoryRecordStore();
+  const s = fresh() as unknown as Record<string, unknown>;
+  s.version = SAVE_VERSION + 5;
+  const core = JSON.stringify(s);
+  const manifest: SaveManifest = {
+    saveId: SAVE_ID,
+    storageFormatVersion: STORAGE_FORMAT_VERSION,
+    gameSchemaVersion: SAVE_VERSION + 5,
+    saveSeed: SEED,
+    controlledClubId: "IDB City",
+    createdAt: 1,
+    updatedAt: 1,
+    coreBytes: core.length,
+    coreChecksum: checksum(core),
+    chunkManifest: [],
+    totalBytes: core.length,
+  };
+  await records.putAll([{ key: K.core, value: core }, { key: K.manifest, value: JSON.stringify(manifest) }]);
+  const { store } = makeStore(records);
+  await store.load();
+  check("future-version protection blocks writes before reset", (await store.save(fresh())).some((d) => d.code === "save/write-blocked"));
+  await store.clear();
+  check("reset after future-version save removes the protected slot", (await records.keys()).length === 0);
+  check("reset after future-version save unblocks writing", (await store.save(fresh())).length === 0);
+}
+'''
+          if reset_block not in s:
+              raise SystemExit('reset insertion point not found')
+          p.write_text(s.replace(reset_block, future_reset, 1))
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/game/__checks__/idb-storage.check.ts
+          git commit -m "Restore storage protection regressions [storage-regressions-patched]"
+          git push origin HEAD:chatgpt/persistent-world-foundation
