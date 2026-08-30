@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { ArrowRight, Briefcase, Building2, CircleDollarSign, Heart, Mail, Play, Users } from "lucide-react";
+import { ArrowRight, Briefcase, Building2, Heart, Mail, Play, Shield, Users } from "lucide-react";
 import type { GameState } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
 import { fmtMoney, isMatchday, phaseOf, startMatchDay, totalCapacity } from "@/lib/game/engine";
@@ -50,6 +50,7 @@ export function ClubHub({ state, update, setTab }: { state: GameState; update: (
   const unread = unreadCount(state);
   const decisions = actionableInbox(state).length;
   const activeNegotiations = state.football?.negotiations?.filter((n) => n.stage !== "completed" && n.stage !== "withdrawn" && n.stage !== "rejected").length ?? 0;
+  const squadSize = state.football?.players?.filter((player) => player.currentClubId === state.clubName).length ?? state.squad.length;
   const leagueSorted = [...state.league].sort((a, b) => b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga) || b.gf - a.gf);
   const myIdx = leagueSorted.findIndex((r) => r.team === state.clubName);
   const miniLeague = leagueSorted.slice(Math.max(0, myIdx - 2), Math.min(leagueSorted.length, myIdx + 3));
@@ -73,8 +74,8 @@ export function ClubHub({ state, update, setTab }: { state: GameState; update: (
           <div className="mb-1 flex items-center justify-between"><h2 className="font-display text-base md:text-xl">Chairman controls</h2><span className="text-[9px] md:text-xs text-muted-foreground">Main workflows</span></div>
           <div className="grid grid-cols-2 gap-1.5 md:grid-cols-3 md:gap-2">
             <ActionTile onClick={() => setTab("inbox")} icon={<Mail className="size-4 md:size-5" />} title="Decisions" value={decisions > 0 ? `${decisions} waiting` : unread > 0 ? `${unread} unread` : "All clear"} urgent={decisions > 0} />
-            <ActionTile onClick={() => setTab("recruitment")} icon={<Users className="size-4 md:size-5" />} title="Transfers" value={activeNegotiations > 0 ? `${activeNegotiations} active` : "Squad"} />
-            <ActionTile onClick={() => setTab("cashflow")} icon={<CircleDollarSign className="size-4 md:size-5" />} title="Finances" value={fmtMoney(state.cash)} sub={`${health.label} · ${weeklyNet >= 0 ? "+" : ""}${fmtMoney(weeklyNet)}/wk`} />
+            <ActionTile onClick={() => setTab("recruitment")} icon={<Users className="size-4 md:size-5" />} title="Transfers" value={activeNegotiations > 0 ? `${activeNegotiations} active` : "Market"} sub="Scout, buy and sell" />
+            <ActionTile onClick={() => setTab("squad")} icon={<Shield className="size-4 md:size-5" />} title="Squad" value={`${squadSize} players`} sub="First XI, details & contracts" />
             <ActionTile onClick={() => setTab("staff")} icon={<Briefcase className="size-4 md:size-5" />} title="Staff" value={manager ? manager.name : "No manager"} sub={staffCount ? `${staffCount} employed` : "Build team"} />
             <ActionTile onClick={() => setTab("stadium")} icon={<Building2 className="size-4 md:size-5" />} title="Facilities" value={`${totalCapacity(state).toLocaleString()} seats`} />
             <ActionTile onClick={() => setTab("tickets")} icon={<Heart className="size-4 md:size-5" />} title="Supporters" value={`${state.fanHappiness}% happy`} sub={`${fanbase.toLocaleString()} fans`} />
