@@ -10,25 +10,30 @@ permissions:
 
 jobs:
   patch:
-    if: ${{ !contains(github.event.head_commit.message, '[reputation-regression-patched]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[reputation-r12-patched]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: chatgpt/persistent-world-foundation
-      - name: Align movement assertion with parallel regional pyramid
+      - name: Align promoted and relegated strength assertions with movement contract
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
           p = Path('src/lib/game/__checks__/reputation.check.ts')
           text = p.read_text()
-          pattern = re.compile(r'''  check\(\n    "promotion \+ relegation happened",\n    promoted\.length === g\.leagues\.reduce\(\(sum, league\) => sum \+ league\.promotionPlaces, 0\) &&\n      relegated\.length === g\.leagues\.reduce\(\(sum, league\) => sum \+ league\.relegationPlaces, 0\),\n  \);''')
-          new = '''  check(\n    "promotion + relegation happened",\n    promoted.length > 0 && relegated.length > 0 && promoted.length === relegated.length,\n    `${promoted.length} promoted / ${relegated.length} relegated`,\n  );'''
-          text, count = pattern.subn(new, text, count=1)
-          if count != 1:
-            raise SystemExit(f'expected one legacy reputation assertion, found {count}')
+          old_promoted = '''    check(\n      `promoted ${c} is not instantly dominant in tier ${destination.tier}`,\n      clubStrengthFor(s2, c, 2) < avg(destination.clubIds) + 15,\n    );'''
+          new_promoted = '''    const parts = strengthParts(s2, c, 2);\n    check(\n      `promoted ${c} carries the promotion adaptation into tier ${destination.tier}`,\n      parts.movement === -3.5,\n      `movement ${parts.movement}`,\n    );'''
+          old_relegated = '''    check(\n      `relegated ${c} keeps some class in tier ${destination.tier}`,\n      clubStrengthFor(s2, c, 2) > avg(destination.clubIds) - 15,\n    );'''
+          new_relegated = '''    const parts = strengthParts(s2, c, 2);\n    check(\n      `relegated ${c} retains the relegation class modifier in tier ${destination.tier}`,\n      parts.movement === 3.5,\n      `movement ${parts.movement}`,\n    );'''
+          if text.count(old_promoted) != 1:
+            raise SystemExit(f'expected one promoted threshold assertion, found {text.count(old_promoted)}')
+          if text.count(old_relegated) != 1:
+            raise SystemExit(f'expected one relegated threshold assertion, found {text.count(old_relegated)}')
+          text = text.replace(old_promoted, new_promoted, 1)
+          text = text.replace(old_relegated, new_relegated, 1)
+          text = text.replace('  const avg = (ids: string[]) =>\n    ids.reduce((a, c) => a + clubStrengthFor(s2, c, 2), 0) / ids.length;\n', '', 1)
           p.write_text(text)
           PY
       - name: Commit patch
@@ -36,5 +41,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/lib/game/__checks__/reputation.check.ts
-          git commit -m "Align reputation movement check with regional pyramid [reputation-regression-patched]"
+          git commit -m "Align reputation strength checks with movement contract [reputation-r12-patched]"
           git push origin HEAD:chatgpt/persistent-world-foundation
