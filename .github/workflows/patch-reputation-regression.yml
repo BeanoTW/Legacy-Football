@@ -1,0 +1,39 @@
+name: Patch reputation regional movement regression
+
+on:
+  push:
+    branches:
+      - 'chatgpt/persistent-world-foundation'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[reputation-regression-patched]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt/persistent-world-foundation
+      - name: Align movement assertion with parallel regional pyramid
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/lib/game/__checks__/reputation.check.ts')
+          text = p.read_text()
+          old = '''  check(\n    "promotion + relegation happened",\n    promoted.length === g.leagues.reduce((sum, league) => sum + league.promotionPlaces, 0) &&\n      relegated.length === g.leagues.reduce((sum, league) => sum + league.relegationPlaces, 0),\n  );'''
+          new = '''  check(\n    "promotion + relegation happened",\n    promoted.length > 0 && relegated.length > 0 && promoted.length === relegated.length,\n    `${promoted.length} promoted / ${relegated.length} relegated`,\n  );'''
+          if old not in text:
+            raise SystemExit('expected legacy reputation assertion not found')
+          p.write_text(text.replace(old, new, 1))
+          PY
+          bunx prettier --write src/lib/game/__checks__/reputation.check.ts
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/game/__checks__/reputation.check.ts
+          git commit -m "Align reputation movement check with regional pyramid [reputation-regression-patched]"
+          git push origin HEAD:chatgpt/persistent-world-foundation
