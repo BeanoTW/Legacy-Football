@@ -8,8 +8,10 @@ import {
 import {
   contractWageForLevel,
   negotiationWageForLevel,
+  normaliseTransferFeeForLevel,
   playerValueForLevel,
   sustainableWeeklyWageBillForLevel,
+  transferFeePolicyForLevel,
   weeklyWageForLevel,
 } from "./levelEconomy";
 
@@ -89,6 +91,31 @@ export function recruitmentPlayerValue(
   level: FootballLevel,
 ): number {
   return playerValueForLevel(ability, potential, age, level);
+}
+
+export function recruitmentTransferFeePolicyForClub(state: GameState, clubId: string) {
+  return transferFeePolicyForLevel(recruitmentLevelOfClub(state, clubId));
+}
+
+export function recruitmentTransferFeePolicyForUser(state: GameState) {
+  return transferFeePolicyForLevel(recruitmentLevelOfUser(state));
+}
+
+export function recruitmentNormaliseTransferFeeForClub(
+  state: GameState,
+  clubId: string,
+  rawFee: number,
+  floor: "none" | "asking" = "none",
+): number {
+  return normaliseTransferFeeForLevel(rawFee, recruitmentLevelOfClub(state, clubId), floor);
+}
+
+export function recruitmentNormaliseTransferFeeForUser(
+  state: GameState,
+  rawFee: number,
+  floor: "none" | "asking" = "none",
+): number {
+  return normaliseTransferFeeForLevel(rawFee, recruitmentLevelOfUser(state), floor);
 }
 
 export function recruitmentSustainableWageBill(
