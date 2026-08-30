@@ -1,10 +1,11 @@
 import type { FootballPlayer, GameState, Position } from "./types";
 import { hashString } from "./rng";
 import { absoluteWeek } from "./time";
+import { calendarDay } from "./calendar";
 
 export type PlayerAttributeKey = "pace" | "strength" | "stamina" | "agility" | "passing" | "dribbling" | "finishing" | "tackling" | "positioning" | "goalkeeping";
 export type PlayerAttributes = Record<PlayerAttributeKey, number>;
-export interface ScoutingAssignment { playerId: string; startedAtAbsoluteWeek: number; weeksObserved: number; lastProgressAbsoluteWeek: number; status: "active" | "complete"; }
+export interface ScoutingAssignment { playerId: string; startedAtAbsoluteWeek: number; weeksObserved: number; lastProgressAbsoluteWeek: number; status: "active" | "complete"; startedAtDay?: number; lastProgressDay?: number; }
 export interface ScoutingState { assignments: ScoutingAssignment[]; }
 export interface AttributeKnowledge { key: PlayerAttributeKey; label: string; exact?: number; min?: number; max?: number; known: boolean; }
 export interface ScoutingReport { playerId: string; knowledgePct: number; weeksObserved: number; complete: boolean; attributes: AttributeKnowledge[]; valueRange?: [number, number]; wageRange?: [number, number]; personalityKnown: boolean; }
@@ -14,7 +15,10 @@ declare module "./types" { interface RecruitmentState { scouting?: ScoutingState
 const LABELS: Record<PlayerAttributeKey, string> = { pace: "Pace", strength: "Strength", stamina: "Stamina", agility: "Agility", passing: "Passing", dribbling: "Dribbling", finishing: "Finishing", tackling: "Tackling", positioning: "Positioning", goalkeeping: "Goalkeeping" };
 const KEYS = Object.keys(LABELS) as PlayerAttributeKey[];
 const clamp = (n: number, lo = 1, hi = 99) => Math.max(lo, Math.min(hi, Math.round(n)));
+const PARTIAL_REPORT_DAYS = 4;
+const FULL_REPORT_DAYS = 6;
 function noise(player: FootballPlayer, key: string, spread: number): number { const raw = hashString(`${player.id}|attribute|${key}`) % (spread * 2 + 1); return raw - spread; }
+function absoluteDay(state: GameState): number { return absoluteWeek(state.season, state.week) * 7 + calendarDay(state); }
 
 export function playerAttributes(player: FootballPlayer): PlayerAttributes {
   const ca = player.currentAbility;
@@ -37,16 +41,11 @@ export function startScouting(state: GameState, playerId: string): GameState {
   if (!player || player.currentClubId === next.clubName) return next;
   next.football.scouting ??= { assignments: [] };
   if (next.football.scouting.assignments.some((a) => a.playerId === playerId)) return next;
-  const now = absoluteWeek(next.season, next.week);
-  next.football.scouting.assignments.push({ playerId, startedAtAbsoluteWeek: now, weeksObserved: 0, lastProgressAbsoluteWeek: now - 1, status: "active" });
+  const nowWeek = absoluteWeek(next.season, next.week);
+  const nowDay = absoluteDay(next);
+  next.football.scouting.assignments.push({ playerId, startedAtAbsoluteWeek: nowWeek, weeksObserved: 0, lastProgressAbsoluteWeek: nowWeek, status: "active", startedAtDay: nowDay, lastProgressDay: nowDay });
   return next;
 }
-
-/* The simulation advances weekly, but scouting is intentionally expressed in days.
-   A weekly advance completes the six-day assignment; the report model still exposes
-   the four-day partial milestone so future daily/sub-week advancement can stop there. */
-const PARTIAL_REPORT_DAYS = 4;
-const FULL_REPORT_DAYS = 6;
 
 function pushScoutingReport(state: GameState, player: FootballPlayer, days: number): void {
   const complete = days >= FULL_REPORT_DAYS;
@@ -57,21 +56,32 @@ function pushScoutingReport(state: GameState, player: FootballPlayer, days: numb
   state.inbox.push({ id: `inbox-${hashString(eventKey).toString(36)}`, generatorId: "scouting-report", eventKey, sender: state.football?.department.headOfRecruitment || "Head Scout", department: "Head Scout", category: "transfers", subject: complete ? `Final scout report: ${player.firstName} ${player.lastName}` : `Scout update: ${player.firstName} ${player.lastName}`, body: complete ? "Six days of scouting are complete. We now have the full player report, tighter valuation and personality information." : "Four days of scouting are complete. We now have a useful partial report; two more days will complete the assessment.", priority: "high", week: state.week, season: state.season, status: "unread" });
 }
 
-export function progressScoutingWeekInPlace(state: GameState): void {
+export function progressScoutingDayInPlace(state: GameState): void {
   if (!state.football?.scouting) return;
-  const now = absoluteWeek(state.season, state.week);
+  const nowDay = absoluteDay(state);
+  const nowWeek = absoluteWeek(state.season, state.week);
   for (const assignment of state.football.scouting.assignments) {
-    if (assignment.status !== "active" || assignment.lastProgressAbsoluteWeek >= now) continue;
+    if (assignment.status !== "active") continue;
+    assignment.startedAtDay ??= assignment.startedAtAbsoluteWeek * 7;
+    assignment.lastProgressDay ??= assignment.startedAtDay;
+    if (assignment.lastProgressDay >= nowDay) continue;
     const before = assignment.weeksObserved;
-    assignment.weeksObserved = FULL_REPORT_DAYS;
-    assignment.lastProgressAbsoluteWeek = now;
-    assignment.status = "complete";
+    const observed = Math.max(0, nowDay - assignment.startedAtDay);
+    assignment.weeksObserved = Math.min(FULL_REPORT_DAYS, observed);
+    assignment.lastProgressDay = nowDay;
+    assignment.lastProgressAbsoluteWeek = nowWeek;
     const player = state.football.players.find((p) => p.id === assignment.playerId);
     if (!player) continue;
-    if (before < PARTIAL_REPORT_DAYS) pushScoutingReport(state, player, PARTIAL_REPORT_DAYS);
-    pushScoutingReport(state, player, FULL_REPORT_DAYS);
+    if (before < PARTIAL_REPORT_DAYS && assignment.weeksObserved >= PARTIAL_REPORT_DAYS) pushScoutingReport(state, player, PARTIAL_REPORT_DAYS);
+    if (assignment.weeksObserved >= FULL_REPORT_DAYS) {
+      assignment.status = "complete";
+      if (before < FULL_REPORT_DAYS) pushScoutingReport(state, player, FULL_REPORT_DAYS);
+    }
   }
 }
+
+/** Backwards-compatible weekly settlement hook. Daily advancement is canonical. */
+export function progressScoutingWeekInPlace(state: GameState): void { progressScoutingDayInPlace(state); }
 
 function rangeAround(value: number, width: number): [number, number] { return [clamp(value - width), clamp(value + width)]; }
 export function scoutingReport(state: GameState, player: FootballPlayer): ScoutingReport {
