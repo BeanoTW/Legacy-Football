@@ -21,7 +21,9 @@ export interface WorldDivisionDefinition {
 /**
  * Persistent domestic world. Existing definitions are immutable in identity and
  * order. New lower divisions are append-only. `tier` is an economic/football
- * level, NOT a unique division ordinal: future regional divisions may share it.
+ * level, NOT a unique division ordinal: regional divisions legitimately share it.
+ *
+ * Persisted tier 5 maps to canonical football Level 7 through the fixed +2 bridge.
  */
 export const WORLD_DIVISIONS: readonly WorldDivisionDefinition[] = [
   { id: LEAGUE_ID, name: "Division One", tier: 1, reputationRange: [55, 90] },
@@ -32,7 +34,39 @@ export const WORLD_DIVISIONS: readonly WorldDivisionDefinition[] = [
     name: "Division Four",
     tier: 4,
     reputationRange: [14, 36],
+  },
+  {
+    id: "regional-premier-central",
+    name: "Regional Premier Central",
+    tier: 5,
+    reputationRange: [8, 24],
+    lane: "central",
+    feedsInto: ["league-4"],
     freshStart: true,
+  },
+  {
+    id: "regional-premier-south",
+    name: "Regional Premier South",
+    tier: 5,
+    reputationRange: [8, 24],
+    lane: "south",
+    feedsInto: ["league-4"],
+  },
+  {
+    id: "regional-premier-isthmian",
+    name: "Regional Premier Isthmian",
+    tier: 5,
+    reputationRange: [8, 24],
+    lane: "isthmian",
+    feedsInto: ["league-4"],
+  },
+  {
+    id: "regional-premier-north",
+    name: "Regional Premier North",
+    tier: 5,
+    reputationRange: [8, 24],
+    lane: "north",
+    feedsInto: ["league-4"],
   },
 ] as const;
 
@@ -52,7 +86,7 @@ export function worldDivisionsAtTier(
 
 /**
  * Resolve the one default fresh-save division. This remains explicit so adding
- * three sibling Level 7 leagues cannot accidentally place the user in all four.
+ * sibling Level 7 leagues cannot accidentally place the user in every lane.
  */
 export function freshStartDivision(
   definitions: readonly WorldDivisionDefinition[] = WORLD_DIVISIONS,
@@ -68,8 +102,8 @@ export function freshStartDivision(
 
 /**
  * Upward routing for a division. Single-lane legacy tiers infer the only league
- * one tier above. Parallel tiers must declare `feedsInto` before movement is
- * enabled; ambiguity is rejected rather than silently routing clubs wrongly.
+ * one tier above. Parallel tiers declare `feedsInto`; ambiguity is rejected
+ * rather than silently routing clubs wrongly.
  */
 export function promotionDestinationsForDefinition(
   definition: WorldDivisionDefinition,
@@ -98,9 +132,9 @@ function worldLeagueShell(def: WorldDivisionDefinition, clubIds: string[]): Leag
 /**
  * Builds the complete persistent domestic world for a fresh save.
  *
- * The player's club occupies one explicit bottom-tier starting lane. AI clubs
- * are then consumed from the stable CLUBS pool in order. Parallel sibling
- * divisions remain AI-only unless/until new-game regional selection chooses one.
+ * The player's club occupies one explicit Level 7 starting lane. AI clubs are
+ * consumed from the stable CLUBS pool in order. The other Level 7 lanes remain
+ * AI-only until movement can place the user there through future regional logic.
  */
 export function makeExpandedLeagues(clubName: string): League[] {
   const requiredAiClubs = WORLD_DIVISIONS.length * WORLD_CLUBS_PER_DIVISION - 1;
@@ -126,12 +160,11 @@ export function makeExpandedLeagues(clubName: string): League[] {
 }
 
 /**
- * Add any missing lower divisions to an existing save without reshuffling a
- * club that already exists. This is intentionally different from fresh-world
- * construction: promoted/relegated memberships in the live save are canonical
- * and must survive a schema upgrade exactly.
+ * Add missing lower divisions to an existing save without reshuffling a club
+ * that already exists. Existing saves are never implicitly demoted into newly
+ * introduced Level 7 leagues: current membership remains authoritative.
  *
- * The returned leagues contain NO new-season fixtures. A newly introduced
+ * The returned leagues contain no new-season fixtures. A newly introduced
  * division joins competitive simulation at the next rollover, preserving the
  * active season that existed before the world expansion.
  */
@@ -162,7 +195,7 @@ export function expandExistingLeagues(existing: readonly League[], clubName: str
   }
 
   // Re-derive only structural competition settings. Membership and historical
-  // fields remain untouched. Multiple leagues may now legitimately share tier.
+  // fields remain untouched. Multiple leagues may legitimately share tier 5.
   const bottomTier = deepestWorldTier();
   for (const league of out) {
     const def = WORLD_DIVISIONS.find((candidate) => candidate.id === league.id);
