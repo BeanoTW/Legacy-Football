@@ -7,24 +7,82 @@ export const WORLD_CLUBS_PER_DIVISION = 20;
 export interface WorldDivisionDefinition {
   id: string;
   name: string;
+  /** Persisted legacy economic tier. Multiple divisions may share one tier. */
   tier: number;
   reputationRange: [number, number];
+  /** Stable regional/lane identity for parallel divisions at one football level. */
+  lane?: string;
+  /** Explicit upward routing. Required once a tier contains parallel divisions. */
+  feedsInto?: readonly string[];
+  /** Exactly one deepest division may be the default fresh-save starting lane. */
+  freshStart?: boolean;
 }
 
 /**
- * Persistent domestic world. Keep definitions ordered by tier and append new
- * lower divisions rather than reshuffling existing tiers: save identity and
- * seeded schedules depend on stable league/club membership.
+ * Persistent domestic world. Existing definitions are immutable in identity and
+ * order. New lower divisions are append-only. `tier` is an economic/football
+ * level, NOT a unique division ordinal: future regional divisions may share it.
  */
 export const WORLD_DIVISIONS: readonly WorldDivisionDefinition[] = [
   { id: LEAGUE_ID, name: "Division One", tier: 1, reputationRange: [55, 90] },
   { id: "league-2", name: "Division Two", tier: 2, reputationRange: [35, 62] },
   { id: "league-3", name: "Division Three", tier: 3, reputationRange: [24, 48] },
-  { id: "league-4", name: "Division Four", tier: 4, reputationRange: [14, 36] },
+  {
+    id: "league-4",
+    name: "Division Four",
+    tier: 4,
+    reputationRange: [14, 36],
+    freshStart: true,
+  },
 ] as const;
 
+/** Deepest football/economic tier, independent of how many parallel leagues exist. */
+export function deepestWorldTier(
+  definitions: readonly WorldDivisionDefinition[] = WORLD_DIVISIONS,
+): number {
+  return definitions.reduce((deepest, division) => Math.max(deepest, division.tier), 1);
+}
+
+export function worldDivisionsAtTier(
+  tier: number,
+  definitions: readonly WorldDivisionDefinition[] = WORLD_DIVISIONS,
+): readonly WorldDivisionDefinition[] {
+  return definitions.filter((division) => division.tier === tier);
+}
+
+/**
+ * Resolve the one default fresh-save division. This remains explicit so adding
+ * three sibling Level 7 leagues cannot accidentally place the user in all four.
+ */
+export function freshStartDivision(
+  definitions: readonly WorldDivisionDefinition[] = WORLD_DIVISIONS,
+): WorldDivisionDefinition {
+  const deepest = deepestWorldTier(definitions);
+  const deepestDivisions = worldDivisionsAtTier(deepest, definitions);
+  const explicit = deepestDivisions.filter((division) => division.freshStart);
+  if (explicit.length > 1) {
+    throw new Error(`World has ${explicit.length} fresh-start divisions at tier ${deepest}; expected one.`);
+  }
+  return explicit[0] ?? deepestDivisions[0]!;
+}
+
+/**
+ * Upward routing for a division. Single-lane legacy tiers infer the only league
+ * one tier above. Parallel tiers must declare `feedsInto` before movement is
+ * enabled; ambiguity is rejected rather than silently routing clubs wrongly.
+ */
+export function promotionDestinationsForDefinition(
+  definition: WorldDivisionDefinition,
+  definitions: readonly WorldDivisionDefinition[] = WORLD_DIVISIONS,
+): readonly string[] {
+  if (definition.tier <= 1) return [];
+  if (definition.feedsInto?.length) return definition.feedsInto;
+  const above = worldDivisionsAtTier(definition.tier - 1, definitions);
+  return above.length === 1 ? [above[0].id] : [];
+}
+
 function worldLeagueShell(def: WorldDivisionDefinition, clubIds: string[]): League {
-  const bottomTier = WORLD_DIVISIONS.length;
+  const bottomTier = deepestWorldTier();
   return {
     id: def.id,
     name: def.name,
@@ -40,9 +98,9 @@ function worldLeagueShell(def: WorldDivisionDefinition, clubIds: string[]): Leag
 /**
  * Builds the complete persistent domestic world for a fresh save.
  *
- * The player's club occupies the first bottom-tier slot. AI clubs are then consumed
- * from the stable CLUBS pool in order. This gives the Focus/Fringe planner a
- * real outer world without making simulation fidelity itself tier-dependent.
+ * The player's club occupies one explicit bottom-tier starting lane. AI clubs
+ * are then consumed from the stable CLUBS pool in order. Parallel sibling
+ * divisions remain AI-only unless/until new-game regional selection chooses one.
  */
 export function makeExpandedLeagues(clubName: string): League[] {
   const requiredAiClubs = WORLD_DIVISIONS.length * WORLD_CLUBS_PER_DIVISION - 1;
@@ -54,9 +112,9 @@ export function makeExpandedLeagues(clubName: string): League[] {
   }
 
   let cursor = 0;
-  const startingTier = WORLD_DIVISIONS.length;
+  const startingDivisionId = freshStartDivision().id;
   return WORLD_DIVISIONS.map((def) => {
-    const isStartingDivision = def.tier === startingTier;
+    const isStartingDivision = def.id === startingDivisionId;
     const slots = isStartingDivision
       ? WORLD_CLUBS_PER_DIVISION - 1
       : WORLD_CLUBS_PER_DIVISION;
@@ -103,10 +161,9 @@ export function expandExistingLeagues(existing: readonly League[], clubName: str
     out.push(worldLeagueShell(def, clubIds));
   }
 
-  // The old bottom division becomes an interior division once a lower tier is
-  // appended. Re-derive only structural competition settings; membership and
-  // every historical field remain untouched.
-  const bottomTier = WORLD_DIVISIONS.length;
+  // Re-derive only structural competition settings. Membership and historical
+  // fields remain untouched. Multiple leagues may now legitimately share tier.
+  const bottomTier = deepestWorldTier();
   for (const league of out) {
     const def = WORLD_DIVISIONS.find((candidate) => candidate.id === league.id);
     if (!def) continue;
