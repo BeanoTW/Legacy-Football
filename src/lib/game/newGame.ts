@@ -110,7 +110,9 @@ function _newGameSeed(clubName: string, managerName: string, seed?: string): Gam
     hiredStaff: [],
     staffCandidates: openingStaffPool(saveSeed),
     staffMarketRefreshedWeek: 1,
-    transferBudget: 18_000,
+    // Transfer spending comes directly from the club bank balance. The legacy
+    // ring-fenced pot remains present only as a save-compatibility field.
+    transferBudget: 0,
     wageBudgetWeekly: 8_500,
     liveMatch: null,
     inbox: [],
