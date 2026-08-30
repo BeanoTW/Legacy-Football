@@ -225,3 +225,5 @@ export async function listSaveSlots(): Promise<SaveSlotSummary[]> {
     }),
   );
 }
+
+export { setTransferBudget, setWageBudget } from "./budgets";
