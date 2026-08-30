@@ -124,13 +124,16 @@ console.log("\n[H3] Dedupe guards survive archiving");
     (i) => !core.inbox.some((h) => h.id === i.id),
   );
   check("inbox items were archived", archivedInbox.length > 0, String(archivedInbox.length));
+  const archivedInboxChunks = compactState(twoSeasons).chunks
+    .filter((chunk) => chunk.kind === "history:inbox")
+    .flatMap((chunk) => chunk.rows) as typeof archivedInbox;
   check(
     "no unresolved decision was archived",
-    archivedInbox.every((i) => i.status !== "awaitingDecision"),
+    archivedInboxChunks.every((i) => i.status !== "awaitingDecision" && !(i.status === "unread" && (i.choices?.length ?? 0) > 0)),
   );
   check(
     "no un-applied expiry consequence was archived",
-    archivedInbox.every(
+    archivedInboxChunks.every(
       (i) => !(i.consequenceOnExpire && i.consequenceApplied !== true && i.status !== "completed"),
     ),
   );
