@@ -1,7 +1,11 @@
 import type { League, LeagueRow } from "../types";
+import { CLUBS } from "../clubs";
 import {
+  WORLD_CLUBS_PER_DIVISION,
+  WORLD_DIVISIONS,
   deepestWorldTier,
   freshStartDivision,
+  makeExpandedLeagues,
   promotionDestinationsForDefinition,
   worldDivisionsAtTier,
   type WorldDivisionDefinition,
@@ -71,6 +75,34 @@ export function runLivingWorldFoundationChecks(): void {
   assert(
     promotionDestinationsForDefinition(parallel[1], parallel)[0] === "l4",
     "parallel regional division must retain explicit upward routing",
+  );
+
+  assert(WORLD_DIVISIONS.length === 8, "persistent world must now contain four legacy divisions plus four Level 7 regions");
+  assert(worldDivisionsAtTier(5).length === 4, "Level 7 must contain exactly four regional divisions");
+  assert(deepestWorldTier() === 5, "Level 7 must be the deepest enabled world tier");
+  assert(freshStartDivision().id === "regional-premier-central", "fresh saves must begin in the designated Level 7 lane");
+  assert(
+    CLUBS.length >= WORLD_DIVISIONS.length * WORLD_CLUBS_PER_DIVISION,
+    "stable club pool must be large enough to build the whole Level 7 world",
+  );
+
+  const freshWorld = makeExpandedLeagues("Beano Test FC");
+  assert(freshWorld.length === 8, "fresh world must build all eight divisions");
+  assert(
+    freshWorld.every((division) => division.clubIds.length === WORLD_CLUBS_PER_DIVISION),
+    "every fresh-world division must contain exactly twenty clubs",
+  );
+  assert(
+    freshWorld.filter((division) => division.clubIds.includes("Beano Test FC")).length === 1,
+    "user club must occupy exactly one division",
+  );
+  assert(
+    freshWorld.find((division) => division.clubIds.includes("Beano Test FC"))?.id === "regional-premier-central",
+    "fresh user club must start in the Level 7 central lane",
+  );
+  assert(
+    new Set(freshWorld.flatMap((division) => division.clubIds)).size === WORLD_DIVISIONS.length * WORLD_CLUBS_PER_DIVISION,
+    "fresh world must not duplicate clubs across regional divisions",
   );
 
   const leagues = [
