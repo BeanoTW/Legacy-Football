@@ -56,19 +56,18 @@ function pushScoutingReport(state: GameState, player: FootballPlayer, days: numb
   state.inbox.push({ id: `inbox-${hashString(eventKey).toString(36)}`, generatorId: "scouting-report", eventKey, sender: state.football?.department.headOfRecruitment || "Head Scout", department: "Head Scout", category: "transfers", subject: complete ? `Final scout report: ${player.firstName} ${player.lastName}` : `Scout update: ${player.firstName} ${player.lastName}`, body: complete ? "Six days of scouting are complete. We now have the full player report, tighter valuation and personality information." : "Four days of scouting are complete. We now have a useful partial report; two more days will complete the assessment.", priority: "high", week: state.week, season: state.season, status: "unread" });
 }
 
-export function progressScoutingDayInPlace(state: GameState): void {
+function progressScoutingToDayInPlace(state: GameState, targetDay: number): void {
   if (!state.football?.scouting) return;
-  const nowDay = absoluteDay(state);
   const nowWeek = absoluteWeek(state.season, state.week);
   for (const assignment of state.football.scouting.assignments) {
     if (assignment.status !== "active") continue;
     assignment.startedAtDay ??= assignment.startedAtAbsoluteWeek * 7;
     assignment.lastProgressDay ??= assignment.startedAtDay;
-    if (assignment.lastProgressDay >= nowDay) continue;
+    if (assignment.lastProgressDay >= targetDay) continue;
     const before = assignment.weeksObserved;
-    const observed = Math.max(0, nowDay - assignment.startedAtDay);
+    const observed = Math.max(0, targetDay - assignment.startedAtDay);
     assignment.weeksObserved = Math.min(FULL_REPORT_DAYS, observed);
-    assignment.lastProgressDay = nowDay;
+    assignment.lastProgressDay = targetDay;
     assignment.lastProgressAbsoluteWeek = nowWeek;
     const player = state.football.players.find((p) => p.id === assignment.playerId);
     if (!player) continue;
@@ -80,8 +79,18 @@ export function progressScoutingDayInPlace(state: GameState): void {
   }
 }
 
-/** Backwards-compatible weekly settlement hook. Daily advancement is canonical. */
-export function progressScoutingWeekInPlace(state: GameState): void { progressScoutingDayInPlace(state); }
+export function progressScoutingDayInPlace(state: GameState): void {
+  progressScoutingToDayInPlace(state, absoluteDay(state));
+}
+
+/**
+ * Backwards-compatible weekly settlement hook. A direct advanceWeek call must
+ * account for the unvisited days remaining in the visible week; daily callers
+ * may already have reached Sunday, in which case this is naturally a no-op.
+ */
+export function progressScoutingWeekInPlace(state: GameState): void {
+  progressScoutingToDayInPlace(state, absoluteWeek(state.season, state.week) * 7 + 6);
+}
 
 function rangeAround(value: number, width: number): [number, number] { return [clamp(value - width), clamp(value + width)]; }
 export function scoutingReport(state: GameState, player: FootballPlayer): ScoutingReport {
