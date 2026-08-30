@@ -234,18 +234,35 @@ console.log("\n[R5] Stronger clubs win more often over large simulations");
     `${strongWins} vs ${weakWins}`,
   );
 
-  // Table-level: after a season, strength correlates with points.
-  const s2 = playSeason(g);
-  const finalTable = s2.seasonHistory.find(
-    (h) => h.season === 1 && h.leagueId === DIVISION_ONE,
-  )!.finalTable;
-  const topHalf = finalTable.slice(0, 10).map((r) => r.team);
-  const preRank = new Map(ranked.map((c, i) => [c, i + 1]));
-  const avgPre = topHalf.reduce((a, c) => a + (preRank.get(c) ?? 20), 0) / 10;
+  // Table-level: strength should produce a positive points relationship over
+  // several deterministic seasons. A single-season top-half rank threshold is
+  // too noisy once the wider football world is active.
+  let rankScore = 0;
+  let samples = 0;
+  for (const seed of ["REP_SEED_5A", "REP_SEED_5B", "REP_SEED_5C", "REP_SEED_5D"]) {
+    const sample = fresh(seed);
+    const sampleClubs = sample.leagues[0].clubIds;
+    const preRank = new Map(
+      [...sampleClubs]
+        .sort((x, y) => clubStrengthFor(sample, y, 1) - clubStrengthFor(sample, x, 1))
+        .map((club, index) => [club, index + 1]),
+    );
+    const played = playSeason(sample);
+    const finalTable = played.seasonHistory.find(
+      (h) => h.season === 1 && h.leagueId === DIVISION_ONE,
+    )!.finalTable;
+    const finalRank = new Map(finalTable.map((row, index) => [row.team, index + 1]));
+    for (const club of sampleClubs) {
+      const pre = preRank.get(club)!;
+      const post = finalRank.get(club)!;
+      rankScore += (10.5 - pre) * (10.5 - post);
+      samples++;
+    }
+  }
   check(
-    "pre-season favourites dominate the top half",
-    avgPre < 10.5,
-    `avg pre-season rank ${avgPre}`,
+    "pre-season strength is positively associated with final position",
+    samples > 0 && rankScore > 0,
+    `rank association ${rankScore.toFixed(1)} across ${samples} club-seasons`,
   );
 }
 
