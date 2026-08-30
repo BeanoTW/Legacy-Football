@@ -141,6 +141,38 @@ export function negotiationWageForLevel(rawWeeklyWage: number, level: FootballLe
   return Math.max(25, int(raw / step) * step);
 }
 
+export interface TransferFeePolicy {
+  valueFloor: number;
+  valueStep: number;
+  askingFloor: number;
+  feeStep: number;
+}
+
+/**
+ * Levels 1-6 retain recruitment's historic transfer granularity exactly.
+ * Native semi-professional levels use nominal four-figure values and smaller
+ * fee increments so their market does not masquerade as a professional one.
+ */
+export function transferFeePolicyForLevel(level: FootballLevel): TransferFeePolicy {
+  if (level <= 6) {
+    return { valueFloor: 10_000, valueStep: 5_000, askingFloor: 20_000, feeStep: 5_000 };
+  }
+  if (level === 7) {
+    return { valueFloor: 1_000, valueStep: 500, askingFloor: 1_000, feeStep: 500 };
+  }
+  return { valueFloor: 500, valueStep: 250, askingFloor: 500, feeStep: 250 };
+}
+
+export function normaliseTransferFeeForLevel(
+  rawFee: number,
+  level: FootballLevel,
+  floor: "none" | "asking" = "none",
+): number {
+  const policy = transferFeePolicyForLevel(level);
+  const minimum = floor === "asking" ? policy.askingFloor : 0;
+  return Math.max(minimum, int(Math.max(0, rawFee) / policy.feeStep) * policy.feeStep);
+}
+
 export function playerValueForLevel(
   ability: number,
   potential: number,
@@ -151,7 +183,8 @@ export function playerValueForLevel(
   const upside = 1 + Math.max(0, potential - ability) / 90;
   const scale = economicProfileForLevel(level).transferMarketScale;
   const raw = ability ** 3 * 0.55 * peak * upside * scale;
-  return Math.max(10_000, int(raw / 5_000) * 5_000);
+  const policy = transferFeePolicyForLevel(level);
+  return Math.max(policy.valueFloor, int(raw / policy.valueStep) * policy.valueStep);
 }
 
 export function revenueBaselineForLevel(
