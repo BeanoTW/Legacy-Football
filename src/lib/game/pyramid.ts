@@ -38,6 +38,7 @@ import {
 } from "./league";
 import { hashString } from "./rng";
 import { applySeasonIdentity, storePredictions, initClubReputations } from "./reputation";
+import { WORLD_DIVISIONS, promotionDestinationsForDefinition } from "./worldPyramid";
 export { initClubReputations };
 
 export const DIVISION_ONE = LEAGUE_ID;
@@ -59,7 +60,7 @@ function leagueShell(id: string, name: string, tier: number, clubIds: string[]):
     clubIds,
     promotionPlaces: tier === 1 ? 0 : 2,
     relegationPlaces: tier === 1 ? 2 : 0,
-    prizeMoney: 0, // placeholder — financial scaling not implemented yet
+    prizeMoney: 0,
     reputationRange: tier === 1 ? [55, 90] : [35, 62],
   };
 }
@@ -81,7 +82,6 @@ export const leagueOfClub = (s: GameState, club: string) =>
 
 /* ---------- Scheduling ---------- */
 
-/** Full schedule for one division. */
 export function scheduleForLeague(league: League, seed: string): ScheduledFixture[] {
   return buildSeasonSchedule(league.clubIds, `${seed}|${league.id}`).flatMap((round, idx) =>
     round.map((m) => ({
@@ -94,7 +94,6 @@ export function scheduleForLeague(league: League, seed: string): ScheduledFixtur
   );
 }
 
-/** Full schedule for every division in the pyramid. */
 export function makePyramidSchedule(leagues: League[], seed: string): ScheduledFixture[] {
   return leagues.flatMap((l) => scheduleForLeague(l, seed));
 }
@@ -124,7 +123,6 @@ export interface LeagueOutcome {
   relegated: string[];
 }
 
-/** Final standings + movement for one division. Pure. */
 export function finaliseLeague(s: GameState, league: League): LeagueOutcome {
   const table = sortTable(buildTable(league.clubIds, s.matchRecords ?? [], s.season, league.id));
   const promoted =
@@ -145,18 +143,101 @@ export function finaliseLeague(s: GameState, league: League): LeagueOutcome {
   };
 }
 
-/** True once this season has already been finalised (idempotency guard). */
 export function seasonAlreadyFinalised(s: GameState, season: number): boolean {
   return (s.seasonHistory ?? []).some((h) => h.season === season);
 }
 
+function promotionTargets(league: League, leagues: readonly League[]): readonly string[] {
+  const definition = WORLD_DIVISIONS.find((candidate) => candidate.id === league.id);
+  if (definition) {
+    const explicit = promotionDestinationsForDefinition(definition, WORLD_DIVISIONS);
+    if (explicit.length) return explicit;
+  }
+  const above = leagues.filter((candidate) => candidate.tier === league.tier - 1);
+  return above.length === 1 ? [above[0].id] : [];
+}
+
+interface PromotionCandidate {
+  club: string;
+  leagueId: string;
+  rank: number;
+  row: LeagueRow;
+}
+
+function comparePromotionCandidate(a: PromotionCandidate, b: PromotionCandidate): number {
+  const gdA = a.row.gf - a.row.ga;
+  const gdB = b.row.gf - b.row.ga;
+  return (
+    a.rank - b.rank ||
+    b.row.pts - a.row.pts ||
+    gdB - gdA ||
+    b.row.gf - a.row.gf ||
+    a.club.localeCompare(b.club)
+  );
+}
+
 /**
- * Atomic season rollover.
+ * Build a capacity-balanced movement map before history is written.
  *
- * Mutates `s` in place and returns the inbox items announcing the outcome.
- * Safe to call twice: the seasonHistory guard makes the second call a no-op.
- * Does NOT advance s.season — the caller owns the clock.
+ * A single-chain pyramid behaves exactly as before. When several regional
+ * divisions feed one league, the number promoted across all feeders is capped
+ * by the number relegated from the receiving league. Champions are considered
+ * first, then runners-up, with cross-league season performance as the stable
+ * tie-break. Relegated clubs are routed into the feeder lanes that created the
+ * vacancies, so every division remains at 20 clubs.
  */
+export function planSeasonMovements(
+  leagues: readonly League[],
+  outcomes: LeagueOutcome[],
+): Map<string, string> {
+  const moveTo = new Map<string, string>();
+  const byId = new Map(outcomes.map((outcome) => [outcome.leagueId, outcome]));
+
+  for (const upper of [...leagues].sort((a, b) => a.tier - b.tier || a.id.localeCompare(b.id))) {
+    const upperOutcome = byId.get(upper.id);
+    if (!upperOutcome?.relegated.length) continue;
+
+    const feeders = leagues.filter(
+      (lower) => lower.tier === upper.tier + 1 && promotionTargets(lower, leagues).includes(upper.id),
+    );
+    if (!feeders.length) continue;
+
+    const slots = upperOutcome.relegated.length;
+    const candidates: PromotionCandidate[] = [];
+    for (const feeder of feeders) {
+      const outcome = byId.get(feeder.id);
+      if (!outcome) continue;
+      outcome.table.slice(0, Math.max(1, feeder.promotionPlaces)).forEach((row, rank) => {
+        candidates.push({ club: row.team, leagueId: feeder.id, rank, row });
+      });
+      outcome.promoted = [];
+    }
+
+    const selected = candidates.sort(comparePromotionCandidate).slice(0, slots);
+    if (selected.length !== slots) {
+      throw new Error(
+        `Cannot balance promotion into ${upper.id}: ${slots} vacancies but ${selected.length} candidates`,
+      );
+    }
+
+    const vacancies: string[] = [];
+    for (const candidate of selected) {
+      byId.get(candidate.leagueId)?.promoted.push(candidate.club);
+      moveTo.set(candidate.club, upper.id);
+      vacancies.push(candidate.leagueId);
+    }
+
+    vacancies.sort();
+    upperOutcome.relegated.forEach((club, index) => {
+      const destination = vacancies[index];
+      if (!destination) throw new Error(`No relegation lane available for ${club} from ${upper.id}`);
+      moveTo.set(club, destination);
+    });
+  }
+
+  return moveTo;
+}
+
 export function applySeasonRollover(s: GameState): {
   outcomes: LeagueOutcome[];
   items: InboxItem[];
@@ -164,16 +245,12 @@ export function applySeasonRollover(s: GameState): {
   if (!hasFullSchedule(s) || !s.leagues?.length) return { outcomes: [], items: [] };
   if (seasonAlreadyFinalised(s, s.season)) return { outcomes: [], items: [] };
 
-  // 1. every league finishes its fixtures
   resolveRemainingSeason(s);
-  // Second guard: a reload that lands here mid-season (no fixtures resolvable
-  // yet, e.g. straight after a rollover) must not finalise anything.
   if (!s.leagues.every((l) => isLeagueSeasonComplete(s, l.id))) return { outcomes: [], items: [] };
 
-  // 2. finalise standings
   const outcomes = s.leagues.map((l) => finaliseLeague(s, l));
+  const moveTo = planSeasonMovements(s.leagues, outcomes);
 
-  // 3. immutable history (append-only)
   const history: SeasonHistoryEntry[] = outcomes.map((o) => ({
     season: s.season,
     leagueId: o.leagueId,
@@ -187,8 +264,6 @@ export function applySeasonRollover(s: GameState): {
   }));
   s.seasonHistory = [...(s.seasonHistory ?? []), ...history];
 
-  // 3b. club identity: reputation movement + immutable yearly snapshots.
-  //     Runs before membership changes so positions map to the league played.
   applySeasonIdentity(
     s,
     s.season,
@@ -203,17 +278,8 @@ export function applySeasonRollover(s: GameState): {
     })),
   );
 
-  // 4. promotion / relegation — computed first, applied as one transaction
   s.clubRecords ??= {};
-  const moveTo = new Map<string, string>(); // club -> destination league id
-  for (const o of outcomes) {
-    const above = s.leagues.find((l) => l.tier === o.tier - 1);
-    const below = s.leagues.find((l) => l.tier === o.tier + 1);
-    if (above) for (const c of o.promoted) moveTo.set(c, above.id);
-    if (below) for (const c of o.relegated) moveTo.set(c, below.id);
-  }
 
-  // record positions before membership changes
   for (const o of outcomes) {
     o.table.forEach((row, idx) => {
       const rec = (s.clubRecords[row.team] ??= emptyClubRecord(row.team, o.leagueId));
@@ -227,8 +293,6 @@ export function applySeasonRollover(s: GameState): {
   for (const l of s.leagues) for (const c of l.clubIds) membership.set(c, moveTo.get(c) ?? l.id);
 
   for (const l of s.leagues) {
-    // rebuild from the single source of truth so no club can end up in two
-    // divisions or vanish from the pyramid
     l.clubIds = [...membership.entries()].filter(([, lid]) => lid === l.id).map(([c]) => c);
   }
   for (const [club, lid] of membership) {
@@ -245,11 +309,8 @@ export function applySeasonRollover(s: GameState): {
   }
   s.playerLeagueId = membership.get(s.clubName) ?? s.playerLeagueId;
 
-  // 4b. next season's pre-season predictions, from post-movement membership
-  //     and freshly updated reputations.
   storePredictions(s, s.season + 1);
 
-  // 5. inbox announcements (communication only — no financial effects yet)
   const items = rolloverInboxItems(s, outcomes);
   return { outcomes, items };
 }
@@ -284,7 +345,6 @@ function item(
   };
 }
 
-/** Season-outcome mail for the player's club plus the league announcements. */
 export function rolloverInboxItems(s: GameState, outcomes: LeagueOutcome[]): InboxItem[] {
   const out: InboxItem[] = [];
   const season = s.season;
