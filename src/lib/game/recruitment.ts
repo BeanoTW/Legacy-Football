@@ -48,8 +48,12 @@ import {
   recruitmentContractWageForLevel,
   recruitmentLevelOfClub,
   recruitmentLevelOfUser,
+  recruitmentNormaliseTransferFeeForClub,
+  recruitmentNormaliseTransferFeeForUser,
   recruitmentPlayerValue,
   recruitmentSustainableWageBill,
+  recruitmentTransferFeePolicyForClub,
+  recruitmentTransferFeePolicyForUser,
   recruitmentUserNegotiationWage,
   recruitmentWageForClub,
   recruitmentWageForLevel,
@@ -403,7 +407,7 @@ export function generateWorld(s: GameState): {
         startWeek: 1,
         expirySeason: s.season + seasons - 1,
         expiryWeek: WEEKS_PER_SEASON,
-        weeklyWage: recruitmentContractWageForLevel(base, wageScalar, level),
+        weeklyWage: recruitmentContractWageForLevel(level, base, wageScalar),
         squadRole: roleFor(i),
         signingBonus: 0,
         agreedTransferFee: 0,
@@ -553,7 +557,7 @@ export function reconcileRecruitmentFidelity(s: GameState): void {
         startWeek: s.week,
         expirySeason: s.season + rngInt(rng, 1, 4) - 1,
         expiryWeek: WEEKS_PER_SEASON,
-        weeklyWage: recruitmentContractWageForLevel(base, wageScalar, level),
+        weeklyWage: recruitmentContractWageForLevel(level, base, wageScalar),
         squadRole: roleFor(index),
         signingBonus: 0,
         agreedTransferFee: 0,
@@ -943,10 +947,9 @@ export function askingPrice(s: GameState, p: FootballPlayer): number {
   const listed = p.transferStatus === "listed" ? 0.8 : 1;
   const sellerRep = p.currentClubId ? clubReputation(s, p.currentClubId) : 50;
   const ambition = 0.9 + sellerRep / 250;
-  return Math.max(
-    20_000,
-    int((p.marketValue * contractFactor * importance * listed * ambition) / 5_000) * 5_000,
-  );
+  const rawAsk = p.marketValue * contractFactor * importance * listed * ambition;
+  const sellerClub = p.currentClubId ?? s.clubName;
+  return recruitmentNormaliseTransferFeeForClub(s, sellerClub, rawAsk, "asking");
 }
 
 /**
@@ -1256,7 +1259,12 @@ export function evaluateClubResponseInPlace(s: GameState, n: TransferNegotiation
     );
     return;
   }
-  n.clubCounterFee = Math.max(n.fee + 5_000, int(threshold / 5_000) * 5_000);
+  const sellerClub = n.fromClubId ?? p.currentClubId ?? s.clubName;
+  const feePolicy = recruitmentTransferFeePolicyForClub(s, sellerClub);
+  n.clubCounterFee = Math.max(
+    n.fee + feePolicy.feeStep,
+    recruitmentNormaliseTransferFeeForClub(s, sellerClub, threshold),
+  );
   log(
     n,
     {
@@ -1444,7 +1452,11 @@ export function respondToIncomingOfferInPlace(
   if (action === "counter") {
     if (n.clubRounds >= MAX_NEGOTIATION_ROUNDS)
       return { ok: false, reason: "No negotiating rounds left" };
-    const ask = Math.max(int(counterFee ?? askingPrice(s, p) * 1.15), n.fee + 5_000);
+    const feePolicy = recruitmentTransferFeePolicyForUser(s);
+    const ask = Math.max(
+      int(counterFee ?? askingPrice(s, p) * 1.15),
+      n.fee + feePolicy.feeStep,
+    );
     n.clubRounds += 1;
     n.clubCounterFee = ask;
     log(
@@ -1991,7 +2003,11 @@ function generateIncomingOffers(s: GameState, windowOpen: boolean): void {
   ];
 
   const listedBoost = p.transferStatus === "listed" ? 1.0 : rngRange(rng, 0.72, 1.02);
-  const fee = Math.max(20_000, int((askingPrice(s, p) * listedBoost) / 5_000) * 5_000);
+  const fee = recruitmentNormaliseTransferFeeForUser(
+    s,
+    askingPrice(s, p) * listedBoost,
+    "asking",
+  );
 
   const n: TransferNegotiation = {
     id: nextNegotiationId(s),
@@ -2250,7 +2266,7 @@ export function recruitmentSnapshot(s: GameState): RecruitmentSnapshot {
   return {
     squadSize: squad.length,
     averageAbility: abilities.length ? abilities.reduce((a, b) => a + b, 0) / abilities.length : 0,
-    averageAge: ages.length ? ages.reduce((a, b) => a + b, 0) / ages.length : 0,
+    averageAge: ages.length ? ages.reduce((a, b) => a + b, 0) / squad.length : 0,
     wageBillWeekly: userWageBill(s),
     wageBudgetWeekly: int(s.finance?.budgets?.wages ?? 0),
     expiringContracts: squad.filter((p) => {
@@ -2314,7 +2330,7 @@ export function toggleShortlistInPlace(s: GameState, playerId: string): void {
 
 export function toggleShortlist(s: GameState, playerId: string): GameState {
   const w = structuredClone(s);
-  toggleShortlistInPlace(w, playerId);
+  toggleShortlistInPlace(w, playerId, tracked);
   return w;
 }
 
