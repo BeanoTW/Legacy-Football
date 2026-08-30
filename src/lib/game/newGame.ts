@@ -43,6 +43,12 @@ export function newGame(clubName: string, managerName: string, seed?: string): G
   ensureFringeWorldState(base);
   // Canonical football world: detailed squads and contracts only for Focus clubs.
   ensureRecruitment(base);
+  // A fresh Level 7 chairman inherits an explicit opening wage authorisation.
+  // Finance policy remains the canonical control surface; this simply carries
+  // the calibrated new-career allowance into that surface after the opening
+  // squad exists, so the club has genuine room to recruit rather than starting
+  // effectively pinned to a pre-squad derived ceiling.
+  base.finance.budgets.wages = Math.max(base.finance.budgets.wages, base.wageBudgetWeekly ?? 0);
   // Canonical physical club: stands, pitch, facilities and capital projects.
   ensureInfrastructure(base);
   // Strategic pressure layer. Owns only commitments + the idle-cash clock;
