@@ -1,7 +1,9 @@
 name: Development matchday regression patch
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [chatgpt/persistent-world-foundation]
+    paths: [.github/workflows/dev-patch-matchday.yml]
 
 permissions:
   contents: write
