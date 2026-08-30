@@ -55,13 +55,15 @@ export function newGame(clubName: string, managerName: string, seed?: string): G
 function _newGameSeed(clubName: string, managerName: string, seed?: string): GameState {
   const saveSeed = seed ?? `${clubName}|${managerName}|${Date.now().toString(36)}`;
 
-  // The chairman starts in the bottom modelled division. Existing saves keep
-  // their earned league position; this only affects newly created careers.
+  // Fresh careers now begin at canonical football Level 7. Existing saves are
+  // never rewritten to these values; this is deliberately a new-career-only
+  // calibration so the opening club feels semi-professional rather than like a
+  // professional EFL side dropped into a regional table.
   const stands: Stand[] = [
-    { key: "N", name: "North Stand", capacity: 3200, condition: 92, ticketPrice: 18 },
-    { key: "E", name: "East Stand", capacity: 2600, condition: 88, ticketPrice: 21 },
-    { key: "S", name: "South Stand", capacity: 3200, condition: 90, ticketPrice: 18 },
-    { key: "W", name: "West Stand", capacity: 3000, condition: 94, ticketPrice: 26 },
+    { key: "N", name: "Main Stand", capacity: 950, condition: 78, ticketPrice: 12 },
+    { key: "E", name: "East Terrace", capacity: 700, condition: 70, ticketPrice: 10 },
+    { key: "S", name: "Town End", capacity: 800, condition: 74, ticketPrice: 10 },
+    { key: "W", name: "West Terrace", capacity: 650, condition: 68, ticketPrice: 9 },
   ];
   const leagues = makeExpandedLeagues(clubName);
   const playerLeague = leagues.find((league) => league.clubIds.includes(clubName));
@@ -75,22 +77,22 @@ function _newGameSeed(clubName: string, managerName: string, seed?: string): Gam
     season: 1,
     week: 1,
 
-    cash: 3_000_000,
-    reputation: 30,
+    cash: 220_000,
+    reputation: 24,
     fanHappiness: 70,
     stands,
-    pitchCondition: 90,
-    trainingRating: 65,
-    trainingWeeklyCost: 4_200,
-    staffWagesWeekly: 26_000,
-    utilitiesWeekly: 6_800,
-    maintenanceWeekly: 3_400,
+    pitchCondition: 76,
+    trainingRating: 34,
+    trainingWeeklyCost: 650,
+    staffWagesWeekly: 1_850,
+    utilitiesWeekly: 520,
+    maintenanceWeekly: 460,
     // Canonical squad lives in GameState.football; this is a rebuilt projection.
     squad: [],
     sponsors: [
-      { name: "Main Kit Sponsor", weekly: 15_000, weeksLeft: 38 * 2 },
-      { name: "Stadium Naming", weekly: 6_000, weeksLeft: 38 * 3 },
-      { name: "Training Wear", weekly: 2_500, weeksLeft: 20 },
+      { name: "Main Shirt Sponsor", weekly: 1_550, weeksLeft: 38 * 2 },
+      { name: "Local Stadium Partner", weekly: 650, weeksLeft: 38 * 2 },
+      { name: "Training Wear", weekly: 325, weeksLeft: 20 },
     ],
     fixtures: fixturesForClub(leagueSchedule, clubName),
     leagues,
@@ -108,8 +110,8 @@ function _newGameSeed(clubName: string, managerName: string, seed?: string): Gam
     hiredStaff: [],
     staffCandidates: openingStaffPool(saveSeed),
     staffMarketRefreshedWeek: 1,
-    transferBudget: 0,
-    wageBudgetWeekly: 5_000,
+    transferBudget: 18_000,
+    wageBudgetWeekly: 8_500,
     liveMatch: null,
     inbox: [],
     inboxFlags: {},
