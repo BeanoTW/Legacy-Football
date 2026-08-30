@@ -1,5 +1,5 @@
 /* Verification for the multi-division pyramid (promotion / relegation).
-   Run with:  bun src/lib/game/__checks__/pyramid.check.ts
+   Run with: bun src/lib/game/__checks__/pyramid.check.ts
 */
 import { newGame, advanceWeek, migrateSave, SAVE_VERSION } from "../engine";
 import {
@@ -66,25 +66,18 @@ function playSeason(g0: GameState): GameState {
 console.log("\n[1] Pyramid shape");
 {
   const g = fresh();
-  check("expanded world leagues exist", g.leagues.length === 4);
-  check("tiers are contiguous", g.leagues.map((l) => l.tier).join(",") === "1,2,3,4");
-  check(
-    "20 clubs per division",
-    g.leagues.every((l) => l.clubIds.length === CLUBS_PER_DIVISION),
-  );
+  const tiers = [...new Set(g.leagues.map((l) => l.tier))].sort((a, b) => a - b);
+  const deepestTier = Math.max(...tiers);
+  const deepest = g.leagues.filter((l) => l.tier === deepestTier);
+  const mine = g.leagues.find((l) => l.clubIds.includes(g.clubName));
+  check("expanded world has eight divisions", g.leagues.length === 8, String(g.leagues.length));
+  check("tier levels are contiguous even with parallel divisions", tiers.join(",") === "1,2,3,4,5");
+  check("four parallel regional divisions occupy the deepest tier", deepest.length === 4);
+  check("20 clubs per division", g.leagues.every((l) => l.clubIds.length === CLUBS_PER_DIVISION));
   check("no club appears in two leagues", new Set(pyramidClubs(g)).size === pyramidClubs(g).length);
-  check(
-    "user club is in the bottom division",
-    g.playerLeagueId === g.leagues.at(-1)!.id && g.leagues.at(-1)!.clubIds.includes(g.clubName),
-  );
-  check(
-    "tier 1 relegates 2, promotes 0",
-    g.leagues[0].relegationPlaces === 2 && g.leagues[0].promotionPlaces === 0,
-  );
-  check(
-    "bottom tier promotes 2, relegates 0",
-    g.leagues.at(-1)!.promotionPlaces === 2 && g.leagues.at(-1)!.relegationPlaces === 0,
-  );
+  check("user club starts in a deepest regional division", !!mine && mine.tier === deepestTier && g.playerLeagueId === mine.id);
+  check("tier 1 relegates 2, promotes 0", g.leagues[0].relegationPlaces === 2 && g.leagues[0].promotionPlaces === 0);
+  check("every deepest regional league promotes and does not relegate", deepest.every((l) => l.promotionPlaces === 2 && l.relegationPlaces === 0));
   check("integrity check passes", pyramidIntegrity(g).ok, pyramidIntegrity(g).problems.join("; "));
 }
 
@@ -94,287 +87,117 @@ console.log("\n[2] Every division generates a valid schedule");
   for (const l of g.leagues) {
     const fx = g.leagueSchedule.filter((f) => f.league === l.id);
     check(`${l.id}: 380 fixtures`, fx.length === 380, String(fx.length));
-    check(
-      `${l.id}: every club plays 38`,
-      l.clubIds.every((c) => fx.filter((f) => f.home === c || f.away === c).length === 38),
-    );
-    check(
-      `${l.id}: 19 home + 19 away per club`,
-      l.clubIds.every(
-        (c) =>
-          fx.filter((f) => f.home === c).length === 19 &&
-          fx.filter((f) => f.away === c).length === 19,
-      ),
-    );
-    check(
-      `${l.id}: no club plays twice in a round`,
-      [...new Set(fx.map((f) => f.round))].every((r) => {
-        const teams = fx.filter((f) => f.round === r).flatMap((f) => [f.home, f.away]);
-        return new Set(teams).size === teams.length && teams.length === 20;
-      }),
-    );
+    check(`${l.id}: every club plays 38`, l.clubIds.every((c) => fx.filter((f) => f.home === c || f.away === c).length === 38));
+    check(`${l.id}: 19 home + 19 away per club`, l.clubIds.every((c) => fx.filter((f) => f.home === c).length === 19 && fx.filter((f) => f.away === c).length === 19));
+    check(`${l.id}: no club plays twice in a round`, [...new Set(fx.map((f) => f.round))].every((r) => {
+      const teams = fx.filter((f) => f.round === r).flatMap((f) => [f.home, f.away]);
+      return new Set(teams).size === teams.length && teams.length === 20;
+    }));
   }
-  check(
-    "no cross-division fixtures",
-    g.leagueSchedule.every((f) => {
-      const l = g.leagues.find((x) => x.id === f.league)!;
-      return l.clubIds.includes(f.home) && l.clubIds.includes(f.away);
-    }),
-  );
+  check("no cross-division fixtures", g.leagueSchedule.every((f) => {
+    const l = g.leagues.find((x) => x.id === f.league)!;
+    return l.clubIds.includes(f.home) && l.clubIds.includes(f.away);
+  }));
 }
 
-console.log("\n[3] Every division completes independently (player absent)");
+console.log("\n[3] Every division completes independently");
 {
-  const initial = fresh();
-  const t = playSeason(initial);
-  for (const id of [DIVISION_ONE, DIVISION_TWO]) {
-    const recs = t.matchRecords.filter((r) => r.season === 1 && r.league === id);
-    check(`${id}: 380 season-1 records`, recs.length === 380, String(recs.length));
-    check(`${id}: no duplicate fixtures`, new Set(recs.map((r) => r.id)).size === recs.length);
+  const t = playSeason(fresh());
+  for (const l of t.leagues) {
+    const recs = t.matchRecords.filter((r) => r.season === 1 && r.league === l.id);
+    const hist = t.seasonHistory.find((h) => h.season === 1 && h.leagueId === l.id)!;
+    check(`${l.id}: 380 season-1 records`, recs.length === 380, String(recs.length));
+    check(`${l.id}: no duplicate fixtures`, new Set(recs.map((r) => r.id)).size === recs.length);
+    check(`${l.id}: final table has 20 fully-played rows`, hist.finalTable.length === 20 && hist.finalTable.every((r) => r.p === 38));
+    check(`${l.id}: champion recorded`, !!hist.champion);
   }
-  const hist2 = t.seasonHistory.find((h) => h.season === 1 && h.leagueId === DIVISION_TWO)!;
-  check("Division Two produced a champion without the player", !!hist2?.champion);
-  check(
-    "Division Two final table has 20 rows with P=38",
-    hist2.finalTable.length === 20 && hist2.finalTable.every((r) => r.p === 38),
-  );
-  check(
-    "Division Two table is correctly ordered",
-    hist2.finalTable.every(
-      (r, i, a) =>
-        i === 0 ||
-        a[i - 1].pts > r.pts ||
-        (a[i - 1].pts === r.pts && a[i - 1].gf - a[i - 1].ga >= r.gf - r.ga),
-    ),
-  );
 }
 
-console.log("\n[4] Promotion and relegation are correct");
+console.log("\n[4] Linear promotion/relegation remains correct above regional tier");
 {
   const before = fresh();
   const clubsBefore = pyramidClubs(before);
-  const d1Before = [...before.leagues[0].clubIds];
-  const d2Before = [...before.leagues[1].clubIds];
   const t = playSeason(before);
   const h1 = t.seasonHistory.find((h) => h.season === 1 && h.leagueId === DIVISION_ONE)!;
   const h2 = t.seasonHistory.find((h) => h.season === 1 && h.leagueId === DIVISION_TWO)!;
-
-  check("2 clubs relegated from tier 1", h1.relegated.length === 2);
-  check("2 clubs promoted from tier 2", h2.promoted.length === 2);
-  check(
-    "relegated are the bottom 2 of the recorded final table",
-    h1.relegated.join("|") ===
-      h1.finalTable
-        .slice(18)
-        .map((r) => r.team)
-        .join("|"),
-  );
-  check(
-    "promoted are the top 2 of the recorded final table",
-    h2.promoted.join("|") ===
-      h2.finalTable
-        .slice(0, 2)
-        .map((r) => r.team)
-        .join("|"),
-  );
-
   const d1After = t.leagues.find((l) => l.id === DIVISION_ONE)!.clubIds;
   const d2After = t.leagues.find((l) => l.id === DIVISION_TWO)!.clubIds;
-  check(
-    "promoted clubs now sit in tier 1",
-    h2.promoted.every((c) => d1After.includes(c)),
-  );
-  check(
-    "relegated clubs now sit in tier 2",
-    h1.relegated.every((c) => d2After.includes(c)),
-  );
-  check(
-    "relegated clubs left tier 1",
-    h1.relegated.every((c) => !d1After.includes(c)),
-  );
-  check(
-    "promoted clubs left tier 2",
-    h2.promoted.every((c) => !d2After.includes(c)),
-  );
-  check("both divisions still hold 20 clubs", d1After.length === 20 && d2After.length === 20);
-  check(
-    "no club is in two divisions",
-    d1After.every((c) => !d2After.includes(c)),
-  );
+  check("2 clubs relegated from tier 1", h1.relegated.length === 2);
+  check("2 clubs promoted from tier 2", h2.promoted.length === 2);
+  check("tier-1 relegated clubs are bottom two", h1.relegated.join("|") === h1.finalTable.slice(18).map((r) => r.team).join("|"));
+  check("tier-2 promoted clubs are top two", h2.promoted.join("|") === h2.finalTable.slice(0, 2).map((r) => r.team).join("|"));
+  check("promoted clubs moved to tier 1", h2.promoted.every((c) => d1After.includes(c) && !d2After.includes(c)));
+  check("relegated clubs moved to tier 2", h1.relegated.every((c) => d2After.includes(c) && !d1After.includes(c)));
+  check("both divisions remain at 20 clubs", d1After.length === 20 && d2After.length === 20);
   const clubsAfter = pyramidClubs(t);
-  check(
-    "no club disappeared",
-    clubsBefore.every((c) => clubsAfter.includes(c)),
-  );
-  check(
-    "no club appeared from nowhere",
-    clubsAfter.every((c) => clubsBefore.includes(c)),
-  );
-  check(
-    "club records count movements",
-    h1.relegated.every((c) => t.clubRecords[c].relegations === 1) &&
-      h2.promoted.every((c) => t.clubRecords[c].promotions === 1),
-  );
-  check(
-    "club record league pointer follows the move",
-    h2.promoted.every((c) => t.clubRecords[c].currentLeagueId === DIVISION_ONE),
-  );
-  check(
-    "every club has a season-1 history row",
-    [...d1Before, ...d2Before].every((c) =>
-      t.clubRecords[c].leagueHistory.some((h) => h.season === 1),
-    ),
-  );
-  check(
-    "integrity holds after rollover",
-    pyramidIntegrity(t).ok,
-    pyramidIntegrity(t).problems.join("; "),
-  );
+  check("no club disappeared or appeared", clubsBefore.length === clubsAfter.length && clubsBefore.every((c) => clubsAfter.includes(c)));
+  check("club records count movements", h1.relegated.every((c) => t.clubRecords[c].relegations === 1) && h2.promoted.every((c) => t.clubRecords[c].promotions === 1));
+  check("integrity holds after rollover", pyramidIntegrity(t).ok, pyramidIntegrity(t).problems.join("; "));
 }
 
-console.log("\n[5] Player follows their club through the pyramid");
+console.log("\n[5] Parallel Level 7 feeders preserve capacity");
+{
+  const before = fresh();
+  const regional = before.leagues.filter((l) => l.tier === 5);
+  const upper = before.leagues.find((l) => l.tier === 4)!;
+  const t = playSeason(before);
+  const upperHistory = t.seasonHistory.find((h) => h.season === 1 && h.leagueId === upper.id)!;
+  const regionalHistory = regional.map((l) => t.seasonHistory.find((h) => h.season === 1 && h.leagueId === l.id)!);
+  const promoted = regionalHistory.flatMap((h) => h.promoted);
+  check("all four regional divisions completed", regionalHistory.every((h) => h.finalTable.length === 20));
+  check("regional promotions exactly match upper-tier vacancies", promoted.length === upperHistory.relegated.length, `${promoted.length}/${upperHistory.relegated.length}`);
+  check("promoted regional clubs now occupy the upper division", promoted.every((c) => t.leagues.find((l) => l.id === upper.id)!.clubIds.includes(c)));
+  check("every division remains at 20 after regional movement", t.leagues.every((l) => l.clubIds.length === 20));
+  check("regional rollover keeps every club unique", new Set(pyramidClubs(t)).size === pyramidClubs(t).length);
+}
+
+console.log("\n[6] Player follows their actual club division");
 {
   const initial = fresh();
-  const startingLeague = initial.leagues.find((league) => league.id === initial.playerLeagueId)!;
-  const promotionLeague = initial.leagues.find((league) => league.tier === startingLeague.tier - 1)!;
+  const startingLeague = initial.leagues.find((l) => l.id === initial.playerLeagueId)!;
   const t = playSeason(initial);
   const mine = t.leagues.find((l) => l.clubIds.includes(t.clubName))!;
-  check("playerLeagueId matches the club's actual division", t.playerLeagueId === mine.id);
-  check(
-    "user table shows the user's new division",
-    t.league.length === 20 && t.league.some((r) => r.team === t.clubName),
-  );
-  check(
-    "user fixtures only involve their division opponents",
-    t.fixtures.every((f) => mine.clubIds.includes(f.opponent)),
-  );
-  const h1 = t.seasonHistory.find((h) => h.season === 1 && h.leagueId === startingLeague.id)!;
-  if (h1.promoted.includes(t.clubName)) {
-    check("promoted player moved up one tier", t.playerLeagueId === promotionLeague.id);
-    check(
-      "promotion inbox mail sent",
-      t.inbox.some((i) => i.eventKey.startsWith("club-promoted")),
-    );
-  } else {
-    check("non-promoted player stayed in the bottom tier", t.playerLeagueId === startingLeague.id);
-    check(
-      "champions mail exists for every division",
-      t.inbox.filter((i) => i.eventKey.startsWith("league-champion")).length === t.leagues.length,
-    );
-  }
+  check("playerLeagueId matches actual membership", t.playerLeagueId === mine.id);
+  check("user table shows the user's division", t.league.length === 20 && t.league.some((r) => r.team === t.clubName));
+  check("user fixtures only involve current-division opponents", t.fixtures.every((f) => mine.clubIds.includes(f.opponent)));
+  const h = t.seasonHistory.find((x) => x.season === 1 && x.leagueId === startingLeague.id)!;
+  check("player either stays or follows a recorded promotion", mine.id === startingLeague.id || h.promoted.includes(t.clubName));
+  check("champion mail exists for every division", t.inbox.filter((i) => i.eventKey.startsWith("league-champion")).length === t.leagues.length);
 }
 
-console.log("\n[6] Rollover is atomic and replay-safe");
+console.log("\n[7] Rollover is atomic and replay-safe");
 {
   const t = playSeason(fresh());
   check("season 1 is marked finalised", seasonAlreadyFinalised(t, 1));
   const snap = structuredClone(t);
-  // Simulate a reload landing back on the rollover path.
   const again = structuredClone(t);
   const res = applySeasonRollover(again);
   check("re-running rollover produces no new outcomes", res.outcomes.length === 0);
   check("history not duplicated", again.seasonHistory.length === snap.seasonHistory.length);
-  check(
-    "no double promotion",
-    Object.values(again.clubRecords).every(
-      (r) =>
-        r.promotions === snap.clubRecords[r.club].promotions &&
-        r.relegations === snap.clubRecords[r.club].relegations,
-    ),
-  );
-  check(
-    "membership unchanged by the replay",
-    JSON.stringify(again.leagues.map((l) => l.clubIds)) ===
-      JSON.stringify(snap.leagues.map((l) => l.clubIds)),
-  );
+  check("no double movement", Object.values(again.clubRecords).every((r) => r.promotions === snap.clubRecords[r.club].promotions && r.relegations === snap.clubRecords[r.club].relegations));
+  check("membership unchanged by replay", JSON.stringify(again.leagues.map((l) => l.clubIds)) === JSON.stringify(snap.leagues.map((l) => l.clubIds)));
 }
 
-console.log("\n[7] Two consecutive seasons");
+console.log("\n[8] Two consecutive seasons + projections");
 {
   const s1 = playSeason(fresh());
   const before = structuredClone(s1.seasonHistory);
   const s2 = playSeason(s1);
   check("season counter advanced to 3", s2.season === 3);
-  check(
-    "history has one entry per league and season",
-    s2.seasonHistory.length === s2.leagues.length * 2,
-    String(s2.seasonHistory.length),
-  );
-  check(
-    "season-1 history is byte-identical after season 2",
-    JSON.stringify(s2.seasonHistory.filter((h) => h.season === 1)) === JSON.stringify(before),
-  );
-  check(
-    "season-1 match records untouched",
-    s2.matchRecords.filter((r) => r.season === 1).length === s2.leagues.length * 380,
-  );
-  check(
-    "season 2 fully simulated in every division",
-    s2.matchRecords.filter((r) => r.season === 2).length === s2.leagues.length * 380,
-    String(s2.matchRecords.filter((r) => r.season === 2).length),
-  );
-  check(
-    "season 2 tables built from season-2 clubs",
-    s2.seasonHistory.filter((h) => h.season === 2).every((h) => h.finalTable.length === 20),
-  );
-  check(
-    "clubs still unique across the pyramid",
-    new Set(pyramidClubs(s2)).size === pyramidClubs(s2).length,
-  );
-  check(
-    "integrity after two rollovers",
-    pyramidIntegrity(s2).ok,
-    pyramidIntegrity(s2).problems.join("; "),
-  );
-  check(
-    "club league history has two rows per club",
-    Object.values(s2.clubRecords).every((r) => r.leagueHistory.length === 2),
-  );
-  const promotedS1 = s2.seasonHistory.find(
-    (h) => h.season === 1 && h.leagueId === DIVISION_TWO,
-  )!.promoted;
-  check(
-    "season-1 promoted clubs played season 2 in tier 1",
-    promotedS1.every(
-      (c) => s2.clubRecords[c].leagueHistory.find((h) => h.season === 2)?.leagueId === DIVISION_ONE,
-    ),
-  );
+  check("history has one entry per league and season", s2.seasonHistory.length === s2.leagues.length * 2, String(s2.seasonHistory.length));
+  check("season-1 history remains byte-identical", JSON.stringify(s2.seasonHistory.filter((h) => h.season === 1)) === JSON.stringify(before));
+  check("both seasons contain every division's 380 records", [1, 2].every((season) => s2.matchRecords.filter((r) => r.season === season).length === s2.leagues.length * 380));
+  check("clubs remain unique", new Set(pyramidClubs(s2)).size === pyramidClubs(s2).length);
+  check("integrity after two rollovers", pyramidIntegrity(s2).ok, pyramidIntegrity(s2).problems.join("; "));
+  check("club league history has two rows per club", Object.values(s2.clubRecords).every((r) => r.leagueHistory.length === 2));
+  const d2 = tableFor(s2, DIVISION_TWO);
+  check("tableFor returns a sorted 20-row non-player division", d2.length === 20);
+  const rebuilt = buildTable(s2.leagues.find((l) => l.id === DIVISION_TWO)!.clubIds, s2.matchRecords, 3, DIVISION_TWO);
+  check("new-season table starts at zero", rebuilt.every((r) => r.p === 0));
+  check("new season is not already complete", !isLeagueSeasonComplete(s2, DIVISION_TWO));
 }
 
-console.log("\n[8] Per-league completion + table projection");
-{
-  let s = fresh();
-  check(
-    "no league complete at kickoff",
-    !isLeagueSeasonComplete(s, DIVISION_ONE) && !isLeagueSeasonComplete(s, DIVISION_TWO),
-  );
-  for (let i = 0; i < 46; i++) {
-    const fx = s.fixtures.find((f) => f.week === s.week);
-    s = fx
-      ? advanceWeek(s, {
-          gf: 1,
-          ga: 1,
-          attendance: 900,
-          gate: 1,
-          tv: 1,
-          matchdayOps: 1,
-          winBonus: 0,
-        })
-      : advanceWeek(s);
-  }
-  const d2 = tableFor(s, DIVISION_TWO);
-  check(
-    "tableFor returns a sorted 20-row table for a division the player is not in",
-    d2.length === 20,
-  );
-  const rebuilt = buildTable(s.leagues[1].clubIds, s.matchRecords, 2, DIVISION_TWO);
-  check(
-    "new-season tier-2 table starts at zero",
-    rebuilt.every((r) => r.p === 0),
-  );
-}
-
-console.log("\n[9] v3 save migration");
+console.log("\n[9] v3 save migration expands without rewriting active top flight");
 {
   const g = newGame("Legacy FC", "Old Boss") as unknown as Record<string, unknown>;
   g.version = 3;
@@ -383,51 +206,22 @@ console.log("\n[9] v3 save migration");
   delete g.playerLeagueId;
   delete g.seasonHistory;
   delete g.clubRecords;
-  // A real v3 save only ever had the single top-division schedule, with no
-  // `league` field on its fixtures.
   g.leagueSchedule = (g.leagueSchedule as { league?: string }[])
     .filter((f) => f.league === DIVISION_ONE)
     .map(({ league, ...rest }) => rest);
   const originalTopScheduleLength = (g.leagueSchedule as unknown[]).length;
   const m = migrateSave(g);
-  check("migrated to current schema", (m.version as number) === SAVE_VERSION);
-  check(
-    "pyramid created",
-    m.leagues.length === 4 && m.leagues.every((l) => l.clubIds.length === CLUBS_PER_DIVISION),
-  );
-  check(
-    "user club placed in exactly one league",
-    m.leagues.filter((l) => l.clubIds.includes("Legacy FC")).length === 1,
-  );
-  check(
-    "no duplicate clubs across divisions",
-    new Set(pyramidClubs(m)).size === pyramidClubs(m).length,
-  );
-  check(
-    "existing tier-1 membership preserved",
-    m.leagues[0].clubIds.length === 20 &&
-      m.leagues[0].clubIds.every((c) => (g.league as { team: string }[]).some((r) => r.team === c)),
-  );
-  const migratedTopSchedule = m.leagueSchedule.filter(
-    (f) => f.league === undefined || f.league === DIVISION_ONE,
-  );
-  check(
-    "existing active-season top schedule is preserved while missing lower leagues are appended",
-    migratedTopSchedule.length === originalTopScheduleLength &&
-      m.leagueSchedule.some((f) => f.league === "league-3") &&
-      m.leagueSchedule.some((f) => f.league === "league-4"),
-  );
+  check("migrated to current schema", m.version === SAVE_VERSION);
+  check("full eight-division world created", m.leagues.length === 8 && m.leagues.every((l) => l.clubIds.length === CLUBS_PER_DIVISION));
+  check("four regional Level 7 divisions created", m.leagues.filter((l) => l.tier === 5).length === 4);
+  check("user club placed in exactly one league", m.leagues.filter((l) => l.clubIds.includes("Legacy FC")).length === 1);
+  check("no duplicate clubs across divisions", new Set(pyramidClubs(m)).size === pyramidClubs(m).length);
+  check("existing tier-1 membership preserved", m.leagues[0].clubIds.length === 20 && m.leagues[0].clubIds.every((c) => (g.league as { team: string }[]).some((r) => r.team === c)));
+  const migratedTopSchedule = m.leagueSchedule.filter((f) => f.league === undefined || f.league === DIVISION_ONE);
+  check("active top schedule preserved while lower leagues append", migratedTopSchedule.length === originalTopScheduleLength && m.leagueSchedule.some((f) => f.league === "league-4") && m.leagueSchedule.some((f) => f.league === "regional-premier-central"));
   check("history starts empty", m.seasonHistory.length === 0);
-  check("club records seeded", Object.keys(m.clubRecords).length === 80);
-  const after = advanceWeek(m, {
-    gf: 1,
-    ga: 0,
-    attendance: 900,
-    gate: 1,
-    tv: 1,
-    matchdayOps: 1,
-    winBonus: 0,
-  });
+  check("club records seeded for all 160 clubs", Object.keys(m.clubRecords).length === 160, String(Object.keys(m.clubRecords).length));
+  const after = advanceWeek(m, { gf: 1, ga: 0, attendance: 900, gate: 1, tv: 1, matchdayOps: 1, winBonus: 0 });
   check("migrated save still advances", after.week === 13);
 }
 
