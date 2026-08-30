@@ -8,9 +8,11 @@ import {
 import {
   contractWageForLevel,
   economicProfileForLevel,
+  normaliseTransferFeeForLevel,
   playerValueForLevel,
   revenueBaselineForLevel,
   sustainableWeeklyWageBillForLevel,
+  transferFeePolicyForLevel,
   weeklyWageForLevel,
 } from "../levelEconomy.ts";
 
@@ -74,6 +76,19 @@ for (const [tier, level] of expectedPairs) {
     throw new Error(`Football level ${level} changed player valuation calibration`);
   }
 
+  const legacyFeePolicy = transferFeePolicyForLevel(level);
+  if (
+    legacyFeePolicy.valueFloor !== 10_000 ||
+    legacyFeePolicy.valueStep !== 5_000 ||
+    legacyFeePolicy.askingFloor !== 20_000 ||
+    legacyFeePolicy.feeStep !== 5_000
+  ) {
+    throw new Error(`Football level ${level} changed historic transfer fee policy`);
+  }
+  if (normaliseTransferFeeForLevel(23_400, level, "asking") !== 25_000) {
+    throw new Error(`Football level ${level} changed historic transfer rounding`);
+  }
+
   const legacyRevenue = revenueBaseline(tier, 54, 23);
   const levelRevenue = revenueBaselineForLevel(level, 54, 23);
   if (JSON.stringify(legacyRevenue) !== JSON.stringify(levelRevenue)) {
@@ -126,8 +141,28 @@ if (lowerContractWage7 >= 200 || lowerContractWage8 >= 200) {
 
 const lowerValue7 = playerValueForLevel(52, 58, 24, 7);
 const lowerValue8 = playerValueForLevel(52, 58, 24, 8);
-if (!(lowerValue7 >= lowerValue8 && lowerValue8 >= 10_000)) {
+if (!(lowerValue7 > lowerValue8 && lowerValue7 >= 1_000 && lowerValue8 >= 500)) {
   throw new Error(`Unexpected lower-league values: level 7 £${lowerValue7}, level 8 £${lowerValue8}`);
+}
+if (lowerValue7 >= 10_000 || lowerValue8 >= 10_000) {
+  throw new Error("Native lower-level values are still pinned to the historic £10k floor");
+}
+
+const transferPolicy7 = transferFeePolicyForLevel(7);
+const transferPolicy8 = transferFeePolicyForLevel(8);
+if (
+  transferPolicy7.askingFloor !== 1_000 ||
+  transferPolicy7.feeStep !== 500 ||
+  transferPolicy8.askingFloor !== 500 ||
+  transferPolicy8.feeStep !== 250
+) {
+  throw new Error("Native lower-level transfer fee policy is not calibrated correctly");
+}
+if (normaliseTransferFeeForLevel(3_760, 7, "asking") !== 4_000) {
+  throw new Error("Level 7 transfer rounding is incorrect");
+}
+if (normaliseTransferFeeForLevel(1_360, 8, "asking") !== 1_250) {
+  throw new Error("Level 8 transfer rounding is incorrect");
 }
 
 const lowerRevenue7 = revenueBaselineForLevel(7, 50, 23).totalSeason;
@@ -153,5 +188,5 @@ for (const badTier of [-2, 7]) {
 }
 
 console.log(
-  "✓ canonical football levels preserve legacy wages, values and revenues with native levels 7-8",
+  "✓ canonical football levels preserve legacy economics with native level 7-8 wages and transfer fees",
 );
