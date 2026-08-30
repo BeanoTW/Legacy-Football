@@ -9,7 +9,7 @@
 import type { GameState, FixtureResult } from "./types";
 import { runWeeklyGenerators } from "./inbox";
 import { runRecruitmentWeek } from "./recruitment";
-import { progressScoutingWeekInPlace } from "./scouting";
+import { progressScoutingDayInPlace, progressScoutingWeekInPlace } from "./scouting";
 import { runInfrastructureWeek } from "./infrastructure";
 import { runSustainabilityWeek } from "./sustainability";
 import { runCommercialWeek } from "./commercial";
@@ -122,16 +122,17 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
 /**
  * Advance one visible calendar day.
  *
- * Monday through Saturday only move the presentation clock. Crossing Sunday
- * settles the completed week through `advanceWeek`, preserving every existing
- * deterministic weekly invariant while making Continue feel like a living
- * calendar rather than a sequence of week-sized jumps.
+ * Monday through Saturday move the presentation clock and progress genuine
+ * day-scale systems such as scouting. Crossing Sunday settles the completed
+ * week through `advanceWeek`, preserving deterministic weekly finance/match
+ * invariants while allowing four-day and six-day scout reports to really land.
  */
 export function advanceDay(prev: GameState): GameState {
   const day = calendarDay(prev);
   if (day < 6) {
     const next = structuredClone(prev);
     setCalendarDay(next, day + 1);
+    progressScoutingDayInPlace(next);
     return next;
   }
   return advanceWeek(prev);
@@ -224,5 +225,3 @@ export async function listSaveSlots(): Promise<SaveSlotSummary[]> {
     }),
   );
 }
-
-export { setTransferBudget, setWageBudget } from "./budgets";
