@@ -645,12 +645,15 @@ console.log("\n[R7] Transfer completion");
       availabilityReason(s, target.player) !== null,
   );
   if (target) {
+    const canonicalAsk = askingPrice(s, target.player);
     const offer = Math.round(target.askingPrice * 1.2);
     check(
       "52b. the offer is derived from canonical market value",
-      target.askingPrice >= 20_000 &&
-        offer >= target.askingPrice &&
-        offer <= askingPrice(s, target.player) * 1.5,
+      target.askingPrice === canonicalAsk &&
+        canonicalAsk >= 1_000 &&
+        canonicalAsk % 500 === 0 &&
+        offer >= canonicalAsk &&
+        offer <= canonicalAsk * 1.5,
     );
     check("52c. the buyer holds the cash", s.cash >= offer + target.wageDemand * 4);
     check("52d. available cash authorises the fee", canAuthorisePurchase(s, offer).allowed);
