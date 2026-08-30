@@ -42,7 +42,6 @@ import { clubReputation } from "./reputation";
 import { facilityModifiers } from "./infrastructure";
 import { buildWorldSimulationPlan } from "./world";
 import { ensureFringeWorldState, makeFringeClubState } from "./fringe";
-import { tierOfClub } from "./economy";
 import { legacyTierToFootballLevel, type FootballLevel } from "./footballLevel";
 import {
   recruitmentContractWageForLevel,
@@ -1037,7 +1036,15 @@ export function availabilityReason(s: GameState, p: FootballPlayer): string | nu
   if (p.reputation > sellerRep + 18) return "Ambition outgrowing his club";
   if (
     sellerRep < 35 &&
-    c.weeklyWage > wageForAbility(p.currentAbility, sellerRep, tierOfClub(s, club)) * 1.1
+    c.weeklyWage >
+      recruitmentWageForClub(
+        s,
+        club,
+        p.currentAbility,
+        ageOf(p, s.season),
+        p.potentialAbility,
+      ) *
+        1.1
   ) {
     return "His club needs the wage off the books";
   }
