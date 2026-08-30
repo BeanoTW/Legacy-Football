@@ -12,6 +12,7 @@ import {
   MoreHorizontal,
   Save,
   Settings,
+  Shield,
   Ticket,
   Trophy,
   Users,
@@ -20,6 +21,7 @@ import {
 export type Tab =
   | "inbox"
   | "hub"
+  | "squad"
   | "board"
   | "commercial"
   | "dashboard"
@@ -39,6 +41,7 @@ export type TabDef = [Tab, string, typeof LineIcon];
 export const ALL_TABS: TabDef[] = [
   ["hub", "Home", Home],
   ["inbox", "Inbox", Mail],
+  ["squad", "Squad", Shield],
   ["recruitment", "Transfers", Users],
   ["staff", "Staff", Briefcase],
   ["cashflow", "Finances", CircleDollarSign],
@@ -54,15 +57,15 @@ export const ALL_TABS: TabDef[] = [
   ["settings", "Settings", Settings],
 ];
 
-/** The five things a chairman should be able to reach without hunting. */
-export const PRIMARY_TAB_IDS: Tab[] = ["hub", "inbox", "recruitment", "cashflow"];
+/** The four football-chairman areas that deserve permanent mobile access. */
+export const PRIMARY_TAB_IDS: Tab[] = ["hub", "inbox", "squad", "recruitment"];
 
-/** Desktop keeps the same low-cognitive-load core and moves detail behind More. */
+/** Finance remains easy to reach through More; squad is more immediate day-to-day. */
 export const DESKTOP_PRIMARY_TAB_IDS: Tab[] = [
   "hub",
   "inbox",
+  "squad",
   "recruitment",
-  "cashflow",
   "staff",
   "stadium",
 ];
