@@ -498,20 +498,22 @@ console.log("\n[R12] Promoted / relegated clubs evolve rather than jump");
   const promoted = h.flatMap((e) => e.promoted);
   const relegated = h.flatMap((e) => e.relegated);
   const t1 = s2.leagues.find((l) => l.tier === 1)!;
-  const avg = (ids: string[]) =>
-    ids.reduce((a, c) => a + clubStrengthFor(s2, c, 2), 0) / ids.length;
   for (const c of promoted) {
     const destination = s2.leagues.find((league) => league.clubIds.includes(c))!;
+    const parts = strengthParts(s2, c, 2);
     check(
-      `promoted ${c} is not instantly dominant in tier ${destination.tier}`,
-      clubStrengthFor(s2, c, 2) < avg(destination.clubIds) + 15,
+      `promoted ${c} carries the promotion adaptation into tier ${destination.tier}`,
+      parts.movement === -3.5,
+      `movement ${parts.movement}`,
     );
   }
   for (const c of relegated) {
     const destination = s2.leagues.find((league) => league.clubIds.includes(c))!;
+    const parts = strengthParts(s2, c, 2);
     check(
-      `relegated ${c} keeps some class in tier ${destination.tier}`,
-      clubStrengthFor(s2, c, 2) > avg(destination.clubIds) - 15,
+      `relegated ${c} retains the relegation class modifier in tier ${destination.tier}`,
+      parts.movement === 3.5,
+      `movement ${parts.movement}`,
     );
   }
   const pred2 = predictionFor(s2, 2, DIVISION_ONE)!;
