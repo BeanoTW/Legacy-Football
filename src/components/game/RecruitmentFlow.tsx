@@ -3,13 +3,14 @@ import { ArrowLeft, Binoculars, Handshake, Shield, Star } from "lucide-react";
 import type { GameState } from "@/lib/game/types";
 import { RecruitmentOperations } from "./RecruitmentOperations";
 import { ScoutingBrowser } from "./ScoutingBrowser";
+import { ScoutingReports } from "./ScoutingReports";
 import { OutgoingSalesDesk } from "./OutgoingSalesDesk";
 import { Button } from "@/components/ui/button";
 import { fmtMoneyExact } from "@/lib/game/engine";
 import { openNegotiations, recruitmentSnapshot, shortlistIds } from "@/lib/game/recruitment";
 import { OverviewScreen, WorkflowTile } from "./shared/layout";
 
-type View = "home" | "operations" | "find" | "sales";
+type View = "home" | "operations" | "find" | "reports" | "sales";
 
 export function RecruitmentFlow({
   state,
@@ -23,6 +24,9 @@ export function RecruitmentFlow({
 
   if (view === "find") {
     return <ScoutingBrowser state={state} update={update} onBack={() => setView("home")} />;
+  }
+  if (view === "reports") {
+    return <ScoutingReports state={state} update={update} onBack={() => setView("home")} />;
   }
   if (view === "sales") {
     return <OutgoingSalesDesk state={state} update={update} onBack={() => setView("home")} />;
@@ -84,9 +88,9 @@ export function RecruitmentFlow({
         />
         <TransferAction
           icon={<Star className="size-5 md:size-6" />}
-          title="Scouting & shortlist"
-          sub={activeScouting || completedReports ? `${activeScouting} active · ${completedReports} full · ${shortlist} watched` : "Track players you want to revisit"}
-          onClick={() => setView("find")}
+          title="Scouting reports"
+          sub={activeScouting || completedReports ? `${activeScouting} active · ${completedReports} full · ${shortlist} watched` : "Players you scout stay here until you are done with them"}
+          onClick={() => setView("reports")}
         />
         <TransferAction
           icon={<Shield className="size-5 md:size-6" />}
