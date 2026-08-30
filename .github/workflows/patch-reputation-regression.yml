@@ -21,13 +21,15 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
           p = Path('src/lib/game/__checks__/reputation.check.ts')
           text = p.read_text()
-          old = '''  check(\n    "promotion + relegation happened",\n    promoted.length === g.leagues.reduce((sum, league) => sum + league.promotionPlaces, 0) &&\n      relegated.length === g.leagues.reduce((sum, league) => sum + league.relegationPlaces, 0),\n  );'''
+          pattern = re.compile(r'''  check\(\n    "promotion \+ relegation happened",\n    promoted\.length === g\.leagues\.reduce\(\(sum, league\) => sum \+ league\.promotionPlaces, 0\) &&\n      relegated\.length === g\.leagues\.reduce\(\(sum, league\) => sum \+ league\.relegationPlaces, 0\),\n  \);''')
           new = '''  check(\n    "promotion + relegation happened",\n    promoted.length > 0 && relegated.length > 0 && promoted.length === relegated.length,\n    `${promoted.length} promoted / ${relegated.length} relegated`,\n  );'''
-          if old not in text:
-            raise SystemExit('expected legacy reputation assertion not found')
-          p.write_text(text.replace(old, new, 1))
+          text, count = pattern.subn(new, text, count=1)
+          if count != 1:
+            raise SystemExit(f'expected one legacy reputation assertion, found {count}')
+          p.write_text(text)
           PY
           bunx prettier --write src/lib/game/__checks__/reputation.check.ts
       - name: Commit patch
