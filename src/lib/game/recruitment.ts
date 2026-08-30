@@ -2266,7 +2266,7 @@ export function recruitmentSnapshot(s: GameState): RecruitmentSnapshot {
   return {
     squadSize: squad.length,
     averageAbility: abilities.length ? abilities.reduce((a, b) => a + b, 0) / abilities.length : 0,
-    averageAge: ages.length ? ages.reduce((a, b) => a + b, 0) / squad.length : 0,
+    averageAge: ages.length ? ages.reduce((a, b) => a + b, 0) / ages.length : 0,
     wageBillWeekly: userWageBill(s),
     wageBudgetWeekly: int(s.finance?.budgets?.wages ?? 0),
     expiringContracts: squad.filter((p) => {
@@ -2330,7 +2330,7 @@ export function toggleShortlistInPlace(s: GameState, playerId: string): void {
 
 export function toggleShortlist(s: GameState, playerId: string): GameState {
   const w = structuredClone(s);
-  toggleShortlistInPlace(w, playerId, tracked);
+  toggleShortlistInPlace(w, playerId);
   return w;
 }
 
