@@ -1,0 +1,38 @@
+name: Patch reputation focus regression
+
+on:
+  push:
+    branches:
+      - chatgpt/persistent-world-foundation
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[reputation-focus-patched]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt/persistent-world-foundation
+          fetch-depth: 0
+      - name: Point table correlation at the focus simulation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/lib/game/__checks__/reputation.check.ts')
+          s = p.read_text()
+          old = '''  // Table-level: strength should produce a positive points relationship over\n  // several deterministic seasons. A single-season top-half rank threshold is\n  // too noisy once the wider football world is active.\n  let rankScore = 0;\n  let samples = 0;\n  for (const seed of ["REP_SEED_5A", "REP_SEED_5B", "REP_SEED_5C", "REP_SEED_5D"]) {\n    const sample = fresh(seed);\n    const sampleClubs = sample.leagues[0].clubIds;\n    const preRank = new Map(\n      [...sampleClubs]\n        .sort((x, y) => clubStrengthFor(sample, y, 1) - clubStrengthFor(sample, x, 1))\n        .map((club, index) => [club, index + 1]),\n    );\n    const played = playSeason(sample);\n    const finalTable = played.seasonHistory.find(\n      (h) => h.season === 1 && h.leagueId === DIVISION_ONE,\n    )!.finalTable;\n    const finalRank = new Map(finalTable.map((row, index) => [row.team, index + 1]));\n    for (const club of sampleClubs) {\n      const pre = preRank.get(club)!;\n      const post = finalRank.get(club)!;\n      rankScore += (10.5 - pre) * (10.5 - post);\n      samples++;\n    }\n  }\n  check(\n    "pre-season strength is positively associated with final position",\n    samples > 0 && rankScore > 0,\n    `rank association ${rankScore.toFixed(1)} across ${samples} club-seasons`,\n  );\n'''
+          new = '''  // Table-level: detailed reputation strength is a Focus-simulation input.\n  // Distant divisions may deliberately use compact fringe strength, so verify\n  // the correlation in the player's current Focus division rather than tier 1.\n  let rankScore = 0;\n  let samples = 0;\n  for (const seed of ["REP_SEED_5A", "REP_SEED_5B", "REP_SEED_5C", "REP_SEED_5D"]) {\n    const sample = fresh(seed);\n    const focusLeague = sample.leagues.find((league) => league.id === sample.playerLeagueId)!;\n    const sampleClubs = focusLeague.clubIds;\n    const preRank = new Map(\n      [...sampleClubs]\n        .sort((x, y) => clubStrengthFor(sample, y, 1) - clubStrengthFor(sample, x, 1))\n        .map((club, index) => [club, index + 1]),\n    );\n    const played = playSeason(sample);\n    const finalTable = played.seasonHistory.find(\n      (h) => h.season === 1 && h.leagueId === focusLeague.id,\n    )!.finalTable;\n    const finalRank = new Map(finalTable.map((row, index) => [row.team, index + 1]));\n    for (const club of sampleClubs) {\n      const pre = preRank.get(club)!;\n      const post = finalRank.get(club)!;\n      rankScore += (10.5 - pre) * (10.5 - post);\n      samples++;\n    }\n  }\n  check(\n    "focus-league strength is positively associated with final position",\n    samples > 0 && rankScore > 0,\n    `rank association ${rankScore.toFixed(1)} across ${samples} club-seasons`,\n  );\n'''
+          if old not in s:
+              raise SystemExit('target R5 correlation block not found exactly')
+          p.write_text(s.replace(old, new, 1))
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/game/__checks__/reputation.check.ts
+          git commit -m "Target reputation regression at focus simulation [reputation-focus-patched]"
+          git push origin HEAD:chatgpt/persistent-world-foundation
