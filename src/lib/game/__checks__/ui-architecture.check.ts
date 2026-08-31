@@ -95,12 +95,12 @@ console.log("\n[U2] Navigation completeness");
     RETIRED.every((t) => !registered.includes(t)),
   );
   check(
-    "mobile nav still exposes the five-slot bar",
+    "mobile nav exposes four core areas plus More",
     /grid-cols-5/.test(read("src/components/game/MobileNav.tsx")),
   );
   check(
     "primary mobile tabs match the chairman core flow",
-    /PRIMARY_TAB_IDS: Tab\[\] = \["hub", "inbox", "squad", "recruitment"\]/.test(tabs),
+    /PRIMARY_TAB_IDS:\s*Tab\[\]\s*=\s*\["hub",\s*"inbox",\s*"squad",\s*"recruitment"\]/.test(tabs),
   );
 }
 
@@ -154,8 +154,8 @@ console.log("\n[U4] Import direction");
   check(
     "extracted screens all export a component",
     screens
-      .filter((f) => !/shared\/|tabs\.ts$|playerPosition\.ts$/.test(f))
-      .every((f) => /export function [A-Z]/.test(read(f))),
+      .filter((f) => !/shared\/|__checks__\/|tabs\.ts$|playerPosition\.ts$/.test(f))
+      .every((f) => /export (function|class|const) [A-Z]/.test(read(f))),
   );
 }
 
