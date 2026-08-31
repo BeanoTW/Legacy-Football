@@ -1,6 +1,10 @@
 import { newGame } from "../engine";
-import { ageOf } from "../recruitment";
-import { createScoutingBrief, scoutingBrief } from "../scoutingDiscovery";
+import { ageOf, BASE_YEAR } from "../recruitment";
+import {
+  createScoutingBrief,
+  scoutingBrief,
+  scoutingCandidateSource,
+} from "../scoutingDiscovery";
 import {
   knownPlayerIdentity,
   playerFidelity,
@@ -26,14 +30,11 @@ if (!base.football) throw new Error("football state missing");
 const external = base.football.players.filter((player) => player.currentClubId !== base.clubName);
 const targetPosition = external[0]?.primaryPosition;
 if (!targetPosition) throw new Error("no external players available");
-const positional = external.filter((player) => player.primaryPosition === targetPosition);
-const maxValue = Math.max(...positional.map((player) => player.marketValue));
 
 const input = {
-  id: "audit-position-budget",
+  id: "audit-position-wide-world",
   position: targetPosition,
   maxAge: 40,
-  maxMarketValue: maxValue,
 };
 const first = createScoutingBrief(base, input);
 const second = createScoutingBrief(base, input);
@@ -50,26 +51,44 @@ check(
   "candidate ids are unique",
   new Set(firstBrief?.candidateIds ?? []).size === (firstBrief?.candidateIds.length ?? 0),
 );
+check(
+  "wide-world brief reaches at least one compact Fringe player",
+  (firstBrief?.candidateIds ?? []).some(
+    (playerId) => scoutingCandidateSource(first, input.id, playerId) === "fringe",
+  ),
+);
 
 for (const playerId of firstBrief?.candidateIds ?? []) {
-  const player = first.football?.players.find((candidate) => candidate.id === playerId);
-  check(`candidate ${playerId} exists`, Boolean(player));
-  if (!player) continue;
-  check(`candidate ${playerId} is external`, player.currentClubId !== first.clubName);
-  check(`candidate ${playerId} respects position`, player.primaryPosition === targetPosition);
-  check(`candidate ${playerId} respects age`, ageOf(player, first.season) <= input.maxAge);
-  check(`candidate ${playerId} respects budget`, player.marketValue <= input.maxMarketValue);
+  const detailed = first.football?.players.find((candidate) => candidate.id === playerId);
   const known = knownPlayerIdentity(first, playerId);
+  const source = scoutingCandidateSource(first, input.id, playerId);
+
+  check(`candidate ${playerId} has a persistent identity`, Boolean(detailed || known));
   check(`candidate ${playerId} becomes known`, Boolean(known));
   check(`candidate ${playerId} records scouting reason`, known?.reasons.includes("scouted") ?? false);
+  check(`candidate ${playerId} is external`, known?.currentClubId !== first.clubName);
+  check(`candidate ${playerId} respects position`, known?.primaryPosition === targetPosition);
+
+  if (detailed) {
+    check(`detailed candidate ${playerId} respects age`, ageOf(detailed, first.season) <= input.maxAge);
+  } else if (known) {
+    const knownAge = BASE_YEAR + first.season - 1 - known.dateOfBirth.year;
+    check(`compact candidate ${playerId} respects age`, knownAge <= input.maxAge);
+    check(`compact candidate ${playerId} stays lightweight`, playerFidelity(first, playerId) === "known");
+    check(`compact candidate ${playerId} is marked Fringe`, source === "fringe");
+  }
 }
 
 const abilityBefore = new Map(base.football.players.map((player) => [player.id, player.currentAbility]));
 check(
-  "scouting never changes underlying ability",
+  "scouting never changes underlying detailed-player ability",
   (first.football?.players ?? []).every(
     (player) => abilityBefore.get(player.id) === player.currentAbility,
   ),
+);
+check(
+  "world discovery does not hydrate extra detailed players",
+  (first.football?.players.length ?? 0) === base.football.players.length,
 );
 
 const sample = external[0];
