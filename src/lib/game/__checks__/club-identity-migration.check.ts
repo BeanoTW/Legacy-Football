@@ -1,37 +1,54 @@
 import { strict as assert } from "node:assert";
-import { migrateSave, newGame, SAVE_VERSION } from "../engine";
+import { newGame } from "../newGame";
 import { clubIdForState, isOpaqueClubId } from "../clubIdentity";
+import { CLUB_IDENTITY_MIGRATIONS } from "../migrations/v15-v16";
+import type { AnySave, MigrationCtx } from "../migrations/types";
 
 const current = newGame("Migration United", "Auditor", "CLUB_ID_MIGRATION");
 const legacy = structuredClone(current);
-legacy.version = 15;
 delete legacy.clubIdentity;
 
 const beforeLeagueMembers = legacy.leagues.map((league) => [...league.clubIds]);
 const beforePlayerClub = legacy.football?.players.find((player) => player.currentClubId)?.currentClubId ?? null;
+const step = CLUB_IDENTITY_MIGRATIONS[0];
+assert.equal(step.from, 15);
+assert.equal(step.to, 16);
 
-const migrated = migrateSave(legacy as unknown as Record<string, unknown>);
-assert.equal(migrated.version, SAVE_VERSION);
-assert.equal(SAVE_VERSION, 16);
-assert.ok(migrated.clubIdentity, "v15 save must gain a persistent club identity registry");
-assert.ok(isOpaqueClubId(migrated.clubIdentity.userClubId));
-assert.equal(migrated.clubIdentity.clubsById[migrated.clubIdentity.userClubId]?.displayName, migrated.clubName);
+const ctx: MigrationCtx = {
+  deps: {
+    staffPoolFor: () => [],
+    squadRating: () => 0,
+  },
+  warn() {},
+};
+step.up(legacy as unknown as AnySave, ctx);
+
+assert.ok(legacy.clubIdentity, "staged v15->v16 step must seed a persistent club identity registry");
+assert.ok(isOpaqueClubId(legacy.clubIdentity.userClubId));
+assert.equal(
+  legacy.clubIdentity.clubsById[legacy.clubIdentity.userClubId]?.displayName,
+  legacy.clubName,
+);
 assert.deepEqual(
-  migrated.leagues.map((league) => league.clubIds),
+  legacy.leagues.map((league) => league.clubIds),
   beforeLeagueMembers,
-  "identity-registry migration must not silently rewrite references before the reference pass",
+  "identity-registry step must not rewrite references before the reference migration",
 );
 assert.equal(
-  migrated.football?.players.find((player) => player.currentClubId)?.currentClubId ?? null,
+  legacy.football?.players.find((player) => player.currentClubId)?.currentClubId ?? null,
   beforePlayerClub,
 );
 
-for (const league of migrated.leagues) {
+for (const league of legacy.leagues) {
   for (const club of league.clubIds) {
-    const id = clubIdForState(migrated, club);
+    const id = clubIdForState(legacy, club);
     assert.ok(isOpaqueClubId(id));
-    assert.equal(migrated.clubIdentity.clubsById[id]?.displayName, club);
+    assert.equal(legacy.clubIdentity.clubsById[id]?.displayName, club);
   }
 }
+
+const once = structuredClone(legacy.clubIdentity);
+step.up(legacy as unknown as AnySave, ctx);
+assert.deepEqual(legacy.clubIdentity, once, "registry migration must be idempotent");
 
 console.log("\nclub-identity-migration: passed");
