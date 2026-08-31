@@ -11,6 +11,12 @@ import {
   preserveKnownPlayerInPlace,
   setRememberPlayer,
 } from "../playerLifecycle";
+import {
+  progressScoutingWeekInPlace,
+  scoutingAssignment,
+  scoutingReportById,
+  startScouting,
+} from "../scouting";
 
 let passed = 0;
 let failed = 0;
@@ -90,6 +96,30 @@ check(
   "world discovery does not hydrate extra detailed players",
   (first.football?.players.length ?? 0) === base.football.players.length,
 );
+
+const fringeTarget = (firstBrief?.candidateIds ?? []).find(
+  (playerId) => scoutingCandidateSource(first, input.id, playerId) === "fringe",
+);
+check("compact target available for deeper scouting", Boolean(fringeTarget));
+if (fringeTarget) {
+  const beforeDetailedCount = first.football!.players.length;
+  const deeper = startScouting(first, fringeTarget);
+  check("compact target can start an assignment", Boolean(scoutingAssignment(deeper, fringeTarget)));
+  check(
+    "starting compact scouting does not hydrate the player",
+    deeper.football!.players.length === beforeDetailedCount && playerFidelity(deeper, fringeTarget) === "known",
+  );
+  check("compact target has an initial report", Boolean(scoutingReportById(deeper, fringeTarget)));
+  progressScoutingWeekInPlace(deeper);
+  check(
+    "compact assignment progresses without a detailed FootballPlayer",
+    (scoutingAssignment(deeper, fringeTarget)?.weeksObserved ?? 0) > 0,
+  );
+  check(
+    "compact report knowledge increases after observation",
+    (scoutingReportById(deeper, fringeTarget)?.knowledgePct ?? 0) > 0,
+  );
+}
 
 const sample = external[0];
 const lifecycle = structuredClone(base);
