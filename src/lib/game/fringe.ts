@@ -15,6 +15,21 @@ function stableOffset(seed: string, clubId: string, channel: string, span: numbe
   return (Math.abs(h) % (span * 2 + 1)) - span;
 }
 
+function seededMeanAge(seed: string, clubId: string, cohortSeason: number): number {
+  return clamp(25 + stableOffset(seed, clubId, `cohort-age-s${cohortSeason}`, 3), 22, 29);
+}
+
+/** Backfill cohort metadata lazily for pre-cohort saves without rewriting history. */
+function ensureCohortMetadata(s: Pick<GameState, "saveSeed">, state: FringeClubState): FringeClubState {
+  const cohortSeason = state.cohortSeason ?? state.lastSimulatedSeason;
+  return {
+    ...state,
+    playerGeneration: state.playerGeneration ?? 0,
+    cohortSeason,
+    squadMeanAge: state.squadMeanAge ?? seededMeanAge(s.saveSeed, state.clubId, cohortSeason),
+  };
+}
+
 /** Previous-season finish mapped onto the compact -4..4 form scale. */
 export function fringeFormFromFinish(s: GameState, clubId: string, season: number): number | null {
   const finish = finishIn(s, clubId, season - 1);
@@ -59,6 +74,9 @@ export function makeFringeClubState(
       5,
     ),
     lastSimulatedSeason: s.season,
+    playerGeneration: 0,
+    squadMeanAge: seededMeanAge(s.saveSeed, clubId, s.season),
+    cohortSeason: s.season,
   };
 }
 
@@ -88,12 +106,12 @@ export function reconcileFringeWorldState(
     if (profile.level !== "fringe") continue;
     const old = previous[profile.clubId];
     out[profile.clubId] = old
-      ? {
+      ? ensureCohortMetadata(s, {
           ...old,
           leagueId: profile.leagueId,
           tier: profile.tier,
           reputation: clubReputation(s, profile.clubId),
-        }
+        })
       : makeFringeClubState(s, profile.clubId, profile.leagueId, profile.tier);
   }
   return out;
@@ -104,7 +122,7 @@ export function fringeWorldSignature(world: FringeWorldState): string {
     .sort((a, b) => a.clubId.localeCompare(b.clubId))
     .map(
       (c) =>
-        `${c.clubId}:${c.leagueId}:${c.tier}:${c.reputation}:${c.strength}:${c.form}:${c.financeBand}:${c.lastSimulatedSeason}`,
+        `${c.clubId}:${c.leagueId}:${c.tier}:${c.reputation}:${c.strength}:${c.form}:${c.financeBand}:${c.lastSimulatedSeason}:${c.playerGeneration ?? 0}:${c.squadMeanAge ?? 0}:${c.cohortSeason ?? 0}`,
     )
     .join("|");
 }
@@ -121,7 +139,7 @@ export function advanceFringeWorldToSeason(s: GameState): FringeWorldState {
   const advanced: FringeWorldState = {};
 
   for (const clubId of Object.keys(world).sort((a, b) => a.localeCompare(b))) {
-    const current = { ...world[clubId] };
+    const current = ensureCohortMetadata(s, { ...world[clubId] });
     while (current.lastSimulatedSeason < s.season) {
       const season = current.lastSimulatedSeason + 1;
       const reputation = clubReputation(s, clubId);
@@ -143,6 +161,18 @@ export function advanceFringeWorldToSeason(s: GameState): FringeWorldState {
         1,
         5,
       );
+
+      const agedMean = clamp((current.squadMeanAge ?? seededMeanAge(s.saveSeed, clubId, season)) + 1, 22, 31);
+      const turnoverSignal = stableOffset(s.saveSeed, clubId, `cohort-turnover-s${season}`, 3);
+      const turnsOver = agedMean >= 31 || (agedMean >= 29 && turnoverSignal >= 0);
+      if (turnsOver) {
+        current.playerGeneration = (current.playerGeneration ?? 0) + 1;
+        current.cohortSeason = season;
+        current.squadMeanAge = seededMeanAge(s.saveSeed, clubId, season);
+      } else {
+        current.squadMeanAge = agedMean;
+      }
+
       current.lastSimulatedSeason = season;
     }
     advanced[clubId] = current;
