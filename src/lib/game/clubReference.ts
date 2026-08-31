@@ -1,4 +1,4 @@
-import type { GameState } from "./types";
+import type { ClubIdentityLookupState } from "./clubIdentity";
 import {
   clubIdForState,
   isOpaqueClubId,
@@ -11,11 +11,14 @@ import {
  * to immutable IDs. New runtime code should compare through this module rather
  * than directly against state.clubName.
  */
-export function userClubReference(state: GameState): string {
+export function userClubReference(state: ClubIdentityLookupState): string {
   return state.clubIdentity?.userClubId ?? state.clubName;
 }
 
-export function isUserClubReference(state: GameState, ref: string | null | undefined): boolean {
+export function isUserClubReference(
+  state: ClubIdentityLookupState,
+  ref: string | null | undefined,
+): boolean {
   if (!ref) return false;
   if (ref === state.clubName) return true;
   if (ref === state.clubIdentity?.userClubId) return true;
@@ -24,18 +27,18 @@ export function isUserClubReference(state: GameState, ref: string | null | undef
 }
 
 /** Resolve either a legacy name or an opaque ID to the canonical immutable ID. */
-export function canonicalClubReference(state: GameState, ref: string): string {
+export function canonicalClubReference(state: ClubIdentityLookupState, ref: string): string {
   return isOpaqueClubId(ref) ? ref : clubIdForState(state, ref);
 }
 
 /** Presentation only. Never use this return value as a persisted identity key. */
-export function clubDisplayName(state: GameState, ref: string): string {
+export function clubDisplayName(state: ClubIdentityLookupState, ref: string): string {
   if (!isOpaqueClubId(ref)) return ref;
   return registeredClubDisplayName(state, ref) ?? ref;
 }
 
 export function sameClubReference(
-  state: GameState,
+  state: ClubIdentityLookupState,
   a: string | null | undefined,
   b: string | null | undefined,
 ): boolean {
