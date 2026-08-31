@@ -93,6 +93,25 @@ export function migrateClubReferencesToIdsInPlace(state: GameState): void {
     clubId: id,
   }));
 
+  if (state.liveMatch) {
+    state.liveMatch = {
+      ...state.liveMatch,
+      fixture: {
+        ...state.liveMatch.fixture,
+        opponent: mapRequired(state, state.liveMatch.fixture.opponent),
+      },
+      homeClub: state.liveMatch.homeClub ? mapRequired(state, state.liveMatch.homeClub) : undefined,
+      awayClub: state.liveMatch.awayClub ? mapRequired(state, state.liveMatch.awayClub) : undefined,
+    };
+  }
+
+  if (state.commercial) {
+    state.commercial.contracts = state.commercial.contracts.map((contract) => ({
+      ...contract,
+      clubId: mapRequired(state, contract.clubId),
+    }));
+  }
+
   if (state.football) {
     state.football.players = state.football.players.map((player) => ({
       ...player,
@@ -102,10 +121,14 @@ export function migrateClubReferencesToIdsInPlace(state: GameState): void {
       ...contract,
       clubId: mapRequired(state, contract.clubId),
     }));
+    state.football.contractHistory = state.football.contractHistory.map((record) => ({
+      ...record,
+      clubId: mapRequired(state, record.clubId),
+    }));
     state.football.transferHistory = state.football.transferHistory.map((transfer) => ({
       ...transfer,
       fromClubId: toId(state, transfer.fromClubId),
-      toClubId: mapRequired(state, transfer.toClubId),
+      toClubId: toId(state, transfer.toClubId),
     }));
     state.football.negotiations = state.football.negotiations.map((negotiation) => ({
       ...negotiation,
@@ -165,12 +188,18 @@ export function persistedClubReferencesAreOpaque(state: GameState): boolean {
     ...Object.keys(state.clubReputations ?? {}),
     ...Object.keys(state.fringeWorld ?? {}),
     ...Object.values(state.fringeWorld ?? {}).map((club) => club.clubId),
+    ...(state.commercial?.contracts ?? []).map((contract) => contract.clubId),
   ];
+
+  if (state.liveMatch) {
+    refs.push(state.liveMatch.fixture.opponent, state.liveMatch.homeClub, state.liveMatch.awayClub);
+  }
 
   if (state.football) {
     refs.push(
       ...state.football.players.map((player) => player.currentClubId),
       ...state.football.contracts.map((contract) => contract.clubId),
+      ...state.football.contractHistory.map((record) => record.clubId),
       ...state.football.transferHistory.flatMap((transfer) => [transfer.fromClubId, transfer.toClubId]),
       ...state.football.negotiations.flatMap((negotiation) => [
         negotiation.fromClubId,
