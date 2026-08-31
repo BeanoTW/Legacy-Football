@@ -1,8 +1,10 @@
 import type { FringeClubState, GameState, Position } from "./types";
 import { hashString } from "./rng";
-import { BASE_YEAR, valueForPlayer, wageForAbility } from "./recruitment";
+import { legacyTierToFootballLevel } from "./footballLevel";
+import { recruitmentPlayerValue, recruitmentWageForLevel } from "./recruitmentEconomy";
 import type { KnownPlayerSeed } from "./playerLifecycle";
 
+const BASE_YEAR = 2000;
 const FIRST_NAMES = [
   "Adam",
   "Ben",
@@ -103,17 +105,18 @@ export function projectFringePlayer(
     currentClubId: club.clubId,
     createdSeason: cohortSeason,
   };
+  const level = legacyTierToFootballLevel(club.tier);
 
   return {
     id,
     identity,
     currentAbility,
     potentialAbility,
-    marketValue: valueForPlayer(currentAbility, potentialAbility, age, club.tier),
-    wageExpectation: wageForAbility(
+    marketValue: recruitmentPlayerValue(currentAbility, potentialAbility, age, level),
+    wageExpectation: recruitmentWageForLevel(
+      level,
       currentAbility,
       club.reputation,
-      club.tier,
       age,
       potentialAbility,
     ),
