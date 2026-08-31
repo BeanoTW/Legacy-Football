@@ -21,15 +21,20 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
           p = Path('src/lib/game/__checks__/sustainability.check.ts')
           text = p.read_text()
-          pattern = re.compile(r'''  check\(\n\s*"J4\. hoarding cash while neglecting the club creates pressure",\n.*?\n\s*\);''', re.S)
-          replacement = '''  const cashRichNeglected = clone(s);\n  cashRichNeglected.cash = recommendedReserve(cashRichNeglected) * 6;\n  for (const asset of cashRichNeglected.infrastructure?.assets ?? []) {\n    asset.condition = 6;\n    asset.qualityRating = 6;\n  }\n  cashRichNeglected.fanHappiness = 12;\n  cashRichNeglected.sustainability!.excessWeeks = 60;\n  const cashRichPressure = reinvestmentPressure(cashRichNeglected);\n  check(\n    "J4. hoarding genuine surplus cash while neglecting the club creates pressure",\n    cashRichPressure.score > 0 &&\n      cashRichNeglected.cash > recommendedReserve(cashRichNeglected) &&\n      cashRichPressure.need > 0.2,\n    `pressure=${cashRichPressure.score} cash=${cashRichNeglected.cash} reserve=${recommendedReserve(cashRichNeglected)} need=${cashRichPressure.need}`,\n  );'''
-          text2, count = pattern.subn(replacement, text, count=1)
-          if count != 1:
-              raise SystemExit(f'expected one J4 block, found {count}; refusing broad edit')
-          p.write_text(text2)
+          label = '"J4. hoarding cash while neglecting the club creates pressure"'
+          j5 = '"J5. pressure gives way once surplus reserves are gone"'
+          label_at = text.find(label)
+          if label_at < 0:
+              raise SystemExit('J4 label not found')
+          start = text.rfind('  check(', 0, label_at)
+          j5_at = text.find(j5, label_at)
+          end = text.rfind('  check(', label_at, j5_at)
+          if start < 0 or j5_at < 0 or end <= start:
+              raise SystemExit(f'could not isolate J4 block: start={start} j5={j5_at} end={end}')
+          replacement = '''  const cashRichNeglected = clone(s);\n  cashRichNeglected.cash = recommendedReserve(cashRichNeglected) * 6;\n  for (const asset of cashRichNeglected.infrastructure?.assets ?? []) {\n    asset.condition = 6;\n    asset.qualityRating = 6;\n  }\n  cashRichNeglected.fanHappiness = 12;\n  cashRichNeglected.sustainability!.excessWeeks = 60;\n  const cashRichPressure = reinvestmentPressure(cashRichNeglected);\n  check(\n    "J4. hoarding genuine surplus cash while neglecting the club creates pressure",\n    cashRichPressure.score > 0 &&\n      cashRichNeglected.cash > recommendedReserve(cashRichNeglected) &&\n      cashRichPressure.need > 0.2,\n    `pressure=${cashRichPressure.score} cash=${cashRichNeglected.cash} reserve=${recommendedReserve(cashRichNeglected)} need=${cashRichPressure.need}`,\n  );\n'''
+          p.write_text(text[:start] + replacement + text[end:])
           PY
           bunx prettier --write src/lib/game/__checks__/sustainability.check.ts
       - name: Commit patch
