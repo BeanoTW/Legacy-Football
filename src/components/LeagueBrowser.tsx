@@ -45,15 +45,36 @@ export function LeagueBrowser({ state }: { state: GameState }) {
 
   const toolbar = (
     <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-        <div className="flex gap-2 overflow-x-auto p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <Segmented
-            options={leagues.map((l) => [l.id, l.name] as const)}
-            value={leagueId}
-            onChange={(v) => {
-              setLeagueId(v);
-              setClub(null);
-            }}
-          />
+      <div className="p-2 space-y-2">
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4">
+          {leagues.map((candidate) => (
+            <button
+              key={candidate.id}
+              onClick={() => {
+                setLeagueId(candidate.id);
+                setClub(null);
+              }}
+              className={cn(
+                "min-w-0 rounded-md border px-2 py-2 text-left text-xs leading-tight transition-colors",
+                candidate.id === leagueId
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "bg-background hover:bg-muted",
+              )}
+            >
+              <span className="block truncate font-medium">{candidate.name}</span>
+              <span
+                className={cn(
+                  "mt-0.5 block text-[10px]",
+                  candidate.id === leagueId ? "text-primary-foreground/80" : "text-muted-foreground",
+                )}
+              >
+                Tier {candidate.tier} · {candidate.clubIds.length} clubs
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <Segmented
             options={seasons.map(
               (s) =>
@@ -74,13 +95,14 @@ export function LeagueBrowser({ state }: { state: GameState }) {
             onChange={(v) => setView(v as View)}
           />
         </div>
-        <div className="truncate px-3 pb-2 text-xs text-muted-foreground">
-          Tier {league.tier} · {league.clubIds.length} clubs ·{" "}
-          {league.promotionPlaces > 0 ? `${league.promotionPlaces} promoted` : "top division"} ·{" "}
-          {league.relegationPlaces > 0 ? `${league.relegationPlaces} relegated` : "no relegation"}
-          {isPast && " · final records"}
-        </div>
       </div>
+      <div className="truncate px-3 pb-2 text-xs text-muted-foreground">
+        Tier {league.tier} · {league.clubIds.length} clubs ·{" "}
+        {league.promotionPlaces > 0 ? `${league.promotionPlaces} promoted` : "top division"} ·{" "}
+        {league.relegationPlaces > 0 ? `${league.relegationPlaces} relegated` : "no relegation"}
+        {isPast && " · final records"}
+      </div>
+    </div>
   );
 
   return (
