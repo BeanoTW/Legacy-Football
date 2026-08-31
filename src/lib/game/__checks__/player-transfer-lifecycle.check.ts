@@ -1,0 +1,44 @@
+import { strict as assert } from "node:assert";
+import type { FootballPlayer, GameState } from "../types";
+import {
+  materializeKnownSigningInPlace,
+  preservePlayerDepartureInPlace,
+  recordPlayerArrivalInPlace,
+} from "../playerTransferLifecycle";
+import { knownPlayerIdentity, playerFidelity, preserveKnownPlayerInPlace } from "../playerLifecycle";
+import { preserveScoutingCandidateProfileInPlace } from "../scoutingDiscovery";
+
+export function checkPlayerTransferLifecycle(state: GameState): void {
+  const source = state.football?.players.find((player) => player.currentClubId !== state.clubName);
+  if (!state.football || !source) return;
+
+  const test = structuredClone(state);
+  const original = test.football.players.find((player) => player.id === source.id) as FootballPlayer;
+  preserveKnownPlayerInPlace(test, original, ["scouted"]);
+  preserveScoutingCandidateProfileInPlace(test, original);
+  test.football.players = test.football.players.filter((player) => player.id !== original.id);
+
+  assert.equal(playerFidelity(test, original.id), "known");
+  const signed = materializeKnownSigningInPlace(test, original.id);
+  assert.ok(signed, "known player should materialize when actually signed");
+  assert.equal(signed.id, original.id, "signing must preserve stable player identity");
+  assert.equal(signed.currentClubId, test.clubName);
+  assert.equal(playerFidelity(test, original.id), "detailed");
+  assert.ok(knownPlayerIdentity(test, original.id)?.reasons.includes("owned"));
+
+  recordPlayerArrivalInPlace(test, signed, original.currentClubId, original.marketValue);
+  assert.ok(
+    knownPlayerIdentity(test, original.id)?.career.some((entry) => entry.clubId === test.clubName),
+    "arrival should be written to the cheap career ledger",
+  );
+
+  preservePlayerDepartureInPlace(test, signed, original.currentClubId, original.marketValue);
+  const known = knownPlayerIdentity(test, original.id);
+  assert.ok(known?.reasons.includes("formerPlayer"));
+  assert.ok(!known?.reasons.includes("owned"));
+  assert.equal(known?.currentClubId, original.currentClubId);
+  assert.ok(
+    known?.career.some((entry) => entry.clubId === original.currentClubId),
+    "departure should survive after detailed simulation is later dropped",
+  );
+}
