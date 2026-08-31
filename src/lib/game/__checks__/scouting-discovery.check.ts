@@ -2,6 +2,7 @@ import { newGame } from "../engine";
 import { ageOf, BASE_YEAR } from "../recruitment";
 import {
   createScoutingBrief,
+  discoveredCandidateViews,
   scoutingBrief,
   scoutingCandidateSource,
 } from "../scoutingDiscovery";
@@ -46,6 +47,7 @@ const first = createScoutingBrief(base, input);
 const second = createScoutingBrief(base, input);
 const firstBrief = scoutingBrief(first, input.id);
 const secondBrief = scoutingBrief(second, input.id);
+const views = discoveredCandidateViews(first, input.id);
 
 check("brief persists", Boolean(firstBrief && secondBrief));
 check(
@@ -57,12 +59,22 @@ check(
   "candidate ids are unique",
   new Set(firstBrief?.candidateIds ?? []).size === (firstBrief?.candidateIds.length ?? 0),
 );
+check("chairman-safe views cover every candidate", views.length === (firstBrief?.candidateIds.length ?? 0));
+check(
+  "chairman-safe views do not expose hidden ability fields",
+  views.every(
+    (view) =>
+      !("currentAbility" in (view as unknown as Record<string, unknown>)) &&
+      !("potentialAbility" in (view as unknown as Record<string, unknown>)),
+  ),
+);
 check(
   "wide-world brief reaches at least one compact Fringe player",
   (firstBrief?.candidateIds ?? []).some(
     (playerId) => scoutingCandidateSource(first, input.id, playerId) === "fringe",
   ),
 );
+check("chairman view identifies a compact-world result", views.some((view) => view.source === "fringe"));
 
 for (const playerId of firstBrief?.candidateIds ?? []) {
   const detailed = first.football?.players.find((candidate) => candidate.id === playerId);
