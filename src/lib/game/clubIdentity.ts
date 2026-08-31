@@ -25,6 +25,8 @@ declare module "./types" {
   }
 }
 
+export type ClubIdentityLookupState = Pick<GameState, "clubName" | "clubIdentity">;
+
 const USER_SLOT_KEY = "legacy-football:user-club";
 
 function opaqueClubId(key: string): ClubId {
@@ -105,7 +107,7 @@ export function ensureClubIdentityStateInPlace(state: GameState): ClubIdentitySt
   return state.clubIdentity;
 }
 
-export function clubIdForState(state: GameState, legacyClubReference: string): ClubId {
+export function clubIdForState(state: ClubIdentityLookupState, legacyClubReference: string): ClubId {
   const registry = state.clubIdentity;
   if (registry) {
     const found = Object.values(registry.clubsById).find(
@@ -116,7 +118,10 @@ export function clubIdForState(state: GameState, legacyClubReference: string): C
   return clubIdForLegacyName(legacyClubReference, state.clubName);
 }
 
-export function registeredClubDisplayName(state: GameState, id: string): string | null {
+export function registeredClubDisplayName(
+  state: ClubIdentityLookupState,
+  id: string,
+): string | null {
   return state.clubIdentity?.clubsById[id]?.displayName ?? clubDisplayNameForId(id, state.clubName);
 }
 
