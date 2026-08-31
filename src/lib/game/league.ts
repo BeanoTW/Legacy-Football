@@ -12,6 +12,7 @@
 import type { GameState, LeagueRow, MatchRecord, ScheduledFixture } from "./types";
 import { mulberry32, hashString } from "./rng";
 import { clubStrengthFor } from "./reputation";
+import { isUserClubReference } from "./clubReference";
 import {
   buildWorldSimulationPlan,
   simulationLevelForClub,
@@ -246,7 +247,7 @@ export function resolveWeek(s: GameState, week: number, userRecord?: MatchRecord
     const lid = leagueOf(f);
     const id = fixtureId(s.season, f.round, f.home, f.away, lid);
     if (s.matchRecords.some((r) => r.id === id)) continue;
-    const isUser = f.home === s.clubName || f.away === s.clubName;
+    const isUser = isUserClubReference(s, f.home) || isUserClubReference(s, f.away);
     if (isUser) {
       if (userRecord && userRecord.id === id) s.matchRecords.push(userRecord);
       continue;
