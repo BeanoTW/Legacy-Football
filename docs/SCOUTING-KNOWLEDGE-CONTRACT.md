@@ -40,6 +40,19 @@ Discovery means "we know this player exists". It does not mean a complete report
 
 Further observation progressively reveals attributes, valuation/wage confidence and personality information through the existing scouting timeline. A compact-world candidate follows the same knowledge rules as a detailed external player.
 
+## Transfer boundary
+
+A compact known player may be shortlisted, scouted and negotiated with without becoming a detailed footballer.
+
+- Opening talks adds a temporary `negotiation` lifecycle reason.
+- A compact seller valuation is derived deterministically from the saved hidden scouting profile and selling club economy; no fake detailed contract is invented.
+- Rejected, withdrawn or expired talks remove only the temporary negotiation reason. The player's known identity and written history remain.
+- Agreement alone does not require whole-club hydration.
+- **Successful transfer completion is the materialisation boundary.** Only when the player actually becomes owned does the same stable player ID enter the detailed player array and receive the user's canonical contract.
+- An outgoing owned player becomes a lightweight former-player identity once detailed simulation is no longer required. Their career ledger remains append-only.
+
+The invariant is: **simulate detail where attention and contractual ownership require it; preserve identity everywhere else.**
+
 ## Persistence
 
 Once a player becomes relevant, their identity survives reductions in simulation detail. History can outlive active simulation.
