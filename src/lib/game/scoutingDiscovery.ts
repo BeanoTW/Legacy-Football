@@ -4,6 +4,7 @@ import { absoluteWeek } from "./time";
 import { ageOf, BASE_YEAR, valueForPlayer, wageForAbility } from "./recruitment";
 import { ensureFringeWorldState } from "./fringe";
 import {
+  knownPlayerIdentity,
   preserveKnownIdentityInPlace,
   preserveKnownPlayerInPlace,
   type KnownPlayerSeed,
@@ -19,6 +20,16 @@ export interface ScoutingCandidateProfile {
   potentialAbility: number;
   marketValue: number;
   wageExpectation: number;
+}
+
+export interface DiscoveredCandidateView {
+  playerId: string;
+  name: string;
+  position: Position;
+  age: number;
+  clubId: string | null;
+  source: ScoutingCandidateSource;
+  detailed: boolean;
 }
 
 export interface ScoutingBrief {
@@ -342,6 +353,35 @@ export function scoutingCandidateProfile(
     if (profile) return profile;
   }
   return null;
+}
+
+/** Chairman-safe display model: identity only, never hidden ability. */
+export function discoveredCandidateViews(
+  state: GameState,
+  briefId: string,
+): DiscoveredCandidateView[] {
+  const brief = scoutingBrief(state, briefId);
+  if (!brief) return [];
+  return brief.candidateIds.flatMap((playerId) => {
+    const detailed = state.football?.players.find((player) => player.id === playerId);
+    const known = knownPlayerIdentity(state, playerId);
+    if (!detailed && !known) return [];
+    const dateOfBirth = detailed?.dateOfBirth ?? known!.dateOfBirth;
+    const source = brief.candidateSources?.[playerId] ?? "detailed";
+    return [
+      {
+        playerId,
+        name: detailed
+          ? `${detailed.firstName} ${detailed.lastName}`
+          : `${known!.firstName} ${known!.lastName}`,
+        position: detailed?.primaryPosition ?? known!.primaryPosition,
+        age: BASE_YEAR + state.season - 1 - dateOfBirth.year,
+        clubId: detailed?.currentClubId ?? known!.currentClubId,
+        source,
+        detailed: Boolean(detailed),
+      },
+    ];
+  });
 }
 
 export function discoveredPlayerIds(state: GameState): Set<string> {
