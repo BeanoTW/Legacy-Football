@@ -1,5 +1,6 @@
 import type { GameState, Position } from "./types";
 import { clubSimulationSeedKey } from "./clubIdentity";
+import { sameClubReference } from "./clubReference";
 import { hashString } from "./rng";
 
 export const FRINGE_SQUAD_SIZE = 20;
@@ -59,13 +60,17 @@ function makeCompactPlayer(state: GameState, clubId: string, strength: number, s
 }
 
 /**
- * Seeds compact individuals once for clubs currently outside Focus. Subsequent
- * reads retain those identities rather than regenerating a new cohort.
+ * Seeds compact individuals once for clubs currently outside Focus. Existing
+ * compact identities are deliberately retained when a club enters Focus: the
+ * fidelity boundary must not destroy history. When that club later returns to
+ * Fringe, these same identities are reused instead of generating a new squad.
  */
 export function ensurePersistentFringePlayers(state: GameState): FringePlayerWorld {
   const world = state.fringePlayers ?? {};
   for (const club of Object.values(state.fringeWorld ?? {})) {
-    const existing = Object.values(world).filter((player) => player.currentClubId === club.clubId);
+    const existing = Object.values(world).filter((player) =>
+      sameClubReference(state, player.currentClubId, club.clubId),
+    );
     if (existing.length >= FRINGE_SQUAD_SIZE) continue;
     const existingIds = new Set(existing.map((player) => player.playerId));
     for (let slot = 0; slot < FRINGE_SQUAD_SIZE; slot += 1) {
@@ -79,6 +84,6 @@ export function ensurePersistentFringePlayers(state: GameState): FringePlayerWor
 
 export function fringePlayersForClub(state: GameState, clubId: string): CompactFringePlayer[] {
   return Object.values(ensurePersistentFringePlayers(state))
-    .filter((player) => player.currentClubId === clubId)
+    .filter((player) => sameClubReference(state, player.currentClubId, clubId))
     .sort((a, b) => a.playerId.localeCompare(b.playerId));
 }
