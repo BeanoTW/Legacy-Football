@@ -3,6 +3,8 @@ import { ArrowLeft, Binoculars, CheckCircle2, Handshake, Search, Star } from "lu
 import type { GameState, Position } from "@/lib/game/types";
 import {
   askingPrice,
+  canAuthorisePurchase,
+  canAuthoriseWage,
   transferMarket,
   playerName,
   ageOf,
@@ -10,6 +12,8 @@ import {
   shortlistIds,
   submitTransferOffer,
   toggleShortlist,
+  userWageBill,
+  wageDemand,
 } from "@/lib/game/recruitment";
 import { scoutingAssignment, scoutingReport, startScouting } from "@/lib/game/scouting";
 import { fmtMoney } from "@/lib/game/engine";
@@ -61,7 +65,10 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
     </DetailScreen>
   );
 
-  const toolbar = <div className="space-y-1.5">{note && <div className="truncate rounded-lg border bg-muted/40 px-3 py-1.5 text-xs">{note}</div>}<div className="flex flex-wrap items-center gap-1 text-[11px]"><span className="rounded-md bg-muted px-2 py-1 font-semibold">{position === "ALL" ? "All positions" : position}</span>{willingOnly && <span className="rounded-md bg-muted px-2 py-1">Willing</span>}{freeAgentsOnly && <span className="rounded-md bg-muted px-2 py-1">Free agents</span>}{watchedOnly && <span className="rounded-md bg-muted px-2 py-1">Shortlist</span>}<button onClick={() => setSearched(false)} className="ml-auto rounded-md border px-2 py-1 font-semibold">Filters</button></div></div>;
+  const wageCeiling = state.finance?.budgets?.wages ?? 0;
+  const wageBill = userWageBill(state);
+  const wageHeadroom = wageCeiling > 0 ? Math.max(0, wageCeiling - wageBill) : null;
+  const toolbar = <div className="space-y-1.5">{note && <div className="truncate rounded-lg border bg-muted/40 px-3 py-1.5 text-xs">{note}</div>}<div className="flex flex-wrap items-center gap-1 text-[11px]"><span className="rounded-md bg-muted px-2 py-1 font-semibold">Cash {fmtMoney(state.cash)}</span><span className="rounded-md bg-muted px-2 py-1 font-semibold">Wages {fmtMoney(wageBill)}/wk{wageHeadroom !== null ? ` · ${fmtMoney(wageHeadroom)} headroom` : ""}</span><span className="rounded-md bg-muted px-2 py-1">{position === "ALL" ? "All positions" : position}</span>{willingOnly && <span className="rounded-md bg-muted px-2 py-1">Willing</span>}{freeAgentsOnly && <span className="rounded-md bg-muted px-2 py-1">Free agents</span>}{watchedOnly && <span className="rounded-md bg-muted px-2 py-1">Shortlist</span>}<button onClick={() => setSearched(false)} className="ml-auto rounded-md border px-2 py-1 font-semibold">Filters</button></div></div>;
 
   return <DetailScreen title="Find players" subtitle={`${rows.length} matching players`} actions={<Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="mr-2 size-4" /> Back</Button>} toolbar={toolbar} className="touch-pan-y grid gap-1.5 xl:grid-cols-2 xl:items-start">
     {rows.length === 0 && <div className="rounded-xl border bg-card p-4 text-sm text-muted-foreground">No players match those filters.</div>}
@@ -71,11 +78,18 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
       const interest = playerInterestAssessment(state, player);
       const watched = shortlistIds(state).includes(player.id);
       const freeAgent = player.currentClubId === null;
+      const fee = freeAgent ? 0 : askingPrice(state, player);
+      const demand = wageDemand(state, player);
+      const feeAuthority = canAuthorisePurchase(state, fee);
+      const wageAuthority = canAuthoriseWage(state, demand);
+      const affordable = feeAuthority.allowed && wageAuthority.allowed;
+      const affordabilityReason = !feeAuthority.allowed ? feeAuthority.reason : !wageAuthority.allowed ? wageAuthority.reason : "Fee and expected wage fit current authority";
       return <article key={player.id} className="rounded-lg border bg-card p-2.5 shadow-sm">
         <div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="flex items-center gap-1.5"><span className="truncate font-display text-base">{playerName(player)}</span><span className={cn("rounded border px-1 py-0.5 text-[9px] font-bold", POSITION_BADGE_CLASS[player.primaryPosition])}>{player.primaryPosition}</span></div><div className="text-[10px] text-muted-foreground">{ageOf(player, state.season)}y · {player.nationality} · {player.currentClubId ?? "Free agent"}</div></div><div className="shrink-0 text-right"><div className="font-display text-base">{report.knowledgePct}%</div><div className="text-[8px] text-muted-foreground">knowledge</div></div></div>
         <div className="mt-1.5 grid grid-cols-5 gap-1">{report.attributes.map((attr) => <div key={attr.key} className="rounded bg-muted/50 px-1 py-0.5"><div className="truncate text-[8px] text-muted-foreground">{attr.label}</div><div className="text-[10px] font-semibold tabular-nums">{!attr.known ? "?" : attr.exact !== undefined ? attr.exact : `${attr.min}–${attr.max}`}</div></div>)}</div>
         <div className="mt-1.5 grid grid-cols-2 gap-x-3 text-[10px]"><span>Value <strong>{report.valueRange ? `${fmtMoney(report.valueRange[0])}–${fmtMoney(report.valueRange[1])}` : "?"}</strong></span><span>Wage <strong>{report.wageRange ? `${fmtMoney(report.wageRange[0])}–${fmtMoney(report.wageRange[1])}/wk` : "?"}</strong></span><span>Interest <strong title={interest.reason}>{interest.label}</strong></span><span>{assignment ? (report.complete ? "Full report" : "Scouting active") : "Not scouted"}</span></div>
-        <div className="mt-1.5 flex flex-wrap gap-1"><Button size="sm" variant={watched ? "default" : "outline"} className="h-7 px-2 text-[10px]" onClick={() => update((s) => toggleShortlist(s, player.id))}><Star className={cn("mr-1 size-3", watched && "fill-current")} />{watched ? "Shortlisted" : "Shortlist"}</Button>{!assignment ? <Button size="sm" className="h-7 px-2 text-[10px]" onClick={() => update((s) => startScouting(s, player.id))}><Binoculars className="mr-1 size-3" /> Scout</Button> : report.complete ? <span className="inline-flex items-center px-1 text-[10px] font-semibold text-[color:var(--color-income)]"><CheckCircle2 className="mr-1 size-3" /> Full report</span> : <span className="px-1 text-[10px] text-muted-foreground"><Binoculars className="mr-1 inline size-3" /> Scouting</span>}<Button size="sm" variant="secondary" className="h-7 px-2 text-[10px]" onClick={() => approach(player.id, freeAgent ? 0 : askingPrice(state, player))}><Handshake className="mr-1 size-3" /> {freeAgent ? "Approach player" : "Approach club"}</Button></div>
+        <div className={cn("mt-1.5 rounded-md border px-2 py-1 text-[10px]", affordable ? "bg-muted/40" : "border-destructive/40 bg-destructive/5")} title={affordabilityReason}><span className="font-semibold">{affordable ? "Affordable" : "Outside authority"}</span> · {freeAgent ? "No fee" : `${fmtMoney(fee)} asking price`} · ~{fmtMoney(demand)}/wk expected</div>
+        <div className="mt-1.5 flex flex-wrap gap-1"><Button size="sm" variant={watched ? "default" : "outline"} className="h-7 px-2 text-[10px]" onClick={() => update((s) => toggleShortlist(s, player.id))}><Star className={cn("mr-1 size-3", watched && "fill-current")} />{watched ? "Shortlisted" : "Shortlist"}</Button>{!assignment ? <Button size="sm" className="h-7 px-2 text-[10px]" onClick={() => update((s) => startScouting(s, player.id))}><Binoculars className="mr-1 size-3" /> Scout</Button> : report.complete ? <span className="inline-flex items-center px-1 text-[10px] font-semibold text-[color:var(--color-income)]"><CheckCircle2 className="mr-1 size-3" /> Full report</span> : <span className="px-1 text-[10px] text-muted-foreground"><Binoculars className="mr-1 inline size-3" /> Scouting</span>}<Button size="sm" variant="secondary" className="h-7 px-2 text-[10px]" onClick={() => approach(player.id, fee)}><Handshake className="mr-1 size-3" /> {freeAgent ? "Approach player" : "Approach club"}</Button></div>
       </article>;
     })}
   </DetailScreen>;
