@@ -1,10 +1,15 @@
 import { strict as assert } from "node:assert";
 import { CLUBS } from "../clubs";
+import { newGame } from "../newGame";
 import {
   BUILTIN_CLUB_IDENTITIES,
   clubDisplayNameForId,
   clubIdForLegacyName,
+  clubIdForState,
+  ensureClubIdentityStateInPlace,
   isOpaqueClubId,
+  registeredClubDisplayName,
+  renameRegisteredClubInPlace,
   userClubId,
 } from "../clubIdentity";
 
@@ -27,5 +32,21 @@ const customA = clubIdForLegacyName("Historic Custom Club");
 const customB = clubIdForLegacyName("Historic Custom Club");
 assert.equal(customA, customB, "legacy custom migration must be deterministic");
 assert.ok(isOpaqueClubId(customA));
+
+const state = newGame(userName, "Identity Auditor", "CLUB_IDENTITY_AUDIT");
+const registry = ensureClubIdentityStateInPlace(state);
+assert.equal(registry.userClubId, userId);
+assert.equal(registry.clubsById[userId]?.displayName, userName);
+const builtInName = state.leagues.flatMap((league) => league.clubIds).find((club) => club !== userName);
+if (!builtInName) throw new Error("built-in club missing");
+const builtInId = clubIdForState(state, builtInName);
+assert.equal(registry.clubsById[builtInId]?.displayName, builtInName);
+
+const beforeRenameId = registry.userClubId;
+assert.equal(renameRegisteredClubInPlace(state, beforeRenameId, "Renamed United"), true);
+assert.equal(state.clubName, "Renamed United");
+assert.equal(state.clubIdentity?.userClubId, beforeRenameId, "display rename must not change identity");
+assert.equal(registeredClubDisplayName(state, beforeRenameId), "Renamed United");
+assert.equal(ensureClubIdentityStateInPlace(state), registry, "registry seeding must be idempotent");
 
 console.log("\nclub-identity: passed");
