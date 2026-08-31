@@ -1,4 +1,5 @@
 import type { GameState } from "./types";
+import { isUserClubReference } from "./clubReference";
 
 /**
  * Simulation fidelity is deliberately separate from league tier.
@@ -55,7 +56,10 @@ function uniqueSorted(values: readonly string[]): string[] {
  * unmodelled boundary.
  */
 export function buildWorldSimulationPlan(
-  state: Pick<GameState, "season" | "clubName" | "playerLeagueId" | "leagues" | "trackedClubIds">,
+  state: Pick<
+    GameState,
+    "season" | "clubName" | "playerLeagueId" | "leagues" | "trackedClubIds" | "clubIdentity"
+  >,
   options: WorldFocusOptions = {},
 ): WorldSimulationPlan {
   const playerLeague = state.leagues.find((league) => league.id === state.playerLeagueId);
@@ -86,7 +90,7 @@ export function buildWorldSimulationPlan(
     for (const clubId of uniqueSorted(league.clubIds)) {
       const reasons: WorldFocusReason[] = [];
 
-      if (clubId === state.clubName) reasons.push("playerClub");
+      if (isUserClubReference(state as GameState, clubId)) reasons.push("playerClub");
       if (league.id === playerLeague.id) reasons.push("sameLeague");
       if (includeAdjacent && league.tier === playerLeague.tier - 1)
         reasons.push("promotionNeighbour");
