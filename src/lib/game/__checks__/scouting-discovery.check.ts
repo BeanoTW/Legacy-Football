@@ -141,6 +141,25 @@ lifecycle.football!.players = lifecycle.football!.players.filter((player) => pla
 check("identity survives detailed-player removal", playerFidelity(lifecycle, sample.id) === "known");
 check("stable identity survives compaction", knownPlayerIdentity(lifecycle, sample.id)?.playerId === sample.id);
 
+const detailedScouting = startScouting(base, sample.id);
+check("detailed external player can start scouting", Boolean(scoutingAssignment(detailedScouting, sample.id)));
+detailedScouting.football!.players = detailedScouting.football!.players.filter(
+  (player) => player.id !== sample.id,
+);
+check(
+  "scouted detailed player becomes known after Focus compaction",
+  playerFidelity(detailedScouting, sample.id) === "known",
+);
+check(
+  "scouting report survives detailed-player compaction",
+  Boolean(scoutingReportById(detailedScouting, sample.id)),
+);
+progressScoutingWeekInPlace(detailedScouting);
+check(
+  "assignment continues after detailed-player compaction",
+  (scoutingAssignment(detailedScouting, sample.id)?.weeksObserved ?? 0) > 0,
+);
+
 const remembered = setRememberPlayer(base, sample.id, true);
 check("remember player persists identity", Boolean(knownPlayerIdentity(remembered, sample.id)));
 check("remember player sets tracking flag", knownPlayerIdentity(remembered, sample.id)?.remembered === true);
