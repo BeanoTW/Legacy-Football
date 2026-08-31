@@ -14,6 +14,8 @@ export interface CompactFringePlayer {
   potentialAbility: number;
   currentClubId: string;
   contractExpirySeason: number;
+  lastDevelopedSeason: number;
+  retired?: boolean;
 }
 
 export type FringePlayerWorld = Record<string, CompactFringePlayer>;
@@ -23,6 +25,8 @@ declare module "./types" {
     fringePlayers?: FringePlayerWorld;
   }
 }
+
+const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
 function unsignedHash(value: string): number {
   return hashString(value) >>> 0;
@@ -42,7 +46,7 @@ function makeCompactPlayer(state: GameState, clubId: string, strength: number, s
   const key = `${state.saveSeed}|fringe-player|${clubSeed}|${slot}`;
   const age = 18 + (unsignedHash(`${key}|age`) % 17);
   const abilityNoise = (unsignedHash(`${key}|ability`) % 15) - 7;
-  const currentAbility = Math.max(30, Math.min(95, Math.round(strength + abilityNoise)));
+  const currentAbility = clamp(Math.round(strength + abilityNoise), 30, 95);
   const potentialBoost = age < 24 ? 3 + (unsignedHash(`${key}|potential`) % 14) : 0;
   return {
     playerId: compactPlayerId(state, clubId, slot),
@@ -56,7 +60,56 @@ function makeCompactPlayer(state: GameState, clubId: string, strength: number, s
     potentialAbility: Math.max(currentAbility, Math.min(97, currentAbility + potentialBoost)),
     currentClubId: clubId,
     contractExpirySeason: state.season + 1 + (unsignedHash(`${key}|contract`) % 4),
+    lastDevelopedSeason: state.season,
   };
+}
+
+function playerAgeInSeason(player: CompactFringePlayer, season: number): number {
+  return 2000 + season - 1 - player.dateOfBirth.year;
+}
+
+function seasonalAbilityDelta(state: GameState, player: CompactFringePlayer, season: number): number {
+  const age = playerAgeInSeason(player, season);
+  const variance = (unsignedHash(`${state.saveSeed}|fringe-development|${player.playerId}|s${season}`) % 3) - 1;
+  if (age <= 20) return player.currentAbility < player.potentialAbility ? Math.max(0, 2 + variance) : 0;
+  if (age <= 23) return player.currentAbility < player.potentialAbility ? Math.max(0, 1 + variance) : 0;
+  if (age <= 28) return variance > 0 && player.currentAbility < player.potentialAbility ? 1 : 0;
+  if (age <= 31) return variance < 0 ? -1 : 0;
+  if (age <= 34) return -1 + Math.min(0, variance);
+  return -2 + Math.min(0, variance);
+}
+
+function retiresInSeason(state: GameState, player: CompactFringePlayer, season: number): boolean {
+  const age = playerAgeInSeason(player, season);
+  if (age < 34) return false;
+  if (age >= 39) return true;
+  const threshold = (age - 33) * 14;
+  return unsignedHash(`${state.saveSeed}|fringe-retirement|${player.playerId}|s${season}`) % 100 < threshold;
+}
+
+/** Cheap deterministic season-level development: no matches, training, morale or injuries. */
+export function advancePersistentFringePlayersToSeason(state: GameState): FringePlayerWorld {
+  const world = ensurePersistentFringePlayers(state);
+  for (const player of Object.values(world)) {
+    if (player.retired) continue;
+    let season = player.lastDevelopedSeason ?? state.season;
+    while (season < state.season) {
+      season += 1;
+      if (retiresInSeason(state, player, season)) {
+        player.retired = true;
+        player.lastDevelopedSeason = season;
+        break;
+      }
+      player.currentAbility = clamp(
+        player.currentAbility + seasonalAbilityDelta(state, player, season),
+        20,
+        player.potentialAbility,
+      );
+      player.lastDevelopedSeason = season;
+    }
+  }
+  state.fringePlayers = world;
+  return world;
 }
 
 /**
@@ -84,6 +137,6 @@ export function ensurePersistentFringePlayers(state: GameState): FringePlayerWor
 
 export function fringePlayersForClub(state: GameState, clubId: string): CompactFringePlayer[] {
   return Object.values(ensurePersistentFringePlayers(state))
-    .filter((player) => sameClubReference(state, player.currentClubId, clubId))
+    .filter((player) => !player.retired && sameClubReference(state, player.currentClubId, clubId))
     .sort((a, b) => a.playerId.localeCompare(b.playerId));
 }
