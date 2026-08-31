@@ -1,4 +1,5 @@
 import { strict as assert } from "node:assert";
+import { newGame } from "../engine";
 import type { FootballPlayer, GameState } from "../types";
 import {
   materializeKnownSigningInPlace,
@@ -9,8 +10,10 @@ import { knownPlayerIdentity, playerFidelity, preserveKnownPlayerInPlace } from 
 import { preserveScoutingCandidateProfileInPlace } from "../scoutingDiscovery";
 
 export function checkPlayerTransferLifecycle(state: GameState): void {
-  const source = state.football?.players.find((player) => player.currentClubId !== state.clubName);
-  if (!state.football || !source) return;
+  const source = state.football?.players.find(
+    (player) => player.currentClubId !== state.clubName && player.currentClubId !== null,
+  );
+  if (!state.football || !source) throw new Error("detailed external player missing");
 
   const test = structuredClone(state);
   const original = test.football.players.find((player) => player.id === source.id) as FootballPlayer;
@@ -42,3 +45,7 @@ export function checkPlayerTransferLifecycle(state: GameState): void {
     "departure should survive after detailed simulation is later dropped",
   );
 }
+
+const base = newGame("Lifecycle Audit FC", "Auditor", "PLAYER_TRANSFER_LIFECYCLE_AUDIT");
+checkPlayerTransferLifecycle(base);
+console.log("\nplayer-transfer-lifecycle: passed");
