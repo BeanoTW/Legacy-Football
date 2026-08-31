@@ -90,7 +90,7 @@ export function buildWorldSimulationPlan(
     for (const clubId of uniqueSorted(league.clubIds)) {
       const reasons: WorldFocusReason[] = [];
 
-      if (isUserClubReference(state as GameState, clubId)) reasons.push("playerClub");
+      if (isUserClubReference(state, clubId)) reasons.push("playerClub");
       if (league.id === playerLeague.id) reasons.push("sameLeague");
       if (includeAdjacent && league.tier === playerLeague.tier - 1)
         reasons.push("promotionNeighbour");
