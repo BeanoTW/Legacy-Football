@@ -1,4 +1,12 @@
 import type { GameState } from "./types";
+import { WORLD_DIVISIONS, promotionDestinationsForDefinition } from "./worldPyramid";
+
+/**
+ * Detailed squads are the expensive boundary, so automatic focus expansion is
+ * capped independently of total world size. Explicitly tracked/recent clubs
+ * consume the same budget instead of silently making the boundary unbounded.
+ */
+export const MAX_FOCUS_CLUBS = 60;
 
 /**
  * Simulation fidelity is deliberately separate from league tier.
@@ -45,6 +53,29 @@ function uniqueSorted(values: readonly string[]): string[] {
   return [...new Set(values)].sort((a, b) => a.localeCompare(b));
 }
 
+function connectedLeagueIds(
+  playerLeagueId: string,
+  playerTier: number,
+  leagues: readonly { id: string; tier: number }[],
+): string[] {
+  const leagueIds = new Set(leagues.map((league) => league.id));
+  const definition = WORLD_DIVISIONS.find((candidate) => candidate.id === playerLeagueId);
+  if (!definition) {
+    return leagues
+      .filter((candidate) => Math.abs(candidate.tier - playerTier) === 1)
+      .map((candidate) => candidate.id)
+      .sort((a, b) => a.localeCompare(b));
+  }
+
+  const upward = promotionDestinationsForDefinition(definition).filter((id) => leagueIds.has(id));
+  const downward = WORLD_DIVISIONS.filter(
+    (candidate) =>
+      leagueIds.has(candidate.id) &&
+      promotionDestinationsForDefinition(candidate).includes(playerLeagueId),
+  ).map((candidate) => candidate.id);
+  return uniqueSorted([...upward, ...downward]);
+}
+
 /**
  * Pure deterministic planner for world simulation fidelity.
  *
@@ -69,15 +100,27 @@ export function buildWorldSimulationPlan(
   const includeAdjacent = options.includeAdjacentLeagues ?? true;
 
   if (includeAdjacent) {
-    for (const league of state.leagues) {
-      if (Math.abs(league.tier - playerLeague.tier) === 1) {
-        focusLeagueIds.add(league.id);
-      }
+    const connected = connectedLeagueIds(playerLeague.id, playerLeague.tier, state.leagues);
+    for (const leagueId of connected) {
+      const clubCount = state.leagues.find((league) => league.id === leagueId)?.clubIds.length ?? 0;
+      const selectedCount = state.leagues
+        .filter((league) => focusLeagueIds.has(league.id))
+        .reduce((total, league) => total + league.clubIds.length, 0);
+      if (selectedCount + clubCount <= MAX_FOCUS_CLUBS) focusLeagueIds.add(leagueId);
     }
   }
 
   const tracked = new Set([...(state.trackedClubIds ?? []), ...(options.trackedClubIds ?? [])]);
   const recent = new Set(options.recentOpponentIds ?? []);
+  const selectedFocusClubIds = new Set(
+    state.leagues
+      .filter((league) => focusLeagueIds.has(league.id))
+      .flatMap((league) => league.clubIds),
+  );
+  for (const clubId of uniqueSorted([...tracked, ...recent])) {
+    if (selectedFocusClubIds.size >= MAX_FOCUS_CLUBS) break;
+    selectedFocusClubIds.add(clubId);
+  }
 
   const clubs: WorldClubSimulationProfile[] = [];
   for (const league of [...state.leagues].sort(
@@ -88,9 +131,9 @@ export function buildWorldSimulationPlan(
 
       if (clubId === state.clubName) reasons.push("playerClub");
       if (league.id === playerLeague.id) reasons.push("sameLeague");
-      if (includeAdjacent && league.tier === playerLeague.tier - 1)
+      if (includeAdjacent && focusLeagueIds.has(league.id) && league.tier < playerLeague.tier)
         reasons.push("promotionNeighbour");
-      if (includeAdjacent && league.tier === playerLeague.tier + 1)
+      if (includeAdjacent && focusLeagueIds.has(league.id) && league.tier > playerLeague.tier)
         reasons.push("relegationNeighbour");
       if (recent.has(clubId)) reasons.push("recentOpponent");
       if (tracked.has(clubId)) reasons.push("tracked");
@@ -99,7 +142,7 @@ export function buildWorldSimulationPlan(
         clubId,
         leagueId: league.id,
         tier: league.tier,
-        level: reasons.length > 0 ? "focus" : "fringe",
+        level: selectedFocusClubIds.has(clubId) ? "focus" : "fringe",
         reasons,
       });
     }

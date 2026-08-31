@@ -1,9 +1,11 @@
 import {
   buildWorldSimulationPlan,
+  MAX_FOCUS_CLUBS,
   simulationLevelForClub,
   worldSimulationPlanSignature,
 } from "../world";
 import type { League } from "../types";
+import { newGame } from "../newGame";
 
 const leagues: League[] = [
   {
@@ -102,5 +104,21 @@ try {
   missingLeagueRejected = true;
 }
 assert(missingLeagueRejected, "missing player league must fail loudly");
+
+const expanded = newGame("Focus Bound FC", "Boundary Tester", "focus-bound-seed");
+const bounded = buildWorldSimulationPlan({
+  ...expanded,
+  clubName: expanded.leagues.find((league) => league.id === "league-4")!.clubIds[0],
+  playerLeagueId: "league-4",
+  trackedClubIds: [],
+});
+assert(
+  bounded.focusClubIds.length === MAX_FOCUS_CLUBS,
+  "parallel adjacent lanes must never make the detailed focus boundary unbounded",
+);
+assert(
+  bounded.focusLeagueIds.filter((leagueId) => leagueId.startsWith("regional-")).length === 1,
+  "Division Four focus must select one deterministic regional lane rather than hydrating all four",
+);
 
 console.log("world-focus.check.ts: PASS");
