@@ -40,6 +40,18 @@ export interface KnownPlayerIdentity {
   career: PlayerCareerLedgerEntry[];
 }
 
+/** Identity seed used when scouting discovers someone outside detailed simulation. */
+export interface KnownPlayerSeed {
+  playerId: string;
+  firstName: string;
+  lastName: string;
+  dateOfBirth: FootballPlayer["dateOfBirth"];
+  nationality: string;
+  primaryPosition: Position;
+  currentClubId: string | null;
+  createdSeason: number;
+}
+
 export interface PlayerLifecycleState {
   knownPlayers: KnownPlayerIdentity[];
 }
@@ -77,6 +89,47 @@ function mergeReasons(
   return [...new Set([...existing, ...additions])];
 }
 
+/**
+ * Persist a stable identity without requiring a detailed FootballPlayer.
+ * This is the bridge that lets scouting discover people in the compact world
+ * without hydrating an entire club squad.
+ */
+export function preserveKnownIdentityInPlace(
+  state: GameState,
+  seed: KnownPlayerSeed,
+  reasons: PlayerIdentityReason[],
+  remembered = false,
+): KnownPlayerIdentity | null {
+  if (!state.football) return null;
+  state.football.playerLifecycle ??= { knownPlayers: [] };
+  const existing = state.football.playerLifecycle.knownPlayers.find(
+    (known) => known.playerId === seed.playerId,
+  );
+  if (existing) {
+    existing.currentClubId = seed.currentClubId;
+    existing.reasons = mergeReasons(existing.reasons, reasons);
+    existing.remembered ||= remembered;
+    return existing;
+  }
+
+  const identity: KnownPlayerIdentity = {
+    playerId: seed.playerId,
+    firstName: seed.firstName,
+    lastName: seed.lastName,
+    dateOfBirth: { ...seed.dateOfBirth },
+    nationality: seed.nationality,
+    primaryPosition: seed.primaryPosition,
+    currentClubId: seed.currentClubId,
+    createdSeason: seed.createdSeason,
+    lastDetailedSeason: state.season,
+    reasons: [...new Set(reasons)],
+    remembered,
+    career: [],
+  };
+  state.football.playerLifecycle.knownPlayers.push(identity);
+  return identity;
+}
+
 /** Persist identity before dropping detailed simulation. Idempotent by player id. */
 export function preserveKnownPlayerInPlace(
   state: GameState,
@@ -84,34 +137,22 @@ export function preserveKnownPlayerInPlace(
   reasons: PlayerIdentityReason[],
   remembered = false,
 ): KnownPlayerIdentity | null {
-  if (!state.football) return null;
-  state.football.playerLifecycle ??= { knownPlayers: [] };
-  const existing = state.football.playerLifecycle.knownPlayers.find(
-    (known) => known.playerId === player.id,
-  );
-  if (existing) {
-    existing.currentClubId = player.currentClubId;
-    existing.lastDetailedSeason = state.season;
-    existing.reasons = mergeReasons(existing.reasons, reasons);
-    existing.remembered ||= remembered;
-    return existing;
-  }
-
-  const identity: KnownPlayerIdentity = {
-    playerId: player.id,
-    firstName: player.firstName,
-    lastName: player.lastName,
-    dateOfBirth: { ...player.dateOfBirth },
-    nationality: player.nationality,
-    primaryPosition: player.primaryPosition,
-    currentClubId: player.currentClubId,
-    createdSeason: player.createdSeason,
-    lastDetailedSeason: state.season,
-    reasons: [...new Set(reasons)],
+  const identity = preserveKnownIdentityInPlace(
+    state,
+    {
+      playerId: player.id,
+      firstName: player.firstName,
+      lastName: player.lastName,
+      dateOfBirth: player.dateOfBirth,
+      nationality: player.nationality,
+      primaryPosition: player.primaryPosition,
+      currentClubId: player.currentClubId,
+      createdSeason: player.createdSeason,
+    },
+    reasons,
     remembered,
-    career: [],
-  };
-  state.football.playerLifecycle.knownPlayers.push(identity);
+  );
+  if (identity) identity.lastDetailedSeason = state.season;
   return identity;
 }
 
