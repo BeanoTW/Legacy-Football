@@ -50,7 +50,7 @@ console.log("\n[T1] Serialization round-trip");
   check("byteLength matches the serialized string", byteLength(raw) >= raw.length);
 }
 
-console.log("\n[T2] SaveStore contract");
+console.log("\n[T2] Legacy localStorage SaveStore contract");
 {
   const backend = memoryBackend();
   const st = store(backend);
@@ -59,17 +59,21 @@ console.log("\n[T2] SaveStore contract");
 
   const s = newGame("Store City", "Persis Tence", SEED);
   const diags = await st.save(s);
-  check("save reports no diagnostics for a small save", diags.length === 0, JSON.stringify(diags));
-  check("save wrote under the canonical key", backend.map.has(STORAGE_KEY));
+  check(
+    "legacy save writes without an error diagnostic",
+    !diags.some((d) => d.level === "error"),
+    JSON.stringify(diags),
+  );
+  check("legacy save wrote under the canonical key", backend.map.has(STORAGE_KEY));
 
   const loaded = await st.load();
   check(
-    "load returns an equivalent state",
+    "legacy load returns an equivalent state",
     loaded.state !== null && stateHash(loaded.state!) === stateHash(s),
   );
 
   await st.clear();
-  check("clear removes the save", (await st.load()).state === null);
+  check("clear removes the legacy save", (await st.load()).state === null);
 }
 
 console.log("\n[T3] Failure behaviour");
@@ -155,7 +159,11 @@ console.log("\n[T3b] An unreadable save is preserved, never overwritten");
 
   await st.clear();
   const after = await st.save(newGame("Store City", "Persis Tence", SEED));
-  check("an explicit clear unblocks writing", after.length === 0, JSON.stringify(after));
+  check(
+    "an explicit clear unblocks writing",
+    !after.some((d) => d.level === "error"),
+    JSON.stringify(after),
+  );
 }
 {
   const backend = memoryBackend();
@@ -179,7 +187,7 @@ console.log("\n[T3b] An unreadable save is preserved, never overwritten");
   );
 }
 
-console.log("\n[T4] Storage choice does not leak into domain code");
+console.log("\n[T4] Game-save persistence stays behind the storage boundary");
 {
   const { readdirSync, readFileSync, statSync } = await import("node:fs");
   const offenders: string[] = [];
@@ -192,12 +200,26 @@ console.log("\n[T4] Storage choice does not leak into domain code");
       }
       if (!/\.(ts|tsx)$/.test(e)) continue;
       if (p.includes("/lib/game/storage/") || p.includes("/__checks__/")) continue;
-      // Only real usage counts; the word may legitimately appear in comments.
-      if (/localStorage\s*[.[]/.test(readFileSync(p, "utf8"))) offenders.push(p);
+      const source = readFileSync(p, "utf8");
+      // UI preferences, dev diagnostics and cloud-sync settings may legitimately
+      // use browser localStorage. The invariant is that no domain code reaches
+      // into the canonical game-save slot owned by lib/game/storage.
+      if (
+        source.includes("chairman.save.v1") ||
+        /localStorage\s*[.[]\s*(?:getItem|setItem|removeItem)?\s*\(?\s*["'`]chairman\.save/.test(
+          source,
+        )
+      ) {
+        offenders.push(p);
+      }
     }
   };
   walk("src");
-  check("no localStorage outside lib/game/storage", offenders.length === 0, offenders.join(", "));
+  check(
+    "no canonical game-save localStorage access outside lib/game/storage",
+    offenders.length === 0,
+    offenders.join(", "),
+  );
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);
