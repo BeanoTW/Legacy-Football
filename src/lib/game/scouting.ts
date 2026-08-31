@@ -6,7 +6,10 @@ import {
   knownPlayerIdentity,
   preserveKnownPlayerInPlace,
 } from "./playerLifecycle";
-import { scoutingCandidateProfile } from "./scoutingDiscovery";
+import {
+  preserveScoutingCandidateProfileInPlace,
+  scoutingCandidateProfile,
+} from "./scoutingDiscovery";
 
 export type PlayerAttributeKey =
   | "pace"
@@ -168,7 +171,10 @@ export function startScouting(state: GameState, playerId: string): GameState {
   if (!player || player.currentClubId === next.clubName) return next;
 
   const detailed = next.football.players.find((candidate) => candidate.id === playerId);
-  if (detailed) preserveKnownPlayerInPlace(next, detailed, ["scouted"]);
+  if (detailed) {
+    preserveKnownPlayerInPlace(next, detailed, ["scouted"]);
+    preserveScoutingCandidateProfileInPlace(next, detailed);
+  }
 
   next.football.scouting ??= { assignments: [] };
   if (next.football.scouting.assignments.some((assignment) => assignment.playerId === playerId)) {
