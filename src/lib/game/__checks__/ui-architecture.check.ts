@@ -57,6 +57,7 @@ console.log("\n[U2] Navigation completeness");
   const EXPECTED = [
     "inbox",
     "hub",
+    "squad",
     "board",
     "commercial",
     "dashboard",
@@ -69,6 +70,7 @@ console.log("\n[U2] Navigation completeness");
     "leagues",
     "world",
     "history",
+    "settings",
   ];
   const registered = [...tabs.matchAll(/\["([a-z]+)",\s*"/g)].map((m) => m[1]);
   check(
@@ -87,7 +89,7 @@ console.log("\n[U2] Navigation completeness");
     unresolved.length === 0,
     unresolved.join(","),
   );
-  const RETIRED = ["squad", "transfers", "scouting", "finances"];
+  const RETIRED = ["transfers", "scouting", "finances"];
   check(
     "no retired legacy tab has returned",
     RETIRED.every((t) => !registered.includes(t)),
@@ -98,7 +100,7 @@ console.log("\n[U2] Navigation completeness");
   );
   check(
     "primary mobile tabs match the chairman core flow",
-    /PRIMARY_TAB_IDS: Tab\[\] = \["hub", "inbox", "recruitment", "cashflow"\]/.test(tabs),
+    /PRIMARY_TAB_IDS: Tab\[\] = \["hub", "inbox", "squad", "recruitment"\]/.test(tabs),
   );
 }
 
@@ -152,7 +154,7 @@ console.log("\n[U4] Import direction");
   check(
     "extracted screens all export a component",
     screens
-      .filter((f) => !/shared\/|tabs\.ts$/.test(f))
+      .filter((f) => !/shared\/|tabs\.ts$|playerPosition\.ts$/.test(f))
       .every((f) => /export function [A-Z]/.test(read(f))),
   );
 }
