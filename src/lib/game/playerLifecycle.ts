@@ -156,6 +156,22 @@ export function preserveKnownPlayerInPlace(
   return identity;
 }
 
+/** Toggle one relevance reason without deleting the identity or its history. */
+export function setKnownPlayerReasonInPlace(
+  state: GameState,
+  playerId: string,
+  reason: PlayerIdentityReason,
+  enabled: boolean,
+): boolean {
+  const known = knownPlayerIdentity(state, playerId);
+  if (!known) return false;
+  known.reasons = enabled
+    ? mergeReasons(known.reasons, [reason])
+    : known.reasons.filter((existing) => existing !== reason);
+  if (reason === "remembered") known.remembered = enabled;
+  return true;
+}
+
 export function appendCareerLedgerInPlace(
   state: GameState,
   playerId: string,
@@ -182,12 +198,6 @@ export function setRememberPlayer(
   if (!next.football) return next;
   const detailed = next.football.players.find((player) => player.id === playerId);
   if (detailed) preserveKnownPlayerInPlace(next, detailed, ["remembered"], remembered);
-  const known = knownPlayerIdentity(next, playerId);
-  if (known) {
-    known.remembered = remembered;
-    known.reasons = remembered
-      ? mergeReasons(known.reasons, ["remembered"])
-      : known.reasons.filter((reason) => reason !== "remembered");
-  }
+  setKnownPlayerReasonInPlace(next, playerId, "remembered", remembered);
   return next;
 }
