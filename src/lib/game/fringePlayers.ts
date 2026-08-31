@@ -3,7 +3,7 @@ import { clubSimulationSeedKey } from "./clubIdentity";
 import { hashString } from "./rng";
 
 export const FRINGE_SQUAD_SIZE = 20;
-const POSITIONS: Position[] = ["GK", "LB", "CB", "RB", "DM", "CM", "AM", "LW", "RW", "ST"];
+const POSITIONS: Position[] = ["GK", "DEF", "DEF", "DEF", "MID", "MID", "MID", "MID", "FWD", "FWD"];
 
 export interface CompactFringePlayer {
   playerId: string;
