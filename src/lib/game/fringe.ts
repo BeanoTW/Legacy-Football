@@ -2,6 +2,7 @@ import type { FringeClubState, FringeWorldState, GameState } from "./types";
 import { buildWorldSimulationPlan } from "./world";
 import { clubReputation, finishIn } from "./reputation";
 import { hashString } from "./rng";
+import { clubSimulationSeedKey } from "./clubIdentity";
 
 /**
  * Compact persistent state for clubs outside the detailed simulation bubble.
@@ -10,23 +11,26 @@ import { hashString } from "./rng";
  */
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
-function stableOffset(seed: string, clubId: string, channel: string, span: number): number {
-  const h = hashString(`${seed}|fringe|${clubId}|${channel}`);
+type FringeSeedState = Pick<GameState, "saveSeed" | "clubName" | "clubIdentity">;
+
+function stableOffset(s: FringeSeedState, clubId: string, channel: string, span: number): number {
+  const seedClub = clubSimulationSeedKey(s, clubId);
+  const h = hashString(`${s.saveSeed}|fringe|${seedClub}|${channel}`);
   return (Math.abs(h) % (span * 2 + 1)) - span;
 }
 
-function seededMeanAge(seed: string, clubId: string, cohortSeason: number): number {
-  return clamp(25 + stableOffset(seed, clubId, `cohort-age-s${cohortSeason}`, 3), 22, 29);
+function seededMeanAge(s: FringeSeedState, clubId: string, cohortSeason: number): number {
+  return clamp(25 + stableOffset(s, clubId, `cohort-age-s${cohortSeason}`, 3), 22, 29);
 }
 
 /** Backfill cohort metadata lazily for pre-cohort saves without rewriting history. */
-function ensureCohortMetadata(s: Pick<GameState, "saveSeed">, state: FringeClubState): FringeClubState {
+function ensureCohortMetadata(s: FringeSeedState, state: FringeClubState): FringeClubState {
   const cohortSeason = state.cohortSeason ?? state.lastSimulatedSeason;
   return {
     ...state,
     playerGeneration: state.playerGeneration ?? 0,
     cohortSeason,
-    squadMeanAge: state.squadMeanAge ?? seededMeanAge(s.saveSeed, state.clubId, cohortSeason),
+    squadMeanAge: state.squadMeanAge ?? seededMeanAge(s, state.clubId, cohortSeason),
   };
 }
 
@@ -55,27 +59,27 @@ export function fringeFinanceMovement(s: GameState, clubId: string, season: numb
 }
 
 export function makeFringeClubState(
-  s: Pick<GameState, "saveSeed" | "season" | "clubReputations">,
+  s: GameState,
   clubId: string,
   leagueId: string,
   tier: number,
 ): FringeClubState {
-  const reputation = clubReputation(s as GameState, clubId);
+  const reputation = clubReputation(s, clubId);
   return {
     clubId,
     leagueId,
     tier,
     reputation,
-    strength: clamp(reputation + stableOffset(s.saveSeed, clubId, "strength", 7), 1, 100),
-    form: stableOffset(s.saveSeed, clubId, `form-s${s.season}`, 5),
+    strength: clamp(reputation + stableOffset(s, clubId, "strength", 7), 1, 100),
+    form: stableOffset(s, clubId, `form-s${s.season}`, 5),
     financeBand: clamp(
-      Math.round(reputation / 20) + stableOffset(s.saveSeed, clubId, "finance", 1),
+      Math.round(reputation / 20) + stableOffset(s, clubId, "finance", 1),
       1,
       5,
     ),
     lastSimulatedSeason: s.season,
     playerGeneration: 0,
-    squadMeanAge: seededMeanAge(s.saveSeed, clubId, s.season),
+    squadMeanAge: seededMeanAge(s, clubId, s.season),
     cohortSeason: s.season,
   };
 }
@@ -130,7 +134,8 @@ export function fringeWorldSignature(world: FringeWorldState): string {
 /**
  * Advances compact clubs to the state's current season without expanding
  * their detailed football state. Each season is derived from the save seed,
- * club identity and season number, so season jumps and reloads are replay-safe.
+ * stable club seed identity and season number, so season jumps, ID migration
+ * and reloads are replay-safe.
  * Snapshots for clubs newly entering Focus are deliberately retained here;
  * recruitment consumes them during hydration and then reconciles the map.
  */
@@ -143,8 +148,8 @@ export function advanceFringeWorldToSeason(s: GameState): FringeWorldState {
     while (current.lastSimulatedSeason < s.season) {
       const season = current.lastSimulatedSeason + 1;
       const reputation = clubReputation(s, clubId);
-      const strengthDrift = stableOffset(s.saveSeed, clubId, `strength-s${season}`, 2);
-      const financeDrift = stableOffset(s.saveSeed, clubId, `finance-s${season}`, 1);
+      const strengthDrift = stableOffset(s, clubId, `strength-s${season}`, 2);
+      const financeDrift = stableOffset(s, clubId, `finance-s${season}`, 1);
 
       current.reputation = reputation;
       current.strength = clamp(
@@ -154,7 +159,7 @@ export function advanceFringeWorldToSeason(s: GameState): FringeWorldState {
       );
       current.form =
         fringeFormFromFinish(s, clubId, season) ??
-        stableOffset(s.saveSeed, clubId, `form-s${season}`, 5);
+        stableOffset(s, clubId, `form-s${season}`, 5);
       current.financeBand = clamp(
         Math.round((current.financeBand * 2 + reputation / 20 + financeDrift) / 3) +
           fringeFinanceMovement(s, clubId, season),
@@ -162,13 +167,13 @@ export function advanceFringeWorldToSeason(s: GameState): FringeWorldState {
         5,
       );
 
-      const agedMean = clamp((current.squadMeanAge ?? seededMeanAge(s.saveSeed, clubId, season)) + 1, 22, 31);
-      const turnoverSignal = stableOffset(s.saveSeed, clubId, `cohort-turnover-s${season}`, 3);
+      const agedMean = clamp((current.squadMeanAge ?? seededMeanAge(s, clubId, season)) + 1, 22, 31);
+      const turnoverSignal = stableOffset(s, clubId, `cohort-turnover-s${season}`, 3);
       const turnsOver = agedMean >= 31 || (agedMean >= 29 && turnoverSignal >= 0);
       if (turnsOver) {
         current.playerGeneration = (current.playerGeneration ?? 0) + 1;
         current.cohortSeason = season;
-        current.squadMeanAge = seededMeanAge(s.saveSeed, clubId, season);
+        current.squadMeanAge = seededMeanAge(s, clubId, season);
       } else {
         current.squadMeanAge = agedMean;
       }
