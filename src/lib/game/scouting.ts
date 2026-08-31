@@ -1,15 +1,10 @@
-import type { FootballPlayer, GameState, PlayerPersonality, Position, PreferredFoot } from "./types";
+import type { FootballPlayer, GameState, Position } from "./types";
 import { hashString } from "./rng";
 import { absoluteWeek } from "./time";
 import { calendarDay } from "./calendar";
-import {
-  knownPlayerIdentity,
-  preserveKnownPlayerInPlace,
-} from "./playerLifecycle";
-import {
-  preserveScoutingCandidateProfileInPlace,
-  scoutingCandidateProfile,
-} from "./scoutingDiscovery";
+import { preserveKnownPlayerInPlace } from "./playerLifecycle";
+import { preserveScoutingCandidateProfileInPlace } from "./scoutingDiscovery";
+import { knownPlayerDetail } from "./knownPlayerDetail";
 
 export type PlayerAttributeKey =
   | "pace"
@@ -77,15 +72,6 @@ const LABELS: Record<PlayerAttributeKey, string> = {
   goalkeeping: "Goalkeeping",
 };
 const KEYS = Object.keys(LABELS) as PlayerAttributeKey[];
-const FEET: PreferredFoot[] = ["Right", "Left", "Both"];
-const PERSONALITIES: PlayerPersonality[] = [
-  "Balanced",
-  "Ambitious",
-  "Loyal",
-  "Professional",
-  "Mercenary",
-  "Temperamental",
-];
 const clamp = (n: number, lo = 1, hi = 99) => Math.max(lo, Math.min(hi, Math.round(n)));
 const PARTIAL_REPORT_DAYS = 4;
 const FULL_REPORT_DAYS = 6;
@@ -101,42 +87,6 @@ function noise(player: FootballPlayer, key: string, spread: number): number {
 
 function absoluteDay(state: GameState): number {
   return absoluteWeek(state.season, state.week) * 7 + calendarDay(state);
-}
-
-/**
- * Build an ephemeral report subject for a player discovered in the compact
- * world. It is deliberately NOT inserted into football.players, so scouting a
- * distant target never hydrates that player's whole club or changes Focus.
- */
-function scoutingPlayerForId(state: GameState, playerId: string): FootballPlayer | null {
-  const detailed = state.football?.players.find((player) => player.id === playerId);
-  if (detailed) return detailed;
-
-  const known = knownPlayerIdentity(state, playerId);
-  const profile = scoutingCandidateProfile(state, playerId);
-  if (!known || !profile) return null;
-
-  return {
-    id: known.playerId,
-    firstName: known.firstName,
-    lastName: known.lastName,
-    dateOfBirth: { ...known.dateOfBirth },
-    nationality: known.nationality,
-    preferredFoot: FEET[unsignedHash(`${playerId}|foot`) % FEET.length],
-    primaryPosition: known.primaryPosition,
-    secondaryPositions: [],
-    currentClubId: known.currentClubId,
-    reputation: clamp(profile.currentAbility * 0.85, 5, 98),
-    currentAbility: profile.currentAbility,
-    potentialAbility: profile.potentialAbility,
-    marketValue: profile.marketValue,
-    wageExpectation: profile.wageExpectation,
-    personality: PERSONALITIES[unsignedHash(`${playerId}|personality`) % PERSONALITIES.length],
-    contractId: null,
-    transferStatus: "unlisted",
-    availability: "available",
-    createdSeason: known.createdSeason,
-  };
 }
 
 export function playerAttributes(player: FootballPlayer): PlayerAttributes {
@@ -167,7 +117,7 @@ export function scoutingAssignment(
 export function startScouting(state: GameState, playerId: string): GameState {
   const next = structuredClone(state);
   if (!next.football) return next;
-  const player = scoutingPlayerForId(next, playerId);
+  const player = knownPlayerDetail(next, playerId);
   if (!player || player.currentClubId === next.clubName) return next;
 
   const detailed = next.football.players.find((candidate) => candidate.id === playerId);
@@ -237,7 +187,7 @@ function progressScoutingToDayInPlace(state: GameState, targetDay: number): void
     assignment.weeksObserved = Math.min(FULL_REPORT_DAYS, observed);
     assignment.lastProgressDay = targetDay;
     assignment.lastProgressAbsoluteWeek = nowWeek;
-    const player = scoutingPlayerForId(state, assignment.playerId);
+    const player = knownPlayerDetail(state, assignment.playerId);
     if (!player) continue;
     if (before < PARTIAL_REPORT_DAYS && assignment.weeksObserved >= PARTIAL_REPORT_DAYS) {
       pushScoutingReport(state, player, PARTIAL_REPORT_DAYS);
@@ -311,8 +261,8 @@ export function scoutingReport(state: GameState, player: FootballPlayer): Scouti
   };
 }
 
-/** Report entry point for discovered compact-world identities. */
+/** Report entry point for detailed or compact known identities. */
 export function scoutingReportById(state: GameState, playerId: string): ScoutingReport | null {
-  const player = scoutingPlayerForId(state, playerId);
+  const player = knownPlayerDetail(state, playerId);
   return player ? scoutingReport(state, player) : null;
 }
