@@ -1,10 +1,16 @@
 import type { FootballPlayer, GameState, Position } from "./types";
 import { hashString } from "./rng";
 import { absoluteWeek } from "./time";
-import { ageOf } from "./recruitment";
-import { preserveKnownPlayerInPlace } from "./playerLifecycle";
+import { ageOf, BASE_YEAR, valueForPlayer } from "./recruitment";
+import { ensureFringeWorldState } from "./fringe";
+import {
+  preserveKnownIdentityInPlace,
+  preserveKnownPlayerInPlace,
+  type KnownPlayerSeed,
+} from "./playerLifecycle";
 
 export type ScoutingBriefStatus = "complete";
+export type ScoutingCandidateSource = "detailed" | "fringe";
 
 export interface ScoutingBrief {
   id: string;
@@ -15,6 +21,8 @@ export interface ScoutingBrief {
   createdAtAbsoluteWeek: number;
   status: ScoutingBriefStatus;
   candidateIds: string[];
+  /** Optional for backwards compatibility with briefs created before world discovery. */
+  candidateSources?: Record<string, ScoutingCandidateSource>;
 }
 
 export interface ScoutingDiscoveryState {
@@ -36,6 +44,82 @@ export interface ScoutingBriefInput {
   minCurrentAbility?: number;
 }
 
+interface CandidateBase {
+  id: string;
+  source: ScoutingCandidateSource;
+  currentAbility: number;
+  marketValue: number;
+  age: number;
+  primaryPosition: Position;
+}
+
+interface DetailedCandidate extends CandidateBase {
+  source: "detailed";
+  player: FootballPlayer;
+}
+
+interface FringeCandidate extends CandidateBase {
+  source: "fringe";
+  identity: KnownPlayerSeed;
+}
+
+type DiscoveryCandidate = DetailedCandidate | FringeCandidate;
+
+const WORLD_FIRST_NAMES = [
+  "Adam",
+  "Ben",
+  "Callum",
+  "Daniel",
+  "Elliot",
+  "Finlay",
+  "Harry",
+  "Jamie",
+  "Lewis",
+  "Nathan",
+  "Owen",
+  "Ryan",
+  "Sam",
+  "Theo",
+  "Tom",
+  "Aaron",
+  "Dylan",
+  "Jack",
+  "Luke",
+  "Max",
+];
+const WORLD_LAST_NAMES = [
+  "Bennett",
+  "Campbell",
+  "Davies",
+  "Evans",
+  "Fraser",
+  "Graham",
+  "Hughes",
+  "Kelly",
+  "Martin",
+  "McLean",
+  "Murray",
+  "Parker",
+  "Reid",
+  "Roberts",
+  "Stewart",
+  "Taylor",
+  "Walker",
+  "Ward",
+  "Wilson",
+  "Young",
+];
+const WORLD_NATIONS = ["England", "Scotland", "Wales", "Ireland"];
+const WORLD_POSITIONS: Position[] = ["GK", "DEF", "MID", "FWD"];
+
+function unsignedHash(value: string): number {
+  return hashString(value) >>> 0;
+}
+
+function pick<T>(items: T[], key: string): T {
+  return items[unsignedHash(key) % items.length];
+}
+
 function scoutingQuality(state: GameState): number {
   const department = state.football?.department.recruitmentRating ?? 50;
   const chief = state.hiredStaff.find((staff) => staff.role === "Chief Scout")?.stats.scouting ?? 0;
@@ -46,25 +130,112 @@ function scoutingQuality(state: GameState): number {
   return Math.max(1, Math.min(100, Math.round((department + chief + averageScout) / 3)));
 }
 
-function eligible(state: GameState, player: FootballPlayer, input: ScoutingBriefInput): boolean {
-  if (player.currentClubId === state.clubName) return false;
-  if (input.position && player.primaryPosition !== input.position) return false;
-  if (input.maxAge !== undefined && ageOf(player, state.season) > input.maxAge) return false;
-  if (input.maxMarketValue !== undefined && player.marketValue > input.maxMarketValue) return false;
-  return true;
-}
-
-function discoveryScore(state: GameState, player: FootballPlayer, input: ScoutingBriefInput): number {
-  const quality = scoutingQuality(state);
-  const fit = input.minCurrentAbility === undefined ? 0 : player.currentAbility - input.minCurrentAbility;
-  const noise = (hashString(`${state.saveSeed}|brief:${input.id}|${player.id}`) % 101) - 50;
-  return fit * (0.35 + quality / 160) + noise * (1.15 - quality / 125);
+function detailedCandidate(state: GameState, player: FootballPlayer): DetailedCandidate {
+  return {
+    id: player.id,
+    source: "detailed",
+    player,
+    currentAbility: player.currentAbility,
+    marketValue: player.marketValue,
+    age: ageOf(player, state.season),
+    primaryPosition: player.primaryPosition,
+  };
 }
 
 /**
- * Runs a deterministic scouting brief against the internally simulated market.
- * The result is a small chairman-visible candidate set. Scouting quality only
- * changes discovery reliability; it never alters player quality.
+ * Generates a tiny identity-only sample from a compact Fringe club. These are
+ * not full squad objects and they are not inserted into football.players. The
+ * seed is stable for the save/club/position and becomes persistent only when
+ * scouting actually discovers it.
+ */
+function fringeCandidates(state: GameState): FringeCandidate[] {
+  const world = ensureFringeWorldState(state);
+  const candidates: FringeCandidate[] = [];
+
+  for (const club of Object.values(world).sort((a, b) => a.clubId.localeCompare(b.clubId))) {
+    for (const position of WORLD_POSITIONS) {
+      const key = `${state.saveSeed}|world-player|${club.clubId}|${position}`;
+      const age = 17 + (unsignedHash(`${key}|age`) % 18);
+      const abilityNoise = (unsignedHash(`${key}|ability`) % 15) - 7;
+      const currentAbility = Math.max(35, Math.min(94, Math.round(club.strength + abilityNoise)));
+      const potentialBoost = age < 24 ? 4 + (unsignedHash(`${key}|potential`) % 13) : 0;
+      const potentialAbility = Math.max(
+        currentAbility,
+        Math.min(96, currentAbility + potentialBoost),
+      );
+      const id = `wp-${unsignedHash(key).toString(36)}`;
+      const identity: KnownPlayerSeed = {
+        playerId: id,
+        firstName: pick(WORLD_FIRST_NAMES, `${key}|first`),
+        lastName: pick(WORLD_LAST_NAMES, `${key}|last`),
+        dateOfBirth: {
+          year: BASE_YEAR + state.season - 1 - age,
+          month: 1 + (unsignedHash(`${key}|month`) % 12),
+          day: 1 + (unsignedHash(`${key}|day`) % 28),
+        },
+        nationality: pick(WORLD_NATIONS, `${key}|nation`),
+        primaryPosition: position,
+        currentClubId: club.clubId,
+        createdSeason: state.season,
+      };
+      candidates.push({
+        id,
+        source: "fringe",
+        identity,
+        currentAbility,
+        marketValue: valueForPlayer(currentAbility, potentialAbility, age, club.tier),
+        age,
+        primaryPosition: position,
+      });
+    }
+  }
+
+  return candidates;
+}
+
+function eligible(
+  state: GameState,
+  candidate: DiscoveryCandidate,
+  input: ScoutingBriefInput,
+): boolean {
+  if (candidate.source === "detailed" && candidate.player.currentClubId === state.clubName) {
+    return false;
+  }
+  if (input.position && candidate.primaryPosition !== input.position) return false;
+  if (input.maxAge !== undefined && candidate.age > input.maxAge) return false;
+  if (input.maxMarketValue !== undefined && candidate.marketValue > input.maxMarketValue) return false;
+  return true;
+}
+
+function discoveryScore(
+  state: GameState,
+  candidate: DiscoveryCandidate,
+  input: ScoutingBriefInput,
+): number {
+  const quality = scoutingQuality(state);
+  const fit =
+    input.minCurrentAbility === undefined ? 0 : candidate.currentAbility - input.minCurrentAbility;
+  const noise = (unsignedHash(`${state.saveSeed}|brief:${input.id}|${candidate.id}`) % 101) - 50;
+  return fit * (0.35 + quality / 160) + noise * (1.15 - quality / 125);
+}
+
+function ranked(
+  state: GameState,
+  candidates: DiscoveryCandidate[],
+  input: ScoutingBriefInput,
+): DiscoveryCandidate[] {
+  return candidates
+    .filter((candidate) => eligible(state, candidate, input))
+    .sort((a, b) => {
+      const difference = discoveryScore(state, b, input) - discoveryScore(state, a, input);
+      return difference || a.id.localeCompare(b.id);
+    });
+}
+
+/**
+ * Runs a deterministic scouting brief against both detailed players and the
+ * compact football world. A brief returns only a handful of identities. Better
+ * scouting changes discovery reliability; it never creates stronger players.
  */
 export function createScoutingBrief(state: GameState, input: ScoutingBriefInput): GameState {
   const next = structuredClone(state);
@@ -74,18 +245,37 @@ export function createScoutingBrief(state: GameState, input: ScoutingBriefInput)
 
   const quality = scoutingQuality(next);
   const candidateLimit = quality >= 75 ? 6 : quality >= 45 ? 5 : 4;
-  const candidates = next.football.players
-    .filter((player) => eligible(next, player, input))
+  const detailed = ranked(
+    next,
+    next.football.players.map((player) => detailedCandidate(next, player)),
+    input,
+  );
+  const fringe = ranked(next, fringeCandidates(next), input);
+
+  // Wide-world scouting must genuinely reach beyond the current Focus bubble.
+  // Reserve a small share for eligible Fringe discoveries, then fill remaining
+  // slots with the strongest deterministic results from either source.
+  const fringeQuota = fringe.length ? Math.min(2, Math.max(1, Math.floor(candidateLimit / 3))) : 0;
+  const selected: DiscoveryCandidate[] = fringe.slice(0, fringeQuota);
+  const selectedIds = new Set(selected.map((candidate) => candidate.id));
+  const remainder = [...detailed, ...fringe.slice(fringeQuota)]
+    .filter((candidate) => !selectedIds.has(candidate.id))
     .sort((a, b) => {
       const difference = discoveryScore(next, b, input) - discoveryScore(next, a, input);
       return difference || a.id.localeCompare(b.id);
-    })
-    .slice(0, candidateLimit);
+    });
+  selected.push(...remainder.slice(0, Math.max(0, candidateLimit - selected.length)));
 
   const candidateIds: string[] = [];
-  for (const player of candidates) {
-    preserveKnownPlayerInPlace(next, player, ["scouted"]);
-    candidateIds.push(player.id);
+  const candidateSources: Record<string, ScoutingCandidateSource> = {};
+  for (const candidate of selected) {
+    if (candidate.source === "detailed") {
+      preserveKnownPlayerInPlace(next, candidate.player, ["scouted"]);
+    } else {
+      preserveKnownIdentityInPlace(next, candidate.identity, ["scouted"]);
+    }
+    candidateIds.push(candidate.id);
+    candidateSources[candidate.id] = candidate.source;
   }
 
   next.football.scoutingDiscovery.briefs.push({
@@ -93,12 +283,21 @@ export function createScoutingBrief(state: GameState, input: ScoutingBriefInput)
     createdAtAbsoluteWeek: absoluteWeek(next.season, next.week),
     status: "complete",
     candidateIds,
+    candidateSources,
   });
   return next;
 }
 
 export function scoutingBrief(state: GameState, briefId: string): ScoutingBrief | null {
   return state.football?.scoutingDiscovery?.briefs.find((brief) => brief.id === briefId) ?? null;
+}
+
+export function scoutingCandidateSource(
+  state: GameState,
+  briefId: string,
+  playerId: string,
+): ScoutingCandidateSource | null {
+  return scoutingBrief(state, briefId)?.candidateSources?.[playerId] ?? null;
 }
 
 export function discoveredPlayerIds(state: GameState): Set<string> {
