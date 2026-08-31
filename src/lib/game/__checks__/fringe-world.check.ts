@@ -30,8 +30,13 @@ const plan = buildWorldSimulationPlan(state);
 const worldA = buildFringeWorldState(state);
 const worldB = buildFringeWorldState({ ...state, leagues: [...leagues].reverse() });
 
-assert(plan.focusClubIds.length === 40, "expanded opening world should retain a 40-club Focus bubble");
-assert(plan.fringeClubIds.length === 40, "expanded opening world should expose 40 lightweight Fringe clubs");
+const expectedFocusClubCount = plan.focusLeagueIds.reduce(
+  (total, leagueId) => total + (leagues.find((league) => league.id === leagueId)?.clubIds.length ?? 0),
+  0,
+);
+const expectedFringeClubCount = leagues.reduce((total, league) => total + league.clubIds.length, 0) - expectedFocusClubCount;
+assert(plan.focusClubIds.length === expectedFocusClubCount, "opening world should fully simulate the player division and every adjacent promotion/relegation lane");
+assert(plan.fringeClubIds.length === expectedFringeClubCount, "opening world should keep every non-adjacent club lightweight");
 assert(Object.keys(worldA).length === plan.fringeClubIds.length, "only Fringe clubs belong in lightweight state");
 assert(fringeWorldSignature(worldA) === fringeWorldSignature(worldB), "lightweight world must be deterministic regardless of league array order");
 assert(!worldA["Player FC"], "player club must never be represented as Fringe");

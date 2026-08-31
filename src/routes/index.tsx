@@ -24,6 +24,7 @@ import { MatchDayOverlay } from "@/components/game/MatchDayOverlay";
 import { InboxTab } from "@/components/game/InboxTab";
 import { WorldInspector } from "@/components/game/WorldInspector";
 import { RecruitmentFlow } from "@/components/game/RecruitmentFlow";
+import { SquadSelectionTab } from "@/components/game/SquadSelectionTab";
 import { FacilitiesFlow } from "@/components/game/FacilitiesFlow";
 import { SettingsTab } from "@/components/game/SettingsTab";
 import { useGame } from "@/hooks/useGame";
@@ -160,6 +161,7 @@ function Game({ state, update, isContinuing, continueReason, startContinue, stop
           <ScreenBoundary name={ALL_TABS.find(([id]) => id === tab)?.[1] ?? tab}>
             {tab === "inbox" && <InboxTab state={state} update={update} decisionQueue={decisionQueue} onDecisionQueueCleared={() => { setDecisionQueue(false); setTab("hub"); }} />}
             {tab === "hub" && <ClubHub state={state} update={update} setTab={setTab} />}
+            {tab === "squad" && <SquadSelectionTab state={state} update={update} />}
             {tab === "dashboard" && <DashboardTab state={state} />}
             {tab === "cashflow" && <CashFlowTab state={state} />}
             {tab === "tickets" && <TicketsTab state={state} update={update} />}

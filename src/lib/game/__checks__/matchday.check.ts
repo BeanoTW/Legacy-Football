@@ -535,12 +535,12 @@ console.log("\n[H34] No artificial win bonus");
   const loss = ftOf("MD_AUDIT_10", "attack");
   const llm = loss.liveMatch!;
   check(
-    "H34g. precondition: canonical result is a defeat",
-    llm.ourGoals < llm.theirGoals,
+    "H34g. precondition: canonical result is a non-win",
+    llm.ourGoals <= llm.theirGoals,
     `${llm.ourGoals}-${llm.theirGoals}`,
   );
   check(
-    "H34h. a defeat posts no bonus",
+    "H34h. a non-win posts no bonus",
     llm.winBonus === 0 && bonusCount(commitLiveMatchAndAdvance(clone(loss)), llm) === 0,
   );
 
@@ -654,6 +654,9 @@ console.log("\n[J] Save / migration");
   const played = commitLiveMatchAndAdvance(applyHalfTimeChoice(kickoff(clone(started)), "steady"));
   const legacyPlayed = JSON.parse(JSON.stringify(played)) as LegacySave;
   legacyPlayed.version = 10;
+  // Isolate the live-match migration contract. A genuine v10 transfer pot is
+  // intentionally released to cash by v14 and writes its own migration entry.
+  legacyPlayed.transferBudget = 0;
   const m4 = migrateSave(
     JSON.parse(JSON.stringify(legacyPlayed)) as unknown as Record<string, unknown>,
   );

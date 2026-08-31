@@ -1,7 +1,7 @@
 import { advanceWeek, migrateSave, newGame, SAVE_VERSION } from "../engine";
 import { leagueOf } from "../league";
 import { buildWorldSimulationPlan } from "../world";
-import { WORLD_DIVISIONS } from "../worldPyramid";
+import { WORLD_CLUBS_PER_DIVISION, WORLD_DIVISIONS } from "../worldPyramid";
 import { makePyramidSchedule } from "../pyramid";
 import { fixturesForClub, makeLeagueRows } from "../schedule";
 import { ensureRecruitment } from "../recruitment";
@@ -69,9 +69,10 @@ assert(
   migrated.leagues.length === WORLD_DIVISIONS.length,
   "current saves must contain every world division",
 );
+const expectedPersistentClubs = WORLD_DIVISIONS.length * WORLD_CLUBS_PER_DIVISION;
 assert(
-  new Set(migrated.leagues.flatMap((league) => league.clubIds)).size === 80,
-  "expanded world must contain 80 unique persistent clubs",
+  new Set(migrated.leagues.flatMap((league) => league.clubIds)).size === expectedPersistentClubs,
+  `expanded world must contain ${expectedPersistentClubs} unique persistent clubs`,
 );
 for (const [leagueId, clubIds] of originalMembership) {
   const after = migrated.leagues.find((league) => league.id === leagueId);
@@ -94,7 +95,10 @@ assert(
 
 const plan = buildWorldSimulationPlan(migrated);
 assert(plan.focusClubIds.length === 40, "top-tier player must keep a 40-club Focus bubble");
-assert(plan.fringeClubIds.length === 40, "new distant divisions must remain lightweight Fringe");
+assert(
+  plan.fringeClubIds.length === expectedPersistentClubs - plan.focusClubIds.length,
+  "every persistent club outside the Focus bubble must remain lightweight Fringe",
+);
 assert(
   migrated.football.players.every(
     (player) => player.currentClubId === null || plan.focusClubIds.includes(player.currentClubId),
@@ -118,11 +122,11 @@ for (const league of migrated.leagues) {
 const replay = migrateSave(raw(clone(migrated)));
 assert(
   JSON.stringify(replay) === JSON.stringify(migrated),
-  "reloading an already-migrated v13 world must be byte-stable",
+  "reloading an already-migrated current world must be byte-stable",
 );
 
 // Legacy user-only seasons deliberately carry no full league schedule. Their
-// current season stays untouched; the complete four-tier competition begins
+// current season stays untouched; the complete current pyramid begins
 // naturally at the next rollover.
 const userOnly = legacyTwoTier("WORLD|MIGRATION|USERONLY");
 userOnly.leagueSchedule = [];
@@ -137,7 +141,7 @@ const nextSeason = advanceWeek(userOnlyMigrated);
 assert(nextSeason.season === 2, "legacy user-only save must still roll into the next season");
 assert(
   new Set(nextSeason.leagueSchedule.map(leagueOf)).size === WORLD_DIVISIONS.length,
-  "first new season after migration must schedule the complete four-tier world",
+  "first new season after migration must schedule the complete current world",
 );
 
 console.log("world-migration.check.ts: PASS");

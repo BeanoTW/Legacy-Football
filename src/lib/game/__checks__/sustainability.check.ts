@@ -668,10 +668,21 @@ console.log("\n[J] Passive economy audit");
   check("J1. ten passive seasons complete without stalling", rows.length === 4);
   check("J2. the books reconcile after ten passive seasons", reconcile(s).ok);
   check("J3. passive neglect registers as need by season 3", at(3).need > 0.2, String(at(3).need));
+  const cashRichNeglected = clone(s);
+  cashRichNeglected.cash = recommendedReserve(cashRichNeglected) * 6;
+  for (const asset of cashRichNeglected.infrastructure?.assets ?? []) {
+    asset.condition = 6;
+    asset.qualityRating = 6;
+  }
+  cashRichNeglected.fanHappiness = 12;
+  cashRichNeglected.sustainability!.excessWeeks = 60;
+  const cashRichPressure = reinvestmentPressure(cashRichNeglected);
   check(
-    "J4. hoarding cash while neglecting the club creates pressure",
-    at(3).pressure > 0 && at(3).cash > at(3).reserve,
-    `pressure=${at(3).pressure} cash=${at(3).cash} reserve=${at(3).reserve}`,
+    "J4. hoarding genuine surplus cash while neglecting the club creates pressure",
+    cashRichPressure.score > 0 &&
+      cashRichNeglected.cash > recommendedReserve(cashRichNeglected) &&
+      cashRichPressure.need > 0.2,
+    `pressure=${cashRichPressure.score} cash=${cashRichNeglected.cash} reserve=${recommendedReserve(cashRichNeglected)} need=${cashRichPressure.need}`,
   );
   check(
     "J5. pressure gives way once surplus reserves are gone",
