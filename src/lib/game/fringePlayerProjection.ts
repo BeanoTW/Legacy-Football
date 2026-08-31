@@ -81,11 +81,13 @@ export function projectFringePlayer(
   position: Position,
 ): FringePlayerProjection {
   const cohortSeason = club.cohortSeason ?? club.lastSimulatedSeason;
-  const cohortMeanAge = club.squadMeanAge ?? 25;
+  const elapsed = Math.max(0, state.season - cohortSeason);
+  const currentMeanAge = club.squadMeanAge ?? 25 + elapsed;
+  const meanAgeAtCohortStart = Math.max(22, Math.min(29, currentMeanAge - elapsed));
   const key = `${state.saveSeed}|world-player|${club.clubId}|${position}|c${cohortSeason}`;
   const ageOffset = (unsignedHash(`${key}|age-offset`) % 9) - 4;
-  const ageAtCohortStart = Math.max(17, Math.min(34, Math.round(cohortMeanAge + ageOffset)));
-  const age = Math.max(17, Math.min(35, ageAtCohortStart + Math.max(0, state.season - cohortSeason)));
+  const ageAtCohortStart = Math.max(17, Math.min(34, Math.round(meanAgeAtCohortStart + ageOffset)));
+  const age = Math.max(17, Math.min(35, ageAtCohortStart + elapsed));
   const abilityNoise = (unsignedHash(`${key}|ability`) % 15) - 7;
   const currentAbility = Math.max(35, Math.min(94, Math.round(club.strength + abilityNoise)));
   const potentialBoost = age < 24 ? 4 + (unsignedHash(`${key}|potential`) % 13) : 0;
