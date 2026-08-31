@@ -6,6 +6,7 @@ import {
   clubDisplayNameForId,
   clubIdForLegacyName,
   clubIdForState,
+  clubSimulationSeedKey,
   ensureClubIdentityStateInPlace,
   isOpaqueClubId,
   registeredClubDisplayName,
@@ -19,6 +20,7 @@ for (const club of BUILTIN_CLUB_IDENTITIES) {
   assert.ok(isOpaqueClubId(club.id), `club id must be opaque: ${club.id}`);
   assert.equal(clubDisplayNameForId(club.id), club.displayName);
   assert.equal(clubIdForLegacyName(club.displayName), club.id);
+  assert.equal(club.seedKey, club.displayName);
   assert.ok(!club.id.toLowerCase().includes(club.displayName.toLowerCase().replace(/\s+/g, "")));
 }
 
@@ -37,16 +39,25 @@ const state = newGame(userName, "Identity Auditor", "CLUB_IDENTITY_AUDIT");
 const registry = ensureClubIdentityStateInPlace(state);
 assert.equal(registry.userClubId, userId);
 assert.equal(registry.clubsById[userId]?.displayName, userName);
+assert.equal(registry.clubsById[userId]?.seedKey, userName);
 const builtInName = state.leagues.flatMap((league) => league.clubIds).find((club) => club !== userName);
 if (!builtInName) throw new Error("built-in club missing");
 const builtInId = clubIdForState(state, builtInName);
 assert.equal(registry.clubsById[builtInId]?.displayName, builtInName);
+assert.equal(clubSimulationSeedKey(state, builtInName), builtInName);
+assert.equal(clubSimulationSeedKey(state, builtInId), builtInName);
 
 const beforeRenameId = registry.userClubId;
+const beforeRenameSeed = clubSimulationSeedKey(state, beforeRenameId);
 assert.equal(renameRegisteredClubInPlace(state, beforeRenameId, "Renamed United"), true);
 assert.equal(state.clubName, "Renamed United");
 assert.equal(state.clubIdentity?.userClubId, beforeRenameId, "display rename must not change identity");
 assert.equal(registeredClubDisplayName(state, beforeRenameId), "Renamed United");
+assert.equal(
+  clubSimulationSeedKey(state, beforeRenameId),
+  beforeRenameSeed,
+  "display rename must not reroll deterministic simulation channels",
+);
 assert.equal(ensureClubIdentityStateInPlace(state), registry, "registry seeding must be idempotent");
 
 console.log("\nclub-identity: passed");
