@@ -49,6 +49,11 @@ export interface ScoutingBrief {
 
 export interface ScoutingDiscoveryState {
   briefs: ScoutingBrief[];
+  /**
+   * Persistent hidden report subjects for known players. This survives a
+   * detailed player leaving the Focus bubble mid-assignment.
+   */
+  profiles?: Record<string, ScoutingCandidateProfile>;
 }
 
 declare module "./types" {
@@ -165,6 +170,33 @@ function detailedCandidate(state: GameState, player: FootballPlayer): DetailedCa
     wageExpectation: player.wageExpectation,
     age: ageOf(player, state.season),
     primaryPosition: player.primaryPosition,
+  };
+}
+
+function profileOf(candidate: CandidateBase): ScoutingCandidateProfile {
+  return {
+    source: candidate.source,
+    currentAbility: candidate.currentAbility,
+    potentialAbility: candidate.potentialAbility,
+    marketValue: candidate.marketValue,
+    wageExpectation: candidate.wageExpectation,
+  };
+}
+
+/** Persist hidden report facts without changing player fidelity. */
+export function preserveScoutingCandidateProfileInPlace(
+  state: GameState,
+  player: FootballPlayer,
+): void {
+  if (!state.football) return;
+  state.football.scoutingDiscovery ??= { briefs: [] };
+  state.football.scoutingDiscovery.profiles ??= {};
+  state.football.scoutingDiscovery.profiles[player.id] ??= {
+    source: "detailed",
+    currentAbility: player.currentAbility,
+    potentialAbility: player.potentialAbility,
+    marketValue: player.marketValue,
+    wageExpectation: player.wageExpectation,
   };
 }
 
@@ -300,6 +332,7 @@ export function createScoutingBrief(state: GameState, input: ScoutingBriefInput)
     });
   selected.push(...remainder.slice(0, Math.max(0, candidateLimit - selected.length)));
 
+  next.football.scoutingDiscovery.profiles ??= {};
   const candidateIds: string[] = [];
   const candidateSources: Record<string, ScoutingCandidateSource> = {};
   const candidateProfiles: Record<string, ScoutingCandidateProfile> = {};
@@ -309,15 +342,11 @@ export function createScoutingBrief(state: GameState, input: ScoutingBriefInput)
     } else {
       preserveKnownIdentityInPlace(next, candidate.identity, ["scouted"]);
     }
+    const profile = profileOf(candidate);
     candidateIds.push(candidate.id);
     candidateSources[candidate.id] = candidate.source;
-    candidateProfiles[candidate.id] = {
-      source: candidate.source,
-      currentAbility: candidate.currentAbility,
-      potentialAbility: candidate.potentialAbility,
-      marketValue: candidate.marketValue,
-      wageExpectation: candidate.wageExpectation,
-    };
+    candidateProfiles[candidate.id] = profile;
+    next.football.scoutingDiscovery.profiles[candidate.id] ??= profile;
   }
 
   next.football.scoutingDiscovery.briefs.push({
@@ -343,11 +372,13 @@ export function scoutingCandidateSource(
   return scoutingBrief(state, briefId)?.candidateSources?.[playerId] ?? null;
 }
 
-/** First persisted discovery profile for an identity. */
+/** Persistent discovery profile for an identity, with old-brief fallback. */
 export function scoutingCandidateProfile(
   state: GameState,
   playerId: string,
 ): ScoutingCandidateProfile | null {
+  const persistent = state.football?.scoutingDiscovery?.profiles?.[playerId];
+  if (persistent) return persistent;
   for (const brief of state.football?.scoutingDiscovery?.briefs ?? []) {
     const profile = brief.candidateProfiles?.[playerId];
     if (profile) return profile;
