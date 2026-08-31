@@ -1,8 +1,9 @@
 import type { FootballPlayer, GameState, Position } from "./types";
 import { hashString } from "./rng";
 import { absoluteWeek } from "./time";
-import { ageOf, BASE_YEAR, valueForPlayer, wageForAbility } from "./recruitment";
+import { ageOf, BASE_YEAR } from "./recruitment";
 import { ensureFringeWorldState } from "./fringe";
+import { projectFringePlayer } from "./fringePlayerProjection";
 import {
   knownPlayerIdentity,
   preserveKnownIdentityInPlace,
@@ -94,59 +95,10 @@ interface FringeCandidate extends CandidateBase {
 
 type DiscoveryCandidate = DetailedCandidate | FringeCandidate;
 
-const WORLD_FIRST_NAMES = [
-  "Adam",
-  "Ben",
-  "Callum",
-  "Daniel",
-  "Elliot",
-  "Finlay",
-  "Harry",
-  "Jamie",
-  "Lewis",
-  "Nathan",
-  "Owen",
-  "Ryan",
-  "Sam",
-  "Theo",
-  "Tom",
-  "Aaron",
-  "Dylan",
-  "Jack",
-  "Luke",
-  "Max",
-];
-const WORLD_LAST_NAMES = [
-  "Bennett",
-  "Campbell",
-  "Davies",
-  "Evans",
-  "Fraser",
-  "Graham",
-  "Hughes",
-  "Kelly",
-  "Martin",
-  "McLean",
-  "Murray",
-  "Parker",
-  "Reid",
-  "Roberts",
-  "Stewart",
-  "Taylor",
-  "Walker",
-  "Ward",
-  "Wilson",
-  "Young",
-];
-const WORLD_NATIONS = ["England", "Scotland", "Wales", "Ireland"];
 const WORLD_POSITIONS: Position[] = ["GK", "DEF", "MID", "FWD"];
 
 function unsignedHash(value: string): number {
   return hashString(value) >>> 0;
-}
-
-function pick<T>(items: T[], key: string): T {
-  return items[unsignedHash(key) % items.length];
 }
 
 function scoutingQuality(state: GameState): number {
@@ -201,10 +153,10 @@ export function preserveScoutingCandidateProfileInPlace(
 }
 
 /**
- * Generates a tiny identity-only sample from a compact Fringe club. These are
- * not full squad objects and they are not inserted into football.players. The
- * seed is stable for the save/club/position and becomes persistent only when
- * scouting actually discovers it.
+ * Generates a tiny identity-only sample from each compact Fringe club. The
+ * implicit identity is cohort-backed: it ages while the compact cohort lives
+ * and changes only when deterministic distant-squad turnover creates a new
+ * cohort. Nothing is inserted into football.players merely for discovery.
  */
 function fringeCandidates(state: GameState): FringeCandidate[] {
   const world = ensureFringeWorldState(state);
@@ -212,46 +164,17 @@ function fringeCandidates(state: GameState): FringeCandidate[] {
 
   for (const club of Object.values(world).sort((a, b) => a.clubId.localeCompare(b.clubId))) {
     for (const position of WORLD_POSITIONS) {
-      const key = `${state.saveSeed}|world-player|${club.clubId}|${position}`;
-      const age = 17 + (unsignedHash(`${key}|age`) % 18);
-      const abilityNoise = (unsignedHash(`${key}|ability`) % 15) - 7;
-      const currentAbility = Math.max(35, Math.min(94, Math.round(club.strength + abilityNoise)));
-      const potentialBoost = age < 24 ? 4 + (unsignedHash(`${key}|potential`) % 13) : 0;
-      const potentialAbility = Math.max(
-        currentAbility,
-        Math.min(96, currentAbility + potentialBoost),
-      );
-      const id = `wp-${unsignedHash(key).toString(36)}`;
-      const identity: KnownPlayerSeed = {
-        playerId: id,
-        firstName: pick(WORLD_FIRST_NAMES, `${key}|first`),
-        lastName: pick(WORLD_LAST_NAMES, `${key}|last`),
-        dateOfBirth: {
-          year: BASE_YEAR + state.season - 1 - age,
-          month: 1 + (unsignedHash(`${key}|month`) % 12),
-          day: 1 + (unsignedHash(`${key}|day`) % 28),
-        },
-        nationality: pick(WORLD_NATIONS, `${key}|nation`),
-        primaryPosition: position,
-        currentClubId: club.clubId,
-        createdSeason: state.season,
-      };
+      const projected = projectFringePlayer(state, club, position);
       candidates.push({
-        id,
+        id: projected.id,
         source: "fringe",
-        identity,
-        currentAbility,
-        potentialAbility,
-        marketValue: valueForPlayer(currentAbility, potentialAbility, age, club.tier),
-        wageExpectation: wageForAbility(
-          currentAbility,
-          club.reputation,
-          club.tier,
-          age,
-          potentialAbility,
-        ),
-        age,
-        primaryPosition: position,
+        identity: projected.identity,
+        currentAbility: projected.currentAbility,
+        potentialAbility: projected.potentialAbility,
+        marketValue: projected.marketValue,
+        wageExpectation: projected.wageExpectation,
+        age: projected.age,
+        primaryPosition: projected.primaryPosition,
       });
     }
   }
