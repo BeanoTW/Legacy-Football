@@ -2,6 +2,7 @@ import type { FootballPlayer, GameState, Position } from "./types";
 import { hashString } from "./rng";
 import { absoluteWeek } from "./time";
 import { calendarDay } from "./calendar";
+import { preserveKnownPlayerInPlace } from "./playerLifecycle";
 
 export type PlayerAttributeKey = "pace" | "strength" | "stamina" | "agility" | "passing" | "dribbling" | "finishing" | "tackling" | "positioning" | "goalkeeping";
 export type PlayerAttributes = Record<PlayerAttributeKey, number>;
@@ -39,6 +40,7 @@ export function startScouting(state: GameState, playerId: string): GameState {
   if (!next.football) return next;
   const player = next.football.players.find((p) => p.id === playerId);
   if (!player || player.currentClubId === next.clubName) return next;
+  preserveKnownPlayerInPlace(next, player, ["scouted"]);
   next.football.scouting ??= { assignments: [] };
   if (next.football.scouting.assignments.some((a) => a.playerId === playerId)) return next;
   const nowWeek = absoluteWeek(next.season, next.week);
