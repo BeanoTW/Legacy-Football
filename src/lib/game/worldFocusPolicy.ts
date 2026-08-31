@@ -1,5 +1,5 @@
 import type { GameState } from "./types";
-import { clubReferencesEqual } from "./clubReference";
+import { sameClubReference } from "./clubReference";
 
 export const MAX_TRACKED_FOCUS_CLUBS = 8;
 export const MAX_RECENT_OPPONENT_FOCUS_CLUBS = 6;
@@ -11,7 +11,7 @@ function uniqueReferences(
 ): string[] {
   const out: string[] = [];
   for (const ref of refs) {
-    if (!out.some((existing) => clubReferencesEqual(state, existing, ref))) out.push(ref);
+    if (!out.some((existing) => sameClubReference(state, existing, ref))) out.push(ref);
   }
   return out;
 }
