@@ -11,6 +11,8 @@ export type ClubId = string & { readonly __clubId: unique symbol };
 export interface ClubIdentity {
   id: ClubId;
   displayName: string;
+  /** Immutable pre-ID seed identity so migration cannot reroll deterministic history. */
+  seedKey: string;
 }
 
 export interface ClubIdentityState {
@@ -42,6 +44,7 @@ function opaqueClubId(key: string): ClubId {
 export const BUILTIN_CLUB_IDENTITIES: readonly ClubIdentity[] = CLUBS.map((displayName, index) => ({
   id: opaqueClubId(`builtin-slot:${index}`),
   displayName,
+  seedKey: displayName,
 }));
 
 const BUILTIN_BY_NAME = new Map(BUILTIN_CLUB_IDENTITIES.map((club) => [club.displayName, club]));
@@ -84,6 +87,13 @@ function collectLegacyClubNames(state: GameState): string[] {
   for (const club of Object.keys(state.clubReputations ?? {})) names.add(club);
   for (const snapshot of state.clubSnapshots ?? []) names.add(snapshot.club);
   for (const club of Object.keys(state.fringeWorld ?? {})) names.add(club);
+  for (const contract of state.commercial?.contracts ?? []) names.add(contract.clubId);
+  for (const record of state.football?.contractHistory ?? []) names.add(record.clubId);
+  if (state.liveMatch) {
+    names.add(state.liveMatch.fixture.opponent);
+    if (state.liveMatch.homeClub) names.add(state.liveMatch.homeClub);
+    if (state.liveMatch.awayClub) names.add(state.liveMatch.awayClub);
+  }
   return [...names];
 }
 
@@ -99,10 +109,10 @@ export function ensureClubIdentityStateInPlace(state: GameState): ClubIdentitySt
   const clubsById: Record<string, ClubIdentity> = {};
   for (const displayName of collectLegacyClubNames(state)) {
     const id = clubIdForLegacyName(displayName, state.clubName);
-    clubsById[id] = { id, displayName };
+    clubsById[id] = { id, displayName, seedKey: displayName };
   }
   const userId = userClubId();
-  clubsById[userId] = { id: userId, displayName: state.clubName };
+  clubsById[userId] = { id: userId, displayName: state.clubName, seedKey: state.clubName };
   state.clubIdentity = { userClubId: userId, clubsById };
   return state.clubIdentity;
 }
@@ -125,7 +135,19 @@ export function registeredClubDisplayName(
   return state.clubIdentity?.clubsById[id]?.displayName ?? clubDisplayNameForId(id, state.clubName);
 }
 
-/** Update presentation metadata without changing immutable identity. */
+/**
+ * Stable key for deterministic RNG channels during/after ID migration.
+ * Legacy saves keep their historical name-based streams; later renames do not reroll them.
+ */
+export function clubSimulationSeedKey(state: ClubIdentityLookupState, ref: string): string {
+  if (isOpaqueClubId(ref)) {
+    return state.clubIdentity?.clubsById[ref]?.seedKey ?? BUILTIN_BY_ID.get(ref as ClubId)?.seedKey ?? ref;
+  }
+  const id = clubIdForState(state, ref);
+  return state.clubIdentity?.clubsById[id]?.seedKey ?? ref;
+}
+
+/** Update presentation metadata without changing immutable identity or deterministic seed key. */
 export function renameRegisteredClubInPlace(state: GameState, id: string, displayName: string): boolean {
   const registry = ensureClubIdentityStateInPlace(state);
   const club = registry.clubsById[id];
