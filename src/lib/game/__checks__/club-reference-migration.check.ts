@@ -1,12 +1,17 @@
 import { strict as assert } from "node:assert";
 import { newGame } from "../newGame";
-import { clubIdForState, registeredClubDisplayName } from "../clubIdentity";
+import {
+  clubIdForState,
+  ensureClubIdentityStateInPlace,
+  registeredClubDisplayName,
+} from "../clubIdentity";
 import {
   migrateClubReferencesToIdsInPlace,
   persistedClubReferencesAreOpaque,
 } from "../clubReferenceMigration";
 
 const source = newGame("Reference Audit FC", "Auditor", "CLUB_REFERENCE_AUDIT");
+ensureClubIdentityStateInPlace(source);
 const originalName = source.clubName;
 const userId = source.clubIdentity?.userClubId;
 if (!userId) throw new Error("club identity registry missing");
