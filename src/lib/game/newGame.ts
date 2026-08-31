@@ -17,7 +17,6 @@ import { makeBoard, ensureBoard } from "./board";
 import { initFinance } from "./finance";
 import { openingStaffPool } from "./staff";
 import { fixturesForClub, makeLeagueRows } from "./schedule";
-import { ensureClubIdentityStateInPlace } from "./clubIdentity";
 
 /**
  * Canonical save schema version. Single source of truth: `newGame` stamps it,
@@ -27,14 +26,12 @@ import { ensureClubIdentityStateInPlace } from "./clubIdentity";
  * (src/lib/game/migrations) — no module holds per-version field knowledge
  * outside that registry.
  */
-export const SAVE_VERSION = 16;
+export const SAVE_VERSION = 15;
 
 export function newGame(clubName: string, managerName: string, seed?: string): GameState {
   // `seed` is optional: verification suites pass a fixed seed so the whole
   // generated world (squads, schedule, sim) is reproducible across runs.
   const base = _newGameSeed(clubName, managerName, seed);
-  // Persist immutable club identity before any later system expands identity-backed state.
-  ensureClubIdentityStateInPlace(base);
   // Pre-season projection for season 1 (derived from starting reputations).
   storePredictions(base, base.season);
   ensureBoard(base);
