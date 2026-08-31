@@ -1,6 +1,10 @@
 import type { GameState } from "./types";
 import { hashString } from "./rng";
-import { appendCareerLedgerInPlace, knownPlayerIdentity } from "./playerLifecycle";
+import {
+  appendCareerLedgerInPlace,
+  knownPlayerIdentity,
+  setRememberPlayer,
+} from "./playerLifecycle";
 import { scoutingCandidateProfile } from "./scoutingDiscovery";
 
 export const REMEMBERED_PLAYER_LIMIT = 50;
@@ -18,6 +22,12 @@ export interface RememberedPlayerSeason {
 export interface RememberedPlayerTrackingState {
   seasons: RememberedPlayerSeason[];
   lastAdvancedSeason: number;
+}
+
+export interface RememberPlayerResult {
+  ok: boolean;
+  reason: string;
+  state: GameState;
 }
 
 declare module "./types" {
@@ -50,6 +60,32 @@ export function canRememberAnotherPlayer(state: GameState, playerId?: string): b
 }
 
 /**
+ * Bounded public toggle for the Remember Player preference. The persistent
+ * identity/history is never deleted when a player is forgotten; only richer
+ * future tracking is disabled.
+ */
+export function changeRememberPlayer(
+  state: GameState,
+  playerId: string,
+  remembered: boolean,
+): RememberPlayerResult {
+  if (!remembered) {
+    return { ok: true, reason: "Player forgotten", state: setRememberPlayer(state, playerId, false) };
+  }
+  if (!knownPlayerIdentity(state, playerId) && !state.football?.players.some((player) => player.id === playerId)) {
+    return { ok: false, reason: "Unknown player", state };
+  }
+  if (!canRememberAnotherPlayer(state, playerId)) {
+    return {
+      ok: false,
+      reason: `Remember Player is limited to ${REMEMBERED_PLAYER_LIMIT} players. Forget one before adding another.`,
+      state,
+    };
+  }
+  return { ok: true, reason: "Player remembered", state: setRememberPlayer(state, playerId, true) };
+}
+
+/**
  * Produce one cheap deterministic season of post-departure career colour.
  * This is intentionally not a second football simulation: appearances, goals
  * and value are broad career-history signals for players the chairman chose to
@@ -65,7 +101,10 @@ export function rememberedPlayerSeason(
   const age = ageInSeason(state, playerId, season);
   if (age === null) return null;
 
-  const retired = age >= 38 || (age >= 34 && unsignedHash(`${state.saveSeed}|retire|${playerId}|${season}`) % 100 < (age - 33) * 17);
+  const retired =
+    age >= 38 ||
+    (age >= 34 &&
+      unsignedHash(`${state.saveSeed}|retire|${playerId}|${season}`) % 100 < (age - 33) * 17);
   if (retired) {
     return {
       playerId,
@@ -79,16 +118,30 @@ export function rememberedPlayerSeason(
   }
 
   const appearances = 12 + (unsignedHash(`${state.saveSeed}|apps|${playerId}|${season}`) % 31);
-  const goalRate = known.primaryPosition === "FWD" ? 45 : known.primaryPosition === "MID" ? 22 : known.primaryPosition === "DEF" ? 8 : 1;
+  const goalRate =
+    known.primaryPosition === "FWD"
+      ? 45
+      : known.primaryPosition === "MID"
+        ? 22
+        : known.primaryPosition === "DEF"
+          ? 8
+          : 1;
   const goals = Math.min(
     appearances,
-    Math.round((appearances * goalRate) / 100 + (unsignedHash(`${state.saveSeed}|goals|${playerId}|${season}`) % 4)),
+    Math.round(
+      (appearances * goalRate) / 100 +
+        (unsignedHash(`${state.saveSeed}|goals|${playerId}|${season}`) % 4),
+    ),
   );
   const profile = scoutingCandidateProfile(state, playerId);
   const baseValue = profile?.marketValue ?? 0;
   const years = Math.max(0, season - known.lastDetailedSeason);
-  const ageFactor = age <= 27 ? 1 + Math.min(0.25, years * 0.04) : Math.max(0.08, 1 - Math.max(0, age - 27) * 0.12);
-  const variation = 0.9 + (unsignedHash(`${state.saveSeed}|value|${playerId}|${season}`) % 21) / 100;
+  const ageFactor =
+    age <= 27
+      ? 1 + Math.min(0.25, years * 0.04)
+      : Math.max(0.08, 1 - Math.max(0, age - 27) * 0.12);
+  const variation =
+    0.9 + (unsignedHash(`${state.saveSeed}|value|${playerId}|${season}`) % 21) / 100;
   const estimatedValue = Math.max(0, Math.round(baseValue * ageFactor * variation));
 
   return {
@@ -111,7 +164,10 @@ export function advanceRememberedPlayersToSeasonInPlace(state: GameState): void 
 
   for (let season = start; season <= state.season; season++) {
     for (const playerId of rememberedPlayerIds(state)) {
-      if (tracking.seasons.some((entry) => entry.playerId === playerId && entry.season === season)) continue;
+      if (
+        tracking.seasons.some((entry) => entry.playerId === playerId && entry.season === season)
+      )
+        continue;
       const entry = rememberedPlayerSeason(state, playerId, season);
       if (!entry) continue;
       tracking.seasons.push(entry);
@@ -127,7 +183,10 @@ export function advanceRememberedPlayersToSeasonInPlace(state: GameState): void 
   }
 }
 
-export function rememberedPlayerHistory(state: GameState, playerId: string): RememberedPlayerSeason[] {
+export function rememberedPlayerHistory(
+  state: GameState,
+  playerId: string,
+): RememberedPlayerSeason[] {
   return (state.football?.rememberedPlayers?.seasons ?? [])
     .filter((entry) => entry.playerId === playerId)
     .sort((a, b) => a.season - b.season);
