@@ -1,6 +1,10 @@
 import { strict as assert } from "node:assert";
 import { newGame } from "../newGame";
-import { clubIdForState, isOpaqueClubId } from "../clubIdentity";
+import {
+  clubIdForState,
+  isOpaqueClubId,
+  type ClubIdentityState,
+} from "../clubIdentity";
 import { CLUB_IDENTITY_MIGRATIONS } from "../migrations/v15-v16";
 import type { AnySave, MigrationCtx } from "../migrations/types";
 
@@ -23,12 +27,10 @@ const ctx: MigrationCtx = {
 };
 step.up(legacy as unknown as AnySave, ctx);
 
-assert.ok(legacy.clubIdentity, "staged v15->v16 step must seed a persistent club identity registry");
-assert.ok(isOpaqueClubId(legacy.clubIdentity.userClubId));
-assert.equal(
-  legacy.clubIdentity.clubsById[legacy.clubIdentity.userClubId]?.displayName,
-  legacy.clubName,
-);
+const identity = legacy.clubIdentity as ClubIdentityState | undefined;
+assert.ok(identity, "staged v15->v16 step must seed a persistent club identity registry");
+assert.ok(isOpaqueClubId(identity.userClubId));
+assert.equal(identity.clubsById[identity.userClubId]?.displayName, legacy.clubName);
 assert.deepEqual(
   legacy.leagues.map((league) => league.clubIds),
   beforeLeagueMembers,
@@ -43,11 +45,11 @@ for (const league of legacy.leagues) {
   for (const club of league.clubIds) {
     const id = clubIdForState(legacy, club);
     assert.ok(isOpaqueClubId(id));
-    assert.equal(legacy.clubIdentity.clubsById[id]?.displayName, club);
+    assert.equal(identity.clubsById[id]?.displayName, club);
   }
 }
 
-const once = structuredClone(legacy.clubIdentity);
+const once = structuredClone(identity);
 step.up(legacy as unknown as AnySave, ctx);
 assert.deepEqual(legacy.clubIdentity, once, "registry migration must be idempotent");
 
