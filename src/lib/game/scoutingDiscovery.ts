@@ -1,7 +1,7 @@
 import type { FootballPlayer, GameState, Position } from "./types";
 import { hashString } from "./rng";
 import { absoluteWeek } from "./time";
-import { ageOf, BASE_YEAR, valueForPlayer } from "./recruitment";
+import { ageOf, BASE_YEAR, valueForPlayer, wageForAbility } from "./recruitment";
 import { ensureFringeWorldState } from "./fringe";
 import {
   preserveKnownIdentityInPlace,
@@ -11,6 +11,15 @@ import {
 
 export type ScoutingBriefStatus = "complete";
 export type ScoutingCandidateSource = "detailed" | "fringe";
+
+/** Hidden simulation facts captured when a candidate is discovered. */
+export interface ScoutingCandidateProfile {
+  source: ScoutingCandidateSource;
+  currentAbility: number;
+  potentialAbility: number;
+  marketValue: number;
+  wageExpectation: number;
+}
 
 export interface ScoutingBrief {
   id: string;
@@ -23,6 +32,8 @@ export interface ScoutingBrief {
   candidateIds: string[];
   /** Optional for backwards compatibility with briefs created before world discovery. */
   candidateSources?: Record<string, ScoutingCandidateSource>;
+  /** Internal facts; chairman-facing reports reveal these progressively. */
+  candidateProfiles?: Record<string, ScoutingCandidateProfile>;
 }
 
 export interface ScoutingDiscoveryState {
@@ -48,7 +59,9 @@ interface CandidateBase {
   id: string;
   source: ScoutingCandidateSource;
   currentAbility: number;
+  potentialAbility: number;
   marketValue: number;
+  wageExpectation: number;
   age: number;
   primaryPosition: Position;
 }
@@ -136,7 +149,9 @@ function detailedCandidate(state: GameState, player: FootballPlayer): DetailedCa
     source: "detailed",
     player,
     currentAbility: player.currentAbility,
+    potentialAbility: player.potentialAbility,
     marketValue: player.marketValue,
+    wageExpectation: player.wageExpectation,
     age: ageOf(player, state.season),
     primaryPosition: player.primaryPosition,
   };
@@ -183,7 +198,15 @@ function fringeCandidates(state: GameState): FringeCandidate[] {
         source: "fringe",
         identity,
         currentAbility,
+        potentialAbility,
         marketValue: valueForPlayer(currentAbility, potentialAbility, age, club.tier),
+        wageExpectation: wageForAbility(
+          currentAbility,
+          club.reputation,
+          club.tier,
+          age,
+          potentialAbility,
+        ),
         age,
         primaryPosition: position,
       });
@@ -268,6 +291,7 @@ export function createScoutingBrief(state: GameState, input: ScoutingBriefInput)
 
   const candidateIds: string[] = [];
   const candidateSources: Record<string, ScoutingCandidateSource> = {};
+  const candidateProfiles: Record<string, ScoutingCandidateProfile> = {};
   for (const candidate of selected) {
     if (candidate.source === "detailed") {
       preserveKnownPlayerInPlace(next, candidate.player, ["scouted"]);
@@ -276,6 +300,13 @@ export function createScoutingBrief(state: GameState, input: ScoutingBriefInput)
     }
     candidateIds.push(candidate.id);
     candidateSources[candidate.id] = candidate.source;
+    candidateProfiles[candidate.id] = {
+      source: candidate.source,
+      currentAbility: candidate.currentAbility,
+      potentialAbility: candidate.potentialAbility,
+      marketValue: candidate.marketValue,
+      wageExpectation: candidate.wageExpectation,
+    };
   }
 
   next.football.scoutingDiscovery.briefs.push({
@@ -284,6 +315,7 @@ export function createScoutingBrief(state: GameState, input: ScoutingBriefInput)
     status: "complete",
     candidateIds,
     candidateSources,
+    candidateProfiles,
   });
   return next;
 }
@@ -298,6 +330,18 @@ export function scoutingCandidateSource(
   playerId: string,
 ): ScoutingCandidateSource | null {
   return scoutingBrief(state, briefId)?.candidateSources?.[playerId] ?? null;
+}
+
+/** First persisted discovery profile for an identity. */
+export function scoutingCandidateProfile(
+  state: GameState,
+  playerId: string,
+): ScoutingCandidateProfile | null {
+  for (const brief of state.football?.scoutingDiscovery?.briefs ?? []) {
+    const profile = brief.candidateProfiles?.[playerId];
+    if (profile) return profile;
+  }
+  return null;
 }
 
 export function discoveredPlayerIds(state: GameState): Set<string> {
