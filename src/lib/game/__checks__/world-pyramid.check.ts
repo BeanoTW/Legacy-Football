@@ -1,5 +1,10 @@
 import { buildWorldSimulationPlan } from "../world";
-import { makeWorldLeagues, WORLD_CLUBS_PER_DIVISION, WORLD_DIVISIONS } from "../worldPyramid";
+import {
+  freshStartDivision,
+  makeWorldLeagues,
+  WORLD_CLUBS_PER_DIVISION,
+  WORLD_DIVISIONS,
+} from "../worldPyramid";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -7,48 +12,63 @@ function assert(condition: unknown, message: string): asserts condition {
 
 const playerClub = "Player FC";
 const leagues = makeWorldLeagues(playerClub);
+const expectedClubs = WORLD_DIVISIONS.length * WORLD_CLUBS_PER_DIVISION;
+const startingDivision = freshStartDivision();
+const playerLeague = leagues.find((league) => league.clubIds.includes(playerClub));
 
-assert(leagues.length === 4, "fresh world must contain four persistent divisions");
+assert(
+  leagues.length === WORLD_DIVISIONS.length,
+  "fresh world must contain every persistent division",
+);
 assert(
   leagues.every((league) => league.clubIds.length === WORLD_CLUBS_PER_DIVISION),
   "every world division must contain 20 clubs",
 );
 assert(
-  new Set(leagues.flatMap((league) => league.clubIds)).size === 80,
-  "world must contain 80 unique clubs",
-);
-assert(leagues[3]?.clubIds.includes(playerClub), "player club must start in Division Four");
-assert(
-  leagues[3]?.relegationPlaces === 0,
-  "bottom world division must not relegate outside the modelled pyramid",
+  new Set(leagues.flatMap((league) => league.clubIds)).size === expectedClubs,
+  `world must contain ${expectedClubs} unique clubs`,
 );
 assert(
-  leagues[1]?.relegationPlaces === 2 && leagues[2]?.relegationPlaces === 2,
-  "interior divisions must support two-way movement",
+  playerLeague?.id === startingDivision.id,
+  "player club must start in the explicit fresh-start regional division",
 );
 assert(
-  WORLD_DIVISIONS.map((division) => division.tier).join(",") === "1,2,3,4",
-  "world tiers must remain contiguous",
+  playerLeague?.relegationPlaces === 0,
+  "deepest regional starting division must not relegate outside the modelled pyramid",
+);
+assert(
+  leagues.filter((league) => league.tier > 1 && league.tier < startingDivision.tier).every(
+    (league) => league.promotionPlaces === 2 && league.relegationPlaces === 2,
+  ),
+  "linear interior divisions must support two-way movement",
+);
+assert(
+  new Set(WORLD_DIVISIONS.map((division) => division.tier)).size === startingDivision.tier,
+  "world tier levels must remain contiguous even with parallel regional divisions",
+);
+assert(
+  WORLD_DIVISIONS.filter((division) => division.tier === startingDivision.tier).length === 4,
+  "deepest Level 7 tier must contain four regional divisions",
 );
 
 const plan = buildWorldSimulationPlan({
   season: 1,
   clubName: playerClub,
-  playerLeagueId: leagues[3]!.id,
+  playerLeagueId: playerLeague!.id,
   leagues,
 });
 
-assert(plan.clubs.length === 80, "simulation plan must cover every persistent club");
+assert(plan.clubs.length === expectedClubs, "simulation plan must cover every persistent club");
 assert(
   plan.focusClubIds.length === 40,
-  "tier-4 start should fully simulate player and adjacent divisions",
+  "Level 7 start should fully simulate the player division and its upper neighbour",
 );
 assert(
-  plan.fringeClubIds.length === 40,
-  "tier-4 start should leave distant divisions in fringe simulation",
+  plan.fringeClubIds.length === expectedClubs - plan.focusClubIds.length,
+  "every persistent club outside the Level 7 Focus bubble must remain fringe",
 );
 assert(
-  plan.clubs.filter((club) => club.tier <= 2).every((club) => club.level === "fringe"),
+  plan.clubs.filter((club) => club.tier <= 3).every((club) => club.level === "fringe"),
   "distant upper tiers should start fringe",
 );
 
