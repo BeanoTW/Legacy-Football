@@ -1,7 +1,7 @@
 import { advanceWeek, migrateSave, newGame, SAVE_VERSION } from "../engine";
 import { leagueOf } from "../league";
 import { buildWorldSimulationPlan } from "../world";
-import { WORLD_DIVISIONS } from "../worldPyramid";
+import { WORLD_CLUBS_PER_DIVISION, WORLD_DIVISIONS } from "../worldPyramid";
 import { makePyramidSchedule } from "../pyramid";
 import { fixturesForClub, makeLeagueRows } from "../schedule";
 import { ensureRecruitment } from "../recruitment";
@@ -69,7 +69,7 @@ assert(
   migrated.leagues.length === WORLD_DIVISIONS.length,
   "current saves must contain every world division",
 );
-const expectedPersistentClubs = WORLD_DIVISIONS.reduce((total, def) => total + def.clubs, 0);
+const expectedPersistentClubs = WORLD_DIVISIONS.length * WORLD_CLUBS_PER_DIVISION;
 assert(
   new Set(migrated.leagues.flatMap((league) => league.clubIds)).size === expectedPersistentClubs,
   `expanded world must contain ${expectedPersistentClubs} unique persistent clubs`,
