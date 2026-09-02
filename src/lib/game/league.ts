@@ -11,7 +11,7 @@
 
 import type { GameState, LeagueRow, MatchRecord, ScheduledFixture } from "./types";
 import { mulberry32, hashString } from "./rng";
-import { clubStrengthFor } from "./reputation";
+import { clubFootballStrength } from "./footballStrength";
 import { isUserClubReference } from "./clubReference";
 import {
   buildWorldSimulationPlan,
@@ -44,7 +44,7 @@ export function matchSeed(
 }
 
 export function clubStrength(s: GameState, season: number, club: string): number {
-  return clubStrengthFor(s, club, season);
+  return clubFootballStrength(s, club, season);
 }
 
 export function goalsFrom(rng: () => number, strength: number, oppStrength: number): number {
@@ -92,26 +92,24 @@ export function simulateAiFixture(
   return simulateFixture(s, season, round, home, away, leagueId);
 }
 
-/** Strength gateway for a fixture resolved at a particular fidelity level. */
+/**
+ * Fidelity changes how much state a club carries, never the football-strength
+ * scale used by match simulation. The same club therefore keeps the same
+ * quality reading when it crosses the Focus/Fringe boundary.
+ */
 export function clubStrengthAtLevel(
   s: GameState,
   season: number,
   club: string,
   level: WorldSimulationLevel,
 ): number {
-  if (level === "fringe") {
-    const compact = s.fringeWorld?.[club];
-    if (compact?.lastSimulatedSeason === season) {
-      return Math.max(1, Math.min(100, compact.strength + compact.form));
-    }
-  }
+  void level;
   return clubStrength(s, season, club);
 }
 
 /**
- * Focus fixtures retain the detailed reputation/history model. Fringe-only
- * fixtures resolve from compact persistent strength and form, without
- * hydrating players or contracts.
+ * Both Focus and Fringe fixtures consume the same canonical strength gateway;
+ * the simulation level only controls how the underlying club state is stored.
  */
 export function simulateAiFixtureAtLevel(
   s: GameState,
@@ -122,7 +120,6 @@ export function simulateAiFixtureAtLevel(
   leagueId: string,
   level: WorldSimulationLevel,
 ): { homeGoals: number; awayGoals: number; seed: string } {
-  if (level === "focus") return simulateAiFixture(s, season, round, home, away, leagueId);
   return simulateFixture(s, season, round, home, away, leagueId, {
     homeStrength: clubStrengthAtLevel(s, season, home, level),
     awayStrength: clubStrengthAtLevel(s, season, away, level),
