@@ -83,6 +83,9 @@ function collectLegacyClubNames(state: GameState): string[] {
     if (known.currentClubId) names.add(known.currentClubId);
     for (const entry of known.career) if (entry.clubId) names.add(entry.clubId);
   }
+  for (const compact of Object.values(state.fringePlayers ?? {})) {
+    if (compact.currentClubId) names.add(compact.currentClubId);
+  }
   for (const club of Object.keys(state.clubRecords ?? {})) names.add(club);
   for (const club of Object.keys(state.clubReputations ?? {})) names.add(club);
   for (const snapshot of state.clubSnapshots ?? []) names.add(snapshot.club);
