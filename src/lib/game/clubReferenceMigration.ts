@@ -92,6 +92,14 @@ export function migrateClubReferencesToIdsInPlace(state: GameState): void {
     ...club,
     clubId: id,
   }));
+  if (state.fringePlayers) {
+    state.fringePlayers = Object.fromEntries(
+      Object.entries(state.fringePlayers).map(([playerId, player]) => [
+        playerId,
+        { ...player, currentClubId: mapRequired(state, player.currentClubId) },
+      ]),
+    );
+  }
 
   if (state.liveMatch) {
     state.liveMatch = {
@@ -188,6 +196,7 @@ export function persistedClubReferencesAreOpaque(state: GameState): boolean {
     ...Object.keys(state.clubReputations ?? {}),
     ...Object.keys(state.fringeWorld ?? {}),
     ...Object.values(state.fringeWorld ?? {}).map((club) => club.clubId),
+    ...Object.values(state.fringePlayers ?? {}).map((player) => player.currentClubId),
     ...(state.commercial?.contracts ?? []).map((contract) => contract.clubId),
   ];
 
