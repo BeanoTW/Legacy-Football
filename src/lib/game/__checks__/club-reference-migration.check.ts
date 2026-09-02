@@ -9,12 +9,20 @@ import {
   migrateClubReferencesToIdsInPlace,
   persistedClubReferencesAreOpaque,
 } from "../clubReferenceMigration";
+import { ensurePersistentFringePlayers } from "../fringePlayers";
 
 const source = newGame("Reference Audit FC", "Auditor", "CLUB_REFERENCE_AUDIT");
+ensurePersistentFringePlayers(source);
+const sourceCompact = Object.values(source.fringePlayers ?? {})[0];
+if (!sourceCompact) throw new Error("compact fringe player missing");
+const compactBefore = structuredClone(sourceCompact);
+
 ensureClubIdentityStateInPlace(source);
 const originalName = source.clubName;
 const userId = source.clubIdentity?.userClubId;
 if (!userId) throw new Error("club identity registry missing");
+const compactClubId = clubIdForState(source, compactBefore.currentClubId);
+assert.ok(source.clubIdentity?.clubsById[compactClubId], "compact player's club must be registered");
 
 const a = structuredClone(source);
 const b = structuredClone(source);
@@ -35,6 +43,16 @@ const userPlayer = a.football?.players.find((player) => player.currentClubId ===
 assert.ok(userPlayer, "owned players must reference immutable user club id");
 const userContract = a.football?.contracts.find((contract) => contract.clubId === userId);
 assert.ok(userContract, "owned contracts must reference immutable user club id");
+
+const migratedCompact = a.fringePlayers?.[compactBefore.playerId];
+assert.ok(migratedCompact, "compact fringe player identity must survive reference migration");
+assert.equal(migratedCompact.currentClubId, compactClubId);
+assert.deepEqual(migratedCompact.dateOfBirth, compactBefore.dateOfBirth);
+assert.equal(migratedCompact.primaryPosition, compactBefore.primaryPosition);
+assert.equal(migratedCompact.currentAbility, compactBefore.currentAbility);
+assert.equal(migratedCompact.potentialAbility, compactBefore.potentialAbility);
+assert.equal(migratedCompact.contractExpirySeason, compactBefore.contractExpirySeason);
+assert.equal(migratedCompact.lastDevelopedSeason, compactBefore.lastDevelopedSeason);
 
 const aiName = source.leagues.flatMap((league) => league.clubIds).find((club) => club !== originalName);
 if (!aiName) throw new Error("AI club missing");
