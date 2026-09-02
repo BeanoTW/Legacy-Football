@@ -21,6 +21,7 @@ import {
   halfGoals,
   halfPresentation,
   liveTvIncome,
+  liveOpponentStrength,
 } from "./matchday";
 import { avgTicketPrice, simAttendance } from "./sim";
 import { clubFootballStrength } from "./footballStrength";
@@ -39,11 +40,16 @@ export function startMatchDay(s: GameState): GameState {
   const ident = matchIdentity(s);
   const ns: GameState = structuredClone(s);
   const baseOurStrength = clubFootballStrength(ns, ns.clubName);
+  const canonicalOpponentStrength = clubFootballStrength(ns, fx.opponent);
   const ourStrength = baseOurStrength + (fx.home ? 3 : 0);
+  const pmKey = preMatchKey({
+    squadRating: baseOurStrength,
+    opponentStrength: canonicalOpponentStrength,
+  });
   const seedBase = ident
-    ? matchSeedBase(ns.saveSeed, ident, preMatchKey({ squadRating: baseOurStrength }))
-    : `${ns.saveSeed}|live-match|s${ns.season}|w${ns.week}|${fx.opponent}`;
-  const oppStrength = clubFootballStrength(ns, fx.opponent);
+    ? matchSeedBase(ns.saveSeed, ident, pmKey)
+    : `${ns.saveSeed}|live-match|s${ns.season}|w${ns.week}|${fx.opponent}|${pmKey}`;
+  const oppStrength = liveOpponentStrength(seedBase);
   const projectedAttendance = simAttendance(
     ns,
     fx.home,
