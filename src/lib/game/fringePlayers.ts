@@ -1,6 +1,6 @@
 import type { GameState, Position } from "./types";
 import { clubSimulationSeedKey } from "./clubIdentity";
-import { sameClubReference } from "./clubReference";
+import { canonicalClubReference, sameClubReference } from "./clubReference";
 import { hashString } from "./rng";
 
 export const FRINGE_SQUAD_SIZE = 20;
@@ -41,6 +41,16 @@ function compactPlayerId(state: GameState, clubId: string, slot: number): string
   return `fp_${unsignedHash(`${state.saveSeed}|fringe-player|${clubSeed}|${slot}`).toString(36)}`;
 }
 
+function replacementPlayerId(
+  state: GameState,
+  clubId: string,
+  entrySeason: number,
+  ordinal: number,
+): string {
+  const clubSeed = clubSimulationSeedKey(state, clubId);
+  return `fp_${unsignedHash(`${state.saveSeed}|fringe-player|${clubSeed}|replacement|s${entrySeason}|${ordinal}`).toString(36)}`;
+}
+
 function makeCompactPlayer(state: GameState, clubId: string, strength: number, slot: number): CompactFringePlayer {
   const clubSeed = clubSimulationSeedKey(state, clubId);
   const key = `${state.saveSeed}|fringe-player|${clubSeed}|${slot}`;
@@ -56,6 +66,34 @@ function makeCompactPlayer(state: GameState, clubId: string, strength: number, s
       day: 1 + (unsignedHash(`${key}|day`) % 28),
     },
     primaryPosition: positionForSlot(slot),
+    currentAbility,
+    potentialAbility: Math.max(currentAbility, Math.min(97, currentAbility + potentialBoost)),
+    currentClubId: clubId,
+    contractExpirySeason: state.season + 1 + (unsignedHash(`${key}|contract`) % 4),
+    lastDevelopedSeason: state.season,
+  };
+}
+
+function makeReplacementCompactPlayer(
+  state: GameState,
+  clubId: string,
+  strength: number,
+  ordinal: number,
+): CompactFringePlayer {
+  const clubSeed = clubSimulationSeedKey(state, clubId);
+  const key = `${state.saveSeed}|fringe-player|${clubSeed}|replacement|s${state.season}|${ordinal}`;
+  const age = 18 + (unsignedHash(`${key}|age`) % 6);
+  const abilityNoise = (unsignedHash(`${key}|ability`) % 15) - 7;
+  const currentAbility = clamp(Math.round(strength + abilityNoise), 30, 95);
+  const potentialBoost = age < 24 ? 3 + (unsignedHash(`${key}|potential`) % 14) : 0;
+  return {
+    playerId: replacementPlayerId(state, clubId, state.season, ordinal),
+    dateOfBirth: {
+      year: 2000 + state.season - 1 - age,
+      month: 1 + (unsignedHash(`${key}|month`) % 12),
+      day: 1 + (unsignedHash(`${key}|day`) % 28),
+    },
+    primaryPosition: POSITIONS[unsignedHash(`${key}|position`) % POSITIONS.length],
     currentAbility,
     potentialAbility: Math.max(currentAbility, Math.min(97, currentAbility + potentialBoost)),
     currentClubId: clubId,
@@ -109,7 +147,9 @@ export function advancePersistentFringePlayersToSeason(state: GameState): Fringe
     }
   }
   state.fringePlayers = world;
-  return world;
+  // Retired identities remain in the cheap ledger, but active Fringe squads do
+  // not permanently shrink. New deterministic entrants fill final-season gaps.
+  return ensurePersistentFringePlayers(state);
 }
 
 /**
@@ -117,19 +157,48 @@ export function advancePersistentFringePlayersToSeason(state: GameState): Fringe
  * compact identities are deliberately retained when a club enters Focus: the
  * fidelity boundary must not destroy history. When that club later returns to
  * Fringe, these same identities are reused instead of generating a new squad.
+ * Retired identities are retained and replaced rather than counted as active.
  */
 export function ensurePersistentFringePlayers(state: GameState): FringePlayerWorld {
   const world = state.fringePlayers ?? {};
+  const grouped = new Map<string, CompactFringePlayer[]>();
+  for (const player of Object.values(world)) {
+    const key = canonicalClubReference(state, player.currentClubId);
+    const group = grouped.get(key) ?? [];
+    group.push(player);
+    grouped.set(key, group);
+  }
+
   for (const club of Object.values(state.fringeWorld ?? {})) {
-    const existing = Object.values(world).filter((player) =>
-      sameClubReference(state, player.currentClubId, club.clubId),
-    );
-    if (existing.length >= FRINGE_SQUAD_SIZE) continue;
+    const clubKey = canonicalClubReference(state, club.clubId);
+    const existing = grouped.get(clubKey) ?? [];
     const existingIds = new Set(existing.map((player) => player.playerId));
-    for (let slot = 0; slot < FRINGE_SQUAD_SIZE; slot += 1) {
+    let activeCount = existing.filter((player) => !player.retired).length;
+    if (activeCount >= FRINGE_SQUAD_SIZE) continue;
+
+    // Repair old/partial saves with the original stable slot identities first.
+    for (let slot = 0; slot < FRINGE_SQUAD_SIZE && activeCount < FRINGE_SQUAD_SIZE; slot += 1) {
       const player = makeCompactPlayer(state, club.clubId, club.strength, slot);
-      if (!existingIds.has(player.playerId)) world[player.playerId] = player;
+      if (existingIds.has(player.playerId)) continue;
+      world[player.playerId] = player;
+      existing.push(player);
+      existingIds.add(player.playerId);
+      activeCount += 1;
     }
+
+    // Once original slots have existed, replacement identities must never reuse
+    // them. Entry season + deterministic ordinal preserves retired history.
+    let ordinal = 0;
+    while (activeCount < FRINGE_SQUAD_SIZE) {
+      const player = makeReplacementCompactPlayer(state, club.clubId, club.strength, ordinal);
+      ordinal += 1;
+      if (existingIds.has(player.playerId) || world[player.playerId]) continue;
+      world[player.playerId] = player;
+      existing.push(player);
+      existingIds.add(player.playerId);
+      activeCount += 1;
+    }
+    grouped.set(clubKey, existing);
   }
   state.fringePlayers = world;
   return world;
