@@ -13,9 +13,9 @@
 
        base = `${saveSeed}|live-match|s${season}|${leagueId}|${fixtureId}|${preMatchKey}`
 
-   `preMatchKey` is the canonical pre-match input digest. Today it only
-   contains the squad rating; lineup, tactics and fitness can be folded in
-   later without touching any other part of this module.
+   `preMatchKey` is the canonical pre-match input digest. It includes both
+   clubs' football strength; lineup, tactics and fitness can be folded in later
+   without touching any other part of this module.
 
    Every stream is `seededRng(base, streamName)` — independent generators,
    never one shared cursor.
@@ -69,12 +69,14 @@ export function matchIdentity(s: GameState): MatchIdentity | null {
 }
 
 /**
- * Digest of the canonical pre-match inputs the player controls.
- * Extend this (lineup, tactics, fitness) — never the stream names — when new
- * mechanics land, so old streams keep their meaning.
+ * Digest of canonical pre-match football inputs.
+ * The optional opponent value keeps old one-argument call sites byte-stable.
  */
-export function preMatchKey(inputs: { squadRating: number }): string {
-  return `sq${Math.round(inputs.squadRating * 100)}`;
+export function preMatchKey(inputs: { squadRating: number; opponentStrength?: number }): string {
+  const own = `sq${Math.round(inputs.squadRating * 100)}`;
+  return inputs.opponentStrength === undefined
+    ? own
+    : `${own}|opp${Math.round(inputs.opponentStrength * 100)}`;
 }
 
 /** Stable seed root for one match. */
@@ -273,7 +275,13 @@ export function liveTvIncome(seedBase: string): number {
   return 22_000 + Math.round(matchStream(seedBase, "finance")() * 8000);
 }
 
-/** Deterministic opponent strength for the briefing (own stream). */
+/**
+ * Reads canonical opponent strength embedded in new live-match seed roots.
+ * Legacy seed roots retain the old deterministic brief-stream fallback so
+ * already-saved matches remain resumable without fabricating new inputs.
+ */
 export function liveOpponentStrength(seedBase: string): number {
+  const encoded = seedBase.match(/(?:^|\|)opp(-?\d+)(?:\||$)/)?.[1];
+  if (encoded !== undefined) return Number(encoded) / 100;
   return 55 + matchStream(seedBase, "brief")() * 20;
 }
