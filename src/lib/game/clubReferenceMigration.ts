@@ -101,6 +101,38 @@ export function migrateClubReferencesToIdsInPlace(state: GameState): void {
     );
   }
 
+  // These newer foundation stores already write canonical IDs at runtime, but
+  // migrate them defensively as well so a save can never retain a mixed
+  // name/ID island if it was written by an intermediate development build.
+  if (state.clubLegacy) {
+    state.clubLegacy.clubsById = Object.fromEntries(
+      Object.values(state.clubLegacy.clubsById).map((record) => {
+        const clubId = mapRequired(state, record.clubId);
+        return [
+          clubId,
+          {
+            ...record,
+            clubId,
+            recordAttendance: record.recordAttendance
+              ? {
+                  ...record.recordAttendance,
+                  opponentId: mapRequired(state, record.recordAttendance.opponentId),
+                }
+              : undefined,
+          },
+        ];
+      }),
+    );
+  }
+  if (state.aiClubPerformance) {
+    state.aiClubPerformance.clubsById = Object.fromEntries(
+      Object.values(state.aiClubPerformance.clubsById).map((record) => {
+        const clubId = mapRequired(state, record.clubId);
+        return [clubId, { ...record, clubId }];
+      }),
+    );
+  }
+
   if (state.liveMatch) {
     state.liveMatch = {
       ...state.liveMatch,
@@ -197,6 +229,13 @@ export function persistedClubReferencesAreOpaque(state: GameState): boolean {
     ...Object.keys(state.fringeWorld ?? {}),
     ...Object.values(state.fringeWorld ?? {}).map((club) => club.clubId),
     ...Object.values(state.fringePlayers ?? {}).map((player) => player.currentClubId),
+    ...Object.keys(state.clubLegacy?.clubsById ?? {}),
+    ...Object.values(state.clubLegacy?.clubsById ?? {}).flatMap((record) => [
+      record.clubId,
+      record.recordAttendance?.opponentId,
+    ]),
+    ...Object.keys(state.aiClubPerformance?.clubsById ?? {}),
+    ...Object.values(state.aiClubPerformance?.clubsById ?? {}).map((record) => record.clubId),
     ...(state.commercial?.contracts ?? []).map((contract) => contract.clubId),
   ];
 
