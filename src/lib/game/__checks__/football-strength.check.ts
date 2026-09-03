@@ -8,6 +8,7 @@ import {
   detailedSquadStrength,
 } from "../footballStrength";
 import { clubStrengthAtLevel, simulateAiFixtureAtLevel } from "../league";
+import { squadRating } from "../sim";
 
 assert.equal(detailedSquadStrength([60, 70, 80]), 70);
 assert.equal(compactSquadStrength([60, 70, 80]), 70);
@@ -18,6 +19,7 @@ assert.equal(detailedSquadStrength([]), null);
 const state = newGame("Strength FC", "Strength Auditor", "FOOTBALL_STRENGTH");
 const ownExpected = detailedSquadStrength(state.squad.map((player) => player.rating));
 assert.equal(clubFootballStrength(state, state.clubName), ownExpected);
+assert.equal(squadRating(state), ownExpected, "legacy squad rating must use the canonical strength scale");
 
 const fringeClubs = Object.values(state.fringeWorld ?? {});
 const fringeClub = fringeClubs[0];
@@ -53,8 +55,34 @@ if (fringeClub) {
       contractExpirySeason: state.season + 1,
       lastDevelopedSeason: state.season,
     },
+    fp_retired: {
+      playerId: "fp_retired",
+      dateOfBirth: { year: 1970, month: 1, day: 1 },
+      primaryPosition: "FWD",
+      currentAbility: 95,
+      potentialAbility: 95,
+      currentClubId: fringeClub.clubId,
+      contractExpirySeason: state.season,
+      lastDevelopedSeason: state.season,
+      retired: true,
+    },
+    fp_departed: {
+      playerId: "fp_departed",
+      dateOfBirth: { year: 1975, month: 1, day: 1 },
+      primaryPosition: "MID",
+      currentAbility: 95,
+      potentialAbility: 95,
+      currentClubId: fringeClub.clubId,
+      contractExpirySeason: state.season,
+      lastDevelopedSeason: state.season,
+      departed: true,
+    },
   };
-  assert.equal(clubFootballStrength(state, fringeClub.clubId), 70);
+  assert.equal(
+    clubFootballStrength(state, fringeClub.clubId),
+    70,
+    "inactive compact identities must not inflate current club strength",
+  );
   assert.equal(clubStrengthAtLevel(state, state.season, fringeClub.clubId, "focus"), 70);
   assert.equal(clubStrengthAtLevel(state, state.season, fringeClub.clubId, "fringe"), 70);
 
