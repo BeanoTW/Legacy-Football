@@ -24,6 +24,7 @@
 ========================================================================= */
 
 import type { GameState, LiveMatch, MatchEvent } from "./types";
+import { isUserClubReference, sameClubReference, userClubReference } from "./clubReference";
 import { seededRng } from "./rng";
 import { fixtureId as makeFixtureId, leagueOf, playerLeagueId } from "./league";
 
@@ -48,13 +49,14 @@ export function matchIdentity(s: GameState): MatchIdentity | null {
   const sched = (s.leagueSchedule ?? []).find(
     (f) =>
       f.week === s.week &&
-      ((f.home === s.clubName && f.away === fx.opponent) ||
-        (f.away === s.clubName && f.home === fx.opponent)),
+      ((isUserClubReference(s, f.home) && sameClubReference(s, f.away, fx.opponent)) ||
+        (isUserClubReference(s, f.away) && sameClubReference(s, f.home, fx.opponent))),
   );
   const leagueId = sched ? leagueOf(sched) : playerLeagueId(s);
   const round = sched?.round ?? s.week;
-  const homeClub = fx.home ? s.clubName : fx.opponent;
-  const awayClub = fx.home ? fx.opponent : s.clubName;
+  const userRef = userClubReference(s);
+  const homeClub = fx.home ? userRef : fx.opponent;
+  const awayClub = fx.home ? fx.opponent : userRef;
   return {
     fixtureId: makeFixtureId(s.season, round, homeClub, awayClub, leagueId),
     leagueId,
