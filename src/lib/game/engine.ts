@@ -9,6 +9,10 @@
 import type { GameState, FixtureResult } from "./types";
 import { runWeeklyGenerators } from "./inbox";
 import { runRecruitmentWeek } from "./recruitment";
+import {
+  compactDepartingFocusPlayersInPlace,
+  repairFreshFocusHydrationInPlace,
+} from "./playerFidelityReconcile";
 import { progressScoutingDayInPlace, progressScoutingWeekInPlace } from "./scouting";
 import { runInfrastructureWeek } from "./infrastructure";
 import { runSustainabilityWeek } from "./sustainability";
@@ -89,7 +93,15 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   runInfrastructureWeek(s);
   postRecurringWeek(s);
   runCommercialWeek(s);
+  // Capture any Focus→Fringe boundary change before legacy recruitment removes
+  // detailed rows. Conversely, repair a direct tracking hydration from an
+  // earlier UI action before weekly football systems use the temporary players.
+  compactDepartingFocusPlayersInPlace(s);
+  repairFreshFocusHydrationInPlace(s);
   runRecruitmentWeek(s, isTransferWindowOpen(s));
+  // Recruitment may itself reconcile the world boundary; replace any freshly
+  // generated Focus placeholders with the same persistent compact people.
+  repairFreshFocusHydrationInPlace(s);
   progressScoutingWeekInPlace(s);
 
   const { fxResult, matchdayNote }: { fxResult: FixtureResult | null; matchdayNote?: string } =
