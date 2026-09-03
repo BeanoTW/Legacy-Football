@@ -40,6 +40,8 @@ export function saveSizeBreakdown(state: GameState): {
   entries.sort((a, b) => b.bytes - a.bytes);
 
   const arr = (v: unknown) => (Array.isArray(v) ? v.length : 0);
+  const objectRows = (v: unknown) =>
+    v && typeof v === "object" && !Array.isArray(v) ? Object.keys(v).length : 0;
   const bytesOf = (v: unknown) => byteLength(JSON.stringify(v ?? null));
   const f = state.football as unknown as Record<string, unknown> | undefined;
   const drivers: SizeEntry[] = [
@@ -53,6 +55,11 @@ export function saveSizeBreakdown(state: GameState): {
     { key: "inbox", bytes: bytesOf(state.inbox), rows: arr(state.inbox) },
     { key: "clubSnapshots", bytes: bytesOf(state.clubSnapshots), rows: arr(state.clubSnapshots) },
     { key: "seasonHistory", bytes: bytesOf(state.seasonHistory), rows: arr(state.seasonHistory) },
+    {
+      key: "fringePlayers",
+      bytes: bytesOf(state.fringePlayers),
+      rows: objectRows(state.fringePlayers),
+    },
     { key: "players", bytes: bytesOf(f?.players), rows: arr(f?.players) },
     { key: "contracts", bytes: bytesOf(f?.contracts), rows: arr(f?.contracts) },
     { key: "transferHistory", bytes: bytesOf(f?.transferHistory), rows: arr(f?.transferHistory) },
