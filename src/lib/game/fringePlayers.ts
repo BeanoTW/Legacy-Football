@@ -5,6 +5,8 @@ import { hashString } from "./rng";
 
 export const FRINGE_SQUAD_SIZE = 20;
 const POSITIONS: Position[] = ["GK", "DEF", "DEF", "DEF", "MID", "MID", "MID", "MID", "FWD", "FWD"];
+const POSITION_TARGETS: Record<Position, number> = { GK: 2, DEF: 6, MID: 8, FWD: 4 };
+const POSITION_ORDER: Position[] = ["GK", "DEF", "MID", "FWD"];
 
 export interface CompactFringePlayer {
   playerId: string;
@@ -15,6 +17,8 @@ export interface CompactFringePlayer {
   currentClubId: string;
   contractExpirySeason: number;
   lastDevelopedSeason: number;
+  /** Season this persistent identity first entered the compact world. */
+  createdSeason?: number;
   retired?: boolean;
 }
 
@@ -71,6 +75,7 @@ function makeCompactPlayer(state: GameState, clubId: string, strength: number, s
     currentClubId: clubId,
     contractExpirySeason: state.season + 1 + (unsignedHash(`${key}|contract`) % 4),
     lastDevelopedSeason: state.season,
+    createdSeason: state.season,
   };
 }
 
@@ -79,6 +84,7 @@ function makeReplacementCompactPlayer(
   clubId: string,
   strength: number,
   ordinal: number,
+  position: Position,
 ): CompactFringePlayer {
   const clubSeed = clubSimulationSeedKey(state, clubId);
   const key = `${state.saveSeed}|fringe-player|${clubSeed}|replacement|s${state.season}|${ordinal}`;
@@ -93,12 +99,13 @@ function makeReplacementCompactPlayer(
       month: 1 + (unsignedHash(`${key}|month`) % 12),
       day: 1 + (unsignedHash(`${key}|day`) % 28),
     },
-    primaryPosition: POSITIONS[unsignedHash(`${key}|position`) % POSITIONS.length],
+    primaryPosition: position,
     currentAbility,
     potentialAbility: Math.max(currentAbility, Math.min(97, currentAbility + potentialBoost)),
     currentClubId: clubId,
     contractExpirySeason: state.season + 1 + (unsignedHash(`${key}|contract`) % 4),
     lastDevelopedSeason: state.season,
+    createdSeason: state.season,
   };
 }
 
@@ -123,6 +130,14 @@ function retiresInSeason(state: GameState, player: CompactFringePlayer, season: 
   if (age >= 39) return true;
   const threshold = (age - 33) * 14;
   return unsignedHash(`${state.saveSeed}|fringe-retirement|${player.playerId}|s${season}`) % 100 < threshold;
+}
+
+function nextVacantPosition(players: CompactFringePlayer[]): Position {
+  const counts: Record<Position, number> = { GK: 0, DEF: 0, MID: 0, FWD: 0 };
+  for (const player of players) if (!player.retired) counts[player.primaryPosition] += 1;
+  return (
+    POSITION_ORDER.find((position) => counts[position] < POSITION_TARGETS[position]) ?? "MID"
+  );
 }
 
 /** Cheap deterministic season-level development: no matches, training, morale or injuries. */
@@ -187,10 +202,18 @@ export function ensurePersistentFringePlayers(state: GameState): FringePlayerWor
     }
 
     // Once original slots have existed, replacement identities must never reuse
-    // them. Entry season + deterministic ordinal preserves retired history.
+    // them. Entry season + deterministic ordinal preserves retired history. The
+    // vacancy's positional need is filled first so compact squads remain viable.
     let ordinal = 0;
     while (activeCount < FRINGE_SQUAD_SIZE) {
-      const player = makeReplacementCompactPlayer(state, club.clubId, club.strength, ordinal);
+      const position = nextVacantPosition(existing);
+      const player = makeReplacementCompactPlayer(
+        state,
+        club.clubId,
+        club.strength,
+        ordinal,
+        position,
+      );
       ordinal += 1;
       if (existingIds.has(player.playerId) || world[player.playerId]) continue;
       world[player.playerId] = player;
