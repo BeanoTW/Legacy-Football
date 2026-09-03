@@ -15,6 +15,11 @@ import { closeRecruitmentSeason, rollRecruitmentToNewSeason } from "../recruitme
 import { runPlayerCareerRollover } from "../careers";
 import { runStaffCareerRollover } from "../staffCareers";
 import { advanceFringeWorldToSeason } from "../fringe";
+import { advancePersistentFringePlayersToSeason } from "../fringePlayers";
+import {
+  compactDepartingFocusPlayersInPlace,
+  repairFreshFocusHydrationInPlace,
+} from "../playerFidelityReconcile";
 import { rollInfrastructureToNewSeason } from "../infrastructure";
 import { SEASON_END_WEEK } from "../calendar";
 import { ordinal } from "../format";
@@ -65,8 +70,10 @@ export function tickSeasonRollover(s: GameState): void {
   s.season += 1;
   s.week = 1;
   // Advance compact outer-world identity before recruitment moves the Focus
-  // boundary. Newly focused clubs hydrate from this evolved snapshot.
+  // boundary. Clubs returning to Focus therefore hydrate the same people after
+  // their cheap statistical age/development/retirement step has run.
   advanceFringeWorldToSeason(s);
+  advancePersistentFringePlayersToSeason(s);
   if (s.leagues?.length) {
     s.leagueSchedule = makePyramidSchedule(s.leagues, `${s.saveSeed}|season${s.season}`);
     s.fixtures = fixturesForClub(s.leagueSchedule, s.clubName);
@@ -84,15 +91,21 @@ export function tickSeasonRollover(s: GameState): void {
       s.inbox.push({ ...it, week: 1, season: s.season });
   }
   // Detailed Focus players now follow deterministic age/potential development
-  // and decline curves. Fringe clubs continue to evolve through their compact
-  // aggregate and hydrate coherently when they cross into Focus.
+  // and decline curves. Fringe clubs continue to evolve statistically.
   runPlayerCareerRollover(s);
+  // The pyramid has already changed, so capture every detailed club that is
+  // about to fall outside Focus before recruitment removes those player rows.
+  compactDepartingFocusPlayersInPlace(s);
   // Staff careers advance on the same yearly boundary: hired staff age,
   // develop/decline, may retire, and the new-season market is refreshed.
   runStaffCareerRollover(s);
   // Player values and wage expectations are then recalculated from the evolved
-  // abilities; GameState.squad is re-projected from canonical football state.
+  // abilities; the legacy recruitment reconciler creates/removes detailed rows.
   rollRecruitmentToNewSeason(s);
+  // Any newly Focused club is then rebound to its persistent compact people,
+  // retaining the recruitment-calculated contract economics without rerolling
+  // player identity, DOB, position or ability.
+  repairFreshFocusHydrationInPlace(s);
   // Physical plant ages one year and re-derives its projections.
   rollInfrastructureToNewSeason(s);
   // New season objectives, derived from the freshly stored projection.
