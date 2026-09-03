@@ -25,6 +25,10 @@ import {
 } from "./matchday";
 import { avgTicketPrice, simAttendance } from "./sim";
 import { clubFootballStrength } from "./footballStrength";
+import {
+  advancePlayerClubPerformanceWeekInPlace,
+  realisedPlayerClubStrength,
+} from "./playerClubPerformance";
 
 function formGuide(s: GameState): string {
   const last5 = s.results
@@ -39,11 +43,16 @@ export function startMatchDay(s: GameState): GameState {
   if (!fx) return s;
   const ident = matchIdentity(s);
   const ns: GameState = structuredClone(s);
+  // Interactive and auto-resolved matches cross the same weekly performance
+  // boundary. When commit later enters advanceWeek this is an idempotent no-op,
+  // so starting the live match cannot double-build cohesion or mean-revert morale.
+  advancePlayerClubPerformanceWeekInPlace(ns);
   const baseOurStrength = clubFootballStrength(ns, ns.clubName);
+  const realisedOurStrength = realisedPlayerClubStrength(ns, baseOurStrength);
   const canonicalOpponentStrength = clubFootballStrength(ns, fx.opponent);
-  const ourStrength = baseOurStrength + (fx.home ? 3 : 0);
+  const ourStrength = realisedOurStrength + (fx.home ? 3 : 0);
   const pmKey = preMatchKey({
-    squadRating: baseOurStrength,
+    squadRating: realisedOurStrength,
     opponentStrength: canonicalOpponentStrength,
   });
   const seedBase = ident
