@@ -9,6 +9,7 @@
 import type { GameState, FixtureResult } from "./types";
 import { runWeeklyGenerators } from "./inbox";
 import { runRecruitmentWeek } from "./recruitment";
+import { withCanonicalUserClubReference } from "./legacyUserClubBoundary";
 import {
   compactDepartingFocusPlayersInPlace,
   repairFreshFocusHydrationInPlace,
@@ -96,13 +97,17 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
 
   runInfrastructureWeek(s);
   postRecurringWeek(s);
-  runCommercialWeek(s);
+  // Commercial and recruitment still contain a few legacy `clubName` identity
+  // reads. During an opaque-ID save, run them through the synchronous boundary
+  // so they write the canonical user ID while `clubName` remains presentation
+  // metadata everywhere outside the call.
+  withCanonicalUserClubReference(s, () => runCommercialWeek(s));
   // Capture any Focus→Fringe boundary change before legacy recruitment removes
   // detailed rows. Conversely, repair a direct tracking hydration from an
   // earlier UI action before weekly football systems use the temporary players.
   compactDepartingFocusPlayersInPlace(s);
   repairFreshFocusHydrationInPlace(s);
-  runRecruitmentWeek(s, isTransferWindowOpen(s));
+  withCanonicalUserClubReference(s, () => runRecruitmentWeek(s, isTransferWindowOpen(s)));
   // Recruitment may itself reconcile the world boundary; replace any freshly
   // generated Focus placeholders with the same persistent compact people.
   repairFreshFocusHydrationInPlace(s);
@@ -137,8 +142,10 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   s.week += 1;
   if (s.week > SEASON_END_WEEK) tickSeasonRollover(s);
 
-  ensureBoard(s);
-  maybeRunMidSeasonReview(s);
+  withCanonicalUserClubReference(s, () => {
+    ensureBoard(s);
+    maybeRunMidSeasonReview(s);
+  });
   setCalendarDay(s, 0);
 
   return runWeeklyGenerators(s);
