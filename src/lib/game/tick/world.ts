@@ -9,6 +9,7 @@ import { avgTicketPrice } from "../sim";
 import { hashString } from "../rng";
 import { staffPoolFor } from "../staff";
 import { phaseOf } from "../calendar";
+import { isUserClubReference } from "../clubReference";
 
 /* Legacy-only randomness. Used exclusively by the pre-v3 fallback below, which
    never runs for a schedule-backed save. */
@@ -24,7 +25,7 @@ const pick = <T>(arr: T[]) => arr[randInt(0, arr.length - 1)];
 export function tickLegacyAiResults(s: GameState): void {
   const inLeague = phaseOf(s.week) === "firstHalf" || phaseOf(s.week) === "secondHalf";
   if (!inLeague || hasFullSchedule(s)) return;
-  const others = s.league.filter((r) => r.team !== s.clubName);
+  const others = s.league.filter((r) => !isUserClubReference(s, r.team));
   for (let i = 0; i < 4; i++) {
     const a = pick(others),
       b = pick(others);
