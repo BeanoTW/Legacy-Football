@@ -13,7 +13,7 @@ import { mulberry32, hashString } from "../rng";
 import { profileForTier, tierOfUser } from "../economy";
 import { facilityModifiers } from "../infrastructure";
 import { postMatchdayFinance } from "../finance";
-import { clubStrengthFor } from "../reputation";
+import { clubFootballStrength } from "../footballStrength";
 import {
   makeRecord,
   resolveWeek,
@@ -63,10 +63,11 @@ export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOu
     if (override) {
       ({ gf, ga, attendance, gate, tv, matchdayOps } = override);
     } else {
-      // Auto-resolved user match: exactly the same deterministic engine the
-      // AI fixtures use, so reloading before the week reproduces the result.
-      const myStrength = squadRating(s);
-      const oppStrength = clubStrengthFor(s, fixture.opponent, s.season);
+      // Auto-resolved user match consumes the same canonical football-strength
+      // gateway as AI and interactive fixtures. Simulation fidelity therefore
+      // cannot change the quality reading for either side.
+      const myStrength = clubFootballStrength(s, s.clubName, s.season);
+      const oppStrength = clubFootballStrength(s, fixture.opponent, s.season);
       const round = sched?.round ?? s.week;
       const lid = sched ? leagueOf(sched) : playerLeagueId(s);
       const sim = simulateFixture(s, s.season, round, homeClub, awayClub, lid, {
