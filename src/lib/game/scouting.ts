@@ -5,6 +5,7 @@ import { calendarDay } from "./calendar";
 import { preserveKnownPlayerInPlace } from "./playerLifecycle";
 import { preserveScoutingCandidateProfileInPlace } from "./scoutingDiscovery";
 import { knownPlayerDetail } from "./knownPlayerDetail";
+import { isUserClubReference } from "./clubReference";
 
 export type PlayerAttributeKey =
   | "pace"
@@ -118,7 +119,7 @@ export function startScouting(state: GameState, playerId: string): GameState {
   const next = structuredClone(state);
   if (!next.football) return next;
   const player = knownPlayerDetail(next, playerId);
-  if (!player || player.currentClubId === next.clubName) return next;
+  if (!player || isUserClubReference(next, player.currentClubId)) return next;
 
   const detailed = next.football.players.find((candidate) => candidate.id === playerId);
   if (detailed) {
@@ -217,7 +218,7 @@ function rangeAround(value: number, width: number): [number, number] {
 }
 
 export function scoutingReport(state: GameState, player: FootballPlayer): ScoutingReport {
-  const owned = player.currentClubId === state.clubName;
+  const owned = isUserClubReference(state, player.currentClubId);
   const assignment = scoutingAssignment(state, player.id);
   const days = owned ? FULL_REPORT_DAYS : (assignment?.weeksObserved ?? 0);
   const knowledgePct = owned
