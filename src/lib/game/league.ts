@@ -11,7 +11,7 @@
 
 import type { GameState, LeagueRow, MatchRecord, ScheduledFixture } from "./types";
 import { mulberry32, hashString } from "./rng";
-import { clubFootballStrength } from "./footballStrength";
+import { clubMatchStrength } from "./matchStrength";
 import { isUserClubReference } from "./clubReference";
 import {
   buildWorldSimulationPlan,
@@ -44,7 +44,7 @@ export function matchSeed(
 }
 
 export function clubStrength(s: GameState, season: number, club: string): number {
-  return clubFootballStrength(s, club, season);
+  return clubMatchStrength(s, club, season);
 }
 
 export function goalsFrom(rng: () => number, strength: number, oppStrength: number): number {
