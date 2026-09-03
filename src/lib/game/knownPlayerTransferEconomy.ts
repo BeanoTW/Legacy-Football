@@ -3,6 +3,7 @@ import { knownPlayerDetail } from "./knownPlayerDetail";
 import { scoutingCandidateProfile } from "./scoutingDiscovery";
 import { recruitmentNormaliseTransferFeeForClub } from "./recruitmentEconomy";
 import { seededRng, rngRange } from "./rng";
+import { isUserClubReference } from "./clubReference";
 
 /**
  * Resolve a recruitment target without changing simulation fidelity. Detailed
@@ -33,7 +34,7 @@ export function compactPlayerCanBeApproached(
   player: FootballPlayer,
 ): boolean {
   if (!isCompactRecruitmentTarget(state, player.id)) return false;
-  if (!player.currentClubId || player.currentClubId === state.clubName) return false;
+  if (!player.currentClubId || isUserClubReference(state, player.currentClubId)) return false;
   if (player.transferStatus === "agreedTransfer") return false;
   return scoutingCandidateProfile(state, player.id) !== null;
 }
