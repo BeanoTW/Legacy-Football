@@ -11,6 +11,7 @@
  *     ./matchday, and the seed root is PERSISTED on LiveMatch.matchSeed.
  */
 import type { GameState, LiveMatch } from "./types";
+import { clubDisplayName, userClubReference } from "./clubReference";
 import {
   matchIdentity,
   matchSeedBase,
@@ -44,7 +45,7 @@ export function startMatchDay(s: GameState): GameState {
   // boundary. When commit later enters advanceWeek this is an idempotent no-op,
   // so starting the live match cannot double-build cohesion or mean-revert morale.
   advancePlayerClubPerformanceWeekInPlace(ns);
-  const realisedOurStrength = clubMatchStrength(ns, ns.clubName);
+  const realisedOurStrength = clubMatchStrength(ns, userClubReference(ns));
   const realisedOpponentStrength = clubMatchStrength(ns, fx.opponent);
   const ourStrength = realisedOurStrength + (fx.home ? 3 : 0);
   const pmKey = preMatchKey({
@@ -103,7 +104,15 @@ export function kickoff(s: GameState): GameState {
   const lm = ns.liveMatch!;
   const seedBase = seedOf(lm);
   const { usGoals, themGoals } = halfGoals(seedBase, 1, lm.ourStrength, lm.oppStrength, 1, 1);
-  lm.events = halfPresentation(seedBase, 1, 0, 45, usGoals, themGoals, lm.fixture.opponent);
+  lm.events = halfPresentation(
+    seedBase,
+    1,
+    0,
+    45,
+    usGoals,
+    themGoals,
+    clubDisplayName(ns, lm.fixture.opponent),
+  );
   lm.ourGoals += usGoals;
   lm.theirGoals += themGoals;
   lm.status = "halfTime";
@@ -127,7 +136,18 @@ export function applyHalfTimeChoice(s: GameState, choiceId: string): GameState {
   lm.chosenNudgeId = choiceId;
   const seedBase = seedOf(lm);
   const { usGoals, themGoals } = halfGoals(seedBase, 2, lm.ourStrength, lm.oppStrength, opt.attackMod, opt.defenseMod);
-  lm.events = [...lm.events, ...halfPresentation(seedBase, 2, 45, 90, usGoals, themGoals, lm.fixture.opponent)];
+  lm.events = [
+    ...lm.events,
+    ...halfPresentation(
+      seedBase,
+      2,
+      45,
+      90,
+      usGoals,
+      themGoals,
+      clubDisplayName(ns, lm.fixture.opponent),
+    ),
+  ];
   lm.ourGoals += usGoals;
   lm.theirGoals += themGoals;
   lm.attendance = lm.fixture.home ? lm.projectedAttendance : 0;
