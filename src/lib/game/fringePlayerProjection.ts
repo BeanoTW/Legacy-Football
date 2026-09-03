@@ -1,64 +1,11 @@
 import type { FringeClubState, GameState, Position } from "./types";
-import { hashString } from "./rng";
 import { legacyTierToFootballLevel } from "./footballLevel";
 import { recruitmentPlayerValue, recruitmentWageForLevel } from "./recruitmentEconomy";
 import { fringePlayersForClub } from "./fringePlayers";
+import { fringePlayerPresentation } from "./fringePlayerPresentation";
 import type { KnownPlayerSeed } from "./playerLifecycle";
 
 const BASE_YEAR = 2000;
-const FIRST_NAMES = [
-  "Adam",
-  "Ben",
-  "Callum",
-  "Daniel",
-  "Elliot",
-  "Finlay",
-  "Harry",
-  "Jamie",
-  "Lewis",
-  "Nathan",
-  "Owen",
-  "Ryan",
-  "Sam",
-  "Theo",
-  "Tom",
-  "Aaron",
-  "Dylan",
-  "Jack",
-  "Luke",
-  "Max",
-];
-const LAST_NAMES = [
-  "Bennett",
-  "Campbell",
-  "Davies",
-  "Evans",
-  "Fraser",
-  "Graham",
-  "Hughes",
-  "Kelly",
-  "Martin",
-  "McLean",
-  "Murray",
-  "Parker",
-  "Reid",
-  "Roberts",
-  "Stewart",
-  "Taylor",
-  "Walker",
-  "Ward",
-  "Wilson",
-  "Young",
-];
-const NATIONS = ["England", "Scotland", "Wales", "Ireland"];
-
-function unsignedHash(value: string): number {
-  return hashString(value) >>> 0;
-}
-
-function pick<T>(items: T[], key: string): T {
-  return items[unsignedHash(key) % items.length];
-}
 
 export interface FringePlayerProjection {
   id: string;
@@ -89,14 +36,18 @@ export function projectFringePlayer(
     throw new Error(`compact fringe squad ${club.clubId} has no active ${position}`);
   }
 
-  const key = `${state.saveSeed}|fringe-player-presentation|${player.playerId}`;
+  const presentation = fringePlayerPresentation(
+    state.saveSeed,
+    player.playerId,
+    player.primaryPosition,
+  );
   const age = Math.max(16, BASE_YEAR + state.season - 1 - player.dateOfBirth.year);
   const identity: KnownPlayerSeed = {
     playerId: player.playerId,
-    firstName: pick(FIRST_NAMES, `${key}|first`),
-    lastName: pick(LAST_NAMES, `${key}|last`),
+    firstName: presentation.firstName,
+    lastName: presentation.lastName,
     dateOfBirth: { ...player.dateOfBirth },
-    nationality: pick(NATIONS, `${key}|nation`),
+    nationality: presentation.nationality,
     primaryPosition: player.primaryPosition,
     currentClubId: player.currentClubId,
     createdSeason: player.createdSeason ?? state.season,
