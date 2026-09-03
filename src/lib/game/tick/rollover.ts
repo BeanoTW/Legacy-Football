@@ -16,6 +16,7 @@ import { runPlayerCareerRollover } from "../careers";
 import { runStaffCareerRollover } from "../staffCareers";
 import { advanceFringeWorldToSeason } from "../fringe";
 import { advancePersistentFringePlayersToSeason } from "../fringePlayers";
+import { accumulateClubLegacySeasonInPlace } from "../clubLegacy";
 import {
   compactDepartingFocusPlayersInPlace,
   repairFreshFocusHydrationInPlace,
@@ -43,6 +44,10 @@ export function tickSeasonRollover(s: GameState): void {
   const closingLeagueId = playerLeagueId(s);
   const closingLeague = findLeague(s, closingLeagueId);
   const rollover = applySeasonRollover(s);
+  // Preserve the tiny permanent facts we would otherwise have to reconstruct
+  // from large historical tables later. Only real known outcomes, transfers
+  // and user attendance are accumulated; unknown history is left unknown.
+  accumulateClubLegacySeasonInPlace(s, rollover.outcomes, closingSeason);
   // End of season: configuration-driven league prize money, awarded exactly
   // once (guarded by a ledger dedupe key, not by the calendar).
   const sorted = [...s.league].sort((a, b) => b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga));
