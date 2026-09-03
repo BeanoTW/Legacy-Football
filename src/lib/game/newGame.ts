@@ -17,8 +17,6 @@ import { makeBoard, ensureBoard } from "./board";
 import { initFinance } from "./finance";
 import { openingStaffPool } from "./staff";
 import { fixturesForClub, makeLeagueRows } from "./schedule";
-import { ensureClubIdentityStateInPlace } from "./clubIdentity";
-import { migrateClubReferencesToIdsInPlace } from "./clubReferenceMigration";
 
 /**
  * Canonical save schema version. Single source of truth: `newGame` stamps it,
@@ -28,7 +26,7 @@ import { migrateClubReferencesToIdsInPlace } from "./clubReferenceMigration";
  * (src/lib/game/migrations) — no module holds per-version field knowledge
  * outside that registry.
  */
-export const SAVE_VERSION = 17;
+export const SAVE_VERSION = 15;
 
 export function newGame(clubName: string, managerName: string, seed?: string): GameState {
   // `seed` is optional: verification suites pass a fixed seed so the whole
@@ -56,13 +54,6 @@ export function newGame(clubName: string, managerName: string, seed?: string): G
   // Strategic pressure layer. Owns only commitments + the idle-cash clock;
   // every number it reports is derived from the systems above.
   ensureSustainability(base);
-
-  // Fresh v17 careers are born on the same opaque-reference schema that old
-  // saves reach through v15→v16→v17. Build legacy-compatible subsystem state
-  // first, then cross the identity boundary exactly once before any caller can
-  // persist the career.
-  ensureClubIdentityStateInPlace(base);
-  migrateClubReferencesToIdsInPlace(base);
 
   return runWeeklyGenerators(base);
 }
