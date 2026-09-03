@@ -6,6 +6,7 @@ import {
   preserveKnownPlayerInPlace,
   setKnownPlayerReasonInPlace,
 } from "./playerLifecycle";
+import { clubDisplayName, userClubReference } from "./clubReference";
 
 /**
  * Recruitment calls this only when a compact known player actually becomes
@@ -30,7 +31,7 @@ export function materializeKnownSigningInPlace(
     ...projected,
     dateOfBirth: { ...projected.dateOfBirth },
     secondaryPositions: [...projected.secondaryPositions],
-    currentClubId: state.clubName,
+    currentClubId: userClubReference(state),
     contractId: null,
     transferStatus: "unlisted",
     availability: "available",
@@ -39,7 +40,7 @@ export function materializeKnownSigningInPlace(
   preserveKnownPlayerInPlace(state, signed, ["owned"]);
   setKnownPlayerReasonInPlace(state, playerId, "negotiation", false);
   const known = knownPlayerIdentity(state, playerId);
-  if (known) known.currentClubId = state.clubName;
+  if (known) known.currentClubId = userClubReference(state);
   return signed;
 }
 
@@ -60,8 +61,8 @@ export function preservePlayerDepartureInPlace(
     clubId: destinationClubId,
     transferFee: Math.max(0, Math.round(transferFee)),
     note: destinationClubId
-      ? `Left ${state.clubName} for ${destinationClubId}`
-      : `Left ${state.clubName}`,
+      ? `Left ${clubDisplayName(state, userClubReference(state))} for ${clubDisplayName(state, destinationClubId)}`
+      : `Left ${clubDisplayName(state, userClubReference(state))}`,
   });
 }
 
@@ -74,12 +75,12 @@ export function recordPlayerArrivalInPlace(
 ): void {
   const known = preserveKnownPlayerInPlace(state, player, ["owned"]);
   if (!known) return;
-  known.currentClubId = state.clubName;
+  known.currentClubId = userClubReference(state);
   setKnownPlayerReasonInPlace(state, player.id, "negotiation", false);
   appendCareerLedgerInPlace(state, player.id, {
     season: state.season,
-    clubId: state.clubName,
+    clubId: userClubReference(state),
     transferFee: Math.max(0, Math.round(transferFee)),
-    note: fromClubId ? `Joined ${state.clubName} from ${fromClubId}` : `Joined ${state.clubName}`,
+    note: fromClubId ? `Joined ${clubDisplayName(state, userClubReference(state))} from ${clubDisplayName(state, fromClubId)}` : `Joined ${clubDisplayName(state, userClubReference(state))}`,
   });
 }
