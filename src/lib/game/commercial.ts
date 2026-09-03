@@ -33,6 +33,7 @@ import { absoluteWeek } from "./time";
 import { hashString, rngInt, seededRng } from "./rng";
 import { averageHomeAttendance, leagueTierOf, postEntry } from "./finance";
 import { facilityModifiers } from "./infrastructure";
+import { isUserClubReference, userClubReference } from "./clubReference";
 import { archivedCommercialIncome } from "./archive";
 
 const int = (n: number) => Math.round(Number.isFinite(n) ? n : 0);
@@ -301,7 +302,7 @@ export function leaguePosition(s: GameState): number {
   const sorted = [...(s.league ?? [])].sort(
     (a, b) => b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga) || b.gf - a.gf,
   );
-  const i = sorted.findIndex((r) => r.team === s.clubName);
+  const i = sorted.findIndex((r) => isUserClubReference(s, r.team));
   return i >= 0 ? i + 1 : sorted.length || 20;
 }
 
@@ -693,7 +694,7 @@ export function acceptOfferInPlace(s: GameState, offerId: string): CommercialAct
     id,
     sponsorId: sponsor.id,
     category: offer.category,
-    clubId: s.clubName,
+    clubId: userClubReference(s),
     startSeason: s.season,
     startAbsoluteWeek: nowAbs,
     durationSeasons: offer.durationSeasons,
