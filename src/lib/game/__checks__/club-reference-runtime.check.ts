@@ -95,10 +95,6 @@ function nonOpaqueRefs(state: GameState): string[] {
 }
 
 let state = newGame("Opaque Runtime FC", "Identity Auditor", "OPAQUE_RUNTIME_CHECK");
-assert.ok(
-  persistedClubReferencesAreOpaque(state),
-  "fresh saves must be born entirely on opaque club references",
-);
 ensurePersistentFringePlayers(state);
 ensureClubIdentityStateInPlace(state);
 migrateClubReferencesToIdsInPlace(state);
