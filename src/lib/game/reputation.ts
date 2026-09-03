@@ -209,13 +209,14 @@ export function predictSeason(s: GameState, season: number): SeasonPrediction[] 
   return (s.leagues ?? []).map((l) => predictLeague(s, l, season));
 }
 
-/** Store predictions for a season, replacing any existing set for it. */
+/**
+ * Store the live season's pre-season projection. Older projection matrices are
+ * redundant once season rollover has written per-club immutable snapshots, so
+ * they must not accumulate in the hot save for decades.
+ */
 export function storePredictions(s: GameState, season: number): SeasonPrediction[] {
   const fresh = predictSeason(s, season);
-  s.seasonPredictions = [
-    ...(s.seasonPredictions ?? []).filter((p) => p.season !== season),
-    ...fresh,
-  ];
+  s.seasonPredictions = fresh;
   return fresh;
 }
 
