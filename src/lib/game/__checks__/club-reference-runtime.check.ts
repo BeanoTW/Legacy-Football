@@ -14,6 +14,12 @@ import { ensureClubIdentityStateInPlace, isOpaqueClubId } from "../clubIdentity"
 import { ensurePersistentFringePlayers } from "../fringePlayers";
 import { matchIdentity } from "../matchday";
 import { pyramidIntegrity } from "../pyramid";
+import {
+  recruitmentSnapshot,
+  setTransferStatus,
+  SQUAD_SIZE,
+  userSquad,
+} from "../recruitment";
 
 function nonOpaqueRefs(state: GameState): string[] {
   const bad: string[] = [];
@@ -105,6 +111,25 @@ assert.ok(state.fixtures.every((fixture) => isOpaqueClubId(fixture.opponent)));
 assert.ok(persistedClubReferencesAreOpaque(state), "all migrated persisted club refs must be opaque");
 assert.equal(pyramidIntegrity(state).ok, true, pyramidIntegrity(state).problems.join("; "));
 
+// Recruitment is a high-risk legacy boundary because it historically used
+// clubName as identity. Its public read model and clone-returning UI actions
+// must both work on opaque saves without leaking the canonical ID into the
+// presentation field.
+const displayName = state.clubName;
+assert.equal(userSquad(state).length, SQUAD_SIZE, "opaque saves must retain the full user squad");
+assert.equal(recruitmentSnapshot(state).squadSize, SQUAD_SIZE);
+assert.equal(state.clubName, displayName, "recruitment reads must restore the display name");
+const ownedPlayer = userSquad(state)[0];
+assert.ok(ownedPlayer);
+const listed = setTransferStatus(state, ownedPlayer.id, "listed");
+assert.equal(listed.result.ok, true);
+assert.equal(listed.state.clubName, displayName, "recruitment UI clones must restore display metadata");
+assert.ok(
+  isOpaqueClubId(listed.state.football.players.find((player) => player.id === ownedPlayer.id)!.currentClubId!),
+  "recruitment UI mutations must retain opaque ownership",
+);
+state = listed.state;
+
 // Reach the first scheduled user fixture without bypassing normal weekly
 // orchestration, then ensure live-match identity resolves the opaque schedule.
 const firstFixtureWeek = state.fixtures[0].week;
@@ -114,6 +139,8 @@ assert.ok(identity, "opaque schedule must still resolve the user's match identit
 assert.ok(isOpaqueClubId(identity.homeClub));
 assert.ok(isOpaqueClubId(identity.awayClub));
 assert.ok(isOpaqueClubId(identity.opponent));
+assert.equal(state.clubName, displayName, "weekly legacy boundaries must restore display metadata");
+assert.ok(userSquad(state).length >= 16, "weekly recruitment must retain a viable user squad");
 
 // A full rollover is the strongest runtime probe because it touches league
 // finalisation, promotion/relegation, legacy accumulation, AI performance,
@@ -131,8 +158,10 @@ const migratedUserLeague = state.leagues.find((league) =>
 );
 assert.ok(migratedUserLeague, "user club must retain league membership after opaque-ID rollover");
 assert.equal(state.playerLeagueId, migratedUserLeague.id);
+assert.equal(state.clubName, displayName, "rollover must preserve user-facing club name metadata");
 assert.ok(state.fixtures.length > 0, "opaque-ID rollover must regenerate user fixtures");
 assert.ok(state.fixtures.every((fixture) => isOpaqueClubId(fixture.opponent)));
+assert.ok(userSquad(state).length >= 16, "opaque-ID rollover must retain a viable user squad");
 const badAfterRollover = nonOpaqueRefs(state);
 assert.ok(
   persistedClubReferencesAreOpaque(state),
