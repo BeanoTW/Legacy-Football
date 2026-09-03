@@ -37,7 +37,12 @@ export function clubFootballStrength(state: GameState, clubId: string, season = 
   if (detailedStrength !== null) return detailedStrength;
 
   const compact = Object.values(state.fringePlayers ?? {})
-    .filter((player) => !player.retired && sameClubReference(state, player.currentClubId, clubId))
+    .filter(
+      (player) =>
+        !player.retired &&
+        !player.departed &&
+        sameClubReference(state, player.currentClubId, clubId),
+    )
     .map((player) => player.currentAbility);
   const compactStrength = compactSquadStrength(compact);
   if (compactStrength !== null) return compactStrength;
