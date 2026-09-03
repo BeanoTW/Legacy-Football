@@ -70,6 +70,7 @@ import {
   weeksLeftOnContract,
   withdrawNegotiationInPlace,
 } from "./recruitment";
+import { isUserClubReference } from "./clubReference";
 
 import {
   activeProjects as infraActiveProjects,
