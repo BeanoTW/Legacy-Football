@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import { newGame } from "../newGame";
 import { ensureFringeWorldState } from "../fringe";
+import { preserveKnownIdentityInPlace } from "../playerLifecycle";
 import {
   FRINGE_SQUAD_SIZE,
   advancePersistentFringePlayersToSeason,
@@ -24,15 +25,21 @@ state.season += 5;
 advancePersistentFringePlayersToSeason(state);
 const advanced = state.fringePlayers ?? {};
 for (const id of initialIds) {
-  assert.ok(advanced[id], "development must preserve every existing compact identity");
-  assert.equal(advanced[id].dateOfBirth.year, initial[id].dateOfBirth.year);
-  assert.ok(advanced[id].currentAbility <= advanced[id].potentialAbility);
-  assert.ok(advanced[id].currentAbility >= 20);
-  assert.ok(advanced[id].lastDevelopedSeason <= state.season);
+  const player = advanced[id];
+  if (!player) continue; // irrelevant inactive identities may already be pruned
+  assert.equal(player.dateOfBirth.year, initial[id].dateOfBirth.year);
+  assert.ok(player.currentAbility <= player.potentialAbility);
+  assert.ok(player.currentAbility >= 20);
+  assert.ok(player.lastDevelopedSeason <= state.season);
 }
 assert.ok(
-  initialIds.some((id) => advanced[id].currentAbility !== initial[id].currentAbility || advanced[id].retired),
-  "multi-season fringe progression should produce development, decline or retirement",
+  initialIds.some(
+    (id) =>
+      !advanced[id] ||
+      advanced[id].currentAbility !== initial[id].currentAbility ||
+      advanced[id].retired,
+  ),
+  "multi-season fringe progression should produce development, decline, retirement or pruning",
 );
 for (const club of Object.values(state.fringeWorld ?? {})) {
   assert.equal(
@@ -44,25 +51,56 @@ for (const club of Object.values(state.fringeWorld ?? {})) {
 
 const once = JSON.stringify(state.fringePlayers);
 advancePersistentFringePlayersToSeason(state);
-assert.equal(JSON.stringify(state.fringePlayers), once, "same-season development and replenishment must be idempotent");
+assert.equal(
+  JSON.stringify(state.fringePlayers),
+  once,
+  "same-season development, replenishment and pruning must be idempotent",
+);
 
 const replay = seededState();
 replay.season += 5;
 advancePersistentFringePlayersToSeason(replay);
-assert.equal(JSON.stringify(replay.fringePlayers), once, "fringe development and replenishment must be deterministic for the same save");
+assert.equal(
+  JSON.stringify(replay.fringePlayers),
+  once,
+  "fringe development, replenishment and pruning must be deterministic for the same save",
+);
 
 const longHorizon = seededState();
-const longInitialIds = new Set(Object.keys(longHorizon.fringePlayers ?? {}));
+const longInitial = structuredClone(longHorizon.fringePlayers ?? {});
+const longInitialIds = new Set(Object.keys(longInitial));
+const knownId = [...longInitialIds][0];
+if (!knownId) throw new Error("known compact test player missing");
+const knownCompact = longInitial[knownId];
+preserveKnownIdentityInPlace(
+  longHorizon,
+  {
+    playerId: knownCompact.playerId,
+    firstName: "Known",
+    lastName: "Retiree",
+    dateOfBirth: knownCompact.dateOfBirth,
+    nationality: "Scotland",
+    primaryPosition: knownCompact.primaryPosition,
+    currentClubId: knownCompact.currentClubId,
+    createdSeason: knownCompact.createdSeason ?? longHorizon.season,
+  },
+  ["scouted"],
+);
+
 longHorizon.season += 25;
 advancePersistentFringePlayersToSeason(longHorizon);
 const longWorld = longHorizon.fringePlayers ?? {};
 assert.ok(
-  Object.keys(longWorld).length > longInitialIds.size,
+  Object.keys(longWorld).some((id) => !longInitialIds.has(id)),
   "long-run retirement must create new identities rather than recycle retired player IDs",
 );
 assert.ok(
-  [...longInitialIds].every((id) => Boolean(longWorld[id])),
-  "retired identities must remain preserved after replacements enter",
+  Boolean(longWorld[knownId]),
+  "chairman-known inactive identities must survive compact-world pruning",
+);
+assert.ok(
+  [...longInitialIds].some((id) => id !== knownId && !longWorld[id]),
+  "irrelevant inactive world identities must be pruned instead of growing the hot save forever",
 );
 for (const club of Object.values(longHorizon.fringeWorld ?? {})) {
   assert.equal(
@@ -73,12 +111,28 @@ for (const club of Object.values(longHorizon.fringeWorld ?? {})) {
 }
 
 const longReplay = seededState();
+const replayCompact = longReplay.fringePlayers?.[knownId];
+if (!replayCompact) throw new Error("replay known compact test player missing");
+preserveKnownIdentityInPlace(
+  longReplay,
+  {
+    playerId: replayCompact.playerId,
+    firstName: "Known",
+    lastName: "Retiree",
+    dateOfBirth: replayCompact.dateOfBirth,
+    nationality: "Scotland",
+    primaryPosition: replayCompact.primaryPosition,
+    currentClubId: replayCompact.currentClubId,
+    createdSeason: replayCompact.createdSeason ?? longReplay.season,
+  },
+  ["scouted"],
+);
 longReplay.season += 25;
 advancePersistentFringePlayersToSeason(longReplay);
 assert.equal(
   JSON.stringify(longReplay.fringePlayers),
   JSON.stringify(longHorizon.fringePlayers),
-  "replacement identities must be deterministic across long-horizon replay",
+  "replacement and pruning decisions must be deterministic across long-horizon replay",
 );
 
 console.log("\nfringe-player-development: passed");
