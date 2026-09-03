@@ -8,6 +8,7 @@
 import type { GameState } from "../types";
 import { resolveRemainingSeason, syncTable, playerLeagueId } from "../league";
 import { makePyramidSchedule, applySeasonRollover, findLeague } from "../pyramid";
+import { isUserClubReference, userClubReference } from "../clubReference";
 import { runEndOfSeasonReview, rollBoardToNewSeason } from "../board";
 import { awardPrizeMoney, closeSeasonFinance, openSeasonFinance } from "../finance";
 import { closeCommercialSeason } from "../commercial";
@@ -56,7 +57,7 @@ export function tickSeasonRollover(s: GameState): void {
   // End of season: configuration-driven league prize money, awarded exactly
   // once (guarded by a ledger dedupe key, not by the calendar).
   const sorted = [...s.league].sort((a, b) => b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga));
-  const pos = sorted.findIndex((r) => r.team === s.clubName) + 1;
+  const pos = sorted.findIndex((r) => isUserClubReference(s, r.team)) + 1;
   if (closingLeague && pos > 0) {
     const award = awardPrizeMoney(s, closingSeason, closingLeague, pos);
     if (award) {
@@ -86,7 +87,7 @@ export function tickSeasonRollover(s: GameState): void {
   advancePersistentFringePlayersToSeason(s);
   if (s.leagues?.length) {
     s.leagueSchedule = makePyramidSchedule(s.leagues, `${s.saveSeed}|season${s.season}`);
-    s.fixtures = fixturesForClub(s.leagueSchedule, s.clubName);
+    s.fixtures = fixturesForClub(s.leagueSchedule, userClubReference(s));
     s.league = makeLeagueRows(userLeagueTeams(s));
   } else {
     s.fixtures = makeFixtures(s.clubName, `${s.saveSeed}|season${s.season}`);
