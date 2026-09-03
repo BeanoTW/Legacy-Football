@@ -20,6 +20,8 @@ export interface CompactFringePlayer {
   /** Season this persistent identity first entered the compact world. */
   createdSeason?: number;
   retired?: boolean;
+  /** Historical identity retained after a non-retirement departure. */
+  departed?: boolean;
 }
 
 export type FringePlayerWorld = Record<string, CompactFringePlayer>;
@@ -132,9 +134,13 @@ function retiresInSeason(state: GameState, player: CompactFringePlayer, season: 
   return unsignedHash(`${state.saveSeed}|fringe-retirement|${player.playerId}|s${season}`) % 100 < threshold;
 }
 
+function isActive(player: CompactFringePlayer): boolean {
+  return !player.retired && !player.departed;
+}
+
 function nextVacantPosition(players: CompactFringePlayer[]): Position {
   const counts: Record<Position, number> = { GK: 0, DEF: 0, MID: 0, FWD: 0 };
-  for (const player of players) if (!player.retired) counts[player.primaryPosition] += 1;
+  for (const player of players) if (isActive(player)) counts[player.primaryPosition] += 1;
   return (
     POSITION_ORDER.find((position) => counts[position] < POSITION_TARGETS[position]) ?? "MID"
   );
@@ -144,7 +150,7 @@ function nextVacantPosition(players: CompactFringePlayer[]): Position {
 export function advancePersistentFringePlayersToSeason(state: GameState): FringePlayerWorld {
   const world = ensurePersistentFringePlayers(state);
   for (const player of Object.values(world)) {
-    if (player.retired) continue;
+    if (!isActive(player)) continue;
     let season = player.lastDevelopedSeason ?? state.season;
     while (season < state.season) {
       season += 1;
@@ -162,8 +168,8 @@ export function advancePersistentFringePlayersToSeason(state: GameState): Fringe
     }
   }
   state.fringePlayers = world;
-  // Retired identities remain in the cheap ledger, but active Fringe squads do
-  // not permanently shrink. New deterministic entrants fill final-season gaps.
+  // Retired/departed identities remain in the cheap ledger, but active Fringe
+  // squads do not permanently shrink. Deterministic entrants fill vacancies.
   return ensurePersistentFringePlayers(state);
 }
 
@@ -172,7 +178,7 @@ export function advancePersistentFringePlayersToSeason(state: GameState): Fringe
  * compact identities are deliberately retained when a club enters Focus: the
  * fidelity boundary must not destroy history. When that club later returns to
  * Fringe, these same identities are reused instead of generating a new squad.
- * Retired identities are retained and replaced rather than counted as active.
+ * Retired/departed identities are retained and replaced rather than counted as active.
  */
 export function ensurePersistentFringePlayers(state: GameState): FringePlayerWorld {
   const world = state.fringePlayers ?? {};
@@ -188,7 +194,7 @@ export function ensurePersistentFringePlayers(state: GameState): FringePlayerWor
     const clubKey = canonicalClubReference(state, club.clubId);
     const existing = grouped.get(clubKey) ?? [];
     const existingIds = new Set(existing.map((player) => player.playerId));
-    let activeCount = existing.filter((player) => !player.retired).length;
+    let activeCount = existing.filter(isActive).length;
     if (activeCount >= FRINGE_SQUAD_SIZE) continue;
 
     // Repair old/partial saves with the original stable slot identities first.
@@ -202,7 +208,7 @@ export function ensurePersistentFringePlayers(state: GameState): FringePlayerWor
     }
 
     // Once original slots have existed, replacement identities must never reuse
-    // them. Entry season + deterministic ordinal preserves retired history. The
+    // them. Entry season + deterministic ordinal preserves old history. The
     // vacancy's positional need is filled first so compact squads remain viable.
     let ordinal = 0;
     while (activeCount < FRINGE_SQUAD_SIZE) {
@@ -229,6 +235,6 @@ export function ensurePersistentFringePlayers(state: GameState): FringePlayerWor
 
 export function fringePlayersForClub(state: GameState, clubId: string): CompactFringePlayer[] {
   return Object.values(ensurePersistentFringePlayers(state))
-    .filter((player) => !player.retired && sameClubReference(state, player.currentClubId, clubId))
+    .filter((player) => isActive(player) && sameClubReference(state, player.currentClubId, clubId))
     .sort((a, b) => a.playerId.localeCompare(b.playerId));
 }
