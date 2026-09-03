@@ -1,5 +1,5 @@
 import type { GameState, LeagueRow } from "./types";
-import { canonicalClubReference, sameClubReference } from "./clubReference";
+import { canonicalClubReference, sameClubReference, userClubReference } from "./clubReference";
 
 export interface ClubLegacyBestFinish {
   season: number;
@@ -165,7 +165,7 @@ export function accumulateClubLegacySeasonInPlace(
   // The current simulation only knows attendance for the user's own home
   // matches. Record that real information and leave every unknown AI attendance
   // unset rather than fabricating a world-wide number.
-  const userRecord = recordFor(state, legacy, state.clubName);
+  const userRecord = recordFor(state, legacy, userClubReference(state));
   for (const result of state.results ?? []) {
     if (!result.home || result.attendance <= 0) continue;
     const fixture = (state.fixtures ?? []).find(
