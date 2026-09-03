@@ -17,6 +17,7 @@ import { runStaffCareerRollover } from "../staffCareers";
 import { advanceFringeWorldToSeason } from "../fringe";
 import { advancePersistentFringePlayersToSeason } from "../fringePlayers";
 import { accumulateClubLegacySeasonInPlace } from "../clubLegacy";
+import { advanceAiClubPerformanceSeasonInPlace } from "../aiClubPerformance";
 import {
   compactDepartingFocusPlayersInPlace,
   repairFreshFocusHydrationInPlace,
@@ -48,6 +49,10 @@ export function tickSeasonRollover(s: GameState): void {
   // from large historical tables later. Only real known outcomes, transfers
   // and user attendance are accumulated; unknown history is left unknown.
   accumulateClubLegacySeasonInPlace(s, rollover.outcomes, closingSeason);
+  // AI clubs carry one cheap institutional-performance value into the next
+  // season. It is derived from the finished season, mean-reverting and bounded
+  // to three strength points, so it cannot become a second reputation system.
+  advanceAiClubPerformanceSeasonInPlace(s, rollover.outcomes, closingSeason);
   // End of season: configuration-driven league prize money, awarded exactly
   // once (guarded by a ledger dedupe key, not by the calendar).
   const sorted = [...s.league].sort((a, b) => b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga));
