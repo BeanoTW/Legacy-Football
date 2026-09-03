@@ -210,13 +210,20 @@ export function predictSeason(s: GameState, season: number): SeasonPrediction[] 
 }
 
 /**
- * Store the live season's pre-season projection. Older projection matrices are
- * redundant once season rollover has written per-club immutable snapshots, so
- * they must not accumulate in the hot save for decades.
+ * Store the live season projection plus one completed-season tail. Older full
+ * matrices are redundant once rollover has written immutable per-club
+ * snapshots, so prediction history cannot grow with career length.
  */
 export function storePredictions(s: GameState, season: number): SeasonPrediction[] {
   const fresh = predictSeason(s, season);
-  s.seasonPredictions = fresh;
+  const oldestRetainedSeason = season - 1;
+  s.seasonPredictions = [
+    ...(s.seasonPredictions ?? []).filter(
+      (prediction) =>
+        prediction.season >= oldestRetainedSeason && prediction.season !== season,
+    ),
+    ...fresh,
+  ];
   return fresh;
 }
 
