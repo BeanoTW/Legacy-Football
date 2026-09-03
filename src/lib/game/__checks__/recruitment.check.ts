@@ -196,7 +196,9 @@ console.log("\n[R1] Player world");
       );
     }),
   );
-  const src = readFileSync("src/lib/game/recruitment.ts", "utf8");
+  const src = ["src/lib/game/recruitment.ts", "src/lib/game/recruitmentLegacy.ts"]
+    .map((file) => readFileSync(file, "utf8"))
+    .join("\n");
   const code = src.replace(/\/\*[\s\S]*?\*\//g, "");
   check(
     "7. no Math.random()/Date.now() in recruitment simulation",
@@ -1282,11 +1284,15 @@ console.log("\n[R15] Static audit");
   );
   check(
     "S6. only one transfer-completion path exists",
-    (readFileSync("src/lib/game/recruitment.ts", "utf8").match(/transferHistory\.push/g) ?? [])
-      .length <= 4 &&
+    (["src/lib/game/recruitment.ts", "src/lib/game/recruitmentLegacy.ts"]
+      .map((file) => readFileSync(file, "utf8"))
+      .join("\n")
+      .match(/transferHistory\.push/g) ?? []).length <= 4 &&
       files.filter(
         (f) =>
-          !f.endsWith("recruitment.ts") && /transferHistory\.push/.test(readFileSync(f, "utf8")),
+          !f.endsWith("recruitment.ts") &&
+          !f.endsWith("recruitmentLegacy.ts") &&
+          /transferHistory\.push/.test(readFileSync(f, "utf8")),
       ).length === 0,
   );
   check(
