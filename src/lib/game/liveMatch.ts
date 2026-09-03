@@ -24,11 +24,8 @@ import {
   liveOpponentStrength,
 } from "./matchday";
 import { avgTicketPrice, simAttendance } from "./sim";
-import { clubFootballStrength } from "./footballStrength";
-import {
-  advancePlayerClubPerformanceWeekInPlace,
-  realisedPlayerClubStrength,
-} from "./playerClubPerformance";
+import { clubMatchStrength } from "./matchStrength";
+import { advancePlayerClubPerformanceWeekInPlace } from "./playerClubPerformance";
 
 function formGuide(s: GameState): string {
   const last5 = s.results
@@ -47,13 +44,12 @@ export function startMatchDay(s: GameState): GameState {
   // boundary. When commit later enters advanceWeek this is an idempotent no-op,
   // so starting the live match cannot double-build cohesion or mean-revert morale.
   advancePlayerClubPerformanceWeekInPlace(ns);
-  const baseOurStrength = clubFootballStrength(ns, ns.clubName);
-  const realisedOurStrength = realisedPlayerClubStrength(ns, baseOurStrength);
-  const canonicalOpponentStrength = clubFootballStrength(ns, fx.opponent);
+  const realisedOurStrength = clubMatchStrength(ns, ns.clubName);
+  const realisedOpponentStrength = clubMatchStrength(ns, fx.opponent);
   const ourStrength = realisedOurStrength + (fx.home ? 3 : 0);
   const pmKey = preMatchKey({
     squadRating: realisedOurStrength,
-    opponentStrength: canonicalOpponentStrength,
+    opponentStrength: realisedOpponentStrength,
   });
   const seedBase = ident
     ? matchSeedBase(ns.saveSeed, ident, pmKey)
