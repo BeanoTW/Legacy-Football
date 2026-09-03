@@ -20,8 +20,6 @@ import * as legacy from "./recruitmentLegacy";
 
 export * from "./recruitmentLegacy";
 
-type StateFirst = (state: GameState, ...args: any[]) => any;
-
 function restoreReturnedDisplayName(value: unknown, displayName: string): void {
   if (!value || typeof value !== "object") return;
 
@@ -41,13 +39,15 @@ function restoreReturnedDisplayName(value: unknown, displayName: string): void {
   }
 }
 
-function identitySafe<F extends StateFirst>(fn: F): F {
-  return ((state: GameState, ...args: Parameters<F> extends [GameState, ...infer R] ? R : never) => {
+function identitySafe<Args extends unknown[], Result>(
+  fn: (state: GameState, ...args: Args) => Result,
+): (state: GameState, ...args: Args) => Result {
+  return (state: GameState, ...args: Args) => {
     const displayName = state.clubName;
     const result = withCanonicalUserClubReference(state, () => fn(state, ...args));
     restoreReturnedDisplayName(result, displayName);
     return result;
-  }) as F;
+  };
 }
 
 // World/fidelity lifecycle.
