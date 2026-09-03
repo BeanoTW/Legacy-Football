@@ -118,6 +118,12 @@ export function compactDepartingFocusPlayersInPlace(state: GameState): void {
  * are retained as the economic template but rebound to the persistent player
  * ids; ability/DOB/position/name continuity therefore survives the boundary
  * without changing the club's freshly calculated wage load.
+ *
+ * The legacy detailed generator currently creates a slightly larger squad than
+ * the compact Fringe representation. That surplus is placeholder detail, not
+ * additional persistent people: a clean hydration consumes only enough
+ * contract templates for the compact squad and removes every generated
+ * placeholder for the club.
  */
 export function repairFreshFocusHydrationInPlace(state: GameState): void {
   if (!state.football || !state.fringePlayers) return;
@@ -129,7 +135,7 @@ export function repairFreshFocusHydrationInPlace(state: GameState): void {
     if (compact.length !== FRINGE_SQUAD_SIZE) continue;
 
     const detailed = detailedPlayersForClub(state, clubId);
-    if (detailed.length !== compact.length) continue;
+    if (detailed.length < compact.length) continue;
 
     const compactIds = new Set(compact.map((player) => player.playerId));
     const overlap = detailed.filter((player) => compactIds.has(player.id)).length;
@@ -149,7 +155,9 @@ export function repairFreshFocusHydrationInPlace(state: GameState): void {
       continue;
     }
 
-    const templateContracts = detailed.map((player) => liveContractForPlayer(state, player.id));
+    const templateContracts = detailed
+      .slice(0, compact.length)
+      .map((player) => liveContractForPlayer(state, player.id));
     if (templateContracts.some((contract) => !contract)) continue;
 
     state.football.players = state.football.players.filter(
