@@ -13,6 +13,7 @@ import { buildWorldSimulationPlan } from "./world";
 import { clubReputation } from "./reputation";
 import { tierOfClub } from "./economy";
 import { WEEKS_PER_SEASON } from "./time";
+import { isUserClubReference, sameClubReference } from "./clubReference";
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 const round = (value: number) => Math.round(value);
@@ -134,7 +135,7 @@ export function runAiCareerTransfers(s: GameState, focusOverride?: Set<string>):
 
   const focus = focusOverride ?? new Set(buildWorldSimulationPlan(s).focusClubIds);
   const aiClubs = [...focus]
-    .filter((club) => club !== s.clubName)
+    .filter((club) => !isUserClubReference(s, club))
     .sort((a, b) => a.localeCompare(b));
   let completed = 0;
   const movedPlayerIds = new Set<string>();
@@ -159,7 +160,7 @@ export function runAiCareerTransfers(s: GameState, focusOverride?: Set<string>):
 }
 
 function clubPlayers(s: GameState, club: string): FootballPlayer[] {
-  return s.football.players.filter((player) => player.currentClubId === club);
+  return s.football.players.filter((player) => sameClubReference(s, player.currentClubId, club));
 }
 
 function positionNeed(squad: FootballPlayer[]): Position {
@@ -183,7 +184,12 @@ function chooseAiTransferCandidate(
   const candidates = s.football.players.filter((player) => {
     if (movedPlayerIds.has(player.id)) return false;
     const seller = player.currentClubId;
-    if (!seller || seller === buyer || seller === s.clubName || !aiClubs.includes(seller)) {
+    if (
+      !seller ||
+      sameClubReference(s, seller, buyer) ||
+      isUserClubReference(s, seller) ||
+      !aiClubs.some((club) => sameClubReference(s, club, seller))
+    ) {
       return false;
     }
     if (player.primaryPosition !== position || player.availability !== "available") return false;
