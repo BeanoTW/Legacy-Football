@@ -1424,7 +1424,7 @@ export type FringeWorldState = Record<string, FringeClubState>;
 
 export interface GameState {
   /** Save schema version. Bump + add a migration in loadGame when persisted shape changes. */
-  version: 15;
+  version: number;
 
   /** Stable per-save seed. Used for deterministic inbox generation. */
   saveSeed: string;
