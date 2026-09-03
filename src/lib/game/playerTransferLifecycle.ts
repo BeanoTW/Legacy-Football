@@ -6,6 +6,7 @@ import {
   preserveKnownPlayerInPlace,
   setKnownPlayerReasonInPlace,
 } from "./playerLifecycle";
+import { userClubReference } from "./clubReference";
 import { clubDisplayName, userClubReference } from "./clubReference";
 
 /**
