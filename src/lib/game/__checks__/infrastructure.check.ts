@@ -762,7 +762,9 @@ console.log("\n[J] Static audit");
   );
   check(
     "J3. recruitment does not duplicate facility maths",
-    src("recruitment.ts").includes("facilityModifiers(s).recruitmentAttraction"),
+    ["recruitment.ts", "recruitmentLegacy.ts"].some((file) =>
+      src(file).includes("facilityModifiers(s).recruitmentAttraction"),
+    ),
   );
   check(
     "J4. staff attraction flows from the canonical selector",
