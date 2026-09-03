@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import { newGame } from "../engine";
 import { advanceFringeWorldToSeason } from "../fringe";
+import { advancePersistentFringePlayersToSeason } from "../fringePlayers";
 import { projectFringePlayer } from "../fringePlayerProjection";
 import {
   createScoutingBrief,
@@ -22,17 +23,21 @@ const known = knownPlayerIdentity(discovered, playerId);
 if (!known?.currentClubId) throw new Error("known fringe identity missing club");
 const originalProfile = scoutingCandidateProfile(discovered, playerId);
 assert.ok(originalProfile, "discovery must persist hidden profile");
+assert.ok(playerId.startsWith("fp_"), "scouting must discover a persistent compact identity");
+assert.ok(discovered.fringePlayers?.[playerId], "discovered identity must already exist in Fringe persistence");
 assert.equal(discovered.football?.players.some((player) => player.id === playerId), false);
 
 const nextSeason = structuredClone(discovered);
 nextSeason.season += 1;
 advanceFringeWorldToSeason(nextSeason);
+advancePersistentFringePlayersToSeason(nextSeason);
 const currentClub = nextSeason.fringeWorld?.[known.currentClubId];
 if (!currentClub) throw new Error("fringe club disappeared unexpectedly");
 
+const originalAfterYear = nextSeason.fringePlayers?.[playerId];
 const projected = projectFringePlayer(nextSeason, currentClub, known.primaryPosition);
-if (currentClub.cohortSeason === discovered.fringeWorld?.[known.currentClubId]?.cohortSeason) {
-  assert.equal(projected.id, playerId, "undiscovered world projection should retain identity while cohort survives");
+if (originalAfterYear && !originalAfterYear.retired) {
+  assert.equal(projected.id, playerId, "active discovered compact player should remain the same world identity");
 }
 
 assert.equal(
@@ -50,11 +55,16 @@ assert.equal(nextSeason.football?.players.some((player) => player.id === playerI
 const longFuture = structuredClone(discovered);
 longFuture.season += 10;
 advanceFringeWorldToSeason(longFuture);
+advancePersistentFringePlayersToSeason(longFuture);
 const futureClub = longFuture.fringeWorld?.[known.currentClubId];
 if (!futureClub) throw new Error("fringe club missing in future");
 const futureProjection = projectFringePlayer(longFuture, futureClub, known.primaryPosition);
-assert.notEqual(futureProjection.id, playerId, "world cohort should eventually replace the implicit slot");
-assert.ok(knownPlayerIdentity(longFuture, playerId), "previously discovered identity must survive world cohort replacement");
+assert.ok(longFuture.fringePlayers?.[playerId], "old compact identity must survive retirement or turnover");
+assert.ok(longFuture.fringePlayers?.[futureProjection.id], "future scouting projection must point at persistent compact state");
+if (longFuture.fringePlayers?.[playerId]?.retired) {
+  assert.notEqual(futureProjection.id, playerId, "retired compact player must yield the active scouting slot");
+}
+assert.ok(knownPlayerIdentity(longFuture, playerId), "previously discovered identity must survive world turnover");
 assert.deepEqual(scoutingCandidateProfile(longFuture, playerId), originalProfile);
 assert.equal(longFuture.football?.players.some((player) => player.id === playerId), false);
 
