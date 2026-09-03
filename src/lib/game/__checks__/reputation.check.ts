@@ -28,6 +28,7 @@ import {
 } from "../league";
 import { DIVISION_ONE, DIVISION_TWO, makePyramidSchedule } from "../pyramid";
 import type { GameState, ExpectationLevel } from "../types";
+import { clubFootballStrength } from "../footballStrength";
 
 let passed = 0;
 let failed = 0;
@@ -215,7 +216,9 @@ console.log("\n[R5] Stronger clubs win more often over large simulations");
 {
   const g = fresh("REP_SEED_5");
   const clubs = g.leagues[0].clubIds;
-  const ranked = [...clubs].sort((x, y) => clubStrengthFor(g, y, 1) - clubStrengthFor(g, x, 1));
+  const ranked = [...clubs].sort(
+    (x, y) => clubFootballStrength(g, y, 1) - clubFootballStrength(g, x, 1),
+  );
   const strong = ranked[0];
   const weak = ranked[ranked.length - 1];
   let strongWins = 0,
@@ -234,9 +237,9 @@ console.log("\n[R5] Stronger clubs win more often over large simulations");
     `${strongWins} vs ${weakWins}`,
   );
 
-  // Table-level: detailed reputation strength is a Focus-simulation input.
-  // Distant divisions may deliberately use compact fringe strength, so verify
-  // the correlation in the player's current Focus division rather than tier 1.
+  // Table-level: canonical football strength is the actual match-simulation input.
+  // Verify that quality remains positively associated with final position in the
+  // player's current Focus division, where detailed squad state is available.
   let rankScore = 0;
   let samples = 0;
   for (const seed of ["REP_SEED_5A", "REP_SEED_5B", "REP_SEED_5C", "REP_SEED_5D"]) {
@@ -245,7 +248,10 @@ console.log("\n[R5] Stronger clubs win more often over large simulations");
     const sampleClubs = focusLeague.clubIds;
     const preRank = new Map(
       [...sampleClubs]
-        .sort((x, y) => clubStrengthFor(sample, y, 1) - clubStrengthFor(sample, x, 1))
+        .sort(
+          (x, y) =>
+            clubFootballStrength(sample, y, 1) - clubFootballStrength(sample, x, 1),
+        )
         .map((club, index) => [club, index + 1]),
     );
     const played = playSeason(sample);
@@ -261,7 +267,7 @@ console.log("\n[R5] Stronger clubs win more often over large simulations");
     }
   }
   check(
-    "focus-league strength is positively associated with final position",
+    "canonical focus strength is positively associated with final position",
     samples > 0 && rankScore > 0,
     `rank association ${rankScore.toFixed(1)} across ${samples} club-seasons`,
   );
