@@ -4,6 +4,7 @@ import { canonicalClubReference, sameClubReference } from "./clubReference";
 import { hashString } from "./rng";
 
 export const FRINGE_SQUAD_SIZE = 20;
+export const FRINGE_INACTIVE_RETENTION_SEASONS = 1;
 const POSITIONS: Position[] = ["GK", "DEF", "DEF", "DEF", "MID", "MID", "MID", "MID", "FWD", "FWD"];
 const POSITION_TARGETS: Record<Position, number> = { GK: 2, DEF: 6, MID: 8, FWD: 4 };
 const POSITION_ORDER: Position[] = ["GK", "DEF", "MID", "FWD"];
@@ -138,6 +139,35 @@ function isActive(player: CompactFringePlayer): boolean {
   return !player.retired && !player.departed;
 }
 
+function protectedCompactPlayerIds(state: GameState): Set<string> {
+  const ids = new Set<string>();
+  for (const known of state.football?.playerLifecycle?.knownPlayers ?? []) ids.add(known.playerId);
+  for (const playerId of state.football?.shortlist ?? []) ids.add(playerId);
+  for (const report of state.football?.scoutingReports ?? []) ids.add(report.playerId);
+  for (const negotiation of state.football?.negotiations ?? []) ids.add(negotiation.playerId);
+  return ids;
+}
+
+/**
+ * World-only retired/departed identities are short-lived cache rows, not an
+ * ever-growing historical database. Chairman-relevant identities are retained;
+ * their known-player ledger is the durable history contract.
+ */
+export function pruneInactiveFringePlayersInPlace(state: GameState): number {
+  const world = state.fringePlayers;
+  if (!world) return 0;
+  const protectedIds = protectedCompactPlayerIds(state);
+  let removed = 0;
+  for (const [playerId, player] of Object.entries(world)) {
+    if (isActive(player) || protectedIds.has(playerId)) continue;
+    const inactiveSeason = player.lastDevelopedSeason ?? state.season;
+    if (state.season - inactiveSeason < FRINGE_INACTIVE_RETENTION_SEASONS) continue;
+    delete world[playerId];
+    removed += 1;
+  }
+  return removed;
+}
+
 function nextVacantPosition(players: CompactFringePlayer[]): Position {
   const counts: Record<Position, number> = { GK: 0, DEF: 0, MID: 0, FWD: 0 };
   for (const player of players) if (isActive(player)) counts[player.primaryPosition] += 1;
@@ -168,17 +198,19 @@ export function advancePersistentFringePlayersToSeason(state: GameState): Fringe
     }
   }
   state.fringePlayers = world;
-  // Retired/departed identities remain in the cheap ledger, but active Fringe
-  // squads do not permanently shrink. Deterministic entrants fill vacancies.
-  return ensurePersistentFringePlayers(state);
+  // Restore active squad capacity first, then garbage-collect stale world-only
+  // inactive rows. This keeps continuity where the chairman has attention while
+  // preventing retired/departed strangers from growing the hot save forever.
+  ensurePersistentFringePlayers(state);
+  pruneInactiveFringePlayersInPlace(state);
+  return state.fringePlayers ?? {};
 }
 
 /**
  * Seeds compact individuals once for clubs currently outside Focus. Existing
- * compact identities are deliberately retained when a club enters Focus: the
- * fidelity boundary must not destroy history. When that club later returns to
- * Fringe, these same identities are reused instead of generating a new squad.
- * Retired/departed identities are retained and replaced rather than counted as active.
+ * active compact identities are deliberately retained when a club enters Focus:
+ * the fidelity boundary must not destroy relevant people. When that club later
+ * returns to Fringe, those same active identities are reused.
  */
 export function ensurePersistentFringePlayers(state: GameState): FringePlayerWorld {
   const world = state.fringePlayers ?? {};
@@ -197,19 +229,20 @@ export function ensurePersistentFringePlayers(state: GameState): FringePlayerWor
     let activeCount = existing.filter(isActive).length;
     if (activeCount >= FRINGE_SQUAD_SIZE) continue;
 
-    // Repair old/partial saves with the original stable slot identities first.
-    for (let slot = 0; slot < FRINGE_SQUAD_SIZE && activeCount < FRINGE_SQUAD_SIZE; slot += 1) {
-      const player = makeCompactPlayer(state, club.clubId, club.strength, slot);
-      if (existingIds.has(player.playerId)) continue;
-      world[player.playerId] = player;
-      existing.push(player);
-      existingIds.add(player.playerId);
-      activeCount += 1;
+    // A club with no compact identities is entering the persistent world for
+    // the first time, so seed its canonical original slots. Once any identities
+    // exist, vacancies use generation-specific replacements; this prevents a
+    // pruned retired original slot from ever being resurrected later.
+    if (existing.length === 0) {
+      for (let slot = 0; slot < FRINGE_SQUAD_SIZE; slot += 1) {
+        const player = makeCompactPlayer(state, club.clubId, club.strength, slot);
+        world[player.playerId] = player;
+        existing.push(player);
+        existingIds.add(player.playerId);
+        activeCount += 1;
+      }
     }
 
-    // Once original slots have existed, replacement identities must never reuse
-    // them. Entry season + deterministic ordinal preserves old history. The
-    // vacancy's positional need is filled first so compact squads remain viable.
     let ordinal = 0;
     while (activeCount < FRINGE_SQUAD_SIZE) {
       const position = nextVacantPosition(existing);
