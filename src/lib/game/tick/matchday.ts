@@ -14,6 +14,7 @@ import { profileForTier, tierOfUser } from "../economy";
 import { facilityModifiers } from "../infrastructure";
 import { postMatchdayFinance } from "../finance";
 import { clubFootballStrength } from "../footballStrength";
+import { realisedPlayerClubStrength } from "../playerClubPerformance";
 import {
   makeRecord,
   resolveWeek,
@@ -23,7 +24,7 @@ import {
   leagueOf,
   playerLeagueId,
 } from "../league";
-import { avgTicketPrice, squadRating, simAttendance, simGoals, usableCapacity } from "../sim";
+import { avgTicketPrice, simAttendance, simGoals, usableCapacity } from "../sim";
 import { FRIENDLY_WEEKS } from "../calendar";
 
 export interface MatchOverride {
@@ -63,10 +64,12 @@ export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOu
     if (override) {
       ({ gf, ga, attendance, gate, tv, matchdayOps } = override);
     } else {
-      // Auto-resolved user match consumes the same canonical football-strength
-      // gateway as AI and interactive fixtures. Simulation fidelity therefore
-      // cannot change the quality reading for either side.
-      const myStrength = clubFootballStrength(s, s.clubName, s.season);
+      // Canonical squad quality remains the primary football input. The player
+      // club then realises that quality through one small bounded performance
+      // layer (cohesion, morale, manager quality); AI performance is added
+      // separately at the next foundation stage rather than faking AI morale.
+      const baseMyStrength = clubFootballStrength(s, s.clubName, s.season);
+      const myStrength = realisedPlayerClubStrength(s, baseMyStrength);
       const oppStrength = clubFootballStrength(s, fixture.opponent, s.season);
       const round = sched?.round ?? s.week;
       const lid = sched ? leagueOf(sched) : playerLeagueId(s);
@@ -192,7 +195,10 @@ export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOu
     const others = CLUBS.filter((c) => c !== s.clubName);
     const opp = others[Math.floor(rng() * others.length)];
     const oppStrength = 50 + rng() * 25;
-    const myStrength = squadRating(s);
+    const myStrength = realisedPlayerClubStrength(
+      s,
+      clubFootballStrength(s, s.clubName, s.season),
+    );
     const gf = simGoals(myStrength + 2, oppStrength, rng);
     const ga = simGoals(oppStrength, myStrength + 2, rng);
     // Friendly attendance is a fraction of a league day
