@@ -54,8 +54,13 @@ jobs:
         run: bun run lint
 
   game-checks:
+    name: game-checks shard ${{ matrix.shard }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -75,8 +80,23 @@ jobs:
             echo "No game verification suites found."
             exit 1
           fi
-          for check in "${checks[@]}"; do
+
+          shard=${{ matrix.shard }}
+          shard_count=3
+          ran=0
+          for i in "${!checks[@]}"; do
+            if (( i % shard_count != shard )); then
+              continue
+            fi
+            check="${checks[$i]}"
             echo "::group::$check"
             bun "$check"
             echo "::endgroup::"
+            ran=$((ran + 1))
           done
+
+          if (( ran == 0 )); then
+            echo "Shard $shard did not receive any checks."
+            exit 1
+          fi
+          echo "Shard $shard completed $ran checks."
