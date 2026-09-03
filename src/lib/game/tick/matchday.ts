@@ -9,6 +9,12 @@
  */
 import type { GameState, FixtureResult, MatchRecord } from "../types";
 import { CLUBS } from "../clubs";
+import {
+  clubDisplayName,
+  isUserClubReference,
+  sameClubReference,
+  userClubReference,
+} from "../clubReference";
 import { mulberry32, hashString } from "../rng";
 import { profileForTier, tierOfUser } from "../economy";
 import { facilityModifiers } from "../infrastructure";
@@ -48,25 +54,26 @@ export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOu
   let fxResult: FixtureResult | null = null;
 
   if (fixture) {
+    const userRef = userClubReference(s);
     let gf: number, ga: number, attendance: number, gate: number, tv: number, matchdayOps: number;
     // The scheduled fixture this result belongs to (schedule-backed saves).
     const sched = hasFullSchedule(s)
       ? s.leagueSchedule.find(
           (f) =>
             f.week === s.week &&
-            ((f.home === s.clubName && f.away === fixture.opponent) ||
-              (f.away === s.clubName && f.home === fixture.opponent)),
+            ((isUserClubReference(s, f.home) && sameClubReference(s, f.away, fixture.opponent)) ||
+              (isUserClubReference(s, f.away) && sameClubReference(s, f.home, fixture.opponent))),
         )
       : undefined;
-    const homeClub = fixture.home ? s.clubName : fixture.opponent;
-    const awayClub = fixture.home ? fixture.opponent : s.clubName;
+    const homeClub = fixture.home ? userRef : fixture.opponent;
+    const awayClub = fixture.home ? fixture.opponent : userRef;
     if (override) {
       ({ gf, ga, attendance, gate, tv, matchdayOps } = override);
     } else {
       // Both sides now cross the same final match-strength gateway. Underlying
       // squad quality remains canonical; only the small asymmetric performance
       // layer differs between the player club and AI clubs.
-      const myStrength = clubMatchStrength(s, s.clubName, s.season);
+      const myStrength = clubMatchStrength(s, userRef, s.season);
       const oppStrength = clubMatchStrength(s, fixture.opponent, s.season);
       const round = sched?.round ?? s.week;
       const lid = sched ? leagueOf(sched) : playerLeagueId(s);
@@ -158,8 +165,8 @@ export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOu
     } else {
       // Legacy (pre-v3) in-progress season: no full schedule, keep the old
       // incremental two-club update so existing saves stay consistent.
-      const my = s.league.find((r) => r.team === s.clubName)!;
-      const opp = s.league.find((r) => r.team === fixture.opponent)!;
+      const my = s.league.find((r) => isUserClubReference(s, r.team))!;
+      const opp = s.league.find((r) => sameClubReference(s, r.team, fixture.opponent))!;
       if (my && opp) {
         my.p++;
         opp.p++;
@@ -183,7 +190,7 @@ export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOu
         }
       }
     }
-    matchdayNote = `${fixture.home ? "H" : "A"} vs ${fixture.opponent} — ${gf}-${ga} ${result}`;
+    matchdayNote = `${fixture.home ? "H" : "A"} vs ${clubDisplayName(s, fixture.opponent)} — ${gf}-${ga} ${result}`;
   } else if (!override && FRIENDLY_WEEKS.has(s.week)) {
     // ---- Friendly (pre-season / mid-season windows) ----
     // Seeded from the save + calendar slot so replaying the same pre-week
@@ -192,7 +199,7 @@ export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOu
     const others = CLUBS.filter((c) => c !== s.clubName);
     const opp = others[Math.floor(rng() * others.length)];
     const oppStrength = 50 + rng() * 25;
-    const myStrength = clubMatchStrength(s, s.clubName, s.season);
+    const myStrength = clubMatchStrength(s, userClubReference(s), s.season);
     const gf = simGoals(myStrength + 2, oppStrength, rng);
     const ga = simGoals(oppStrength, myStrength + 2, rng);
     // Friendly attendance is a fraction of a league day
