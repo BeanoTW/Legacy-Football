@@ -10,6 +10,7 @@ import {
   preserveKnownPlayerInPlace,
   type KnownPlayerSeed,
 } from "./playerLifecycle";
+import { isUserClubReference } from "./clubReference";
 
 export type ScoutingBriefStatus = "complete";
 export type ScoutingCandidateSource = "detailed" | "fringe";
@@ -187,7 +188,7 @@ function eligible(
   candidate: DiscoveryCandidate,
   input: ScoutingBriefInput,
 ): boolean {
-  if (candidate.source === "detailed" && candidate.player.currentClubId === state.clubName) {
+  if (candidate.source === "detailed" && isUserClubReference(state, candidate.player.currentClubId)) {
     return false;
   }
   if (input.position && candidate.primaryPosition !== input.position) return false;
@@ -346,6 +347,6 @@ export function discoveredPlayerIds(state: GameState): Set<string> {
 
 export function isPlayerDiscovered(state: GameState, playerId: string): boolean {
   const detailed = state.football?.players.find((player) => player.id === playerId);
-  if (detailed?.currentClubId === state.clubName) return true;
+  if (isUserClubReference(state, detailed?.currentClubId)) return true;
   return discoveredPlayerIds(state).has(playerId);
 }
