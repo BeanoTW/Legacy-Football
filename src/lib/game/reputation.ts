@@ -12,8 +12,9 @@
        projection that was made BEFORE the season was played.
      * Never uncontrolled randomness: every varying value is seeded from saveSeed.
 
-   Import discipline: this module may only import ./types and ./rng, so that
-   ./league and ./pyramid can both depend on it without a cycle.
+   Import discipline: this module stays below ./league and ./pyramid. Club
+   identity is safe here because it depends only on types, clubs and RNG and
+   lets name→opaque-ID migration preserve deterministic reputation/strength.
 ========================================================================= */
 
 import type {
@@ -26,6 +27,7 @@ import type {
   ClubSeasonSnapshot,
   ClubRecord,
 } from "./types";
+import { clubSimulationSeedKey } from "./clubIdentity";
 import { mulberry32, hashString } from "./rng";
 
 export const REP_MIN = 0;
@@ -54,25 +56,25 @@ export function tierOfClub(s: GameState, club: string): number {
 
 /* ---------- Reputation ---------- */
 
-/** Deterministic starting reputation for a club in a given tier. */
-export function baseReputation(saveSeed: string, club: string, tier: number): number {
+/** Deterministic starting reputation for a club in a given seed identity. */
+export function baseReputation(saveSeed: string, clubSeedKey: string, tier: number): number {
   const [lo, hi] = TIER_BASE_REP[tier] ?? TIER_BASE_REP[2];
-  const rng = mulberry32(hashString(`rep0|${saveSeed}|${club}`));
+  const rng = mulberry32(hashString(`rep0|${saveSeed}|${clubSeedKey}`));
   return Math.round((lo + rng() * (hi - lo)) * 10) / 10;
 }
 
-/** Starting reputation map for a whole pyramid. */
+/** Starting reputation map for a whole legacy-name pyramid. */
 export function initClubReputations(leagues: League[], saveSeed: string): Record<string, number> {
   const out: Record<string, number> = {};
   for (const l of leagues) for (const c of l.clubIds) out[c] = baseReputation(saveSeed, c, l.tier);
   return out;
 }
 
-/** Persisted reputation, falling back to the deterministic tier baseline. */
+/** Persisted reputation, falling back to the deterministic immutable seed identity. */
 export function clubReputation(s: GameState, club: string): number {
   const stored = s.clubReputations?.[club];
   if (typeof stored === "number" && Number.isFinite(stored)) return clamp(stored, REP_MIN, REP_MAX);
-  return baseReputation(s.saveSeed, club, tierOfClub(s, club));
+  return baseReputation(s.saveSeed, clubSimulationSeedKey(s, club), tierOfClub(s, club));
 }
 
 export function setClubReputation(s: GameState, club: string, value: number): void {
@@ -136,7 +138,8 @@ export function strengthParts(s: GameState, club: string, season: number): Stren
     }
   }
 
-  const rng = mulberry32(hashString(`strength|${s.saveSeed}|${club}|s${season}`));
+  const clubSeed = clubSimulationSeedKey(s, club);
+  const rng = mulberry32(hashString(`strength|${s.saveSeed}|${clubSeed}|s${season}`));
   const variation = (rng() - 0.5) * 8; // ±4
 
   const total = clamp(base + tierBonus + form + movement + variation, 25, 95);
