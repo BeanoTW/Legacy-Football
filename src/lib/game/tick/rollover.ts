@@ -9,6 +9,7 @@ import type { GameState } from "../types";
 import { resolveRemainingSeason, syncTable, playerLeagueId } from "../league";
 import { makePyramidSchedule, applySeasonRollover, findLeague } from "../pyramid";
 import { isUserClubReference, userClubReference } from "../clubReference";
+import { withCanonicalUserClubReference } from "../legacyUserClubBoundary";
 import { runEndOfSeasonReview, rollBoardToNewSeason } from "../board";
 import { awardPrizeMoney, closeSeasonFinance, openSeasonFinance } from "../finance";
 import { closeCommercialSeason } from "../commercial";
@@ -67,15 +68,16 @@ export function tickSeasonRollover(s: GameState): void {
       }
     }
   }
-  // Board's final judgement on the season just completed. Must run before
-  // the season counter moves so it is filed against the correct season.
-  runEndOfSeasonReview(s);
+  // Board/recruitment still have legacy direct clubName ownership reads. Keep
+  // their write boundary canonical on migrated saves without changing the
+  // public display-name field outside these synchronous calls.
+  withCanonicalUserClubReference(s, () => runEndOfSeasonReview(s));
   // Immutable financial record of the season just closed.
   closeSeasonFinance(s, closingSeason, closingLeagueId);
   // Immutable commercial record of the season just closed.
   closeCommercialSeason(s, closingSeason);
   // Immutable recruitment record of the season just closed.
-  closeRecruitmentSeason(s, closingSeason);
+  withCanonicalUserClubReference(s, () => closeRecruitmentSeason(s, closingSeason));
 
   // reset
   s.season += 1;
@@ -103,7 +105,7 @@ export function tickSeasonRollover(s: GameState): void {
   }
   // Detailed Focus players now follow deterministic age/potential development
   // and decline curves. Fringe clubs continue to evolve statistically.
-  runPlayerCareerRollover(s);
+  withCanonicalUserClubReference(s, () => runPlayerCareerRollover(s));
   // The pyramid has already changed, so capture every detailed club that is
   // about to fall outside Focus before recruitment removes those player rows.
   compactDepartingFocusPlayersInPlace(s);
@@ -112,7 +114,7 @@ export function tickSeasonRollover(s: GameState): void {
   runStaffCareerRollover(s);
   // Player values and wage expectations are then recalculated from the evolved
   // abilities; the legacy recruitment reconciler creates/removes detailed rows.
-  rollRecruitmentToNewSeason(s);
+  withCanonicalUserClubReference(s, () => rollRecruitmentToNewSeason(s));
   // Any newly Focused club is then rebound to its persistent compact people,
   // retaining the recruitment-calculated contract economics without rerolling
   // player identity, DOB, position or ability.
@@ -120,7 +122,7 @@ export function tickSeasonRollover(s: GameState): void {
   // Physical plant ages one year and re-derives its projections.
   rollInfrastructureToNewSeason(s);
   // New season objectives, derived from the freshly stored projection.
-  rollBoardToNewSeason(s);
+  withCanonicalUserClubReference(s, () => rollBoardToNewSeason(s));
   // Open the new season's books: opening balance, policy and budgets.
   openSeasonFinance(s, s.season);
 }
