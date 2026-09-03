@@ -4,6 +4,7 @@ import {
   preserveKnownPlayerInPlace,
   setKnownPlayerReasonInPlace,
 } from "./playerLifecycle";
+import { isUserClubReference } from "./clubReference";
 
 /**
  * Recruitment owns transfer mutation. This module only manages the knowledge
@@ -41,7 +42,7 @@ export function prepareKnownPlayerApproachInPlace(
   role: SquadRole = "First Team",
 ): KnownPlayerApproach | null {
   const player = knownPlayerDetail(state, playerId);
-  if (!player || player.currentClubId === state.clubName) return null;
+  if (!player || isUserClubReference(state, player.currentClubId)) return null;
   preserveKnownPlayerInPlace(state, player, ["negotiation"]);
   return {
     playerId,
