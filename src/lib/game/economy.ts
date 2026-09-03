@@ -17,6 +17,7 @@
       3  Regional/National  (semi-professional)
 ========================================================================= */
 import type { GameState } from "./types";
+import { isUserClubReference } from "./clubReference";
 
 const int = (n: number) => Math.round(n);
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
@@ -275,7 +276,7 @@ export function tierOfClub(s: GameState, clubId: string): number {
 export function tierOfUser(s: GameState): number {
   const l =
     (s.leagues ?? []).find((x) => x.id === s.playerLeagueId) ??
-    (s.leagues ?? []).find((x) => x.clubIds?.includes(s.clubName));
+    (s.leagues ?? []).find((x) => x.clubIds?.some((club) => isUserClubReference(s, club)));
   return l?.tier ?? 1;
 }
 
