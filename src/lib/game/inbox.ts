@@ -37,6 +37,7 @@ import type {
   CommercialOffer,
   TransferNegotiation,
 } from "./types";
+import { isUserClubReference } from "./clubReference";
 
 import {
   MAX_NEGOTIATION_ROUNDS,
@@ -1665,10 +1666,10 @@ const G_RECRUITMENT_TRANSFER_DONE: Generator = {
   run: (s) => {
     if (!s.football) return [];
     return s.football.transferHistory
-      .filter((r) => r.toClubId === s.clubName || r.fromClubId === s.clubName)
+      .filter((r) => isUserClubReference(s, r.toClubId) || isUserClubReference(s, r.fromClubId))
       .slice(-6)
       .map((r) => {
-        const incoming = r.toClubId === s.clubName;
+        const incoming = isUserClubReference(s, r.toClubId);
         return mk(s, "recruitment-transfer-complete", {
           eventKey: `recruitment-transfer-complete:${r.id}`,
           sender: RECRUITMENT_SENDER(s),
