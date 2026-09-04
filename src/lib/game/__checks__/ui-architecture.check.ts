@@ -204,9 +204,17 @@ console.log("\n[U6] Recruitment knowledge boundary");
     "contracted scouting approaches use the explicit enquiry action",
     /submitTransferEnquiry\(/.test(browser) && /submitTransferEnquiry\(/.test(reports),
   );
+  const operations = read("src/components/game/RecruitmentOperations.tsx");
   check(
     "the live negotiations screen exposes the enquiry-to-bid action",
-    /submitEnquiryOffer\(/.test(read("src/components/game/RecruitmentOperations.tsx")),
+    /submitEnquiryOffer\(/.test(operations),
+  );
+  check(
+    "negotiation controls use canonical level-aware fee and wage steps",
+    /recruitmentTransferFeePolicyForClub\(/.test(operations) &&
+      /recruitmentTransferFeePolicyForUser\(/.test(operations) &&
+      /recruitmentUserNegotiationWageStep\(/.test(operations) &&
+      !/n\.fee \+ 5000|step=\{5000\}|proposedWeeklyWage \+ 25|step=\{25\}/.test(operations),
   );
 }
 
