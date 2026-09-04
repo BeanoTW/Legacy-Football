@@ -1169,6 +1169,7 @@ export function openTransferNegotiationInPlace(
   playerId: string,
   fee: number,
   role: SquadRole = "First Team",
+  openingWeeklyWage?: number,
 ): NegotiationResult {
   ensureRecruitment(s);
   const p = transferTargetPlayer(s, playerId);
@@ -1186,6 +1187,14 @@ export function openTransferNegotiationInPlace(
   const auth = canAuthorisePurchase(s, offerFee);
   if (!auth.allowed) return { ok: false, reason: auth.reason };
 
+  const hiddenWageDemand = wageDemand(s, p, role);
+  const proposedWeeklyWage =
+    openingWeeklyWage === undefined
+      ? hiddenWageDemand
+      : recruitmentUserNegotiationWage(s, Math.max(0, openingWeeklyWage));
+  const wageAuth = canAuthoriseWage(s, proposedWeeklyWage);
+  if (!wageAuth.allowed) return { ok: false, reason: wageAuth.reason };
+
   const abs = nowAbs(s);
   const n: TransferNegotiation = {
     id: nextNegotiationId(s),
@@ -1197,7 +1206,7 @@ export function openTransferNegotiationInPlace(
     clubRounds: 1,
     playerRounds: 0,
     fee: offerFee,
-    proposedWeeklyWage: wageDemand(s, p, role),
+    proposedWeeklyWage,
     proposedLengthSeasons: 3,
     proposedSigningBonus: int(offerFee * 0.05),
     proposedRole: role,
@@ -2380,7 +2389,11 @@ export const submitTransferOffer = (
   playerId: string,
   fee: number,
   role?: SquadRole,
-) => cloned(s, (w) => openTransferNegotiationInPlace(w, playerId, fee, role));
+  openingWeeklyWage?: number,
+) =>
+  cloned(s, (w) =>
+    openTransferNegotiationInPlace(w, playerId, fee, role, openingWeeklyWage),
+  );
 export const improveTransferOffer = (s: GameState, id: string, fee?: number) =>
   cloned(s, (w) => counterClubOfferInPlace(w, id, fee));
 export const improvePersonalTerms = (
