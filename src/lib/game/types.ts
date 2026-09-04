@@ -1055,6 +1055,10 @@ export interface TransferNegotiation {
   fee: number;
   /** Selling club's latest counter, if it made one. */
   clubCounterFee?: number;
+  /** Another club with a live bid on this target, discovered through enquiry. */
+  competingClubId?: string;
+  /** Persisted rival transfer fee. Undefined when there is no competing bid. */
+  competingOfferFee?: number;
   proposedWeeklyWage: number;
   proposedLengthSeasons: number;
   proposedSigningBonus: number;
