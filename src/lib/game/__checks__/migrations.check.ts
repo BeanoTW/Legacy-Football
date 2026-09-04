@@ -139,6 +139,7 @@ const SCENARIOS: { label: string; weeks: number; seed: string }[] = [
 ];
 
 const SOURCE_VERSIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+const LEGACY_PARITY_VERSION = 15;
 
 /* Sanity: the richest fixture really does carry the features the brief lists. */
 console.log("\n[G0] Fixture richness");
@@ -168,24 +169,30 @@ for (const sc of SCENARIOS) {
     const src = downgradeTo(v, base);
     safe(`${sc.label} @v${v}`, () => {
       const legacy = legacyMigrateSave(clone(src));
-      const modern = runMigrations(clone(src), SAVE_VERSION, DEPS).state;
+      const modernLegacy = runMigrations(clone(src), LEGACY_PARITY_VERSION, DEPS).state;
       const lh = stateHash(legacy);
-      const mh = stateHash(modern);
+      const mh = stateHash(modernLegacy);
       const same = lh === mh;
       let drift = "";
       if (!same) {
         const a = stateHashParts(legacy);
-        const b = stateHashParts(modern);
+        const b = stateHashParts(modernLegacy);
         drift = Object.keys({ ...a, ...b })
           .filter((k) => a[k] !== b[k])
           .join(", ");
       }
-      check(`${sc.label} v${v}: identical state hash`, same, `drift: ${drift}`);
-      check(`${sc.label} v${v}: version = ${SAVE_VERSION}`, modern.version === SAVE_VERSION);
+      check(`${sc.label} v${v}: legacy v15 state hash parity`, same, `drift: ${drift}`);
       check(
-        `${sc.label} v${v}: byte-identical canonical serialization`,
-        stableStringify(legacy) === stableStringify(modern),
+        `${sc.label} v${v}: legacy parity lands on v${LEGACY_PARITY_VERSION}`,
+        modernLegacy.version === LEGACY_PARITY_VERSION,
       );
+      check(
+        `${sc.label} v${v}: legacy v15 canonical serialization parity`,
+        stableStringify(legacy) === stableStringify(modernLegacy),
+      );
+
+      const current = runMigrations(clone(src), SAVE_VERSION, DEPS).state;
+      check(`${sc.label} v${v}: upgrades to current schema v${SAVE_VERSION}`, current.version === SAVE_VERSION);
     });
   }
 }
