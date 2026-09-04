@@ -65,6 +65,7 @@ export function syncKnownPlayerNegotiationReasonInPlace(
     negotiation.stage === "enquiry" ||
     negotiation.stage === "clubTalks" ||
     negotiation.stage === "playerTalks" ||
-    negotiation.stage === "agreed";
+    negotiation.stage === "agreed" ||
+    negotiation.stage === "registration";
   markKnownPlayerNegotiationInPlace(state, negotiation.playerId, active);
 }
