@@ -11,9 +11,12 @@ import {
   rememberedPlayerIds,
   rememberedPlayerSeason,
 } from "../rememberedPlayers";
+import { isUserClubReference } from "../clubReference";
 
 const base = newGame("Remember Audit FC", "Auditor", "REMEMBERED_PLAYER_AUDIT");
-const source = base.football?.players.find((player) => player.currentClubId !== base.clubName);
+const source = base.football?.players.find(
+  (player) => player.currentClubId !== null && !isUserClubReference(base, player.currentClubId),
+);
 if (!source || !base.football) throw new Error("external player missing");
 
 preserveKnownPlayerInPlace(base, source, ["formerPlayer"]);
