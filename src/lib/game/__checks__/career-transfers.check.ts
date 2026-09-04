@@ -3,6 +3,7 @@ import { runAiCareerTransfers } from "../careers";
 import { buildWorldSimulationPlan } from "../world";
 import { SQUAD_SIZE } from "../recruitment";
 import type { GameState } from "../types";
+import { isUserClubReference } from "../clubReference";
 
 let passed = 0;
 let failed = 0;
@@ -22,7 +23,7 @@ const seedState = (): GameState => newGame("Career Market FC", "Chair", "CAREER_
 function prepareVacancies(state: GameState): Set<string> {
   const focus = new Set(buildWorldSimulationPlan(state).focusClubIds);
   const buyers = [...focus]
-    .filter((club) => club !== state.clubName)
+    .filter((club) => !isUserClubReference(state, club))
     .sort()
     .slice(0, 8);
   for (const buyer of buyers) {
@@ -44,7 +45,7 @@ console.log("\n[CT1] Deterministic AI market");
   const b = clone(a);
   const beforeCash = a.cash;
   const userIds = new Set(
-    a.football.players.filter((p) => p.currentClubId === a.clubName).map((p) => p.id),
+    a.football.players.filter((p) => isUserClubReference(a, p.currentClubId)).map((p) => p.id),
   );
   const movedA = runAiCareerTransfers(a, focusA);
   const movedB = runAiCareerTransfers(b, new Set(focusA));
@@ -72,7 +73,7 @@ console.log("\n[CT1] Deterministic AI market");
     "no user player is autonomously moved",
     a.football.players
       .filter((p) => userIds.has(p.id))
-      .every((p) => p.currentClubId === a.clubName),
+      .every((p) => isUserClubReference(a, p.currentClubId)),
   );
 }
 
@@ -94,8 +95,8 @@ console.log("\n[CT2] Transfer records and squad safety");
         r.type === "transfer" &&
         !!r.fromClubId &&
         !!r.toClubId &&
-        r.fromClubId !== s.clubName &&
-        r.toClubId !== s.clubName,
+        !isUserClubReference(s, r.fromClubId) &&
+        !isUserClubReference(s, r.toClubId),
     ),
   );
   check(
