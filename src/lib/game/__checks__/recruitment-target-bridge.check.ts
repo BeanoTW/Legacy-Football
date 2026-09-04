@@ -1,5 +1,6 @@
 import { strict as assert } from "node:assert";
 import { newGame } from "../engine";
+import { applyEffects, runWeeklyGenerators } from "../inbox";
 import {
   createScoutingBrief,
   scoutingBrief,
@@ -23,6 +24,7 @@ import {
   canAuthoriseWage,
   beginTransferRegistrationInPlace,
   completeTransferInPlace,
+  negotiationById,
   openTransferNegotiationInPlace,
   wageDemand,
 } from "../recruitment";
@@ -183,6 +185,69 @@ assert.equal(
   playerFidelity(integrationState, integrationId),
   "known",
   "agreement alone must leave the target compact",
+);
+
+// The Inbox must preserve the same compact lifecycle and may not bypass registration.
+const agreedInbox = runWeeklyGenerators(integrationState);
+const agreedInboxItem = agreedInbox.inbox.find(
+  (item) =>
+    item.generatorId === "recruitment-deal-agreed" &&
+    item.eventKey === `recruitment-deal-agreed:${opened.negotiation!.id}`,
+);
+assert.ok(agreedInboxItem, "compact agreed target should remain visible in Inbox");
+const registerChoice = agreedInboxItem.choices?.find((choice) => choice.id === "register");
+assert.ok(registerChoice, "incoming agreed Inbox item should offer registration");
+assert.deepEqual(
+  registerChoice.effects,
+  [{ kind: "recruitmentBeginRegistration", negotiationId: opened.negotiation.id }],
+  "Inbox must route agreed incoming deals into registration rather than completion",
+);
+
+const afterInboxRegistration = applyEffects(agreedInbox, registerChoice.effects);
+assert.equal(
+  negotiationById(afterInboxRegistration, opened.negotiation.id)?.stage,
+  "registration",
+  "Inbox registration action should persist the registration stage",
+);
+assert.equal(
+  playerFidelity(afterInboxRegistration, integrationId),
+  "known",
+  "Inbox registration must not hydrate the compact target",
+);
+assert.equal(
+  afterInboxRegistration.football?.players.some((player) => player.id === integrationId),
+  false,
+  "Inbox registration must preserve the completion materialisation boundary",
+);
+
+const registrationInbox = runWeeklyGenerators(afterInboxRegistration);
+const registrationInboxItem = registrationInbox.inbox.find(
+  (item) =>
+    item.generatorId === "recruitment-registration-ready" &&
+    item.eventKey === `recruitment-registration-ready:${opened.negotiation!.id}`,
+);
+assert.ok(registrationInboxItem, "registered compact target should surface a completion Inbox item");
+const completeChoice = registrationInboxItem.choices?.find((choice) => choice.id === "complete");
+assert.ok(completeChoice, "registration Inbox item should expose final completion");
+assert.deepEqual(
+  completeChoice.effects,
+  [{ kind: "recruitmentCompleteTransfer", negotiationId: opened.negotiation.id }],
+  "registration Inbox completion must use the canonical transfer action",
+);
+const afterInboxCompletion = applyEffects(registrationInbox, completeChoice.effects);
+assert.equal(
+  negotiationById(afterInboxCompletion, opened.negotiation.id)?.stage,
+  "completed",
+  "Inbox completion should finish the registered deal",
+);
+assert.equal(
+  playerFidelity(afterInboxCompletion, integrationId),
+  "detailed",
+  "Inbox completion should materialize the same compact player identity",
+);
+assert.ok(
+  afterInboxCompletion.football?.players.some((player) => player.id === integrationId),
+  "Inbox completion should add the signed player to detailed simulation",
 );
 
 const registration = beginTransferRegistrationInPlace(
