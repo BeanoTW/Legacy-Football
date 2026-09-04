@@ -6,6 +6,7 @@ import {
   isChairmanShortlisted,
   toggleChairmanShortlist,
 } from "../recruitmentKnowledge";
+import { isUserClubReference } from "../clubReference";
 
 let passed = 0;
 let failed = 0;
@@ -62,7 +63,7 @@ check("compact candidate can be removed from shortlist", !isChairmanShortlisted(
 check("removing shortlist does not erase identity", Boolean(knownPlayerIdentity(removed, compactId)));
 
 const detailedTarget = discovered.football?.players.find(
-  (player) => player.currentClubId !== discovered.clubName && player.currentClubId !== null,
+  (player) => player.currentClubId !== null && !isUserClubReference(discovered, player.currentClubId),
 );
 if (!detailedTarget) throw new Error("detailed external candidate missing");
 const detailedShortlisted = toggleChairmanShortlist(discovered, detailedTarget.id);
