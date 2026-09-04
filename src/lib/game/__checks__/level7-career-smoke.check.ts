@@ -6,6 +6,7 @@
 import { advanceDay, advanceWeek, migrateSave, newGame } from "../engine";
 import { reconcile } from "../finance";
 import { footballLevelOfUser } from "../footballLevel";
+import { isUserClubReference } from "../clubReference";
 import {
   MAX_NEGOTIATION_ROUNDS,
   canAuthorisePurchase,
@@ -87,7 +88,12 @@ assert(
   `fresh Level 7 wage authority must be at least £8,500/wk, got £${s.finance?.budgets?.wages ?? 0}`,
 );
 assert(userSquad(s).length > 0, "fresh career must have a playable squad");
-assert(transferMarket(s).some((entry) => entry.player.currentClubId !== s.clubName), "fresh career must expose external recruitment targets");
+assert(
+  transferMarket(s).some(
+    (entry) => entry.player.currentClubId !== null && !isUserClubReference(s, entry.player.currentClubId),
+  ),
+  "fresh career must expose external recruitment targets",
+);
 assert(reconcile(s).ok, "fresh Level 7 finances must reconcile before recruitment");
 
 const openingCash = s.cash;
