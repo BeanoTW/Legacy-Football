@@ -8,17 +8,19 @@ import {
   realisedAiClubStrength,
 } from "../aiClubPerformance";
 import { isOpaqueClubId } from "../clubIdentity";
+import { isUserClubReference, userClubReference } from "../clubReference";
 import type { LeagueRow } from "../types";
 
 const state = newGame("AI Performance Audit FC", "AI Auditor", "AI_PERFORMANCE_AUDIT");
-const league = state.leagues.find((candidate) => candidate.clubIds.includes(state.clubName));
+const league = state.leagues.find((candidate) => candidate.clubIds.some((club) => isUserClubReference(state, club)));
 if (!league) throw new Error("user league missing");
-const aiClubs = league.clubIds.filter((club) => club !== state.clubName);
+const userId = userClubReference(state);
+const aiClubs = league.clubIds.filter((club) => !isUserClubReference(state, club));
 const over = aiClubs[0];
 const under = aiClubs[1];
 if (!over || !under) throw new Error("AI clubs missing");
 
-const order = [over, state.clubName, ...aiClubs.filter((club) => club !== over && club !== under), under];
+const order = [over, userId, ...aiClubs.filter((club) => club !== over && club !== under), under];
 function tableFor(clubs: string[]): LeagueRow[] {
   return clubs.map((team, index) => ({
     team,
@@ -74,7 +76,7 @@ advanceAiClubPerformanceSeasonInPlace(state, seasonOne, 1);
 assert.ok(state.aiClubPerformance);
 assert.deepEqual(state.aiClubPerformance.processedSeasons, [1]);
 assert.ok(Object.keys(state.aiClubPerformance.clubsById).every(isOpaqueClubId));
-assert.equal(aiClubPerformanceModifier(state, state.clubName), 0, "user club must not receive AI institutional state");
+assert.equal(aiClubPerformanceModifier(state, userId), 0, "user club must not receive AI institutional state");
 const overOne = aiClubPerformanceModifier(state, over);
 const underOne = aiClubPerformanceModifier(state, under);
 assert.ok(overOne > 0, "overachievement should create positive institutional momentum");
@@ -166,7 +168,7 @@ for (let season = 3; season <= 10; season += 1) {
   );
   assert.ok(Math.abs(aiClubPerformanceModifier(state, over)) <= AI_CLUB_PERFORMANCE_LIMIT);
 }
-assert.equal(aiClubPerformanceModifier(state, state.clubName), 0);
+assert.equal(aiClubPerformanceModifier(state, userId), 0);
 assert.ok(realisedAiClubStrength(state, over, 95) <= 95);
 assert.ok(realisedAiClubStrength(state, under, 25) >= 25);
 
