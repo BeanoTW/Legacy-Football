@@ -16,6 +16,7 @@ import { userClubReference } from "../clubReference";
 import {
   canAuthorisePurchase,
   canAuthoriseWage,
+  beginTransferRegistrationInPlace,
   improvePlayerTermsInPlace,
   openTransferEnquiryInPlace,
   openTransferNegotiationInPlace,
@@ -239,6 +240,22 @@ assert.equal(
   termsState.football?.players.some((player) => player.id === termsTarget.player.id),
   false,
   "real personal-term negotiation must still not hydrate the compact player",
+);
+const registrationTerms = beginTransferRegistrationInPlace(
+  termsState,
+  openedTerms.negotiation.id,
+);
+assert.ok(registrationTerms.ok, registrationTerms.reason);
+assert.equal(openedTerms.negotiation.stage, "registration");
+assert.equal(playerFidelity(termsState, termsTarget.player.id), "known");
+assert.equal(
+  termsState.football?.players.some((player) => player.id === termsTarget.player.id),
+  false,
+  "registration must preserve compact known fidelity until completion",
+);
+assert.ok(
+  knownPlayerIdentity(termsState, termsTarget.player.id)?.reasons.includes("negotiation"),
+  "registration remains an active temporary negotiation reason",
 );
 
 console.log("\nknown-player-negotiation: passed");
