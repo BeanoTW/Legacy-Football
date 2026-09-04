@@ -7,6 +7,7 @@
    Run with:  bun src/lib/game/__checks__/matchday.check.ts
 */
 import { readFileSync } from "node:fs";
+import { isUserClubReference } from "../clubReference";
 
 import {
   newGame,
@@ -408,7 +409,7 @@ console.log("\n[G] Fixture completion");
     (lm.fixture.home ? mine[0]?.homeGoals : mine[0]?.awayGoals) === lm.ourGoals &&
       (lm.fixture.home ? mine[0]?.awayGoals : mine[0]?.homeGoals) === lm.theirGoals,
   );
-  const row = tableFor(after, playerLeagueId(after)).find((r) => r.team === after.clubName)!;
+  const row = tableFor(after, playerLeagueId(after)).find((r) => isUserClubReference(after, r.team))!;
   check("G30. table projection reflects the result once", row.p === 1);
   check(
     "G30b. every other fixture in the round resolved once",
