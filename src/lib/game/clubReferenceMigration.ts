@@ -17,6 +17,12 @@ function mapRequired(state: GameState, ref: string): string {
   return toId(state, ref) as ClubId;
 }
 
+const FRIENDLY_RESULT_SUFFIX = " (friendly)";
+
+function isFriendlyResultLabel(ref: string): boolean {
+  return ref.endsWith(FRIENDLY_RESULT_SUFFIX);
+}
+
 function rekeyRecord<T>(
   state: GameState,
   source: Record<string, T> | undefined,
@@ -66,7 +72,13 @@ export function migrateClubReferencesToIdsInPlace(state: GameState): void {
   state.league = state.league.map((row) => ({ ...row, team: mapRequired(state, row.team) }));
   state.results = state.results.map((result) => ({
     ...result,
-    opponent: mapRequired(state, result.opponent),
+    // FixtureResult predates the club-ID schema and friendlies intentionally
+    // store a presentation label ("Club Name (friendly)") rather than a club
+    // foreign key. Preserve that historical label verbatim; league results
+    // continue through the canonical ID migration.
+    opponent: isFriendlyResultLabel(result.opponent)
+      ? result.opponent
+      : mapRequired(state, result.opponent),
   }));
 
   state.seasonHistory = (state.seasonHistory ?? []).map((history) => ({
@@ -236,7 +248,9 @@ export function persistedClubReferencesAreOpaque(state: GameState): boolean {
     ...state.leagueSchedule.flatMap((fixture) => [fixture.home, fixture.away]),
     ...(state.matchRecords ?? []).flatMap((record) => [record.home, record.away]),
     ...state.league.map((row) => row.team),
-    ...state.results.map((result) => result.opponent),
+    ...state.results
+      .filter((result) => !isFriendlyResultLabel(result.opponent))
+      .map((result) => result.opponent),
     ...(state.seasonHistory ?? []).flatMap((history) => [
       history.champion,
       history.runnerUp,
