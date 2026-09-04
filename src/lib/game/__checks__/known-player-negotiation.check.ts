@@ -90,13 +90,39 @@ const enquiryState = createScoutingBrief(
 );
 const enquiryBrief = scoutingBrief(enquiryState, "known-enquiry-audit");
 if (!enquiryBrief) throw new Error("enquiry scouting brief missing");
-const enquiryId = enquiryBrief.candidateIds.find(
-  (playerId) => scoutingCandidateSource(enquiryState, enquiryBrief.id, playerId) === "fringe",
-);
-if (!enquiryId) throw new Error("enquiry compact target missing");
-const enquiryPlayer = transferTargetPlayer(enquiryState, enquiryId);
-if (!enquiryPlayer) throw new Error("enquiry player missing");
-const enquiryDemand = wageDemand(enquiryState, enquiryPlayer, "First Team");
+const enquiryTarget = enquiryBrief.candidateIds
+  .filter(
+    (playerId) => scoutingCandidateSource(enquiryState, enquiryBrief.id, playerId) === "fringe",
+  )
+  .map((playerId) => {
+    const player = transferTargetPlayer(enquiryState, playerId);
+    if (!player) return null;
+    const asking = transferTargetAskingPrice(enquiryState, player, () => 1);
+    const demand = wageDemand(enquiryState, player, "First Team");
+    return {
+      player,
+      asking,
+      demand,
+      affordable:
+        canAuthorisePurchase(enquiryState, asking + Math.round(asking * 0.05)).allowed &&
+        canAuthoriseWage(enquiryState, Math.round(demand * 0.85)).allowed,
+    };
+  })
+  .filter(
+    (
+      candidate,
+    ): candidate is {
+      player: NonNullable<ReturnType<typeof transferTargetPlayer>>;
+      asking: number;
+      demand: number;
+      affordable: boolean;
+    } => candidate !== null,
+  )
+  .find((candidate) => candidate.affordable);
+
+if (!enquiryTarget) throw new Error("affordable enquiry compact target missing");
+const enquiryId = enquiryTarget.player.id;
+const enquiryDemand = enquiryTarget.demand;
 const enquiry = openTransferEnquiryInPlace(
   enquiryState,
   enquiryId,
