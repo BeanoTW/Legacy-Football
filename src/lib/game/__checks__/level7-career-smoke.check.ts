@@ -11,6 +11,7 @@ import {
   MAX_NEGOTIATION_ROUNDS,
   canAuthorisePurchase,
   canAuthoriseWage,
+  beginTransferRegistrationInPlace,
   completeTransferInPlace,
   counterClubOfferInPlace,
   ensureRecruitment,
@@ -104,6 +105,12 @@ assert(deal, "fresh Level 7 career must be able to reach one affordable contract
 assert(canAuthorisePurchase(s, deal.fee + deal.proposedSigningBonus).allowed, "agreed Level 7 signing must remain affordable from club cash");
 assert(canAuthoriseWage(s, deal.proposedWeeklyWage).allowed, "agreed Level 7 wage must remain within board wage authority");
 
+const registration = beginTransferRegistrationInPlace(s, deal.id);
+assert(
+  registration.ok,
+  `fresh Level 7 signing must enter registration: ${registration.reason ?? "unknown failure"}`,
+);
+assert(deal.stage === "registration", "fresh Level 7 signing must persist registration before completion");
 const completed = completeTransferInPlace(s, deal.id);
 assert(completed.ok, `fresh Level 7 signing must complete: ${completed.reason ?? "unknown failure"}`);
 assert(userSquad(s).length === openingSquad + 1, "completed signing must add exactly one player to the squad");
