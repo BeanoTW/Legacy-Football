@@ -18,6 +18,7 @@ import {
   scoutingReportById,
   startScouting,
 } from "../scouting";
+import { isUserClubReference } from "../clubReference";
 
 let passed = 0;
 let failed = 0;
@@ -34,7 +35,9 @@ function check(label: string, condition: boolean, extra?: string) {
 const base = newGame("Discovery Audit FC", "Auditor", "SCOUT_DISCOVERY_AUDIT");
 if (!base.football) throw new Error("football state missing");
 
-const external = base.football.players.filter((player) => player.currentClubId !== base.clubName);
+const external = base.football.players.filter(
+  (player) => player.currentClubId !== null && !isUserClubReference(base, player.currentClubId),
+);
 const targetPosition = external[0]?.primaryPosition;
 if (!targetPosition) throw new Error("no external players available");
 
@@ -84,7 +87,10 @@ for (const playerId of firstBrief?.candidateIds ?? []) {
   check(`candidate ${playerId} has a persistent identity`, Boolean(detailed || known));
   check(`candidate ${playerId} becomes known`, Boolean(known));
   check(`candidate ${playerId} records scouting reason`, known?.reasons.includes("scouted") ?? false);
-  check(`candidate ${playerId} is external`, known?.currentClubId !== first.clubName);
+  check(
+    `candidate ${playerId} is external`,
+    known?.currentClubId != null && !isUserClubReference(first, known.currentClubId),
+  );
   check(`candidate ${playerId} respects position`, known?.primaryPosition === targetPosition);
 
   if (detailed) {
