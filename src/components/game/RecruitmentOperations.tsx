@@ -7,6 +7,7 @@ import { playerAttributes, scoutingReport } from "@/lib/game/scouting";
 import {
   activeContract,
   ageOf,
+  beginTransferRegistration,
   completeTransfer,
   improvePersonalTerms,
   improveTransferOffer,
@@ -15,6 +16,7 @@ import {
   playerName,
   respondToIncomingOffer,
   submitEnquiryOffer,
+  transferRegistrationReadiness,
   userWageBill,
   userSquad,
   weeksLeftOnContract,
@@ -213,6 +215,10 @@ export function RecruitmentOperations({
                 state,
                 n.proposedWeeklyWage,
               );
+              const registration =
+                incoming && (n.stage === "agreed" || n.stage === "registration")
+                  ? transferRegistrationReadiness(state, n.id)
+                  : null;
               return (
                 <article key={n.id} className="rounded-2xl border bg-card p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -286,6 +292,22 @@ export function RecruitmentOperations({
                       />
                     </div>
                   )}
+                  {incoming &&
+                    (n.stage === "agreed" || n.stage === "registration") &&
+                    registration && (
+                      <div className="mt-4 rounded-xl border bg-muted/30 p-3">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Medical & registration
+                        </div>
+                        <div className="mt-1 text-sm">
+                          {registration.allowed
+                            ? n.stage === "registration"
+                              ? "Registration is open and the deal still satisfies the current squad, window and financial checks."
+                              : "Terms are agreed. The deal is eligible to enter medical and registration."
+                            : registration.reason}
+                        </div>
+                      </div>
+                    )}
                   {incoming && n.stage === "clubTalks" && (
                     <div className="mt-4 rounded-xl border bg-muted/30 p-3">
                       <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -367,9 +389,29 @@ export function RecruitmentOperations({
                         Submit opening bid
                       </Button>
                     )}
-                    {n.stage === "agreed" && (
+                    {incoming && n.stage === "agreed" && (
+                      <Button
+                        size="sm"
+                        onClick={() => act((s) => beginTransferRegistration(s, n.id))}
+                        disabled={registration ? !registration.allowed : false}
+                        title={registration?.reason}
+                      >
+                        Begin medical & registration
+                      </Button>
+                    )}
+                    {incoming && n.stage === "registration" && (
+                      <Button
+                        size="sm"
+                        onClick={() => act((s) => completeTransfer(s, n.id))}
+                        disabled={registration ? !registration.allowed : false}
+                        title={registration?.reason}
+                      >
+                        Complete registration
+                      </Button>
+                    )}
+                    {!incoming && n.stage === "agreed" && (
                       <Button size="sm" onClick={() => act((s) => completeTransfer(s, n.id))}>
-                        Complete deal
+                        Complete sale
                       </Button>
                     )}
                     {incoming && n.stage === "clubTalks" && (
