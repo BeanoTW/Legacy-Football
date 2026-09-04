@@ -1316,7 +1316,7 @@ export function openTransferNegotiationInPlace(
     direction: "in",
     stage: p.currentClubId === null ? "playerTalks" : "clubTalks",
     clubRounds: 1,
-    playerRounds: 0,
+    playerRounds: p.currentClubId === null ? 1 : 0,
     fee: offerFee,
     proposedWeeklyWage,
     proposedLengthSeasons: 3,
@@ -1340,18 +1340,21 @@ export function openTransferNegotiationInPlace(
   s.football.negotiations.push(n);
   syncTransferTargetNegotiationInPlace(s, n);
 
-  if (n.stage === "clubTalks") evaluateClubResponseInPlace(s, n);
-  else
+  if (n.stage === "clubTalks") {
+    evaluateClubResponseInPlace(s, n);
+  } else {
     log(
       n,
       {
-        round: 0,
+        round: 1,
         party: "player",
         action: "offer",
         note: "Free agent — straight to personal terms.",
       },
       abs,
     );
+    evaluatePlayerResponseInPlace(s, n);
+  }
   return { ok: true, reason: "Offer submitted", negotiation: n };
 }
 
