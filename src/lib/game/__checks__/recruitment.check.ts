@@ -26,6 +26,7 @@ import {
   averageSquadAge,
   canAuthorisePurchase,
   canAuthoriseWage,
+  beginTransferRegistrationInPlace,
   completeTransferInPlace,
   contractSecurityPct,
   counterClubOfferInPlace,
@@ -139,6 +140,15 @@ function agreedPurchase(
 function counterWage(w: GameState, id: string, wage: number): boolean {
   const { improvePlayerTermsInPlace } = require("../recruitment");
   return improvePlayerTermsInPlace(w, id, wage).ok as boolean;
+}
+
+function completeIncomingTransfer(
+  s: GameState,
+  negotiationId: string,
+): ReturnType<typeof completeTransferInPlace> {
+  const registration = beginTransferRegistrationInPlace(s, negotiationId);
+  if (!registration.ok) return registration;
+  return completeTransferInPlace(s, negotiationId);
 }
 
 /** Advance until an AI club bids for one of ours. */
@@ -281,7 +291,7 @@ console.log("\n[R2] Ownership and squads");
   } else {
     const seller = n.fromClubId;
     const before = seller ? squadOf(w, seller).length : 0;
-    const r = completeTransferInPlace(w, n.id);
+    const r = completeIncomingTransfer(w, n.id);
     check(
       "15. completion removes the player from the selling squad",
       r.ok && (!seller || squadOf(w, seller).length === before - 1),
@@ -405,7 +415,7 @@ console.log("\n[R4] Transfer market");
   Object.assign(w, setTransferBudget(w, Math.min(20_000_000, Math.floor(w.cash))).state);
   const n = agreedPurchase(w);
   if (n) {
-    completeTransferInPlace(w, n.id);
+    completeIncomingTransfer(w, n.id);
     check(
       "30. a completed transfer removes market availability",
       !transferMarket(w).some((e) => e.player.id === n.playerId),
@@ -545,7 +555,7 @@ console.log("\n[R5] Club negotiation");
       Object.assign(s, setTransferBudget(s, Math.min(20_000_000, Math.floor(s.cash))).state);
       const n = agreedPurchase(s);
       if (!n) return false;
-      completeTransferInPlace(s, n.id);
+      completeIncomingTransfer(s, n.id);
       return !counterClubOfferInPlace(s, n.id, n.fee + 100_000).ok;
     })(),
   );
@@ -621,7 +631,7 @@ console.log("\n[R6] Player negotiation");
     "52. completed personal terms cannot be applied twice",
     (() => {
       if (fin.stage !== "agreed") return true;
-      const first = completeTransferInPlace(a.s, fin.id);
+      const first = completeIncomingTransfer(a.s, fin.id);
       const second = completeTransferInPlace(a.s, fin.id);
       return first.ok && !second.ok;
     })(),
@@ -673,11 +683,24 @@ console.log("\n[R7] Transfer completion");
   if (!n) {
     check("53-66. transfer completion", false, "no agreed deal reachable");
   } else {
+    check(
+      "52f. incoming agreement cannot complete before registration",
+      !completeTransferInPlace(clone(s), n.id).ok,
+    );
+    const registrationProbe = clone(s);
+    const registration = beginTransferRegistrationInPlace(registrationProbe, n.id);
+    check(
+      "52g. incoming agreement enters persisted registration before ownership changes",
+      registration.ok &&
+        negotiationById(registrationProbe, n.id)?.stage === "registration" &&
+        playerById(registrationProbe, n.playerId)?.currentClubId === n.fromClubId,
+    );
+
     const beforeSave = reload(s);
     const cashBefore = s.cash;
     const historyBefore = s.football.transferHistory.length;
     const contractHistoryBefore = s.football.contractHistory.length;
-    const r = completeTransferInPlace(s, n.id);
+    const r = completeIncomingTransfer(s, n.id);
     check("53. completion is atomic and successful", r.ok);
     check(
       "54. ownership changes exactly once",
@@ -742,7 +765,7 @@ console.log("\n[R7] Transfer completion");
       "64. reloading before completion gives the same result",
       (() => {
         const g = beforeSave;
-        const res = completeTransferInPlace(g, n.id);
+        const res = completeIncomingTransfer(g, n.id);
         return (
           res.ok &&
           g.cash === s.cash &&
@@ -894,7 +917,7 @@ console.log("\n[R9] Wages and finance");
   const n = agreedPurchase(buy);
   if (n) {
     const before = userWageBill(buy);
-    completeTransferInPlace(buy, n.id);
+    completeIncomingTransfer(buy, n.id);
     check(
       "81. newly signed players start generating wages at once",
       userWageBill(buy) === before + n.proposedWeeklyWage,
