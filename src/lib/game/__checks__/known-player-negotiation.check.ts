@@ -17,7 +17,9 @@ import {
   canAuthorisePurchase,
   canAuthoriseWage,
   improvePlayerTermsInPlace,
+  openTransferEnquiryInPlace,
   openTransferNegotiationInPlace,
+  submitEnquiryOfferInPlace,
   wageDemand,
 } from "../recruitment";
 import {
@@ -80,6 +82,55 @@ assert.equal(markKnownPlayerNegotiationInPlace(state, compactId, true), true);
 assert.ok(knownPlayerIdentity(state, compactId)?.reasons.includes("negotiation"));
 assert.equal(markKnownPlayerNegotiationInPlace(state, compactId, false), true);
 assert.ok(!knownPlayerIdentity(state, compactId)?.reasons.includes("negotiation"));
+
+
+const enquiryState = createScoutingBrief(
+  newGame("Enquiry Audit FC", "Auditor", "TARGET_BRIDGE_INTEGRATION"),
+  { id: "known-enquiry-audit", maxAge: 40 },
+);
+const enquiryBrief = scoutingBrief(enquiryState, "known-enquiry-audit");
+if (!enquiryBrief) throw new Error("enquiry scouting brief missing");
+const enquiryId = enquiryBrief.candidateIds.find(
+  (playerId) => scoutingCandidateSource(enquiryState, enquiryBrief.id, playerId) === "fringe",
+);
+if (!enquiryId) throw new Error("enquiry compact target missing");
+const enquiryPlayer = transferTargetPlayer(enquiryState, enquiryId);
+if (!enquiryPlayer) throw new Error("enquiry player missing");
+const enquiryDemand = wageDemand(enquiryState, enquiryPlayer, "First Team");
+const enquiry = openTransferEnquiryInPlace(
+  enquiryState,
+  enquiryId,
+  "First Team",
+  Math.round(enquiryDemand * 0.85),
+);
+assert.ok(enquiry.ok, enquiry.reason);
+if (!enquiry.negotiation) throw new Error("enquiry negotiation missing");
+assert.equal(enquiry.negotiation.stage, "enquiry");
+assert.equal(enquiry.negotiation.fee, 0, "enquiry must not table a transfer bid");
+assert.ok(enquiry.negotiation.clubCounterFee && enquiry.negotiation.clubCounterFee > 0);
+assert.ok(
+  enquiry.negotiation.log.some((entry) => entry.action === "enquiry"),
+  "seller position should be recorded as an enquiry, not an offer",
+);
+assert.ok(knownPlayerIdentity(enquiryState, enquiryId)?.reasons.includes("negotiation"));
+assert.equal(playerFidelity(enquiryState, enquiryId), "known");
+assert.equal(
+  enquiryState.football?.players.some((player) => player.id === enquiryId),
+  false,
+  "club enquiry must not hydrate a compact player",
+);
+const firstBid = submitEnquiryOfferInPlace(
+  enquiryState,
+  enquiry.negotiation.id,
+  enquiry.negotiation.clubCounterFee,
+);
+assert.ok(firstBid.ok, firstBid.reason);
+assert.notEqual(
+  enquiry.negotiation.stage,
+  "enquiry",
+  "submitting a fee must leave the enquiry stage",
+);
+assert.equal(enquiry.negotiation.clubRounds, 1);
 
 
 // The canonical incoming-deal path must not need to seed exact hidden wage
