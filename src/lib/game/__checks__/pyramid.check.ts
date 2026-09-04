@@ -16,7 +16,7 @@ import {
 } from "../pyramid";
 import { buildTable, isLeagueSeasonComplete, tableFor } from "../league";
 import type { GameState } from "../types";
-import { clubDisplayName, isUserClubReference } from "../clubReference";
+import { canonicalClubReference, clubDisplayName, isUserClubReference } from "../clubReference";
 
 let passed = 0;
 let failed = 0;
@@ -237,12 +237,13 @@ console.log("\n[9] v3 save migration expands without rewriting active top flight
     m.leagues.filter((l) => l.clubIds.some((club) => isUserClubReference(m, club))).length === 1,
   );
   check("no duplicate clubs across divisions", new Set(pyramidClubs(m)).size === pyramidClubs(m).length);
+  const expectedTopMembership = new Set(
+    (g.league as { team: string }[]).map((row) => canonicalClubReference(m, row.team)),
+  );
   check(
     "existing tier-1 membership preserved",
     m.leagues[0].clubIds.length === 20 &&
-      m.leagues[0].clubIds.every((club) =>
-        (g.league as { team: string }[]).some((row) => row.team === clubDisplayName(m, club)),
-      ),
+      m.leagues[0].clubIds.every((club) => expectedTopMembership.has(club)),
   );
   const migratedTopSchedule = m.leagueSchedule.filter((f) => f.league === undefined || f.league === DIVISION_ONE);
   check("active top schedule preserved while lower leagues append", migratedTopSchedule.length === originalTopScheduleLength && m.leagueSchedule.some((f) => f.league === "league-4") && m.leagueSchedule.some((f) => f.league === "regional-premier-central"));
