@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { newGame } from "../newGame";
-import { clubIdForState, ensureClubIdentityStateInPlace } from "../clubIdentity";
+import { clubIdForState, ensureClubIdentityStateInPlace, registeredClubDisplayName } from "../clubIdentity";
 import { migrateClubReferencesToIdsInPlace } from "../clubReferenceMigration";
 import { buildWorldSimulationPlan } from "../world";
 import { makeFringeClubState } from "../fringe";
@@ -9,7 +9,8 @@ const legacy = newGame("Fringe Identity FC", "Auditor", "FRINGE_CLUB_IDENTITY");
 ensureClubIdentityStateInPlace(legacy);
 const fringeProfile = buildWorldSimulationPlan(legacy).clubs.find((club) => club.level === "fringe");
 if (!fringeProfile) throw new Error("fringe club missing");
-const legacyClubName = fringeProfile.clubId;
+const opaqueClubId = fringeProfile.clubId;
+const legacyClubName = registeredClubDisplayName(legacy, opaqueClubId);
 const before = makeFringeClubState(
   legacy,
   legacyClubName,
