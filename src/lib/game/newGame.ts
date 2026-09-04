@@ -17,6 +17,8 @@ import { makeBoard, ensureBoard } from "./board";
 import { initFinance } from "./finance";
 import { openingStaffPool } from "./staff";
 import { fixturesForClub, makeLeagueRows } from "./schedule";
+import { ensureClubIdentityStateInPlace } from "./clubIdentity";
+import { migrateClubReferencesToIdsInPlace } from "./clubReferenceMigration";
 
 /**
  * Canonical save schema version. Single source of truth: `newGame` stamps it,
@@ -26,7 +28,7 @@ import { fixturesForClub, makeLeagueRows } from "./schedule";
  * (src/lib/game/migrations) — no module holds per-version field knowledge
  * outside that registry.
  */
-export const SAVE_VERSION = 15;
+export const SAVE_VERSION = 17;
 
 export function newGame(clubName: string, managerName: string, seed?: string): GameState {
   // `seed` is optional: verification suites pass a fixed seed so the whole
@@ -54,6 +56,12 @@ export function newGame(clubName: string, managerName: string, seed?: string): G
   // Strategic pressure layer. Owns only commitments + the idle-cash clock;
   // every number it reports is derived from the systems above.
   ensureSustainability(base);
+
+  // Schema v17 persists club identity separately from presentation. Build the
+  // opening world with readable source names, then canonicalise every stored
+  // club reference once all seed-time systems have finished constructing it.
+  ensureClubIdentityStateInPlace(base);
+  migrateClubReferencesToIdsInPlace(base);
 
   return runWeeklyGenerators(base);
 }
