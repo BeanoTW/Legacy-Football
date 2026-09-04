@@ -145,6 +145,10 @@ export const withdrawNegotiationInPlace: typeof legacy.withdrawNegotiationInPlac
 export const respondToIncomingOfferInPlace: typeof legacy.respondToIncomingOfferInPlace = identitySafe(
   legacy.respondToIncomingOfferInPlace,
 );
+export const beginTransferRegistrationInPlace: typeof legacy.beginTransferRegistrationInPlace =
+  identitySafe(legacy.beginTransferRegistrationInPlace);
+export const transferRegistrationReadiness: typeof legacy.transferRegistrationReadiness =
+  identitySafe(legacy.transferRegistrationReadiness);
 export const completeTransferInPlace: typeof legacy.completeTransferInPlace = identitySafe(
   legacy.completeTransferInPlace,
 );
@@ -206,6 +210,9 @@ export const improvePersonalTerms: typeof legacy.improvePersonalTerms = identity
   legacy.improvePersonalTerms,
 );
 export const withdrawFromTalks: typeof legacy.withdrawFromTalks = identitySafe(legacy.withdrawFromTalks);
+export const beginTransferRegistration: typeof legacy.beginTransferRegistration = identitySafe(
+  legacy.beginTransferRegistration,
+);
 export const completeTransfer: typeof legacy.completeTransfer = identitySafe(legacy.completeTransfer);
 export const respondToIncomingOffer: typeof legacy.respondToIncomingOffer = identitySafe(
   legacy.respondToIncomingOffer,
