@@ -29,6 +29,7 @@ import {
 import { DIVISION_ONE, DIVISION_TWO, makePyramidSchedule } from "../pyramid";
 import type { GameState, ExpectationLevel } from "../types";
 import { clubFootballStrength } from "../footballStrength";
+import { isUserClubReference } from "../clubReference";
 
 let passed = 0;
 let failed = 0;
@@ -47,11 +48,11 @@ function fresh(seed = "REP_SEED_1"): GameState {
   g.saveSeed = seed;
   g.leagueSchedule = makePyramidSchedule(g.leagues, `${seed}|season1`);
   g.fixtures = g.leagueSchedule
-    .filter((f) => f.home === g.clubName || f.away === g.clubName)
+    .filter((f) => isUserClubReference(g, f.home) || isUserClubReference(g, f.away))
     .map((f) => ({
       week: f.week,
-      opponent: f.home === g.clubName ? f.away : f.home,
-      home: f.home === g.clubName,
+      opponent: isUserClubReference(g, f.home) ? f.away : f.home,
+      home: isUserClubReference(g, f.home),
     }))
     .sort((a, b) => a.week - b.week);
   // Re-seed the identity layer under the fixed test seed.
