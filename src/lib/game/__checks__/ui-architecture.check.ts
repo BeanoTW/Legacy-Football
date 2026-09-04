@@ -184,5 +184,23 @@ console.log("\n[U5] Canonical selectors, not UI arithmetic");
   );
 }
 
+console.log("\n[U6] Recruitment knowledge boundary");
+{
+  const browser = read("src/components/game/ScoutingBrowser.tsx");
+  const reports = read("src/components/game/ScoutingReports.tsx");
+  check(
+    "Find Players does not read exact seller asking price before talks",
+    !/transferTargetAskingPrice\(/.test(browser) && !/askingPrice\(/.test(browser),
+  );
+  check(
+    "Find Players does not read exact wage demand before talks",
+    !/wageDemand\(/.test(browser),
+  );
+  check(
+    "Scouting Reports do not read exact seller asking price before talks",
+    !/transferTargetAskingPrice\(/.test(reports) && !/askingPrice\(/.test(reports),
+  );
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
