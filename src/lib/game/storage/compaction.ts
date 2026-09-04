@@ -31,7 +31,8 @@ import type {
   TransferRecord,
   WeekLedger,
 } from "../types";
-import { absoluteWeek } from "../time";
+import { absoluteWeek, fromAbsoluteWeek } from "../time";
+import type { ScoutingBrief } from "../scoutingDiscovery";
 
 /** Ledger entries newer than this many weeks always stay hot. */
 export const RETAIN_LEDGER_WEEKS = 12;
@@ -43,6 +44,8 @@ export const RETAIN_WEEK_ROWS = 8;
 export const RETAIN_INBOX_WEEKS = 1;
 /** Prior identity seasons needed by the three-season reputation streak reader. */
 export const RETAIN_SNAPSHOT_SEASONS = 3;
+/** Recent scouting searches retained in the hot core. Full older briefs move to history. */
+export const RETAIN_SCOUTING_BRIEFS = 30;
 
 export type ChunkKind =
   | "history:matches"
@@ -51,7 +54,8 @@ export type ChunkKind =
   | "history:contracts"
   | "history:expired-contracts"
   | "history:club-snapshots"
-  | "history:inbox";
+  | "history:inbox"
+  | "history:scouting";
 
 export const CHUNK_KINDS: ChunkKind[] = [
   "history:matches",
@@ -61,6 +65,7 @@ export const CHUNK_KINDS: ChunkKind[] = [
   "history:expired-contracts",
   "history:club-snapshots",
   "history:inbox",
+  "history:scouting",
 ];
 
 export interface HistoryChunk {
@@ -352,9 +357,62 @@ export function compactState(state: GameState): CompactionResult {
       } else hotContracts.push(c);
     }
     f.contracts = hotContracts;
+
+    /* ---- 7. Scouting discovery ----
+     * Search result payloads are useful recent context, but they are not the
+     * canonical source of whether the chairman knows a player. Keep a bounded
+     * recent tail hot, promote hidden profiles from old-format briefs, retain a
+     * tiny candidate-id compatibility ledger, and move the complete old brief
+     * to history. This may archive within the current season because searches
+     * can be created many times per week/season. */
+    const discovery = f.scoutingDiscovery;
+    if (discovery && discovery.briefs.length > RETAIN_SCOUTING_BRIEFS) {
+      discovery.profiles ??= {};
+      const rankedBriefs = discovery.briefs
+        .slice()
+        .sort(
+          (a, b) =>
+            a.createdAtAbsoluteWeek - b.createdAtAbsoluteWeek ||
+            a.id.localeCompare(b.id),
+        );
+      const hotIds = new Set(
+        rankedBriefs.slice(-RETAIN_SCOUTING_BRIEFS).map((brief) => brief.id),
+      );
+      const historicalCandidateIds = new Set(discovery.historicalCandidateIds ?? []);
+      const hotBriefs: ScoutingBrief[] = [];
+
+      for (const brief of discovery.briefs) {
+        if (hotIds.has(brief.id)) {
+          hotBriefs.push(brief);
+          continue;
+        }
+
+        for (const playerId of brief.candidateIds) {
+          historicalCandidateIds.add(playerId);
+          const profile = brief.candidateProfiles?.[playerId];
+          if (profile) discovery.profiles[playerId] ??= profile;
+        }
+
+        const briefAbs =
+          Number.isFinite(brief.createdAtAbsoluteWeek) && brief.createdAtAbsoluteWeek > 0
+            ? brief.createdAtAbsoluteWeek
+            : absoluteWeek(season, 1);
+        pushChunk(
+          chunks,
+          "history:scouting",
+          fromAbsoluteWeek(briefAbs).season,
+          brief,
+        );
+      }
+
+      discovery.briefs = hotBriefs;
+      discovery.historicalCandidateIds = [...historicalCandidateIds].sort((a, b) =>
+        a.localeCompare(b),
+      );
+    }
   }
 
-  /* ---- 7. Archive bookkeeping ---- */
+  /* ---- 8. Archive bookkeeping ---- */
   const touched = new Set<number>([...(archive.seasons ?? []), ...chunks.map((c) => c.season)]);
   archive.seasons = [...touched].sort((a, b) => a - b);
 
