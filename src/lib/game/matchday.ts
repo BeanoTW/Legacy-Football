@@ -25,6 +25,7 @@
 
 import type { GameState, LiveMatch, MatchEvent } from "./types";
 import { isUserClubReference, sameClubReference, userClubReference } from "./clubReference";
+import { clubSimulationSeedKey } from "./clubIdentity";
 import { seededRng } from "./rng";
 import { fixtureId as makeFixtureId, leagueOf, playerLeagueId } from "./league";
 
@@ -38,6 +39,9 @@ export interface MatchIdentity {
   round: number;
   homeClub: string;
   awayClub: string;
+  /** Immutable simulation keys preserve pre-ID RNG streams after migration. */
+  homeSeedKey?: string;
+  awaySeedKey?: string;
   opponent: string;
   home: boolean;
 }
@@ -65,6 +69,8 @@ export function matchIdentity(s: GameState): MatchIdentity | null {
     round,
     homeClub,
     awayClub,
+    homeSeedKey: clubSimulationSeedKey(s, homeClub),
+    awaySeedKey: clubSimulationSeedKey(s, awayClub),
     opponent: fx.opponent,
     home: fx.home,
   };
@@ -83,7 +89,14 @@ export function preMatchKey(inputs: { squadRating: number; opponentStrength?: nu
 
 /** Stable seed root for one match. */
 export function matchSeedBase(saveSeed: string, ident: MatchIdentity, pmKey: string): string {
-  return `${saveSeed}|live-match|s${ident.season}|${ident.leagueId}|${ident.fixtureId}|${pmKey}`;
+  const seedFixtureId = makeFixtureId(
+    ident.season,
+    ident.round,
+    ident.homeSeedKey ?? ident.homeClub,
+    ident.awaySeedKey ?? ident.awayClub,
+    ident.leagueId,
+  );
+  return `${saveSeed}|live-match|s${ident.season}|${ident.leagueId}|${seedFixtureId}|${pmKey}`;
 }
 
 /* ---------- Independent RNG substreams ---------- */
