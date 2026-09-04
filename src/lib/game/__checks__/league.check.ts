@@ -9,6 +9,7 @@ import {
   SAVE_VERSION,
 } from "../engine";
 import { DIVISION_ONE } from "../pyramid";
+import { isUserClubReference } from "../clubReference";
 import {
   buildTable,
   sortTable,
@@ -40,11 +41,11 @@ function fresh(seed = "LEAGUE_SEED_1"): GameState {
   // Rebuild the schedule under the fixed test seed so runs are reproducible.
   g.leagueSchedule = makeLeagueSchedule(g.leagues, `${g.saveSeed}|season1`);
   g.fixtures = g.leagueSchedule
-    .filter((f) => f.home === g.clubName || f.away === g.clubName)
+    .filter((f) => isUserClubReference(g, f.home) || isUserClubReference(g, f.away))
     .map((f) => ({
       week: f.week,
-      opponent: f.home === g.clubName ? f.away : f.home,
-      home: f.home === g.clubName,
+      opponent: isUserClubReference(g, f.home) ? f.away : f.home,
+      home: isUserClubReference(g, f.home),
     }))
     .sort((a, b) => a.week - b.week);
   return g;
