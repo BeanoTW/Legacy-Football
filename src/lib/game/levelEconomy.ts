@@ -134,10 +134,18 @@ export function contractWageForLevel(
  * increments. Levels 7-8 use semi-professional £25 floors with £10 increments
  * below £500 so negotiation does not erase the lower-level wage curve.
  */
+export function negotiationWageStepForLevel(
+  rawWeeklyWage: number,
+  level: FootballLevel,
+): number {
+  if (level <= 6) return 25;
+  return Math.max(0, rawWeeklyWage) < 500 ? 10 : 25;
+}
+
 export function negotiationWageForLevel(rawWeeklyWage: number, level: FootballLevel): number {
   const raw = Math.max(0, rawWeeklyWage);
-  if (level <= 6) return Math.max(250, int(raw / 25) * 25);
-  const step = raw < 500 ? 10 : 25;
+  const step = negotiationWageStepForLevel(raw, level);
+  if (level <= 6) return Math.max(250, int(raw / step) * step);
   return Math.max(25, int(raw / step) * step);
 }
 
