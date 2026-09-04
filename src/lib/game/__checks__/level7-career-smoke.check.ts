@@ -3,7 +3,7 @@
    subsystem in isolation.
    Run with: bun src/lib/game/__checks__/level7-career-smoke.check.ts
 */
-import { advanceDay, advanceWeek, migrateSave, newGame } from "../engine";
+import { advanceDay, advanceWeek, migrateSave, newGame, SAVE_VERSION } from "../engine";
 import { reconcile } from "../finance";
 import { footballLevelOfUser } from "../footballLevel";
 import { isUserClubReference } from "../clubReference";
@@ -75,7 +75,7 @@ function reachAffordableAgreement(s: GameState): TransferNegotiation | null {
 let s = newGame("Shippability FC", "Test Chairman", "LEVEL7_CAREER_SMOKE");
 ensureRecruitment(s);
 
-assert(s.version === 15, `fresh save must use schema v15, got v${s.version}`);
+assert(s.version === SAVE_VERSION, `fresh save must use schema v${SAVE_VERSION}, got v${s.version}`);
 assert(footballLevelOfUser(s) === 7, "fresh career must resolve to canonical Level 7");
 assert(
   s.leagues.find((league) => league.id === s.playerLeagueId)?.tier === 5,
