@@ -2,6 +2,7 @@ import { advanceWeek, newGame } from "../engine";
 import { buildWorldSimulationPlan } from "../world";
 import { reconcileRecruitmentFidelity, setWorldClubTracked } from "../recruitment";
 import type { GameState } from "../types";
+import { isUserClubReference } from "../clubReference";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -23,7 +24,9 @@ function assertWorldBoundary(s: GameState, label: string) {
   const focus = new Set(plan.focusClubIds);
   const fringe = new Set(plan.fringeClubIds);
   const allLeagueClubs = s.leagues.flatMap((league) => league.clubIds);
-  const playerLeague = s.leagues.find((league) => league.clubIds.includes(s.clubName));
+  const playerLeague = s.leagues.find((league) =>
+    league.clubIds.some((club) => isUserClubReference(s, club)),
+  );
 
   assert(
     allLeagueClubs.length === new Set(allLeagueClubs).size,
