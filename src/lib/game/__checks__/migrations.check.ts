@@ -18,6 +18,7 @@ import {
 import { legacyMigrateSave } from "./legacyMigrate";
 import { stateHash, stateHashParts, stableStringify } from "../diagnostics/stateHash";
 import type { GameState } from "../types";
+import { persistedClubReferencesAreOpaque } from "../clubReferenceMigration";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -169,6 +170,7 @@ for (const sc of SCENARIOS) {
     const src = downgradeTo(v, base);
     safe(`${sc.label} @v${v}`, () => {
       const legacy = legacyMigrateSave(clone(src));
+      legacy.version = LEGACY_PARITY_VERSION;
       const modernLegacy = runMigrations(clone(src), LEGACY_PARITY_VERSION, DEPS).state;
       const lh = stateHash(legacy);
       const mh = stateHash(modernLegacy);
@@ -525,7 +527,7 @@ for (const sc of SCENARIOS) {
     const src = downgradeTo(1, richSave(sc.weeks, sc.seed));
     const first = runMigrations(clone(src), SAVE_VERSION, DEPS);
     check(
-      `${sc.label}: applied all 11 steps`,
+      `${sc.label}: applied all ${MIGRATIONS.length} steps`,
       first.applied.length === MIGRATIONS.length,
       first.applied.join(","),
     );
@@ -536,8 +538,21 @@ for (const sc of SCENARIOS) {
       `${sc.label}: stable after serialize/deserialize/re-migrate`,
       stateHash(second.state) === stateHash(first.state),
     );
+    check(
+      `${sc.label}: current save references are opaque`,
+      persistedClubReferencesAreOpaque(first.state),
+    );
+
+    // The frozen inline migrator intentionally stops at the pre-ID schema
+    // shape. Compare it with the registry at that same v15 checkpoint rather
+    // than expecting intentional v16/v17 identity changes to be byte-identical.
     const legacy = legacyMigrateSave(clone(src));
-    check(`${sc.label}: matches legacy inline path`, stateHash(legacy) === stateHash(first.state));
+    legacy.version = LEGACY_PARITY_VERSION;
+    const checkpoint = runMigrations(clone(src), LEGACY_PARITY_VERSION, DEPS).state;
+    check(
+      `${sc.label}: frozen inline path still matches registry at v${LEGACY_PARITY_VERSION}`,
+      stateHash(legacy) === stateHash(checkpoint),
+    );
   });
 }
 
