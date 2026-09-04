@@ -7,6 +7,7 @@
 import { readFileSync } from "node:fs";
 
 import { newGame, advanceWeek, migrateSave, staffJoinTerms } from "../engine";
+import { isUserClubReference } from "../clubReference";
 import {
   ASSET_CONFIG,
   CANCELLATION_PENALTY_PCT,
@@ -635,7 +636,9 @@ console.log("\n[H] Cross-system modifiers");
     b.level = 1;
     b.qualityRating = 10;
   }
-  const player = recGood.football.players.find((p) => p.currentClubId !== recGood.clubName)!;
+  const player = recGood.football.players.find(
+    (p) => p.currentClubId !== null && !isUserClubReference(recGood, p.currentClubId),
+  )!;
   const dGood = wageDemand(recGood, player);
   const dBad = wageDemand(recBad, recBad.football.players.find((p) => p.id === player.id)!);
   check(
