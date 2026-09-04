@@ -996,6 +996,18 @@ export interface FootballPlayer {
 
 export type PlayerContractStatus = "Active" | "Agreed" | "Expiring" | "Expired" | "Released";
 
+/** Club operating model. Separate from football level so clubs at one level can differ. */
+export type ClubOperatingModel = "PartTime" | "FullTime";
+/** Employment term written onto a signed player contract. */
+export type ContractEmploymentType = ClubOperatingModel;
+/** Derived player status when no active signed contract exists. */
+export type PlayerEmploymentStatus = "NonContract" | ContractEmploymentType;
+
+export interface RecruitmentEmploymentState {
+  /** Persisted per-club operating model; promotion alone never rewrites it. */
+  clubModels: Record<string, ClubOperatingModel>;
+}
+
 export interface PlayerContract {
   id: string;
   playerId: string;
@@ -1005,6 +1017,8 @@ export interface PlayerContract {
   expirySeason: number;
   expiryWeek: number;
   weeklyWage: number;
+  /** Employment basis agreed when this contract was signed. */
+  employmentType?: ContractEmploymentType;
   squadRole: SquadRole;
   signingBonus: number;
   /** Fee agreed for the transfer that created this contract, if any. */
@@ -1101,6 +1115,8 @@ export interface PlayerContractRecord {
   playerName: string;
   clubId: string;
   weeklyWage: number;
+  /** Recorded for contracts closed after employment modelling was introduced. */
+  employmentType?: ContractEmploymentType;
   startSeason: number;
   endSeason: number;
   seasons: number;
@@ -1149,6 +1165,8 @@ export interface RecruitmentState {
   shortlist: string[];
   /** Persistent assignments; knowledge grows from elapsed in-world weeks. */
   scoutingReports: PlayerScoutingReport[];
+  /** Club operating models. Optional only for pre-v18/runtime compatibility. */
+  employment?: RecruitmentEmploymentState;
   department: RecruitmentDepartment;
   /** Append-only immutable histories. */
   transferHistory: TransferRecord[];
