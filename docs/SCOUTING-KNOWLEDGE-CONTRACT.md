@@ -52,6 +52,8 @@ A compact known player may be shortlisted, scouted and negotiated with without b
 - Opening personal terms come from the current scouting wage estimate. The player's true demand remains hidden and is used only to accept, reject or counter.
 - Rejected, withdrawn or expired talks remove only the temporary negotiation reason. The player's known identity and written history remain.
 - Agreement alone does not require whole-club hydration.
+- Incoming agreements enter a persisted `registration` stage before completion. Registration rechecks the live transfer window, squad capacity and financial authority but still keeps a compact known player unhydrated.
+- The current player model has no injury/medical state, so registration does not invent random failed medicals. A richer medical outcome can be added only when the world actually models the underlying health state.
 - **Successful transfer completion is the materialisation boundary.** Only when the player actually becomes owned does the same stable player ID enter the detailed player array and receive the user's canonical contract.
 - An outgoing owned player becomes a lightweight former-player identity once detailed simulation is no longer required. Their career ledger remains append-only.
 
