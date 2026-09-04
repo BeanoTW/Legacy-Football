@@ -20,6 +20,7 @@ import {
   withdrawFromTalks,
 } from "@/lib/game/recruitment";
 import { MOOD_TONE_CLASS, playerMood } from "@/lib/game/character";
+import { transferTargetPlayer } from "@/lib/game/recruitmentTargetBridge";
 
 export function RecruitmentOperations({
   state,
@@ -192,7 +193,7 @@ export function RecruitmentOperations({
         ) : (
           <div className="space-y-3">
             {deals.map((n) => {
-              const p = playerById(state, n.playerId);
+              const p = transferTargetPlayer(state, n.playerId);
               if (!p) return null;
               const incoming = n.direction === "in";
               const report = scoutingReport(state, p);
