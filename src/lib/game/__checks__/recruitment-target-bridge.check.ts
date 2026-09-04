@@ -203,6 +203,20 @@ assert.deepEqual(
   "Inbox must route agreed incoming deals into registration rather than completion",
 );
 
+const legacyInboxEffectState = applyEffects(integrationState, [
+  { kind: "recruitmentCompleteTransfer", negotiationId: opened.negotiation.id },
+]);
+assert.equal(
+  negotiationById(legacyInboxEffectState, opened.negotiation.id)?.stage,
+  "registration",
+  "persisted pre-registration Inbox completion effects should advance to registration",
+);
+assert.equal(
+  playerFidelity(legacyInboxEffectState, integrationId),
+  "known",
+  "legacy Inbox compatibility must not bypass compact materialisation",
+);
+
 const afterInboxRegistration = applyEffects(agreedInbox, registerChoice.effects);
 assert.equal(
   negotiationById(afterInboxRegistration, opened.negotiation.id)?.stage,
