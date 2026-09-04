@@ -2,21 +2,18 @@ import { ArrowLeft, Binoculars, CheckCircle2, Handshake, Star } from "lucide-rea
 import type { GameState } from "@/lib/game/types";
 import {
   ageOf,
-  askingPrice,
   playerInterestAssessment,
   playerName,
   submitTransferOffer,
 } from "@/lib/game/recruitment";
 import { scoutingReport } from "@/lib/game/scouting";
-import {
-  transferTargetAskingPrice,
-  transferTargetPlayer,
-} from "@/lib/game/recruitmentTargetBridge";
+import { transferTargetPlayer } from "@/lib/game/recruitmentTargetBridge";
 import {
   isChairmanShortlisted,
   toggleChairmanShortlist,
 } from "@/lib/game/recruitmentKnowledge";
 import { fmtMoney } from "@/lib/game/engine";
+import { clubDisplayName } from "@/lib/game/clubReference";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { DetailScreen } from "./shared/layout";
@@ -63,6 +60,7 @@ export function ScoutingReports({
         const interest = playerInterestAssessment(state, player);
         const watched = isChairmanShortlisted(state, player.id);
         const freeAgent = player.currentClubId === null;
+        const openingFee = freeAgent ? 0 : Math.max(0, report.valueRange?.[0] ?? 0);
 
         return (
           <article key={player.id} className="rounded-lg border bg-card p-2.5 shadow-sm">
@@ -75,7 +73,7 @@ export function ScoutingReports({
                   </span>
                 </div>
                 <div className="text-[10px] text-muted-foreground">
-                  {ageOf(player, state.season)}y · {player.currentClubId ?? "Free agent"} · {interest.label}
+                  {ageOf(player, state.season)}y · {player.currentClubId ? clubDisplayName(state, player.currentClubId) : "Free agent"} · {interest.label}
                 </div>
               </div>
               <div className="shrink-0 text-right">
@@ -117,12 +115,7 @@ export function ScoutingReports({
                 size="sm"
                 variant="secondary"
                 className="h-7 px-2 text-[10px]"
-                onClick={() =>
-                  approach(
-                    player.id,
-                    freeAgent ? 0 : transferTargetAskingPrice(state, player, askingPrice),
-                  )
-                }
+                onClick={() => approach(player.id, openingFee)}
               >
                 <Handshake className="mr-1 size-3" />
                 {freeAgent ? "Approach player" : "Approach club"}
