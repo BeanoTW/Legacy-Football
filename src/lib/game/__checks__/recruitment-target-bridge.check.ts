@@ -15,6 +15,7 @@ import {
 } from "../recruitmentTargetBridge";
 import { knownPlayerIdentity, playerFidelity } from "../playerLifecycle";
 import type { TransferNegotiation } from "../types";
+import { isUserClubReference, userClubReference } from "../clubReference";
 
 const state = createScoutingBrief(
   newGame("Target Bridge Audit FC", "Auditor", "TARGET_BRIDGE_AUDIT"),
@@ -42,7 +43,7 @@ const negotiation: TransferNegotiation = {
   id: "TN-TARGET-BRIDGE",
   playerId: compactId,
   fromClubId: target.currentClubId,
-  toClubId: state.clubName,
+  toClubId: userClubReference(state),
   direction: "in",
   stage: "clubTalks",
   clubRounds: 1,
@@ -69,18 +70,21 @@ assert.equal(state.football?.players.some((player) => player.id === compactId), 
 const signed = materializeTransferTargetForCompletionInPlace(state, negotiation);
 assert.ok(signed, "completion should materialize compact target");
 assert.equal(signed.id, compactId);
-assert.equal(signed.currentClubId, state.clubName);
+assert.equal(signed.currentClubId, userClubReference(state));
 assert.equal(playerFidelity(state, compactId), "detailed");
 recordCompletedTransferLifecycleInPlace(state, negotiation, signed);
 assert.ok(knownPlayerIdentity(state, compactId)?.reasons.includes("owned"));
 assert.ok(!knownPlayerIdentity(state, compactId)?.reasons.includes("negotiation"));
 assert.ok(
-  knownPlayerIdentity(state, compactId)?.career.some((entry) => entry.clubId === state.clubName),
+  knownPlayerIdentity(state, compactId)?.career.some((entry) => isUserClubReference(state, entry.clubId)),
   "completed arrival should reach persistent career ledger",
 );
 
 const detailed = state.football?.players.find(
-  (player) => player.id !== compactId && player.currentClubId !== state.clubName && player.currentClubId !== null,
+  (player) =>
+    player.id !== compactId &&
+    player.currentClubId !== null &&
+    !isUserClubReference(state, player.currentClubId),
 );
 if (!detailed) throw new Error("detailed target missing");
 assert.equal(transferTargetPlayer(state, detailed.id), detailed);
