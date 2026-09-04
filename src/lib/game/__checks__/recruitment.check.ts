@@ -900,7 +900,7 @@ console.log("\n[R9] Wages and finance");
   } else
     check("81. newly signed players start generating wages at once", false, "no deal reachable");
 
-  const src = readFileSync("src/lib/game/recruitment.ts", "utf8");
+  const src =\n    readFileSync("src/lib/game/recruitment.ts", "utf8") +\n    readFileSync("src/lib/game/recruitmentLegacy.ts", "utf8");
   check(
     "82-84. every recruitment money movement uses postEntry",
     (src.match(/postEntry\(/g) ?? []).length >= 5,
