@@ -9,6 +9,7 @@ import {
 import { scoutingReport } from "@/lib/game/scouting";
 import { transferTargetPlayer } from "@/lib/game/recruitmentTargetBridge";
 import {
+  chairmanRecruitmentEstimate,
   isChairmanShortlisted,
   toggleChairmanShortlist,
 } from "@/lib/game/recruitmentKnowledge";
@@ -33,8 +34,8 @@ export function ScoutingReports({
     return b.startedAtAbsoluteWeek - a.startedAtAbsoluteWeek;
   });
 
-  const approach = (playerId: string, fee: number) =>
-    update((s) => submitTransferOffer(s, playerId, fee).state);
+  const approach = (playerId: string, fee: number, weeklyWage: number) =>
+    update((s) => submitTransferOffer(s, playerId, fee, "First Team", weeklyWage).state);
 
   return (
     <DetailScreen
@@ -60,7 +61,8 @@ export function ScoutingReports({
         const interest = playerInterestAssessment(state, player);
         const watched = isChairmanShortlisted(state, player.id);
         const freeAgent = player.currentClubId === null;
-        const openingFee = freeAgent ? 0 : Math.max(0, report.valueRange?.[0] ?? 0);
+        const estimate = chairmanRecruitmentEstimate(state, player.id);
+        if (!estimate) return null;
 
         return (
           <article key={player.id} className="rounded-lg border bg-card p-2.5 shadow-sm">
@@ -115,7 +117,9 @@ export function ScoutingReports({
                 size="sm"
                 variant="secondary"
                 className="h-7 px-2 text-[10px]"
-                onClick={() => approach(player.id, openingFee)}
+                onClick={() =>
+                  approach(player.id, estimate.openingFee, estimate.openingWeeklyWage)
+                }
               >
                 <Handshake className="mr-1 size-3" />
                 {freeAgent ? "Approach player" : "Approach club"}
