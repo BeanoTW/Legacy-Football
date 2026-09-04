@@ -15,9 +15,10 @@ ensureClubIdentityStateInPlace(legacy);
 const userName = legacy.clubName;
 const userId = legacy.clubIdentity?.userClubId;
 if (!userId) throw new Error("user club id missing");
-const aiName = legacy.leagues.flatMap((league) => league.clubIds).find((club) => club !== userName);
-if (!aiName) throw new Error("AI club missing");
-const aiId = canonicalClubReference(legacy, aiName);
+const aiRef = legacy.leagues.flatMap((league) => league.clubIds).find((club) => !isUserClubReference(legacy, club));
+if (!aiRef) throw new Error("AI club missing");
+const aiId = canonicalClubReference(legacy, aiRef);
+const aiName = clubDisplayName(legacy, aiId);
 
 assert.equal(userClubReference(legacy), userId);
 assert.equal(isUserClubReference(legacy, userName), true);
