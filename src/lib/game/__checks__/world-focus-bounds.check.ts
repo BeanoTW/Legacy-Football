@@ -9,10 +9,11 @@ import {
   boundedRecentOpponentIds,
   boundedTrackedClubIds,
 } from "../worldFocusPolicy";
+import { isUserClubReference } from "../clubReference";
 
 const state = newGame("Focus Bounds FC", "Focus Auditor", "FOCUS_BOUNDS_AUDIT");
 const allClubs = state.leagues.flatMap((league) => league.clubIds);
-const external = allClubs.filter((club) => club !== state.clubName);
+const external = allClubs.filter((club) => !isUserClubReference(state, club));
 
 const trackedInput = external.slice(0, 20);
 const recentInput = external.slice(10, 30);
@@ -30,7 +31,9 @@ const plan = buildWorldSimulationPlan(state, {
   recentOpponentIds: recentInput,
 });
 assert.ok(plan.focusLeagueIds.length <= 1 + MAX_ADJACENT_FOCUS_LEAGUES);
-assert.ok(plan.clubs.some((club) => club.clubId === state.clubName && club.reasons.includes("playerClub")));
+assert.ok(
+  plan.clubs.some((club) => isUserClubReference(state, club.clubId) && club.reasons.includes("playerClub")),
+);
 
 const retainedTracked = boundedTrackedClubIds(state, trackedInput);
 for (const clubId of retainedTracked) {
