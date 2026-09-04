@@ -8,10 +8,11 @@ import {
 } from "../playerTransferLifecycle";
 import { knownPlayerIdentity, playerFidelity, preserveKnownPlayerInPlace } from "../playerLifecycle";
 import { preserveScoutingCandidateProfileInPlace } from "../scoutingDiscovery";
+import { isUserClubReference, userClubReference } from "../clubReference";
 
 export function checkPlayerTransferLifecycle(state: GameState): void {
   const source = state.football?.players.find(
-    (player) => player.currentClubId !== state.clubName && player.currentClubId !== null,
+    (player) => player.currentClubId !== null && !isUserClubReference(state, player.currentClubId),
   );
   if (!state.football || !source) throw new Error("detailed external player missing");
 
@@ -25,13 +26,13 @@ export function checkPlayerTransferLifecycle(state: GameState): void {
   const signed = materializeKnownSigningInPlace(test, original.id);
   assert.ok(signed, "known player should materialize when actually signed");
   assert.equal(signed.id, original.id, "signing must preserve stable player identity");
-  assert.equal(signed.currentClubId, test.clubName);
+  assert.equal(signed.currentClubId, userClubReference(test));
   assert.equal(playerFidelity(test, original.id), "detailed");
   assert.ok(knownPlayerIdentity(test, original.id)?.reasons.includes("owned"));
 
   recordPlayerArrivalInPlace(test, signed, original.currentClubId, original.marketValue);
   assert.ok(
-    knownPlayerIdentity(test, original.id)?.career.some((entry) => entry.clubId === test.clubName),
+    knownPlayerIdentity(test, original.id)?.career.some((entry) => isUserClubReference(test, entry.clubId)),
     "arrival should be written to the cheap career ledger",
   );
 
