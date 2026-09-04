@@ -1379,7 +1379,10 @@ export function evaluatePlayerResponseInPlace(s: GameState, n: TransferNegotiati
     syncTransferTargetNegotiationInPlace(s, n);
     return;
   }
-  n.playerCounterWage = recruitmentUserNegotiationWage(s, threshold);
+  n.playerCounterWage = Math.max(
+    recruitmentUserNegotiationWage(s, threshold),
+    recruitmentUserNegotiationWage(s, n.proposedWeeklyWage + 25),
+  );
   log(
     n,
     {
