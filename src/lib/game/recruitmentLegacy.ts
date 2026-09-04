@@ -1151,13 +1151,129 @@ export function negotiationById(s: GameState, id: string): TransferNegotiation |
 
 export const openNegotiations = (s: GameState) =>
   (s.football?.negotiations ?? []).filter(
-    (n) => n.stage === "clubTalks" || n.stage === "playerTalks" || n.stage === "agreed",
+    (n) =>
+      n.stage === "enquiry" ||
+      n.stage === "clubTalks" ||
+      n.stage === "playerTalks" ||
+      n.stage === "agreed",
   );
 
 function nextNegotiationId(s: GameState): string {
   const n = s.football.nextNegotiationId ?? 1;
   s.football.nextNegotiationId = n + 1;
   return `TN-${String(n).padStart(5, "0")}`;
+}
+
+function targetOpeningWeeklyWage(
+  s: GameState,
+  player: FootballPlayer,
+  role: SquadRole,
+  openingWeeklyWage?: number,
+): number {
+  if (openingWeeklyWage === undefined) return wageDemand(s, player, role);
+  return recruitmentUserNegotiationWage(s, Math.max(0, openingWeeklyWage));
+}
+
+/**
+ * Ask a contracted player's club for its current position without tabling a
+ * bid. Free agents skip the seller and go directly to personal terms.
+ */
+export function openTransferEnquiryInPlace(
+  s: GameState,
+  playerId: string,
+  role: SquadRole = "First Team",
+  openingWeeklyWage?: number,
+): NegotiationResult {
+  ensureRecruitment(s);
+  const p = transferTargetPlayer(s, playerId);
+  if (!p) return { ok: false, reason: "Unknown player" };
+  if (p.currentClubId === s.clubName) return { ok: false, reason: "He is already our player" };
+  if (openNegotiations(s).some((n) => n.playerId === playerId)) {
+    return { ok: false, reason: "Talks for this player are already open" };
+  }
+  if (!transferTargetAvailabilityReason(s, p, availabilityReason)) {
+    return { ok: false, reason: "His club will not entertain an approach" };
+  }
+  if (userSquad(s).length >= MAX_SQUAD_SIZE) {
+    return { ok: false, reason: "The squad is already full" };
+  }
+
+  const proposedWeeklyWage = targetOpeningWeeklyWage(s, p, role, openingWeeklyWage);
+  const wageAuth = canAuthoriseWage(s, proposedWeeklyWage);
+  if (!wageAuth.allowed) return { ok: false, reason: wageAuth.reason };
+
+  if (p.currentClubId === null) {
+    return openTransferNegotiationInPlace(s, playerId, 0, role, proposedWeeklyWage);
+  }
+
+  const abs = nowAbs(s);
+  const sellerPosition = transferTargetAskingPrice(s, p, askingPrice);
+  const n: TransferNegotiation = {
+    id: nextNegotiationId(s),
+    playerId,
+    fromClubId: p.currentClubId,
+    toClubId: s.clubName,
+    direction: "in",
+    stage: "enquiry",
+    clubRounds: 0,
+    playerRounds: 0,
+    fee: 0,
+    clubCounterFee: sellerPosition,
+    proposedWeeklyWage,
+    proposedLengthSeasons: 3,
+    proposedSigningBonus: 0,
+    proposedRole: role,
+    createdSeason: s.season,
+    createdAbsoluteWeek: abs,
+    expiresAtAbsoluteWeek: abs + NEGOTIATION_TTL_WEEKS,
+    log: [],
+  };
+  log(
+    n,
+    {
+      round: 0,
+      party: "club",
+      action: "enquiry",
+      note: `${p.currentClubId} indicate they would consider offers around £${sellerPosition.toLocaleString()}.`,
+    },
+    abs,
+  );
+  s.football.negotiations.push(n);
+  syncTransferTargetNegotiationInPlace(s, n);
+  return { ok: true, reason: "Club valuation received", negotiation: n };
+}
+
+/** Turn a live enquiry into the user's first actual transfer bid. */
+export function submitEnquiryOfferInPlace(
+  s: GameState,
+  negotiationId: string,
+  fee?: number,
+): NegotiationResult {
+  const n = negotiationById(s, negotiationId);
+  if (!n) return { ok: false, reason: "Unknown negotiation" };
+  if (n.stage !== "enquiry") return { ok: false, reason: "The enquiry is no longer open" };
+
+  const offerFee = Math.max(0, int(fee ?? n.clubCounterFee ?? 0));
+  if (offerFee <= 0) return { ok: false, reason: "Enter a transfer fee" };
+  const auth = canAuthorisePurchase(s, offerFee);
+  if (!auth.allowed) return { ok: false, reason: auth.reason };
+
+  n.fee = offerFee;
+  n.proposedSigningBonus = int(offerFee * 0.05);
+  n.clubRounds = 1;
+  n.stage = "clubTalks";
+  log(
+    n,
+    {
+      round: 1,
+      party: "club",
+      action: "offer",
+      note: `Offer of £${offerFee.toLocaleString()} tabled after enquiry.`,
+    },
+    nowAbs(s),
+  );
+  evaluateClubResponseInPlace(s, n);
+  return { ok: true, reason: "Offer submitted", negotiation: n };
 }
 
 /**
@@ -1187,11 +1303,7 @@ export function openTransferNegotiationInPlace(
   const auth = canAuthorisePurchase(s, offerFee);
   if (!auth.allowed) return { ok: false, reason: auth.reason };
 
-  const hiddenWageDemand = wageDemand(s, p, role);
-  const proposedWeeklyWage =
-    openingWeeklyWage === undefined
-      ? hiddenWageDemand
-      : recruitmentUserNegotiationWage(s, Math.max(0, openingWeeklyWage));
+  const proposedWeeklyWage = targetOpeningWeeklyWage(s, p, role, openingWeeklyWage);
   const wageAuth = canAuthoriseWage(s, proposedWeeklyWage);
   if (!wageAuth.allowed) return { ok: false, reason: wageAuth.reason };
 
