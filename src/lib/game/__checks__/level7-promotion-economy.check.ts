@@ -7,6 +7,7 @@ import { economicProfileForLevel, transferFeePolicyForLevel } from "../levelEcon
 import { makePyramidSchedule, pyramidClubs, pyramidIntegrity } from "../pyramid";
 import { initClubReputations, storePredictions } from "../reputation";
 import type { GameState } from "../types";
+import { isUserClubReference } from "../clubReference";
 
 const SEED = "LEVEL7_PROMOTION_ECONOMY";
 
@@ -15,11 +16,11 @@ function fresh(): GameState {
   g.saveSeed = SEED;
   g.leagueSchedule = makePyramidSchedule(g.leagues, `${SEED}|season1`);
   g.fixtures = g.leagueSchedule
-    .filter((f) => f.home === g.clubName || f.away === g.clubName)
+    .filter((f) => isUserClubReference(g, f.home) || isUserClubReference(g, f.away))
     .map((f) => ({
       week: f.week,
-      opponent: f.home === g.clubName ? f.away : f.home,
-      home: f.home === g.clubName,
+      opponent: isUserClubReference(g, f.home) ? f.away : f.home,
+      home: isUserClubReference(g, f.home),
     }))
     .sort((a, b) => a.week - b.week);
   g.clubReputations = initClubReputations(g.leagues, SEED);
@@ -57,13 +58,15 @@ const level7Profile = economicProfileForLevel(7);
 const level7FeePolicy = transferFeePolicyForLevel(7);
 
 const after = promoteUser(before);
-const destination = after.leagues.find((l) => l.clubIds.includes(after.clubName));
+const destination = after.leagues.find((l) =>
+  l.clubIds.some((club) => isUserClubReference(after, club)),
+);
 const history = after.seasonHistory.find(
   (h) => h.season === 1 && h.leagueId === startingLeague.id,
 );
 
 if (after.season !== 2) throw new Error(`Expected season 2 after rollover, got ${after.season}`);
-if (!history?.promoted.includes(after.clubName)) {
+if (!history?.promoted.some((club) => isUserClubReference(after, club))) {
   throw new Error("Forced Level 7 champion was not recorded as promoted");
 }
 if (!destination || destination.id !== "league-4" || destination.tier !== 4) {
