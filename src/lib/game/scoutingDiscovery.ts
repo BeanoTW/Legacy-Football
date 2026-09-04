@@ -52,6 +52,12 @@ export interface ScoutingBrief {
 export interface ScoutingDiscoveryState {
   briefs: ScoutingBrief[];
   /**
+   * Candidate ids whose original brief has moved to cold history. This is a
+   * compact compatibility ledger: current saves also retain a "scouted"
+   * lifecycle reason, but older saves may not have written that reason.
+   */
+  historicalCandidateIds?: string[];
+  /**
    * Persistent hidden report subjects for known players. This survives a
    * detailed player leaving the Focus bubble mid-assignment.
    */
@@ -340,9 +346,18 @@ export function discoveredCandidateViews(
 }
 
 export function discoveredPlayerIds(state: GameState): Set<string> {
-  return new Set(
-    (state.football?.scoutingDiscovery?.briefs ?? []).flatMap((brief) => brief.candidateIds),
+  const discovered = new Set<string>(
+    state.football?.scoutingDiscovery?.historicalCandidateIds ?? [],
   );
+  for (const brief of state.football?.scoutingDiscovery?.briefs ?? []) {
+    for (const playerId of brief.candidateIds) discovered.add(playerId);
+  }
+  // Newer discovery writes an explicit lifecycle reason. Read it too so
+  // chairman visibility no longer depends on retaining an old search payload.
+  for (const known of state.football?.playerLifecycle?.knownPlayers ?? []) {
+    if (known.reasons.includes("scouted")) discovered.add(known.playerId);
+  }
+  return discovered;
 }
 
 export function isPlayerDiscovered(state: GameState, playerId: string): boolean {
