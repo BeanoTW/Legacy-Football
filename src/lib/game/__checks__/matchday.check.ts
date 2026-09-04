@@ -669,10 +669,21 @@ console.log("\n[J] Save / migration");
 
   const played = commitLiveMatchAndAdvance(applyHalfTimeChoice(kickoff(clone(started)), "steady"));
   const legacyPlayed = JSON.parse(JSON.stringify(played)) as LegacySave;
-  legacyPlayed.version = 10;
-  // Isolate the live-match migration contract. A genuine v10 transfer pot is
-  // intentionally released to cash by v14 and writes its own migration entry.
-  legacyPlayed.transferBudget = 0;
+
+  // J46 is specifically the v16 -> v17 club-reference contract. Build the
+  // relevant v16 history shape explicitly instead of pretending a current save
+  // is v10 and replaying unrelated world/finance migrations as part of this
+  // assertion.
+  legacyPlayed.version = 16;
+  legacyPlayed.matchRecords = legacyPlayed.matchRecords.map((record) => ({
+    ...record,
+    home: clubDisplayName(played, record.home),
+    away: clubDisplayName(played, record.away),
+  }));
+  legacyPlayed.results = legacyPlayed.results.map((result) => ({
+    ...result,
+    opponent: clubDisplayName(played, result.opponent),
+  }));
   const m4 = migrateSave(
     JSON.parse(JSON.stringify(legacyPlayed)) as unknown as Record<string, unknown>,
   );
