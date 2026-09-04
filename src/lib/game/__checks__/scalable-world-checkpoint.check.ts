@@ -45,7 +45,10 @@ function assertWorldBoundary(s: GameState, label: string) {
     plan.focusClubIds.length + plan.fringeClubIds.length === allLeagueClubs.length,
     `${label}: fidelity plan must cover every persistent club exactly once`,
   );
-  assert(focus.has(s.clubName), `${label}: controlled club must always remain Focus`);
+  assert(
+    plan.focusClubIds.some((clubId) => isUserClubReference(s, clubId)),
+    `${label}: controlled club must always remain Focus`,
+  );
 
   for (const player of s.football.players) {
     if (player.currentClubId === null) continue;
