@@ -1,4 +1,5 @@
 import type { GameState } from "./types";
+import { fixtureId as makeFixtureId } from "./league";
 import {
   clubIdForState,
   ensureClubIdentityStateInPlace,
@@ -52,11 +53,16 @@ export function migrateClubReferencesToIdsInPlace(state: GameState): void {
     home: mapRequired(state, fixture.home),
     away: mapRequired(state, fixture.away),
   }));
-  state.matchRecords = (state.matchRecords ?? []).map((record) => ({
-    ...record,
-    home: mapRequired(state, record.home),
-    away: mapRequired(state, record.away),
-  }));
+  state.matchRecords = (state.matchRecords ?? []).map((record) => {
+    const home = mapRequired(state, record.home);
+    const away = mapRequired(state, record.away);
+    return {
+      ...record,
+      id: makeFixtureId(record.season, record.round, home, away, record.league),
+      home,
+      away,
+    };
+  });
   state.league = state.league.map((row) => ({ ...row, team: mapRequired(state, row.team) }));
   state.results = state.results.map((result) => ({
     ...result,
@@ -134,14 +140,36 @@ export function migrateClubReferencesToIdsInPlace(state: GameState): void {
   }
 
   if (state.liveMatch) {
+    const homeClub = state.liveMatch.homeClub
+      ? mapRequired(state, state.liveMatch.homeClub)
+      : undefined;
+    const awayClub = state.liveMatch.awayClub
+      ? mapRequired(state, state.liveMatch.awayClub)
+      : undefined;
+    const migratedFixtureId =
+      homeClub &&
+      awayClub &&
+      state.liveMatch.season != null &&
+      state.liveMatch.round != null &&
+      state.liveMatch.leagueId
+        ? makeFixtureId(
+            state.liveMatch.season,
+            state.liveMatch.round,
+            homeClub,
+            awayClub,
+            state.liveMatch.leagueId,
+          )
+        : state.liveMatch.fixtureId;
+
     state.liveMatch = {
       ...state.liveMatch,
       fixture: {
         ...state.liveMatch.fixture,
         opponent: mapRequired(state, state.liveMatch.fixture.opponent),
       },
-      homeClub: state.liveMatch.homeClub ? mapRequired(state, state.liveMatch.homeClub) : undefined,
-      awayClub: state.liveMatch.awayClub ? mapRequired(state, state.liveMatch.awayClub) : undefined,
+      fixtureId: migratedFixtureId,
+      homeClub,
+      awayClub,
     };
   }
 
