@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { newGame } from "../newGame";
-import { canonicalClubReference } from "../clubReference";
+import { canonicalClubReference, isUserClubReference } from "../clubReference";
 import { clubFootballStrength } from "../footballStrength";
 import { clubMatchStrength } from "../matchStrength";
 import { clubStrengthAtLevel, simulateAiFixtureAtLevel } from "../league";
@@ -33,7 +33,7 @@ assert.equal(clubStrengthAtLevel(state, state.season, fixture.opponent, "fringe"
 const leagueId = state.playerLeagueId;
 const otherAi = state.leagues
   .flatMap((league) => league.clubIds)
-  .find((club) => club !== state.clubName && club !== fixture.opponent);
+  .find((club) => !isUserClubReference(state, club) && club !== fixture.opponent);
 if (!otherAi) throw new Error("second AI club missing");
 const focusSim = simulateAiFixtureAtLevel(
   state,
