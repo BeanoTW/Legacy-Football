@@ -200,6 +200,14 @@ console.log("\n[U6] Recruitment knowledge boundary");
     "Scouting Reports do not read exact seller asking price before talks",
     !/transferTargetAskingPrice\(/.test(reports) && !/askingPrice\(/.test(reports),
   );
+  check(
+    "contracted scouting approaches use the explicit enquiry action",
+    /submitTransferEnquiry\(/.test(browser) && /submitTransferEnquiry\(/.test(reports),
+  );
+  check(
+    "the live negotiations screen exposes the enquiry-to-bid action",
+    /submitEnquiryOffer\(/.test(read("src/components/game/RecruitmentOperations.tsx")),
+  );
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);
