@@ -8,6 +8,7 @@ import {
 } from "../playerClubPerformance";
 import { hasFullSchedule, leagueOf, playerLeagueId, simulateFixture } from "../league";
 import { startMatchDay } from "../liveMatch";
+import { isUserClubReference } from "../clubReference";
 import { tickMatchday } from "../tick/matchday";
 
 const state = newGame("Performance Integration FC", "Integration Auditor", "PERFORMANCE_INTEGRATION");
@@ -29,8 +30,8 @@ const sched = hasFullSchedule(state)
   ? state.leagueSchedule.find(
       (candidate) =>
         candidate.week === state.week &&
-        ((candidate.home === state.clubName && candidate.away === fixture.opponent) ||
-          (candidate.away === state.clubName && candidate.home === fixture.opponent)),
+        ((isUserClubReference(state, candidate.home) && candidate.away === fixture.opponent) ||
+          (isUserClubReference(state, candidate.away) && candidate.home === fixture.opponent)),
     )
   : undefined;
 const homeClub = fixture.home ? state.clubName : fixture.opponent;
