@@ -16,6 +16,14 @@ import {
 import { knownPlayerIdentity, playerFidelity } from "../playerLifecycle";
 import type { TransferNegotiation } from "../types";
 import { isUserClubReference, userClubReference } from "../clubReference";
+import {
+  activeContract,
+  canAuthorisePurchase,
+  canAuthoriseWage,
+  completeTransferInPlace,
+  openTransferNegotiationInPlace,
+  wageDemand,
+} from "../recruitment";
 
 const state = createScoutingBrief(
   newGame("Target Bridge Audit FC", "Auditor", "TARGET_BRIDGE_AUDIT"),
@@ -93,5 +101,118 @@ assert.equal(
   "Detailed availability",
 );
 assert.equal(transferTargetAskingPrice(state, detailed, () => 765432), 765432);
+
+// Exercise the real public recruitment path. A scouted Fringe target must remain
+// compact through both negotiation stages, then materialise exactly once when
+// the canonical transfer engine completes the signing.
+const integrationState = createScoutingBrief(
+  newGame("Target Bridge Integration FC", "Auditor", "TARGET_BRIDGE_INTEGRATION"),
+  { id: "target-bridge-integration", maxAge: 40 },
+);
+const integrationBrief = scoutingBrief(integrationState, "target-bridge-integration");
+if (!integrationBrief) throw new Error("integration scouting brief missing");
+
+const affordableCompactTarget = integrationBrief.candidateIds
+  .filter(
+    (playerId) =>
+      scoutingCandidateSource(integrationState, integrationBrief.id, playerId) === "fringe",
+  )
+  .map((playerId) => {
+    const player = transferTargetPlayer(integrationState, playerId);
+    if (!player) return null;
+    const asking = transferTargetAskingPrice(integrationState, player, () => 1);
+    const weeklyWage = wageDemand(integrationState, player, "First Team");
+    const signingBonus = Math.round(asking * 0.05);
+    return {
+      player,
+      asking,
+      weeklyWage,
+      affordable:
+        canAuthorisePurchase(integrationState, asking + signingBonus).allowed &&
+        canAuthoriseWage(integrationState, weeklyWage).allowed,
+    };
+  })
+  .filter(
+    (
+      candidate,
+    ): candidate is {
+      player: NonNullable<ReturnType<typeof transferTargetPlayer>>;
+      asking: number;
+      weeklyWage: number;
+      affordable: boolean;
+    } => candidate !== null,
+  )
+  .filter((candidate) => candidate.affordable)
+  .sort((a, b) => a.asking - b.asking || a.player.id.localeCompare(b.player.id))[0];
+
+if (!affordableCompactTarget) throw new Error("affordable compact integration target missing");
+
+const integrationId = affordableCompactTarget.player.id;
+const detailedCountBeforeOffer = integrationState.football?.players.length ?? 0;
+const opened = openTransferNegotiationInPlace(
+  integrationState,
+  integrationId,
+  affordableCompactTarget.asking,
+  "First Team",
+);
+assert.ok(opened.ok, opened.reason);
+if (!opened.negotiation) throw new Error("canonical compact negotiation missing");
+assert.equal(opened.negotiation.playerId, integrationId);
+assert.equal(
+  integrationState.football?.players.some((player) => player.id === integrationId),
+  false,
+  "opening talks must not hydrate a compact target",
+);
+assert.equal(
+  integrationState.football?.players.length ?? 0,
+  detailedCountBeforeOffer,
+  "negotiating with a compact target must not grow detailed simulation",
+);
+assert.ok(
+  knownPlayerIdentity(integrationState, integrationId)?.reasons.includes("negotiation"),
+  "canonical talks should retain the temporary negotiation reason",
+);
+assert.equal(
+  opened.negotiation.stage,
+  "agreed",
+  "a full asking-price offer with the generated wage demand should reach agreement deterministically",
+);
+assert.equal(
+  playerFidelity(integrationState, integrationId),
+  "known",
+  "agreement alone must leave the target compact",
+);
+
+const completed = completeTransferInPlace(integrationState, opened.negotiation.id);
+assert.ok(completed.ok, completed.reason);
+assert.equal(opened.negotiation.stage, "completed");
+const integratedSigning = integrationState.football?.players.find(
+  (player) => player.id === integrationId,
+);
+assert.ok(integratedSigning, "completed compact signing should become detailed");
+assert.ok(
+  isUserClubReference(integrationState, integratedSigning.currentClubId),
+  "completed signing should belong to the canonical user club",
+);
+assert.equal(playerFidelity(integrationState, integrationId), "detailed");
+const signedContract = activeContract(integrationState, integrationId);
+assert.ok(signedContract, "completed compact signing should receive a live contract");
+assert.ok(isUserClubReference(integrationState, signedContract.clubId));
+assert.ok(
+  integrationState.football?.transferHistory.some(
+    (record) =>
+      record.playerId === integrationId &&
+      isUserClubReference(integrationState, record.toClubId),
+  ),
+  "canonical completion should write transfer history",
+);
+assert.ok(knownPlayerIdentity(integrationState, integrationId)?.reasons.includes("owned"));
+assert.ok(!knownPlayerIdentity(integrationState, integrationId)?.reasons.includes("negotiation"));
+assert.ok(
+  knownPlayerIdentity(integrationState, integrationId)?.career.some((entry) =>
+    isUserClubReference(integrationState, entry.clubId),
+  ),
+  "canonical completion should write the persistent arrival ledger",
+);
 
 console.log("\nrecruitment-target-bridge: passed");
