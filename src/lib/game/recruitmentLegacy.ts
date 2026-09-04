@@ -45,6 +45,11 @@ import { buildWorldSimulationPlan } from "./world";
 import { ensureFringeWorldState, makeFringeClubState } from "./fringe";
 import { legacyTierToFootballLevel, type FootballLevel } from "./footballLevel";
 import {
+  clubOperatingModel,
+  contractEmploymentType,
+  ensureEmploymentStateInPlace,
+} from "./employment";
+import {
   recruitmentContractWageForLevel,
   recruitmentLevelOfClub,
   recruitmentLevelOfUser,
@@ -417,6 +422,7 @@ export function generateWorld(s: GameState): {
         expirySeason: s.season + seasons - 1,
         expiryWeek: WEEKS_PER_SEASON,
         weeklyWage: recruitmentContractWageForLevel(level, base, wageScalar),
+        employmentType: clubOperatingModel(s, club),
         squadRole: roleFor(i),
         signingBonus: 0,
         agreedTransferFee: 0,
@@ -567,6 +573,7 @@ export function reconcileRecruitmentFidelity(s: GameState): void {
         expirySeason: s.season + rngInt(rng, 1, 4) - 1,
         expiryWeek: WEEKS_PER_SEASON,
         weeklyWage: recruitmentContractWageForLevel(level, base, wageScalar),
+        employmentType: clubOperatingModel(s, club),
         squadRole: roleFor(index),
         signingBonus: 0,
         agreedTransferFee: 0,
@@ -620,6 +627,7 @@ export function ensureRecruitment(s: GameState): void {
       s.football.players.push(player);
     }
     reconcileRecruitmentFidelity(s);
+    if (s.clubIdentity) ensureEmploymentStateInPlace(s);
     syncLegacySquad(s);
     return;
   }
@@ -640,6 +648,7 @@ export function ensureRecruitment(s: GameState): void {
     generatedSeason: s.season,
   };
   s.football = state;
+  if (s.clubIdentity) ensureEmploymentStateInPlace(s);
   syncLegacySquad(s);
 }
 
@@ -1865,6 +1874,7 @@ function closeContract(
     playerName: p ? playerName(p) : c.playerId,
     clubId: c.clubId,
     weeklyWage: c.weeklyWage,
+    employmentType: contractEmploymentType(s, c),
     startSeason: c.startSeason,
     endSeason: s.season,
     seasons: Math.max(1, s.season - c.startSeason + 1),
@@ -1894,6 +1904,7 @@ function issueContract(
     expirySeason: s.season + Math.max(1, seasons) - 1,
     expiryWeek: WEEKS_PER_SEASON,
     weeklyWage: int(wage),
+    employmentType: clubOperatingModel(s, clubId),
     squadRole: role,
     signingBonus: int(signingBonus),
     agreedTransferFee: int(fee),
@@ -2260,6 +2271,7 @@ function processExpiries(s: GameState): void {
         playerName: p ? playerName(p) : c.playerId,
         clubId: c.clubId,
         weeklyWage: c.weeklyWage,
+        employmentType: contractEmploymentType(s, c),
         startSeason: c.startSeason,
         endSeason: s.season,
         seasons: Math.max(1, s.season - c.startSeason + 1),
