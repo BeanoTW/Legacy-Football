@@ -7,7 +7,7 @@
    Run with:  bun src/lib/game/__checks__/matchday.check.ts
 */
 import { readFileSync } from "node:fs";
-import { isUserClubReference } from "../clubReference";
+import { clubDisplayName, isUserClubReference } from "../clubReference";
 
 import {
   newGame,
@@ -102,6 +102,21 @@ console.log("\n[A] Identity");
   check(
     "A2. match seed identity is stable",
     matchSeedBase(PRE.saveSeed, id1, key) === matchSeedBase(PRE.saveSeed, id2, key),
+  );
+
+  const legacyHome = clubDisplayName(PRE, id1.homeClub);
+  const legacyAway = clubDisplayName(PRE, id1.awayClub);
+  const legacyIdentity = {
+    ...id1,
+    fixtureId: makeFixtureId(id1.season, id1.round, legacyHome, legacyAway, id1.leagueId),
+    homeClub: legacyHome,
+    awayClub: legacyAway,
+    homeSeedKey: undefined,
+    awaySeedKey: undefined,
+  };
+  check(
+    "A2b. opaque IDs preserve the pre-migration live-match seed root",
+    matchSeedBase(PRE.saveSeed, id1, key) === matchSeedBase(PRE.saveSeed, legacyIdentity, key),
   );
 
   // Advance past this fixture to the next one and compare identities.
