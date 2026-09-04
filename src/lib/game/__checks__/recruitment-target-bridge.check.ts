@@ -21,6 +21,7 @@ import {
   activeContract,
   canAuthorisePurchase,
   canAuthoriseWage,
+  beginTransferRegistrationInPlace,
   completeTransferInPlace,
   openTransferNegotiationInPlace,
   wageDemand,
@@ -184,6 +185,22 @@ assert.equal(
   "agreement alone must leave the target compact",
 );
 
+const registration = beginTransferRegistrationInPlace(
+  integrationState,
+  opened.negotiation.id,
+);
+assert.ok(registration.ok, registration.reason);
+assert.equal(opened.negotiation.stage, "registration");
+assert.equal(
+  playerFidelity(integrationState, integrationId),
+  "known",
+  "registration alone must leave the compact target unhydrated",
+);
+assert.equal(
+  integrationState.football?.players.some((player) => player.id === integrationId),
+  false,
+  "registration must not cross the materialisation boundary",
+);
 const completed = completeTransferInPlace(integrationState, opened.negotiation.id);
 assert.ok(completed.ok, completed.reason);
 assert.equal(opened.negotiation.stage, "completed");
