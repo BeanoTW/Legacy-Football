@@ -16,7 +16,7 @@ import {
 } from "../pyramid";
 import { buildTable, isLeagueSeasonComplete, tableFor } from "../league";
 import type { GameState } from "../types";
-import { isUserClubReference } from "../clubReference";
+import { clubDisplayName, isUserClubReference } from "../clubReference";
 
 let passed = 0;
 let failed = 0;
@@ -200,24 +200,50 @@ console.log("\n[8] Two consecutive seasons + projections");
 
 console.log("\n[9] v3 save migration expands without rewriting active top flight");
 {
-  const g = newGame("Legacy FC", "Old Boss") as unknown as Record<string, unknown>;
+  const modern = newGame("Legacy FC", "Old Boss");
+  const g = structuredClone(modern) as unknown as Record<string, unknown>;
   g.version = 3;
   g.week = 12;
+
+  // A genuine v3 save stored display names, not the opaque IDs stamped by a
+  // current newGame. Reconstruct that old boundary before exercising v3->v17.
+  g.league = modern.league.map((row) => ({
+    ...row,
+    team: clubDisplayName(modern, row.team),
+  }));
+  g.fixtures = modern.fixtures.map((fixture) => ({
+    ...fixture,
+    opponent: clubDisplayName(modern, fixture.opponent),
+  }));
+  g.leagueSchedule = modern.leagueSchedule
+    .filter((f) => f.league === DIVISION_ONE)
+    .map(({ league, ...rest }) => ({
+      ...rest,
+      home: clubDisplayName(modern, rest.home),
+      away: clubDisplayName(modern, rest.away),
+    }));
+
   delete g.leagues;
   delete g.playerLeagueId;
   delete g.seasonHistory;
   delete g.clubRecords;
-  g.leagueSchedule = (g.leagueSchedule as { league?: string }[])
-    .filter((f) => f.league === DIVISION_ONE)
-    .map(({ league, ...rest }) => rest);
   const originalTopScheduleLength = (g.leagueSchedule as unknown[]).length;
   const m = migrateSave(g);
   check("migrated to current schema", m.version === SAVE_VERSION);
   check("full eight-division world created", m.leagues.length === 8 && m.leagues.every((l) => l.clubIds.length === CLUBS_PER_DIVISION));
   check("four regional Level 7 divisions created", m.leagues.filter((l) => l.tier === 5).length === 4);
-  check("user club placed in exactly one league", m.leagues.filter((l) => l.clubIds.includes("Legacy FC")).length === 1);
+  check(
+    "user club placed in exactly one league",
+    m.leagues.filter((l) => l.clubIds.some((club) => isUserClubReference(m, club))).length === 1,
+  );
   check("no duplicate clubs across divisions", new Set(pyramidClubs(m)).size === pyramidClubs(m).length);
-  check("existing tier-1 membership preserved", m.leagues[0].clubIds.length === 20 && m.leagues[0].clubIds.every((c) => (g.league as { team: string }[]).some((r) => r.team === c)));
+  check(
+    "existing tier-1 membership preserved",
+    m.leagues[0].clubIds.length === 20 &&
+      m.leagues[0].clubIds.every((club) =>
+        (g.league as { team: string }[]).some((row) => row.team === clubDisplayName(m, club)),
+      ),
+  );
   const migratedTopSchedule = m.leagueSchedule.filter((f) => f.league === undefined || f.league === DIVISION_ONE);
   check("active top schedule preserved while lower leagues append", migratedTopSchedule.length === originalTopScheduleLength && m.leagueSchedule.some((f) => f.league === "league-4") && m.leagueSchedule.some((f) => f.league === "regional-premier-central"));
   check("history starts empty", m.seasonHistory.length === 0);
