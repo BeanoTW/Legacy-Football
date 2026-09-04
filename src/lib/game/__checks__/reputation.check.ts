@@ -503,9 +503,13 @@ console.log("\n[R11] Save migration (v4 → v5)");
     JSON.stringify(again.clubReputations) === JSON.stringify(m.clubReputations) &&
       again.seasonPredictions.length === m.seasonPredictions.length,
   );
-  // An existing save with hand-set reputations keeps them.
+  // This fixture is a current ID-shaped state with only its version number
+  // downgraded for migration coverage. Keep the hand-set reputation under the
+  // fixture's actual club key; mixing a legacy display-name key into an
+  // otherwise ID-shaped save would create two keys for the same club.
   const kept = structuredClone(g);
-  kept.clubReputations = { "Dalton Town": 12.5 };
+  const keptState = kept as unknown as GameState;
+  kept.clubReputations = { [userClubReference(keptState)]: 12.5 };
   const m2 = migrateSave(kept);
   check(
     "existing reputation values are preserved",
