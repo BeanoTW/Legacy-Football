@@ -12,6 +12,7 @@ import {
   recruitmentTargetAskingPrice,
   recruitmentTargetPlayer,
 } from "../knownPlayerTransferEconomy";
+import { isUserClubReference } from "../clubReference";
 
 const base = newGame("Transfer Economy Audit FC", "Auditor", "KNOWN_TRANSFER_ECONOMY_AUDIT");
 const discovered = createScoutingBrief(base, { id: "transfer-economy-audit", maxAge: 40 });
@@ -43,7 +44,7 @@ assert.equal(
 assert.equal(discovered.football?.players.some((player) => player.id === compactId), false);
 
 const detailed = discovered.football?.players.find(
-  (player) => player.currentClubId !== discovered.clubName && player.currentClubId !== null,
+  (player) => player.currentClubId !== null && !isUserClubReference(discovered, player.currentClubId),
 );
 if (!detailed) throw new Error("detailed external player missing");
 assert.equal(isCompactRecruitmentTarget(discovered, detailed.id), false);
