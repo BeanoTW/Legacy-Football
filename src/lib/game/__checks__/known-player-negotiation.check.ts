@@ -12,6 +12,7 @@ import {
 } from "../knownPlayerNegotiation";
 import { knownPlayerIdentity, playerFidelity } from "../playerLifecycle";
 import type { TransferNegotiation } from "../types";
+import { userClubReference } from "../clubReference";
 
 const state = createScoutingBrief(
   newGame("Negotiation Audit FC", "Auditor", "KNOWN_NEGOTIATION_AUDIT"),
@@ -38,7 +39,7 @@ const negotiation: TransferNegotiation = {
   id: "TN-AUDIT",
   playerId: compactId,
   fromClubId: approach.fromClubId,
-  toClubId: state.clubName,
+  toClubId: userClubReference(state),
   direction: "in",
   stage: "clubTalks",
   clubRounds: 1,
