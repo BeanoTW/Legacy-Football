@@ -6,6 +6,7 @@ import { runPlayerCareerRollover } from "../careers";
 import { ageOf, FREE_AGENT_POOL, SQUAD_SIZE } from "../recruitment";
 import { buildWorldSimulationPlan } from "../world";
 import type { GameState } from "../types";
+import { isUserClubReference } from "../clubReference";
 
 let passed = 0;
 let failed = 0;
@@ -65,7 +66,7 @@ console.log("\n[C2] Ability and potential bounds");
 console.log("\n[C3] Retirement and youth replacement");
 {
   const s = newGame("Retirement City", "Ada Retire", "CAREERS|RETIRE");
-  const target = s.football.players.find((player) => player.currentClubId === s.clubName)!;
+  const target = s.football.players.find((player) => isUserClubReference(s, player.currentClubId))!;
   const club = target.currentClubId!;
   const oldContractId = target.contractId!;
   target.dateOfBirth.year = 1960; // guaranteed age >= 40 at rollover
