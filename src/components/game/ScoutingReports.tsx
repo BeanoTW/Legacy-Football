@@ -4,6 +4,7 @@ import {
   ageOf,
   playerInterestAssessment,
   playerName,
+  submitTransferEnquiry,
   submitTransferOffer,
 } from "@/lib/game/recruitment";
 import { scoutingReport } from "@/lib/game/scouting";
@@ -34,8 +35,12 @@ export function ScoutingReports({
     return b.startedAtAbsoluteWeek - a.startedAtAbsoluteWeek;
   });
 
-  const approach = (playerId: string, fee: number, weeklyWage: number) =>
-    update((s) => submitTransferOffer(s, playerId, fee, "First Team", weeklyWage).state);
+  const approach = (playerId: string, freeAgent: boolean, weeklyWage: number) =>
+    update((s) =>
+      freeAgent
+        ? submitTransferOffer(s, playerId, 0, "First Team", weeklyWage).state
+        : submitTransferEnquiry(s, playerId, "First Team", weeklyWage).state,
+    );
 
   return (
     <DetailScreen
@@ -118,7 +123,7 @@ export function ScoutingReports({
                 variant="secondary"
                 className="h-7 px-2 text-[10px]"
                 onClick={() =>
-                  approach(player.id, estimate.openingFee, estimate.openingWeeklyWage)
+                  approach(player.id, freeAgent, estimate.openingWeeklyWage)
                 }
               >
                 <Handshake className="mr-1 size-3" />
