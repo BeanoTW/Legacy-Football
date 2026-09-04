@@ -1,6 +1,5 @@
 import type { FootballPlayer, GameState } from "./types";
 import { activeContract, weeksLeftOnContract } from "./recruitment";
-import { isUserClubReference } from "./clubReference";
 import { isUserClubReference, userClubReference } from "./clubReference";
 import { clubSimulationSeedKey } from "./clubIdentity";
 
