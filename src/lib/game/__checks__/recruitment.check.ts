@@ -14,6 +14,7 @@ import { newGame, advanceWeek, migrateSave, setTransferBudget } from "../engine"
 import { reconcile } from "../finance";
 import { applyEffects, runWeeklyGenerators } from "../inbox";
 import { ensureBoard } from "../board";
+import { isUserClubReference } from "../clubReference";
 import {
   MAX_NEGOTIATION_ROUNDS,
   MAX_SQUAD_SIZE,
@@ -395,7 +396,7 @@ console.log("\n[R4] Transfer market");
   );
   check(
     "28b. our own players are never on the market",
-    m1.every((e) => e.clubId !== s.clubName),
+    m1.every((e) => !isUserClubReference(s, e.clubId)),
   );
   const ids = m1.map((e) => e.player.id);
   check("29. a listed player appears exactly once", new Set(ids).size === ids.length);
@@ -643,7 +644,8 @@ console.log("\n[R7] Transfer completion");
   check(
     "52a. a contracted, eligible target exists on the market",
     !!target &&
-      target.player.currentClubId !== s.clubName &&
+      target.player.currentClubId !== null &&
+      !isUserClubReference(s, target.player.currentClubId) &&
       availabilityReason(s, target.player) !== null,
   );
   if (target) {
@@ -679,7 +681,7 @@ console.log("\n[R7] Transfer completion");
     check("53. completion is atomic and successful", r.ok);
     check(
       "54. ownership changes exactly once",
-      playerById(s, n.playerId)!.currentClubId === s.clubName &&
+      isUserClubReference(s, playerById(s, n.playerId)!.currentClubId) &&
         s.football.contracts.filter((c) => c.playerId === n.playerId && c.status === "Active")
           .length === 1,
     );
@@ -693,7 +695,7 @@ console.log("\n[R7] Transfer completion");
     check(
       "56. the buying contract opens exactly once",
       s.football.contracts.filter(
-        (c) => c.playerId === n.playerId && c.clubId === s.clubName && c.status === "Active",
+        (c) => c.playerId === n.playerId && isUserClubReference(s, c.clubId) && c.status === "Active",
       ).length === 1,
     );
     check(
@@ -809,7 +811,7 @@ console.log("\n[R8] Incoming bids and sales");
     check(
       "74. sale history records buyer, seller, player, fee and timing",
       !!rec &&
-        rec.fromClubId === s.clubName &&
+        isUserClubReference(s, rec.fromClubId) &&
         rec.toClubId === n.toClubId &&
         rec.fee === n.fee &&
         rec.season === s.season &&
@@ -843,7 +845,7 @@ console.log("\n[R9] Wages and finance");
 {
   const s = fixture("WAGES");
   const fromContracts = s.football.contracts
-    .filter((c) => c.clubId === s.clubName && (c.status === "Active" || c.status === "Expiring"))
+    .filter((c) => isUserClubReference(s, c.clubId) && (c.status === "Active" || c.status === "Expiring"))
     .reduce((a, c) => a + c.weeklyWage, 0);
   check(
     "76. wage totals derive from active contracts",
@@ -1132,9 +1134,9 @@ console.log("\n[R13] History");
   );
   const rows = g.football.transferHistory.filter((r) => r.season === g.season);
   const spend = rows
-    .filter((r) => r.toClubId === g.clubName)
+    .filter((r) => isUserClubReference(g, r.toClubId))
     .reduce((a, r) => a + r.fee + r.signingBonus, 0);
-  const income = rows.filter((r) => r.fromClubId === g.clubName).reduce((a, r) => a + r.fee, 0);
+  const income = rows.filter((r) => isUserClubReference(g, r.fromClubId)).reduce((a, r) => a + r.fee, 0);
   check(
     "119. historical net spend reconciles to transfer records",
     netSpendThisSeason(g) === spend - income,
@@ -1144,7 +1146,7 @@ console.log("\n[R13] History");
     userWageBill(g) ===
       g.football.contracts
         .filter(
-          (c) => c.clubId === g.clubName && (c.status === "Active" || c.status === "Expiring"),
+          (c) => isUserClubReference(g, c.clubId) && (c.status === "Active" || c.status === "Expiring"),
         )
         .reduce((a, c) => a + c.weeklyWage, 0),
   );
