@@ -14,6 +14,7 @@ import { newGame, advanceWeek, migrateSave, setTransferBudget } from "../engine"
 import { reconcile } from "../finance";
 import { applyEffects, runWeeklyGenerators } from "../inbox";
 import { ensureBoard } from "../board";
+import { isTransferWindowOpen } from "../calendar";
 import { isUserClubReference } from "../clubReference";
 import {
   MAX_NEGOTIATION_ROUNDS,
@@ -686,6 +687,13 @@ console.log("\n[R7] Transfer completion");
     check(
       "52f. incoming agreement cannot complete before registration",
       !completeTransferInPlace(clone(s), n.id).ok,
+    );
+    const closedWindow = clone(s);
+    closedWindow.week = 5;
+    check(
+      "52fa. agreed incoming deal cannot register outside a transfer window",
+      !isTransferWindowOpen(closedWindow) &&
+        !beginTransferRegistrationInPlace(closedWindow, n.id).ok,
     );
     const registrationProbe = clone(s);
     const registration = beginTransferRegistrationInPlace(registrationProbe, n.id);
