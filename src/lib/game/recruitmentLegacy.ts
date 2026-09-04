@@ -37,6 +37,7 @@ import type {
 } from "./types";
 import { hashString, seededRng, rngInt, rngRange } from "./rng";
 import { absoluteWeek, WEEKS_PER_SEASON } from "./time";
+import { isTransferWindowOpen } from "./calendar";
 import { postEntry } from "./finance";
 import { clubReputation } from "./reputation";
 import { facilityModifiers } from "./infrastructure";
@@ -1156,7 +1157,8 @@ export const openNegotiations = (s: GameState) =>
       n.stage === "enquiry" ||
       n.stage === "clubTalks" ||
       n.stage === "playerTalks" ||
-      n.stage === "agreed",
+      n.stage === "agreed" ||
+      n.stage === "registration",
   );
 
 function nextNegotiationId(s: GameState): string {
@@ -1663,7 +1665,82 @@ export function respondToIncomingOfferInPlace(
 }
 
 /* =========================================================================
-   7. Completion — the single place a player changes club
+   7. Registration — agreed incoming deals must still be eligible to register
+========================================================================= */
+
+export interface TransferRegistrationReadiness {
+  allowed: boolean;
+  reason: string;
+}
+
+export function transferRegistrationReadiness(
+  s: GameState,
+  negotiationId: string,
+): TransferRegistrationReadiness {
+  const n = negotiationById(s, negotiationId);
+  if (!n) return { allowed: false, reason: "Unknown negotiation" };
+  if (n.direction !== "in") {
+    return { allowed: false, reason: "The buying club handles registration for outgoing deals" };
+  }
+  if (n.stage !== "agreed" && n.stage !== "registration") {
+    return { allowed: false, reason: "Club and player terms must be agreed first" };
+  }
+  if (!isTransferWindowOpen(s)) {
+    return { allowed: false, reason: "The transfer window is closed" };
+  }
+  if (userSquad(s).length >= MAX_SQUAD_SIZE) {
+    return { allowed: false, reason: "The squad is already full" };
+  }
+  const purchase = canAuthorisePurchase(s, n.fee + n.proposedSigningBonus);
+  if (!purchase.allowed) return purchase;
+  const wage = canAuthoriseWage(s, n.proposedWeeklyWage);
+  if (!wage.allowed) return wage;
+  if (!transferTargetPlayer(s, n.playerId)) {
+    return { allowed: false, reason: "The player is no longer available to register" };
+  }
+  return { allowed: true, reason: "Medical and registration checks can proceed" };
+}
+
+/**
+ * Persist the post-agreement registration stage for an incoming signing.
+ *
+ * This is intentionally administrative rather than a random medical roll:
+ * the current player model has no injury/medical state worth pretending to
+ * simulate. The stage does enforce the real constraints Legacy Football does
+ * model today — window, squad capacity and chairman financial authority.
+ */
+export function beginTransferRegistrationInPlace(
+  s: GameState,
+  negotiationId: string,
+): NegotiationResult {
+  const n = negotiationById(s, negotiationId);
+  if (!n) return { ok: false, reason: "Unknown negotiation" };
+  if (n.direction !== "in") {
+    return { ok: false, reason: "Outgoing registration is handled by the buying club" };
+  }
+  if (n.stage !== "agreed") {
+    return { ok: false, reason: "The deal is not ready for registration" };
+  }
+  const readiness = transferRegistrationReadiness(s, negotiationId);
+  if (!readiness.allowed) return { ok: false, reason: readiness.reason };
+
+  n.stage = "registration";
+  log(
+    n,
+    {
+      round: Math.max(n.clubRounds, n.playerRounds),
+      party: "club",
+      action: "register",
+      note: "Terms agreed. Medical and registration paperwork opened.",
+    },
+    nowAbs(s),
+  );
+  syncTransferTargetNegotiationInPlace(s, n);
+  return { ok: true, reason: "Medical and registration opened", negotiation: n };
+}
+
+/* =========================================================================
+   8. Completion — the single place a player changes club
 ========================================================================= */
 
 function nextRecordId(s: GameState, prefix: string): string {
@@ -1739,12 +1816,19 @@ export function completeTransferInPlace(s: GameState, negotiationId: string): Ne
   const n = negotiationById(s, negotiationId);
   if (!n) return { ok: false, reason: "Unknown negotiation" };
   if (n.completedTransferId) return { ok: false, reason: "Already completed" };
-  if (n.stage !== "agreed") return { ok: false, reason: "Nothing has been agreed" };
+  if (n.direction === "in" && n.stage !== "registration") {
+    return { ok: false, reason: "Medical and registration must be opened first" };
+  }
+  if (n.direction === "out" && n.stage !== "agreed") {
+    return { ok: false, reason: "Nothing has been agreed" };
+  }
   let p = transferTargetPlayer(s, n.playerId);
   if (!p) return { ok: false, reason: "Unknown player" };
   const abs = nowAbs(s);
 
   if (n.direction === "in") {
+    const readiness = transferRegistrationReadiness(s, negotiationId);
+    if (!readiness.allowed) return { ok: false, reason: readiness.reason };
     const auth = canAuthorisePurchase(s, n.fee + n.proposedSigningBonus);
     if (!auth.allowed) return { ok: false, reason: auth.reason };
     const wageAuth = canAuthoriseWage(s, n.proposedWeeklyWage);
@@ -2536,6 +2620,8 @@ export const improvePersonalTerms = (
 ) => cloned(s, (w) => improvePlayerTermsInPlace(w, id, wage, seasons, role));
 export const withdrawFromTalks = (s: GameState, id: string) =>
   cloned(s, (w) => withdrawNegotiationInPlace(w, id));
+export const beginTransferRegistration = (s: GameState, id: string) =>
+  cloned(s, (w) => beginTransferRegistrationInPlace(w, id));
 export const completeTransfer = (s: GameState, id: string) =>
   cloned(s, (w) => completeTransferInPlace(w, id));
 export const respondToIncomingOffer = (
