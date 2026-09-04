@@ -78,6 +78,9 @@ for (const p of points) {
         const drift = Object.keys(parts).filter((k) => parts[k] !== basisParts[k]);
         console.log(`     drifted keys: ${drift.join(", ") || "(structure changed)"}`);
       }
+      console.log(
+        `     current baseline payload: ${JSON.stringify({ hash: h, parts })}`,
+      );
     }
   }
 }
