@@ -216,6 +216,12 @@ console.log("\n[U6] Recruitment knowledge boundary");
       /recruitmentUserNegotiationWageStep\(/.test(operations) &&
       !/n\.fee \+ 5000|step=\{5000\}|proposedWeeklyWage \+ 25|step=\{25\}/.test(operations),
   );
+  check(
+    "incoming agreements expose persisted registration before completion",
+    /beginTransferRegistration\(/.test(operations) &&
+      /n\.stage === "registration"/.test(operations) &&
+      /Complete registration/.test(operations),
+  );
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);
