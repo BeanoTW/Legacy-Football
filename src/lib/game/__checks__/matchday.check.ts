@@ -676,10 +676,31 @@ console.log("\n[J] Save / migration");
   const m4 = migrateSave(
     JSON.parse(JSON.stringify(legacyPlayed)) as unknown as Record<string, unknown>,
   );
+  const completedMatchHistory = (state: GameState) =>
+    state.matchRecords
+      .map(
+        (record) =>
+          `${record.league}|s${record.season}|r${record.round}|${clubDisplayName(state, record.home)}>${clubDisplayName(state, record.away)}|${record.homeGoals}-${record.awayGoals}|${record.outcome}|${record.userInvolved}`,
+      )
+      .sort();
+  const userResultHistory = (state: GameState) =>
+    state.results.map((result) =>
+      [
+        result.week,
+        clubDisplayName(state, result.opponent),
+        result.home,
+        result.goalsFor,
+        result.goalsAgainst,
+        result.attendance,
+        result.gateReceipts,
+        result.tvIncome,
+        result.result,
+      ].join("|"),
+    );
   check(
-    "J46. existing completed matches are untouched",
-    JSON.stringify(m4.matchRecords) === JSON.stringify(played.matchRecords) &&
-      JSON.stringify(m4.results) === JSON.stringify(played.results),
+    "J46. existing completed match history survives identity migration",
+    JSON.stringify(completedMatchHistory(m4)) === JSON.stringify(completedMatchHistory(played)) &&
+      JSON.stringify(userResultHistory(m4)) === JSON.stringify(userResultHistory(played)),
   );
   check(
     "J47. no historical records are fabricated",
