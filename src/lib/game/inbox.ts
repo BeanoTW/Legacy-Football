@@ -292,10 +292,19 @@ function applyEffectInPlace(s: GameState, e: InboxEffect, src: EffectSource): vo
       beginTransferRegistrationInPlace(s, e.negotiationId);
       syncLegacySquad(s);
       break;
-    case "recruitmentCompleteTransfer":
-      completeTransferInPlace(s, e.negotiationId);
+    case "recruitmentCompleteTransfer": {
+      const negotiation = negotiationById(s, e.negotiationId);
+      // Compatibility for Inbox items persisted before the registration stage
+      // existed: the old "complete signing" effect now advances an agreed
+      // incoming deal into registration rather than becoming a dead action.
+      if (negotiation?.direction === "in" && negotiation.stage === "agreed") {
+        beginTransferRegistrationInPlace(s, e.negotiationId);
+      } else {
+        completeTransferInPlace(s, e.negotiationId);
+      }
       syncLegacySquad(s);
       break;
+    }
     case "recruitmentRenewContract": {
       const base = renewalTerms(s, e.playerId);
       if (base) {
