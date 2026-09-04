@@ -1202,13 +1202,19 @@ function competingTransferBid(
     .filter((clubId) => clubId !== s.clubName && clubId !== seller)
     .map((clubId) => {
       const squad = squadOf(s, clubId);
-      const positionalCount = squad.filter(
+      const positionalPlayers = squad.filter(
         (candidate) => candidate.primaryPosition === player.primaryPosition,
-      ).length;
+      );
+      const positionalCount = positionalPlayers.length;
       const positionalNeed = Math.max(0, SQUAD_TEMPLATE[player.primaryPosition] - positionalCount);
+      const weakestPositionAbility = positionalPlayers.length
+        ? Math.min(...positionalPlayers.map((candidate) => candidate.currentAbility))
+        : 0;
+      const upgradeNeed = Math.max(0, player.currentAbility - weakestPositionAbility);
       return {
         clubId,
         positionalNeed,
+        upgradeNeed,
         squadSize: squad.length,
         reputation: clubReputation(s, clubId),
       };
@@ -1216,12 +1222,13 @@ function competingTransferBid(
     .filter(
       (candidate) =>
         candidate.squadSize < MAX_SQUAD_SIZE &&
-        candidate.positionalNeed > 0 &&
+        (candidate.positionalNeed > 0 || candidate.upgradeNeed >= 4) &&
         candidate.reputation >= player.reputation - 12,
     )
     .sort(
       (a, b) =>
         b.positionalNeed - a.positionalNeed ||
+        b.upgradeNeed - a.upgradeNeed ||
         Math.abs(a.reputation - player.reputation) -
           Math.abs(b.reputation - player.reputation) ||
         a.clubId.localeCompare(b.clubId),
