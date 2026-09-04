@@ -5,7 +5,6 @@ import {
   askingPrice,
   canAuthorisePurchase,
   canAuthoriseWage,
-  transferMarket,
   playerName,
   ageOf,
   playerInterestAssessment,
@@ -46,20 +45,22 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
 
     const watched = new Set(chairmanShortlistIds(state));
     const discoveredIds = briefId ? (scoutingBrief(state, briefId)?.candidateIds ?? []) : [];
-    const discoveredPlayers = discoveredIds.flatMap((playerId) => {
+    const visibleIds = new Set(discoveredIds);
+
+    // A normal search is intentionally limited to the scouting brief: Focus
+    // simulation detail must never leak into a chairman-visible giant player
+    // database. The shortlist-only filter may also surface identities the
+    // chairman explicitly chose to keep tracking from earlier briefs.
+    if (watchedOnly) {
+      for (const playerId of watched) visibleIds.add(playerId);
+    }
+
+    const visiblePlayers = [...visibleIds].flatMap((playerId) => {
       const player = transferTargetPlayer(state, playerId);
       return player ? [player] : [];
     });
 
-    // Keep the established detailed market, but put the tiny wide-world
-    // discovery sample first so a compact Fringe result can never be hidden by
-    // the display cap. Resolving a compact target here does not hydrate it.
-    const candidates = [...discoveredPlayers, ...transferMarket(state).map((entry) => entry.player)];
-    const uniquePlayers = [
-      ...new Map(candidates.map((player) => [player.id, player] as const)).values(),
-    ];
-
-    return uniquePlayers
+    return visiblePlayers
       .filter((player) => position === "ALL" || player.primaryPosition === position)
       .filter((player) => !freeAgentsOnly || player.currentClubId === null)
       .filter((player) => {
