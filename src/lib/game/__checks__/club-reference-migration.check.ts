@@ -1,8 +1,8 @@
 import { strict as assert } from "node:assert";
 import { newGame } from "../newGame";
 import {
-  clubIdForState,
   ensureClubIdentityStateInPlace,
+  isOpaqueClubId,
   registeredClubDisplayName,
 } from "../clubIdentity";
 import {
@@ -13,16 +13,27 @@ import { ensurePersistentFringePlayers } from "../fringePlayers";
 
 const source = newGame("Reference Audit FC", "Auditor", "CLUB_REFERENCE_AUDIT");
 ensurePersistentFringePlayers(source);
+ensureClubIdentityStateInPlace(source);
 const sourceCompact = Object.values(source.fringePlayers ?? {})[0];
 if (!sourceCompact) throw new Error("compact fringe player missing");
-const compactBefore = structuredClone(sourceCompact);
 
-ensureClubIdentityStateInPlace(source);
 const originalName = source.clubName;
 const userId = source.clubIdentity?.userClubId;
 if (!userId) throw new Error("club identity registry missing");
-const compactClubId = clubIdForState(source, compactBefore.currentClubId);
+const compactClubId = sourceCompact.currentClubId;
+assert.ok(isOpaqueClubId(compactClubId), "fresh compact player must already use opaque club identity");
+const compactClubName = registeredClubDisplayName(source, compactClubId);
+if (!compactClubName) throw new Error("compact player's display name missing");
 assert.ok(source.clubIdentity?.clubsById[compactClubId], "compact player's club must be registered");
+
+// Simulate an intermediate development save that persisted one legacy-name
+// reference after the identity registry already existed. v17 must repair this
+// mixed island without rerolling the compact player itself.
+source.fringePlayers![sourceCompact.playerId] = {
+  ...sourceCompact,
+  currentClubId: compactClubName,
+};
+const compactBefore = structuredClone(source.fringePlayers![sourceCompact.playerId]);
 
 const a = structuredClone(source);
 const b = structuredClone(source);
@@ -54,9 +65,10 @@ assert.equal(migratedCompact.potentialAbility, compactBefore.potentialAbility);
 assert.equal(migratedCompact.contractExpirySeason, compactBefore.contractExpirySeason);
 assert.equal(migratedCompact.lastDevelopedSeason, compactBefore.lastDevelopedSeason);
 
-const aiName = source.leagues.flatMap((league) => league.clubIds).find((club) => club !== originalName);
-if (!aiName) throw new Error("AI club missing");
-const aiId = clubIdForState(source, aiName);
+const aiId = source.leagues.flatMap((league) => league.clubIds).find((club) => club !== userId);
+if (!aiId) throw new Error("AI club missing");
+const aiName = registeredClubDisplayName(source, aiId);
+if (!aiName) throw new Error("AI club display name missing");
 assert.equal(registeredClubDisplayName(a, aiId), aiName);
 assert.ok(a.leagues.some((league) => league.clubIds.includes(aiId)));
 
