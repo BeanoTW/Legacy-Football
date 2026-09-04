@@ -86,12 +86,17 @@ assert.ok(
 
 const rivalSquad = squadOf(first.state, rivalClubId);
 assert.ok(rivalSquad.length < MAX_SQUAD_SIZE, "competing bidder must have a legal squad slot");
-const rivalPositionCount = rivalSquad.filter(
+const rivalPositionPlayers = rivalSquad.filter(
   (candidate) => candidate.primaryPosition === first.player.primaryPosition,
-).length;
+);
+const rivalPositionCount = rivalPositionPlayers.length;
+const weakestRivalAbility = rivalPositionPlayers.length
+  ? Math.min(...rivalPositionPlayers.map((candidate) => candidate.currentAbility))
+  : 0;
 assert.ok(
-  rivalPositionCount < SQUAD_TEMPLATE[first.player.primaryPosition],
-  "competing bidder must have a genuine positional shortage",
+  rivalPositionCount < SQUAD_TEMPLATE[first.player.primaryPosition] ||
+    first.player.currentAbility - weakestRivalAbility >= 4,
+  "competing bidder must have a genuine shortage or meaningful upgrade need",
 );
 assert.ok(
   clubReputation(first.state, rivalClubId) >= first.player.reputation - 12,
