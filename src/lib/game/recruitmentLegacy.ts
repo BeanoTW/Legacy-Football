@@ -1215,7 +1215,7 @@ function competingTransferBid(
     })
     .filter(
       (candidate) =>
-        candidate.squadSize < SQUAD_SIZE &&
+        candidate.squadSize < MAX_SQUAD_SIZE &&
         candidate.positionalNeed > 0 &&
         candidate.reputation >= player.reputation - 12,
     )
