@@ -86,6 +86,7 @@ export type InboxEffect =
   | { kind: "recruitmentWithdraw"; negotiationId: string }
   | { kind: "recruitmentAcceptPlayerTerms"; negotiationId: string }
   | { kind: "recruitmentImproveTerms"; negotiationId: string }
+  | { kind: "recruitmentBeginRegistration"; negotiationId: string }
   | { kind: "recruitmentCompleteTransfer"; negotiationId: string }
   | { kind: "recruitmentRenewContract"; playerId: string; upliftPct?: number; seasons?: number }
   | { kind: "recruitmentReleasePlayer"; playerId: string }
