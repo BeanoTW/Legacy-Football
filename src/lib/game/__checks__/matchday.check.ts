@@ -708,29 +708,17 @@ console.log("\n[J] Save / migration");
         result.result,
       ].join("|"),
     );
-  const completedBeforeMigration = completedMatchHistory(played);
-  const completedAfterMigration = completedMatchHistory(m4);
-  const userResultsBeforeMigration = userResultHistory(played);
-  const userResultsAfterMigration = userResultHistory(m4);
-  const historyPreserved =
-    JSON.stringify(completedAfterMigration) === JSON.stringify(completedBeforeMigration) &&
-    JSON.stringify(userResultsAfterMigration) === JSON.stringify(userResultsBeforeMigration);
-  if (!historyPreserved) {
-    console.log(
-      "J46 diagnostic",
-      JSON.stringify(
-        {
-          completedBeforeMigration,
-          completedAfterMigration,
-          userResultsBeforeMigration,
-          userResultsAfterMigration,
-        },
-        null,
-        2,
-      ),
-    );
-  }
-  check("J46. existing completed match history survives identity migration", historyPreserved);
+  check(
+    "J46. existing completed match history survives identity migration",
+    JSON.stringify(completedMatchHistory(m4)) === JSON.stringify(completedMatchHistory(played)) &&
+      JSON.stringify(userResultHistory(m4)) === JSON.stringify(userResultHistory(played)),
+  );
+  check(
+    "J46b. historical friendly labels remain presentation labels",
+    m4.results
+      .filter((result) => result.opponent.endsWith(" (friendly)"))
+      .every((result) => !result.opponent.startsWith("c_")),
+  );
   check(
     "J47. no historical records are fabricated",
     (m4.financeLedger ?? []).length === (played.financeLedger ?? []).length &&
