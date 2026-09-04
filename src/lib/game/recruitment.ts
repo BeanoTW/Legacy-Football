@@ -118,6 +118,12 @@ export const transferMarket: typeof legacy.transferMarket = identitySafe(legacy.
 // Negotiation and transfer mutation boundary.
 export const negotiationById: typeof legacy.negotiationById = identitySafe(legacy.negotiationById);
 export const openNegotiations: typeof legacy.openNegotiations = identitySafe(legacy.openNegotiations);
+export const openTransferEnquiryInPlace: typeof legacy.openTransferEnquiryInPlace = identitySafe(
+  legacy.openTransferEnquiryInPlace,
+);
+export const submitEnquiryOfferInPlace: typeof legacy.submitEnquiryOfferInPlace = identitySafe(
+  legacy.submitEnquiryOfferInPlace,
+);
 export const openTransferNegotiationInPlace: typeof legacy.openTransferNegotiationInPlace = identitySafe(
   legacy.openTransferNegotiationInPlace,
 );
@@ -186,6 +192,12 @@ export const toggleShortlist: typeof legacy.toggleShortlist = identitySafe(legac
 // both the input and any returned cloned GameState before the caller sees it.
 export const submitTransferOffer: typeof legacy.submitTransferOffer = identitySafe(
   legacy.submitTransferOffer,
+);
+export const submitTransferEnquiry: typeof legacy.submitTransferEnquiry = identitySafe(
+  legacy.submitTransferEnquiry,
+);
+export const submitEnquiryOffer: typeof legacy.submitEnquiryOffer = identitySafe(
+  legacy.submitEnquiryOffer,
 );
 export const improveTransferOffer: typeof legacy.improveTransferOffer = identitySafe(
   legacy.improveTransferOffer,
