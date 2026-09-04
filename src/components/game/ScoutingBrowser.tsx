@@ -14,6 +14,7 @@ import { scoutingAssignment, scoutingReport, startScouting } from "@/lib/game/sc
 import { createScoutingBrief, scoutingBrief } from "@/lib/game/scoutingDiscovery";
 import { transferTargetPlayer } from "@/lib/game/recruitmentTargetBridge";
 import {
+  chairmanRecruitmentEstimate,
   chairmanShortlistIds,
   isChairmanShortlisted,
   toggleChairmanShortlist,
@@ -68,11 +69,12 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
       .map((player) => ({ player }));
   }, [state, position, watchedOnly, freeAgentsOnly, willingOnly, searched, briefId]);
 
-  const approach = (playerId: string, fee: number) => update((s) => {
-    const result = submitTransferOffer(s, playerId, fee);
-    setNote(result.result.reason);
-    return result.state;
-  });
+  const approach = (playerId: string, fee: number, weeklyWage: number) =>
+    update((s) => {
+      const result = submitTransferOffer(s, playerId, fee, "First Team", weeklyWage);
+      setNote(result.result.reason);
+      return result.state;
+    });
 
 
   const runSearch = () => {
@@ -114,13 +116,12 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
       const interest = playerInterestAssessment(state, player);
       const watched = isChairmanShortlisted(state, player.id);
       const freeAgent = player.currentClubId === null;
-      const valueRange = report.valueRange;
-      const wageRange = report.wageRange;
-      const openingFee = freeAgent ? 0 : Math.max(0, valueRange?.[0] ?? 0);
-      const estimatedMaxFee = freeAgent ? 0 : Math.max(0, valueRange?.[1] ?? openingFee);
-      const estimatedMaxWage = Math.max(0, wageRange?.[1] ?? 0);
-      const feeAuthority = canAuthorisePurchase(state, estimatedMaxFee);
-      const wageAuthority = canAuthoriseWage(state, estimatedMaxWage);
+      const estimate = chairmanRecruitmentEstimate(state, player.id);
+      if (!estimate) return null;
+      const valueRange = estimate.valueRange;
+      const wageRange = estimate.wageRange;
+      const feeAuthority = canAuthorisePurchase(state, estimate.estimatedMaxFee);
+      const wageAuthority = canAuthoriseWage(state, estimate.estimatedMaxWeeklyWage);
       const budgetComfortable = feeAuthority.allowed && wageAuthority.allowed;
       const affordabilityReason = !feeAuthority.allowed
         ? feeAuthority.reason
@@ -132,7 +133,9 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
         <div className="mt-1.5 grid grid-cols-5 gap-1">{report.attributes.map((attr) => <div key={attr.key} className="rounded bg-muted/50 px-1 py-0.5"><div className="truncate text-[8px] text-muted-foreground">{attr.label}</div><div className="text-[10px] font-semibold tabular-nums">{!attr.known ? "?" : attr.exact !== undefined ? attr.exact : `${attr.min}–${attr.max}`}</div></div>)}</div>
         <div className="mt-1.5 grid grid-cols-2 gap-x-3 text-[10px]"><span>Value <strong>{report.valueRange ? `${fmtMoney(report.valueRange[0])}–${fmtMoney(report.valueRange[1])}` : "?"}</strong></span><span>Wage <strong>{report.wageRange ? `${fmtMoney(report.wageRange[0])}–${fmtMoney(report.wageRange[1])}/wk` : "?"}</strong></span><span>Interest <strong title={interest.reason}>{interest.label}</strong></span><span>{assignment ? (report.complete ? "Full report" : "Scouting active") : "Not scouted"}</span></div>
         <div className={cn("mt-1.5 rounded-md border px-2 py-1 text-[10px]", budgetComfortable ? "bg-muted/40" : "border-destructive/40 bg-destructive/5")} title={affordabilityReason}><span className="font-semibold">{budgetComfortable ? "Estimated fit" : "Budget risk"}</span> · {freeAgent ? "No fee" : valueRange ? `${fmtMoney(valueRange[0])}–${fmtMoney(valueRange[1])} value` : "Fee unknown"} · {wageRange ? `${fmtMoney(wageRange[0])}–${fmtMoney(wageRange[1])}/wk` : "Wage unknown"}</div>
-        <div className="mt-1.5 flex flex-wrap gap-1"><Button size="sm" variant={watched ? "default" : "outline"} className="h-7 px-2 text-[10px]" onClick={() => update((s) => toggleChairmanShortlist(s, player.id))}><Star className={cn("mr-1 size-3", watched && "fill-current")} />{watched ? "Shortlisted" : "Shortlist"}</Button>{!assignment ? <Button size="sm" className="h-7 px-2 text-[10px]" onClick={() => update((s) => startScouting(s, player.id))}><Binoculars className="mr-1 size-3" /> Scout</Button> : report.complete ? <span className="inline-flex items-center px-1 text-[10px] font-semibold text-[color:var(--color-income)]"><CheckCircle2 className="mr-1 size-3" /> Full report</span> : <span className="px-1 text-[10px] text-muted-foreground"><Binoculars className="mr-1 inline size-3" /> Scouting</span>}<Button size="sm" variant="secondary" className="h-7 px-2 text-[10px]" onClick={() => approach(player.id, openingFee)}><Handshake className="mr-1 size-3" /> {freeAgent ? "Approach player" : "Approach club"}</Button></div>
+        <div className="mt-1.5 flex flex-wrap gap-1"><Button size="sm" variant={watched ? "default" : "outline"} className="h-7 px-2 text-[10px]" onClick={() => update((s) => toggleChairmanShortlist(s, player.id))}><Star className={cn("mr-1 size-3", watched && "fill-current")} />{watched ? "Shortlisted" : "Shortlist"}</Button>{!assignment ? <Button size="sm" className="h-7 px-2 text-[10px]" onClick={() => update((s) => startScouting(s, player.id))}><Binoculars className="mr-1 size-3" /> Scout</Button> : report.complete ? <span className="inline-flex items-center px-1 text-[10px] font-semibold text-[color:var(--color-income)]"><CheckCircle2 className="mr-1 size-3" /> Full report</span> : <span className="px-1 text-[10px] text-muted-foreground"><Binoculars className="mr-1 inline size-3" /> Scouting</span>}<Button size="sm" variant="secondary" className="h-7 px-2 text-[10px]" onClick={() =>
+          approach(player.id, estimate.openingFee, estimate.openingWeeklyWage)
+        }><Handshake className="mr-1 size-3" /> {freeAgent ? "Approach player" : "Approach club"}</Button></div>
       </article>;
     })}
   </DetailScreen>;
