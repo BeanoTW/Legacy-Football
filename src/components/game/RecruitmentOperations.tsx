@@ -14,6 +14,7 @@ import {
   playerById,
   playerName,
   respondToIncomingOffer,
+  submitEnquiryOffer,
   userWageBill,
   userSquad,
   weeksLeftOnContract,
@@ -225,9 +226,39 @@ export function RecruitmentOperations({
                     </div>
                   )}
                   <div className="text-sm text-muted-foreground mt-4">
-                    Fee {fmtMoneyExact(n.clubCounterFee ?? n.fee)} · Wage{" "}
-                    {fmtMoneyExact(n.proposedWeeklyWage)}/wk
+                    {n.stage === "enquiry"
+                      ? `Seller position ${fmtMoneyExact(n.clubCounterFee ?? 0)}`
+                      : `Fee ${fmtMoneyExact(n.clubCounterFee ?? n.fee)}`}{" "}
+                    · Planned wage {fmtMoneyExact(n.proposedWeeklyWage)}/wk
                   </div>
+                  {incoming && n.stage === "enquiry" && (
+                    <div className="mt-4 rounded-xl border bg-muted/30 p-3">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Club enquiry
+                      </div>
+                      <div className="mt-1 text-sm">
+                        Selling club position:{" "}
+                        <strong>{fmtMoneyExact(n.clubCounterFee ?? 0)}</strong>
+                      </div>
+                      <label
+                        className="mt-3 block text-xs text-muted-foreground"
+                        htmlFor={`enquiry-fee-${n.id}`}
+                      >
+                        Your opening transfer bid
+                      </label>
+                      <input
+                        id={`enquiry-fee-${n.id}`}
+                        type="number"
+                        min={0}
+                        step={100}
+                        value={feeOffers[n.id] ?? String(n.clubCounterFee ?? 0)}
+                        onChange={(event) =>
+                          setFeeOffers((current) => ({ ...current, [n.id]: event.target.value }))
+                        }
+                        className="mt-1 h-10 w-full rounded-lg border bg-background px-3 tabular-nums"
+                      />
+                    </div>
+                  )}
                   {incoming && n.stage === "clubTalks" && (
                     <div className="mt-4 rounded-xl border bg-muted/30 p-3">
                       <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -290,6 +321,18 @@ export function RecruitmentOperations({
                     </div>
                   )}
                   <div className="flex gap-2 flex-wrap mt-3">
+                    {incoming && n.stage === "enquiry" && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          const fee = Number(feeOffers[n.id] ?? n.clubCounterFee ?? 0);
+                          act((s) => submitEnquiryOffer(s, n.id, fee));
+                        }}
+                      >
+                        Submit opening bid
+                      </Button>
+                    )}
                     {n.stage === "agreed" && (
                       <Button size="sm" onClick={() => act((s) => completeTransfer(s, n.id))}>
                         Complete deal
