@@ -3,6 +3,7 @@ import {
   MAX_NEGOTIATION_ROUNDS,
   askingPrice,
   canAuthoriseWage,
+  beginTransferRegistrationInPlace,
   completeTransferInPlace,
   counterClubOfferInPlace,
   improvePlayerTermsInPlace,
@@ -77,6 +78,9 @@ const finalWageAuth = canAuthoriseWage(state, negotiation.proposedWeeklyWage);
 assert(finalWageAuth.allowed, `agreed Level 7 wage must fit the ceiling: ${finalWageAuth.reason}`);
 const squadBefore = userSquad(state).length;
 const cashBefore = state.cash;
+const registration = beginTransferRegistrationInPlace(state, negotiation.id);
+assert(registration.ok, `expected agreed Level 7 deal to enter registration: ${registration.reason}`);
+assert(negotiation.stage === "registration", "Level 7 deal should persist registration before completion");
 const completed = completeTransferInPlace(state, negotiation.id);
 assert(completed.ok, `expected agreed Level 7 deal to complete: ${completed.reason}`);
 assert(userSquad(state).length === squadBefore + 1, "completed deal must add exactly one player");
