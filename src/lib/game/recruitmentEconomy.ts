@@ -9,6 +9,7 @@ import {
 import {
   contractWageForLevel,
   negotiationWageForLevel,
+  negotiationWageStepForLevel,
   normaliseTransferFeeForLevel,
   playerValueForLevel,
   sustainableWeeklyWageBillForLevel,
@@ -83,6 +84,13 @@ export function recruitmentNegotiationWageForLevel(
 
 export function recruitmentUserNegotiationWage(state: GameState, rawWeeklyWage: number): number {
   return negotiationWageForLevel(rawWeeklyWage, recruitmentLevelOfUser(state));
+}
+
+export function recruitmentUserNegotiationWageStep(
+  state: GameState,
+  rawWeeklyWage: number,
+): number {
+  return negotiationWageStepForLevel(rawWeeklyWage, recruitmentLevelOfUser(state));
 }
 
 export function recruitmentPlayerValue(
