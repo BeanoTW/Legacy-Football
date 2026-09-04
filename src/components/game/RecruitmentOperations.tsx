@@ -23,6 +23,11 @@ import {
 import { MOOD_TONE_CLASS, playerMood } from "@/lib/game/character";
 import { transferTargetPlayer } from "@/lib/game/recruitmentTargetBridge";
 import { chairmanRecruitmentEstimate } from "@/lib/game/recruitmentKnowledge";
+import {
+  recruitmentTransferFeePolicyForClub,
+  recruitmentTransferFeePolicyForUser,
+  recruitmentUserNegotiationWageStep,
+} from "@/lib/game/recruitmentEconomy";
 
 export function RecruitmentOperations({
   state,
@@ -200,6 +205,14 @@ export function RecruitmentOperations({
               const incoming = n.direction === "in";
               const report = scoutingReport(state, p);
               const estimate = incoming ? chairmanRecruitmentEstimate(state, p.id) : null;
+              const feeStep =
+                incoming && n.fromClubId
+                  ? recruitmentTransferFeePolicyForClub(state, n.fromClubId).feeStep
+                  : recruitmentTransferFeePolicyForUser(state).feeStep;
+              const wageStep = recruitmentUserNegotiationWageStep(
+                state,
+                n.proposedWeeklyWage,
+              );
               return (
                 <article key={n.id} className="rounded-2xl border bg-card p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -261,7 +274,7 @@ export function RecruitmentOperations({
                         id={`enquiry-fee-${n.id}`}
                         type="number"
                         min={0}
-                        step={100}
+                        step={feeStep}
                         value={
                           feeOffers[n.id] ??
                           String(estimate?.openingFee ?? n.clubCounterFee ?? 0)
@@ -292,9 +305,9 @@ export function RecruitmentOperations({
                       <input
                         id={`fee-${n.id}`}
                         type="number"
-                        min={n.fee + 5000}
-                        step={5000}
-                        value={feeOffers[n.id] ?? String(n.clubCounterFee ?? n.fee + 5000)}
+                        min={n.fee + feeStep}
+                        step={feeStep}
+                        value={feeOffers[n.id] ?? String(n.clubCounterFee ?? n.fee + feeStep)}
                         onChange={(event) =>
                           setFeeOffers((current) => ({ ...current, [n.id]: event.target.value }))
                         }
@@ -321,11 +334,11 @@ export function RecruitmentOperations({
                       <input
                         id={`wage-${n.id}`}
                         type="number"
-                        min={n.proposedWeeklyWage + 25}
-                        step={25}
+                        min={n.proposedWeeklyWage + wageStep}
+                        step={wageStep}
                         value={
                           wageOffers[n.id] ??
-                          String(n.playerCounterWage ?? n.proposedWeeklyWage + 25)
+                          String(n.playerCounterWage ?? n.proposedWeeklyWage + wageStep)
                         }
                         onChange={(event) =>
                           setWageOffers((current) => ({ ...current, [n.id]: event.target.value }))
@@ -364,7 +377,7 @@ export function RecruitmentOperations({
                         size="sm"
                         variant="secondary"
                         onClick={() => {
-                          const fallback = n.clubCounterFee ?? n.fee + 5000;
+                          const fallback = n.clubCounterFee ?? n.fee + feeStep;
                           const fee = Number(feeOffers[n.id] ?? fallback);
                           setFeeOffers((current) => {
                             const next = { ...current };
@@ -382,7 +395,8 @@ export function RecruitmentOperations({
                         size="sm"
                         variant="secondary"
                         onClick={() => {
-                          const fallback = n.playerCounterWage ?? n.proposedWeeklyWage + 25;
+                          const fallback =
+                            n.playerCounterWage ?? n.proposedWeeklyWage + wageStep;
                           const wage = Number(wageOffers[n.id] ?? fallback);
                           act((s) => improvePersonalTerms(s, n.id, wage));
                         }}
