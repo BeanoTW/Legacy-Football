@@ -2,10 +2,12 @@ import { newGame } from "../engine";
 import { createScoutingBrief, scoutingBrief, scoutingCandidateSource } from "../scoutingDiscovery";
 import { knownPlayerIdentity, playerFidelity } from "../playerLifecycle";
 import {
+  chairmanRecruitmentEstimate,
   chairmanShortlistIds,
   isChairmanShortlisted,
   toggleChairmanShortlist,
 } from "../recruitmentKnowledge";
+import { progressScoutingWeekInPlace, startScouting } from "../scouting";
 import { isUserClubReference } from "../clubReference";
 
 let passed = 0;
@@ -32,6 +34,40 @@ if (!compactId) throw new Error("compact scouting candidate missing");
 
 check("compact candidate starts as known fidelity", playerFidelity(discovered, compactId) === "known");
 check("compact candidate is not initially shortlisted", !isChairmanShortlisted(discovered, compactId));
+
+const discoveryEstimate = chairmanRecruitmentEstimate(discovered, compactId);
+if (!discoveryEstimate?.valueRange || !discoveryEstimate.wageRange) {
+  throw new Error("discovery estimate missing");
+}
+const fullyScouted = startScouting(discovered, compactId);
+progressScoutingWeekInPlace(fullyScouted);
+const fullEstimate = chairmanRecruitmentEstimate(fullyScouted, compactId);
+if (!fullEstimate?.valueRange || !fullEstimate.wageRange) {
+  throw new Error("full scouting estimate missing");
+}
+check(
+  "better scouting narrows the fee estimate",
+  fullEstimate.valueRange[1] - fullEstimate.valueRange[0] <
+    discoveryEstimate.valueRange[1] - discoveryEstimate.valueRange[0],
+);
+check(
+  "better scouting narrows the wage estimate",
+  fullEstimate.wageRange[1] - fullEstimate.wageRange[0] <
+    discoveryEstimate.wageRange[1] - discoveryEstimate.wageRange[0],
+);
+check(
+  "better scouting raises the credible opening fee floor",
+  fullEstimate.openingFee >= discoveryEstimate.openingFee,
+);
+check(
+  "better scouting raises the credible opening wage floor",
+  fullEstimate.openingWeeklyWage >= discoveryEstimate.openingWeeklyWage,
+);
+check(
+  "opening estimates never expose the top of the scouting range as certainty",
+  discoveryEstimate.openingFee < discoveryEstimate.estimatedMaxFee &&
+    discoveryEstimate.openingWeeklyWage < discoveryEstimate.estimatedMaxWeeklyWage,
+);
 
 const shortlisted = toggleChairmanShortlist(discovered, compactId);
 check("compact candidate can be shortlisted", isChairmanShortlisted(shortlisted, compactId));
