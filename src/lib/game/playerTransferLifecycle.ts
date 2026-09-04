@@ -8,6 +8,29 @@ import {
 } from "./playerLifecycle";
 import { clubDisplayName, userClubReference } from "./clubReference";
 
+
+function syncCompactTransferMirrorInPlace(
+  state: GameState,
+  player: FootballPlayer,
+  clubId: string | null,
+): void {
+  const compact = state.fringePlayers?.[player.id];
+  if (!compact) return;
+
+  compact.currentAbility = player.currentAbility;
+  compact.potentialAbility = player.potentialAbility;
+  compact.lastDevelopedSeason = state.season;
+  compact.retired = false;
+
+  if (clubId === null) {
+    compact.departed = true;
+    return;
+  }
+
+  compact.currentClubId = clubId;
+  compact.departed = false;
+}
+
 /**
  * Recruitment calls this only when a compact known player actually becomes
  * owned. Until that moment the player remains a projection and consumes no
@@ -54,6 +77,7 @@ export function preservePlayerDepartureInPlace(
   const known = preserveKnownPlayerInPlace(state, player, ["formerPlayer"]);
   if (!known) return;
   known.currentClubId = destinationClubId;
+  syncCompactTransferMirrorInPlace(state, player, destinationClubId);
   setKnownPlayerReasonInPlace(state, player.id, "owned", false);
   setKnownPlayerReasonInPlace(state, player.id, "negotiation", false);
   appendCareerLedgerInPlace(state, player.id, {
@@ -76,6 +100,7 @@ export function recordPlayerArrivalInPlace(
   const known = preserveKnownPlayerInPlace(state, player, ["owned"]);
   if (!known) return;
   known.currentClubId = userClubReference(state);
+  syncCompactTransferMirrorInPlace(state, player, userClubReference(state));
   setKnownPlayerReasonInPlace(state, player.id, "negotiation", false);
   appendCareerLedgerInPlace(state, player.id, {
     season: state.season,
