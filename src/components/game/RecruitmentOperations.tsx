@@ -25,6 +25,7 @@ import {
 import { MOOD_TONE_CLASS, playerMood } from "@/lib/game/character";
 import { transferTargetPlayer } from "@/lib/game/recruitmentTargetBridge";
 import { chairmanRecruitmentEstimate } from "@/lib/game/recruitmentKnowledge";
+import { clubDisplayName } from "@/lib/game/clubReference";
 import {
   recruitmentTransferFeePolicyForClub,
   recruitmentTransferFeePolicyForUser,
@@ -290,6 +291,20 @@ export function RecruitmentOperations({
                         }
                         className="mt-1 h-10 w-full rounded-lg border bg-background px-3 tabular-nums"
                       />
+                    </div>
+                  )}
+                  {incoming && n.competingClubId && n.competingOfferFee !== undefined && (
+                    <div className="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                        Competing bid
+                      </div>
+                      <div className="mt-1 text-sm">
+                        <strong>{clubDisplayName(state, n.competingClubId)}</strong> have{" "}
+                        <strong>{fmtMoneyExact(n.competingOfferFee)}</strong> on the table.
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        The seller will not accept less than a live rival offer, and the agent has extra leverage.
+                      </div>
                     </div>
                   )}
                   {incoming &&
