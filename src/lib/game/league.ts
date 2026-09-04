@@ -13,6 +13,7 @@ import type { GameState, LeagueRow, MatchRecord, ScheduledFixture } from "./type
 import { mulberry32, hashString } from "./rng";
 import { clubMatchStrength } from "./matchStrength";
 import { isUserClubReference } from "./clubReference";
+import { clubSimulationSeedKey } from "./clubIdentity";
 import {
   buildWorldSimulationPlan,
   simulationLevelForClub,
@@ -74,7 +75,14 @@ export function simulateFixture(
   leagueId: string = LEAGUE_ID,
   override?: { homeStrength?: number; awayStrength?: number },
 ): { homeGoals: number; awayGoals: number; seed: string } {
-  const seed = matchSeed(s.saveSeed, season, round, home, away, leagueId);
+  const seed = matchSeed(
+    s.saveSeed,
+    season,
+    round,
+    clubSimulationSeedKey(s, home),
+    clubSimulationSeedKey(s, away),
+    leagueId,
+  );
   const rng = mulberry32(hashString(seed));
   const hs = (override?.homeStrength ?? clubStrength(s, season, home)) + HOME_ADVANTAGE;
   const as = override?.awayStrength ?? clubStrength(s, season, away);
