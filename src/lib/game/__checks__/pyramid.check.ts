@@ -16,6 +16,7 @@ import {
 } from "../pyramid";
 import { buildTable, isLeagueSeasonComplete, tableFor } from "../league";
 import type { GameState } from "../types";
+import { isUserClubReference } from "../clubReference";
 
 let passed = 0;
 let failed = 0;
@@ -34,11 +35,11 @@ function fresh(seed = "PYRAMID_SEED_1"): GameState {
   g.saveSeed = seed;
   g.leagueSchedule = makePyramidSchedule(g.leagues, `${seed}|season1`);
   g.fixtures = g.leagueSchedule
-    .filter((f) => f.home === g.clubName || f.away === g.clubName)
+    .filter((f) => isUserClubReference(g, f.home) || isUserClubReference(g, f.away))
     .map((f) => ({
       week: f.week,
-      opponent: f.home === g.clubName ? f.away : f.home,
-      home: f.home === g.clubName,
+      opponent: isUserClubReference(g, f.home) ? f.away : f.home,
+      home: isUserClubReference(g, f.home),
     }))
     .sort((a, b) => a.week - b.week);
   return g;
@@ -69,7 +70,7 @@ console.log("\n[1] Pyramid shape");
   const tiers = [...new Set(g.leagues.map((l) => l.tier))].sort((a, b) => a - b);
   const deepestTier = Math.max(...tiers);
   const deepest = g.leagues.filter((l) => l.tier === deepestTier);
-  const mine = g.leagues.find((l) => l.clubIds.includes(g.clubName));
+  const mine = g.leagues.find((l) => l.clubIds.some((club) => isUserClubReference(g, club)));
   check("expanded world has eight divisions", g.leagues.length === 8, String(g.leagues.length));
   check("tier levels are contiguous even with parallel divisions", tiers.join(",") === "1,2,3,4,5");
   check("four parallel regional divisions occupy the deepest tier", deepest.length === 4);
@@ -156,12 +157,12 @@ console.log("\n[6] Player follows their actual club division");
   const initial = fresh();
   const startingLeague = initial.leagues.find((l) => l.id === initial.playerLeagueId)!;
   const t = playSeason(initial);
-  const mine = t.leagues.find((l) => l.clubIds.includes(t.clubName))!;
+  const mine = t.leagues.find((l) => l.clubIds.some((club) => isUserClubReference(t, club)))!;
   check("playerLeagueId matches actual membership", t.playerLeagueId === mine.id);
-  check("user table shows the user's division", t.league.length === 20 && t.league.some((r) => r.team === t.clubName));
+  check("user table shows the user's division", t.league.length === 20 && t.league.some((r) => isUserClubReference(t, r.team)));
   check("user fixtures only involve current-division opponents", t.fixtures.every((f) => mine.clubIds.includes(f.opponent)));
   const h = t.seasonHistory.find((x) => x.season === 1 && x.leagueId === startingLeague.id)!;
-  check("player either stays or follows a recorded promotion", mine.id === startingLeague.id || h.promoted.includes(t.clubName));
+  check("player either stays or follows a recorded promotion", mine.id === startingLeague.id || h.promoted.some((club) => isUserClubReference(t, club)));
   check("champion mail exists for every division", t.inbox.filter((i) => i.eventKey.startsWith("league-champion")).length === t.leagues.length);
 }
 
