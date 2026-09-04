@@ -54,6 +54,7 @@ import {
   recruitmentTransferFeePolicyForClub,
   recruitmentTransferFeePolicyForUser,
   recruitmentUserNegotiationWage,
+  recruitmentUserNegotiationWageStep,
   recruitmentWageForClub,
   recruitmentWageForLevel,
 } from "./recruitmentEconomy";
@@ -1494,9 +1495,10 @@ export function evaluatePlayerResponseInPlace(s: GameState, n: TransferNegotiati
     syncTransferTargetNegotiationInPlace(s, n);
     return;
   }
+  const wageStep = recruitmentUserNegotiationWageStep(s, n.proposedWeeklyWage);
   n.playerCounterWage = Math.max(
     recruitmentUserNegotiationWage(s, threshold),
-    recruitmentUserNegotiationWage(s, n.proposedWeeklyWage + 25),
+    recruitmentUserNegotiationWage(s, n.proposedWeeklyWage + wageStep),
   );
   log(
     n,
