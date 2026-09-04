@@ -1177,6 +1177,84 @@ function targetOpeningWeeklyWage(
   return recruitmentUserNegotiationWage(s, Math.max(0, openingWeeklyWage));
 }
 
+interface CompetingTransferBid {
+  clubId: string;
+  fee: number;
+}
+
+/**
+ * Find one plausible rival bid from the already-simulated Focus market.
+ *
+ * A rival must have room in its squad, an actual positional shortage and
+ * enough reputation to plausibly attract the target. The result is seeded
+ * from stable world facts and then persisted on the negotiation, so reloads
+ * never reroll who the chairman is competing against.
+ */
+function competingTransferBid(
+  s: GameState,
+  player: FootballPlayer,
+  sellerPosition: number,
+): CompetingTransferBid | null {
+  const seller = player.currentClubId;
+  if (!seller) return null;
+
+  const candidates = buildWorldSimulationPlan(s).focusClubIds
+    .filter((clubId) => clubId !== s.clubName && clubId !== seller)
+    .map((clubId) => {
+      const squad = squadOf(s, clubId);
+      const positionalCount = squad.filter(
+        (candidate) => candidate.primaryPosition === player.primaryPosition,
+      ).length;
+      const positionalNeed = Math.max(0, SQUAD_TEMPLATE[player.primaryPosition] - positionalCount);
+      return {
+        clubId,
+        positionalNeed,
+        squadSize: squad.length,
+        reputation: clubReputation(s, clubId),
+      };
+    })
+    .filter(
+      (candidate) =>
+        candidate.squadSize < SQUAD_SIZE &&
+        candidate.positionalNeed > 0 &&
+        candidate.reputation >= player.reputation - 12,
+    )
+    .sort(
+      (a, b) =>
+        b.positionalNeed - a.positionalNeed ||
+        Math.abs(a.reputation - player.reputation) -
+          Math.abs(b.reputation - player.reputation) ||
+        a.clubId.localeCompare(b.clubId),
+    );
+
+  if (!candidates.length) return null;
+
+  const rng = seededRng(
+    s.saveSeed,
+    "competingTransferBid",
+    player.id,
+    seller,
+    nowAbs(s),
+  );
+  const chance = player.transferStatus === "listed" ? 0.62 : 0.38;
+  if (rng() > chance) return null;
+
+  const shortlist = candidates.slice(0, Math.min(3, candidates.length));
+  const rival = shortlist[rngInt(rng, 0, shortlist.length - 1)];
+  const sellerPolicy = recruitmentTransferFeePolicyForClub(s, seller);
+  const fee = Math.max(
+    sellerPolicy.askingFloor,
+    recruitmentNormaliseTransferFeeForClub(
+      s,
+      seller,
+      sellerPosition * rngRange(rng, 0.88, 1.02),
+      "asking",
+    ),
+  );
+
+  return { clubId: rival.clubId, fee };
+}
+
 /**
  * Ask a contracted player's club for its current position without tabling a
  * bid. Free agents skip the seller and go directly to personal terms.
@@ -1211,6 +1289,7 @@ export function openTransferEnquiryInPlace(
 
   const abs = nowAbs(s);
   const sellerPosition = transferTargetAskingPrice(s, p, askingPrice);
+  const competingBid = competingTransferBid(s, p, sellerPosition);
   const n: TransferNegotiation = {
     id: nextNegotiationId(s),
     playerId,
@@ -1222,6 +1301,8 @@ export function openTransferEnquiryInPlace(
     playerRounds: 0,
     fee: 0,
     clubCounterFee: sellerPosition,
+    competingClubId: competingBid?.clubId,
+    competingOfferFee: competingBid?.fee,
     proposedWeeklyWage,
     proposedLengthSeasons: 3,
     proposedSigningBonus: 0,
@@ -1369,7 +1450,11 @@ export function evaluateClubResponseInPlace(s: GameState, n: TransferNegotiation
   const ask = transferTargetAskingPrice(s, p, askingPrice);
   const rng = seededRng(s.saveSeed, "clubEval", n.id, n.clubRounds);
   const negotiationEdge = (s.football.department?.negotiationRating ?? 50) / 500; // up to 20%
-  const threshold = int(ask * (0.97 - negotiationEdge + rngRange(rng, -0.03, 0.05)));
+  const baseThreshold = int(
+    ask * (0.97 - negotiationEdge + rngRange(rng, -0.03, 0.05)),
+  );
+  // A seller with a live alternative does not accept less than that standing bid.
+  const threshold = Math.max(baseThreshold, n.competingOfferFee ?? 0);
   const abs = nowAbs(s);
 
   if (n.fee >= threshold) {
@@ -1463,7 +1548,10 @@ export function evaluatePlayerResponseInPlace(s: GameState, n: TransferNegotiati
   const demand = wageDemand(s, p, n.proposedRole);
   const rng = seededRng(s.saveSeed, "playerEval", n.id, n.playerRounds);
   const persuasion = (s.football.department?.negotiationRating ?? 50) / 600;
-  const threshold = int(demand * (1.0 - persuasion + rngRange(rng, -0.04, 0.06)));
+  const competingPressure = n.competingClubId ? 1.06 : 1;
+  const threshold = int(
+    demand * (1.0 - persuasion + rngRange(rng, -0.04, 0.06)) * competingPressure,
+  );
   const abs = nowAbs(s);
 
   if (n.proposedWeeklyWage >= threshold) {
