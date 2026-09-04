@@ -22,6 +22,7 @@ import {
 } from "@/lib/game/recruitment";
 import { MOOD_TONE_CLASS, playerMood } from "@/lib/game/character";
 import { transferTargetPlayer } from "@/lib/game/recruitmentTargetBridge";
+import { chairmanRecruitmentEstimate } from "@/lib/game/recruitmentKnowledge";
 
 export function RecruitmentOperations({
   state,
@@ -198,6 +199,7 @@ export function RecruitmentOperations({
               if (!p) return null;
               const incoming = n.direction === "in";
               const report = scoutingReport(state, p);
+              const estimate = incoming ? chairmanRecruitmentEstimate(state, p.id) : null;
               return (
                 <article key={n.id} className="rounded-2xl border bg-card p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -240,6 +242,15 @@ export function RecruitmentOperations({
                         Selling club position:{" "}
                         <strong>{fmtMoneyExact(n.clubCounterFee ?? 0)}</strong>
                       </div>
+                      {estimate?.valueRange && (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          Recruitment estimate:{" "}
+                          <strong>
+                            {fmtMoneyExact(estimate.valueRange[0])}–
+                            {fmtMoneyExact(estimate.valueRange[1])}
+                          </strong>
+                        </div>
+                      )}
                       <label
                         className="mt-3 block text-xs text-muted-foreground"
                         htmlFor={`enquiry-fee-${n.id}`}
@@ -251,7 +262,10 @@ export function RecruitmentOperations({
                         type="number"
                         min={0}
                         step={100}
-                        value={feeOffers[n.id] ?? String(n.clubCounterFee ?? 0)}
+                        value={
+                          feeOffers[n.id] ??
+                          String(estimate?.openingFee ?? n.clubCounterFee ?? 0)
+                        }
                         onChange={(event) =>
                           setFeeOffers((current) => ({ ...current, [n.id]: event.target.value }))
                         }
@@ -326,7 +340,14 @@ export function RecruitmentOperations({
                         size="sm"
                         variant="secondary"
                         onClick={() => {
-                          const fee = Number(feeOffers[n.id] ?? n.clubCounterFee ?? 0);
+                          const fee = Number(
+                            feeOffers[n.id] ?? estimate?.openingFee ?? n.clubCounterFee ?? 0,
+                          );
+                          setFeeOffers((current) => {
+                            const next = { ...current };
+                            delete next[n.id];
+                            return next;
+                          });
                           act((s) => submitEnquiryOffer(s, n.id, fee));
                         }}
                       >
@@ -345,6 +366,11 @@ export function RecruitmentOperations({
                         onClick={() => {
                           const fallback = n.clubCounterFee ?? n.fee + 5000;
                           const fee = Number(feeOffers[n.id] ?? fallback);
+                          setFeeOffers((current) => {
+                            const next = { ...current };
+                            delete next[n.id];
+                            return next;
+                          });
                           act((s) => improveTransferOffer(s, n.id, fee));
                         }}
                       >
