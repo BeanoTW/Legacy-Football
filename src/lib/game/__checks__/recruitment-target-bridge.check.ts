@@ -195,6 +195,14 @@ assert.ok(
   "completed signing should belong to the canonical user club",
 );
 assert.equal(playerFidelity(integrationState, integrationId), "detailed");
+assert.ok(
+  integrationState.fringePlayers?.[integrationId] &&
+    isUserClubReference(
+      integrationState,
+      integrationState.fringePlayers[integrationId].currentClubId,
+    ),
+  "completion must move the compact ownership mirror off the selling Fringe club immediately",
+);
 const signedContract = activeContract(integrationState, integrationId);
 assert.ok(signedContract, "completed compact signing should receive a live contract");
 assert.ok(isUserClubReference(integrationState, signedContract.clubId));
