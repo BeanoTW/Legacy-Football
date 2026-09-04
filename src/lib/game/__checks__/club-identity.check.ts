@@ -43,6 +43,7 @@ assert.equal(registry.clubsById[userId]?.seedKey, userName);
 const builtInRef = state.leagues.flatMap((league) => league.clubIds).find((club) => club !== userId);
 if (!builtInRef) throw new Error("built-in club missing");
 const builtInName = registeredClubDisplayName(state, builtInRef);
+if (!builtInName) throw new Error("built-in display name missing");
 const builtInId = clubIdForState(state, builtInName);
 assert.equal(builtInId, builtInRef);
 assert.equal(registry.clubsById[builtInId]?.displayName, builtInName);
