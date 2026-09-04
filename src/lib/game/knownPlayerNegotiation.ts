@@ -62,6 +62,7 @@ export function syncKnownPlayerNegotiationReasonInPlace(
 ): void {
   if (negotiation.direction !== "in") return;
   const active =
+    negotiation.stage === "enquiry" ||
     negotiation.stage === "clubTalks" ||
     negotiation.stage === "playerTalks" ||
     negotiation.stage === "agreed";
