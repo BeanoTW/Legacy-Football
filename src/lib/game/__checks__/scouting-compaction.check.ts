@@ -1,5 +1,7 @@
 import { strict as assert } from "node:assert";
-import { newGame } from "../engine";
+import { migrateSave, newGame, SAVE_VERSION } from "../engine";
+import { createIdbSaveStore } from "../storage/idbStore";
+import { createMemoryRecordStore } from "../storage/memoryRecords";
 import {
   discoveredPlayerIds,
   scoutingCandidateProfile,
@@ -122,6 +124,70 @@ assert.equal(
   JSON.stringify(second.core),
   JSON.stringify(core),
   "bounded scouting compaction should be byte-stable on the second pass",
+);
+
+const records = createMemoryRecordStore();
+const store = createIdbSaveStore({
+  records,
+  migrate: migrateSave,
+  currentVersion: SAVE_VERSION,
+  legacy: null,
+  now: () => 1_700_000_000_000,
+});
+assert.deepEqual(await store.save(state), [], "scouting-compacted state should persist cleanly");
+const loaded = (await store.load()).state;
+assert.ok(loaded?.football?.scoutingDiscovery, "compacted scouting core should reload");
+assert.equal(
+  loaded.football.scoutingDiscovery.briefs.length,
+  RETAIN_SCOUTING_BRIEFS,
+  "persisted core should contain only the hot scouting tail",
+);
+let storedHistory = await store.history.readAll<ScoutingBrief>("history:scouting");
+assert.equal(
+  storedHistory.length,
+  archivedBriefs.length,
+  "history repository should return every scouting brief removed from the first save",
+);
+
+// Add ten genuinely newer searches, then save again. The next compaction should
+// archive ten of the previous hot briefs and append them to the same season's
+// history record rather than overwriting the first batch.
+for (let index = 0; index < 10; index++) {
+  const playerId = `later-discovery-${String(index).padStart(2, "0")}`;
+  const profile: ScoutingCandidateProfile = {
+    source: "fringe",
+    currentAbility: 55 + index,
+    potentialAbility: 65 + index,
+    marketValue: 5_000 + index * 500,
+    wageExpectation: 100 + index * 10,
+  };
+  loaded.football.scoutingDiscovery.briefs.push({
+    id: `later-brief-${String(index).padStart(2, "0")}`,
+    createdAtAbsoluteWeek: absoluteWeek(loaded.season, loaded.week),
+    status: "complete",
+    candidateIds: [playerId],
+    candidateSources: { [playerId]: profile.source },
+    candidateProfiles: { [playerId]: profile },
+  });
+}
+assert.deepEqual(await store.save(loaded), [], "second scouting-compacted save should persist cleanly");
+const reloaded = (await store.load()).state;
+assert.ok(reloaded?.football?.scoutingDiscovery, "second compacted scouting core should reload");
+storedHistory = await store.history.readAll<ScoutingBrief>("history:scouting");
+assert.equal(
+  storedHistory.length,
+  archivedBriefs.length + 10,
+  "successive saves should append newly cold scouting briefs without loss or duplication",
+);
+assert.equal(
+  new Set(storedHistory.map((brief) => brief.id)).size,
+  storedHistory.length,
+  "persisted scouting history should not duplicate brief ids",
+);
+assert.equal(
+  discoveredPlayerIds(reloaded).size,
+  totalBriefs + 10,
+  "all old and newly searched candidates should remain chairman-visible after repeated compaction",
 );
 
 console.log(
