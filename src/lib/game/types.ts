@@ -1012,6 +1012,7 @@ export interface PlayerContract {
 }
 
 export type NegotiationStage =
+  | "enquiry"
   | "clubTalks"
   | "playerTalks"
   | "agreed"
@@ -1024,7 +1025,14 @@ export type NegotiationParty = "club" | "player";
 export interface NegotiationLogEntry {
   round: number;
   party: NegotiationParty;
-  action: "offer" | "accept" | "reject" | "counter" | "withdraw" | "complete";
+  action:
+    | "enquiry"
+    | "offer"
+    | "accept"
+    | "reject"
+    | "counter"
+    | "withdraw"
+    | "complete";
   note: string;
   absoluteWeek: number;
 }
