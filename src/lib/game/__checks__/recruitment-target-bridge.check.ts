@@ -16,6 +16,7 @@ import {
 import { knownPlayerIdentity, playerFidelity } from "../playerLifecycle";
 import type { TransferNegotiation } from "../types";
 import { isUserClubReference, userClubReference } from "../clubReference";
+import { fringePlayersForClub, FRINGE_SQUAD_SIZE } from "../fringePlayers";
 import {
   activeContract,
   canAuthorisePurchase,
@@ -202,6 +203,19 @@ assert.ok(
       integrationState.fringePlayers[integrationId].currentClubId,
     ),
   "completion must move the compact ownership mirror off the selling Fringe club immediately",
+);
+const sellingClubId = opened.negotiation.fromClubId;
+assert.ok(sellingClubId, "Fringe signing should retain its selling club identity");
+const sellerCompactSquad = fringePlayersForClub(integrationState, sellingClubId);
+assert.equal(
+  sellerCompactSquad.length,
+  FRINGE_SQUAD_SIZE,
+  "selling Fringe club should refill the vacated compact squad slot",
+);
+assert.equal(
+  sellerCompactSquad.some((player) => player.playerId === integrationId),
+  false,
+  "signed player must never be regenerated into the selling Fringe squad",
 );
 const signedContract = activeContract(integrationState, integrationId);
 assert.ok(signedContract, "completed compact signing should receive a live contract");
