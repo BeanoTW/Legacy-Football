@@ -89,7 +89,7 @@ for (const playerId of firstBrief?.candidateIds ?? []) {
   check(`candidate ${playerId} records scouting reason`, known?.reasons.includes("scouted") ?? false);
   check(
     `candidate ${playerId} is external`,
-    Boolean(known) &&
+    known !== null &&
       (known.currentClubId === null || !isUserClubReference(first, known.currentClubId)),
   );
   check(`candidate ${playerId} respects position`, known?.primaryPosition === targetPosition);
