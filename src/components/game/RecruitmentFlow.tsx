@@ -7,7 +7,8 @@ import { ScoutingReports } from "./ScoutingReports";
 import { OutgoingSalesDesk } from "./OutgoingSalesDesk";
 import { Button } from "@/components/ui/button";
 import { fmtMoneyExact } from "@/lib/game/engine";
-import { openNegotiations, recruitmentSnapshot, shortlistIds } from "@/lib/game/recruitment";
+import { openNegotiations, recruitmentSnapshot } from "@/lib/game/recruitment";
+import { chairmanShortlistIds } from "@/lib/game/recruitmentKnowledge";
 import { OverviewScreen, WorkflowTile } from "./shared/layout";
 
 type View = "home" | "operations" | "find" | "reports" | "sales";
@@ -47,7 +48,7 @@ export function RecruitmentFlow({
   const negotiations = state.football ? openNegotiations(state) : [];
   const incomingDeals = negotiations.filter((negotiation) => negotiation.direction === "in").length;
   const sales = negotiations.filter((negotiation) => negotiation.direction === "out").length;
-  const shortlist = state.football ? shortlistIds(state).length : 0;
+  const shortlist = state.football ? chairmanShortlistIds(state).length : 0;
   const scoutingAssignments = state.football?.scouting?.assignments ?? [];
   const activeScouting = scoutingAssignments.filter((assignment) => assignment.status === "active").length;
   const completedReports = scoutingAssignments.filter((assignment) => assignment.status === "complete").length;
