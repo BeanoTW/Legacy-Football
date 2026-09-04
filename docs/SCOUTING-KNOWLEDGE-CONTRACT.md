@@ -44,8 +44,12 @@ Further observation progressively reveals attributes, valuation/wage confidence 
 
 A compact known player may be shortlisted, scouted and negotiated with without becoming a detailed footballer.
 
-- Opening talks adds a temporary `negotiation` lifecycle reason.
+- Opening an enquiry adds a temporary `negotiation` lifecycle reason.
+- Scouting shows a valuation range, not the seller's exact hidden threshold.
+- For a contracted player, **enquiry precedes the first bid**. Contacting the selling club reveals its current asking position; no transfer fee is on the table until the chairman submits an opening bid.
+- Free agents have no seller enquiry and move directly to personal terms.
 - A compact seller valuation is derived deterministically from the saved hidden scouting profile and selling club economy; no fake detailed contract is invented.
+- Opening personal terms come from the current scouting wage estimate. The player's true demand remains hidden and is used only to accept, reject or counter.
 - Rejected, withdrawn or expired talks remove only the temporary negotiation reason. The player's known identity and written history remain.
 - Agreement alone does not require whole-club hydration.
 - **Successful transfer completion is the materialisation boundary.** Only when the player actually becomes owned does the same stable player ID enter the detailed player array and receive the user's canonical contract.
