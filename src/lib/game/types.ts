@@ -1016,6 +1016,7 @@ export type NegotiationStage =
   | "clubTalks"
   | "playerTalks"
   | "agreed"
+  | "registration"
   | "completed"
   | "rejected"
   | "withdrawn";
@@ -1031,6 +1032,7 @@ export interface NegotiationLogEntry {
     | "accept"
     | "reject"
     | "counter"
+    | "register"
     | "withdraw"
     | "complete";
   note: string;
