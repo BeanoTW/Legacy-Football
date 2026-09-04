@@ -11,10 +11,11 @@ import {
   scoutingCandidateSource,
 } from "../scoutingDiscovery";
 import { startScouting } from "../scouting";
+import { isUserClubReference } from "../clubReference";
 
 const base = newGame("Knowledge Gate FC", "Auditor", "CHAIRMAN_VIEW_AUDIT");
 const externalDetailed = base.football?.players.find(
-  (player) => player.currentClubId !== base.clubName && player.currentClubId !== null,
+  (player) => player.currentClubId !== null && !isUserClubReference(base, player.currentClubId),
 );
 if (!externalDetailed) throw new Error("external detailed player missing");
 assert.equal(
