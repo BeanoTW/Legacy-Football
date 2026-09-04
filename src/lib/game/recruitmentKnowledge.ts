@@ -5,6 +5,7 @@ import {
   preserveKnownPlayerInPlace,
   setKnownPlayerReasonInPlace,
 } from "./playerLifecycle";
+import { scoutingReportById } from "./scouting";
 
 /**
  * Chairman shortlist across both detailed and compact known-player fidelity.
@@ -47,4 +48,53 @@ export function toggleChairmanShortlist(state: GameState, playerId: string): Gam
   if (legacyIndex >= 0 && !enabled) next.football.shortlist.splice(legacyIndex, 1);
 
   return next;
+}
+
+
+export interface ChairmanRecruitmentEstimate {
+  valueRange?: [number, number];
+  wageRange?: [number, number];
+  openingFee: number;
+  openingWeeklyWage: number;
+  estimatedMaxFee: number;
+  estimatedMaxWeeklyWage: number;
+}
+
+const OPENING_ESTIMATE_MIDPOINT_SHARE = 0.82;
+
+function openingFromRange(range: [number, number] | undefined): number {
+  if (!range) return 0;
+  const [low, high] = range;
+  const midpoint = (low + high) / 2;
+  return Math.max(0, Math.round(Math.max(low, midpoint * OPENING_ESTIMATE_MIDPOINT_SHARE)));
+}
+
+/**
+ * Chairman-safe terms for the first approach.
+ *
+ * The hidden seller/player thresholds remain simulation facts. The chairman
+ * starts from what scouting currently knows: weak knowledge produces a cautious
+ * but not absurdly low estimate; tighter reports naturally lift the credible
+ * floor. This makes scouting useful without making it mandatory.
+ */
+export function chairmanRecruitmentEstimate(
+  state: GameState,
+  playerId: string,
+): ChairmanRecruitmentEstimate | null {
+  const known = knownPlayerIdentity(state, playerId);
+  const report = scoutingReportById(state, playerId);
+  if (!known || !report) return null;
+
+  const valueRange = report.valueRange;
+  const wageRange = report.wageRange;
+  const freeAgent = known.currentClubId === null;
+
+  return {
+    valueRange,
+    wageRange,
+    openingFee: freeAgent ? 0 : openingFromRange(valueRange),
+    openingWeeklyWage: openingFromRange(wageRange),
+    estimatedMaxFee: freeAgent ? 0 : Math.max(0, valueRange?.[1] ?? 0),
+    estimatedMaxWeeklyWage: Math.max(0, wageRange?.[1] ?? 0),
+  };
 }
