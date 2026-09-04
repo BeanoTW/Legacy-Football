@@ -2509,6 +2509,17 @@ export const submitTransferOffer = (
   cloned(s, (w) =>
     openTransferNegotiationInPlace(w, playerId, fee, role, openingWeeklyWage),
   );
+export const submitTransferEnquiry = (
+  s: GameState,
+  playerId: string,
+  role?: SquadRole,
+  openingWeeklyWage?: number,
+) =>
+  cloned(s, (w) =>
+    openTransferEnquiryInPlace(w, playerId, role, openingWeeklyWage),
+  );
+export const submitEnquiryOffer = (s: GameState, id: string, fee?: number) =>
+  cloned(s, (w) => submitEnquiryOfferInPlace(w, id, fee));
 export const improveTransferOffer = (s: GameState, id: string, fee?: number) =>
   cloned(s, (w) => counterClubOfferInPlace(w, id, fee));
 export const improvePersonalTerms = (
