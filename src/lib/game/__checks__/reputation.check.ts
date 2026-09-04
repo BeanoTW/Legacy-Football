@@ -29,7 +29,7 @@ import {
 import { DIVISION_ONE, DIVISION_TWO, makePyramidSchedule } from "../pyramid";
 import type { GameState, ExpectationLevel } from "../types";
 import { clubFootballStrength } from "../footballStrength";
-import { isUserClubReference } from "../clubReference";
+import { isUserClubReference, userClubReference } from "../clubReference";
 
 let passed = 0;
 let failed = 0;
@@ -507,7 +507,10 @@ console.log("\n[R11] Save migration (v4 → v5)");
   const kept = structuredClone(g);
   kept.clubReputations = { "Dalton Town": 12.5 };
   const m2 = migrateSave(kept);
-  check("existing reputation values are preserved", m2.clubReputations["Dalton Town"] === 12.5);
+  check(
+    "existing reputation values are preserved",
+    m2.clubReputations[userClubReference(m2)] === 12.5,
+  );
   check(
     "initClubReputations is deterministic",
     JSON.stringify(initClubReputations(m.leagues, "X")) ===
