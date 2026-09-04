@@ -57,6 +57,14 @@ import {
   recruitmentWageForClub,
   recruitmentWageForLevel,
 } from "./recruitmentEconomy";
+import {
+  materializeTransferTargetForCompletionInPlace,
+  recordCompletedTransferLifecycleInPlace,
+  syncTransferTargetNegotiationInPlace,
+  transferTargetAskingPrice,
+  transferTargetAvailabilityReason,
+  transferTargetPlayer,
+} from "./recruitmentTargetBridge";
 
 const int = (n: number) => Math.round(n) || 0;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -1163,13 +1171,13 @@ export function openTransferNegotiationInPlace(
   role: SquadRole = "First Team",
 ): NegotiationResult {
   ensureRecruitment(s);
-  const p = playerById(s, playerId);
+  const p = transferTargetPlayer(s, playerId);
   if (!p) return { ok: false, reason: "Unknown player" };
   if (p.currentClubId === s.clubName) return { ok: false, reason: "He is already our player" };
   if (openNegotiations(s).some((n) => n.playerId === playerId)) {
     return { ok: false, reason: "Talks for this player are already open" };
   }
-  if (!availabilityReason(s, p))
+  if (!transferTargetAvailabilityReason(s, p, availabilityReason))
     return { ok: false, reason: "His club will not entertain an approach" };
   if (userSquad(s).length >= MAX_SQUAD_SIZE)
     return { ok: false, reason: "The squad is already full" };
@@ -1209,6 +1217,7 @@ export function openTransferNegotiationInPlace(
     abs,
   );
   s.football.negotiations.push(n);
+  syncTransferTargetNegotiationInPlace(s, n);
 
   if (n.stage === "clubTalks") evaluateClubResponseInPlace(s, n);
   else
@@ -1227,9 +1236,10 @@ export function openTransferNegotiationInPlace(
 
 /** Selling club's deterministic answer to the fee on the table. */
 export function evaluateClubResponseInPlace(s: GameState, n: TransferNegotiation): void {
-  const p = playerById(s, n.playerId);
+  const p = transferTargetPlayer(s, n.playerId);
   if (!p || n.stage !== "clubTalks") return;
-  const ask = askingPrice(s, p);
+  syncTransferTargetNegotiationInPlace(s, n);
+  const ask = transferTargetAskingPrice(s, p, askingPrice);
   const rng = seededRng(s.saveSeed, "clubEval", n.id, n.clubRounds);
   const negotiationEdge = (s.football.department?.negotiationRating ?? 50) / 500; // up to 20%
   const threshold = int(ask * (0.97 - negotiationEdge + rngRange(rng, -0.03, 0.05)));
@@ -1264,6 +1274,7 @@ export function evaluateClubResponseInPlace(s: GameState, n: TransferNegotiation
       },
       abs,
     );
+    syncTransferTargetNegotiationInPlace(s, n);
     return;
   }
   const sellerClub = n.fromClubId ?? p.currentClubId ?? s.clubName;
@@ -1319,8 +1330,9 @@ export function counterClubOfferInPlace(
 
 /** Player's deterministic answer to the personal terms on the table. */
 export function evaluatePlayerResponseInPlace(s: GameState, n: TransferNegotiation): void {
-  const p = playerById(s, n.playerId);
+  const p = transferTargetPlayer(s, n.playerId);
   if (!p || n.stage !== "playerTalks") return;
+  syncTransferTargetNegotiationInPlace(s, n);
   const demand = wageDemand(s, p, n.proposedRole);
   const rng = seededRng(s.saveSeed, "playerEval", n.id, n.playerRounds);
   const persuasion = (s.football.department?.negotiationRating ?? 50) / 600;
@@ -1339,6 +1351,7 @@ export function evaluatePlayerResponseInPlace(s: GameState, n: TransferNegotiati
       },
       abs,
     );
+    syncTransferTargetNegotiationInPlace(s, n);
     return;
   }
   if (n.playerRounds >= MAX_NEGOTIATION_ROUNDS || n.proposedWeeklyWage < threshold * 0.75) {
@@ -1354,6 +1367,7 @@ export function evaluatePlayerResponseInPlace(s: GameState, n: TransferNegotiati
       },
       abs,
     );
+    syncTransferTargetNegotiationInPlace(s, n);
     return;
   }
   n.playerCounterWage = recruitmentUserNegotiationWage(s, threshold);
@@ -1426,6 +1440,7 @@ export function withdrawNegotiationInPlace(s: GameState, negotiationId: string):
     },
     n.resolvedAtAbsoluteWeek,
   );
+  syncTransferTargetNegotiationInPlace(s, n);
   return { ok: true, reason: "Withdrawn" };
 }
 
@@ -1596,7 +1611,7 @@ export function completeTransferInPlace(s: GameState, negotiationId: string): Ne
   if (!n) return { ok: false, reason: "Unknown negotiation" };
   if (n.completedTransferId) return { ok: false, reason: "Already completed" };
   if (n.stage !== "agreed") return { ok: false, reason: "Nothing has been agreed" };
-  const p = playerById(s, n.playerId);
+  let p = transferTargetPlayer(s, n.playerId);
   if (!p) return { ok: false, reason: "Unknown player" };
   const abs = nowAbs(s);
 
@@ -1605,6 +1620,10 @@ export function completeTransferInPlace(s: GameState, negotiationId: string): Ne
     if (!auth.allowed) return { ok: false, reason: auth.reason };
     const wageAuth = canAuthoriseWage(s, n.proposedWeeklyWage);
     if (!wageAuth.allowed) return { ok: false, reason: wageAuth.reason };
+
+    const materialized = materializeTransferTargetForCompletionInPlace(s, n);
+    if (!materialized) return { ok: false, reason: "Unable to materialize transfer target" };
+    p = materialized;
 
     if (n.fee > 0 && n.fromClubId) {
       postEntry(s, {
@@ -1700,6 +1719,7 @@ export function completeTransferInPlace(s: GameState, negotiationId: string): Ne
   };
   s.football.transferHistory.push(record);
   s.football.department.historicTransfers += 1;
+  recordCompletedTransferLifecycleInPlace(s, n, p);
 
   n.stage = "completed";
   n.completedTransferId = record.id;
@@ -1714,6 +1734,7 @@ export function completeTransferInPlace(s: GameState, negotiationId: string): Ne
     },
     abs,
   );
+  syncTransferTargetNegotiationInPlace(s, n);
 
   syncLegacySquad(s);
   return { ok: true, reason: "Transfer completed", negotiation: n };
@@ -1982,6 +2003,7 @@ function expireNegotiations(s: GameState): void {
         },
         abs,
       );
+      syncTransferTargetNegotiationInPlace(s, n);
     }
   }
 }
