@@ -11,6 +11,7 @@ const fringeProfile = buildWorldSimulationPlan(legacy).clubs.find((club) => club
 if (!fringeProfile) throw new Error("fringe club missing");
 const opaqueClubId = fringeProfile.clubId;
 const legacyClubName = registeredClubDisplayName(legacy, opaqueClubId);
+if (!legacyClubName) throw new Error("fringe display name missing");
 const before = makeFringeClubState(
   legacy,
   legacyClubName,
