@@ -1,5 +1,6 @@
 import { strict as assert } from "node:assert";
 import { migrateSave, newGame, SAVE_VERSION } from "../engine";
+import { playerWageBill } from "../finance";
 import {
   activeLoanForPlayer,
   endPlayerLoanInPlace,
@@ -54,6 +55,7 @@ const contractSnapshot = {
 };
 const loanClub = buildWorldSimulationPlan(state).fringeClubIds[0];
 assert.ok(loanClub, "loan fixture needs a fringe club");
+const parentPayrollBeforeLoan = playerWageBill(state);
 
 const started = startPlayerLoanInPlace(state, player.id, loanClub, 8, 60, "Regular");
 assert.ok(started.ok, started.reason);
@@ -81,6 +83,11 @@ assert.deepEqual(
   "loan must not replace or rewrite the parent contract",
 );
 assert.equal(activeLoanForPlayer(state, player.id)?.id, started.loan.id);
+assert.equal(
+  playerWageBill(state),
+  parentPayrollBeforeLoan - Math.round((parentContract.weeklyWage * 60) / 100),
+  "parent club payroll should receive the agreed loan wage relief",
+);
 
 // Loan registration must not make an owned player look like an external
 // transfer target or scouting subject. Ownership/registration both count as
@@ -237,6 +244,37 @@ assert.equal(playerRegisteredClubId(player), parentClub);
 assert.equal(player.ownerClubId, undefined, "returned player should compact the owner override");
 assert.ok(squadOf(state, parentClub).some((row) => row.id === player.id));
 assert.equal(activeLoanForPlayer(state, player.id), undefined);
+assert.equal(
+  playerWageBill(state),
+  parentPayrollBeforeLoan,
+  "completed loan should restore the full parent-club payroll",
+);
+
+// Loan-club contribution is symmetrical: borrowing a contracted AI player adds
+// only the agreed share of the parent wage to the user's payroll.
+const incoming = newGame("Incoming Loan FC", "Auditor", "PLAYER_INCOMING_LOAN_AUDIT");
+const incomingUserClub = playerOwnerClubId(userSquad(incoming)[0])!;
+const incomingParentClub = buildWorldSimulationPlan(incoming).focusClubIds.find(
+  (clubId) => clubId !== incomingUserClub,
+)!;
+const incomingPlayer = squadOf(incoming, incomingParentClub)[0];
+assert.ok(incomingPlayer, "incoming loan fixture needs an AI player");
+const incomingContract = activeContract(incoming, incomingPlayer.id)!;
+const incomingPayrollBefore = playerWageBill(incoming);
+const incomingStarted = startPlayerLoanInPlace(
+  incoming,
+  incomingPlayer.id,
+  incomingUserClub,
+  4,
+  35,
+  "Rotation",
+);
+assert.ok(incomingStarted.ok, incomingStarted.reason);
+assert.equal(
+  playerWageBill(incoming),
+  incomingPayrollBefore + Math.round((incomingContract.weeklyWage * 35) / 100),
+  "loan club payroll should add only its agreed contribution",
+);
 
 // Early termination uses the same return-to-parent boundary.
 const second = startPlayerLoanInPlace(state, player.id, loanClub, 4, 25, "Backup");
