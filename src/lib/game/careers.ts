@@ -13,6 +13,7 @@ import { buildWorldSimulationPlan } from "./world";
 import { clubReputation } from "./reputation";
 import { tierOfClub } from "./economy";
 import { WEEKS_PER_SEASON } from "./time";
+import { activeLoanForPlayer } from "./loans";
 import { isUserClubReference, sameClubReference } from "./clubReference";
 import {
   ensurePlayerRegistrationStateInPlace,
@@ -83,7 +84,15 @@ export function runPlayerCareerRollover(s: GameState): void {
   const focus = new Set(buildWorldSimulationPlan(s).focusClubIds);
   for (const player of s.football.players) {
     const registeredClubId = playerRegisteredClubId(player);
-    if (!registeredClubId || !focus.has(registeredClubId)) continue;
+    const ownerClubId = playerOwnerClubId(player);
+    const onActiveLoan = Boolean(activeLoanForPlayer(s, player.id));
+    if (
+      !onActiveLoan &&
+      (!registeredClubId || !focus.has(registeredClubId)) &&
+      (!ownerClubId || !focus.has(ownerClubId))
+    ) {
+      continue;
+    }
     progressPlayerForSeason(s, player);
   }
 
@@ -193,7 +202,7 @@ function chooseAiTransferCandidate(
 ): FootballPlayer | null {
   const buyerRep = clubReputation(s, buyer);
   const candidates = s.football.players.filter((player) => {
-    if (movedPlayerIds.has(player.id)) return false;
+    if (movedPlayerIds.has(player.id) || activeLoanForPlayer(s, player.id)) return false;
     const seller = playerOwnerClubId(player);
     if (
       !seller ||
@@ -365,6 +374,7 @@ function processRetirements(s: GameState, focus: Set<string>): void {
   const retiredIds = new Set<string>();
 
   for (const player of s.football.players) {
+    if (activeLoanForPlayer(s, player.id)) continue;
     const club = playerRegisteredClubId(player);
     if (!club || !focus.has(club) || !shouldRetire(s, player)) continue;
 
