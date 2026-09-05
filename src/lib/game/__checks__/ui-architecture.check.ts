@@ -182,6 +182,13 @@ console.log("\n[U5] Canonical selectors, not UI arithmetic");
     "inbox decisions go through handleInboxChoice",
     /handleInboxChoice\(/.test(read("src/components/game/InboxTab.tsx")),
   );
+  const squad = read("src/components/game/SquadSelectionTab.tsx");
+  check(
+    "squad employment display uses canonical club and contract selectors",
+    /clubOperatingModel\(/.test(squad) &&
+      /contractEmploymentType\(/.test(squad) &&
+      /Club operating model/.test(squad),
+  );
 }
 
 console.log("\n[U6] Recruitment knowledge boundary");
@@ -205,6 +212,12 @@ console.log("\n[U6] Recruitment knowledge boundary");
     /submitTransferEnquiry\(/.test(browser) && /submitTransferEnquiry\(/.test(reports),
   );
   const operations = read("src/components/game/RecruitmentOperations.tsx");
+  check(
+    "recruitment squad views use canonical employment selectors",
+    /clubOperatingModel\(/.test(operations) &&
+      /contractEmploymentType\(/.test(operations) &&
+      /ProfileFact label="Employment"/.test(operations),
+  );
   check(
     "the live negotiations screen exposes the enquiry-to-bid action",
     /submitEnquiryOffer\(/.test(operations),
