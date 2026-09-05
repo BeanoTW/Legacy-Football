@@ -13,7 +13,12 @@ import { cn } from "@/lib/utils";
 import { MOOD_TONE_CLASS, playerMood } from "@/lib/game/character";
 import { fmtMoney } from "@/lib/game/engine";
 import { POSITION_BADGE_CLASS, POSITION_PITCH_CLASS } from "./playerPosition";
-import { clubOperatingModel, contractEmploymentType } from "@/lib/game/employment";
+import {
+  clubOperatingModel,
+  contractEmploymentType,
+  professionaliseUserClub,
+  userProfessionalisationReadiness,
+} from "@/lib/game/employment";
 import { userClubReference } from "@/lib/game/clubReference";
 
 const FORMATION: Position[] = [
@@ -49,6 +54,8 @@ export function SquadSelectionTab({
     stored === "rested" || stored === "youth" ? stored : "strongest",
   );
   const [view, setView] = useState<SquadView>("pitch");
+  const [professionalisationReview, setProfessionalisationReview] = useState(false);
+  const [employmentNote, setEmploymentNote] = useState<string | null>(null);
   const squad = useMemo(() => userSquad(state), [state]);
   const xi = useMemo(() => chooseXi(squad, preset, state.season), [squad, preset, state.season]);
   const selected = new Set(xi.map((player) => player.id));
@@ -58,6 +65,15 @@ export function SquadSelectionTab({
   const clubEmployment = employmentLabel(
     clubOperatingModel(state, userClubReference(state)),
   );
+  const professionalisation = userProfessionalisationReadiness(state);
+
+  const professionalise = () =>
+    update((s) => {
+      const outcome = professionaliseUserClub(s);
+      setEmploymentNote(outcome.result.reason);
+      if (outcome.result.ok) setProfessionalisationReview(false);
+      return outcome.state;
+    });
 
   const choose = (next: Preset) => {
     setPreset(next);
@@ -113,6 +129,83 @@ export function SquadSelectionTab({
             <Summary label="Avg ability" value={averageAbility(xi).toFixed(1)} />
           </div>
         </section>
+
+        {professionalisation.currentModel === "PartTime" && (
+          <section className="rounded-xl border bg-card p-3 shadow-sm lg:col-start-1">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                  Employment model
+                </div>
+                <div className="font-display text-xl">Move to full-time football</div>
+              </div>
+              <Shield className="size-5 text-primary" />
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Full-time status improves access to stronger players, but future signings and renewals
+              expect professional wages. Existing player contracts stay exactly as signed.
+            </p>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-lg border bg-muted/30 p-2">
+                <div className="text-xs font-semibold">{professionalisation.trainingLabel}</div>
+                <div className="text-[10px] text-muted-foreground">Training ground</div>
+              </div>
+              <div className="rounded-lg border bg-muted/30 p-2">
+                <div className="text-xs font-semibold">
+                  {professionalisation.recruitmentReputationBonus > 0
+                    ? `+${professionalisation.recruitmentReputationBonus} appeal`
+                    : "Professional level"}
+                </div>
+                <div className="text-[10px] text-muted-foreground">Player interest</div>
+              </div>
+              <div className="rounded-lg border bg-muted/30 p-2">
+                <div className="text-xs font-semibold">
+                  {professionalisation.futureWageFactor > 1
+                    ? `~+${Math.round((professionalisation.futureWageFactor - 1) * 100)}%`
+                    : "Level baseline"}
+                </div>
+                <div className="text-[10px] text-muted-foreground">Future wages</div>
+              </div>
+            </div>
+            {!professionalisation.allowed ? (
+              <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
+                {professionalisation.reason}
+              </div>
+            ) : professionalisationReview ? (
+              <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+                <div className="text-sm font-semibold">Confirm permanent transition?</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  The club will operate full-time from now on. Existing part-time contracts remain
+                  part-time until each player signs new terms.
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button size="sm" onClick={professionalise}>
+                    Confirm full-time transition
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setProfessionalisationReview(false)}
+                  >
+                    Keep part-time
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                className="mt-3"
+                size="sm"
+                variant="outline"
+                onClick={() => setProfessionalisationReview(true)}
+              >
+                Review full-time transition
+              </Button>
+            )}
+            {employmentNote && (
+              <div className="mt-3 text-xs text-muted-foreground">{employmentNote}</div>
+            )}
+          </section>
+        )}
 
         <section className="rounded-xl border bg-card p-3 shadow-sm lg:col-start-1">
           <div className="mb-3 flex items-center justify-between gap-3">
