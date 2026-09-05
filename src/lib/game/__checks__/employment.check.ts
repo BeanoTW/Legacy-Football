@@ -7,10 +7,13 @@ import {
   employmentRecruitmentReputationBonusFor,
   initialClubOperatingModelFor,
   playerEmploymentStatus,
+  professionaliseUserClub,
   setClubOperatingModelInPlace,
+  userProfessionalisationReadiness,
 } from "../employment";
 import { footballLevelOfClub, footballLevelOfUser } from "../footballLevel";
 import { clubReputation } from "../reputation";
+import { assetById } from "../infrastructure";
 import {
   activeContract,
   freeAgents,
@@ -173,6 +176,66 @@ assert.equal(
   "PartTime",
   "closed contract history should retain its signed employment basis",
 );
+
+// Professionalisation is a one-way chairman decision gated by the real training asset.
+const transition = newGame(
+  "Professionalisation Audit FC",
+  "Auditor",
+  "PROFESSIONALISATION_AUDIT",
+);
+const transitionClubId = transition.clubIdentity!.userClubId;
+const openingReadiness = userProfessionalisationReadiness(transition);
+assert.equal(openingReadiness.trainingLevel, 1, "fresh career should begin on public pitches");
+assert.equal(
+  openingReadiness.allowed,
+  false,
+  "public pitches must not support a full-time football operation",
+);
+assert.match(openingReadiness.reason, /Basic ground/i);
+
+const transitionContracts = transition.football.contracts
+  .filter(
+    (contract) =>
+      contract.clubId === transitionClubId &&
+      (contract.status === "Active" || contract.status === "Expiring"),
+  )
+  .map((contract) => ({
+    id: contract.id,
+    weeklyWage: contract.weeklyWage,
+    employmentType: contract.employmentType,
+  }));
+assert.ok(transitionContracts.length > 0, "professionalisation fixture needs player contracts");
+
+const training = assetById(transition, "training");
+assert.ok(training, "professionalisation fixture needs the canonical training asset");
+training.level = 2;
+const ready = userProfessionalisationReadiness(transition);
+assert.equal(ready.allowed, true, ready.reason);
+assert.equal(ready.trainingLabel, "Basic ground");
+assert.equal(ready.futureWageFactor, 1.15);
+assert.equal(ready.recruitmentReputationBonus, 4);
+
+const switched = professionaliseUserClub(transition);
+assert.ok(switched.result.ok, switched.result.reason);
+assert.equal(
+  clubOperatingModel(switched.state, transitionClubId),
+  "FullTime",
+  "successful professionalisation should persist the club's full-time model",
+);
+assert.deepEqual(
+  switched.state.football.contracts
+    .filter((contract) => transitionContracts.some((before) => before.id === contract.id))
+    .map((contract) => ({
+      id: contract.id,
+      weeklyWage: contract.weeklyWage,
+      employmentType: contract.employmentType,
+    })),
+  transitionContracts,
+  "professionalisation must not rewrite existing employment terms or wages",
+);
+const repeated = professionaliseUserClub(switched.state);
+assert.equal(repeated.result.ok, false, "professionalisation must be a one-way transition");
+assert.match(repeated.result.reason, /already operates full-time/i);
 
 // A v17 save has no explicit employment state. Migration must add it without
 // altering any existing contractual money or duration.
