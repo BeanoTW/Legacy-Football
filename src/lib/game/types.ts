@@ -1164,6 +1164,26 @@ export interface PlayerScoutingReport {
   scoutId: string | null;
 }
 
+export type LoanPlayingTimeExpectation = "Backup" | "Rotation" | "Regular" | "Important";
+export type PlayerLoanStatus = "Active" | "Completed" | "Terminated";
+
+export interface PlayerLoanAgreement {
+  id: string;
+  playerId: string;
+  parentClubId: string;
+  loanClubId: string;
+  startAbsoluteWeek: number;
+  endAbsoluteWeek: number;
+  /**
+   * Percentage of the parent contract wage paid by the loan club, 0-100.
+   * No money is moved yet; finance integration is a later slice.
+   */
+  loanClubWageContributionPct: number;
+  playingTimeExpectation: LoanPlayingTimeExpectation;
+  status: PlayerLoanStatus;
+  endedAbsoluteWeek?: number;
+}
+
 export interface RecruitmentState {
   /** Every player in the world. Append-only; players are never deleted. */
   players: FootballPlayer[];
@@ -1174,6 +1194,8 @@ export interface RecruitmentState {
   shortlist: string[];
   /** Persistent assignments; knowledge grows from elapsed in-world weeks. */
   scoutingReports: PlayerScoutingReport[];
+  /** Loan lifecycle. Optional only for pre-v20/runtime compatibility. */
+  loans?: PlayerLoanAgreement[];
   /** Club operating models. Optional only for pre-v18/runtime compatibility. */
   employment?: RecruitmentEmploymentState;
   department: RecruitmentDepartment;
@@ -1184,6 +1206,8 @@ export interface RecruitmentState {
   /** Monotonic counters used for deterministic ids. */
   nextContractId: number;
   nextNegotiationId: number;
+  /** Monotonic loan id counter. Optional only for pre-v20/runtime compatibility. */
+  nextLoanId?: number;
   nextRecordId: number;
   /** Season the world database was generated for. */
   generatedSeason: number;
