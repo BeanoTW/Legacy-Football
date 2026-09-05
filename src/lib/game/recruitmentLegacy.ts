@@ -637,8 +637,10 @@ export function ensureRecruitment(s: GameState): void {
       s.football.players.push(player);
     }
     reconcileRecruitmentFidelity(s);
-    if (s.clubIdentity) ensureEmploymentStateInPlace(s);
-    ensurePlayerRegistrationStateInPlace(s);
+    if (s.clubIdentity) {
+      ensureEmploymentStateInPlace(s);
+      ensurePlayerRegistrationStateInPlace(s);
+    }
     syncLegacySquad(s);
     return;
   }
@@ -659,8 +661,10 @@ export function ensureRecruitment(s: GameState): void {
     generatedSeason: s.season,
   };
   s.football = state;
-  if (s.clubIdentity) ensureEmploymentStateInPlace(s);
-  ensurePlayerRegistrationStateInPlace(s);
+  if (s.clubIdentity) {
+    ensureEmploymentStateInPlace(s);
+    ensurePlayerRegistrationStateInPlace(s);
+  }
   syncLegacySquad(s);
 }
 
