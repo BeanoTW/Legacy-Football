@@ -48,6 +48,7 @@ import {
   clubOperatingModel,
   contractEmploymentType,
   employmentNegotiationWageFactorFor,
+  employmentRecruitmentReputationBonusFor,
   ensureEmploymentStateInPlace,
 } from "./employment";
 import {
@@ -1090,7 +1091,11 @@ export function playerInterestAssessment(
 ): PlayerInterestAssessment {
   if (p.currentClubId === s.clubName)
     return { level: "keen", label: "At your club", reason: "Already contracted to the club." };
-  const gap = clubReputation(s, s.clubName) - p.reputation;
+  const employmentBonus = employmentRecruitmentReputationBonusFor(
+    clubOperatingModel(s, userClubReference(s)),
+    recruitmentLevelOfUser(s),
+  );
+  const gap = clubReputation(s, userClubReference(s)) + employmentBonus - p.reputation;
   if (p.currentClubId === null && gap >= -4)
     return {
       level: "keen",
