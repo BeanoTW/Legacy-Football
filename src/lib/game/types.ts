@@ -977,8 +977,16 @@ export interface FootballPlayer {
   preferredFoot: PreferredFoot;
   primaryPosition: Position;
   secondaryPositions: Position[];
-  /** Club name, or null while unattached (free agent). */
+  /**
+   * Legacy compatibility projection of the club the player currently appears
+   * for. v19 keeps this synchronized with registeredClubId; new gameplay code
+   * should prefer the explicit ownership/registration selectors.
+   */
   currentClubId: string | null;
+  /** Contract-owning / parent club. Null for a free agent. */
+  ownerClubId?: string | null;
+  /** Club the player is registered to represent. Null while unattached. */
+  registeredClubId?: string | null;
   /** Standing in the game world, 0-100. */
   reputation: number;
   currentAbility: number;
