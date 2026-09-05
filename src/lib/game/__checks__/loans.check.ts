@@ -233,8 +233,12 @@ assert.equal(freeLoan.ok, false);
 assert.match(freeLoan.reason, /Free agents cannot be loaned/i);
 
 // Advance exactly to the due week. The agreement closes and sparse identity
-// compacts back to the ordinary one-club representation.
+// compacts back to the ordinary one-club representation. Other rollover work
+// above may legitimately have changed the wider squad payroll, so measure the
+// restoration against the live pre-completion bill rather than the opening save.
 state.week += 8;
+const payrollBeforeCompletion = playerWageBill(state);
+const expectedRestoredContribution = Math.round((activeContract(state, player.id)!.weeklyWage * 60) / 100);
 const completed = processDuePlayerLoansInPlace(state);
 assert.equal(completed, 1);
 assert.equal(started.loan.status, "Completed");
@@ -246,8 +250,8 @@ assert.ok(squadOf(state, parentClub).some((row) => row.id === player.id));
 assert.equal(activeLoanForPlayer(state, player.id), undefined);
 assert.equal(
   playerWageBill(state),
-  parentPayrollBeforeLoan,
-  "completed loan should restore the full parent-club payroll",
+  payrollBeforeCompletion + expectedRestoredContribution,
+  "completed loan should restore the parent's previously relieved wage share",
 );
 
 // Loan-club contribution is symmetrical: borrowing a contracted AI player adds
