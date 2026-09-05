@@ -7,6 +7,10 @@ import { ageOf, FREE_AGENT_POOL, SQUAD_SIZE } from "../recruitment";
 import { buildWorldSimulationPlan } from "../world";
 import type { GameState } from "../types";
 import { isUserClubReference } from "../clubReference";
+import {
+  playerRegisteredClubId,
+  setPlayerClubIdentityInPlace,
+} from "../playerRegistration";
 
 let passed = 0;
 let failed = 0;
@@ -66,8 +70,10 @@ console.log("\n[C2] Ability and potential bounds");
 console.log("\n[C3] Retirement and youth replacement");
 {
   const s = newGame("Retirement City", "Ada Retire", "CAREERS|RETIRE");
-  const target = s.football.players.find((player) => isUserClubReference(s, player.currentClubId))!;
-  const club = target.currentClubId!;
+  const target = s.football.players.find((player) =>
+    isUserClubReference(s, playerRegisteredClubId(player)),
+  )!;
+  const club = playerRegisteredClubId(target)!;
   const oldContractId = target.contractId!;
   target.dateOfBirth.year = 1960; // guaranteed age >= 40 at rollover
   s.season = 2;
@@ -89,12 +95,14 @@ console.log("\n[C3] Retirement and youth replacement");
   );
   check(
     "vacancy is replenished by deterministic youth intake",
-    s.football.players.filter((player) => player.currentClubId === club).length === SQUAD_SIZE,
+    s.football.players.filter((player) => playerRegisteredClubId(player) === club).length === SQUAD_SIZE,
   );
   check(
     "replacement youth is 16-18 and contracted as a live player",
     s.football.players
-      .filter((player) => player.currentClubId === club && player.createdSeason === s.season)
+      .filter(
+        (player) => playerRegisteredClubId(player) === club && player.createdSeason === s.season,
+      )
       .some((player) => {
         const age = ageOf(player, s.season);
         const contract = s.football.contracts.find((row) => row.id === player.contractId);
@@ -116,9 +124,10 @@ console.log("\n[C4] Focus population remains bounded through repeated ageing");
     s.season = season;
     runPlayerCareerRollover(s);
   }
-  const contractedFocus = s.football.players.filter(
-    (player) => player.currentClubId && focus.has(player.currentClubId),
-  );
+  const contractedFocus = s.football.players.filter((player) => {
+    const clubId = playerRegisteredClubId(player);
+    return clubId !== null && focus.has(clubId);
+  });
   check(
     "Focus squads do not grow above their generated capacity",
     contractedFocus.length <= focus.size * SQUAD_SIZE,
@@ -141,19 +150,24 @@ console.log("\n[C5] Free-agent market is bounded without breaking user activity"
 {
   const s = newGame("Market City", "Ada Market", "CAREERS|FREE-AGENTS");
   const source = s.football.players[0];
-  const injected = Array.from({ length: 100 }, (_, index) => ({
-    ...clone(source),
-    id: `test-free-${index}`,
-    currentClubId: null,
-    contractId: null,
-    transferStatus: "listed" as const,
-    createdSeason: 1,
-  }));
+  const injected = Array.from({ length: 100 }, (_, index) => {
+    const player = {
+      ...clone(source),
+      id: `test-free-${index}`,
+      contractId: null,
+      transferStatus: "listed" as const,
+      createdSeason: 1,
+    };
+    setPlayerClubIdentityInPlace(player, null);
+    return player;
+  });
   s.football.players.push(...injected);
   s.football.shortlist.push("test-free-99");
   s.season = 2;
   runPlayerCareerRollover(s);
-  const free = s.football.players.filter((player) => player.currentClubId === null);
+  const free = s.football.players.filter(
+    (player) => playerRegisteredClubId(player) === null,
+  );
   check(
     "free-agent detail stays at the bounded market size",
     free.length <= FREE_AGENT_POOL * 2,
