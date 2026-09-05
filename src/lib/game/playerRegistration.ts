@@ -37,8 +37,9 @@ export function setPlayerClubIdentityInPlace(
  */
 export function ensurePlayerRegistrationStateInPlace(state: GameState): void {
   for (const player of state.football?.players ?? []) {
-    player.ownerClubId ??= player.currentClubId;
-    player.registeredClubId ??= player.currentClubId;
+    // null is authoritative ("no club"); only undefined means pre-v19/missing.
+    if (player.ownerClubId === undefined) player.ownerClubId = player.currentClubId;
+    if (player.registeredClubId === undefined) player.registeredClubId = player.currentClubId;
     player.currentClubId = player.registeredClubId;
   }
 }
