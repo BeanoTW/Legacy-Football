@@ -35,7 +35,8 @@ import type {
   WageSummary,
   WeekLedger,
 } from "./types";
-import { isUserClubReference, sameClubReference, userClubReference } from "./clubReference";
+import { isUserClubReference, userClubReference } from "./clubReference";
+import { loanWageAdjustmentForClub } from "./loans";
 import { absoluteWeek } from "./time";
 import {
   profileForTier,
@@ -352,29 +353,11 @@ export const playerWageBill = (s: GameState) => {
     const liveContracts = contracts.filter(
       (c) => c.status === "Active" || c.status === "Expiring",
     );
-    let total = liveContracts
+    const contractual = liveContracts
       .filter((c) => isUserClubReference(s, c.clubId))
       .reduce((a, c) => a + c.weeklyWage, 0);
-
-    // A loan contribution changes who funds the parent contract each week; it
-    // does not create a second player contract. Parent clubs receive relief,
-    // while loan clubs add only the agreed share to their own wage bill.
-    for (const loan of s.football?.loans ?? []) {
-      if (loan.status !== "Active") continue;
-      const contract = liveContracts.find(
-        (c) =>
-          c.playerId === loan.playerId &&
-          sameClubReference(s, c.clubId, loan.parentClubId),
-      );
-      if (!contract) continue;
-      const contribution = int(
-        (contract.weeklyWage * loan.loanClubWageContributionPct) / 100,
-      );
-      if (isUserClubReference(s, loan.parentClubId)) total -= contribution;
-      if (isUserClubReference(s, loan.loanClubId)) total += contribution;
-    }
-
-    return int(Math.max(0, total));
+    const adjusted = contractual + loanWageAdjustmentForClub(s, userClubReference(s));
+    return int(Math.max(0, adjusted));
   }
   return int((s.squad ?? []).reduce((a, p) => a + p.wage, 0));
 };
