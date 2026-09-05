@@ -7,7 +7,8 @@ import type {
 } from "./types";
 import { footballLevelOfClub, type FootballLevel } from "./footballLevel";
 import { clubReputation } from "./reputation";
-import { isUserClubReference } from "./clubReference";
+import { isUserClubReference, userClubReference } from "./clubReference";
+import { ASSET_CONFIG, assetById } from "./infrastructure";
 
 /**
  * New-career / migration seed only. Once persisted, a club's operating model
@@ -52,6 +53,107 @@ export function employmentRecruitmentReputationBonusFor(
   level: FootballLevel,
 ): number {
   return model === "FullTime" && level >= 7 ? 4 : 0;
+}
+
+export const PROFESSIONALISATION_MIN_TRAINING_LEVEL = 2;
+
+export interface ProfessionalisationReadiness {
+  allowed: boolean;
+  reason: string;
+  currentModel: ClubOperatingModel;
+  footballLevel: FootballLevel;
+  trainingLevel: number;
+  trainingLabel: string;
+  minimumTrainingLevel: number;
+  futureWageFactor: number;
+  recruitmentReputationBonus: number;
+}
+
+/**
+ * One canonical picture of whether the controlled club is ready to become
+ * full-time. The facility requirement is deliberately based on the real
+ * training-ground asset: construction has to finish before this becomes true.
+ */
+export function userProfessionalisationReadiness(
+  state: GameState,
+): ProfessionalisationReadiness {
+  const clubId = userClubReference(state);
+  const currentModel = clubOperatingModel(state, clubId);
+  const footballLevel = footballLevelOfClub(state, clubId);
+  const training = assetById(state, "training");
+  const trainingLevel = training?.level ?? 0;
+  const trainingLabel =
+    ASSET_CONFIG.training.levels[Math.max(0, trainingLevel - 1)] ?? "No training ground";
+  const impact = {
+    currentModel,
+    footballLevel,
+    trainingLevel,
+    trainingLabel,
+    minimumTrainingLevel: PROFESSIONALISATION_MIN_TRAINING_LEVEL,
+    futureWageFactor: employmentNegotiationWageFactorFor("FullTime", footballLevel),
+    recruitmentReputationBonus: employmentRecruitmentReputationBonusFor(
+      "FullTime",
+      footballLevel,
+    ),
+  };
+
+  if (currentModel === "FullTime") {
+    return { ...impact, allowed: false, reason: "The club already operates full-time." };
+  }
+  if (!training) {
+    return {
+      ...impact,
+      allowed: false,
+      reason: "The club needs a recognised training ground before it can become full-time.",
+    };
+  }
+  if (training.status === "closed") {
+    return {
+      ...impact,
+      allowed: false,
+      reason: "The training ground must be open before the club can become full-time.",
+    };
+  }
+  if (trainingLevel < PROFESSIONALISATION_MIN_TRAINING_LEVEL) {
+    return {
+      ...impact,
+      allowed: false,
+      reason: "Upgrade the Training Ground to Basic ground or better first.",
+    };
+  }
+  return {
+    ...impact,
+    allowed: true,
+    reason: "The club has the facilities required to move to full-time operation.",
+  };
+}
+
+export interface EmploymentActionResult {
+  ok: boolean;
+  reason: string;
+}
+
+/**
+ * Irreversible chairman transition into full-time operation. Existing player
+ * contracts keep the employment basis and wage they were signed on.
+ */
+export function professionaliseUserClubInPlace(state: GameState): EmploymentActionResult {
+  const readiness = userProfessionalisationReadiness(state);
+  if (!readiness.allowed) return { ok: false, reason: readiness.reason };
+  setClubOperatingModelInPlace(state, userClubReference(state), "FullTime");
+  return {
+    ok: true,
+    reason:
+      "The club is now full-time. Existing contracts are unchanged; new terms use the full-time employment model.",
+  };
+}
+
+export function professionaliseUserClub(
+  state: GameState,
+): { state: GameState; result: EmploymentActionResult } {
+  const next = structuredClone(state);
+  const result = professionaliseUserClubInPlace(next);
+  return result.ok ? { state: next, result } : { state, result };
 }
 
 function derivedClubOperatingModel(state: GameState, clubId: string): ClubOperatingModel {
