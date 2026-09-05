@@ -701,7 +701,10 @@ function scoutingStaff(s: GameState) {
 
 /** Knowledge is derived from persistent assignment time, so advancing a week is enough. */
 export function scoutingView(s: GameState, player: FootballPlayer): ScoutingView {
-  if (player.currentClubId === s.clubName) {
+  if (
+    playerOwnerClubId(player) === s.clubName ||
+    playerRegisteredClubId(player) === s.clubName
+  ) {
     return {
       knowledge: 100,
       assigned: false,
@@ -758,8 +761,14 @@ export function assignScout(
   ensureRecruitment(next);
   const player = playerById(next, playerId);
   if (!player) return { state: s, result: { ok: false, reason: "Player not found" } };
-  if (player.currentClubId === next.clubName) {
-    return { state: s, result: { ok: false, reason: "Your own players are already fully known" } };
+  if (
+    playerOwnerClubId(player) === next.clubName ||
+    playerRegisteredClubId(player) === next.clubName
+  ) {
+    return {
+      state: s,
+      result: { ok: false, reason: "Players owned by or registered to your club are already fully known" },
+    };
   }
   const existing = next.football.scoutingReports.find((report) => report.playerId === playerId);
   if (existing) {
@@ -1061,7 +1070,8 @@ export function wageDemand(
  * Returns null when the player is not realistically available.
  */
 export function availabilityReason(s: GameState, p: FootballPlayer): string | null {
-  if (p.currentClubId === s.clubName) return null;
+  if (activeLoanForPlayer(s, p.id)) return null;
+  if (playerOwnerClubId(p) === s.clubName || playerRegisteredClubId(p) === s.clubName) return null;
   if (p.currentClubId === null) return "Free agent — out of contract";
   if (p.transferStatus === "agreedTransfer") return null;
   if (p.transferStatus === "listed") return "Transfer listed by his club";
@@ -1114,8 +1124,10 @@ export function playerInterestAssessment(
   s: GameState,
   p: FootballPlayer,
 ): PlayerInterestAssessment {
-  if (p.currentClubId === s.clubName)
+  if (playerOwnerClubId(p) === s.clubName)
     return { level: "keen", label: "At your club", reason: "Already contracted to the club." };
+  if (playerRegisteredClubId(p) === s.clubName)
+    return { level: "keen", label: "On loan here", reason: "Already registered to the club on loan." };
   const employmentBonus = employmentRecruitmentReputationBonusFor(
     clubOperatingModel(s, userClubReference(s)),
     recruitmentLevelOfUser(s),
