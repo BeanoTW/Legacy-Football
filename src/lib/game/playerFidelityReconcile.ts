@@ -6,6 +6,7 @@ import {
   hydrateCompactFringePlayer,
 } from "./fringePlayerFidelity";
 import { buildWorldSimulationPlan } from "./world";
+import { activeLoanForPlayer } from "./loans";
 
 function isLiveContract(contract: PlayerContract): boolean {
   return contract.status === "Active" || contract.status === "Expiring";
@@ -30,7 +31,11 @@ function activeCompactPlayersForClub(state: GameState, clubId: string): CompactF
 
 function detailedPlayersForClub(state: GameState, clubId: string): FootballPlayer[] {
   return (state.football?.players ?? [])
-    .filter((player) => sameClubReference(state, player.currentClubId, clubId))
+    .filter(
+      (player) =>
+        sameClubReference(state, player.currentClubId, clubId) &&
+        !activeLoanForPlayer(state, player.id),
+    )
     .sort((a, b) => b.currentAbility - a.currentAbility || a.id.localeCompare(b.id));
 }
 
