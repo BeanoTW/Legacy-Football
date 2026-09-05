@@ -82,13 +82,19 @@ export function startPlayerLoanInPlace(
     return { ok: false, reason: "Player needs a live parent-club contract before a loan" };
 
   const startAbsoluteWeek = absoluteWeek(state.season, state.week);
+  const endAbsoluteWeek = startAbsoluteWeek + durationWeeks;
+  const parentContractEnd = absoluteWeek(parentContract.expirySeason, parentContract.expiryWeek);
+  if (endAbsoluteWeek > parentContractEnd) {
+    return { ok: false, reason: "Loan cannot run beyond the parent-club contract" };
+  }
+
   const loan: PlayerLoanAgreement = {
     id: nextLoanId(state),
     playerId,
     parentClubId,
     loanClubId,
     startAbsoluteWeek,
-    endAbsoluteWeek: startAbsoluteWeek + durationWeeks,
+    endAbsoluteWeek,
     loanClubWageContributionPct: Math.round(loanClubWageContributionPct),
     playingTimeExpectation,
     status: "Active",
