@@ -67,7 +67,12 @@ import {
   recruitmentWageForLevel,
 } from "./recruitmentEconomy";
 import { userClubReference } from "./clubReference";
-import { activeLoanForPlayer, ensureLoanStateInPlace, processDuePlayerLoansInPlace } from "./loans";
+import {
+  activeLoanForPlayer,
+  ensureLoanStateInPlace,
+  loanWageAdjustmentForClub,
+  processDuePlayerLoansInPlace,
+} from "./loans";
 import {
   ensurePlayerRegistrationStateInPlace,
   playerIsRegisteredTo,
@@ -862,11 +867,14 @@ export function syncLegacySquad(s: GameState): void {
 ========================================================================= */
 
 export function clubWageBill(s: GameState, club: string): number {
-  return int(
-    (s.football?.contracts ?? [])
-      .filter((c) => c.clubId === club && (c.status === "Active" || c.status === "Expiring"))
-      .reduce((a, c) => a + c.weeklyWage, 0),
-  );
+  const contractual = (s.football?.contracts ?? [])
+    .filter(
+      (c) =>
+        sameClubReference(s, c.clubId, club) &&
+        (c.status === "Active" || c.status === "Expiring"),
+    )
+    .reduce((a, c) => a + c.weeklyWage, 0);
+  return int(Math.max(0, contractual + loanWageAdjustmentForClub(s, club)));
 }
 
 export const userWageBill = (s: GameState) => clubWageBill(s, s.clubName);
