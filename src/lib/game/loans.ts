@@ -4,6 +4,7 @@ import type {
   PlayerLoanAgreement,
 } from "./types";
 import { absoluteWeek } from "./time";
+import { sameClubReference } from "./clubReference";
 import {
   playerOwnerClubId,
   playerRegisteredClubId,
@@ -28,6 +29,35 @@ export function activeLoanForPlayer(
   return (state.football.loans ?? []).find(
     (loan) => loan.playerId === playerId && loan.status === "Active",
   );
+}
+
+/**
+ * Net weekly payroll adjustment created by active loan wage-sharing for one
+ * club. Negative = parent-club relief; positive = loan-club contribution.
+ * The underlying player contract remains owned and stored only by the parent.
+ */
+export function loanWageAdjustmentForClub(state: GameState, clubId: string): number {
+  let adjustment = 0;
+  const liveContracts = state.football?.contracts ?? [];
+
+  for (const loan of state.football?.loans ?? []) {
+    if (loan.status !== "Active") continue;
+    const contract = liveContracts.find(
+      (row) =>
+        row.playerId === loan.playerId &&
+        (row.status === "Active" || row.status === "Expiring") &&
+        sameClubReference(state, row.clubId, loan.parentClubId),
+    );
+    if (!contract) continue;
+
+    const contribution = Math.round(
+      (contract.weeklyWage * loan.loanClubWageContributionPct) / 100,
+    );
+    if (sameClubReference(state, clubId, loan.parentClubId)) adjustment -= contribution;
+    if (sameClubReference(state, clubId, loan.loanClubId)) adjustment += contribution;
+  }
+
+  return adjustment;
 }
 
 function nextLoanId(state: GameState): string {
