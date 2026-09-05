@@ -65,6 +65,7 @@ import {
   recruitmentWageForClub,
   recruitmentWageForLevel,
 } from "./recruitmentEconomy";
+import { userClubReference } from "./clubReference";
 import {
   materializeTransferTargetForCompletionInPlace,
   recordCompletedTransferLifecycleInPlace,
@@ -1020,7 +1021,7 @@ export function wageDemand(
   const facilityFactor = clamp(1 - attraction / 250, 0.94, 1.06);
   const growth = clubGrowthFactor(s);
   const employmentFactor = employmentNegotiationWageFactorFor(
-    clubOperatingModel(s, s.clubName),
+    clubOperatingModel(s, userClubReference(s)),
     recruitmentLevelOfUser(s),
   );
   const rawDemand =
