@@ -10,7 +10,15 @@ import {
   playerOwnerClubId,
   playerRegisteredClubId,
 } from "../playerRegistration";
-import { activeContract, freeAgents, squadOf, userSquad } from "../recruitment";
+import {
+  activeContract,
+  completeTransferInPlace,
+  freeAgents,
+  releasePlayerInPlace,
+  setTransferStatusInPlace,
+  squadOf,
+  userSquad,
+} from "../recruitment";
 import { absoluteWeek } from "../time";
 
 const state = newGame("Loan Audit FC", "Auditor", "PLAYER_LOAN_AUDIT");
@@ -60,6 +68,44 @@ assert.deepEqual(
   contractSnapshot,
   "loan must not replace or rewrite the parent contract",
 );
+assert.equal(activeLoanForPlayer(state, player.id)?.id, started.loan.id);
+
+// Permanent ownership mutations must not cut across a live loan. The parent
+// can only sell/release/list again after the temporary registration is closed.
+const releaseDuringLoan = releasePlayerInPlace(state, player.id);
+assert.equal(releaseDuringLoan.ok, false);
+assert.match(releaseDuringLoan.reason, /active loan/i);
+const listDuringLoan = setTransferStatusInPlace(state, player.id, "listed");
+assert.equal(listDuringLoan.ok, false);
+assert.match(listDuringLoan.reason, /active loan/i);
+
+state.football.negotiations.push({
+  id: "TN-LOAN-GUARD",
+  playerId: player.id,
+  fromClubId: parentClub,
+  toClubId: loanClub,
+  direction: "out",
+  stage: "agreed",
+  clubRounds: 1,
+  playerRounds: 0,
+  fee: 1000,
+  proposedWeeklyWage: 0,
+  proposedLengthSeasons: 3,
+  proposedSigningBonus: 0,
+  proposedRole: "First Team",
+  createdSeason: state.season,
+  createdAbsoluteWeek: absoluteWeek(state.season, state.week),
+  expiresAtAbsoluteWeek: absoluteWeek(state.season, state.week) + 2,
+  log: [],
+});
+const saleDuringLoan = completeTransferInPlace(state, "TN-LOAN-GUARD");
+assert.equal(saleDuringLoan.ok, false);
+assert.match(saleDuringLoan.reason, /active loan/i);
+state.football.negotiations = state.football.negotiations.filter(
+  (row) => row.id !== "TN-LOAN-GUARD",
+);
+assert.equal(playerOwnerClubId(player), parentClub);
+assert.equal(playerRegisteredClubId(player), loanClub);
 assert.equal(activeLoanForPlayer(state, player.id)?.id, started.loan.id);
 
 const duplicate = startPlayerLoanInPlace(state, player.id, parentClub, 3, 50, "Rotation");
