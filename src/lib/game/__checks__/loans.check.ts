@@ -12,12 +12,16 @@ import {
 } from "../playerRegistration";
 import {
   activeContract,
+  assignScout,
+  availabilityReason,
   completeTransferInPlace,
   freeAgents,
   reconcileRecruitmentFidelity,
   releasePlayerInPlace,
+  scoutingView,
   setTransferStatusInPlace,
   squadOf,
+  transferMarket,
   userSquad,
 } from "../recruitment";
 import { absoluteWeek } from "../time";
@@ -73,6 +77,19 @@ assert.deepEqual(
   "loan must not replace or rewrite the parent contract",
 );
 assert.equal(activeLoanForPlayer(state, player.id)?.id, started.loan.id);
+
+// Loan registration must not make an owned player look like an external
+// transfer target or scouting subject. Ownership/registration both count as
+// first-hand club knowledge while the permanent market waits for the loan to end.
+assert.equal(scoutingView(state, player).knowledge, 100);
+assert.equal(availabilityReason(state, player), null);
+assert.equal(
+  transferMarket(state).some((entry) => entry.player.id === player.id),
+  false,
+);
+const scoutOwnedLoanee = assignScout(state, player.id);
+assert.equal(scoutOwnedLoanee.result.ok, false);
+assert.match(scoutOwnedLoanee.result.reason, /already fully known/i);
 
 // Active loans are chairman-relevant exceptions to the Focus/Fringe boundary.
 // A loanee registered at a Fringe club must stay materialised so the parent
