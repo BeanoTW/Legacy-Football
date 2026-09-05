@@ -16,6 +16,7 @@ import { CLUB_IDENTITY_MIGRATIONS } from "./v15-v16";
 import { CLUB_REFERENCE_MIGRATIONS } from "./v16-v17";
 import { EMPLOYMENT_MIGRATIONS } from "./v17-v18";
 import { PLAYER_REGISTRATION_MIGRATIONS } from "./v18-v19";
+import { LOAN_MIGRATIONS } from "./v19-v20";
 import type { GameState } from "../types";
 
 export * from "./types";
@@ -30,6 +31,7 @@ export const MIGRATIONS: Migration[] = [
   ...CLUB_REFERENCE_MIGRATIONS,
   ...EMPLOYMENT_MIGRATIONS,
   ...PLAYER_REGISTRATION_MIGRATIONS,
+  ...LOAN_MIGRATIONS,
 ];
 
 /** Highest version any registered step can produce. */
