@@ -291,6 +291,39 @@ assert.equal(playerOwnerClubId(player), parentClub);
 assert.equal(playerRegisteredClubId(player), parentClub);
 assert.equal(player.ownerClubId, undefined);
 
+// A live v20 loan must survive the actual persisted JSON shape intact. This
+// catches sparse owner/registration or loan-counter fields being lost even
+// when migration itself has nothing to do.
+const roundTrip = newGame("Loan Roundtrip FC", "Auditor", "PLAYER_LOAN_ROUNDTRIP");
+const roundTripPlayer = userSquad(roundTrip)[0];
+const roundTripParent = playerOwnerClubId(roundTripPlayer)!;
+const roundTripClub = buildWorldSimulationPlan(roundTrip).fringeClubIds[0]!;
+const roundTripStarted = startPlayerLoanInPlace(
+  roundTrip,
+  roundTripPlayer.id,
+  roundTripClub,
+  3,
+  45,
+  "Regular",
+);
+assert.ok(roundTripStarted.ok, roundTripStarted.reason);
+const loadedRoundTrip = migrateSave(
+  JSON.parse(JSON.stringify(roundTrip)) as Record<string, unknown>,
+);
+const loadedPlayer = loadedRoundTrip.football.players.find(
+  (row) => row.id === roundTripPlayer.id,
+)!;
+assert.equal(activeLoanForPlayer(loadedRoundTrip, loadedPlayer.id)?.id, roundTripStarted.loan!.id);
+assert.equal(playerOwnerClubId(loadedPlayer), roundTripParent);
+assert.equal(playerRegisteredClubId(loadedPlayer), roundTripClub);
+assert.equal(loadedPlayer.ownerClubId, roundTripParent);
+assert.equal(loadedRoundTrip.football.nextLoanId, 2);
+loadedRoundTrip.week += 3;
+assert.equal(processDuePlayerLoansInPlace(loadedRoundTrip), 1);
+assert.equal(playerOwnerClubId(loadedPlayer), roundTripParent);
+assert.equal(playerRegisteredClubId(loadedPlayer), roundTripParent);
+assert.equal(loadedPlayer.ownerClubId, undefined);
+
 // v19 saves gain only empty loan state; no player, contract or club attachment moves.
 const legacy = newGame("Loan Migration FC", "Auditor", "PLAYER_LOAN_MIGRATION");
 legacy.version = 19;
