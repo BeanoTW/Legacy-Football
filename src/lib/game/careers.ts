@@ -532,8 +532,6 @@ function makeYouth(s: GameState, club: string, index: number): FootballPlayer {
     primaryPosition: POSITIONS[rngInt(rng, 0, POSITIONS.length - 1)],
     secondaryPositions: [],
     currentClubId: club,
-    ownerClubId: club,
-    registeredClubId: club,
     reputation: clamp(round(ability * 0.72), 5, 70),
     currentAbility: ability,
     potentialAbility: potential,
