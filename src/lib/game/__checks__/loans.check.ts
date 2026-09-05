@@ -26,6 +26,7 @@ import {
   squadOf,
   transferMarket,
   userSquad,
+  userWageBill,
 } from "../recruitment";
 import { absoluteWeek } from "../time";
 import {
@@ -87,6 +88,11 @@ assert.equal(
   playerWageBill(state),
   parentPayrollBeforeLoan - Math.round((parentContract.weeklyWage * 60) / 100),
   "parent club payroll should receive the agreed loan wage relief",
+);
+assert.equal(
+  userWageBill(state),
+  playerWageBill(state),
+  "recruitment and finance wage reads must agree while a loan is active",
 );
 
 // Loan registration must not make an owned player look like an external
@@ -252,6 +258,11 @@ assert.equal(
   playerWageBill(state),
   payrollBeforeCompletion + expectedRestoredContribution,
   "completed loan should restore the parent's previously relieved wage share",
+);
+assert.equal(
+  userWageBill(state),
+  playerWageBill(state),
+  "recruitment and finance wage reads must agree after loan completion",
 );
 
 // Loan-club contribution is symmetrical: borrowing a contracted AI player adds
