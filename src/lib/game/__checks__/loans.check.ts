@@ -14,12 +14,18 @@ import {
   activeContract,
   completeTransferInPlace,
   freeAgents,
+  reconcileRecruitmentFidelity,
   releasePlayerInPlace,
   setTransferStatusInPlace,
   squadOf,
   userSquad,
 } from "../recruitment";
 import { absoluteWeek } from "../time";
+import {
+  compactDepartingFocusPlayersInPlace,
+  repairFreshFocusHydrationInPlace,
+} from "../playerFidelityReconcile";
+import { buildWorldSimulationPlan } from "../world";
 
 const state = newGame("Loan Audit FC", "Auditor", "PLAYER_LOAN_AUDIT");
 assert.equal(SAVE_VERSION, 20);
@@ -38,10 +44,8 @@ const contractSnapshot = {
   employmentType: parentContract.employmentType,
   status: parentContract.status,
 };
-const loanClub = state.leagues
-  .flatMap((league) => league.clubIds)
-  .find((clubId) => clubId !== parentClub)!;
-assert.ok(loanClub, "loan fixture needs another club");
+const loanClub = buildWorldSimulationPlan(state).fringeClubIds[0];
+assert.ok(loanClub, "loan fixture needs a fringe club");
 
 const started = startPlayerLoanInPlace(state, player.id, loanClub, 8, 60, "Regular");
 assert.ok(started.ok, started.reason);
@@ -68,6 +72,41 @@ assert.deepEqual(
   contractSnapshot,
   "loan must not replace or rewrite the parent contract",
 );
+assert.equal(activeLoanForPlayer(state, player.id)?.id, started.loan.id);
+
+// Active loans are chairman-relevant exceptions to the Focus/Fringe boundary.
+// A loanee registered at a Fringe club must stay materialised so the parent
+// contract and automatic return can still complete safely.
+const parentContractId = activeContract(state, player.id)!.id;
+reconcileRecruitmentFidelity(state);
+assert.ok(
+  state.football.players.some((row) => row.id === player.id),
+  "Fringe registration must not discard an active loanee",
+);
+assert.equal(activeContract(state, player.id)?.id, parentContractId);
+assert.equal(playerOwnerClubId(player), parentClub);
+assert.equal(playerRegisteredClubId(player), loanClub);
+
+// If the loan club becomes Focus, its native squad should hydrate around the
+// existing loanee rather than treating that one visitor as the whole club.
+state.trackedClubIds = [...(state.trackedClubIds ?? []), loanClub];
+reconcileRecruitmentFidelity(state);
+repairFreshFocusHydrationInPlace(state);
+assert.ok(squadOf(state, loanClub).some((row) => row.id === player.id));
+assert.ok(
+  squadOf(state, loanClub).length >= 20,
+  "Focus hydration must still create the loan club's native squad",
+);
+assert.equal(activeContract(state, player.id)?.id, parentContractId);
+assert.equal(activeLoanForPlayer(state, player.id)?.id, started.loan.id);
+
+// Move the club back out again; only its native squad compacts. The live loanee
+// remains detailed until the agreement returns him to his parent.
+state.trackedClubIds = (state.trackedClubIds ?? []).filter((id) => id !== loanClub);
+compactDepartingFocusPlayersInPlace(state);
+reconcileRecruitmentFidelity(state);
+assert.ok(state.football.players.some((row) => row.id === player.id));
+assert.equal(activeContract(state, player.id)?.id, parentContractId);
 assert.equal(activeLoanForPlayer(state, player.id)?.id, started.loan.id);
 
 // Permanent ownership mutations must not cut across a live loan. The parent
