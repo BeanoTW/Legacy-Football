@@ -1,46 +1,48 @@
 import type { FootballPlayer, GameState } from "./types";
 
 /**
- * Parent/contract-owning club. Falls back to the pre-v19 projection so runtime
- * compatibility remains safe while old or partially-migrated state is read.
+ * Parent/contract-owning club. Ordinary players need no duplicate persisted
+ * reference: absent ownerClubId means ownership matches playing registration.
  */
 export function playerOwnerClubId(player: FootballPlayer): string | null {
   return player.ownerClubId !== undefined ? player.ownerClubId : player.currentClubId;
 }
 
-/**
- * Club the player is registered to represent. Before loans exist this equals
- * ownership; the fallback preserves pre-v19 behaviour exactly.
- */
+/** Club the player is registered to represent. */
 export function playerRegisteredClubId(player: FootballPlayer): string | null {
-  return player.registeredClubId !== undefined ? player.registeredClubId : player.currentClubId;
+  return player.currentClubId;
 }
 
 /**
- * Write canonical ownership + registration and keep currentClubId as the
- * compatibility projection of registration. This is the only helper new code
- * should use when all three intentionally move together.
+ * Write ownership + registration through one boundary. The ordinary case is
+ * compact: when owner and registration match, no owner override is persisted.
  */
 export function setPlayerClubIdentityInPlace(
   player: FootballPlayer,
   ownerClubId: string | null,
   registeredClubId: string | null = ownerClubId,
 ): void {
-  player.ownerClubId = ownerClubId;
-  player.registeredClubId = registeredClubId;
   player.currentClubId = registeredClubId;
+  if (ownerClubId === registeredClubId) delete player.ownerClubId;
+  else player.ownerClubId = ownerClubId;
 }
 
 /**
- * v19 seed/backfill. Idempotent: explicit values are never overwritten.
- * Existing saves therefore preserve today's exact ownership/squad behaviour.
+ * v19 normalisation/backfill. Pre-v19 saves already encode registration in
+ * currentClubId, so no duplicate field is needed. Any stray owner value equal
+ * to registration is compacted away; a genuine divergence is preserved.
  */
 export function ensurePlayerRegistrationStateInPlace(state: GameState): void {
   for (const player of state.football?.players ?? []) {
-    // null is authoritative ("no club"); only undefined means pre-v19/missing.
-    if (player.ownerClubId === undefined) player.ownerClubId = player.currentClubId;
-    if (player.registeredClubId === undefined) player.registeredClubId = player.currentClubId;
-    player.currentClubId = player.registeredClubId;
+    const row = player as FootballPlayer & { registeredClubId?: string | null };
+    // registeredClubId existed only during v19 development and was never a
+    // shipping schema contract. If encountered, fold it into the canonical
+    // playing-registration field before removing the duplicate.
+    if (row.registeredClubId !== undefined) {
+      player.currentClubId = row.registeredClubId;
+      delete row.registeredClubId;
+    }
+    if (player.ownerClubId === player.currentClubId) delete player.ownerClubId;
   }
 }
 
