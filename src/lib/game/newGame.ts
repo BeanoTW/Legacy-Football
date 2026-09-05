@@ -20,6 +20,7 @@ import { fixturesForClub, makeLeagueRows } from "./schedule";
 import { ensureClubIdentityStateInPlace } from "./clubIdentity";
 import { migrateClubReferencesToIdsInPlace } from "./clubReferenceMigration";
 import { ensureEmploymentStateInPlace } from "./employment";
+import { ensurePlayerRegistrationStateInPlace } from "./playerRegistration";
 
 /**
  * Canonical save schema version. Single source of truth: `newGame` stamps it,
@@ -29,7 +30,7 @@ import { ensureEmploymentStateInPlace } from "./employment";
  * (src/lib/game/migrations) — no module holds per-version field knowledge
  * outside that registry.
  */
-export const SAVE_VERSION = 18;
+export const SAVE_VERSION = 19;
 
 export function newGame(clubName: string, managerName: string, seed?: string): GameState {
   // `seed` is optional: verification suites pass a fixed seed so the whole
@@ -66,6 +67,9 @@ export function newGame(clubName: string, managerName: string, seed?: string): G
   // Schema v18: persist the club operating model only after club references
   // are opaque IDs, then retain the employment basis on every signed contract.
   ensureEmploymentStateInPlace(base);
+  // Schema v19: ownership and playing registration become explicit. Existing
+  // opening behaviour is preserved because both initially match currentClubId.
+  ensurePlayerRegistrationStateInPlace(base);
 
   return runWeeklyGenerators(base);
 }
