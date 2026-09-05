@@ -66,7 +66,7 @@ import {
   recruitmentWageForClub,
   recruitmentWageForLevel,
 } from "./recruitmentEconomy";
-import { userClubReference } from "./clubReference";
+import { sameClubReference, userClubReference } from "./clubReference";
 import {
   activeLoanForPlayer,
   ensureLoanStateInPlace,
