@@ -978,15 +978,16 @@ export interface FootballPlayer {
   primaryPosition: Position;
   secondaryPositions: Position[];
   /**
-   * Legacy compatibility projection of the club the player currently appears
-   * for. v19 keeps this synchronized with registeredClubId; new gameplay code
-   * should prefer the explicit ownership/registration selectors.
+   * Club the player is registered to represent. This remains the persisted
+   * compatibility field so existing saves/UI stay compact and stable.
    */
   currentClubId: string | null;
-  /** Contract-owning / parent club. Null for a free agent. */
+  /**
+   * Parent/contract-owning club override. Omitted while ownership matches
+   * currentClubId; populated only when the two identities genuinely diverge
+   * (for example, a loan).
+   */
   ownerClubId?: string | null;
-  /** Club the player is registered to represent. Null while unattached. */
-  registeredClubId?: string | null;
   /** Standing in the game world, 0-100. */
   reputation: number;
   currentAbility: number;
