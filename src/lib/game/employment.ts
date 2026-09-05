@@ -7,6 +7,7 @@ import type {
 } from "./types";
 import { footballLevelOfClub, type FootballLevel } from "./footballLevel";
 import { clubReputation } from "./reputation";
+import { isUserClubReference } from "./clubReference";
 
 /**
  * New-career / migration seed only. Once persisted, a club's operating model
@@ -26,10 +27,14 @@ export function initialClubOperatingModelFor(
 }
 
 function derivedClubOperatingModel(state: GameState, clubId: string): ClubOperatingModel {
-  return initialClubOperatingModelFor(
-    footballLevelOfClub(state, clubId),
-    clubReputation(state, clubId),
-  );
+  const level = footballLevelOfClub(state, clubId);
+  // The new-career contract is explicitly semi-professional. Keep this as a
+  // seed rule, not a permanent user-club exception: later-career migrations
+  // and future professionalisation use the club's actual persisted model.
+  if (state.season === 1 && level === 7 && isUserClubReference(state, clubId)) {
+    return "PartTime";
+  }
+  return initialClubOperatingModelFor(level, clubReputation(state, clubId));
 }
 
 /** Read persisted state, with a deterministic fallback for old/uninitialised saves. */
