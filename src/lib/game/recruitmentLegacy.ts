@@ -67,7 +67,7 @@ import {
   recruitmentWageForLevel,
 } from "./recruitmentEconomy";
 import { userClubReference } from "./clubReference";
-import { ensureLoanStateInPlace, processDuePlayerLoansInPlace } from "./loans";
+import { activeLoanForPlayer, ensureLoanStateInPlace, processDuePlayerLoansInPlace } from "./loans";
 import {
   ensurePlayerRegistrationStateInPlace,
   playerIsRegisteredTo,
@@ -1315,6 +1315,8 @@ export function openTransferEnquiryInPlace(
   ensureRecruitment(s);
   const p = transferTargetPlayer(s, playerId);
   if (!p) return { ok: false, reason: "Unknown player" };
+  if (activeLoanForPlayer(s, playerId))
+    return { ok: false, reason: "Player is currently on loan" };
   if (p.currentClubId === s.clubName) return { ok: false, reason: "He is already our player" };
   if (openNegotiations(s).some((n) => n.playerId === playerId)) {
     return { ok: false, reason: "Talks for this player are already open" };
@@ -1421,6 +1423,8 @@ export function openTransferNegotiationInPlace(
   ensureRecruitment(s);
   const p = transferTargetPlayer(s, playerId);
   if (!p) return { ok: false, reason: "Unknown player" };
+  if (activeLoanForPlayer(s, playerId))
+    return { ok: false, reason: "Player is currently on loan" };
   if (p.currentClubId === s.clubName) return { ok: false, reason: "He is already our player" };
   if (openNegotiations(s).some((n) => n.playerId === playerId)) {
     return { ok: false, reason: "Talks for this player are already open" };
@@ -1726,6 +1730,8 @@ export function respondToIncomingOfferInPlace(
   const abs = nowAbs(s);
   const p = playerById(s, n.playerId);
   if (!p) return { ok: false, reason: "Unknown player" };
+  if (activeLoanForPlayer(s, n.playerId))
+    return { ok: false, reason: "End the active loan before responding to a permanent-transfer bid" };
 
   if (action === "reject") {
     n.stage = "rejected";
@@ -1961,6 +1967,8 @@ export function completeTransferInPlace(s: GameState, negotiationId: string): Ne
   }
   let p = transferTargetPlayer(s, n.playerId);
   if (!p) return { ok: false, reason: "Unknown player" };
+  if (activeLoanForPlayer(s, n.playerId))
+    return { ok: false, reason: "End the active loan before completing a permanent transfer" };
   const abs = nowAbs(s);
 
   if (n.direction === "in") {
@@ -2132,7 +2140,7 @@ export function renewContractInPlace(
 ): NegotiationResult {
   const p = playerById(s, playerId);
   if (!p) return { ok: false, reason: "Unknown player" };
-  if (p.currentClubId !== s.clubName) return { ok: false, reason: "Not our player" };
+  if (playerOwnerClubId(p) !== s.clubName) return { ok: false, reason: "Not our player" };
   const old = activeContract(s, playerId);
   if (!old) return { ok: false, reason: "No contract to renew" };
   const base = renewalTerms(s, playerId);
@@ -2187,7 +2195,9 @@ export function renewContractInPlace(
 export function releasePlayerInPlace(s: GameState, playerId: string): NegotiationResult {
   const p = playerById(s, playerId);
   if (!p) return { ok: false, reason: "Unknown player" };
-  if (p.currentClubId !== s.clubName) return { ok: false, reason: "Not our player" };
+  if (playerOwnerClubId(p) !== s.clubName) return { ok: false, reason: "Not our player" };
+  if (activeLoanForPlayer(s, playerId))
+    return { ok: false, reason: "End the active loan before releasing the player" };
   const c = activeContract(s, playerId);
   if (!c) return { ok: false, reason: "No contract to terminate" };
   const weeksLeft = Math.max(0, weeksLeftOnContract(s, c));
@@ -2236,7 +2246,9 @@ export function setTransferStatusInPlace(
 ): NegotiationResult {
   const p = playerById(s, playerId);
   if (!p) return { ok: false, reason: "Unknown player" };
-  if (p.currentClubId !== s.clubName) return { ok: false, reason: "Not our player" };
+  if (playerOwnerClubId(p) !== s.clubName) return { ok: false, reason: "Not our player" };
+  if (activeLoanForPlayer(s, playerId))
+    return { ok: false, reason: "End the active loan before changing transfer status" };
   p.transferStatus = status;
   return { ok: true, reason: status === "listed" ? "Transfer listed" : "Removed from the list" };
 }
@@ -2369,7 +2381,11 @@ function generateIncomingOffers(s: GameState, windowOpen: boolean): void {
   const squad = userSquad(s);
   if (squad.length <= MIN_SQUAD_SIZE) return;
   const targets = squad.filter(
-    (p) => !openNegotiations(s).some((n) => n.playerId === p.id) && p.currentAbility >= 55,
+    (p) =>
+      playerOwnerClubId(p) === s.clubName &&
+      !activeLoanForPlayer(s, p.id) &&
+      !openNegotiations(s).some((n) => n.playerId === p.id) &&
+      p.currentAbility >= 55,
   );
   if (!targets.length) return;
   const p = targets[rngInt(rng, 0, targets.length - 1)];
