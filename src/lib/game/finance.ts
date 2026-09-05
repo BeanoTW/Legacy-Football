@@ -349,13 +349,30 @@ export function syncWeekLedger(s: GameState, season: number, week: number): void
 export const playerWageBill = (s: GameState) => {
   const contracts = s.football?.contracts;
   if (contracts) {
-    return int(
-      contracts
-        .filter(
-          (c) => isUserClubReference(s, c.clubId) && (c.status === "Active" || c.status === "Expiring"),
-        )
-        .reduce((a, c) => a + c.weeklyWage, 0),
+    const liveContracts = contracts.filter(
+      (c) => c.status === "Active" || c.status === "Expiring",
     );
+    let total = liveContracts
+      .filter((c) => isUserClubReference(s, c.clubId))
+      .reduce((a, c) => a + c.weeklyWage, 0);
+
+    // A loan contribution changes who funds the parent contract each week; it
+    // does not create a second player contract. Parent clubs receive relief,
+    // while loan clubs add only the agreed share to their own wage bill.
+    for (const loan of s.football?.loans ?? []) {
+      if (loan.status !== "Active") continue;
+      const contract = liveContracts.find(
+        (c) => c.playerId === loan.playerId && c.clubId === loan.parentClubId,
+      );
+      if (!contract) continue;
+      const contribution = int(
+        (contract.weeklyWage * loan.loanClubWageContributionPct) / 100,
+      );
+      if (isUserClubReference(s, loan.parentClubId)) total -= contribution;
+      if (isUserClubReference(s, loan.loanClubId)) total += contribution;
+    }
+
+    return int(Math.max(0, total));
   }
   return int((s.squad ?? []).reduce((a, p) => a + p.wage, 0));
 };
