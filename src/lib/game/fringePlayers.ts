@@ -145,6 +145,9 @@ function protectedCompactPlayerIds(state: GameState): Set<string> {
   for (const playerId of state.football?.shortlist ?? []) ids.add(playerId);
   for (const report of state.football?.scoutingReports ?? []) ids.add(report.playerId);
   for (const negotiation of state.football?.negotiations ?? []) ids.add(negotiation.playerId);
+  for (const loan of state.football?.loans ?? []) {
+    if (loan.status === "Active") ids.add(loan.playerId);
+  }
   return ids;
 }
 
