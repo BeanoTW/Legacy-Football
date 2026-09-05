@@ -12,7 +12,7 @@ import {
 } from "@/lib/game/recruitment";
 import { fmtMoney, fmtMoneyExact } from "@/lib/game/engine";
 import { playerOwnerClubId } from "@/lib/game/playerRegistration";
-import { userClubReference } from "@/lib/game/clubReference";
+import { isUserClubReference } from "@/lib/game/clubReference";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -29,10 +29,13 @@ export function OutgoingSalesDesk({
   // Registration makes loaned-in players part of the matchday squad, but it
   // does not make them saleable assets. The sales desk only exposes players
   // whose permanent ownership belongs to the user's club.
-  const squad = useMemo(() => {
-    const userClub = userClubReference(state);
-    return userSquad(state).filter((player) => playerOwnerClubId(player) === userClub);
-  }, [state]);
+  const squad = useMemo(
+    () =>
+      userSquad(state).filter((player) =>
+        isUserClubReference(state, playerOwnerClubId(player)),
+      ),
+    [state],
+  );
   const offers = useMemo(
     () => openNegotiations(state).filter((negotiation) => negotiation.direction === "out"),
     [state],
