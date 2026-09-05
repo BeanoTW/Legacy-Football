@@ -189,6 +189,14 @@ console.log("\n[U5] Canonical selectors, not UI arithmetic");
       /contractEmploymentType\(/.test(squad) &&
       /Club operating model/.test(squad),
   );
+  check(
+    "professionalisation UI uses readiness and canonical action rather than direct state mutation",
+    /userProfessionalisationReadiness\(state\)/.test(squad) &&
+      /professionaliseUserClub\(s\)/.test(squad) &&
+      /Confirm full-time transition/.test(squad) &&
+      !/employment\.clubModels\[[^\]]+\]\s*=/.test(squad) &&
+      !/setClubOperatingModelInPlace\(/.test(squad),
+  );
 }
 
 console.log("\n[U6] Recruitment knowledge boundary");
