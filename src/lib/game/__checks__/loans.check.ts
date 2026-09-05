@@ -12,12 +12,14 @@ import {
 } from "../playerRegistration";
 import {
   activeContract,
+  ageOf,
   assignScout,
   availabilityReason,
   completeTransferInPlace,
   freeAgents,
   reconcileRecruitmentFidelity,
   releasePlayerInPlace,
+  rollRecruitmentToNewSeason,
   scoutingView,
   setTransferStatusInPlace,
   squadOf,
@@ -31,6 +33,7 @@ import {
 } from "../playerFidelityReconcile";
 import { buildWorldSimulationPlan } from "../world";
 import { runPlayerCareerRollover } from "../careers";
+import { recruitmentWageForClub } from "../recruitmentEconomy";
 
 const state = newGame("Loan Audit FC", "Auditor", "PLAYER_LOAN_AUDIT");
 assert.equal(SAVE_VERSION, 20);
@@ -138,6 +141,23 @@ assert.equal(playerOwnerClubId(player), beforeCareerOwner);
 assert.equal(playerRegisteredClubId(player), beforeCareerRegistration);
 assert.equal(activeContract(state, player.id)?.id, beforeCareerContract);
 assert.equal(activeLoanForPlayer(state, player.id)?.id, started.loan.id);
+
+// Temporary registration must not rewrite permanent wage expectations at the
+// annual recruitment recalibration boundary. Economics stay anchored to the
+// parent/contract-owning club for the duration of the loan.
+rollRecruitmentToNewSeason(state);
+assert.equal(
+  player.wageExpectation,
+  recruitmentWageForClub(
+    state,
+    parentClub,
+    player.currentAbility,
+    ageOf(player, state.season),
+    player.potentialAbility,
+  ),
+);
+assert.equal(playerOwnerClubId(player), parentClub);
+assert.equal(playerRegisteredClubId(player), loanClub);
 
 // Permanent ownership mutations must not cut across a live loan. The parent
 // can only sell/release/list again after the temporary registration is closed.
