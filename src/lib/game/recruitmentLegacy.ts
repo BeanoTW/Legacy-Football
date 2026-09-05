@@ -506,7 +506,12 @@ export function reconcileRecruitmentFidelity(s: GameState): void {
 
   const removedPlayerIds = new Set(
     s.football.players
-      .filter((player) => player.currentClubId !== null && fringe.has(player.currentClubId))
+      .filter(
+        (player) =>
+          player.currentClubId !== null &&
+          fringe.has(player.currentClubId) &&
+          !activeLoanForPlayer(s, player.id),
+      )
       .map((player) => player.id),
   );
   if (removedPlayerIds.size) {
@@ -531,6 +536,7 @@ export function reconcileRecruitmentFidelity(s: GameState): void {
 
   const detailedClubs = new Set(
     s.football.players
+      .filter((player) => !activeLoanForPlayer(s, player.id))
       .map((player) => player.currentClubId)
       .filter((clubId): clubId is string => clubId !== null),
   );
