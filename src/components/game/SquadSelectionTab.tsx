@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils";
 import { MOOD_TONE_CLASS, playerMood } from "@/lib/game/character";
 import { fmtMoney } from "@/lib/game/engine";
 import { POSITION_BADGE_CLASS, POSITION_PITCH_CLASS } from "./playerPosition";
+import { clubOperatingModel, contractEmploymentType } from "@/lib/game/employment";
+import { userClubReference } from "@/lib/game/clubReference";
 
 const FORMATION: Position[] = [
   "GK",
@@ -29,6 +31,9 @@ const FORMATION: Position[] = [
 ];
 type Preset = "strongest" | "rested" | "youth";
 type SquadView = "pitch" | "details";
+
+const employmentLabel = (value: "PartTime" | "FullTime") =>
+  value === "PartTime" ? "Part-time" : "Full-time";
 
 export function SquadSelectionTab({
   state,
@@ -50,6 +55,9 @@ export function SquadSelectionTab({
   const bench = squad
     .filter((player) => !selected.has(player.id))
     .sort((a, b) => b.currentAbility - a.currentAbility);
+  const clubEmployment = employmentLabel(
+    clubOperatingModel(state, userClubReference(state)),
+  );
 
   const choose = (next: Preset) => {
     setPreset(next);
@@ -92,6 +100,9 @@ export function SquadSelectionTab({
                 <div className="text-[10px] uppercase tracking-[0.2em] opacity-70">Football department</div>
                 <h2 className="font-display text-2xl">Squad & selection</h2>
                 <p className="mt-1 max-w-2xl text-sm opacity-80">Pitch view for the XI; details view for quick contract and squad review.</p>
+                <div className="mt-2 inline-flex rounded-full border border-current/20 bg-black/10 px-2.5 py-1 text-xs font-semibold">
+                  Club operating model · {clubEmployment}
+                </div>
               </div>
               <Shield className="size-8 opacity-70" />
             </div>
@@ -169,13 +180,15 @@ function Pitch({ xi }: { xi: FootballPlayer[] }) {
 
 function CompactPlayerRow({ state, player, inXi }: { state: GameState; player: FootballPlayer; inXi: boolean }) {
   const contract = activeContract(state, player.id);
-  return <div className="grid grid-cols-[minmax(0,1.3fr)_repeat(4,auto)] items-center gap-2 px-3 py-2 text-xs"><div className="min-w-0"><div className="flex items-center gap-1.5"><span className="truncate font-semibold">{playerName(player)}</span>{inXi && <span className="text-[9px] font-bold text-primary">XI</span>}<span className={cn("rounded border px-1.5 py-0.5 text-[9px] font-bold", POSITION_BADGE_CLASS[player.primaryPosition])}>{player.primaryPosition}</span></div><div className="truncate text-[10px] text-muted-foreground">{ageOf(player, state.season)}y · {contract?.squadRole ?? "No role"}</div></div><div className="text-right"><div className="font-display text-base">{player.currentAbility}</div><div className="text-[9px] text-muted-foreground">OVR</div></div><div className="text-right"><div>{player.potentialAbility}</div><div className="text-[9px] text-muted-foreground">POT</div></div><div className="text-right"><div>{contract ? fmtMoney(contract.weeklyWage) : "—"}</div><div className="text-[9px] text-muted-foreground">/wk</div></div><div className="text-right"><div>{contract ? `${weeksLeftOnContract(state, contract)}w` : "—"}</div><div className="text-[9px] text-muted-foreground">contract</div></div></div>;
+  const employment = contract ? employmentLabel(contractEmploymentType(state, contract)) : null;
+  return <div className="grid grid-cols-[minmax(0,1.3fr)_repeat(4,auto)] items-center gap-2 px-3 py-2 text-xs"><div className="min-w-0"><div className="flex items-center gap-1.5"><span className="truncate font-semibold">{playerName(player)}</span>{inXi && <span className="text-[9px] font-bold text-primary">XI</span>}<span className={cn("rounded border px-1.5 py-0.5 text-[9px] font-bold", POSITION_BADGE_CLASS[player.primaryPosition])}>{player.primaryPosition}</span></div><div className="truncate text-[10px] text-muted-foreground">{ageOf(player, state.season)}y · {contract?.squadRole ?? "No role"}{employment ? ` · ${employment}` : ""}</div></div><div className="text-right"><div className="font-display text-base">{player.currentAbility}</div><div className="text-[9px] text-muted-foreground">OVR</div></div><div className="text-right"><div>{player.potentialAbility}</div><div className="text-[9px] text-muted-foreground">POT</div></div><div className="text-right"><div>{contract ? fmtMoney(contract.weeklyWage) : "—"}</div><div className="text-[9px] text-muted-foreground">/wk</div></div><div className="text-right"><div>{contract ? `${weeksLeftOnContract(state, contract)}w` : "—"}</div><div className="text-[9px] text-muted-foreground">contract</div></div></div>;
 }
 
 function PlayerRow({ state, player }: { state: GameState; player: FootballPlayer }) {
   const contract = activeContract(state, player.id);
+  const employment = contract ? employmentLabel(contractEmploymentType(state, contract)) : null;
   const mood = playerMood(state, player);
-  return <div className="grid grid-cols-[1fr_auto] gap-3 px-4 py-3"><div className="min-w-0"><div className="flex items-center gap-2"><span className="truncate font-semibold">{playerName(player)}</span><span className={cn("rounded border px-1.5 py-0.5 text-[10px] font-bold", POSITION_BADGE_CLASS[player.primaryPosition])}>{player.primaryPosition}</span></div><div className="mt-0.5 text-xs text-muted-foreground">{ageOf(player, state.season)}y · {player.nationality} · Ability {player.currentAbility} · Potential {player.potentialAbility}</div><div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground"><span className="truncate">{contract ? `${contract.squadRole} · ${weeksLeftOnContract(state, contract)} weeks left` : "No active contract"}</span><span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${MOOD_TONE_CLASS[mood.tone]}`}>{mood.label}</span></div></div><div className="text-right"><div className="font-display text-xl">{player.currentAbility}</div><div className="text-[10px] uppercase text-muted-foreground">OVR</div></div></div>;
+  return <div className="grid grid-cols-[1fr_auto] gap-3 px-4 py-3"><div className="min-w-0"><div className="flex items-center gap-2"><span className="truncate font-semibold">{playerName(player)}</span><span className={cn("rounded border px-1.5 py-0.5 text-[10px] font-bold", POSITION_BADGE_CLASS[player.primaryPosition])}>{player.primaryPosition}</span></div><div className="mt-0.5 text-xs text-muted-foreground">{ageOf(player, state.season)}y · {player.nationality} · Ability {player.currentAbility} · Potential {player.potentialAbility}</div><div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground"><span className="truncate">{contract ? `${contract.squadRole} · ${employment} · ${weeksLeftOnContract(state, contract)} weeks left` : "No active contract"}</span><span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${MOOD_TONE_CLASS[mood.tone]}`}>{mood.label}</span></div></div><div className="text-right"><div className="font-display text-xl">{player.currentAbility}</div><div className="text-[10px] uppercase text-muted-foreground">OVR</div></div></div>;
 }
 
 function PresetButton({ active, onClick, title, sub }: { active: boolean; onClick: () => void; title: string; sub: string }) {
