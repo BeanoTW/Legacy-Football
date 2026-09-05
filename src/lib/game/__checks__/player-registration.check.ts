@@ -13,21 +13,20 @@ const state = newGame("Registration Identity FC", "Auditor", "PLAYER_REGISTRATIO
 assert.equal(SAVE_VERSION, 19);
 
 for (const player of state.football.players) {
-  assert.notEqual(player.ownerClubId, undefined, `${player.id} missing explicit ownerClubId`);
-  assert.notEqual(
-    player.registeredClubId,
-    undefined,
-    `${player.id} missing explicit registeredClubId`,
+  assert.equal(
+    playerOwnerClubId(player),
+    playerRegisteredClubId(player),
+    "fresh pre-loan careers should begin with ownership and registration aligned",
   );
   assert.equal(
+    playerRegisteredClubId(player),
     player.currentClubId,
-    player.registeredClubId,
-    "legacy currentClubId must project playing registration",
+    "currentClubId is the canonical playing-registration reference",
   );
   assert.equal(
     player.ownerClubId,
-    player.registeredClubId,
-    "fresh pre-loan careers should begin with ownership and registration aligned",
+    undefined,
+    "ordinary aligned ownership should not duplicate the persisted club id",
   );
 }
 
@@ -38,7 +37,7 @@ for (const freeAgent of freeAgents(state)) {
 
 const userPlayer = userSquad(state)[0];
 assert.ok(userPlayer, "registration fixture needs a user player");
-const userClub = userPlayer.ownerClubId!;
+const userClub = playerOwnerClubId(userPlayer)!;
 const rival = state.leagues
   .flatMap((league) => league.clubIds)
   .find((clubId) => clubId !== userClub);
@@ -61,7 +60,6 @@ const legacy = newGame("Registration Migration FC", "Auditor", "PLAYER_REGISTRAT
 legacy.version = 18;
 for (const player of legacy.football.players) {
   delete player.ownerClubId;
-  delete player.registeredClubId;
 }
 const before = legacy.football.players.map((player) => ({
   id: player.id,
@@ -80,8 +78,13 @@ assert.deepEqual(
   "v19 migration must not move players or change contract attachment",
 );
 for (const player of migrated.football.players) {
-  assert.equal(player.ownerClubId, player.currentClubId);
-  assert.equal(player.registeredClubId, player.currentClubId);
+  assert.equal(playerOwnerClubId(player), player.currentClubId);
+  assert.equal(playerRegisteredClubId(player), player.currentClubId);
+  assert.equal(
+    player.ownerClubId,
+    undefined,
+    "v19 migration should not inflate ordinary aligned player identity",
+  );
 }
 
 console.log("player-registration: passed");
