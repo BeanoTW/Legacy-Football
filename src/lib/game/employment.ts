@@ -26,6 +26,20 @@ export function initialClubOperatingModelFor(
   return reputation >= 65 ? "FullTime" : "PartTime";
 }
 
+/**
+ * Employment pressure on NEW wage negotiations.
+ *
+ * Levels 1-6 keep their already-calibrated professional economy unchanged.
+ * At native semi-professional levels 7-8, going full-time raises future wage
+ * expectations without touching any signed contract.
+ */
+export function employmentNegotiationWageFactorFor(
+  model: ClubOperatingModel,
+  level: FootballLevel,
+): number {
+  return model === "FullTime" && level >= 7 ? 1.15 : 1;
+}
+
 function derivedClubOperatingModel(state: GameState, clubId: string): ClubOperatingModel {
   const level = footballLevelOfClub(state, clubId);
   // The new-career contract is explicitly semi-professional. Keep this as a
