@@ -35,7 +35,7 @@ import type {
   WageSummary,
   WeekLedger,
 } from "./types";
-import { isUserClubReference, userClubReference } from "./clubReference";
+import { isUserClubReference, sameClubReference, userClubReference } from "./clubReference";
 import { absoluteWeek } from "./time";
 import {
   profileForTier,
@@ -362,7 +362,9 @@ export const playerWageBill = (s: GameState) => {
     for (const loan of s.football?.loans ?? []) {
       if (loan.status !== "Active") continue;
       const contract = liveContracts.find(
-        (c) => c.playerId === loan.playerId && c.clubId === loan.parentClubId,
+        (c) =>
+          c.playerId === loan.playerId &&
+          sameClubReference(s, c.clubId, loan.parentClubId),
       );
       if (!contract) continue;
       const contribution = int(
