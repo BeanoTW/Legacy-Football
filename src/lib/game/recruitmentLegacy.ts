@@ -67,6 +67,7 @@ import {
   recruitmentWageForLevel,
 } from "./recruitmentEconomy";
 import { userClubReference } from "./clubReference";
+import { ensureLoanStateInPlace, processDuePlayerLoansInPlace } from "./loans";
 import {
   ensurePlayerRegistrationStateInPlace,
   playerIsRegisteredTo,
@@ -625,6 +626,7 @@ export function ensureRecruitment(s: GameState): void {
     s.football.contractHistory ??= [];
     s.football.seasonHistory ??= [];
     s.football.scoutingReports ??= [];
+    ensureLoanStateInPlace(s);
     // Expand older saves without replacing any existing player or history.
     // Stable ids make this idempotent and preserve signed/released free agents.
     const knownPlayerIds = new Set(s.football.players.map((player) => player.id));
@@ -651,12 +653,14 @@ export function ensureRecruitment(s: GameState): void {
     negotiations: [],
     shortlist: [],
     scoutingReports: [],
+    loans: [],
     department: defaultDepartment(s),
     transferHistory: [],
     contractHistory: [],
     seasonHistory: [],
     nextContractId: contracts.length + 1,
     nextNegotiationId: 1,
+    nextLoanId: 1,
     nextRecordId: 1,
     generatedSeason: s.season,
   };
@@ -2564,6 +2568,9 @@ function replenishFreeAgents(s: GameState): void {
 /** Called once per week from advanceWeek, before the inbox runs. */
 export function runRecruitmentWeek(s: GameState, windowOpen: boolean): void {
   ensureRecruitment(s);
+  // Registration returns to the parent club before a same-week parent contract
+  // expiry can make the player a free agent.
+  processDuePlayerLoansInPlace(s);
   processExpiries(s);
   expireNegotiations(s);
   replenishFreeAgents(s);
