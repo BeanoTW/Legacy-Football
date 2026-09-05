@@ -68,6 +68,13 @@ import {
 } from "./recruitmentEconomy";
 import { userClubReference } from "./clubReference";
 import {
+  ensurePlayerRegistrationStateInPlace,
+  playerIsRegisteredTo,
+  playerOwnerClubId,
+  playerRegisteredClubId,
+  setPlayerClubIdentityInPlace,
+} from "./playerRegistration";
+import {
   materializeTransferTargetForCompletionInPlace,
   recordCompletedTransferLifecycleInPlace,
   syncTransferTargetNegotiationInPlace,
@@ -631,6 +638,7 @@ export function ensureRecruitment(s: GameState): void {
     }
     reconcileRecruitmentFidelity(s);
     if (s.clubIdentity) ensureEmploymentStateInPlace(s);
+    ensurePlayerRegistrationStateInPlace(s);
     syncLegacySquad(s);
     return;
   }
@@ -652,6 +660,7 @@ export function ensureRecruitment(s: GameState): void {
   };
   s.football = state;
   if (s.clubIdentity) ensureEmploymentStateInPlace(s);
+  ensurePlayerRegistrationStateInPlace(s);
   syncLegacySquad(s);
 }
 
@@ -778,14 +787,16 @@ export function activeContract(s: GameState, playerId: string): PlayerContract |
 
 export function squadOf(s: GameState, club: string): FootballPlayer[] {
   return (s.football?.players ?? [])
-    .filter((p) => p.currentClubId === club)
+    .filter((p) => playerIsRegisteredTo(p, club))
     .sort((a, b) => b.currentAbility - a.currentAbility || a.id.localeCompare(b.id));
 }
 
 export const userSquad = (s: GameState) => squadOf(s, s.clubName);
 
 export const freeAgents = (s: GameState) =>
-  (s.football?.players ?? []).filter((p) => p.currentClubId === null);
+  (s.football?.players ?? []).filter(
+    (p) => playerOwnerClubId(p) === null && playerRegisteredClubId(p) === null,
+  );
 
 export function contractExpiresAbs(c: PlayerContract): number {
   return absoluteWeek(c.expirySeason, c.expiryWeek);
@@ -1993,7 +2004,7 @@ export function completeTransferInPlace(s: GameState, negotiationId: string): Ne
       n.proposedSigningBonus,
       n.fee,
     );
-    p.currentClubId = s.clubName;
+    setPlayerClubIdentityInPlace(p, s.clubName);
     p.contractId = fresh.id;
     p.transferStatus = "unlisted";
   } else {
@@ -2027,7 +2038,7 @@ export function completeTransferInPlace(s: GameState, negotiationId: string): Ne
       0,
       n.fee,
     );
-    p.currentClubId = n.toClubId;
+    setPlayerClubIdentityInPlace(p, n.toClubId);
     p.contractId = fresh.id;
     p.transferStatus = "unlisted";
   }
@@ -2188,7 +2199,7 @@ export function releasePlayerInPlace(s: GameState, playerId: string): Negotiatio
     });
   }
   closeContract(s, c, "released", "Released");
-  p.currentClubId = null;
+  setPlayerClubIdentityInPlace(p, null);
   p.contractId = null;
   p.transferStatus = "listed";
   s.football.transferHistory.push({
@@ -2255,7 +2266,7 @@ function renewAiContract(s: GameState, c: PlayerContract, p: FootballPlayer): vo
     0,
     0,
   );
-  p.currentClubId = c.clubId;
+  setPlayerClubIdentityInPlace(p, c.clubId);
   p.contractId = fresh.id;
   p.transferStatus = "unlisted";
 }
@@ -2292,7 +2303,7 @@ function processExpiries(s: GameState): void {
         week: s.week,
       });
       if (p && p.contractId === c.id) {
-        p.currentClubId = null;
+        setPlayerClubIdentityInPlace(p, null);
         p.contractId = null;
         p.transferStatus = "listed";
         s.football.transferHistory.push({
@@ -2413,7 +2424,7 @@ function registerFreeSigning(
   club: string,
   c: PlayerContract,
 ): void {
-  pick.currentClubId = club;
+  setPlayerClubIdentityInPlace(pick, club);
   pick.contractId = c.id;
   pick.transferStatus = "unlisted";
   s.football.transferHistory.push({
