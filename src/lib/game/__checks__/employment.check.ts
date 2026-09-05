@@ -3,6 +3,7 @@ import { migrateSave, newGame, SAVE_VERSION } from "../engine";
 import {
   clubOperatingModel,
   contractEmploymentType,
+  employmentNegotiationWageFactorFor,
   initialClubOperatingModelFor,
   playerEmploymentStatus,
   setClubOperatingModelInPlace,
@@ -13,6 +14,7 @@ import {
   renewalTerms,
   renewContractInPlace,
   userSquad,
+  wageDemand,
 } from "../recruitment";
 
 const state = newGame("Employment Audit FC", "Auditor", "EMPLOYMENT_MODEL_AUDIT");
@@ -34,6 +36,22 @@ assert.equal(initialClubOperatingModelFor(6, 31), "PartTime");
 assert.equal(initialClubOperatingModelFor(6, 32), "FullTime");
 assert.equal(initialClubOperatingModelFor(8, 64), "PartTime");
 assert.equal(initialClubOperatingModelFor(8, 65), "FullTime");
+
+assert.equal(
+  employmentNegotiationWageFactorFor("PartTime", 7),
+  1,
+  "part-time Level 7 must retain the calibrated wage baseline",
+);
+assert.equal(
+  employmentNegotiationWageFactorFor("FullTime", 7),
+  1.15,
+  "full-time Level 7 should carry explicit professional wage pressure",
+);
+assert.equal(
+  employmentNegotiationWageFactorFor("FullTime", 5),
+  1,
+  "already-professional levels must not be double-charged by the employment factor",
+);
 
 for (const league of state.leagues) {
   for (const clubId of league.clubIds) {
@@ -62,9 +80,21 @@ assert.ok(samplePlayer, "opening user squad missing");
 const oldContract = activeContract(state, samplePlayer.id);
 assert.ok(oldContract, "opening active contract missing");
 assert.equal(playerEmploymentStatus(state, samplePlayer.id), "PartTime");
+const signedWageBefore = oldContract.weeklyWage;
+const partTimeDemand = wageDemand(state, samplePlayer, oldContract.squadRole);
 
 // Strategic club-model changes are forward-looking; signed deals are immutable.
 setClubOperatingModelInPlace(state, userClubId, "FullTime");
+const fullTimeDemand = wageDemand(state, samplePlayer, oldContract.squadRole);
+assert.ok(
+  fullTimeDemand > partTimeDemand,
+  `full-time wage demand should exceed part-time demand: ${partTimeDemand} -> ${fullTimeDemand}`,
+);
+assert.equal(
+  oldContract.weeklyWage,
+  signedWageBefore,
+  "changing operating model must never uplift an already-signed wage",
+);
 assert.equal(clubOperatingModel(state, userClubId), "FullTime");
 assert.equal(
   oldContract.employmentType,
