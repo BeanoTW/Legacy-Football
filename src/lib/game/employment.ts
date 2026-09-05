@@ -40,6 +40,20 @@ export function employmentNegotiationWageFactorFor(
   return model === "FullTime" && level >= 7 ? 1.15 : 1;
 }
 
+/**
+ * Recruitment-attraction benefit of a lower-league full-time setup.
+ *
+ * This is deliberately modest: it acts like +4 club reputation when judging
+ * whether a player is willing to talk. Higher levels are already professional
+ * by economic design and receive no duplicate bonus.
+ */
+export function employmentRecruitmentReputationBonusFor(
+  model: ClubOperatingModel,
+  level: FootballLevel,
+): number {
+  return model === "FullTime" && level >= 7 ? 4 : 0;
+}
+
 function derivedClubOperatingModel(state: GameState, clubId: string): ClubOperatingModel {
   const level = footballLevelOfClub(state, clubId);
   // The new-career contract is explicitly semi-professional. Keep this as a
