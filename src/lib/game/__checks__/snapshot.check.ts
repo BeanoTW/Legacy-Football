@@ -26,8 +26,9 @@ function check(label: string, cond: boolean, extra?: string) {
 
 const SEED = "PHASE0|SNAPSHOT|FIXED";
 const WEEKS_PER_SEASON = 46;
-// The recorded fingerprints were taken at schema v12. Keep this frozen: the
-// snapshot protects simulation behaviour, while migration suites protect schema.
+// Normalize only the schema-version field to the historical sentinel. The
+// fingerprints themselves are refreshed whenever intentional persisted gameplay
+// state changes; migration suites separately protect schema evolution.
 const SNAPSHOT_SCHEMA_BASELINE = 12;
 
 type SnapshotState = Omit<GameState, "version"> & { version: number };
@@ -77,11 +78,6 @@ for (const p of points) {
       if (basisParts) {
         const drift = Object.keys(parts).filter((k) => parts[k] !== basisParts[k]);
         console.log(`     drifted keys: ${drift.join(", ") || "(structure changed)"}`);
-        for (const key of drift) {
-          console.log(
-            `     current ${key}: ${parts[key]} (expected ${basisParts[key] ?? "missing"})`,
-          );
-        }
       }
     }
   }
