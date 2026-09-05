@@ -30,6 +30,7 @@ import {
   repairFreshFocusHydrationInPlace,
 } from "../playerFidelityReconcile";
 import { buildWorldSimulationPlan } from "../world";
+import { runPlayerCareerRollover } from "../careers";
 
 const state = newGame("Loan Audit FC", "Auditor", "PLAYER_LOAN_AUDIT");
 assert.equal(SAVE_VERSION, 20);
@@ -124,6 +125,18 @@ compactDepartingFocusPlayersInPlace(state);
 reconcileRecruitmentFidelity(state);
 assert.ok(state.football.players.some((row) => row.id === player.id));
 assert.equal(activeContract(state, player.id)?.id, parentContractId);
+assert.equal(activeLoanForPlayer(state, player.id)?.id, started.loan.id);
+
+// Season-boundary career logic must treat the active loan as a protected
+// temporary registration: development can run, but retirement/AI transfer
+// paths cannot dissolve or permanently move the player mid-agreement.
+const beforeCareerOwner = playerOwnerClubId(player);
+const beforeCareerRegistration = playerRegisteredClubId(player);
+const beforeCareerContract = activeContract(state, player.id)!.id;
+runPlayerCareerRollover(state);
+assert.equal(playerOwnerClubId(player), beforeCareerOwner);
+assert.equal(playerRegisteredClubId(player), beforeCareerRegistration);
+assert.equal(activeContract(state, player.id)?.id, beforeCareerContract);
 assert.equal(activeLoanForPlayer(state, player.id)?.id, started.loan.id);
 
 // Permanent ownership mutations must not cut across a live loan. The parent
