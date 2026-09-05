@@ -2643,12 +2643,17 @@ export function rollRecruitmentToNewSeason(s: GameState): void {
   ensureRecruitment(s);
   for (const p of s.football.players) {
     const age = ageOf(p, s.season);
-    const level = p.currentClubId
-      ? recruitmentLevelOfClub(s, p.currentClubId)
+    // A loan changes playing registration, not the permanent employment
+    // context used for value/wage recalibration. Otherwise a temporary spell
+    // at a richer or poorer club would silently rewrite the player's market
+    // expectations at season rollover.
+    const economicClubId = playerOwnerClubId(p);
+    const level = economicClubId
+      ? recruitmentLevelOfClub(s, economicClubId)
       : recruitmentLevelOfUser(s);
     p.marketValue = recruitmentPlayerValue(p.currentAbility, p.potentialAbility, age, level);
-    p.wageExpectation = p.currentClubId
-      ? recruitmentWageForClub(s, p.currentClubId, p.currentAbility, age, p.potentialAbility)
+    p.wageExpectation = economicClubId
+      ? recruitmentWageForClub(s, economicClubId, p.currentAbility, age, p.potentialAbility)
       : recruitmentWageForLevel(level, p.currentAbility, 45, age, p.potentialAbility);
   }
   syncLegacySquad(s);
