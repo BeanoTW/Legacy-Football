@@ -1,5 +1,5 @@
 import { strict as assert } from "node:assert";
-import { migrateSave, newGame, SAVE_VERSION } from "../engine";
+import { advanceWeek, migrateSave, newGame, SAVE_VERSION } from "../engine";
 import { playerWageBill } from "../finance";
 import {
   activeLoanForPlayer,
@@ -290,6 +290,56 @@ assert.equal(second.loan!.status, "Terminated");
 assert.equal(playerOwnerClubId(player), parentClub);
 assert.equal(playerRegisteredClubId(player), parentClub);
 assert.equal(player.ownerClubId, undefined);
+
+// The weekly finance boundary must settle a due loan before posting wages.
+// A one-week loan started in week 1 shares only week-1 payroll; week 2 is back
+// on the full parent wage once the agreement reaches its due absolute week.
+const payrollBoundary = newGame("Loan Payroll FC", "Auditor", "PLAYER_LOAN_PAYROLL_BOUNDARY");
+const payrollPlayer = userSquad(payrollBoundary)[0];
+const payrollParent = playerOwnerClubId(payrollPlayer)!;
+const payrollLoanClub = buildWorldSimulationPlan(payrollBoundary).fringeClubIds[0]!;
+const payrollContract = activeContract(payrollBoundary, payrollPlayer.id)!;
+const payrollFullBill = playerWageBill(payrollBoundary);
+const payrollLoan = startPlayerLoanInPlace(
+  payrollBoundary,
+  payrollPlayer.id,
+  payrollLoanClub,
+  1,
+  50,
+  "Rotation",
+);
+assert.ok(payrollLoan.ok, payrollLoan.reason);
+const afterWeekOne = advanceWeek(payrollBoundary);
+const weekOneWages = afterWeekOne.financeLedger.find(
+  (entry) =>
+    entry.season === 1 &&
+    entry.week === 1 &&
+    entry.category === "Wages" &&
+    entry.subcategory === "Player wages",
+);
+assert.equal(
+  weekOneWages?.amount,
+  payrollFullBill - Math.round(payrollContract.weeklyWage * 0.5),
+  "loan contribution should apply to the covered payroll week",
+);
+const afterWeekTwo = advanceWeek(afterWeekOne);
+const returnedPayrollPlayer = afterWeekTwo.football.players.find(
+  (row) => row.id === payrollPlayer.id,
+)!;
+assert.equal(activeLoanForPlayer(afterWeekTwo, payrollPlayer.id), undefined);
+assert.equal(playerRegisteredClubId(returnedPayrollPlayer), payrollParent);
+const weekTwoWages = afterWeekTwo.financeLedger.find(
+  (entry) =>
+    entry.season === 1 &&
+    entry.week === 2 &&
+    entry.category === "Wages" &&
+    entry.subcategory === "Player wages",
+);
+assert.equal(
+  weekTwoWages?.amount,
+  playerWageBill(afterWeekTwo),
+  "due loan must return before the next week's payroll is booked",
+);
 
 // A live v20 loan must survive the actual persisted JSON shape intact. This
 // catches sparse owner/registration or loan-counter fields being lost even
