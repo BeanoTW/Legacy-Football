@@ -25,12 +25,16 @@ import {
 import { MOOD_TONE_CLASS, playerMood } from "@/lib/game/character";
 import { transferTargetPlayer } from "@/lib/game/recruitmentTargetBridge";
 import { chairmanRecruitmentEstimate } from "@/lib/game/recruitmentKnowledge";
-import { clubDisplayName } from "@/lib/game/clubReference";
+import { clubDisplayName, userClubReference } from "@/lib/game/clubReference";
+import { clubOperatingModel, contractEmploymentType } from "@/lib/game/employment";
 import {
   recruitmentTransferFeePolicyForClub,
   recruitmentTransferFeePolicyForUser,
   recruitmentUserNegotiationWageStep,
 } from "@/lib/game/recruitmentEconomy";
+
+const employmentLabel = (value: "PartTime" | "FullTime") =>
+  value === "PartTime" ? "Part-time" : "Full-time";
 
 export function RecruitmentOperations({
   state,
@@ -55,6 +59,9 @@ export function RecruitmentOperations({
     });
   const deals = openNegotiations(state);
   const squad = userSquad(state);
+  const clubEmployment = employmentLabel(
+    clubOperatingModel(state, userClubReference(state)),
+  );
   const selectedPlayer = selectedPlayerId ? playerById(state, selectedPlayerId) : undefined;
   const positionGroups = useMemo(
     () =>
@@ -89,6 +96,7 @@ export function RecruitmentOperations({
   const playerRow = (player: (typeof squad)[number]) => {
     const contract = activeContract(state, player.id);
     const weeksLeft = contract ? weeksLeftOnContract(state, contract) : 0;
+    const employment = contract ? employmentLabel(contractEmploymentType(state, contract)) : null;
     const mood = playerMood(state, player);
     return (
       <button
@@ -102,7 +110,7 @@ export function RecruitmentOperations({
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold">{playerName(player)}</span>
           <span className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
-            <span className="truncate">Age {ageOf(player, state.season)} · {contract?.squadRole ?? "Unregistered"}</span>
+            <span className="truncate">Age {ageOf(player, state.season)} · {contract?.squadRole ?? "Unregistered"}{employment ? ` · ${employment}` : ""}</span>
             <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${MOOD_TONE_CLASS[mood.tone]}`}>{mood.label}</span>
           </span>
         </span>
@@ -152,7 +160,7 @@ export function RecruitmentOperations({
             <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
               Select a player to view abilities, profile and contract details.
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <PlanningMetric label="Squad" value={String(squad.length)} />
               <PlanningMetric
                 label="Expiring"
@@ -160,6 +168,7 @@ export function RecruitmentOperations({
                 urgent={expiringCount > 0}
               />
               <PlanningMetric label="Wages" value={`${fmtMoney(userWageBill(state))}/wk`} />
+              <PlanningMetric label="Club model" value={clubEmployment} />
             </div>
             {positionNeeds.length > 0 && (
               <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
@@ -514,6 +523,7 @@ function PlayerProfile({
 }) {
   const attrs = playerAttributes(player);
   const contract = activeContract(state, player.id);
+  const employment = contract ? employmentLabel(contractEmploymentType(state, contract)) : "—";
   const mood = playerMood(state, player);
   return (
     <div className="space-y-4">
@@ -536,13 +546,14 @@ function PlayerProfile({
           </div>
         </div>
         <div className="p-5">
-          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4 lg:grid-cols-7">
             <ProfileFact label="Value" value={fmtMoney(player.marketValue)} />
             <ProfileFact
               label="Wage"
               value={contract ? `${fmtMoneyExact(contract.weeklyWage)}/wk` : "—"}
             />
             <ProfileFact label="Role" value={contract?.squadRole ?? "—"} />
+            <ProfileFact label="Employment" value={employment} />
             <ProfileFact label="Preferred foot" value={player.preferredFoot} />
             <ProfileFact label="Personality" value={player.personality} />
             <ProfileFact label="Mood" value={mood.label} />
