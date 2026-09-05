@@ -9,6 +9,7 @@
 import type { GameState, FixtureResult } from "./types";
 import { runWeeklyGenerators } from "./inbox";
 import { runRecruitmentWeek } from "./recruitment";
+import { processDuePlayerLoansInPlace } from "./loans";
 import { withCanonicalUserClubReference } from "./legacyUserClubBoundary";
 import {
   compactDepartingFocusPlayersInPlace,
@@ -95,6 +96,11 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   const s: GameState = structuredClone(prev);
   ensureFinance(s);
 
+  // Loan contributions affect the payroll booked for this exact week. Close
+  // any agreement due at the current absolute week before recurring wages are
+  // posted; recruitment later repeats the same operation idempotently before
+  // contract expiries.
+  processDuePlayerLoansInPlace(s);
   runInfrastructureWeek(s);
   postRecurringWeek(s);
   // Commercial and recruitment still contain a few legacy `clubName` identity
