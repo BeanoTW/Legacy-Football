@@ -1174,10 +1174,7 @@ export interface PlayerLoanAgreement {
   loanClubId: string;
   startAbsoluteWeek: number;
   endAbsoluteWeek: number;
-  /**
-   * Percentage of the parent contract wage paid by the loan club, 0-100.
-   * No money is moved yet; finance integration is a later slice.
-   */
+  /** Percentage of the parent contract wage funded by the loan club, 0-100. */
   loanClubWageContributionPct: number;
   playingTimeExpectation: LoanPlayingTimeExpectation;
   status: PlayerLoanStatus;
