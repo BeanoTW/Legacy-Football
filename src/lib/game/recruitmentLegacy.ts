@@ -47,6 +47,7 @@ import { legacyTierToFootballLevel, type FootballLevel } from "./footballLevel";
 import {
   clubOperatingModel,
   contractEmploymentType,
+  employmentNegotiationWageFactorFor,
   ensureEmploymentStateInPlace,
 } from "./employment";
 import {
@@ -1018,8 +1019,13 @@ export function wageDemand(
   const attraction = clamp(facilityModifiers(s).recruitmentAttraction, -15, 15);
   const facilityFactor = clamp(1 - attraction / 250, 0.94, 1.06);
   const growth = clubGrowthFactor(s);
+  const employmentFactor = employmentNegotiationWageFactorFor(
+    clubOperatingModel(s, s.clubName),
+    recruitmentLevelOfUser(s),
+  );
   const rawDemand =
-    (p.wageExpectation * roleFactor * personality * facilityFactor * growth) / ambitionGap;
+    (p.wageExpectation * roleFactor * personality * facilityFactor * growth * employmentFactor) /
+    ambitionGap;
   return recruitmentUserNegotiationWage(s, rawDemand);
 }
 
