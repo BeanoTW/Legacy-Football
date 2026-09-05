@@ -21,6 +21,7 @@ import { ensureClubIdentityStateInPlace } from "./clubIdentity";
 import { migrateClubReferencesToIdsInPlace } from "./clubReferenceMigration";
 import { ensureEmploymentStateInPlace } from "./employment";
 import { ensurePlayerRegistrationStateInPlace } from "./playerRegistration";
+import { ensureLoanStateInPlace } from "./loans";
 
 /**
  * Canonical save schema version. Single source of truth: `newGame` stamps it,
@@ -30,7 +31,7 @@ import { ensurePlayerRegistrationStateInPlace } from "./playerRegistration";
  * (src/lib/game/migrations) — no module holds per-version field knowledge
  * outside that registry.
  */
-export const SAVE_VERSION = 19;
+export const SAVE_VERSION = 20;
 
 export function newGame(clubName: string, managerName: string, seed?: string): GameState {
   // `seed` is optional: verification suites pass a fixed seed so the whole
@@ -70,6 +71,9 @@ export function newGame(clubName: string, managerName: string, seed?: string): G
   // Schema v19: ownership and playing registration become explicit. Existing
   // opening behaviour is preserved because both initially match currentClubId.
   ensurePlayerRegistrationStateInPlace(base);
+  // Schema v20: loans are explicit agreements layered over the sparse
+  // ownership/registration model. Fresh careers begin with none.
+  ensureLoanStateInPlace(base);
 
   return runWeeklyGenerators(base);
 }
