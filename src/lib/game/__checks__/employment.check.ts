@@ -4,13 +4,17 @@ import {
   clubOperatingModel,
   contractEmploymentType,
   employmentNegotiationWageFactorFor,
+  employmentRecruitmentReputationBonusFor,
   initialClubOperatingModelFor,
   playerEmploymentStatus,
   setClubOperatingModelInPlace,
 } from "../employment";
 import { footballLevelOfClub, footballLevelOfUser } from "../footballLevel";
+import { clubReputation } from "../reputation";
 import {
   activeContract,
+  freeAgents,
+  playerInterestAssessment,
   renewalTerms,
   renewContractInPlace,
   userSquad,
@@ -53,6 +57,22 @@ assert.equal(
   "already-professional levels must not be double-charged by the employment factor",
 );
 
+assert.equal(
+  employmentRecruitmentReputationBonusFor("PartTime", 7),
+  0,
+  "part-time Level 7 must retain the existing recruitment-interest baseline",
+);
+assert.equal(
+  employmentRecruitmentReputationBonusFor("FullTime", 7),
+  4,
+  "full-time Level 7 should gain a modest recruitment-attraction advantage",
+);
+assert.equal(
+  employmentRecruitmentReputationBonusFor("FullTime", 5),
+  0,
+  "professional levels must not receive a duplicate employment attraction bonus",
+);
+
 for (const league of state.leagues) {
   for (const clubId of league.clubIds) {
     const model = clubOperatingModel(state, clubId);
@@ -82,10 +102,25 @@ assert.ok(oldContract, "opening active contract missing");
 assert.equal(playerEmploymentStatus(state, samplePlayer.id), "PartTime");
 const signedWageBefore = oldContract.weeklyWage;
 const partTimeDemand = wageDemand(state, samplePlayer, oldContract.squadRole);
+const interestCandidate = freeAgents(state)[0];
+assert.ok(interestCandidate, "employment interest fixture needs a free agent");
+interestCandidate.reputation = clubReputation(state, userClubId) + 6;
+const partTimeInterest = playerInterestAssessment(state, interestCandidate);
+assert.equal(
+  partTimeInterest.level,
+  "uncertain",
+  "six reputation points above a part-time Level 7 club should need convincing",
+);
 
 // Strategic club-model changes are forward-looking; signed deals are immutable.
 setClubOperatingModelInPlace(state, userClubId, "FullTime");
 const fullTimeDemand = wageDemand(state, samplePlayer, oldContract.squadRole);
+const fullTimeInterest = playerInterestAssessment(state, interestCandidate);
+assert.equal(
+  fullTimeInterest.level,
+  "keen",
+  "the full-time attraction bonus should make the same borderline free agent keen",
+);
 assert.ok(
   fullTimeDemand > partTimeDemand,
   `full-time wage demand should exceed part-time demand: ${partTimeDemand} -> ${fullTimeDemand}`,
