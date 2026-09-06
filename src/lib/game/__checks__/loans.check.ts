@@ -6,6 +6,7 @@ import {
   endPlayerLoanInPlace,
   processDuePlayerLoansInPlace,
   startPlayerLoanInPlace,
+  terminatePlayerLoan,
 } from "../loans";
 import {
   playerOwnerClubId,
@@ -291,6 +292,46 @@ assert.equal(
   incomingPayrollBefore + Math.round((incomingContract.weeklyWage * 35) / 100),
   "loan club payroll should add only its agreed contribution",
 );
+
+// Chairman-facing clone action must terminate safely without mutating the
+// source object, and must restore ownership/registration/payroll in the clone.
+const uiTerminationSource = newGame(
+  "Loan Termination FC",
+  "Auditor",
+  "PLAYER_LOAN_UI_TERMINATION",
+);
+const uiTerminationPlayer = userSquad(uiTerminationSource)[0];
+const uiTerminationParent = playerOwnerClubId(uiTerminationPlayer)!;
+const uiTerminationClub = buildWorldSimulationPlan(uiTerminationSource).fringeClubIds[0]!;
+const uiTerminationFullPayroll = playerWageBill(uiTerminationSource);
+const uiTerminationStarted = startPlayerLoanInPlace(
+  uiTerminationSource,
+  uiTerminationPlayer.id,
+  uiTerminationClub,
+  6,
+  40,
+  "Regular",
+);
+assert.ok(uiTerminationStarted.ok, uiTerminationStarted.reason);
+const uiTerminationReducedPayroll = playerWageBill(uiTerminationSource);
+const uiTermination = terminatePlayerLoan(
+  uiTerminationSource,
+  uiTerminationStarted.loan!.id,
+);
+assert.ok(uiTermination.result.ok, uiTermination.result.reason);
+assert.equal(
+  activeLoanForPlayer(uiTerminationSource, uiTerminationPlayer.id)?.id,
+  uiTerminationStarted.loan!.id,
+  "clone action must not mutate its source state",
+);
+const uiTerminationResultPlayer = uiTermination.state.football.players.find(
+  (row) => row.id === uiTerminationPlayer.id,
+)!;
+assert.equal(activeLoanForPlayer(uiTermination.state, uiTerminationPlayer.id), undefined);
+assert.equal(playerOwnerClubId(uiTerminationResultPlayer), uiTerminationParent);
+assert.equal(playerRegisteredClubId(uiTerminationResultPlayer), uiTerminationParent);
+assert.equal(playerWageBill(uiTermination.state), uiTerminationFullPayroll);
+assert.ok(uiTerminationReducedPayroll < uiTerminationFullPayroll);
 
 // Early termination uses the same return-to-parent boundary.
 const second = startPlayerLoanInPlace(state, player.id, loanClub, 4, 25, "Backup");
