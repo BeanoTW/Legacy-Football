@@ -380,3 +380,72 @@
     padding-top: 0.6rem;
   }
 }
+
+
+.lf-club-desk {
+  min-width: 0;
+}
+
+.lf-desk-card {
+  min-height: 5.2rem;
+  transition: border-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+}
+
+@media (hover: hover) {
+  .lf-desk-card:hover {
+    border-color: color-mix(in oklab, var(--color-primary) 38%, var(--color-border));
+    box-shadow: var(--lf-card-shadow);
+    transform: translateY(-1px);
+  }
+}
+
+.lf-continue-bar {
+  border-color: color-mix(in oklab, var(--color-primary) 18%, var(--color-border));
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--color-card) 88%, transparent), color-mix(in oklab, var(--color-card) 98%, black));
+}
+
+.lf-continue-button {
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 28px color-mix(in oklab, var(--color-primary) 28%, transparent);
+}
+
+.lf-continue-button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 20%, rgb(255 255 255 / 10%) 50%, transparent 80%);
+  transform: translateX(-120%);
+}
+
+@media (hover: hover) {
+  .lf-continue-button:hover::after {
+    animation: lf-continue-sheen 900ms ease;
+  }
+}
+
+@keyframes lf-continue-sheen {
+  to {
+    transform: translateX(120%);
+  }
+}
+
+@media (min-width: 1024px) {
+  .lf-continue-bar {
+    left: 50%;
+    right: auto;
+    width: min(70rem, calc(100vw - 3rem));
+    transform: translateX(-50%);
+    bottom: 1rem;
+    border: 1px solid var(--lf-line);
+    border-radius: 1rem;
+    padding: 0.45rem;
+    box-shadow: 0 16px 44px rgb(0 0 0 / 18%);
+  }
+
+  .lf-continue-bar > div {
+    max-width: none;
+  }
+}
