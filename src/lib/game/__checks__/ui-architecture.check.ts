@@ -431,6 +431,11 @@ console.log("\n[U13] Canonical football level terminology");
     /legacyTierToFootballLevel\(legacy\.bestLeagueFinish\.tier\)/.test(leagueBrowser) &&
       /legacyTierToFootballLevel\(legacy\.bestLeagueFinish\.tier\)/.test(history),
   );
+  check(
+    "club hub shows the chairman's current competition on the canonical football scale",
+    /footballLevelOfLeague\(currentLeague\)/.test(clubHub) &&
+      /currentLeague\.name/.test(clubHub),
+  );
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);
