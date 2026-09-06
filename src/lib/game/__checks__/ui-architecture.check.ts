@@ -327,6 +327,11 @@ console.log("\n[U8] Opaque club identity presentation boundary");
       /clubDisplayName\(state, lastResult\.opponent\)/.test(dashboard) &&
       /clubDisplayName\(state, row\.team\)/.test(world),
   );
+  check(
+    "club hub squad count uses the canonical registration-aware squad selector",
+    /userSquad\(state\)\.length/.test(clubHub) &&
+      !/football\?\.players\?\.filter/.test(clubHub),
+  );
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);
