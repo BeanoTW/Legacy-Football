@@ -62,21 +62,21 @@ export function ClubHub({ state, update, setTab }: { state: GameState; update: (
 
   return (
     <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-2 md:gap-3 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,.85fr)] xl:grid-rows-[auto_minmax(0,1fr)]">
-      <section className="overflow-hidden rounded-xl border shadow-sm xl:col-span-2">
+      <section className="lf-club-identity overflow-hidden rounded-xl border shadow-sm xl:col-span-2">
         <div className="panel-strip flex items-center justify-between gap-2 px-3 py-2 md:px-5">
           <div className="flex min-w-0 items-center gap-2 md:gap-4"><div className="club-crest grid size-9 md:size-11 shrink-0 place-items-center rounded-lg bg-black/25 font-display text-base md:text-xl">{initials(state.clubName)}</div><div className="min-w-0"><div className="truncate font-display text-xl md:text-2xl leading-none">{state.clubName}</div><div className="mt-0.5 truncate text-[10px] opacity-80 md:text-xs">{clubNickname(state)} · {currentLeague ? `${currentLeague.name} · Level ${footballLevelOfLeague(currentLeague)}` : "League unknown"} · {myIdx >= 0 ? `${myIdx + 1}${ord(myIdx + 1)}` : "—"} · S{state.season} · W{state.week}</div></div></div>
           <div className="shrink-0 text-right"><div className="text-[9px] md:text-xs opacity-70">{ownership.label}</div><div className="font-display text-xl md:text-2xl leading-none">{Math.round(state.reputation)}</div></div>
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-xl border bg-card shadow-sm xl:hidden">
+      <section className="lf-match-card overflow-hidden rounded-xl border bg-card shadow-sm xl:hidden">
         <MatchStrip state={state} nextFixture={nextFixture} update={update} />
       </section>
 
       <div className="grid min-h-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] gap-2 md:gap-3 xl:grid-rows-[auto_auto_minmax(0,1fr)]">
-        <section className="min-h-0">
+        <section className="lf-controls min-h-0">
           <div className="mb-1 flex items-center justify-between"><h2 className="font-display text-base md:text-xl">Chairman controls</h2><span className="text-[9px] md:text-xs text-muted-foreground">Main workflows</span></div>
-          <div className="grid grid-cols-2 gap-1.5 md:grid-cols-3 md:gap-2">
+          <div className="lf-control-grid grid grid-cols-2 gap-1.5 md:grid-cols-3 md:gap-2">
             <ActionTile onClick={() => setTab("inbox")} icon={<Mail className="size-4 md:size-5" />} title="Decisions" value={decisions > 0 ? `${decisions} waiting` : unread > 0 ? `${unread} unread` : "All clear"} urgent={decisions > 0} />
             <ActionTile onClick={() => setTab("recruitment")} icon={<Users className="size-4 md:size-5" />} title="Transfers" value={activeNegotiations > 0 ? `${activeNegotiations} active` : "Market"} sub="Scout, buy and sell" />
             <ActionTile onClick={() => setTab("squad")} icon={<Shield className="size-4 md:size-5" />} title="Squad" value={`${squadSize} players`} sub="First XI, details & contracts" />
@@ -91,7 +91,7 @@ export function ClubHub({ state, update, setTab }: { state: GameState; update: (
       </div>
 
       <div className="hidden min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-3 xl:grid">
-        <section className="overflow-hidden rounded-xl border bg-card shadow-sm"><MatchStrip state={state} nextFixture={nextFixture} update={update} /></section>
+        <section className="lf-match-card overflow-hidden rounded-xl border bg-card shadow-sm"><MatchStrip state={state} nextFixture={nextFixture} update={update} /></section>
         <LeaguePanel state={state} miniLeague={miniLeague} leagueSorted={leagueSorted} setTab={setTab} />
       </div>
     </div>
@@ -100,7 +100,7 @@ export function ClubHub({ state, update, setTab }: { state: GameState; update: (
 
 function MatchStrip({ state, nextFixture, update }: { state: GameState; nextFixture: GameState["fixtures"][number] | undefined; update: (fn: (s: GameState) => GameState) => void }) {
   const matchReady = !!nextFixture && isMatchday(state);
-  return <div className="flex items-center gap-2 px-3 py-2 md:px-4"><div className="min-w-0 flex-1"><div className="text-[9px] md:text-xs font-bold uppercase tracking-wide text-muted-foreground">Next match · W{state.week}</div>{nextFixture ? <div className="mt-0.5 flex min-w-0 items-center gap-2"><span className="truncate font-display text-base md:text-xl">{nextFixture.home ? state.clubName : clubDisplayName(state, nextFixture.opponent)}</span><span className="text-[10px] font-bold text-muted-foreground">v</span><span className="truncate font-display text-base md:text-xl">{nextFixture.home ? clubDisplayName(state, nextFixture.opponent) : state.clubName}</span></div> : <div className="mt-0.5 truncate text-xs md:text-sm text-muted-foreground">{phaseOf(state.week) === "preseason" ? "Pre-season preparation" : phaseOf(state.week) === "midseason" ? "Mid-season break" : "No fixture this week"}</div>}</div>{matchReady ? <button onClick={() => update((s) => startMatchDay(s))} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground"><Play className="size-4" /> Match</button> : nextFixture ? <div className="shrink-0 rounded-lg border px-3 py-2 text-[10px] font-semibold text-muted-foreground">Saturday</div> : null}</div>;
+  return <div className="lf-match-inner px-3 py-3 md:px-5 md:py-4"><div className="lf-match-kicker">Next match · Week {state.week}</div>{nextFixture ? <div className="lf-match-versus"><div className="lf-match-team"><div className="lf-team-mark">{initials(nextFixture.home ? state.clubName : clubDisplayName(state, nextFixture.opponent))}</div><div className="truncate font-display">{nextFixture.home ? state.clubName : clubDisplayName(state, nextFixture.opponent)}</div><span>{nextFixture.home ? "Home" : "Away"}</span></div><div className="lf-vs">VS</div><div className="lf-match-team"><div className="lf-team-mark">{initials(nextFixture.home ? clubDisplayName(state, nextFixture.opponent) : state.clubName)}</div><div className="truncate font-display">{nextFixture.home ? clubDisplayName(state, nextFixture.opponent) : state.clubName}</div><span>{nextFixture.home ? "Away" : "Home"}</span></div></div> : <div className="py-4 text-sm text-muted-foreground">{phaseOf(state.week) === "preseason" ? "Pre-season preparation" : phaseOf(state.week) === "midseason" ? "Mid-season break" : "No fixture this week"}</div>}<div className="lf-match-footer">{nextFixture && <div><div className="font-semibold">Saturday</div><div className="text-[10px] text-muted-foreground">League fixture</div></div>}{matchReady ? <button onClick={() => update((s) => startMatchDay(s))} className="lf-match-action inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-xs font-bold text-primary-foreground"><Play className="size-4" /> Match centre</button> : nextFixture ? <div className="rounded-lg border px-3 py-2 text-[10px] font-semibold text-muted-foreground">Continue to matchday</div> : null}</div></div>;
 }
 
 function LeaguePanel({ state, miniLeague, leagueSorted, setTab }: { state: GameState; miniLeague: GameState["league"]; leagueSorted: GameState["league"]; setTab: (t: Tab) => void }) {
@@ -108,7 +108,7 @@ function LeaguePanel({ state, miniLeague, leagueSorted, setTab }: { state: GameS
 }
 
 function ActionTile({ icon, title, value, sub, urgent = false, onClick }: { icon: React.ReactNode; title: string; value: string; sub?: string; urgent?: boolean; onClick: () => void }) {
-  return <button onClick={onClick} className={cn("min-h-14 md:min-h-20 rounded-xl border bg-card px-2.5 py-2 md:p-3 text-left shadow-sm transition-all hover:border-primary/50", urgent && "border-amber-500/70 bg-amber-500/5")}><div className="flex items-center gap-2 min-w-0"><div className={cn("grid size-7 md:size-9 shrink-0 place-items-center rounded-lg", urgent ? "bg-amber-500 text-white" : "bg-primary/10 text-primary")}>{icon}</div><div className="min-w-0 flex-1"><div className="text-[9px] md:text-xs font-semibold text-muted-foreground">{title}</div><div className="truncate font-display text-sm md:text-lg leading-tight">{value}</div>{sub && <div className="hidden md:block truncate text-[10px] text-muted-foreground">{sub}</div>}</div></div></button>;
+  return <button onClick={onClick} className={cn("lf-action-tile min-h-14 md:min-h-20 rounded-xl border bg-card px-2.5 py-2 md:p-3 text-left shadow-sm transition-all hover:border-primary/50", urgent && "border-amber-500/70 bg-amber-500/5")}><div className="flex items-center gap-2 min-w-0"><div className={cn("grid size-7 md:size-9 shrink-0 place-items-center rounded-lg", urgent ? "bg-amber-500 text-white" : "bg-primary/10 text-primary")}>{icon}</div><div className="min-w-0 flex-1"><div className="text-[9px] md:text-xs font-semibold text-muted-foreground">{title}</div><div className="truncate font-display text-sm md:text-lg leading-tight">{value}</div>{sub && <div className="hidden md:block truncate text-[10px] text-muted-foreground">{sub}</div>}</div></div></button>;
 }
 
 export function HubMini({ label, value, tone, onClick }: { label: string; value: string; tone: "good" | "bad" | "muted"; onClick: () => void }) {
