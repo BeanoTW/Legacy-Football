@@ -392,5 +392,26 @@ console.log("\n[U11] Legacy history surface");
   );
 }
 
+
+console.log("\n[U12] Legacy Football product surface");
+{
+  const newGame = read("src/components/game/NewGame.tsx");
+  check(
+    "new career screen uses the Legacy Football product name",
+    /title="Legacy Football"/.test(newGame) &&
+      /Build a club legacy from non-league to the top/.test(newGame),
+  );
+  check(
+    "history navigation is presented as Legacy rather than the old ledger-only label",
+    /\["history",\s*"Legacy",\s*History\]/.test(tabs) &&
+      !/\["history",\s*"Ledger"/.test(tabs),
+  );
+  check(
+    "route metadata uses the Legacy Football product identity",
+    /Legacy Football — Chairman Simulation/.test(route) &&
+      !/Chairman FC — Football Finance Sim/.test(route),
+  );
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
