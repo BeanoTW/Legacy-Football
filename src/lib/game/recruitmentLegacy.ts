@@ -2189,7 +2189,7 @@ export function renewContractInPlace(
 ): NegotiationResult {
   const p = playerById(s, playerId);
   if (!p) return { ok: false, reason: "Unknown player" };
-  if (playerOwnerClubId(p) !== s.clubName) return { ok: false, reason: "Not our player" };
+  if (!isUserClubReference(s, playerOwnerClubId(p))) return { ok: false, reason: "Not our player" };
   const old = activeContract(s, playerId);
   if (!old) return { ok: false, reason: "No contract to renew" };
   const base = renewalTerms(s, playerId);
@@ -2244,7 +2244,7 @@ export function renewContractInPlace(
 export function releasePlayerInPlace(s: GameState, playerId: string): NegotiationResult {
   const p = playerById(s, playerId);
   if (!p) return { ok: false, reason: "Unknown player" };
-  if (playerOwnerClubId(p) !== s.clubName) return { ok: false, reason: "Not our player" };
+  if (!isUserClubReference(s, playerOwnerClubId(p))) return { ok: false, reason: "Not our player" };
   if (activeLoanForPlayer(s, playerId))
     return { ok: false, reason: "End the active loan before releasing the player" };
   const c = activeContract(s, playerId);
@@ -2295,7 +2295,7 @@ export function setTransferStatusInPlace(
 ): NegotiationResult {
   const p = playerById(s, playerId);
   if (!p) return { ok: false, reason: "Unknown player" };
-  if (playerOwnerClubId(p) !== s.clubName) return { ok: false, reason: "Not our player" };
+  if (!isUserClubReference(s, playerOwnerClubId(p))) return { ok: false, reason: "Not our player" };
   if (activeLoanForPlayer(s, playerId))
     return { ok: false, reason: "End the active loan before changing transfer status" };
   p.transferStatus = status;
