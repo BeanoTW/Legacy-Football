@@ -469,5 +469,20 @@ console.log("\n[U15] Match centre identity and competition context");
   );
 }
 
+
+console.log("\n[U16] Calendar and advance opponent identity");
+{
+  const preview = read("src/components/game/AdvanceInboxPreview.tsx");
+  const calendar = read("src/components/game/ContinueCalendar.tsx");
+  check(
+    "advance preview resolves stored opponent references through the display-name gateway",
+    /clubDisplayName\(state, fixture\.opponent\)/.test(preview),
+  );
+  check(
+    "calendar resolves stored opponent references through the display-name gateway",
+    /clubDisplayName\(state, fixture\.opponent\)/.test(calendar),
+  );
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
