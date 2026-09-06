@@ -9,7 +9,8 @@ import {
   boundedRecentOpponentIds,
   boundedTrackedClubIds,
 } from "../worldFocusPolicy";
-import { isUserClubReference } from "../clubReference";
+import { clubDisplayName, isUserClubReference } from "../clubReference";
+import { setWorldClubTracked } from "../recruitment";
 
 const state = newGame("Focus Bounds FC", "Focus Auditor", "FOCUS_BOUNDS_AUDIT");
 const allClubs = state.leagues.flatMap((league) => league.clubIds);
@@ -50,5 +51,34 @@ const retainedRecent = boundedRecentOpponentIds(state, recentInput);
 for (const clubId of retainedRecent) {
   assert.ok(plan.clubs.find((club) => club.clubId === clubId)?.reasons.includes("recentOpponent"));
 }
+
+
+let trackingState = state;
+for (const clubId of external.slice(0, MAX_TRACKED_FOCUS_CLUBS + 4)) {
+  trackingState = setWorldClubTracked(trackingState, clubId, true);
+}
+assert.equal(
+  trackingState.trackedClubIds?.length,
+  MAX_TRACKED_FOCUS_CLUBS,
+  "chairman tracking action must keep the persisted attention list bounded",
+);
+assert.deepEqual(
+  trackingState.trackedClubIds,
+  external.slice(4, MAX_TRACKED_FOCUS_CLUBS + 4),
+  "tracking should retain the most recently selected clubs rather than alphabetical ids",
+);
+
+const aliasTarget = external[MAX_TRACKED_FOCUS_CLUBS + 5];
+if (!aliasTarget) throw new Error("tracking alias fixture missing");
+const aliasName = clubDisplayName(trackingState, aliasTarget);
+trackingState = setWorldClubTracked(trackingState, aliasName, true);
+assert.ok(
+  trackingState.trackedClubIds?.includes(aliasTarget),
+  "display-name tracking requests must persist the canonical opaque club id",
+);
+assert.ok(
+  !(trackingState.trackedClubIds ?? []).includes(aliasName) || aliasName === aliasTarget,
+  "tracking must not create a second display-name identity",
+);
 
 console.log("\nworld-focus-bounds: passed");
