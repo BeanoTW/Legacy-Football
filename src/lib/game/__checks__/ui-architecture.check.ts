@@ -452,5 +452,21 @@ console.log("\n[U14] New career setup matches the live game");
   );
 }
 
+
+console.log("\n[U15] Match centre identity and competition context");
+{
+  const matchday = read("src/components/game/MatchDayOverlay.tsx");
+  check(
+    "match centre resolves stored opponent references through the display-name gateway",
+    /clubDisplayName\(state, lm\.fixture\.opponent\)/.test(matchday),
+  );
+  check(
+    "match centre shows the live competition instead of stale Division Four copy",
+    /matchLeague\.name/.test(matchday) &&
+      /footballLevelOfLeague\(matchLeague\)/.test(matchday) &&
+      !/Division Four/.test(matchday),
+  );
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
