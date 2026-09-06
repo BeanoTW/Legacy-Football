@@ -10,7 +10,7 @@ import {
   LineChart as LineIcon,
   Mail,
   MoreHorizontal,
-  Save,
+  History,
   Settings,
   Shield,
   Ticket,
@@ -53,7 +53,7 @@ export const ALL_TABS: TabDef[] = [
   ["dashboard", "Reports", LineIcon],
   ["leagues", "Leagues", Trophy],
   ["world", "World", Globe2],
-  ["history", "Ledger", Save],
+  ["history", "Legacy", History],
   ["settings", "Settings", Settings],
 ];
 
