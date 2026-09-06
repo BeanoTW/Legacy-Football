@@ -454,8 +454,16 @@ assert.equal(
 const crossSeasonAfter1 = advanceWeek(crossSeasonAfter46);
 assert.equal(crossSeasonAfter1.season, 2);
 assert.equal(crossSeasonAfter1.week, 2);
-assert.equal(activeLoanForPlayer(crossSeasonAfter1, crossSeasonPlayer.id), undefined);
-const crossSeasonReturnedPlayer = crossSeasonAfter1.football.players.find(
+assert.equal(
+  activeLoanForPlayer(crossSeasonAfter1, crossSeasonPlayer.id)?.id,
+  crossSeasonLoan.loan!.id,
+  "loan should remain active until its exact due absolute week is processed",
+);
+const crossSeasonAfter2 = advanceWeek(crossSeasonAfter1);
+assert.equal(crossSeasonAfter2.season, 2);
+assert.equal(crossSeasonAfter2.week, 3);
+assert.equal(activeLoanForPlayer(crossSeasonAfter2, crossSeasonPlayer.id), undefined);
+const crossSeasonReturnedPlayer = crossSeasonAfter2.football.players.find(
   (row) => row.id === crossSeasonPlayer.id,
 )!;
 assert.equal(playerOwnerClubId(crossSeasonReturnedPlayer), crossSeasonParent);
