@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ArrowLeft, Repeat2 } from "lucide-react";
 import type { GameState, PlayerLoanAgreement } from "@/lib/game/types";
 import { Button } from "@/components/ui/button";
@@ -110,6 +111,8 @@ function LoanColumn({
 }
 
 function LoanRow({ loan, state, update }: { loan: PlayerLoanAgreement; state: GameState; update: (fn: (s: GameState) => GameState) => void }) {
+  const [confirming, setConfirming] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
   const player = playerById(state, loan.playerId);
   if (!player) return null;
   const contract = activeContract(state, player.id);
@@ -151,18 +154,39 @@ function LoanRow({ loan, state, update }: { loan: PlayerLoanAgreement; state: Ga
           value={contribution == null ? "—" : fmtMoneyExact(contribution)}
         />
       </div>
-      <div className="mt-2 flex justify-end">
+      {note && <div className="mt-2 text-[11px] text-muted-foreground">{note}</div>}
+      <div className="mt-2 flex justify-end gap-1.5">
+        {confirming && (
+          <Button size="sm" variant="ghost" onClick={() => setConfirming(false)}>
+            Cancel
+          </Button>
+        )}
         <Button
           size="sm"
-          variant="outline"
-          onClick={() =>
-            update((s) => {
-              const outcome = terminateUserPlayerLoan(s, loan.id);
-              return outcome.state;
-            })
-          }
+          variant={confirming ? "destructive" : "outline"}
+          onClick={() => {
+            if (!confirming) {
+              setConfirming(true);
+              setNote(
+                userIsBorrower
+                  ? "Ending the loan returns the player to his parent club immediately."
+                  : "Recalling the player ends the loan immediately.",
+              );
+              return;
+            }
+            const outcome = terminateUserPlayerLoan(state, loan.id);
+            setNote(outcome.result.reason);
+            setConfirming(false);
+            if (outcome.result.ok) update(() => outcome.state);
+          }}
         >
-          {userIsBorrower ? "End loan" : "Recall player"}
+          {confirming
+            ? userIsBorrower
+              ? "Confirm end loan"
+              : "Confirm recall"
+            : userIsBorrower
+              ? "End loan"
+              : "Recall player"}
         </Button>
       </div>
     </div>
