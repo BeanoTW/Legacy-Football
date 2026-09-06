@@ -148,7 +148,7 @@ export function endPlayerLoanInPlace(
   const player = state.football.players.find((row) => row.id === loan.playerId);
   if (!player) return { ok: false, reason: "Loan player not found", loan };
 
-  if (playerOwnerClubId(player) !== loan.parentClubId)
+  if (!sameClubReference(state, playerOwnerClubId(player), loan.parentClubId))
     return { ok: false, reason: "Player ownership no longer matches the loan agreement", loan };
 
   loan.status = outcome;
@@ -168,4 +168,14 @@ export function processDuePlayerLoansInPlace(state: GameState): number {
     if (result.ok) completed++;
   }
   return completed;
+}
+
+/** Clone-returning UI action for recalling/terminating an active loan. */
+export function terminatePlayerLoan(
+  state: GameState,
+  loanId: string,
+): { state: GameState; result: LoanActionResult } {
+  const next = structuredClone(state);
+  const result = endPlayerLoanInPlace(next, loanId, "Terminated");
+  return { state: next, result };
 }
