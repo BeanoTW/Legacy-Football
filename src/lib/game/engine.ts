@@ -103,17 +103,16 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   processDuePlayerLoansInPlace(s);
   runInfrastructureWeek(s);
   postRecurringWeek(s);
-  // Commercial and recruitment still contain a few legacy `clubName` identity
-  // reads. During an opaque-ID save, run them through the synchronous boundary
-  // so they write the canonical user ID while `clubName` remains presentation
-  // metadata everywhere outside the call.
+  // Commercial still contains a few legacy `clubName` identity reads, so it
+  // remains behind the synchronous compatibility boundary. Recruitment is now
+  // identity-native and runs directly below.
   withCanonicalUserClubReference(s, () => runCommercialWeek(s));
   // Capture any Focus→Fringe boundary change before legacy recruitment removes
   // detailed rows. Conversely, repair a direct tracking hydration from an
   // earlier UI action before weekly football systems use the temporary players.
   compactDepartingFocusPlayersInPlace(s);
   repairFreshFocusHydrationInPlace(s);
-  withCanonicalUserClubReference(s, () => runRecruitmentWeek(s, isTransferWindowOpen(s)));
+  runRecruitmentWeek(s, isTransferWindowOpen(s));
   // Recruitment may itself reconcile the world boundary; replace any freshly
   // generated Focus placeholders with the same persistent compact people.
   repairFreshFocusHydrationInPlace(s);
