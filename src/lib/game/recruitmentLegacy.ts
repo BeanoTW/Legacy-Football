@@ -68,11 +68,13 @@ import {
   recruitmentWageForLevel,
 } from "./recruitmentEconomy";
 import {
+  canonicalClubReference,
   clubDisplayName,
   isUserClubReference,
   sameClubReference,
   userClubReference,
 } from "./clubReference";
+import { boundedTrackedClubIds } from "./worldFocusPolicy";
 import {
   activeLoanForPlayer,
   ensureLoanStateInPlace,
@@ -620,12 +622,19 @@ export function reconcileRecruitmentFidelity(s: GameState): void {
 
 /** Persistently track/untrack a club and reconcile its fidelity immediately. */
 export function setWorldClubTrackedInPlace(s: GameState, clubId: string, tracked: boolean): void {
-  const exists = s.leagues.some((league) => league.clubIds.includes(clubId));
+  const canonical = canonicalClubReference(s, clubId);
+  const exists = s.leagues.some((league) =>
+    league.clubIds.some((candidate) => sameClubReference(s, candidate, canonical)),
+  );
   if (!exists) throw new Error(`Cannot track unknown world club: ${clubId}`);
-  const ids = new Set(s.trackedClubIds ?? []);
-  if (tracked) ids.add(clubId);
-  else ids.delete(clubId);
-  s.trackedClubIds = [...ids].sort((a, b) => a.localeCompare(b));
+
+  const current = (s.trackedClubIds ?? []).filter(
+    (candidate) => !sameClubReference(s, candidate, canonical),
+  );
+  s.trackedClubIds = tracked
+    ? boundedTrackedClubIds(s, [...current, canonical])
+    : boundedTrackedClubIds(s, current);
+
   reconcileRecruitmentFidelity(s);
   syncLegacySquad(s);
 }
