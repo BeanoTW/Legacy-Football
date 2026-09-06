@@ -18,6 +18,12 @@ import {
   finishIn,
 } from "@/lib/game/reputation";
 import { DetailScreen } from "@/components/game/shared/layout";
+import {
+  canonicalClubReference,
+  clubDisplayName,
+  isUserClubReference,
+} from "@/lib/game/clubReference";
+import { clubLegacyRecord } from "@/lib/game/clubLegacy";
 
 type View = "table" | "fixtures" | "predictions";
 
@@ -91,7 +97,7 @@ export function LeagueBrowser({ state }: { state: GameState }) {
       className="touch-pan-y space-y-3"
     >
       {view === "table" && <TableView state={state} rows={rows} season={season} onPick={setClub} />}
-      {view === "fixtures" && <FixturesView fixtures={fixtures} userClub={state.clubName} />}
+      {view === "fixtures" && <FixturesView state={state} fixtures={fixtures} />}
       {view === "predictions" && (
         <PredictionsView
           state={state}
@@ -170,11 +176,11 @@ function TableView({
               onClick={() => onPick(r.team)}
               className={cn(
                 "border-b last:border-0 cursor-pointer hover:bg-muted/60",
-                r.team === state.clubName && "bg-accent/20 font-semibold",
+                isUserClubReference(state, r.team) && "bg-accent/20 font-semibold",
               )}
             >
               <td className="py-1.5 px-3 text-muted-foreground">{i + 1}</td>
-              <td className="py-1.5 pr-2">{r.team}</td>
+              <td className="py-1.5 pr-2">{clubDisplayName(state, r.team)}</td>
               <td className="py-1.5 pr-2 text-right">{r.p}</td>
               <td className="py-1.5 pr-2 text-right">{r.w}</td>
               <td className="py-1.5 pr-2 text-right">{r.d}</td>
@@ -193,11 +199,11 @@ function TableView({
 }
 
 function FixturesView({
+  state,
   fixtures,
-  userClub,
 }: {
+  state: GameState;
   fixtures: ReturnType<typeof leagueFixtures>;
-  userClub: string;
 }) {
   const rounds = useMemo(
     () => [...new Set(fixtures.map((f) => f.round))].sort((a, b) => a - b),
@@ -237,14 +243,14 @@ function FixturesView({
             key={`${f.home}>${f.away}`}
             className={cn(
               "grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-2",
-              (f.home === userClub || f.away === userClub) && "bg-accent/15",
+              (isUserClubReference(state, f.home) || isUserClubReference(state, f.away)) && "bg-accent/15",
             )}
           >
-            <span className="text-right truncate">{f.home}</span>
+            <span className="text-right truncate">{clubDisplayName(state, f.home)}</span>
             <span className="tnum text-xs font-bold px-2 py-0.5 rounded bg-muted min-w-12 text-center">
               {f.record ? `${f.record.homeGoals}-${f.record.awayGoals}` : "v"}
             </span>
-            <span className="truncate">{f.away}</span>
+            <span className="truncate">{clubDisplayName(state, f.away)}</span>
           </div>
         ))}
       </div>
@@ -282,12 +288,12 @@ function PredictionsView({
               onClick={() => onPick(c.club)}
               className={cn(
                 "w-full text-left grid grid-cols-[2rem_1fr_auto] items-center gap-2 px-3 py-2 hover:bg-muted/60",
-                c.club === state.clubName && "bg-accent/20 font-semibold",
+                isUserClubReference(state, c.club) && "bg-accent/20 font-semibold",
               )}
             >
               <span className="text-muted-foreground tnum">{c.rank}</span>
               <span>
-                <span className="block truncate">{c.club}</span>
+                <span className="block truncate">{clubDisplayName(state, c.club)}</span>
                 <span className="block text-[11px] text-muted-foreground">
                   {EXPECTATION_LABEL[c.expectation]}
                 </span>
@@ -320,7 +326,10 @@ function ClubCard({
   onClose: () => void;
 }) {
   const pred = clubPrediction(state, club, season);
-  const record = state.clubRecords?.[club];
+  const canonicalClubId = canonicalClubReference(state, club);
+  const displayName = clubDisplayName(state, club);
+  const record = state.clubRecords?.[canonicalClubId] ?? state.clubRecords?.[club];
+  const legacy = clubLegacyRecord(state, canonicalClubId);
   const history = (record?.leagueHistory ?? []).slice(-8).reverse();
   const snaps = (state.clubSnapshots ?? [])
     .filter((s) => s.club === club)
@@ -329,7 +338,7 @@ function ClubCard({
   return (
     <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
       <div className="banner-strip px-3 py-2 text-xs flex items-center justify-between">
-        <span>{club}</span>
+        <span>{displayName}</span>
         <button onClick={onClose} className="opacity-80 hover:opacity-100">
           Close
         </button>
@@ -339,9 +348,11 @@ function ClubCard({
         <Cell label="Strength" value={clubStrengthFor(state, club, state.season).toFixed(1)} />
         <Cell label="Tier" value={String(tierOfClub(state, club))} />
         <Cell label="Expectation" value={pred ? EXPECTATION_LABEL[pred.expectation] : "—"} />
-        <Cell label="Promotions" value={String(record?.promotions ?? 0)} />
-        <Cell label="Relegations" value={String(record?.relegations ?? 0)} />
+        <Cell label="Promotions" value={String(legacy?.promotions ?? record?.promotions ?? 0)} />
+        <Cell label="Relegations" value={String(legacy?.relegations ?? record?.relegations ?? 0)} />
         <Cell label="Predicted finish" value={pred ? `${pred.rank}` : "—"} />
+        <Cell label="League titles" value={String(legacy?.leagueTitles ?? 0)} />
+        <Cell label="Best finish" value={legacy?.bestLeagueFinish ? `T${legacy.bestLeagueFinish.tier} · ${legacy.bestLeagueFinish.position}` : "—"} />
         <Cell label="Seasons on record" value={String(history.length)} />
       </div>
       {snaps.length > 0 && (
