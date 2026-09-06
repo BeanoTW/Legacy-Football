@@ -294,7 +294,16 @@ console.log("\n[U8] Opaque club identity presentation boundary");
   check(
     "league browser club profiles read durable legacy facts canonically",
     /canonicalClubReference\(state, club\)/.test(leagueBrowser) &&
-      /clubLegacyRecord\(state, canonicalClubId\)/.test(leagueBrowser),
+      /clubLegacyRecord\(state, canonicalClubId\)/.test(leagueBrowser) &&
+      /sameClubReference\(state, s\.club, canonicalClubId\)/.test(leagueBrowser),
+  );
+  check(
+    "league browser surfaces permanent club legacy records",
+    /label="League titles"/.test(leagueBrowser) &&
+      /label="Best finish"/.test(leagueBrowser) &&
+      /label="Record buy"/.test(leagueBrowser) &&
+      /label="Record sale"/.test(leagueBrowser) &&
+      /label="Record crowd"/.test(leagueBrowser),
   );
 
   const clubHub = read("src/components/game/ClubHub.tsx");
