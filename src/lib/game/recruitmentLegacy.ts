@@ -2174,6 +2174,8 @@ export function arrangeUserPlayerLoanOutInPlace(
   terms: LoanOutOfferTerms,
 ): LoanActionResult {
   ensureRecruitment(s);
+  if (!isTransferWindowOpen(s))
+    return { ok: false, reason: "Loans can only be registered while the transfer window is open" };
   const player = playerById(s, playerId);
   if (!player) return { ok: false, reason: "Unknown player" };
   if (!isUserClubReference(s, playerOwnerClubId(player)))
@@ -2296,6 +2298,8 @@ export function arrangeUserPlayerLoanInInPlace(
   terms: LoanInOfferTerms,
 ): LoanActionResult {
   ensureRecruitment(s);
+  if (!isTransferWindowOpen(s))
+    return { ok: false, reason: "Loans can only be registered while the transfer window is open" };
   const player = transferTargetPlayer(s, playerId);
   if (!player) return { ok: false, reason: "Unknown player" };
   if (
