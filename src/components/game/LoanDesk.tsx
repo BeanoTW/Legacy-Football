@@ -5,7 +5,7 @@ import { activeContract, playerById, playerName } from "@/lib/game/recruitment";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { absoluteWeek } from "@/lib/game/time";
 import { fmtMoneyExact } from "@/lib/game/engine";
-import { terminatePlayerLoan } from "@/lib/game/loans";
+import { terminateUserPlayerLoan } from "@/lib/game/loans";
 
 export function LoanDesk({
   state,
@@ -17,7 +17,12 @@ export function LoanDesk({
   onBack: () => void;
 }) {
   const loans = (state.football?.loans ?? [])
-    .filter((loan) => loan.status === "Active")
+    .filter(
+      (loan) =>
+        loan.status === "Active" &&
+        (isUserClubReference(state, loan.parentClubId) ||
+          isUserClubReference(state, loan.loanClubId)),
+    )
     .slice()
     .sort((a, b) => a.endAbsoluteWeek - b.endAbsoluteWeek || a.id.localeCompare(b.id));
 
@@ -152,7 +157,7 @@ function LoanRow({ loan, state, update }: { loan: PlayerLoanAgreement; state: Ga
           variant="outline"
           onClick={() =>
             update((s) => {
-              const outcome = terminatePlayerLoan(s, loan.id);
+              const outcome = terminateUserPlayerLoan(s, loan.id);
               return outcome.state;
             })
           }
