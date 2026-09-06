@@ -163,7 +163,7 @@ export function StaffTab({
             Nobody hired yet.
           </div>
         ) : (
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="lf-staff-grid grid gap-3 md:grid-cols-2">
             {state.hiredStaff.map((s) => (
               <StaffCard
                 key={s.id}
