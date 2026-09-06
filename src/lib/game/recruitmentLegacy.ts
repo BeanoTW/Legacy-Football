@@ -66,7 +66,12 @@ import {
   recruitmentWageForClub,
   recruitmentWageForLevel,
 } from "./recruitmentEconomy";
-import { sameClubReference, userClubReference } from "./clubReference";
+import {
+  clubDisplayName,
+  isUserClubReference,
+  sameClubReference,
+  userClubReference,
+} from "./clubReference";
 import {
   activeLoanForPlayer,
   ensureLoanStateInPlace,
@@ -1137,9 +1142,22 @@ export function playerInterestAssessment(
   s: GameState,
   p: FootballPlayer,
 ): PlayerInterestAssessment {
-  if (playerOwnerClubId(p) === s.clubName)
+  const ownerClubId = playerOwnerClubId(p);
+  const registeredClubId = playerRegisteredClubId(p);
+  if (
+    isUserClubReference(s, ownerClubId) &&
+    registeredClubId &&
+    !sameClubReference(s, registeredClubId, ownerClubId)
+  ) {
+    return {
+      level: "keen",
+      label: "On loan out",
+      reason: `Your player is currently registered to ${clubDisplayName(s, registeredClubId)} on loan.`,
+    };
+  }
+  if (isUserClubReference(s, ownerClubId))
     return { level: "keen", label: "At your club", reason: "Already contracted to the club." };
-  if (playerRegisteredClubId(p) === s.clubName)
+  if (isUserClubReference(s, registeredClubId))
     return { level: "keen", label: "On loan here", reason: "Already registered to the club on loan." };
   const employmentBonus = employmentRecruitmentReputationBonusFor(
     clubOperatingModel(s, userClubReference(s)),
