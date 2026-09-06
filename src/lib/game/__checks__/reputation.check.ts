@@ -5,6 +5,7 @@
 import { newGame, advanceWeek, migrateSave, SAVE_VERSION } from "../engine";
 import {
   clubReputation,
+  setClubReputation,
   clubStrengthFor,
   strengthParts,
   predictLeague,
@@ -100,6 +101,37 @@ console.log("\n[R1] Reputation persistence");
     "still persistent after a second season",
     s3.season === 3 && Object.keys(s3.clubReputations).length === worldClubCount,
   );
+}
+
+console.log("\n[R1b] Opaque club identity gateway");
+{
+  const g = fresh("REP_IDENTITY_GATEWAY");
+  const userId = userClubReference(g);
+  const displayName = g.clubName;
+  const before = clubReputation(g, userId);
+  check(
+    "display name and opaque id resolve the same reputation",
+    clubReputation(g, displayName) === before,
+  );
+  check(
+    "display name and opaque id resolve the same strength",
+    clubStrengthFor(g, displayName, g.season) === clubStrengthFor(g, userId, g.season),
+  );
+  const byId = predictSeason(g, g.season)
+    .flatMap((prediction) => prediction.clubs)
+    .find((prediction) => prediction.club === userId);
+  const byDisplay = byId ? predictionFor(g, g.season, g.playerLeagueId)?.clubs.find(
+    (prediction) => prediction.club === userId,
+  ) : undefined;
+  check("user prediction remains stored under opaque identity", !!byId && !!byDisplay);
+
+  setClubReputation(g, displayName, 42.5);
+  check("setting reputation through display metadata updates the canonical id", g.clubReputations[userId] === 42.5);
+  check(
+    "setting reputation through display metadata does not create a second display-name key",
+    displayName === userId || !(displayName in g.clubReputations),
+  );
+  check("display-name reputation reads remain canonical after mutation", clubReputation(g, displayName) === 42.5);
 }
 
 console.log("\n[R2] Promotion raises reputation, relegation lowers it");
