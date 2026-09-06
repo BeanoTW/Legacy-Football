@@ -1392,7 +1392,7 @@ export function openTransferEnquiryInPlace(
     id: nextNegotiationId(s),
     playerId,
     fromClubId: p.currentClubId,
-    toClubId: s.clubName,
+    toClubId: userClubReference(s),
     direction: "in",
     stage: "enquiry",
     clubRounds: 0,
@@ -1496,7 +1496,7 @@ export function openTransferNegotiationInPlace(
     id: nextNegotiationId(s),
     playerId,
     fromClubId: p.currentClubId,
-    toClubId: s.clubName,
+    toClubId: userClubReference(s),
     direction: "in",
     stage: p.currentClubId === null ? "playerTalks" : "clubTalks",
     clubRounds: 1,
@@ -2274,7 +2274,7 @@ export function releasePlayerInPlace(s: GameState, playerId: string): Negotiatio
     playerId: p.id,
     playerName: playerName(p),
     position: p.primaryPosition,
-    fromClubId: s.clubName,
+    fromClubId: userClubReference(s),
     toClubId: null,
     fee: 0,
     weeklyWage: 0,
@@ -2351,7 +2351,7 @@ function processExpiries(s: GameState): void {
       // AI clubs run their own squads: rather than let a squad dissolve, they
       // renew players they still need. Only the user's club is left exposed
       // to its own inaction.
-      if (p && c.clubId !== s.clubName && aiRenews(s, c, p)) {
+      if (p && !isUserClubReference(s, c.clubId) && aiRenews(s, c, p)) {
         renewAiContract(s, c, p);
         continue;
       }
@@ -2431,7 +2431,7 @@ function generateIncomingOffers(s: GameState, windowOpen: boolean): void {
   if (squad.length <= MIN_SQUAD_SIZE) return;
   const targets = squad.filter(
     (p) =>
-      playerOwnerClubId(p) === s.clubName &&
+      isUserClubReference(s, playerOwnerClubId(p)) &&
       !activeLoanForPlayer(s, p.id) &&
       !openNegotiations(s).some((n) => n.playerId === p.id) &&
       p.currentAbility >= 55,
@@ -2439,7 +2439,7 @@ function generateIncomingOffers(s: GameState, windowOpen: boolean): void {
   if (!targets.length) return;
   const p = targets[rngInt(rng, 0, targets.length - 1)];
 
-  const rivals = buildWorldSimulationPlan(s).focusClubIds.filter((c) => c !== s.clubName);
+  const rivals = buildWorldSimulationPlan(s).focusClubIds.filter((c) => !isUserClubReference(s, c));
   if (!rivals.length) return;
   // Clubs that can plausibly afford him show interest first.
   const suitors = rivals.filter((c) => clubReputation(s, c) >= p.reputation - 12);
@@ -2457,7 +2457,7 @@ function generateIncomingOffers(s: GameState, windowOpen: boolean): void {
   const n: TransferNegotiation = {
     id: nextNegotiationId(s),
     playerId: p.id,
-    fromClubId: s.clubName,
+    fromClubId: userClubReference(s),
     toClubId: buyer,
     direction: "out",
     stage: "clubTalks",
@@ -2525,7 +2525,7 @@ function registerFreeSigning(
 function runAiRecruitment(s: GameState, windowOpen: boolean): void {
   if (!windowOpen) return;
   const rng = seededRng(s.saveSeed, "aiRecruit", s.season, s.week);
-  const clubs = buildWorldSimulationPlan(s).focusClubIds.filter((c) => c !== s.clubName);
+  const clubs = buildWorldSimulationPlan(s).focusClubIds.filter((c) => !isUserClubReference(s, c));
 
   // Two clubs act each week, chosen deterministically by rotation.
   const start = (s.season * WEEKS_PER_SEASON + s.week) % Math.max(1, clubs.length);
