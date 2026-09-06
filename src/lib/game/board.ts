@@ -34,6 +34,7 @@ import { clubPrediction, EXPECTATION_LABEL } from "./reputation";
 import { playerLeagueId } from "./league";
 import { commercialWeeklyIncome, activeContracts } from "./commercial";
 import { isUserClubReference, userClubReference } from "./clubReference";
+import { clubSimulationSeedKey } from "./clubIdentity";
 import {
   netSpendThisSeason,
   transferIncomeThisSeason,
@@ -878,7 +879,9 @@ export function makeBoard(saveSeed: string, clubName: string): BoardState {
 /** Ensure the board exists and holds objectives for the current season. */
 export function ensureBoard(s: GameState): void {
   if (!s.board || !Array.isArray(s.board.directors) || s.board.directors.length === 0) {
-    s.board = makeBoard(s.saveSeed ?? `${s.clubName}|board`, s.clubName);
+    const userRef = userClubReference(s);
+    const seedKey = clubSimulationSeedKey(s, userRef);
+    s.board = makeBoard(s.saveSeed ?? `${seedKey}|board`, seedKey);
   }
   if (!Array.isArray(s.board.objectives)) s.board.objectives = [];
   if (!Array.isArray(s.board.reviews)) s.board.reviews = [];
