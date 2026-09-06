@@ -16,6 +16,7 @@ import {
 import {
   activeContract,
   ageOf,
+  arrangeUserPlayerLoanOut,
   assignScout,
   availabilityReason,
   completeTransferInPlace,
@@ -306,6 +307,55 @@ assert.equal(
   Math.round((incomingContract.weeklyWage * 35) / 100),
   "legacy squad projection should show only the user's loan wage share",
 );
+
+// Chairman can now circulate an owned player to the deterministic Focus loan
+// market. The same save and terms must always resolve to the same destination,
+// and the clone action must leave the source untouched.
+const loanMarketSource = newGame("Loan Market FC", "Auditor", "PLAYER_LOAN_MARKET");
+const loanMarketPlayer = userSquad(loanMarketSource)[0];
+assert.ok(loanMarketPlayer, "loan market fixture needs a user player");
+const loanMarketTerms = {
+  durationWeeks: 4,
+  loanClubWageContributionPct: 20,
+  playingTimeExpectation: "Backup" as const,
+};
+const loanMarketA = arrangeUserPlayerLoanOut(
+  loanMarketSource,
+  loanMarketPlayer.id,
+  loanMarketTerms,
+);
+const loanMarketB = arrangeUserPlayerLoanOut(
+  loanMarketSource,
+  loanMarketPlayer.id,
+  loanMarketTerms,
+);
+assert.ok(loanMarketA.result.ok, loanMarketA.result.reason);
+assert.ok(loanMarketA.result.loan);
+assert.equal(loanMarketB.result.ok, true);
+assert.equal(
+  loanMarketA.result.loan!.loanClubId,
+  loanMarketB.result.loan!.loanClubId,
+  "same save and loan terms must choose the same destination",
+);
+assert.equal(loanMarketA.result.loan!.durationWeeks, undefined);
+assert.equal(loanMarketA.result.loan!.loanClubWageContributionPct, 20);
+assert.equal(loanMarketA.result.loan!.playingTimeExpectation, "Backup");
+assert.equal(
+  activeLoanForPlayer(loanMarketSource, loanMarketPlayer.id),
+  undefined,
+  "clone loan-market action must not mutate its source state",
+);
+assert.equal(
+  activeLoanForPlayer(loanMarketA.state, loanMarketPlayer.id)?.id,
+  loanMarketA.result.loan!.id,
+);
+const invalidLoanMarket = arrangeUserPlayerLoanOut(
+  loanMarketSource,
+  loanMarketPlayer.id,
+  { ...loanMarketTerms, loanClubWageContributionPct: 101 },
+);
+assert.equal(invalidLoanMarket.result.ok, false);
+assert.equal(invalidLoanMarket.result.reason, "Loan wage contribution must be between 0% and 100%");
 
 // Chairman-facing clone action must terminate safely without mutating the
 // source object, and must restore ownership/registration/payroll in the clone.
