@@ -71,7 +71,7 @@ export function RecruitmentFlow({
       className="grid content-start gap-2 md:gap-3 xl:grid-cols-[minmax(320px,.9fr)_minmax(0,1.6fr)] xl:content-stretch"
     >
       {snap && (
-        <section className="flex flex-col justify-center rounded-xl border bg-card p-3 shadow-sm md:p-4">
+        <section className="lf-transfer-budget flex flex-col justify-center rounded-xl border bg-card p-3 shadow-sm md:p-4">
           <div className="text-xs text-muted-foreground">Transfer budget remaining</div>
           <div className="font-display text-2xl leading-tight md:text-3xl xl:text-4xl">
             {fmtMoneyExact(snap.budgetRemaining)}
