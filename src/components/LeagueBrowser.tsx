@@ -26,11 +26,12 @@ import {
   sameClubReference,
 } from "@/lib/game/clubReference";
 import { clubLegacyRecord } from "@/lib/game/clubLegacy";
+import { setWorldClubTracked } from "@/lib/game/recruitment";
 
 type View = "table" | "fixtures" | "predictions";
 
 /** Read-only window on the whole pyramid. Every value is read live from state. */
-export function LeagueBrowser({ state }: { state: GameState }) {
+export function LeagueBrowser({ state, update }: { state: GameState; update: (fn: (s: GameState) => GameState) => void }) {
   const leagues = state.leagues ?? [];
   const [leagueId, setLeagueId] = useState(playerLeagueId(state));
   const [season, setSeason] = useState(state.season);
@@ -110,7 +111,7 @@ export function LeagueBrowser({ state }: { state: GameState }) {
         />
       )}
 
-      {club && <ClubCard state={state} club={club} season={season} onClose={() => setClub(null)} />}
+      {club && <ClubCard state={state} club={club} season={season} update={update} onClose={() => setClub(null)} />}
     </DetailScreen>
   );
 }
@@ -320,11 +321,13 @@ function ClubCard({
   state,
   club,
   season,
+  update,
   onClose,
 }: {
   state: GameState;
   club: string;
   season: number;
+  update: (fn: (s: GameState) => GameState) => void;
   onClose: () => void;
 }) {
   const pred = clubPrediction(state, club, season);
@@ -332,6 +335,8 @@ function ClubCard({
   const displayName = clubDisplayName(state, club);
   const record = state.clubRecords?.[canonicalClubId] ?? state.clubRecords?.[club];
   const legacy = clubLegacyRecord(state, canonicalClubId);
+  const isUserClub = isUserClubReference(state, canonicalClubId);
+  const tracked = (state.trackedClubIds ?? []).some((clubId) => sameClubReference(state, clubId, canonicalClubId));
   const history = (record?.leagueHistory ?? []).slice(-8).reverse();
   const snaps = (state.clubSnapshots ?? [])
     .filter((s) => sameClubReference(state, s.club, canonicalClubId))
@@ -339,11 +344,21 @@ function ClubCard({
     .reverse();
   return (
     <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-      <div className="banner-strip px-3 py-2 text-xs flex items-center justify-between">
-        <span>{displayName}</span>
-        <button onClick={onClose} className="opacity-80 hover:opacity-100">
-          Close
-        </button>
+      <div className="banner-strip px-3 py-2 text-xs flex items-center justify-between gap-2">
+        <span className="truncate">{displayName}</span>
+        <div className="flex items-center gap-2">
+          {!isUserClub && (
+            <button
+              onClick={() => update((next) => setWorldClubTracked(next, canonicalClubId, !tracked))}
+              className="rounded border border-current/30 px-2 py-1 font-semibold opacity-90 hover:opacity-100"
+            >
+              {tracked ? "Stop tracking" : "Track club"}
+            </button>
+          )}
+          <button onClick={onClose} className="opacity-80 hover:opacity-100">
+            Close
+          </button>
+        </div>
       </div>
       <div className="p-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
         <Cell label="Reputation" value={clubReputation(state, club).toFixed(1)} />
