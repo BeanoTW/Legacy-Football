@@ -64,7 +64,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2]
+        shard: [0, 1, 2, 3]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -86,7 +86,7 @@ jobs:
           fi
 
           shard=${{ matrix.shard }}
-          shard_count=3
+          shard_count=4
           ran=0
           for i in "${!checks[@]}"; do
             if (( i % shard_count != shard )); then
