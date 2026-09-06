@@ -1041,19 +1041,19 @@ export function clubGrowthFactor(s: GameState): number {
   let moves = 0;
   for (const h of history) {
     if (h.season < s.season - 3) continue;
-    if (h.promoted?.includes?.(s.clubName)) moves += 1;
-    if (h.relegated?.includes?.(s.clubName)) moves -= 1;
+    if (h.promoted?.some((club) => isUserClubReference(s, club))) moves += 1;
+    if (h.relegated?.some((club) => isUserClubReference(s, club))) moves -= 1;
   }
   // Reputation trend over the same window, from the immutable snapshots.
   const snaps = (s.clubSnapshots ?? [])
-    .filter((x) => x.club === s.clubName)
+    .filter((x) => isUserClubReference(s, x.club))
     .sort((a, b) => a.season - b.season);
-  const now = clubReputation(s, s.clubName);
+  const now = clubReputation(s, userClubReference(s));
   const then = snaps.length ? snaps[Math.max(0, snaps.length - 4)].reputation : now;
   const repTrend = clamp((now - then) / 100, -0.1, 0.15);
   // Recent success: a club winning things is a club players charge more to join.
   const recent = history.filter(
-    (h) => h.season >= s.season - 2 && h.champion === s.clubName,
+    (h) => h.season >= s.season - 2 && isUserClubReference(s, h.champion),
   ).length;
   const factor = 1 + clamp(moves * 0.07, -0.14, 0.21) + repTrend + recent * 0.03;
   return Math.round(clamp(factor, 0.85, 1.35) * 1000) / 1000;
@@ -1066,7 +1066,7 @@ export function wageDemand(
 ): number {
   const roleFactor =
     role === "Key Player" ? 1.15 : role === "First Team" ? 1 : role === "Rotation" ? 0.9 : 0.8;
-  const ambitionGap = clamp(1 + (clubReputation(s, s.clubName) - p.reputation) / 240, 0.85, 1.2);
+  const ambitionGap = clamp(1 + (clubReputation(s, userClubReference(s)) - p.reputation) / 240, 0.85, 1.2);
   const personality = p.personality === "Mercenary" ? 1.15 : p.personality === "Loyal" ? 0.92 : 1;
   // Canonical infrastructure signal: good training/medical/pitch facilities
   // shave a little off wage demands, poor ones add to them. Capped at +/-6%.
