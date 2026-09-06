@@ -407,6 +407,60 @@ assert.equal(
   "due loan must return before the next week's payroll is booked",
 );
 
+// A live loan must also survive the actual season rollover path. This catches
+// bugs where rollover/career processing accidentally treats temporary
+// registration as a permanent move or drops the parent contract.
+const crossSeason = newGame("Loan Rollover FC", "Auditor", "PLAYER_LOAN_CROSS_SEASON");
+crossSeason.week = 45;
+const crossSeasonPlayer = userSquad(crossSeason)[0];
+const crossSeasonParent = playerOwnerClubId(crossSeasonPlayer)!;
+const crossSeasonClub = buildWorldSimulationPlan(crossSeason).fringeClubIds[0]!;
+const crossSeasonContract = activeContract(crossSeason, crossSeasonPlayer.id)!;
+const crossSeasonContractId = crossSeasonContract.id;
+const crossSeasonLoan = startPlayerLoanInPlace(
+  crossSeason,
+  crossSeasonPlayer.id,
+  crossSeasonClub,
+  3,
+  50,
+  "Regular",
+);
+assert.ok(crossSeasonLoan.ok, crossSeasonLoan.reason);
+
+const crossSeasonAfter45 = advanceWeek(crossSeason);
+assert.equal(crossSeasonAfter45.season, 1);
+assert.equal(crossSeasonAfter45.week, 46);
+assert.equal(activeLoanForPlayer(crossSeasonAfter45, crossSeasonPlayer.id)?.id, crossSeasonLoan.loan!.id);
+
+const crossSeasonAfter46 = advanceWeek(crossSeasonAfter45);
+assert.equal(crossSeasonAfter46.season, 2);
+assert.equal(crossSeasonAfter46.week, 1);
+const crossSeasonRolloverPlayer = crossSeasonAfter46.football.players.find(
+  (row) => row.id === crossSeasonPlayer.id,
+)!;
+assert.equal(playerOwnerClubId(crossSeasonRolloverPlayer), crossSeasonParent);
+assert.equal(playerRegisteredClubId(crossSeasonRolloverPlayer), crossSeasonClub);
+assert.equal(
+  activeLoanForPlayer(crossSeasonAfter46, crossSeasonPlayer.id)?.id,
+  crossSeasonLoan.loan!.id,
+  "active loan should survive season rollover",
+);
+assert.equal(
+  activeContract(crossSeasonAfter46, crossSeasonPlayer.id)?.id,
+  crossSeasonContractId,
+  "season rollover must preserve the parent contract behind an active loan",
+);
+
+const crossSeasonAfter1 = advanceWeek(crossSeasonAfter46);
+assert.equal(crossSeasonAfter1.season, 2);
+assert.equal(crossSeasonAfter1.week, 2);
+assert.equal(activeLoanForPlayer(crossSeasonAfter1, crossSeasonPlayer.id), undefined);
+const crossSeasonReturnedPlayer = crossSeasonAfter1.football.players.find(
+  (row) => row.id === crossSeasonPlayer.id,
+)!;
+assert.equal(playerOwnerClubId(crossSeasonReturnedPlayer), crossSeasonParent);
+assert.equal(playerRegisteredClubId(crossSeasonReturnedPlayer), crossSeasonParent);
+
 // A live v20 loan must survive the actual persisted JSON shape intact. This
 // catches sparse owner/registration or loan-counter fields being lost even
 // when migration itself has nothing to do.
