@@ -34,6 +34,7 @@ import type {
   PlayerPersonality,
   NegotiationLogEntry,
   SquadGroup,
+  LoanPlayingTimeExpectation,
 } from "./types";
 import { hashString, seededRng, rngInt, rngRange } from "./rng";
 import { absoluteWeek, WEEKS_PER_SEASON } from "./time";
@@ -77,6 +78,8 @@ import {
   ensureLoanStateInPlace,
   loanWageAdjustmentForClub,
   processDuePlayerLoansInPlace,
+  startPlayerLoanInPlace,
+  type LoanActionResult,
 } from "./loans";
 import {
   ensurePlayerRegistrationStateInPlace,
@@ -2145,6 +2148,135 @@ export function completeTransferInPlace(s: GameState, negotiationId: string): Ne
 
   syncLegacySquad(s);
   return { ok: true, reason: "Transfer completed", negotiation: n };
+}
+
+/* =========================================================================
+   7b. Chairman loan-out market
+========================================================================= */
+
+export interface LoanOutOfferTerms {
+  durationWeeks: number;
+  loanClubWageContributionPct: number;
+  playingTimeExpectation: LoanPlayingTimeExpectation;
+}
+
+/**
+ * Circulate one owned player to the simulated Focus market and accept the
+ * strongest club that can meet the chairman's requested loan terms.
+ *
+ * This is intentionally a compact beta workflow rather than a hidden random
+ * move: destination interest is driven by positional need, upgrade value,
+ * reputation fit and the wage/playing-time commitment requested by the user.
+ */
+export function arrangeUserPlayerLoanOutInPlace(
+  s: GameState,
+  playerId: string,
+  terms: LoanOutOfferTerms,
+): LoanActionResult {
+  ensureRecruitment(s);
+  const player = playerById(s, playerId);
+  if (!player) return { ok: false, reason: "Unknown player" };
+  if (!isUserClubReference(s, playerOwnerClubId(player)))
+    return { ok: false, reason: "Not our player" };
+  if (!isUserClubReference(s, playerRegisteredClubId(player)))
+    return { ok: false, reason: "Player is already registered away from the club" };
+  if (activeLoanForPlayer(s, playerId))
+    return { ok: false, reason: "Player already has an active loan" };
+  const contract = activeContract(s, playerId);
+  if (!contract) return { ok: false, reason: "Player needs a live contract before a loan" };
+  if (!Number.isInteger(terms.durationWeeks) || terms.durationWeeks < 1)
+    return { ok: false, reason: "Loan duration must be at least one week" };
+  if (
+    !Number.isFinite(terms.loanClubWageContributionPct) ||
+    terms.loanClubWageContributionPct < 0 ||
+    terms.loanClubWageContributionPct > 100
+  ) {
+    return { ok: false, reason: "Loan wage contribution must be between 0% and 100%" };
+  }
+
+  const candidates = buildWorldSimulationPlan(s).focusClubIds
+    .filter((clubId) => !isUserClubReference(s, clubId))
+    .map((clubId) => {
+      const squad = squadOf(s, clubId);
+      const samePosition = squad.filter(
+        (candidate) => candidate.primaryPosition === player.primaryPosition,
+      );
+      const positionalNeed = Math.max(
+        0,
+        SQUAD_TEMPLATE[player.primaryPosition] - samePosition.length,
+      );
+      const weakest = samePosition.length
+        ? Math.min(...samePosition.map((candidate) => candidate.currentAbility))
+        : 0;
+      const upgradeNeed = Math.max(0, player.currentAbility - weakest);
+      const reputationGap = Math.abs(clubReputation(s, clubId) - player.reputation);
+      const maxContributionPct = clamp(
+        30 + positionalNeed * 18 + Math.min(25, upgradeNeed * 2) - Math.max(0, reputationGap - 8),
+        20,
+        100,
+      );
+      const roleFeasible =
+        terms.playingTimeExpectation === "Backup" ||
+        terms.playingTimeExpectation === "Rotation" ||
+        positionalNeed > 0 ||
+        upgradeNeed >= (terms.playingTimeExpectation === "Important" ? 6 : 3);
+      return {
+        clubId,
+        squadSize: squad.length,
+        positionalNeed,
+        upgradeNeed,
+        reputationGap,
+        maxContributionPct,
+        roleFeasible,
+      };
+    })
+    .filter(
+      (candidate) =>
+        candidate.squadSize < MAX_SQUAD_SIZE &&
+        candidate.roleFeasible &&
+        candidate.maxContributionPct >= terms.loanClubWageContributionPct &&
+        (candidate.positionalNeed > 0 || candidate.upgradeNeed >= 2),
+    )
+    .sort(
+      (a, b) =>
+        b.positionalNeed - a.positionalNeed ||
+        b.upgradeNeed - a.upgradeNeed ||
+        a.reputationGap - b.reputationGap ||
+        a.clubId.localeCompare(b.clubId),
+    );
+
+  const destination = candidates[0];
+  if (!destination) {
+    return {
+      ok: false,
+      reason: "No simulated club is willing to meet those loan terms right now",
+    };
+  }
+
+  const started = startPlayerLoanInPlace(
+    s,
+    playerId,
+    destination.clubId,
+    terms.durationWeeks,
+    terms.loanClubWageContributionPct,
+    terms.playingTimeExpectation,
+  );
+  if (!started.ok) return started;
+  return {
+    ...started,
+    reason: `Loan agreed with ${clubDisplayName(s, destination.clubId)}`,
+  };
+}
+
+export function arrangeUserPlayerLoanOut(
+  s: GameState,
+  playerId: string,
+  terms: LoanOutOfferTerms,
+): { state: GameState; result: LoanActionResult } {
+  const next = structuredClone(s);
+  const result = arrangeUserPlayerLoanOutInPlace(next, playerId, terms);
+  if (result.ok) syncLegacySquad(next);
+  return { state: next, result };
 }
 
 /* =========================================================================
