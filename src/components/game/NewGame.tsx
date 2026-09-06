@@ -33,8 +33,8 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
               ))}
             </div>
             <p className="text-sm text-muted-foreground">
-              You take over a club in Division Four with £3M in the bank. Set ticket prices,
-              control the wage bill, invest in the ground and build your way up the pyramid.
+              You take over a semi-professional club at Football Level 7 with £220,000 in the bank.
+              Shape the squad, control the wage bill, invest in the ground and build your way up the pyramid.
             </p>
             <div className="space-y-2">
               <Label htmlFor="club">Club name</Label>
