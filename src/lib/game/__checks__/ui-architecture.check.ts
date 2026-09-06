@@ -354,5 +354,23 @@ console.log("\n[U9] Chairman club tracking");
   );
 }
 
+
+console.log("\n[U10] Football performance visibility");
+{
+  const squad = read("src/components/game/SquadSelectionTab.tsx");
+  check(
+    "squad screen surfaces canonical cohesion and morale state",
+    /PLAYER_COHESION_DEFAULT/.test(squad) &&
+      /PLAYER_MORALE_DEFAULT/.test(squad) &&
+      /label="Cohesion"/.test(squad) &&
+      /label="Morale"/.test(squad),
+  );
+  check(
+    "squad screen derives manager quality from the canonical performance selector",
+    /playerManagerQuality\(state\)/.test(squad) &&
+      /label="Manager"/.test(squad),
+  );
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
