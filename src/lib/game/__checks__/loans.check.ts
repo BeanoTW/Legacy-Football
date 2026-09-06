@@ -18,6 +18,7 @@ import {
   ageOf,
   arrangeUserPlayerLoanIn,
   arrangeUserPlayerLoanOut,
+  loanInAvailabilityReason,
   assignScout,
   availabilityReason,
   completeTransferInPlace,
@@ -44,6 +45,7 @@ import { buildWorldSimulationPlan } from "../world";
 import { runPlayerCareerRollover } from "../careers";
 import { recruitmentWageForClub } from "../recruitmentEconomy";
 import { isUserClubReference, sameClubReference } from "../clubReference";
+import { createScoutingBrief, scoutingBrief } from "../scoutingDiscovery";
 
 const state = newGame("Loan Audit FC", "Auditor", "PLAYER_LOAN_AUDIT");
 assert.equal(SAVE_VERSION, 20);
@@ -437,6 +439,33 @@ assert.equal(overWageBorrow.result.ok, false);
 assert.ok(
   overWageBorrow.result.reason.includes("Wage bill would reach"),
   "incoming loan must respect chairman wage authority",
+);
+
+const compactLoanSource = createScoutingBrief(
+  borrowSource,
+  { id: "loan-compact-gate", maxAge: 40 },
+);
+const compactLoanPlayerId = scoutingBrief(compactLoanSource, "loan-compact-gate")?.candidateIds.find(
+  (playerId) => !compactLoanSource.football.players.some((player) => player.id === playerId),
+);
+assert.ok(compactLoanPlayerId, "loan compact-gate fixture needs one Fringe discovery");
+assert.equal(
+  loanInAvailabilityReason(compactLoanSource, compactLoanPlayerId),
+  "This club is outside your active loan market right now",
+);
+const compactLoanAttempt = arrangeUserPlayerLoanIn(
+  compactLoanSource,
+  compactLoanPlayerId,
+  {
+    durationWeeks: 4,
+    loanClubWageContributionPct: 100,
+    playingTimeExpectation: "Important",
+  },
+);
+assert.equal(compactLoanAttempt.result.ok, false);
+assert.equal(
+  compactLoanAttempt.result.reason,
+  "This club is outside your active loan market right now",
 );
 
 const closedWindowBorrowSource = structuredClone(borrowSource);
