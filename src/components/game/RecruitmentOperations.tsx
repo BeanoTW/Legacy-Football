@@ -26,6 +26,8 @@ import { MOOD_TONE_CLASS, playerMood } from "@/lib/game/character";
 import { transferTargetPlayer } from "@/lib/game/recruitmentTargetBridge";
 import { chairmanRecruitmentEstimate } from "@/lib/game/recruitmentKnowledge";
 import { clubDisplayName, userClubReference } from "@/lib/game/clubReference";
+import { activeLoanForPlayer } from "@/lib/game/loans";
+import { absoluteWeek } from "@/lib/game/time";
 import { clubOperatingModel, contractEmploymentType } from "@/lib/game/employment";
 import {
   recruitmentTransferFeePolicyForClub,
@@ -95,8 +97,17 @@ export function RecruitmentOperations({
 
   const playerRow = (player: (typeof squad)[number]) => {
     const contract = activeContract(state, player.id);
-    const weeksLeft = contract ? weeksLeftOnContract(state, contract) : 0;
+    const loan = activeLoanForPlayer(state, player.id);
+    const weeksLeft = loan
+      ? Math.max(0, loan.endAbsoluteWeek - absoluteWeek(state.season, state.week))
+      : contract
+        ? weeksLeftOnContract(state, contract)
+        : 0;
     const employment = contract ? employmentLabel(contractEmploymentType(state, contract)) : null;
+    const displayedWage =
+      contract && loan
+        ? Math.round((contract.weeklyWage * loan.loanClubWageContributionPct) / 100)
+        : contract?.weeklyWage ?? 0;
     const mood = playerMood(state, player);
     return (
       <button
@@ -108,15 +119,26 @@ export function RecruitmentOperations({
           {player.primaryPosition}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-semibold">{playerName(player)}</span>
+          <span className="flex items-center gap-1.5">
+            <span className="block truncate font-semibold">{playerName(player)}</span>
+            {loan && (
+              <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">
+                LOAN
+              </span>
+            )}
+          </span>
           <span className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
-            <span className="truncate">Age {ageOf(player, state.season)} · {contract?.squadRole ?? "Unregistered"}{employment ? ` · ${employment}` : ""}</span>
+            <span className="truncate">
+              {loan
+                ? `Age ${ageOf(player, state.season)} · On loan from ${clubDisplayName(state, loan.parentClubId)}`
+                : `Age ${ageOf(player, state.season)} · ${contract?.squadRole ?? "Unregistered"}${employment ? ` · ${employment}` : ""}`}
+            </span>
             <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${MOOD_TONE_CLASS[mood.tone]}`}>{mood.label}</span>
           </span>
         </span>
         <span className="shrink-0 text-right text-sm">
           <span className="block">
-            {contract ? `${fmtMoneyExact(contract.weeklyWage)}/wk` : "No deal"}
+            {contract ? `${fmtMoneyExact(displayedWage)}/wk` : "No deal"}
           </span>
           <span
             className={
@@ -125,7 +147,7 @@ export function RecruitmentOperations({
                 : "block text-xs text-muted-foreground"
             }
           >
-            {contract ? `${weeksLeft} weeks left` : "No contract"}
+            {contract ? `${weeksLeft} ${loan ? "loan" : "contract"} weeks left` : "No contract"}
           </span>
         </span>
         <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
