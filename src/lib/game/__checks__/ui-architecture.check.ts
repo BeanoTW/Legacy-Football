@@ -413,5 +413,25 @@ console.log("\n[U12] Legacy Football product surface");
   );
 }
 
+
+console.log("\n[U13] Canonical football level terminology");
+{
+  const leagueBrowser = read("src/components/LeagueBrowser.tsx");
+  const world = read("src/components/game/WorldInspector.tsx");
+  const history = read("src/components/game/HistoryTab.tsx");
+  check(
+    "league and world screens expose football levels instead of persisted tier numbers",
+    /Football Level \{footballLevelOfLeague\(league\)\}/.test(leagueBrowser) &&
+      /Football Level \{footballLevelOfLeague\(league\)\}/.test(world) &&
+      !/Tier \{league\.tier\}/.test(leagueBrowser) &&
+      !/Tier \{league\.tier\}/.test(world),
+  );
+  check(
+    "legacy best-finish cards convert persisted tiers before display",
+    /legacyTierToFootballLevel\(legacy\.bestLeagueFinish\.tier\)/.test(leagueBrowser) &&
+      /legacyTierToFootballLevel\(legacy\.bestLeagueFinish\.tier\)/.test(history),
+  );
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
