@@ -824,7 +824,7 @@ export function squadOf(s: GameState, club: string): FootballPlayer[] {
     .sort((a, b) => b.currentAbility - a.currentAbility || a.id.localeCompare(b.id));
 }
 
-export const userSquad = (s: GameState) => squadOf(s, s.clubName);
+export const userSquad = (s: GameState) => squadOf(s, userClubReference(s));
 
 export const freeAgents = (s: GameState) =>
   (s.football?.players ?? []).filter(
@@ -856,7 +856,7 @@ export function syncLegacySquad(s: GameState): void {
     const c = activeContract(s, p.id);
     const loan = activeLoanForPlayer(s, p.id);
     const wage =
-      c && loan && sameClubReference(s, loan.loanClubId, s.clubName)
+      c && loan && sameClubReference(s, loan.loanClubId, userClubReference(s))
         ? int((c.weeklyWage * loan.loanClubWageContributionPct) / 100)
         : c?.weeklyWage ?? 0;
     return {
@@ -887,7 +887,7 @@ export function clubWageBill(s: GameState, club: string): number {
   return int(Math.max(0, contractual + loanWageAdjustmentForClub(s, club)));
 }
 
-export const userWageBill = (s: GameState) => clubWageBill(s, s.clubName);
+export const userWageBill = (s: GameState) => clubWageBill(s, userClubReference(s));
 
 export interface WageCommitment {
   season: number;
@@ -1021,7 +1021,7 @@ export function askingPrice(s: GameState, p: FootballPlayer): number {
   const sellerRep = p.currentClubId ? clubReputation(s, p.currentClubId) : 50;
   const ambition = 0.9 + sellerRep / 250;
   const rawAsk = p.marketValue * contractFactor * importance * listed * ambition;
-  const sellerClub = p.currentClubId ?? s.clubName;
+  const sellerClub = p.currentClubId ?? userClubReference(s);
   return recruitmentNormaliseTransferFeeForClub(s, sellerClub, rawAsk, "asking");
 }
 
@@ -1589,7 +1589,7 @@ export function evaluateClubResponseInPlace(s: GameState, n: TransferNegotiation
     syncTransferTargetNegotiationInPlace(s, n);
     return;
   }
-  const sellerClub = n.fromClubId ?? p.currentClubId ?? s.clubName;
+  const sellerClub = n.fromClubId ?? p.currentClubId ?? userClubReference(s);
   const feePolicy = recruitmentTransferFeePolicyForClub(s, sellerClub);
   n.clubCounterFee = Math.max(
     n.fee + feePolicy.feeStep,
@@ -2062,14 +2062,14 @@ export function completeTransferInPlace(s: GameState, negotiationId: string): Ne
     const fresh = issueContract(
       s,
       p.id,
-      s.clubName,
+      userClubReference(s),
       n.proposedWeeklyWage,
       n.proposedLengthSeasons,
       n.proposedRole,
       n.proposedSigningBonus,
       n.fee,
     );
-    setPlayerClubIdentityInPlace(p, s.clubName);
+    setPlayerClubIdentityInPlace(p, userClubReference(s));
     p.contractId = fresh.id;
     p.transferStatus = "unlisted";
   } else {
@@ -2227,7 +2227,7 @@ export function renewContractInPlace(
   const fresh = issueContract(
     s,
     p.id,
-    s.clubName,
+    userClubReference(s),
     terms.weeklyWage,
     terms.seasons,
     terms.role,
@@ -2761,7 +2761,7 @@ export function averageSquadAge(s: GameState): number {
 /** Count of players signed by the user's club this season. */
 export function incomingTransfersThisSeason(s: GameState): number {
   return (s.football?.transferHistory ?? []).filter(
-    (r) => r.season === s.season && r.toClubId === s.clubName,
+    (r) => r.season === s.season && isUserClubReference(s, r.toClubId),
   ).length;
 }
 
