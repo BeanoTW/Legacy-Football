@@ -2355,9 +2355,14 @@ export function arrangeUserPlayerLoanInInPlace(
   if (parentSquad.length <= MIN_SQUAD_SIZE)
     return { ok: false, reason: "Parent club cannot spare another player from its squad" };
 
-  const samePosition = parentSquad.filter(
-    (candidate) => candidate.primaryPosition === player.primaryPosition,
-  );
+  const samePosition = parentSquad
+    .filter((candidate) => candidate.primaryPosition === player.primaryPosition)
+    .slice()
+    .sort(
+      (a, b) =>
+        b.currentAbility - a.currentAbility ||
+        a.id.localeCompare(b.id),
+    );
   const rankInPosition = samePosition.findIndex((candidate) => candidate.id === player.id);
   const surplus =
     player.transferStatus === "listed" ||
