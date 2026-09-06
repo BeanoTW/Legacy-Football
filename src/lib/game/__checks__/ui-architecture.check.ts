@@ -419,6 +419,7 @@ console.log("\n[U13] Canonical football level terminology");
   const leagueBrowser = read("src/components/LeagueBrowser.tsx");
   const world = read("src/components/game/WorldInspector.tsx");
   const history = read("src/components/game/HistoryTab.tsx");
+  const clubHub = read("src/components/game/ClubHub.tsx");
   check(
     "league and world screens expose football levels instead of persisted tier numbers",
     /Football Level \{footballLevelOfLeague\(league\)\}/.test(leagueBrowser) &&
