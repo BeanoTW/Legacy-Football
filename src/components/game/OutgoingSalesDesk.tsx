@@ -8,11 +8,11 @@ import {
   playerName,
   respondToIncomingOffer,
   setTransferStatus,
-  userSquad,
 } from "@/lib/game/recruitment";
+import { activeLoanForPlayer } from "@/lib/game/loans";
 import { fmtMoney, fmtMoneyExact } from "@/lib/game/engine";
 import { playerOwnerClubId } from "@/lib/game/playerRegistration";
-import { isUserClubReference } from "@/lib/game/clubReference";
+import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -26,12 +26,12 @@ export function OutgoingSalesDesk({
   onBack: () => void;
 }) {
   const [note, setNote] = useState<string | null>(null);
-  // Registration makes loaned-in players part of the matchday squad, but it
-  // does not make them saleable assets. The sales desk only exposes players
-  // whose permanent ownership belongs to the user's club.
+  // Sales follow permanent ownership, not playing registration. This keeps
+  // loaned-in players out while still showing the club's own players who are
+  // temporarily away on loan.
   const squad = useMemo(
     () =>
-      userSquad(state).filter((player) =>
+      (state.football?.players ?? []).filter((player) =>
         isUserClubReference(state, playerOwnerClubId(player)),
       ),
     [state],
@@ -159,10 +159,10 @@ export function OutgoingSalesDesk({
           <div className="shrink-0 border-b px-4 py-2.5">
             <div className="flex items-center gap-2">
               <Tag className="size-4 text-primary" />
-              <h2 className="font-display text-lg">Your squad</h2>
+              <h2 className="font-display text-lg">Your players</h2>
             </div>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              Set an asking target and list players without turning this into a long page.
+              Set asking targets for players you own. Players currently out on loan remain visible but cannot be listed until they return.
             </p>
           </div>
           <div className="contained-scroll flex-1 divide-y">
@@ -193,6 +193,7 @@ function SaleRow({
   ) => void;
 }) {
   const listed = player.transferStatus === "listed";
+  const loan = activeLoanForPlayer(state, player.id);
   const ask = askingPricePreference(state, player);
   const [draft, setDraft] = useState(String(ask));
 
@@ -208,23 +209,31 @@ function SaleRow({
     <div className="grid gap-2 px-3 py-2.5 sm:grid-cols-[1fr_auto] sm:items-center">
       <PlayerSummary player={player} state={state} />
       <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-[9px] uppercase text-muted-foreground">Ask</span>
-        <Input
-          aria-label={`Asking price for ${playerName(player)}`}
-          value={draft}
-          onChange={(event) => setDraft(event.target.value.replace(/[^0-9]/g, ""))}
-          onBlur={saveAsk}
-          className="h-8 w-24 tnum text-xs"
-        />
-        <Button
-          size="sm"
-          variant={listed ? "secondary" : "default"}
-          onClick={() =>
-            act((s) => setTransferStatus(s, player.id, listed ? "unlisted" : "listed"))
-          }
-        >
-          {listed ? "Unlist" : "List"}
-        </Button>
+        {loan ? (
+          <div className="rounded-lg border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
+            On loan at {clubDisplayName(state, loan.loanClubId)} · returns before sale
+          </div>
+        ) : (
+          <>
+            <span className="text-[9px] uppercase text-muted-foreground">Ask</span>
+            <Input
+              aria-label={`Asking price for ${playerName(player)}`}
+              value={draft}
+              onChange={(event) => setDraft(event.target.value.replace(/[^0-9]/g, ""))}
+              onBlur={saveAsk}
+              className="h-8 w-24 tnum text-xs"
+            />
+            <Button
+              size="sm"
+              variant={listed ? "secondary" : "default"}
+              onClick={() =>
+                act((s) => setTransferStatus(s, player.id, listed ? "unlisted" : "listed"))
+              }
+            >
+              {listed ? "Unlist" : "List"}
+            </Button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -232,6 +241,7 @@ function SaleRow({
 
 function PlayerSummary({ player, state }: { player: FootballPlayer; state: GameState }) {
   const contract = activeContract(state, player.id);
+  const loan = activeLoanForPlayer(state, player.id);
   return (
     <div className="min-w-0">
       <div className="flex flex-wrap items-center gap-1.5">
@@ -242,6 +252,11 @@ function PlayerSummary({ player, state }: { player: FootballPlayer; state: GameS
         {player.transferStatus === "listed" && (
           <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 dark:text-amber-300">
             LISTED
+          </span>
+        )}
+        {loan && (
+          <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">
+            LOANED OUT
           </span>
         )}
       </div>
