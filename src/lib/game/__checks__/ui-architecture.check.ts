@@ -245,5 +245,35 @@ console.log("\n[U6] Recruitment knowledge boundary");
   );
 }
 
+console.log("\n[U7] Loan chairman boundary");
+{
+  const loanDesk = read("src/components/game/LoanDesk.tsx");
+  const browser = read("src/components/game/ScoutingBrowser.tsx");
+  const loanUi = [loanDesk, browser].join("\n");
+  check(
+    "loan UI never calls the low-level registration primitive",
+    !/startPlayerLoanInPlace\(/.test(loanUi),
+  );
+  check(
+    "loan-out UI uses the chairman market action",
+    /arrangeUserPlayerLoanOut\(/.test(loanDesk),
+  );
+  check(
+    "loan-in UI uses the chairman market action",
+    /arrangeUserPlayerLoanIn\(/.test(browser),
+  );
+  check(
+    "loan termination UI uses the chairman-authorised action",
+    /terminateUserPlayerLoan\(/.test(loanDesk) && !/terminatePlayerLoan\(/.test(loanDesk),
+  );
+  check(
+    "loan registration controls expose the canonical transfer-window state",
+    /isTransferWindowOpen\(state\)/.test(loanDesk) &&
+      /windowStatus\(state\)/.test(loanDesk) &&
+      /isTransferWindowOpen\(state\)/.test(browser) &&
+      /windowStatus\(state\)/.test(browser),
+  );
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
