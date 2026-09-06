@@ -19,6 +19,7 @@ import {
   availabilityReason,
   completeTransferInPlace,
   freeAgents,
+  playerInterestAssessment,
   reconcileRecruitmentFidelity,
   releasePlayerInPlace,
   rollRecruitmentToNewSeason,
@@ -87,6 +88,11 @@ assert.deepEqual(
   "loan must not replace or rewrite the parent contract",
 );
 assert.equal(activeLoanForPlayer(state, player.id)?.id, started.loan.id);
+assert.equal(
+  playerInterestAssessment(state, player).label,
+  "On loan out",
+  "user-owned loaned-out players should not be described as still at the club",
+);
 assert.equal(
   playerWageBill(state),
   parentPayrollBeforeLoan - Math.round((parentContract.weeklyWage * 60) / 100),
