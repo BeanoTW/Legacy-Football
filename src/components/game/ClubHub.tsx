@@ -51,7 +51,13 @@ export function ClubHub({ state, update, setTab }: { state: GameState; update: (
   const mgrConf = manager ? Math.max(20, Math.min(99, Math.round(60 + (manager.rating - 60) + state.fanHappiness / 8))) : Math.max(20, Math.min(99, Math.round(50 + state.fanHappiness / 5)));
   const weeklyNet = weeklyNetRecurring(state);
   const unread = unreadCount(state);
-  const decisions = actionableInbox(state).length;
+  const decisionItems = actionableInbox(state);
+  const decisions = decisionItems.length;
+  const topDecision = decisionItems[0];
+  const latestNews = state.inbox
+    .filter((item) => !decisionItems.some((decision) => decision.id === item.id))
+    .slice()
+    .sort((a, b) => b.season - a.season || b.week - a.week || b.id.localeCompare(a.id))[0];
   const activeNegotiations = state.football?.negotiations?.filter((n) => n.stage !== "completed" && n.stage !== "withdrawn" && n.stage !== "rejected").length ?? 0;
   const squadSize = userSquad(state).length;
   const leagueSorted = [...state.league].sort((a, b) => b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga) || b.gf - a.gf);
@@ -73,7 +79,7 @@ export function ClubHub({ state, update, setTab }: { state: GameState; update: (
         <MatchStrip state={state} nextFixture={nextFixture} update={update} />
       </section>
 
-      <div className="grid min-h-0 grid-rows-[auto_auto_auto_minmax(0,1fr)] gap-2 md:gap-3 xl:grid-rows-[auto_auto_minmax(0,1fr)]">
+      <div className="grid min-h-0 grid-rows-[auto_auto_auto_auto_minmax(0,1fr)] gap-2 md:gap-3 xl:grid-rows-[auto_auto_auto_auto_minmax(0,1fr)]">
         <section className="lf-controls min-h-0">
           <div className="mb-1 flex items-center justify-between"><h2 className="font-display text-base md:text-xl">Chairman controls</h2><span className="text-[9px] md:text-xs text-muted-foreground">Main workflows</span></div>
           <div className="lf-control-grid grid grid-cols-2 gap-1.5 md:grid-cols-3 md:gap-2">
@@ -83,6 +89,24 @@ export function ClubHub({ state, update, setTab }: { state: GameState; update: (
             <ActionTile onClick={() => setTab("staff")} icon={<Briefcase className="size-4 md:size-5" />} title="Staff" value={manager ? manager.name : "No manager"} sub={staffCount ? `${staffCount} employed` : "Build team"} />
             <ActionTile onClick={() => setTab("stadium")} icon={<Building2 className="size-4 md:size-5" />} title="Facilities" value={`${totalCapacity(state).toLocaleString()} seats`} />
             <ActionTile onClick={() => setTab("tickets")} icon={<Heart className="size-4 md:size-5" />} title="Supporters" value={`${state.fanHappiness}% happy`} sub={`${fanbase.toLocaleString()} fans`} />
+          </div>
+        </section>
+        <section className="lf-club-desk">
+          <div className="mb-1 flex items-center justify-between">
+            <h2 className="font-display text-base md:text-xl">Club desk</h2>
+            <button onClick={() => setTab("inbox")} className="text-[9px] md:text-xs font-semibold text-primary">Open inbox</button>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5 md:gap-2">
+            <button onClick={() => setTab("inbox")} className={cn("lf-desk-card rounded-xl border bg-card p-3 text-left shadow-sm", topDecision && "border-amber-500/60 bg-amber-500/5")}>
+              <div className="text-[9px] md:text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Decision</div>
+              <div className="mt-1 line-clamp-2 text-xs md:text-sm font-semibold leading-snug">{topDecision?.subject ?? "No decisions waiting"}</div>
+              <div className="mt-1 truncate text-[9px] md:text-[10px] text-muted-foreground">{topDecision ? topDecision.department : "Club is clear"}</div>
+            </button>
+            <button onClick={() => setTab("inbox")} className="lf-desk-card rounded-xl border bg-card p-3 text-left shadow-sm">
+              <div className="text-[9px] md:text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Latest</div>
+              <div className="mt-1 line-clamp-2 text-xs md:text-sm font-semibold leading-snug">{latestNews?.subject ?? "No fresh club news"}</div>
+              <div className="mt-1 truncate text-[9px] md:text-[10px] text-muted-foreground">{latestNews ? `${latestNews.department} · W${latestNews.week}` : "Advance time for updates"}</div>
+            </button>
           </div>
         </section>
         <HubStrategicStrip state={state} onOpenFinance={() => setTab("cashflow")} />
