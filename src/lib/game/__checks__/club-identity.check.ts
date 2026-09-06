@@ -93,5 +93,16 @@ assert.equal(
   false,
   "weekly commercial should run directly without a clubName compatibility boundary",
 );
+const boardSource = readFileSync(new URL("../board.ts", import.meta.url), "utf8");
+assert.equal(
+  /\bs\.clubName\b/.test(boardSource),
+  false,
+  "board runtime must not read presentation clubName as identity or deterministic seed",
+);
+assert.equal(
+  engineSource.includes("withCanonicalUserClubReference"),
+  false,
+  "weekly engine should not need the legacy user-club identity boundary",
+);
 
 console.log("\nclub-identity: passed");
