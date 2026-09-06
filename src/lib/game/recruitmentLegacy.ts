@@ -712,8 +712,8 @@ function scoutingStaff(s: GameState) {
 /** Knowledge is derived from persistent assignment time, so advancing a week is enough. */
 export function scoutingView(s: GameState, player: FootballPlayer): ScoutingView {
   if (
-    playerOwnerClubId(player) === s.clubName ||
-    playerRegisteredClubId(player) === s.clubName
+    isUserClubReference(s, playerOwnerClubId(player)) ||
+    isUserClubReference(s, playerRegisteredClubId(player))
   ) {
     return {
       knowledge: 100,
@@ -772,8 +772,8 @@ export function assignScout(
   const player = playerById(next, playerId);
   if (!player) return { state: s, result: { ok: false, reason: "Player not found" } };
   if (
-    playerOwnerClubId(player) === next.clubName ||
-    playerRegisteredClubId(player) === next.clubName
+    isUserClubReference(next, playerOwnerClubId(player)) ||
+    isUserClubReference(next, playerRegisteredClubId(player))
   ) {
     return {
       state: s,
@@ -1089,7 +1089,7 @@ export function wageDemand(
  */
 export function availabilityReason(s: GameState, p: FootballPlayer): string | null {
   if (activeLoanForPlayer(s, p.id)) return null;
-  if (playerOwnerClubId(p) === s.clubName || playerRegisteredClubId(p) === s.clubName) return null;
+  if (isUserClubReference(s, playerOwnerClubId(p)) || isUserClubReference(s, playerRegisteredClubId(p))) return null;
   if (p.currentClubId === null) return "Free agent — out of contract";
   if (p.transferStatus === "agreedTransfer") return null;
   if (p.transferStatus === "listed") return "Transfer listed by his club";
@@ -1366,7 +1366,7 @@ export function openTransferEnquiryInPlace(
   if (!p) return { ok: false, reason: "Unknown player" };
   if (activeLoanForPlayer(s, playerId))
     return { ok: false, reason: "Player is currently on loan" };
-  if (p.currentClubId === s.clubName) return { ok: false, reason: "He is already our player" };
+  if (isUserClubReference(s, playerOwnerClubId(p)) || isUserClubReference(s, playerRegisteredClubId(p))) return { ok: false, reason: "He is already our player" };
   if (openNegotiations(s).some((n) => n.playerId === playerId)) {
     return { ok: false, reason: "Talks for this player are already open" };
   }
@@ -1474,7 +1474,7 @@ export function openTransferNegotiationInPlace(
   if (!p) return { ok: false, reason: "Unknown player" };
   if (activeLoanForPlayer(s, playerId))
     return { ok: false, reason: "Player is currently on loan" };
-  if (p.currentClubId === s.clubName) return { ok: false, reason: "He is already our player" };
+  if (isUserClubReference(s, playerOwnerClubId(p)) || isUserClubReference(s, playerRegisteredClubId(p))) return { ok: false, reason: "He is already our player" };
   if (openNegotiations(s).some((n) => n.playerId === playerId)) {
     return { ok: false, reason: "Talks for this player are already open" };
   }
