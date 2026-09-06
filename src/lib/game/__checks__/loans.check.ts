@@ -43,7 +43,7 @@ import {
 import { buildWorldSimulationPlan } from "../world";
 import { runPlayerCareerRollover } from "../careers";
 import { recruitmentWageForClub } from "../recruitmentEconomy";
-import { isUserClubReference } from "../clubReference";
+import { isUserClubReference, sameClubReference } from "../clubReference";
 
 const state = newGame("Loan Audit FC", "Auditor", "PLAYER_LOAN_AUDIT");
 assert.equal(SAVE_VERSION, 20);
@@ -500,12 +500,14 @@ assert.ok(uiTerminationReducedPayroll < uiTerminationFullPayroll);
 const unrelated = newGame("Loan Authority FC", "Auditor", "PLAYER_LOAN_AUTHORITY");
 const unrelatedPlayer = unrelated.football.players.find((row) => {
   const owner = playerOwnerClubId(row);
-  return owner && owner !== unrelated.clubName && activeContract(unrelated, row.id);
+  return owner && !isUserClubReference(unrelated, owner) && activeContract(unrelated, row.id);
 });
 assert.ok(unrelatedPlayer, "authority fixture needs an externally owned player");
 const unrelatedParent = playerOwnerClubId(unrelatedPlayer)!;
 const unrelatedLoanClub = buildWorldSimulationPlan(unrelated).focusClubIds.find(
-  (clubId) => clubId !== unrelatedParent && clubId !== unrelated.clubName,
+  (clubId) =>
+    !sameClubReference(unrelated, clubId, unrelatedParent) &&
+    !isUserClubReference(unrelated, clubId),
 )!;
 assert.ok(unrelatedLoanClub, "authority fixture needs a second external club");
 const unrelatedStarted = startPlayerLoanInPlace(
