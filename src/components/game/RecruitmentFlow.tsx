@@ -34,7 +34,7 @@ export function RecruitmentFlow({
     return <OutgoingSalesDesk state={state} update={update} onBack={() => setView("home")} />;
   }
   if (view === "loans") {
-    return <LoanDesk state={state} onBack={() => setView("home")} />;
+    return <LoanDesk state={state} update={update} onBack={() => setView("home")} />;
   }
   if (view === "operations") {
     return (
