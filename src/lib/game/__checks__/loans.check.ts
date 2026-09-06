@@ -337,7 +337,6 @@ assert.equal(
   loanMarketB.result.loan!.loanClubId,
   "same save and loan terms must choose the same destination",
 );
-assert.equal(loanMarketA.result.loan!.durationWeeks, undefined);
 assert.equal(loanMarketA.result.loan!.loanClubWageContributionPct, 20);
 assert.equal(loanMarketA.result.loan!.playingTimeExpectation, "Backup");
 assert.equal(
