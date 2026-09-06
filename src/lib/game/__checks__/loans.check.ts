@@ -26,6 +26,7 @@ import {
   setTransferStatusInPlace,
   squadOf,
   transferMarket,
+  syncLegacySquad,
   userSquad,
   userWageBill,
 } from "../recruitment";
