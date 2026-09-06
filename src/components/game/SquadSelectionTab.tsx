@@ -101,7 +101,7 @@ export function SquadSelectionTab({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
+    <div className="lf-squad-screen flex h-full min-h-0 flex-col gap-3">
       <div className="flex shrink-0 items-center justify-between gap-2">
         {onBack ? (
           <Button className="w-fit" variant="ghost" size="sm" onClick={onBack}>
@@ -120,7 +120,7 @@ export function SquadSelectionTab({
       </div>
 
       <div className="contained-scroll touch-pan-y grid min-h-0 flex-1 auto-rows-max gap-3 pr-0.5 lg:grid-cols-[minmax(0,0.9fr)_minmax(22rem,1.1fr)] lg:grid-rows-[auto_auto_minmax(0,1fr)]">
-        <section className="overflow-hidden rounded-xl border bg-card shadow-sm lg:col-start-1">
+        <section className="lf-squad-overview overflow-hidden rounded-xl border bg-card shadow-sm lg:col-start-1">
           <div className="panel-strip p-4">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -234,7 +234,7 @@ export function SquadSelectionTab({
         </section>
 
         {view === "pitch" ? (
-          <section className="min-h-[29rem] overflow-hidden rounded-xl border bg-emerald-950 p-3 text-white shadow-sm lg:col-start-1">
+          <section className="lf-pitch-card min-h-[29rem] overflow-hidden rounded-xl border bg-emerald-950 p-3 text-white shadow-sm lg:col-start-1">
             <div className="mb-4 flex items-center justify-between"><div><div className="text-[10px] uppercase tracking-[0.18em] text-white/60">4-4-2 suggestion</div><div className="font-display text-2xl">First XI</div></div><Users className="size-6 text-white/70" /></div>
             <Pitch xi={xi} />
           </section>
@@ -245,7 +245,7 @@ export function SquadSelectionTab({
           </section>
         )}
 
-        <section className="flex min-h-0 flex-col rounded-xl border bg-card shadow-sm lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:overflow-hidden">
+        <section className="lf-squad-list flex min-h-0 flex-col rounded-xl border bg-card shadow-sm lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:overflow-hidden">
           <div className="border-b px-4 py-3"><div className="font-display text-xl">Wider squad</div><div className="text-xs text-muted-foreground">Exact ability is visible because these are your contracted players.</div></div>
           <div className="min-h-0 flex-1 divide-y lg:overflow-auto lg:overscroll-contain lg:[scrollbar-gutter:stable]">{bench.map((player) => <PlayerRow key={player.id} state={state} player={player} />)}</div>
         </section>
