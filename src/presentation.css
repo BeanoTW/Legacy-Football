@@ -1,0 +1,179 @@
+/* Legacy Football — game presentation layer
+   This file deliberately sits above the simulation UI. It upgrades hierarchy,
+   depth and football-game character without changing game state or workflows. */
+
+:root {
+  --lf-shell-dark: oklch(0.19 0.025 220);
+  --lf-shell-mid: oklch(0.24 0.03 220);
+  --lf-glass: color-mix(in oklab, var(--color-card) 88%, transparent);
+  --lf-line: color-mix(in oklab, var(--color-border) 76%, transparent);
+  --lf-shadow: 0 18px 50px rgb(8 18 28 / 12%);
+  --lf-card-shadow: 0 8px 24px rgb(8 18 28 / 8%);
+}
+
+/* Give the application the visual weight of a management game rather than a
+   generic dashboard while retaining the existing club theme variables. */
+.game-shell {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 76% -12%, color-mix(in oklab, var(--color-primary) 18%, transparent) 0, transparent 32rem),
+    radial-gradient(circle at 8% 20%, color-mix(in oklab, var(--color-banner) 11%, transparent) 0, transparent 28rem),
+    linear-gradient(180deg, color-mix(in oklab, var(--color-background) 96%, white) 0, var(--color-background) 34rem);
+}
+
+.game-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.34;
+  background-image:
+    linear-gradient(rgb(255 255 255 / 2%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 2%) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(to bottom, black, transparent 68%);
+}
+
+/* Club masthead */
+.game-shell > .shrink-0:first-child {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(105deg, color-mix(in oklab, var(--color-panel) 96%, black) 0%, var(--color-panel) 52%, color-mix(in oklab, var(--color-primary) 82%, black) 100%);
+  color: var(--color-panel-foreground);
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+  box-shadow: 0 12px 30px rgb(6 15 24 / 16%);
+}
+
+.game-shell > .shrink-0:first-child::after {
+  content: "";
+  position: absolute;
+  right: -4rem;
+  top: -7rem;
+  width: 24rem;
+  height: 24rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in oklab, var(--color-banner) 24%, transparent), transparent 68%);
+  pointer-events: none;
+}
+
+/* Desktop KPI ribbon */
+.game-shell > .border-b.bg-panel {
+  border-color: rgb(255 255 255 / 10%);
+  background: color-mix(in oklab, var(--color-panel) 90%, black);
+  box-shadow: inset 0 -1px rgb(255 255 255 / 4%);
+}
+
+/* Primary desktop navigation: reads as the persistent game command bar. */
+.game-shell > nav {
+  position: relative;
+  z-index: 5;
+  border-color: var(--lf-line);
+  background: color-mix(in oklab, var(--color-card) 91%, transparent);
+  backdrop-filter: blur(14px) saturate(125%);
+  box-shadow: 0 7px 22px rgb(8 18 28 / 6%);
+}
+
+.game-shell > nav button {
+  border-color: color-mix(in oklab, var(--color-border) 84%, transparent);
+  box-shadow: inset 0 1px rgb(255 255 255 / 50%);
+}
+
+.game-shell > nav button.bg-primary {
+  box-shadow:
+    inset 0 1px rgb(255 255 255 / 18%),
+    0 5px 16px color-mix(in oklab, var(--color-primary) 28%, transparent);
+}
+
+/* Main screen becomes a bounded game workspace. */
+.game-main {
+  max-width: 100rem;
+}
+
+.game-screen {
+  border-radius: 0.9rem;
+}
+
+/* Upgrade common panel/card surfaces without touching component logic. */
+.game-screen :is(.bg-card, [data-slot="card"]) {
+  border-color: var(--lf-line);
+  box-shadow: var(--lf-card-shadow);
+}
+
+.game-screen :is(.rounded-xl, .rounded-2xl).border {
+  border-color: var(--lf-line);
+}
+
+.game-screen h1,
+.game-screen h2,
+.game-screen h3 {
+  text-wrap: balance;
+}
+
+.game-screen h1,
+.game-screen h2 {
+  letter-spacing: 0.015em;
+}
+
+/* Make important football actions feel tactile while preserving button tokens. */
+.game-screen button,
+.game-shell nav button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.game-screen button:not(:disabled) {
+  transition-property: transform, box-shadow, background-color, border-color, color, opacity;
+  transition-duration: 150ms;
+}
+
+@media (hover: hover) {
+  .game-screen button:not(:disabled):hover {
+    transform: translateY(-1px);
+  }
+}
+
+.game-screen button:not(:disabled):active {
+  transform: translateY(0);
+}
+
+/* Financial/status figures retain the compact instrument-panel feel. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Desktop: more deliberate breathing room and cinematic frame. */
+@media (min-width: 1280px) {
+  .game-main {
+    padding-top: 0.85rem;
+    padding-bottom: 0.85rem;
+  }
+
+  .game-screen {
+    background: color-mix(in oklab, var(--color-background) 72%, transparent);
+  }
+}
+
+/* Mobile keeps the same visual language but avoids expensive blur and depth. */
+@media (max-width: 767px) {
+  .game-shell {
+    background:
+      linear-gradient(180deg, color-mix(in oklab, var(--color-primary) 6%, var(--color-background)) 0, var(--color-background) 18rem);
+  }
+
+  .game-screen {
+    border-radius: 0;
+  }
+
+  .game-screen :is(.bg-card, [data-slot="card"]) {
+    box-shadow: 0 4px 14px rgb(8 18 28 / 5%);
+  }
+}
+
+.dark {
+  --lf-line: rgb(255 255 255 / 10%);
+  --lf-shadow: 0 20px 55px rgb(0 0 0 / 26%);
+  --lf-card-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+  --lf-glass: color-mix(in oklab, var(--color-card) 90%, transparent);
+}
