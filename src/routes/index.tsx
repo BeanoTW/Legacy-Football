@@ -171,7 +171,7 @@ function Game({ state, update, isContinuing, continueReason, startContinue, stop
             {tab === "fixtures" && <FixturesTab state={state} update={update} />}
             {tab === "board" && <BoardTab state={state} />}
             {tab === "commercial" && <CommercialTab state={state} update={update} />}
-            {tab === "leagues" && <LeagueBrowser state={state} />}
+            {tab === "leagues" && <LeagueBrowser state={state} update={update} />}
             {tab === "world" && <WorldInspector state={state} />}
             {tab === "history" && <HistoryTab state={state} />}
             {tab === "settings" && <SettingsTab activeSlot={activeSlot} slots={saveSlots} onSwitch={switchSlot} onDelete={deleteSlot} />}
