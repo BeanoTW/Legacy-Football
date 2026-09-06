@@ -150,4 +150,56 @@ assert(finalReload.week === s.week && finalReload.season === s.season, "save/rel
 assert(finalReload.cash === s.cash && reconcile(finalReload).ok, "save/reload must preserve progressed finances exactly");
 assert(footballLevelOfUser(finalReload) === 7, "early career progression must remain on Level 7 before promotion");
 
+// Beta shippability: drive the same career through two complete season
+// rollovers, reloading at each boundary. This catches cross-system failures
+// that only emerge after repeated recruitment, payroll, careers, world
+// fidelity and history maintenance.
+s = finalReload;
+const targetSeason = s.season + 2;
+let rolloverReloads = 0;
+let safetyWeeks = 0;
+while (s.season < targetSeason) {
+  const beforeSeason = s.season;
+  s = advanceWeek(s);
+  safetyWeeks++;
+  assert(safetyWeeks < 120, "two-season smoke must reach its target without stalling");
+  assert(Number.isFinite(s.cash), `cash must remain finite at S${s.season} W${s.week}`);
+  assert(reconcile(s).ok, `finances must reconcile at S${s.season} W${s.week}`);
+
+  if (s.season !== beforeSeason) {
+    const reloaded = reload(s);
+    assert(
+      reloaded.season === s.season && reloaded.week === s.week,
+      "season-boundary reload must preserve the calendar exactly",
+    );
+    assert(reloaded.cash === s.cash, "season-boundary reload must preserve cash exactly");
+    assert(reconcile(reloaded).ok, "season-boundary reload finances must reconcile");
+    s = reloaded;
+    rolloverReloads++;
+  }
+}
+
+assert(rolloverReloads === 2, `two-season smoke expected 2 rollover reloads, got ${rolloverReloads}`);
+assert(
+  new Set(s.football.players.map((player) => player.id)).size === s.football.players.length,
+  "two-season smoke must retain unique persistent player IDs",
+);
+assert(
+  new Set(s.football.contracts.map((contract) => contract.id)).size === s.football.contracts.length,
+  "two-season smoke must retain unique contract IDs",
+);
+assert(
+  new Set((s.football.loans ?? []).map((loan) => loan.id)).size === (s.football.loans ?? []).length,
+  "two-season smoke must retain unique loan IDs",
+);
+const activeLoanPlayers = (s.football.loans ?? [])
+  .filter((loan) => loan.status === "Active")
+  .map((loan) => loan.playerId);
+assert(
+  new Set(activeLoanPlayers).size === activeLoanPlayers.length,
+  "a player must never finish the smoke run on multiple active loans",
+);
+assert(userSquad(s).length >= 16, "automatic recruitment must keep a playable squad across two seasons");
+assert(reconcile(s).ok, "final two-season state must reconcile");
+
 console.log("level7-career-smoke.check.ts: PASS");
