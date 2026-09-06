@@ -103,10 +103,8 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   processDuePlayerLoansInPlace(s);
   runInfrastructureWeek(s);
   postRecurringWeek(s);
-  // Commercial still contains a few legacy `clubName` identity reads, so it
-  // remains behind the synchronous compatibility boundary. Recruitment is now
-  // identity-native and runs directly below.
-  withCanonicalUserClubReference(s, () => runCommercialWeek(s));
+  // Commercial and recruitment are identity-native and can run directly.
+  runCommercialWeek(s);
   // Capture any Focus→Fringe boundary change before legacy recruitment removes
   // detailed rows. Conversely, repair a direct tracking hydration from an
   // earlier UI action before weekly football systems use the temporary players.
