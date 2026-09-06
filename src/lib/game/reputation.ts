@@ -28,6 +28,7 @@ import type {
   ClubRecord,
 } from "./types";
 import { clubSimulationSeedKey } from "./clubIdentity";
+import { canonicalClubReference, sameClubReference } from "./clubReference";
 import { mulberry32, hashString } from "./rng";
 
 export const REP_MIN = 0;
@@ -51,7 +52,11 @@ export function leagueOfClubIn(leagues: League[] | undefined, club: string): Lea
 }
 
 export function tierOfClub(s: GameState, club: string): number {
-  return leagueOfClubIn(s.leagues, club)?.tier ?? 1;
+  return (
+    (s.leagues ?? []).find((league) =>
+      league.clubIds.some((candidate) => sameClubReference(s, candidate, club)),
+    )?.tier ?? 1
+  );
 }
 
 /* ---------- Reputation ---------- */
@@ -72,19 +77,24 @@ export function initClubReputations(leagues: League[], saveSeed: string): Record
 
 /** Persisted reputation, falling back to the deterministic immutable seed identity. */
 export function clubReputation(s: GameState, club: string): number {
-  const stored = s.clubReputations?.[club];
+  const canonical = canonicalClubReference(s, club);
+  const stored = s.clubReputations?.[canonical] ?? s.clubReputations?.[club];
   if (typeof stored === "number" && Number.isFinite(stored)) return clamp(stored, REP_MIN, REP_MAX);
-  return baseReputation(s.saveSeed, clubSimulationSeedKey(s, club), tierOfClub(s, club));
+  return baseReputation(s.saveSeed, clubSimulationSeedKey(s, canonical), tierOfClub(s, canonical));
 }
 
 export function setClubReputation(s: GameState, club: string, value: number): void {
   s.clubReputations ??= {};
-  s.clubReputations[club] = Math.round(clamp(value, REP_MIN, REP_MAX) * 10) / 10;
+  const canonical = canonicalClubReference(s, club);
+  s.clubReputations[canonical] = Math.round(clamp(value, REP_MIN, REP_MAX) * 10) / 10;
 }
 
 /* ---------- Strength ---------- */
 
-const record = (s: GameState, club: string): ClubRecord | undefined => s.clubRecords?.[club];
+const record = (s: GameState, club: string): ClubRecord | undefined => {
+  const canonical = canonicalClubReference(s, club);
+  return s.clubRecords?.[canonical] ?? s.clubRecords?.[club];
+};
 
 /** Finishing position in the given season, if it has been played. */
 export function finishIn(
@@ -241,10 +251,14 @@ export function clubPrediction(
   club: string,
   season: number,
 ): ClubPrediction | undefined {
-  const lg = leagueOfClubIn(s.leagues, club);
+  const lg = (s.leagues ?? []).find((league) =>
+    league.clubIds.some((candidate) => sameClubReference(s, candidate, club)),
+  );
   if (!lg) return undefined;
   const stored = predictionFor(s, season, lg.id);
-  return (stored ?? predictLeague(s, lg, season)).clubs.find((c) => c.club === club);
+  return (stored ?? predictLeague(s, lg, season)).clubs.find((candidate) =>
+    sameClubReference(s, candidate.club, club),
+  );
 }
 
 /* ---------- Season rollover: reputation movement + snapshots ---------- */
@@ -294,7 +308,7 @@ export function reputationDelta(args: {
 /** Overachievement streak from the immutable snapshot history. */
 function streakFor(s: GameState, club: string, season: number): number {
   const past = (s.clubSnapshots ?? [])
-    .filter((x) => x.club === club && x.season < season)
+    .filter((x) => sameClubReference(s, x.club, club) && x.season < season)
     .sort((a, b) => b.season - a.season)
     .slice(0, 3);
   let up = 0,
@@ -324,7 +338,9 @@ export function applySeasonIdentity(
   const changes: ReputationChange[] = [];
   const snapshots: ClubSeasonSnapshot[] = [];
   const already = new Set(
-    (s.clubSnapshots ?? []).filter((x) => x.season === season).map((x) => x.club),
+    (s.clubSnapshots ?? [])
+      .filter((x) => x.season === season)
+      .map((x) => canonicalClubReference(s, x.club)),
   );
 
   for (const r of results) {
@@ -335,20 +351,20 @@ export function applySeasonIdentity(
       (league ? predictLeague(s, league, season) : undefined);
 
     r.table.forEach((row, idx) => {
-      const club = row.team;
+      const club = canonicalClubReference(s, row.team);
       if (already.has(club)) return;
       const actualFinish = idx + 1;
-      const p = pred?.clubs.find((c) => c.club === club);
+      const p = pred?.clubs.find((candidate) => sameClubReference(s, candidate.club, club));
       const expectedFinish = p?.rank ?? Math.ceil(size / 2);
       const before = clubReputation(s, club);
       const delta = reputationDelta({
         actualFinish,
         expectedFinish,
         size,
-        champion: r.champion === club,
-        runnerUp: r.runnerUp === club,
-        promoted: r.promoted.includes(club),
-        relegated: r.relegated.includes(club),
+        champion: sameClubReference(s, r.champion, club),
+        runnerUp: r.runnerUp !== null && sameClubReference(s, r.runnerUp, club),
+        promoted: r.promoted.some((candidate) => sameClubReference(s, candidate, club)),
+        relegated: r.relegated.some((candidate) => sameClubReference(s, candidate, club)),
         streak: streakFor(s, club, season),
       });
       const after = clamp(Math.round((before + delta) * 10) / 10, REP_MIN, REP_MAX);
