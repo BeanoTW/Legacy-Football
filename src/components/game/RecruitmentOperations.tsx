@@ -545,8 +545,16 @@ function PlayerProfile({
 }) {
   const attrs = playerAttributes(player);
   const contract = activeContract(state, player.id);
+  const loan = activeLoanForPlayer(state, player.id);
   const employment = contract ? employmentLabel(contractEmploymentType(state, contract)) : "—";
   const mood = playerMood(state, player);
+  const displayedWage =
+    contract && loan
+      ? Math.round((contract.weeklyWage * loan.loanClubWageContributionPct) / 100)
+      : contract?.weeklyWage ?? 0;
+  const loanWeeks = loan
+    ? Math.max(0, loan.endAbsoluteWeek - absoluteWeek(state.season, state.week))
+    : null;
   return (
     <div className="space-y-4">
       <Button variant="ghost" onClick={onBack}>
@@ -571,11 +579,21 @@ function PlayerProfile({
           <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4 lg:grid-cols-7">
             <ProfileFact label="Value" value={fmtMoney(player.marketValue)} />
             <ProfileFact
-              label="Wage"
-              value={contract ? `${fmtMoneyExact(contract.weeklyWage)}/wk` : "—"}
+              label={loan ? "Our wage share" : "Wage"}
+              value={contract ? `${fmtMoneyExact(displayedWage)}/wk` : "—"}
             />
-            <ProfileFact label="Role" value={contract?.squadRole ?? "—"} />
-            <ProfileFact label="Employment" value={employment} />
+            <ProfileFact
+              label={loan ? "Loan role" : "Role"}
+              value={loan?.playingTimeExpectation ?? contract?.squadRole ?? "—"}
+            />
+            <ProfileFact
+              label={loan ? "Loan status" : "Employment"}
+              value={
+                loan
+                  ? `From ${clubDisplayName(state, loan.parentClubId)} · ${loanWeeks}w left`
+                  : employment
+              }
+            />
             <ProfileFact label="Preferred foot" value={player.preferredFoot} />
             <ProfileFact label="Personality" value={player.personality} />
             <ProfileFact label="Mood" value={mood.label} />
