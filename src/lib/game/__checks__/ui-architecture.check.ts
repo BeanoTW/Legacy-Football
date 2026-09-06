@@ -296,6 +296,28 @@ console.log("\n[U8] Opaque club identity presentation boundary");
     /canonicalClubReference\(state, club\)/.test(leagueBrowser) &&
       /clubLegacyRecord\(state, canonicalClubId\)/.test(leagueBrowser),
   );
+
+  const clubHub = read("src/components/game/ClubHub.tsx");
+  const fixtures = read("src/components/game/FixturesTab.tsx");
+  const dashboard = read("src/components/game/DashboardTab.tsx");
+  const world = read("src/components/game/WorldInspector.tsx");
+  check(
+    "core club screens never compare opaque ownership or table identity to clubName",
+    [clubHub, fixtures, dashboard, world].every(
+      (source) =>
+        !/currentClubId\s*===\s*state\.clubName/.test(source) &&
+        !/(?:row|r)\.team\s*===\s*state\.clubName/.test(source),
+    ),
+  );
+  check(
+    "core club screens render stored opponent and table refs through display-name gateway",
+    /clubDisplayName\(state, nextFixture\.opponent\)/.test(clubHub) &&
+      /clubDisplayName\(state, r\.team\)/.test(clubHub) &&
+      /clubDisplayName\(state, f\.opponent\)/.test(fixtures) &&
+      /clubDisplayName\(state, r\.team\)/.test(fixtures) &&
+      /clubDisplayName\(state, lastResult\.opponent\)/.test(dashboard) &&
+      /clubDisplayName\(state, row\.team\)/.test(world),
+  );
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);
