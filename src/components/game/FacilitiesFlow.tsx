@@ -42,7 +42,7 @@ export function FacilitiesFlow({
       </div>
 
       {snap ? (
-        <section className="rounded-2xl border bg-card p-5 shadow-sm">
+        <section className="lf-facility-summary rounded-2xl border bg-card p-5 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="text-sm text-muted-foreground">Overall condition</div>
@@ -130,7 +130,7 @@ function FacilityAction({
   return (
     <button
       onClick={onClick}
-      className="min-h-32 rounded-2xl border bg-card p-4 text-left flex flex-col justify-between hover:border-primary/50 transition-colors"
+      className="lf-facility-action min-h-32 rounded-2xl border bg-card p-4 text-left flex flex-col justify-between hover:border-primary/50 transition-colors"
     >
       <div className="size-11 rounded-xl bg-primary/10 text-primary grid place-items-center">
         {icon}
