@@ -372,5 +372,25 @@ console.log("\n[U10] Football performance visibility");
   );
 }
 
+
+console.log("\n[U11] Legacy history surface");
+{
+  const history = read("src/components/game/HistoryTab.tsx");
+  check(
+    "history screen surfaces the durable club legacy accumulator",
+    /clubLegacyRecord\(state, userId\)/.test(history) &&
+      /title="Club legacy"/.test(history) &&
+      /label="League titles"/.test(history) &&
+      /label="Record crowd"/.test(history),
+  );
+  check(
+    "history screen exposes completed season outcomes without display-name identity comparisons",
+    /title="Season record"/.test(history) &&
+      /isUserClubReference\(state, archived\.champion\)/.test(history) &&
+      /archived\?\.promoted\.some/.test(history) &&
+      /archived\?\.relegated\.some/.test(history),
+  );
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
