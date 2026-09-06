@@ -18,6 +18,7 @@ import {
   finishIn,
 } from "@/lib/game/reputation";
 import { DetailScreen } from "@/components/game/shared/layout";
+import { fmtMoney } from "@/lib/game/engine";
 import {
   canonicalClubReference,
   clubDisplayName,
@@ -352,7 +353,10 @@ function ClubCard({
         <Cell label="Relegations" value={String(legacy?.relegations ?? record?.relegations ?? 0)} />
         <Cell label="Predicted finish" value={pred ? `${pred.rank}` : "—"} />
         <Cell label="League titles" value={String(legacy?.leagueTitles ?? 0)} />
-        <Cell label="Best finish" value={legacy?.bestLeagueFinish ? `T${legacy.bestLeagueFinish.tier} · ${legacy.bestLeagueFinish.position}` : "—"} />
+        <Cell label="Best finish" value={legacy?.bestLeagueFinish ? `Tier ${legacy.bestLeagueFinish.tier} · ${legacy.bestLeagueFinish.position}` : "—"} />
+        <Cell label="Record buy" value={legacy?.recordTransferPaid ? fmtMoney(legacy.recordTransferPaid.fee) : "—"} />
+        <Cell label="Record sale" value={legacy?.recordTransferReceived ? fmtMoney(legacy.recordTransferReceived.fee) : "—"} />
+        <Cell label="Record crowd" value={legacy?.recordAttendance ? legacy.recordAttendance.attendance.toLocaleString() : "—"} />
         <Cell label="Seasons on record" value={String(history.length)} />
       </div>
       {snaps.length > 0 && (
