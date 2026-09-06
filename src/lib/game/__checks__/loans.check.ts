@@ -358,6 +358,19 @@ const invalidLoanMarket = arrangeUserPlayerLoanOut(
 assert.equal(invalidLoanMarket.result.ok, false);
 assert.equal(invalidLoanMarket.result.reason, "Loan wage contribution must be between 0% and 100%");
 
+const closedWindowLoanOutSource = structuredClone(loanMarketSource);
+closedWindowLoanOutSource.week = 10;
+const closedWindowLoanOut = arrangeUserPlayerLoanOut(
+  closedWindowLoanOutSource,
+  loanMarketPlayer.id,
+  loanMarketTerms,
+);
+assert.equal(closedWindowLoanOut.result.ok, false);
+assert.equal(
+  closedWindowLoanOut.result.reason,
+  "Loans can only be registered while the transfer window is open",
+);
+
 // Chairman can also borrow a contracted external player when the parent club
 // has squad depth and the offered wage/playing-time terms are strong enough.
 const borrowSource = newGame("Loan Borrow FC", "Auditor", "PLAYER_LOAN_BORROW");
@@ -424,6 +437,23 @@ assert.equal(overWageBorrow.result.ok, false);
 assert.ok(
   overWageBorrow.result.reason.includes("Wage bill would reach"),
   "incoming loan must respect chairman wage authority",
+);
+
+const closedWindowBorrowSource = structuredClone(borrowSource);
+closedWindowBorrowSource.week = 10;
+const closedWindowBorrow = arrangeUserPlayerLoanIn(
+  closedWindowBorrowSource,
+  borrowPlayer.id,
+  {
+    durationWeeks: 4,
+    loanClubWageContributionPct: 100,
+    playingTimeExpectation: "Important",
+  },
+);
+assert.equal(closedWindowBorrow.result.ok, false);
+assert.equal(
+  closedWindowBorrow.result.reason,
+  "Loans can only be registered while the transfer window is open",
 );
 
 // Chairman-facing clone action must terminate safely without mutating the
