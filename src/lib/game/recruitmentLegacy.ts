@@ -2184,6 +2184,8 @@ export function arrangeUserPlayerLoanOutInPlace(
     return { ok: false, reason: "Player is already registered away from the club" };
   if (activeLoanForPlayer(s, playerId))
     return { ok: false, reason: "Player already has an active loan" };
+  if (userSquad(s).length <= MIN_SQUAD_SIZE)
+    return { ok: false, reason: "The squad is too small to loan out another player" };
   const contract = activeContract(s, playerId);
   if (!contract) return { ok: false, reason: "Player needs a live contract before a loan" };
   if (!Number.isInteger(terms.durationWeeks) || terms.durationWeeks < 1)
