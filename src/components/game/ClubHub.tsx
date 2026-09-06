@@ -11,6 +11,7 @@ import { HEALTH_TONE, initials, ord } from "./shared/primitives";
 import type { Tab } from "./tabs";
 import { chairmanStyle, clubNickname } from "@/lib/game/character";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
+import { userSquad } from "@/lib/game/recruitment";
 
 function financialHealth(state: GameState): { label: string; tone: "good" | "bad" | "muted" } {
   const h = canonicalFinancialHealth(state);
@@ -51,9 +52,7 @@ export function ClubHub({ state, update, setTab }: { state: GameState; update: (
   const unread = unreadCount(state);
   const decisions = actionableInbox(state).length;
   const activeNegotiations = state.football?.negotiations?.filter((n) => n.stage !== "completed" && n.stage !== "withdrawn" && n.stage !== "rejected").length ?? 0;
-  const squadSize = state.football?.players?.filter((player) =>
-    player.currentClubId !== null && isUserClubReference(state, player.currentClubId),
-  ).length ?? state.squad.length;
+  const squadSize = userSquad(state).length;
   const leagueSorted = [...state.league].sort((a, b) => b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga) || b.gf - a.gf);
   const myIdx = leagueSorted.findIndex((r) => isUserClubReference(state, r.team));
   const miniLeague = leagueSorted.slice(Math.max(0, myIdx - 2), Math.min(leagueSorted.length, myIdx + 3));
