@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { strict as assert } from "node:assert";
 import { CLUBS } from "../clubs";
 import { newGame } from "../newGame";
@@ -62,5 +63,24 @@ assert.equal(
   "display rename must not reroll deterministic simulation channels",
 );
 assert.equal(ensureClubIdentityStateInPlace(state), registry, "registry seeding must be idempotent");
+
+const recruitmentSource = readFileSync(new URL("../recruitmentLegacy.ts", import.meta.url), "utf8");
+assert.equal(
+  /\bclubName\b/.test(recruitmentSource),
+  false,
+  "recruitment must not regress to using presentation clubName as identity",
+);
+const recruitmentPublicSource = readFileSync(new URL("../recruitment.ts", import.meta.url), "utf8");
+assert.equal(
+  recruitmentPublicSource.includes("withCanonicalUserClubReference"),
+  false,
+  "identity-native recruitment must not regain the legacy facade",
+);
+const engineSource = readFileSync(new URL("../engine.ts", import.meta.url), "utf8");
+assert.equal(
+  /withCanonicalUserClubReference\([^\n]*runRecruitmentWeek/.test(engineSource),
+  false,
+  "weekly recruitment should run directly without a clubName compatibility boundary",
+);
 
 console.log("\nclub-identity: passed");
