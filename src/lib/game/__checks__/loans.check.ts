@@ -29,6 +29,7 @@ import {
   userWageBill,
 } from "../recruitment";
 import { absoluteWeek } from "../time";
+import { compactState } from "../storage/compaction";
 import {
   compactDepartingFocusPlayersInPlace,
   repairFreshFocusHydrationInPlace,
@@ -384,6 +385,55 @@ assert.equal(processDuePlayerLoansInPlace(loadedRoundTrip), 1);
 assert.equal(playerOwnerClubId(loadedPlayer), roundTripParent);
 assert.equal(playerRegisteredClubId(loadedPlayer), roundTripParent);
 assert.equal(loadedPlayer.ownerClubId, undefined);
+
+// Completed loan detail must leave the hot core after its season while active
+// agreements remain live. The archived row is still available through the
+// normal history-chunk path.
+const compactFixture = newGame("Loan Archive FC", "Auditor", "PLAYER_LOAN_ARCHIVE");
+const compactPlayer = userSquad(compactFixture)[0];
+const compactLoanClub = buildWorldSimulationPlan(compactFixture).fringeClubIds[0]!;
+const compactStarted = startPlayerLoanInPlace(
+  compactFixture,
+  compactPlayer.id,
+  compactLoanClub,
+  1,
+  50,
+  "Rotation",
+);
+assert.ok(compactStarted.ok, compactStarted.reason);
+compactFixture.week += 1;
+assert.equal(processDuePlayerLoansInPlace(compactFixture), 1);
+compactFixture.season = 2;
+compactFixture.week = 1;
+const compactedLoanState = compactState(compactFixture);
+assert.equal(compactedLoanState.core.football.loans?.length, 0);
+const loanChunk = compactedLoanState.chunks.find(
+  (chunk) => chunk.kind === "history:loans" && chunk.season === 1,
+);
+assert.equal(loanChunk?.rows.length, 1);
+assert.equal((loanChunk?.rows[0] as { id?: string })?.id, compactStarted.loan!.id);
+
+const activeCompactFixture = newGame(
+  "Active Loan Archive FC",
+  "Auditor",
+  "PLAYER_ACTIVE_LOAN_ARCHIVE",
+);
+const activeCompactPlayer = userSquad(activeCompactFixture)[0];
+const activeCompactClub = buildWorldSimulationPlan(activeCompactFixture).fringeClubIds[0]!;
+const activeCompactStarted = startPlayerLoanInPlace(
+  activeCompactFixture,
+  activeCompactPlayer.id,
+  activeCompactClub,
+  8,
+  50,
+  "Regular",
+);
+assert.ok(activeCompactStarted.ok, activeCompactStarted.reason);
+activeCompactFixture.season = 2;
+activeCompactFixture.week = 1;
+const activeCompacted = compactState(activeCompactFixture);
+assert.equal(activeCompacted.core.football.loans?.length, 1);
+assert.equal(activeCompacted.core.football.loans?.[0]?.id, activeCompactStarted.loan!.id);
 
 // v19 saves gain only empty loan state; no player, contract or club attachment moves.
 const legacy = newGame("Loan Migration FC", "Auditor", "PLAYER_LOAN_MIGRATION");
