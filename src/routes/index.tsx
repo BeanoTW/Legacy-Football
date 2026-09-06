@@ -41,10 +41,10 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Chairman FC — Football Finance Sim" },
-      { name: "description", content: "Run the books of a football club: set ticket prices, manage wages, upgrade facilities and watch every pound flow through the season." },
-      { property: "og:title", content: "Chairman FC — Football Finance Sim" },
-      { property: "og:description", content: "A finance-first football chairman game. Cash flow, P&L, ticket demand — every decision hits the books." },
+      { title: "Legacy Football — Chairman Simulation" },
+      { name: "description", content: "Build a football club legacy from non-league to the top: shape the squad, finances, facilities, staff and long-term direction." },
+      { property: "og:title", content: "Legacy Football — Chairman Simulation" },
+      { property: "og:description", content: "A persistent football chairman simulation where every season, decision and promotion becomes part of the club’s history." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
