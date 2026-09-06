@@ -8,6 +8,7 @@ import { absoluteWeek } from "@/lib/game/time";
 import { playerOwnerClubId, playerRegisteredClubId } from "@/lib/game/playerRegistration";
 import { fmtMoneyExact } from "@/lib/game/engine";
 import { activeLoanForPlayer, terminateUserPlayerLoan } from "@/lib/game/loans";
+import { isTransferWindowOpen, windowStatus } from "@/lib/game/calendar";
 
 export function LoanDesk({
   state,
@@ -24,6 +25,8 @@ export function LoanDesk({
   const [loanOutRole, setLoanOutRole] =
     useState<LoanPlayingTimeExpectation>("Rotation");
   const [loanOutNote, setLoanOutNote] = useState<string | null>(null);
+  const loanWindowOpen = isTransferWindowOpen(state);
+  const loanWindow = windowStatus(state);
 
   const eligibleLoanOutPlayers = (state.football?.players ?? [])
     .filter(
@@ -88,6 +91,11 @@ export function LoanDesk({
           <p className="text-[11px] text-muted-foreground">
             Set the terms. Recruitment will find the strongest simulated club willing to meet them.
           </p>
+          {!loanWindowOpen && (
+            <div className="mt-1 text-[11px] font-medium text-amber-700 dark:text-amber-300">
+              {loanWindow.label} · {loanWindow.detail}
+            </div>
+          )}
         </div>
         <div className="grid gap-2 p-3 md:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(110px,.55fr))_auto] md:items-end">
           <label className="grid gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -148,7 +156,7 @@ export function LoanDesk({
           </label>
 
           <Button
-            disabled={!loanOutPlayerId}
+            disabled={!loanOutPlayerId || !loanWindowOpen}
             onClick={() => {
               const outcome = arrangeUserPlayerLoanOut(state, loanOutPlayerId, {
                 durationWeeks: loanOutDuration,
