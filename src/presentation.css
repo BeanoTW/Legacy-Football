@@ -449,3 +449,120 @@
     max-width: none;
   }
 }
+
+
+/* Global game shell hierarchy */
+.lf-masthead header {
+  position: relative;
+  min-height: 4.7rem;
+}
+
+.lf-masthead header > div {
+  max-width: 100rem;
+  padding-top: 0.8rem;
+  padding-bottom: 0.8rem;
+}
+
+.lf-masthead header svg {
+  display: grid;
+  place-items: center;
+  padding: 0.35rem;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 0.8rem;
+  background: rgb(0 0 0 / 18%);
+  border: 1px solid rgb(255 255 255 / 14%);
+}
+
+.lf-brand-kicker {
+  margin-bottom: 0.18rem;
+  font-size: 0.56rem;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.62;
+}
+
+.lf-kpi-ribbon {
+  background:
+    linear-gradient(90deg, color-mix(in oklab, var(--color-panel) 94%, black), color-mix(in oklab, var(--color-primary) 16%, var(--color-panel)));
+}
+
+.lf-kpi-ribbon > div > div {
+  background: rgb(0 0 0 / 13%);
+  border: 1px solid rgb(255 255 255 / 6%);
+}
+
+.lf-primary-nav {
+  box-shadow: 0 9px 26px rgb(8 18 28 / 7%);
+}
+
+.lf-primary-nav > div {
+  max-width: 100rem;
+}
+
+.lf-primary-nav button {
+  min-height: 2.8rem;
+  border-radius: 0.72rem;
+  font-weight: 700;
+}
+
+.lf-primary-nav button.bg-primary {
+  position: relative;
+  overflow: hidden;
+}
+
+.lf-primary-nav button.bg-primary::after {
+  content: "";
+  position: absolute;
+  inset: auto 12% -1px;
+  height: 2px;
+  border-radius: 999px 999px 0 0;
+  background: rgb(255 255 255 / 55%);
+}
+
+.lf-mobile-nav {
+  box-shadow: 0 8px 22px rgb(8 18 28 / 8%);
+}
+
+.lf-mobile-nav ul {
+  max-width: 36rem;
+  margin-inline: auto;
+}
+
+.lf-mobile-nav li > button {
+  position: relative;
+}
+
+.lf-mobile-nav li > button.text-primary::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 30%;
+  right: 30%;
+  height: 2px;
+  border-radius: 999px 999px 0 0;
+  background: var(--color-primary);
+}
+
+@media (min-width: 768px) {
+  .lf-masthead header h1 {
+    font-size: 1.55rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .lf-masthead header {
+    min-height: 4rem;
+  }
+
+  .lf-masthead header > div {
+    padding-top: 0.6rem;
+    padding-bottom: 0.6rem;
+  }
+
+  .lf-brand-kicker {
+    font-size: 0.5rem;
+  }
+}
