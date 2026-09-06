@@ -7,6 +7,7 @@ import {
   processDuePlayerLoansInPlace,
   startPlayerLoanInPlace,
   terminatePlayerLoan,
+  terminateUserPlayerLoan,
 } from "../loans";
 import {
   playerOwnerClubId,
@@ -345,6 +346,36 @@ assert.equal(playerOwnerClubId(uiTerminationResultPlayer), uiTerminationParent);
 assert.equal(playerRegisteredClubId(uiTerminationResultPlayer), uiTerminationParent);
 assert.equal(playerWageBill(uiTermination.state), uiTerminationFullPayroll);
 assert.ok(uiTerminationReducedPayroll < uiTerminationFullPayroll);
+
+// Chairman action must not be able to terminate an unrelated AI-to-AI loan.
+const unrelated = newGame("Loan Authority FC", "Auditor", "PLAYER_LOAN_AUTHORITY");
+const unrelatedPlayer = unrelated.football.players.find((row) => {
+  const owner = playerOwnerClubId(row);
+  return owner && owner !== unrelated.clubName && activeContract(unrelated, row.id);
+});
+assert.ok(unrelatedPlayer, "authority fixture needs an externally owned player");
+const unrelatedParent = playerOwnerClubId(unrelatedPlayer)!;
+const unrelatedLoanClub = buildWorldSimulationPlan(unrelated).focusClubIds.find(
+  (clubId) => clubId !== unrelatedParent && clubId !== unrelated.clubName,
+)!;
+assert.ok(unrelatedLoanClub, "authority fixture needs a second external club");
+const unrelatedStarted = startPlayerLoanInPlace(
+  unrelated,
+  unrelatedPlayer.id,
+  unrelatedLoanClub,
+  4,
+  50,
+  "Rotation",
+);
+assert.ok(unrelatedStarted.ok, unrelatedStarted.reason);
+const unrelatedTermination = terminateUserPlayerLoan(unrelated, unrelatedStarted.loan!.id);
+assert.equal(unrelatedTermination.result.ok, false);
+assert.equal(unrelatedTermination.result.reason, "This loan does not involve your club");
+assert.equal(
+  activeLoanForPlayer(unrelated, unrelatedPlayer.id)?.id,
+  unrelatedStarted.loan!.id,
+  "rejected chairman termination must leave the source loan active",
+);
 
 // Early termination uses the same return-to-parent boundary.
 const second = startPlayerLoanInPlace(state, player.id, loanClub, 4, 25, "Backup");
