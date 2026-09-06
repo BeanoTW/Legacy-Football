@@ -5,12 +5,15 @@ import { activeContract, playerById, playerName } from "@/lib/game/recruitment";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { absoluteWeek } from "@/lib/game/time";
 import { fmtMoneyExact } from "@/lib/game/engine";
+import { terminatePlayerLoan } from "@/lib/game/loans";
 
 export function LoanDesk({
   state,
+  update,
   onBack,
 }: {
   state: GameState;
+  update: (fn: (s: GameState) => GameState) => void;
   onBack: () => void;
 }) {
   const loans = (state.football?.loans ?? [])
@@ -62,8 +65,8 @@ export function LoanDesk({
         </div>
       ) : (
         <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-2">
-          <LoanColumn title="Loaned in" empty="No players currently borrowed." loans={incoming} state={state} />
-          <LoanColumn title="Loaned out" empty="No owned players currently away." loans={outgoing} state={state} />
+          <LoanColumn title="Loaned in" empty="No players currently borrowed." loans={incoming} state={state} update={update} />
+          <LoanColumn title="Loaned out" empty="No owned players currently away." loans={outgoing} state={state} update={update} />
         </div>
       )}
     </div>
@@ -75,11 +78,13 @@ function LoanColumn({
   empty,
   loans,
   state,
+  update,
 }: {
   title: string;
   empty: string;
   loans: PlayerLoanAgreement[];
   state: GameState;
+  update: (fn: (s: GameState) => GameState) => void;
 }) {
   return (
     <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border bg-card shadow-sm">
@@ -92,14 +97,14 @@ function LoanColumn({
             {empty}
           </div>
         ) : (
-          loans.map((loan) => <LoanRow key={loan.id} loan={loan} state={state} />)
+          loans.map((loan) => <LoanRow key={loan.id} loan={loan} state={state} update={update} />)
         )}
       </div>
     </section>
   );
 }
 
-function LoanRow({ loan, state }: { loan: PlayerLoanAgreement; state: GameState }) {
+function LoanRow({ loan, state, update }: { loan: PlayerLoanAgreement; state: GameState; update: (fn: (s: GameState) => GameState) => void }) {
   const player = playerById(state, loan.playerId);
   if (!player) return null;
   const contract = activeContract(state, player.id);
@@ -140,6 +145,20 @@ function LoanRow({ loan, state }: { loan: PlayerLoanAgreement; state: GameState 
           label={userIsBorrower ? "Our cost" : "Relief"}
           value={contribution == null ? "—" : fmtMoneyExact(contribution)}
         />
+      </div>
+      <div className="mt-2 flex justify-end">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() =>
+            update((s) => {
+              const outcome = terminatePlayerLoan(s, loan.id);
+              return outcome.state;
+            })
+          }
+        >
+          {userIsBorrower ? "End loan" : "Recall player"}
+        </Button>
       </div>
     </div>
   );
