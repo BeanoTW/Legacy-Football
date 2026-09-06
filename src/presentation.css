@@ -653,3 +653,73 @@
 .lf-squad-list > div:first-child {
   background: color-mix(in oklab, var(--color-card) 88%, var(--color-primary) 12%);
 }
+
+
+/* Bounded department polish: transfers, staff and facilities */
+.lf-transfer-budget {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(145deg, color-mix(in oklab, var(--color-card) 96%, var(--color-primary) 4%), var(--color-card));
+  box-shadow: var(--lf-card-shadow);
+}
+
+.lf-transfer-budget::after {
+  content: "";
+  position: absolute;
+  right: -4rem;
+  top: -5rem;
+  width: 12rem;
+  height: 12rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in oklab, var(--color-primary) 14%, transparent), transparent 70%);
+  pointer-events: none;
+}
+
+.lf-staff-grid > * {
+  box-shadow: var(--lf-card-shadow);
+}
+
+.lf-facility-summary {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(145deg, color-mix(in oklab, var(--color-card) 96%, var(--color-primary) 4%), var(--color-card));
+  box-shadow: var(--lf-card-shadow);
+}
+
+.lf-facility-summary::after {
+  content: "";
+  position: absolute;
+  right: -3rem;
+  bottom: -4rem;
+  width: 11rem;
+  height: 11rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-primary) 7%, transparent);
+  pointer-events: none;
+}
+
+.lf-facility-action {
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--lf-card-shadow);
+}
+
+.lf-facility-action::after {
+  content: "";
+  position: absolute;
+  right: -2.5rem;
+  bottom: -3.5rem;
+  width: 7rem;
+  height: 7rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-primary) 8%, transparent);
+}
+
+@media (hover: hover) {
+  .lf-facility-action:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--lf-shadow);
+  }
+}
