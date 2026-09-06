@@ -360,6 +360,32 @@ const invalidLoanMarket = arrangeUserPlayerLoanOut(
 assert.equal(invalidLoanMarket.result.ok, false);
 assert.equal(invalidLoanMarket.result.reason, "Loan wage contribution must be between 0% and 100%");
 
+const thinLoanOutSource = structuredClone(loanMarketSource);
+const keepRegisteredIds = new Set(
+  userSquad(thinLoanOutSource)
+    .slice(0, 16)
+    .map((player) => player.id),
+);
+for (const player of thinLoanOutSource.football.players) {
+  if (
+    isUserClubReference(thinLoanOutSource, playerRegisteredClubId(player)) &&
+    !keepRegisteredIds.has(player.id)
+  ) {
+    player.currentClubId = buildWorldSimulationPlan(thinLoanOutSource).focusClubIds.find(
+      (clubId) => !isUserClubReference(thinLoanOutSource, clubId),
+    )!;
+  }
+}
+const thinLoanOutPlayer = userSquad(thinLoanOutSource)[0];
+assert.ok(thinLoanOutPlayer, "minimum-squad loan-out fixture needs a player");
+const thinLoanOut = arrangeUserPlayerLoanOut(
+  thinLoanOutSource,
+  thinLoanOutPlayer.id,
+  loanMarketTerms,
+);
+assert.equal(thinLoanOut.result.ok, false);
+assert.equal(thinLoanOut.result.reason, "The squad is too small to loan out another player");
+
 const closedWindowLoanOutSource = structuredClone(loanMarketSource);
 closedWindowLoanOutSource.week = 10;
 const closedWindowLoanOut = arrangeUserPlayerLoanOut(
