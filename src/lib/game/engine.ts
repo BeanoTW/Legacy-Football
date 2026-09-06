@@ -10,7 +10,6 @@ import type { GameState, FixtureResult } from "./types";
 import { runWeeklyGenerators } from "./inbox";
 import { runRecruitmentWeek } from "./recruitment";
 import { processDuePlayerLoansInPlace } from "./loans";
-import { withCanonicalUserClubReference } from "./legacyUserClubBoundary";
 import {
   compactDepartingFocusPlayersInPlace,
   repairFreshFocusHydrationInPlace,
@@ -145,10 +144,8 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   s.week += 1;
   if (s.week > SEASON_END_WEEK) tickSeasonRollover(s);
 
-  withCanonicalUserClubReference(s, () => {
-    ensureBoard(s);
-    maybeRunMidSeasonReview(s);
-  });
+  ensureBoard(s);
+  maybeRunMidSeasonReview(s);
   setCalendarDay(s, 0);
 
   return runWeeklyGenerators(s);
