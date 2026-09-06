@@ -566,3 +566,90 @@
     font-size: 0.5rem;
   }
 }
+
+
+/* Shared department presentation */
+.lf-screen-header {
+  padding: 0.15rem 0 0.35rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--color-border) 70%, transparent);
+}
+
+.lf-screen-header h1 {
+  letter-spacing: 0.025em;
+}
+
+.lf-workflow-tile {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, color-mix(in oklab, var(--color-card) 98%, white), color-mix(in oklab, var(--color-primary) 3%, var(--color-card)));
+}
+
+.lf-workflow-tile::after {
+  content: "";
+  position: absolute;
+  right: -2.4rem;
+  bottom: -3.2rem;
+  width: 7rem;
+  height: 7rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-primary) 8%, transparent);
+}
+
+@media (hover: hover) {
+  .lf-workflow-tile:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--lf-card-shadow);
+  }
+}
+
+/* Squad department */
+.lf-squad-overview {
+  background:
+    linear-gradient(140deg, color-mix(in oklab, var(--color-card) 96%, var(--color-primary) 4%), var(--color-card));
+}
+
+.lf-squad-overview .panel-strip {
+  position: relative;
+  overflow: hidden;
+}
+
+.lf-squad-overview .panel-strip::after {
+  content: "";
+  position: absolute;
+  right: -3rem;
+  top: -4rem;
+  width: 12rem;
+  height: 12rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in oklab, var(--color-banner) 20%, transparent), transparent 70%);
+}
+
+.lf-pitch-card {
+  position: relative;
+  isolation: isolate;
+  background:
+    linear-gradient(rgb(255 255 255 / 2%), rgb(255 255 255 / 2%)),
+    linear-gradient(180deg, oklch(0.31 0.07 155), oklch(0.24 0.06 155));
+  box-shadow: 0 16px 36px rgb(6 25 16 / 18%);
+}
+
+.lf-pitch-card::before {
+  content: "";
+  position: absolute;
+  inset: 4.6rem 1rem 1rem;
+  z-index: -1;
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: 0.6rem;
+  background:
+    linear-gradient(90deg, transparent 49.8%, rgb(255 255 255 / 14%) 50%, transparent 50.2%),
+    radial-gradient(circle at center, transparent 0 3.6rem, rgb(255 255 255 / 12%) 3.7rem 3.8rem, transparent 3.9rem);
+}
+
+.lf-squad-list {
+  box-shadow: var(--lf-card-shadow);
+}
+
+.lf-squad-list > div:first-child {
+  background: color-mix(in oklab, var(--color-card) 88%, var(--color-primary) 12%);
+}
