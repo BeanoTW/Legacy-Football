@@ -2,7 +2,7 @@ import type { GameState } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
 import { fmtMoney, fmtMoneyExact } from "@/lib/game/engine";
 import { clubLegacyRecord } from "@/lib/game/clubLegacy";
-import { userClubReference } from "@/lib/game/clubReference";
+import { isUserClubReference, userClubReference } from "@/lib/game/clubReference";
 import { Section, sum } from "./shared/primitives";
 
 export function HistoryTab({ state }: { state: GameState }) {
@@ -67,9 +67,9 @@ export function HistoryTab({ state }: { state: GameState }) {
                     </div>
                     <div className="text-xs text-muted-foreground">
                       Finished {season.position}
-                      {archived?.champion === userId ? " · Champions" : ""}
-                      {archived?.promoted.includes(userId) ? " · Promoted" : ""}
-                      {archived?.relegated.includes(userId) ? " · Relegated" : ""}
+                      {archived?.champion && isUserClubReference(state, archived.champion) ? " · Champions" : ""}
+                      {archived?.promoted.some((club) => isUserClubReference(state, club)) ? " · Promoted" : ""}
+                      {archived?.relegated.some((club) => isUserClubReference(state, club)) ? " · Relegated" : ""}
                     </div>
                   </div>
                   <span className="tnum text-muted-foreground">#{season.position}</span>
