@@ -89,6 +89,9 @@ export function setClubReputation(s: GameState, club: string, value: number): vo
   s.clubReputations ??= {};
   const canonical = canonicalClubReference(s, club);
   s.clubReputations[canonical] = Math.round(clamp(value, REP_MIN, REP_MAX) * 10) / 10;
+  if (canonical !== club && Object.prototype.hasOwnProperty.call(s.clubReputations, club)) {
+    delete s.clubReputations[club];
+  }
 }
 
 /* ---------- Strength ---------- */
