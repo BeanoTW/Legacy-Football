@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { fmtMoney, fmtMoneyExact } from "@/lib/game/engine";
 import { clubLegacyRecord } from "@/lib/game/clubLegacy";
 import { isUserClubReference, userClubReference } from "@/lib/game/clubReference";
+import { legacyTierToFootballLevel } from "@/lib/game/footballLevel";
 import { Section, sum } from "./shared/primitives";
 
 export function HistoryTab({ state }: { state: GameState }) {
@@ -23,7 +24,7 @@ export function HistoryTab({ state }: { state: GameState }) {
             label="Best finish"
             value={
               legacy?.bestLeagueFinish
-                ? `Tier ${legacy.bestLeagueFinish.tier} · ${legacy.bestLeagueFinish.position}`
+                ? `Level ${legacyTierToFootballLevel(legacy.bestLeagueFinish.tier)} · ${legacy.bestLeagueFinish.position}`
                 : "—"
             }
           />
