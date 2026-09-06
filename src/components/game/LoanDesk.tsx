@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { ArrowLeft, Repeat2 } from "lucide-react";
-import type { GameState, PlayerLoanAgreement } from "@/lib/game/types";
+import type { GameState, LoanPlayingTimeExpectation, PlayerLoanAgreement } from "@/lib/game/types";
 import { Button } from "@/components/ui/button";
-import { activeContract, playerById, playerName } from "@/lib/game/recruitment";
+import { activeContract, arrangeUserPlayerLoanOut, playerById, playerName } from "@/lib/game/recruitment";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { absoluteWeek } from "@/lib/game/time";
+import { playerOwnerClubId, playerRegisteredClubId } from "@/lib/game/playerRegistration";
 import { fmtMoneyExact } from "@/lib/game/engine";
-import { terminateUserPlayerLoan } from "@/lib/game/loans";
+import { activeLoanForPlayer, terminateUserPlayerLoan } from "@/lib/game/loans";
 
 export function LoanDesk({
   state,
@@ -17,6 +18,27 @@ export function LoanDesk({
   update: (fn: (s: GameState) => GameState) => void;
   onBack: () => void;
 }) {
+  const [loanOutPlayerId, setLoanOutPlayerId] = useState("");
+  const [loanOutDuration, setLoanOutDuration] = useState(12);
+  const [loanOutContribution, setLoanOutContribution] = useState(50);
+  const [loanOutRole, setLoanOutRole] =
+    useState<LoanPlayingTimeExpectation>("Rotation");
+  const [loanOutNote, setLoanOutNote] = useState<string | null>(null);
+
+  const eligibleLoanOutPlayers = (state.football?.players ?? [])
+    .filter(
+      (player) =>
+        isUserClubReference(state, playerOwnerClubId(player)) &&
+        isUserClubReference(state, playerRegisteredClubId(player)) &&
+        !activeLoanForPlayer(state, player.id) &&
+        Boolean(activeContract(state, player.id)),
+    )
+    .sort(
+      (a, b) =>
+        a.currentAbility - b.currentAbility ||
+        playerName(a).localeCompare(playerName(b)),
+    );
+
   const loans = (state.football?.loans ?? [])
     .filter(
       (loan) =>
@@ -58,6 +80,94 @@ export function LoanDesk({
           <Summary label="Loaned in" value={incoming.length} />
           <Summary label="Loaned out" value={outgoing.length} />
         </div>
+      </section>
+
+      <section className="shrink-0 overflow-hidden rounded-xl border bg-card shadow-sm">
+        <div className="border-b px-4 py-2.5">
+          <h2 className="font-display text-lg">Offer player for loan</h2>
+          <p className="text-[11px] text-muted-foreground">
+            Set the terms. Recruitment will find the strongest simulated club willing to meet them.
+          </p>
+        </div>
+        <div className="grid gap-2 p-3 md:grid-cols-[minmax(0,1.5fr)_repeat(3,minmax(110px,.55fr))_auto] md:items-end">
+          <label className="grid gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+            Player
+            <select
+              value={loanOutPlayerId}
+              onChange={(event) => setLoanOutPlayerId(event.target.value)}
+              className="h-9 rounded-md border bg-background px-2 text-sm normal-case tracking-normal text-foreground"
+            >
+              <option value="">Choose player</option>
+              {eligibleLoanOutPlayers.map((player) => (
+                <option key={player.id} value={player.id}>
+                  {playerName(player)} · {player.primaryPosition} · {player.currentAbility}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="grid gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+            Duration
+            <select
+              value={loanOutDuration}
+              onChange={(event) => setLoanOutDuration(Number(event.target.value))}
+              className="h-9 rounded-md border bg-background px-2 text-sm normal-case tracking-normal text-foreground"
+            >
+              {[4, 8, 12, 24].map((weeks) => (
+                <option key={weeks} value={weeks}>{weeks} weeks</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="grid gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+            Wage share
+            <select
+              value={loanOutContribution}
+              onChange={(event) => setLoanOutContribution(Number(event.target.value))}
+              className="h-9 rounded-md border bg-background px-2 text-sm normal-case tracking-normal text-foreground"
+            >
+              {[20, 35, 50, 65, 80, 100].map((pct) => (
+                <option key={pct} value={pct}>{pct}% by borrower</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="grid gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+            Playing time
+            <select
+              value={loanOutRole}
+              onChange={(event) =>
+                setLoanOutRole(event.target.value as LoanPlayingTimeExpectation)
+              }
+              className="h-9 rounded-md border bg-background px-2 text-sm normal-case tracking-normal text-foreground"
+            >
+              {(["Backup", "Rotation", "Regular", "Important"] as const).map((role) => (
+                <option key={role} value={role}>{role}</option>
+              ))}
+            </select>
+          </label>
+
+          <Button
+            disabled={!loanOutPlayerId}
+            onClick={() => {
+              const outcome = arrangeUserPlayerLoanOut(state, loanOutPlayerId, {
+                durationWeeks: loanOutDuration,
+                loanClubWageContributionPct: loanOutContribution,
+                playingTimeExpectation: loanOutRole,
+              });
+              setLoanOutNote(outcome.result.reason);
+              if (outcome.result.ok) {
+                setLoanOutPlayerId("");
+                update(() => outcome.state);
+              }
+            }}
+          >
+            Find loan
+          </Button>
+        </div>
+        {loanOutNote && (
+          <div className="border-t px-4 py-2 text-xs text-muted-foreground">{loanOutNote}</div>
+        )}
       </section>
 
       {loans.length === 0 ? (
