@@ -849,13 +849,18 @@ export function syncLegacySquad(s: GameState): void {
   if (!s.football) return;
   s.squad = userSquad(s).map((p): Player => {
     const c = activeContract(s, p.id);
+    const loan = activeLoanForPlayer(s, p.id);
+    const wage =
+      c && loan && sameClubReference(s, loan.loanClubId, s.clubName)
+        ? int((c.weeklyWage * loan.loanClubWageContributionPct) / 100)
+        : c?.weeklyWage ?? 0;
     return {
       id: p.id,
       name: playerName(p),
       position: p.primaryPosition,
       rating: p.currentAbility,
       age: ageOf(p, s.season),
-      wage: c?.weeklyWage ?? 0,
+      wage,
       contractWeeks: c ? Math.max(0, weeksLeftOnContract(s, c)) : 0,
       value: p.marketValue,
     };
