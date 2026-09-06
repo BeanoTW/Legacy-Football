@@ -468,7 +468,7 @@ export function generateWorld(s: GameState): {
 
 function defaultDepartment(s: GameState): RecruitmentDepartment {
   const rng = seededRng(`${s.saveSeed}|recruitment-dept`);
-  const rep = clubReputation(s, s.clubName);
+  const rep = clubReputation(s, userClubReference(s));
   return {
     headOfRecruitment: `${FIRST_NAMES[rngInt(rng, 0, FIRST_NAMES.length - 1)]} ${LAST_NAMES[rngInt(rng, 0, LAST_NAMES.length - 1)]}`,
     footballDirector: `${FIRST_NAMES[rngInt(rng, 0, FIRST_NAMES.length - 1)]} ${LAST_NAMES[rngInt(rng, 0, LAST_NAMES.length - 1)]}`,
@@ -1288,7 +1288,7 @@ function competingTransferBid(
   if (!seller) return null;
 
   const candidates = buildWorldSimulationPlan(s).focusClubIds
-    .filter((clubId) => clubId !== s.clubName && clubId !== seller)
+    .filter((clubId) => !isUserClubReference(s, clubId) && !sameClubReference(s, clubId, seller))
     .map((clubId) => {
       const squad = squadOf(s, clubId);
       const positionalPlayers = squad.filter(
@@ -2568,7 +2568,8 @@ function coverSquadShortfall(s: GameState): void {
   const squad = userSquad(s);
   if (squad.length >= MIN_SQUAD_SIZE) return;
   const rng = seededRng(s.saveSeed, "squadCover", s.season, s.week);
-  const rep = clubReputation(s, s.clubName);
+  const userClubId = userClubReference(s);
+  const rep = clubReputation(s, userClubId);
   const level = recruitmentLevelOfUser(s);
   const needed = Math.min(2, MIN_SQUAD_SIZE - squad.length);
 
@@ -2577,12 +2578,12 @@ function coverSquadShortfall(s: GameState): void {
     // the department signs the best player the wage structure can carry.
     const ceiling = Math.max(
       level <= 6 ? 600 : 25,
-      recruitmentSustainableWageBill(s, s.clubName) - userWageBill(s),
+      recruitmentSustainableWageBill(s, userClubId) - userWageBill(s),
     );
     const affordable = (p: FootballPlayer) =>
       recruitmentWageForClub(
         s,
-        s.clubName,
+        userClubId,
         p.currentAbility,
         ageOf(p, s.season),
         p.potentialAbility,
@@ -2600,14 +2601,14 @@ function coverSquadShortfall(s: GameState): void {
     const c = issueContract(
       s,
       pick.id,
-      s.clubName,
-      recruitmentWageForClub(s, s.clubName, pick.currentAbility, age, pick.potentialAbility),
+      userClubId,
+      recruitmentWageForClub(s, userClubId, pick.currentAbility, age, pick.potentialAbility),
       rngInt(rng, 1, 3),
       "Rotation",
       0,
       0,
     );
-    registerFreeSigning(s, pick, s.clubName, c);
+    registerFreeSigning(s, pick, userClubId, c);
   }
 }
 
