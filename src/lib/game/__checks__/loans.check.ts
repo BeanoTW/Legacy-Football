@@ -292,6 +292,12 @@ assert.equal(
   incomingPayrollBefore + Math.round((incomingContract.weeklyWage * 35) / 100),
   "loan club payroll should add only its agreed contribution",
 );
+syncLegacySquad(incoming);
+assert.equal(
+  incoming.squad.find((row) => row.id === incomingPlayer.id)?.wage,
+  Math.round((incomingContract.weeklyWage * 35) / 100),
+  "legacy squad projection should show only the user's loan wage share",
+);
 
 // Chairman-facing clone action must terminate safely without mutating the
 // source object, and must restore ownership/registration/payroll in the clone.
