@@ -279,7 +279,7 @@ function PredictionsView({
   return (
     <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
       <div className="px-3 py-2 border-b text-xs">
-        Predicted champion: <span className="font-semibold">{champion}</span>
+        Predicted champion: <span className="font-semibold">{champion ? clubDisplayName(state, champion) : "—"}</span>
         {past && " · shown against the actual finish"}
       </div>
       <div className="divide-y text-sm">
