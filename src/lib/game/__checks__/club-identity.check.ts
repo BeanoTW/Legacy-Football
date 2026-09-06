@@ -82,5 +82,16 @@ assert.equal(
   false,
   "weekly recruitment should run directly without a clubName compatibility boundary",
 );
+const commercialSource = readFileSync(new URL("../commercial.ts", import.meta.url), "utf8");
+assert.equal(
+  /\bclubName\b/.test(commercialSource),
+  false,
+  "commercial must not regress to using presentation clubName as identity or seed fallback",
+);
+assert.equal(
+  /withCanonicalUserClubReference\([^\n]*runCommercialWeek/.test(engineSource),
+  false,
+  "weekly commercial should run directly without a clubName compatibility boundary",
+);
 
 console.log("\nclub-identity: passed");
