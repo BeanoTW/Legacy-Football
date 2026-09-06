@@ -26,6 +26,7 @@ import type {
   InboxItem,
   MatchRecord,
   PlayerContract,
+  PlayerLoanAgreement,
   PlayerContractRecord,
   SaveArchive,
   TransferRecord,
@@ -53,6 +54,7 @@ export type ChunkKind =
   | "history:transfers"
   | "history:contracts"
   | "history:expired-contracts"
+  | "history:loans"
   | "history:club-snapshots"
   | "history:inbox"
   | "history:scouting";
@@ -63,6 +65,7 @@ export const CHUNK_KINDS: ChunkKind[] = [
   "history:transfers",
   "history:contracts",
   "history:expired-contracts",
+  "history:loans",
   "history:club-snapshots",
   "history:inbox",
   "history:scouting",
@@ -357,6 +360,23 @@ export function compactState(state: GameState): CompactionResult {
       } else hotContracts.push(c);
     }
     f.contracts = hotContracts;
+
+    // Completed loans are immutable historical agreements. Keep active loans
+    // and loans completed in the current season hot; older completed/terminated
+    // agreements move to the history repository so long careers do not grow
+    // the recruitment core without bound.
+    const hotLoans: PlayerLoanAgreement[] = [];
+    for (const loan of f.loans ?? []) {
+      if (loan.status === "Active") {
+        hotLoans.push(loan);
+        continue;
+      }
+      const endedAbs = loan.endedAbsoluteWeek ?? loan.endAbsoluteWeek;
+      const endedSeason = fromAbsoluteWeek(endedAbs).season;
+      if (endedSeason >= season) hotLoans.push(loan);
+      else pushChunk(chunks, "history:loans", endedSeason, loan);
+    }
+    f.loans = hotLoans;
 
     /* ---- 7. Scouting discovery ----
      * Search result payloads are useful recent context, but they are not the
