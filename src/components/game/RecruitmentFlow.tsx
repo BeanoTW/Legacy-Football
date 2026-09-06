@@ -1,17 +1,18 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, Binoculars, Handshake, Shield, Star } from "lucide-react";
+import { ArrowLeft, Binoculars, Handshake, Repeat2, Shield, Star } from "lucide-react";
 import type { GameState } from "@/lib/game/types";
 import { RecruitmentOperations } from "./RecruitmentOperations";
 import { ScoutingBrowser } from "./ScoutingBrowser";
 import { ScoutingReports } from "./ScoutingReports";
 import { OutgoingSalesDesk } from "./OutgoingSalesDesk";
+import { LoanDesk } from "./LoanDesk";
 import { Button } from "@/components/ui/button";
 import { fmtMoneyExact } from "@/lib/game/engine";
 import { openNegotiations, recruitmentSnapshot } from "@/lib/game/recruitment";
 import { chairmanShortlistIds } from "@/lib/game/recruitmentKnowledge";
 import { OverviewScreen, WorkflowTile } from "./shared/layout";
 
-type View = "home" | "operations" | "find" | "reports" | "sales";
+type View = "home" | "operations" | "find" | "reports" | "sales" | "loans";
 
 export function RecruitmentFlow({
   state,
@@ -31,6 +32,9 @@ export function RecruitmentFlow({
   }
   if (view === "sales") {
     return <OutgoingSalesDesk state={state} update={update} onBack={() => setView("home")} />;
+  }
+  if (view === "loans") {
+    return <LoanDesk state={state} onBack={() => setView("home")} />;
   }
   if (view === "operations") {
     return (
@@ -52,6 +56,7 @@ export function RecruitmentFlow({
   const scoutingAssignments = state.football?.scouting?.assignments ?? [];
   const activeScouting = scoutingAssignments.filter((assignment) => assignment.status === "active").length;
   const completedReports = scoutingAssignments.filter((assignment) => assignment.status === "complete").length;
+  const activeLoans = (state.football?.loans ?? []).filter((loan) => loan.status === "Active").length;
 
   return (
     <OverviewScreen
@@ -98,6 +103,12 @@ export function RecruitmentFlow({
           title="Sell players"
           sub={sales ? `${sales} offer${sales === 1 ? "" : "s"} waiting` : "List players and manage incoming bids"}
           onClick={() => setView("sales")}
+        />
+        <TransferAction
+          icon={<Repeat2 className="size-5 md:size-6" />}
+          title="Loans"
+          sub={activeLoans ? `${activeLoans} active agreement${activeLoans === 1 ? "" : "s"}` : "No active loan agreements"}
+          onClick={() => setView("loans")}
         />
       </div>
     </OverviewScreen>
