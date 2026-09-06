@@ -11,6 +11,7 @@ import {
   predictLeague,
   predictSeason,
   predictionFor,
+  clubPrediction,
   expectationFor,
   applySeasonIdentity,
   reputationDelta,
@@ -117,13 +118,12 @@ console.log("\n[R1b] Opaque club identity gateway");
     "display name and opaque id resolve the same strength",
     clubStrengthFor(g, displayName, g.season) === clubStrengthFor(g, userId, g.season),
   );
-  const byId = predictSeason(g, g.season)
-    .flatMap((prediction) => prediction.clubs)
-    .find((prediction) => prediction.club === userId);
-  const byDisplay = byId ? predictionFor(g, g.season, g.playerLeagueId)?.clubs.find(
-    (prediction) => prediction.club === userId,
-  ) : undefined;
-  check("user prediction remains stored under opaque identity", !!byId && !!byDisplay);
+  const byId = clubPrediction(g, userId, g.season);
+  const byDisplay = clubPrediction(g, displayName, g.season);
+  check(
+    "display name and opaque id resolve the same stored prediction",
+    !!byId && !!byDisplay && JSON.stringify(byId) === JSON.stringify(byDisplay),
+  );
 
   setClubReputation(g, displayName, 42.5);
   check("setting reputation through display metadata updates the canonical id", g.clubReputations[userId] === 42.5);
