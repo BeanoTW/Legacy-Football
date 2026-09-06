@@ -438,5 +438,19 @@ console.log("\n[U13] Canonical football level terminology");
   );
 }
 
+
+console.log("\n[U14] New career setup matches the live game");
+{
+  const newGame = read("src/components/game/NewGame.tsx");
+  check(
+    "new career copy advertises the actual Level 7 semi-professional start",
+    /semi-professional club at Football Level 7/.test(newGame),
+  );
+  check(
+    "new career opening cash matches the canonical £220,000 start",
+    /£220,000/.test(newGame) && !/£3M/.test(newGame),
+  );
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
