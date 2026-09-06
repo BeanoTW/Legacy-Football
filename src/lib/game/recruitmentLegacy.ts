@@ -2279,6 +2279,131 @@ export function arrangeUserPlayerLoanOut(
   return { state: next, result };
 }
 
+export interface LoanInOfferTerms {
+  durationWeeks: number;
+  loanClubWageContributionPct: number;
+  playingTimeExpectation: LoanPlayingTimeExpectation;
+}
+
+/**
+ * Ask an external player's parent club for a temporary registration.
+ * Parent willingness is derived from squad depth, the player's current role,
+ * wage contribution and the playing-time commitment offered by the chairman.
+ */
+export function arrangeUserPlayerLoanInInPlace(
+  s: GameState,
+  playerId: string,
+  terms: LoanInOfferTerms,
+): LoanActionResult {
+  ensureRecruitment(s);
+  const player = transferTargetPlayer(s, playerId);
+  if (!player) return { ok: false, reason: "Unknown player" };
+  if (
+    isUserClubReference(s, playerOwnerClubId(player)) ||
+    isUserClubReference(s, playerRegisteredClubId(player))
+  ) {
+    return { ok: false, reason: "Player is already owned by or registered to your club" };
+  }
+  if (activeLoanForPlayer(s, playerId))
+    return { ok: false, reason: "Player already has an active loan" };
+
+  const parentClubId = playerOwnerClubId(player);
+  const registeredClubId = playerRegisteredClubId(player);
+  if (!parentClubId || !registeredClubId)
+    return { ok: false, reason: "Only contracted players can be borrowed" };
+  if (!sameClubReference(s, parentClubId, registeredClubId))
+    return { ok: false, reason: "Player is already registered away from his parent club" };
+  const contract = activeContract(s, playerId);
+  if (!contract || !sameClubReference(s, contract.clubId, parentClubId))
+    return { ok: false, reason: "Player needs a live parent-club contract before a loan" };
+  if (userSquad(s).length >= MAX_SQUAD_SIZE)
+    return { ok: false, reason: "The squad is already full" };
+  if (!Number.isInteger(terms.durationWeeks) || terms.durationWeeks < 1)
+    return { ok: false, reason: "Loan duration must be at least one week" };
+  if (
+    !Number.isFinite(terms.loanClubWageContributionPct) ||
+    terms.loanClubWageContributionPct < 0 ||
+    terms.loanClubWageContributionPct > 100
+  ) {
+    return { ok: false, reason: "Loan wage contribution must be between 0% and 100%" };
+  }
+
+  const parentSquad = squadOf(s, parentClubId);
+  if (parentSquad.length <= MIN_SQUAD_SIZE)
+    return { ok: false, reason: "Parent club cannot spare another player from its squad" };
+
+  const samePosition = parentSquad.filter(
+    (candidate) => candidate.primaryPosition === player.primaryPosition,
+  );
+  const rankInPosition = samePosition.findIndex((candidate) => candidate.id === player.id);
+  const surplus =
+    player.transferStatus === "listed" ||
+    rankInPosition >= SQUAD_TEMPLATE[player.primaryPosition] - 1 ||
+    parentSquad.length > SQUAD_SIZE;
+
+  const roleContributionFloor =
+    contract.squadRole === "Key Player"
+      ? 80
+      : contract.squadRole === "First Team"
+        ? 65
+        : contract.squadRole === "Rotation"
+          ? 45
+          : 25;
+  const requiredContribution = clamp(roleContributionFloor - (surplus ? 20 : 0), 20, 100);
+  if (terms.loanClubWageContributionPct < requiredContribution) {
+    return {
+      ok: false,
+      reason: `${clubDisplayName(s, parentClubId)} want at least ${requiredContribution}% wage contribution`,
+    };
+  }
+
+  const roleRank: Record<LoanPlayingTimeExpectation, number> = {
+    Backup: 0,
+    Rotation: 1,
+    Regular: 2,
+    Important: 3,
+  };
+  const minimumRole: LoanPlayingTimeExpectation =
+    contract.squadRole === "Key Player"
+      ? "Important"
+      : contract.squadRole === "First Team"
+        ? "Regular"
+        : contract.squadRole === "Rotation"
+          ? "Rotation"
+          : "Backup";
+  if (roleRank[terms.playingTimeExpectation] < roleRank[minimumRole] && !surplus) {
+    return {
+      ok: false,
+      reason: `${clubDisplayName(s, parentClubId)} want at least a ${minimumRole.toLowerCase()} playing-time commitment`,
+    };
+  }
+
+  const started = startPlayerLoanInPlace(
+    s,
+    playerId,
+    userClubReference(s),
+    terms.durationWeeks,
+    terms.loanClubWageContributionPct,
+    terms.playingTimeExpectation,
+  );
+  if (!started.ok) return started;
+  return {
+    ...started,
+    reason: `Loan agreed with ${clubDisplayName(s, parentClubId)}`,
+  };
+}
+
+export function arrangeUserPlayerLoanIn(
+  s: GameState,
+  playerId: string,
+  terms: LoanInOfferTerms,
+): { state: GameState; result: LoanActionResult } {
+  const next = structuredClone(s);
+  const result = arrangeUserPlayerLoanInInPlace(next, playerId, terms);
+  if (result.ok) syncLegacySquad(next);
+  return { state: next, result };
+}
+
 /* =========================================================================
    8. Contracts — renewal, release, expiry
 ========================================================================= */
