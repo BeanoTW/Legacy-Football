@@ -334,5 +334,25 @@ console.log("\n[U8] Opaque club identity presentation boundary");
   );
 }
 
+
+console.log("\n[U9] Chairman club tracking");
+{
+  const leagueBrowser = read("src/components/LeagueBrowser.tsx");
+  check(
+    "league browser exposes the canonical world-tracking action",
+    /setWorldClubTracked\(next, canonicalClubId, !tracked\)/.test(leagueBrowser) &&
+      /Track club/.test(leagueBrowser) &&
+      /Stop tracking/.test(leagueBrowser),
+  );
+  check(
+    "club tracking is wired through the route update boundary",
+    /<LeagueBrowser state=\{state\} update=\{update\}/.test(route),
+  );
+  check(
+    "the user club cannot be redundantly tracked from its own profile",
+    /!isUserClub &&/.test(leagueBrowser),
+  );
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
