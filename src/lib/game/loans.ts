@@ -86,9 +86,9 @@ export function startPlayerLoanInPlace(
   const parentClubId = playerOwnerClubId(player);
   const registeredClubId = playerRegisteredClubId(player);
   if (!parentClubId) return { ok: false, reason: "Free agents cannot be loaned" };
-  if (registeredClubId !== parentClubId)
+  if (!sameClubReference(state, registeredClubId, parentClubId))
     return { ok: false, reason: "Player is already registered away from his parent club" };
-  if (loanClubId === parentClubId)
+  if (sameClubReference(state, loanClubId, parentClubId))
     return { ok: false, reason: "Loan club must differ from the parent club" };
   if (!Number.isInteger(durationWeeks) || durationWeeks < 1)
     return { ok: false, reason: "Loan duration must be at least one week" };
@@ -105,7 +105,7 @@ export function startPlayerLoanInPlace(
   const parentContract = state.football.contracts.find(
     (contract) =>
       contract.playerId === playerId &&
-      contract.clubId === parentClubId &&
+      sameClubReference(state, contract.clubId, parentClubId) &&
       (contract.status === "Active" || contract.status === "Expiring"),
   );
   if (!parentContract)
