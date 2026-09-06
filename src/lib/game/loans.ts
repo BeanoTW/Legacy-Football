@@ -4,7 +4,7 @@ import type {
   PlayerLoanAgreement,
 } from "./types";
 import { absoluteWeek } from "./time";
-import { sameClubReference } from "./clubReference";
+import { isUserClubReference, sameClubReference } from "./clubReference";
 import {
   playerOwnerClubId,
   playerRegisteredClubId,
@@ -170,7 +170,7 @@ export function processDuePlayerLoansInPlace(state: GameState): number {
   return completed;
 }
 
-/** Clone-returning UI action for recalling/terminating an active loan. */
+/** Clone-returning system action for recalling/terminating an active loan. */
 export function terminatePlayerLoan(
   state: GameState,
   loanId: string,
@@ -178,4 +178,26 @@ export function terminatePlayerLoan(
   const next = structuredClone(state);
   const result = endPlayerLoanInPlace(next, loanId, "Terminated");
   return { state: next, result };
+}
+
+/**
+ * Chairman-facing termination action. The user may only end agreements where
+ * their club is either the parent or the borrowing club.
+ */
+export function terminateUserPlayerLoan(
+  state: GameState,
+  loanId: string,
+): { state: GameState; result: LoanActionResult } {
+  const loan = state.football?.loans?.find((row) => row.id === loanId);
+  if (!loan) return { state, result: { ok: false, reason: "Loan not found" } };
+  if (
+    !isUserClubReference(state, loan.parentClubId) &&
+    !isUserClubReference(state, loan.loanClubId)
+  ) {
+    return {
+      state,
+      result: { ok: false, reason: "This loan does not involve your club", loan },
+    };
+  }
+  return terminatePlayerLoan(state, loanId);
 }
