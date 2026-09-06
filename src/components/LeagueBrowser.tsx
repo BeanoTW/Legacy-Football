@@ -27,6 +27,7 @@ import {
 } from "@/lib/game/clubReference";
 import { clubLegacyRecord } from "@/lib/game/clubLegacy";
 import { setWorldClubTracked } from "@/lib/game/recruitment";
+import { footballLevelOfLeague, legacyTierToFootballLevel } from "@/lib/game/footballLevel";
 
 type View = "table" | "fixtures" | "predictions";
 
@@ -84,7 +85,7 @@ export function LeagueBrowser({ state, update }: { state: GameState; update: (fn
           />
         </div>
         <div className="truncate px-3 pb-2 text-xs text-muted-foreground">
-          Tier {league.tier} · {league.clubIds.length} clubs ·{" "}
+          Football Level {footballLevelOfLeague(league)} · {league.clubIds.length} clubs ·{" "}
           {league.promotionPlaces > 0 ? `${league.promotionPlaces} promoted` : "top division"} ·{" "}
           {league.relegationPlaces > 0 ? `${league.relegationPlaces} relegated` : "no relegation"}
           {isPast && " · final records"}
@@ -363,13 +364,13 @@ function ClubCard({
       <div className="p-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
         <Cell label="Reputation" value={clubReputation(state, club).toFixed(1)} />
         <Cell label="Strength" value={clubStrengthFor(state, club, state.season).toFixed(1)} />
-        <Cell label="Tier" value={String(tierOfClub(state, club))} />
+        <Cell label="Football level" value={String(legacyTierToFootballLevel(tierOfClub(state, club)))} />
         <Cell label="Expectation" value={pred ? EXPECTATION_LABEL[pred.expectation] : "—"} />
         <Cell label="Promotions" value={String(legacy?.promotions ?? record?.promotions ?? 0)} />
         <Cell label="Relegations" value={String(legacy?.relegations ?? record?.relegations ?? 0)} />
         <Cell label="Predicted finish" value={pred ? `${pred.rank}` : "—"} />
         <Cell label="League titles" value={String(legacy?.leagueTitles ?? 0)} />
-        <Cell label="Best finish" value={legacy?.bestLeagueFinish ? `Tier ${legacy.bestLeagueFinish.tier} · ${legacy.bestLeagueFinish.position}` : "—"} />
+        <Cell label="Best finish" value={legacy?.bestLeagueFinish ? `Level ${legacyTierToFootballLevel(legacy.bestLeagueFinish.tier)} · ${legacy.bestLeagueFinish.position}` : "—"} />
         <Cell label="Record buy" value={legacy?.recordTransferPaid ? fmtMoney(legacy.recordTransferPaid.fee) : "—"} />
         <Cell label="Record sale" value={legacy?.recordTransferReceived ? fmtMoney(legacy.recordTransferReceived.fee) : "—"} />
         <Cell label="Record crowd" value={legacy?.recordAttendance ? legacy.recordAttendance.attendance.toLocaleString() : "—"} />
