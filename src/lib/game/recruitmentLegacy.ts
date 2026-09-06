@@ -2378,6 +2378,14 @@ export function arrangeUserPlayerLoanInInPlace(
     };
   }
 
+  const userWeeklyCost = Math.round(
+    (contract.weeklyWage * terms.loanClubWageContributionPct) / 100,
+  );
+  const wageAuthority = canAuthoriseWage(s, userWeeklyCost);
+  if (!wageAuthority.allowed) {
+    return { ok: false, reason: wageAuthority.reason };
+  }
+
   const started = startPlayerLoanInPlace(
     s,
     playerId,
