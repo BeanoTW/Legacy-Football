@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { fmtMoneyExact } from "@/lib/game/engine";
 import { openNegotiations, recruitmentSnapshot } from "@/lib/game/recruitment";
 import { chairmanShortlistIds } from "@/lib/game/recruitmentKnowledge";
+import { isUserClubReference } from "@/lib/game/clubReference";
 import { OverviewScreen, WorkflowTile } from "./shared/layout";
 
 type View = "home" | "operations" | "find" | "reports" | "sales" | "loans";
@@ -56,7 +57,12 @@ export function RecruitmentFlow({
   const scoutingAssignments = state.football?.scouting?.assignments ?? [];
   const activeScouting = scoutingAssignments.filter((assignment) => assignment.status === "active").length;
   const completedReports = scoutingAssignments.filter((assignment) => assignment.status === "complete").length;
-  const activeLoans = (state.football?.loans ?? []).filter((loan) => loan.status === "Active").length;
+  const activeLoans = (state.football?.loans ?? []).filter(
+    (loan) =>
+      loan.status === "Active" &&
+      (isUserClubReference(state, loan.parentClubId) ||
+        isUserClubReference(state, loan.loanClubId)),
+  ).length;
 
   return (
     <OverviewScreen
