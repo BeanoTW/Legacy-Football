@@ -586,14 +586,14 @@ function PlayerProfile({
               label={loan ? "Loan role" : "Role"}
               value={loan?.playingTimeExpectation ?? contract?.squadRole ?? "—"}
             />
-            <ProfileFact
-              label={loan ? "Loan status" : "Employment"}
-              value={
-                loan
-                  ? `From ${clubDisplayName(state, loan.parentClubId)} · ${loanWeeks}w left`
-                  : employment
-              }
-            />
+            {loan ? (
+              <ProfileFact
+                label="Loan status"
+                value={`From ${clubDisplayName(state, loan.parentClubId)} · ${loanWeeks}w left`}
+              />
+            ) : (
+              <ProfileFact label="Employment" value={employment} />
+            )}
             <ProfileFact label="Preferred foot" value={player.preferredFoot} />
             <ProfileFact label="Personality" value={player.personality} />
             <ProfileFact label="Mood" value={mood.label} />
