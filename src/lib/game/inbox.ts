@@ -37,6 +37,8 @@ import type {
   CommercialOffer,
   TransferNegotiation,
 } from "./types";
+import { isUserClubReference } from "./clubReference";
+import { transferTargetPlayer } from "./recruitmentTargetBridge";
 
 import {
   MAX_NEGOTIATION_ROUNDS,
@@ -55,6 +57,7 @@ import {
   RENEWAL_WINDOW_WEEKS,
   activeContract,
   ageOf,
+  beginTransferRegistrationInPlace,
   completeTransferInPlace,
   improvePlayerTermsInPlace,
   negotiationById,
@@ -65,6 +68,7 @@ import {
   renewalTerms,
   respondToIncomingOfferInPlace,
   syncLegacySquad,
+  transferRegistrationReadiness,
   userSquad,
   weeksLeftOnContract,
   withdrawNegotiationInPlace,
@@ -284,10 +288,23 @@ function applyEffectInPlace(s: GameState, e: InboxEffect, src: EffectSource): vo
       improvePlayerTermsInPlace(s, e.negotiationId);
       syncLegacySquad(s);
       break;
-    case "recruitmentCompleteTransfer":
-      completeTransferInPlace(s, e.negotiationId);
+    case "recruitmentBeginRegistration":
+      beginTransferRegistrationInPlace(s, e.negotiationId);
       syncLegacySquad(s);
       break;
+    case "recruitmentCompleteTransfer": {
+      const negotiation = negotiationById(s, e.negotiationId);
+      // Compatibility for Inbox items persisted before the registration stage
+      // existed: the old "complete signing" effect now advances an agreed
+      // incoming deal into registration rather than becoming a dead action.
+      if (negotiation?.direction === "in" && negotiation.stage === "agreed") {
+        beginTransferRegistrationInPlace(s, e.negotiationId);
+      } else {
+        completeTransferInPlace(s, e.negotiationId);
+      }
+      syncLegacySquad(s);
+      break;
+    }
     case "recruitmentRenewContract": {
       const base = renewalTerms(s, e.playerId);
       if (base) {
@@ -1441,7 +1458,7 @@ const RECRUITMENT_SENDER = (s: GameState) =>
   s.football?.department?.headOfRecruitment ?? "Head of Recruitment";
 
 function negotiationLines(s: GameState, n: TransferNegotiation): string {
-  const p = playerById(s, n.playerId);
+  const p = transferTargetPlayer(s, n.playerId);
   if (!p) return "";
   return [
     `Player ............. ${playerName(p)} (${p.primaryPosition}, ${ageOf(p, s.season)})`,
@@ -1518,7 +1535,7 @@ const G_RECRUITMENT_PLAYER_TERMS: Generator = {
         (n) => n.direction === "in" && n.stage === "playerTalks" && n.playerCounterWage != null,
       )
       .map((n) => {
-        const p = playerById(s, n.playerId);
+        const p = transferTargetPlayer(s, n.playerId);
         if (!p) return null;
         const wanted = n.playerCounterWage!;
         return mk(s, "recruitment-player-terms", {
@@ -1568,7 +1585,7 @@ const G_RECRUITMENT_DEAL_AGREED: Generator = {
     return s.football.negotiations
       .filter((n) => n.stage === "agreed" && !n.completedTransferId)
       .map((n) => {
-        const p = playerById(s, n.playerId);
+        const p = transferTargetPlayer(s, n.playerId);
         if (!p) return null;
         const incoming = n.direction === "in";
         return mk(s, "recruitment-deal-agreed", {
@@ -1577,23 +1594,69 @@ const G_RECRUITMENT_DEAL_AGREED: Generator = {
           department: "Director of Football",
           category: "decision",
           priority: "urgent",
-          subject: `${incoming ? "Sign" : "Sell"} ${playerName(p)} — everything is agreed`,
+          subject: `${incoming ? "Register" : "Sell"} ${playerName(p)} — terms agreed`,
           body:
-            `${incoming ? "Both the club and the player have agreed" : "Terms are agreed with the buying club"}. ` +
-            `It needs your signature to complete.\n\n${negotiationLines(s, n)}\n\n` +
+            `${incoming ? "Both the club and the player have agreed" : "Terms are agreed with the buying club"}.\n\n` +
+            `${negotiationLines(s, n)}\n\n` +
             (incoming
-              ? `The fee draws on real cash and transfer-budget authority.`
-              : `The fee is banked as transfer income.`),
+              ? `The next step is medical and registration. Ownership does not change until registration is completed.`
+              : `The sale is ready to complete and the fee will be banked as transfer income.`),
           choices: [
             {
-              id: "complete",
-              label: incoming ? "Complete the signing" : "Complete the sale",
-              effects: [{ kind: "recruitmentCompleteTransfer", negotiationId: n.id }],
+              id: incoming ? "register" : "complete",
+              label: incoming ? "Begin medical & registration" : "Complete the sale",
+              effects: [
+                incoming
+                  ? { kind: "recruitmentBeginRegistration", negotiationId: n.id }
+                  : { kind: "recruitmentCompleteTransfer", negotiationId: n.id },
+              ],
             },
             {
               id: "withdraw",
               label: "Pull out of the deal",
               hint: "No money moves. Our standing takes a knock.",
+              effects: [{ kind: "recruitmentWithdraw", negotiationId: n.id }],
+            },
+          ],
+          expiresAtAbsoluteWeek: n.expiresAtAbsoluteWeek,
+        });
+      })
+      .filter((x): x is InboxItem => !!x);
+  },
+};
+
+/* -- Recruitment: incoming deal passed into registration and is still eligible -- */
+const G_RECRUITMENT_REGISTRATION_READY: Generator = {
+  id: "recruitment-registration-ready",
+  run: (s) => {
+    if (!s.football) return [];
+    return s.football.negotiations
+      .filter((n) => n.direction === "in" && n.stage === "registration" && !n.completedTransferId)
+      .map((n) => {
+        const p = transferTargetPlayer(s, n.playerId);
+        if (!p) return null;
+        const readiness = transferRegistrationReadiness(s, n.id);
+        if (!readiness.allowed) return null;
+        return mk(s, "recruitment-registration-ready", {
+          eventKey: `recruitment-registration-ready:${n.id}`,
+          sender: RECRUITMENT_SENDER(s),
+          department: "Director of Football",
+          category: "decision",
+          priority: "urgent",
+          subject: `${playerName(p)} — registration ready to complete`,
+          body:
+            `Medical and registration paperwork are open and the deal still passes the live window, squad and financial checks.\n\n` +
+            `${negotiationLines(s, n)}\n\nCompleting registration is the point at which the player joins the club.`,
+          choices: [
+            {
+              id: "complete",
+              label: "Complete registration",
+              effects: [{ kind: "recruitmentCompleteTransfer", negotiationId: n.id }],
+            },
+            {
+              id: "withdraw",
+              label: "Pull out of the deal",
+              hint: "No fee or signing bonus is paid.",
               effects: [{ kind: "recruitmentWithdraw", negotiationId: n.id }],
             },
           ],
@@ -1665,10 +1728,10 @@ const G_RECRUITMENT_TRANSFER_DONE: Generator = {
   run: (s) => {
     if (!s.football) return [];
     return s.football.transferHistory
-      .filter((r) => r.toClubId === s.clubName || r.fromClubId === s.clubName)
+      .filter((r) => isUserClubReference(s, r.toClubId) || isUserClubReference(s, r.fromClubId))
       .slice(-6)
       .map((r) => {
-        const incoming = r.toClubId === s.clubName;
+        const incoming = isUserClubReference(s, r.toClubId);
         return mk(s, "recruitment-transfer-complete", {
           eventKey: `recruitment-transfer-complete:${r.id}`,
           sender: RECRUITMENT_SENDER(s),
@@ -2228,6 +2291,7 @@ const GENERATORS: Generator[] = [
   G_RECRUITMENT_INCOMING_OFFER,
   G_RECRUITMENT_PLAYER_TERMS,
   G_RECRUITMENT_DEAL_AGREED,
+  G_RECRUITMENT_REGISTRATION_READY,
   G_RECRUITMENT_CONTRACT_EXPIRING,
   G_RECRUITMENT_TRANSFER_DONE,
   G_INFRA_WARNING,

@@ -1,6 +1,7 @@
 import { advanceDay, newGame } from "../engine";
 import { calendarDay, MATCHDAY_INDEX } from "../calendar";
 import { scoutingAssignment, scoutingReport, startScouting } from "../scouting";
+import { isUserClubReference } from "../clubReference";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -11,7 +12,9 @@ const startingWeek = state.week;
 
 assert(calendarDay(state) === 0, "new games must start on Monday");
 
-const target = state.football.players.find((player) => player.currentClubId !== state.clubName);
+const target = state.football.players.find(
+  (player) => player.currentClubId !== null && !isUserClubReference(state, player.currentClubId),
+);
 assert(target, "fresh world must contain an external scouting target");
 state = startScouting(state, target.id);
 assert(scoutingAssignment(state, target.id)?.weeksObserved === 0, "new scouting assignment must start at zero days");

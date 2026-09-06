@@ -1,5 +1,6 @@
 import type { GameState } from "./types";
 import { clubReputation } from "./reputation";
+import { userClubReference } from "./clubReference";
 import {
   footballLevelOfClub,
   footballLevelOfUser,
@@ -8,6 +9,7 @@ import {
 import {
   contractWageForLevel,
   negotiationWageForLevel,
+  negotiationWageStepForLevel,
   normaliseTransferFeeForLevel,
   playerValueForLevel,
   sustainableWeeklyWageBillForLevel,
@@ -84,6 +86,13 @@ export function recruitmentUserNegotiationWage(state: GameState, rawWeeklyWage: 
   return negotiationWageForLevel(rawWeeklyWage, recruitmentLevelOfUser(state));
 }
 
+export function recruitmentUserNegotiationWageStep(
+  state: GameState,
+  rawWeeklyWage: number,
+): number {
+  return negotiationWageStepForLevel(rawWeeklyWage, recruitmentLevelOfUser(state));
+}
+
 export function recruitmentPlayerValue(
   ability: number,
   potential: number,
@@ -133,7 +142,7 @@ export function recruitmentSustainableWageBill(
 export function recruitmentUserSustainableWageBill(state: GameState, homeMatches = 23): number {
   return sustainableWeeklyWageBillForLevel(
     recruitmentLevelOfUser(state),
-    clubReputation(state, state.clubName),
+    clubReputation(state, userClubReference(state)),
     homeMatches,
   );
 }

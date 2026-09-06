@@ -1,13 +1,16 @@
 import { advanceDay, advanceWeek, newGame } from "../engine";
 import { calendarDay } from "../calendar";
 import { scoutingAssignment, scoutingReport, startScouting } from "../scouting";
+import { isUserClubReference } from "../clubReference";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
 function externalTarget(state: ReturnType<typeof newGame>) {
-  const target = state.football.players.find((player) => player.currentClubId !== state.clubName);
+  const target = state.football.players.find(
+    (player) => player.currentClubId !== null && !isUserClubReference(state, player.currentClubId),
+  );
   assert(target, "fresh world must contain an external scouting target");
   return target;
 }

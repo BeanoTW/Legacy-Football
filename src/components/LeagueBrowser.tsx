@@ -18,11 +18,21 @@ import {
   finishIn,
 } from "@/lib/game/reputation";
 import { DetailScreen } from "@/components/game/shared/layout";
+import { fmtMoney } from "@/lib/game/engine";
+import {
+  canonicalClubReference,
+  clubDisplayName,
+  isUserClubReference,
+  sameClubReference,
+} from "@/lib/game/clubReference";
+import { clubLegacyRecord } from "@/lib/game/clubLegacy";
+import { setWorldClubTracked } from "@/lib/game/recruitment";
+import { footballLevelOfLeague, legacyTierToFootballLevel } from "@/lib/game/footballLevel";
 
 type View = "table" | "fixtures" | "predictions";
 
 /** Read-only window on the whole pyramid. Every value is read live from state. */
-export function LeagueBrowser({ state }: { state: GameState }) {
+export function LeagueBrowser({ state, update }: { state: GameState; update: (fn: (s: GameState) => GameState) => void }) {
   const leagues = state.leagues ?? [];
   const [leagueId, setLeagueId] = useState(playerLeagueId(state));
   const [season, setSeason] = useState(state.season);
@@ -75,7 +85,7 @@ export function LeagueBrowser({ state }: { state: GameState }) {
           />
         </div>
         <div className="truncate px-3 pb-2 text-xs text-muted-foreground">
-          Tier {league.tier} · {league.clubIds.length} clubs ·{" "}
+          Football Level {footballLevelOfLeague(league)} · {league.clubIds.length} clubs ·{" "}
           {league.promotionPlaces > 0 ? `${league.promotionPlaces} promoted` : "top division"} ·{" "}
           {league.relegationPlaces > 0 ? `${league.relegationPlaces} relegated` : "no relegation"}
           {isPast && " · final records"}
@@ -91,7 +101,7 @@ export function LeagueBrowser({ state }: { state: GameState }) {
       className="touch-pan-y space-y-3"
     >
       {view === "table" && <TableView state={state} rows={rows} season={season} onPick={setClub} />}
-      {view === "fixtures" && <FixturesView fixtures={fixtures} userClub={state.clubName} />}
+      {view === "fixtures" && <FixturesView state={state} fixtures={fixtures} />}
       {view === "predictions" && (
         <PredictionsView
           state={state}
@@ -102,7 +112,7 @@ export function LeagueBrowser({ state }: { state: GameState }) {
         />
       )}
 
-      {club && <ClubCard state={state} club={club} season={season} onClose={() => setClub(null)} />}
+      {club && <ClubCard state={state} club={club} season={season} update={update} onClose={() => setClub(null)} />}
     </DetailScreen>
   );
 }
@@ -170,11 +180,11 @@ function TableView({
               onClick={() => onPick(r.team)}
               className={cn(
                 "border-b last:border-0 cursor-pointer hover:bg-muted/60",
-                r.team === state.clubName && "bg-accent/20 font-semibold",
+                isUserClubReference(state, r.team) && "bg-accent/20 font-semibold",
               )}
             >
               <td className="py-1.5 px-3 text-muted-foreground">{i + 1}</td>
-              <td className="py-1.5 pr-2">{r.team}</td>
+              <td className="py-1.5 pr-2">{clubDisplayName(state, r.team)}</td>
               <td className="py-1.5 pr-2 text-right">{r.p}</td>
               <td className="py-1.5 pr-2 text-right">{r.w}</td>
               <td className="py-1.5 pr-2 text-right">{r.d}</td>
@@ -193,11 +203,11 @@ function TableView({
 }
 
 function FixturesView({
+  state,
   fixtures,
-  userClub,
 }: {
+  state: GameState;
   fixtures: ReturnType<typeof leagueFixtures>;
-  userClub: string;
 }) {
   const rounds = useMemo(
     () => [...new Set(fixtures.map((f) => f.round))].sort((a, b) => a - b),
@@ -237,14 +247,14 @@ function FixturesView({
             key={`${f.home}>${f.away}`}
             className={cn(
               "grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-2",
-              (f.home === userClub || f.away === userClub) && "bg-accent/15",
+              (isUserClubReference(state, f.home) || isUserClubReference(state, f.away)) && "bg-accent/15",
             )}
           >
-            <span className="text-right truncate">{f.home}</span>
+            <span className="text-right truncate">{clubDisplayName(state, f.home)}</span>
             <span className="tnum text-xs font-bold px-2 py-0.5 rounded bg-muted min-w-12 text-center">
               {f.record ? `${f.record.homeGoals}-${f.record.awayGoals}` : "v"}
             </span>
-            <span className="truncate">{f.away}</span>
+            <span className="truncate">{clubDisplayName(state, f.away)}</span>
           </div>
         ))}
       </div>
@@ -270,7 +280,7 @@ function PredictionsView({
   return (
     <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
       <div className="px-3 py-2 border-b text-xs">
-        Predicted champion: <span className="font-semibold">{champion}</span>
+        Predicted champion: <span className="font-semibold">{champion ? clubDisplayName(state, champion) : "—"}</span>
         {past && " · shown against the actual finish"}
       </div>
       <div className="divide-y text-sm">
@@ -282,12 +292,12 @@ function PredictionsView({
               onClick={() => onPick(c.club)}
               className={cn(
                 "w-full text-left grid grid-cols-[2rem_1fr_auto] items-center gap-2 px-3 py-2 hover:bg-muted/60",
-                c.club === state.clubName && "bg-accent/20 font-semibold",
+                isUserClubReference(state, c.club) && "bg-accent/20 font-semibold",
               )}
             >
               <span className="text-muted-foreground tnum">{c.rank}</span>
               <span>
-                <span className="block truncate">{c.club}</span>
+                <span className="block truncate">{clubDisplayName(state, c.club)}</span>
                 <span className="block text-[11px] text-muted-foreground">
                   {EXPECTATION_LABEL[c.expectation]}
                 </span>
@@ -312,36 +322,58 @@ function ClubCard({
   state,
   club,
   season,
+  update,
   onClose,
 }: {
   state: GameState;
   club: string;
   season: number;
+  update: (fn: (s: GameState) => GameState) => void;
   onClose: () => void;
 }) {
   const pred = clubPrediction(state, club, season);
-  const record = state.clubRecords?.[club];
+  const canonicalClubId = canonicalClubReference(state, club);
+  const displayName = clubDisplayName(state, club);
+  const record = state.clubRecords?.[canonicalClubId] ?? state.clubRecords?.[club];
+  const legacy = clubLegacyRecord(state, canonicalClubId);
+  const isUserClub = isUserClubReference(state, canonicalClubId);
+  const tracked = (state.trackedClubIds ?? []).some((clubId) => sameClubReference(state, clubId, canonicalClubId));
   const history = (record?.leagueHistory ?? []).slice(-8).reverse();
   const snaps = (state.clubSnapshots ?? [])
-    .filter((s) => s.club === club)
+    .filter((s) => sameClubReference(state, s.club, canonicalClubId))
     .slice(-8)
     .reverse();
   return (
     <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-      <div className="banner-strip px-3 py-2 text-xs flex items-center justify-between">
-        <span>{club}</span>
-        <button onClick={onClose} className="opacity-80 hover:opacity-100">
-          Close
-        </button>
+      <div className="banner-strip px-3 py-2 text-xs flex items-center justify-between gap-2">
+        <span className="truncate">{displayName}</span>
+        <div className="flex items-center gap-2">
+          {!isUserClub && (
+            <button
+              onClick={() => update((next) => setWorldClubTracked(next, canonicalClubId, !tracked))}
+              className="rounded border border-current/30 px-2 py-1 font-semibold opacity-90 hover:opacity-100"
+            >
+              {tracked ? "Stop tracking" : "Track club"}
+            </button>
+          )}
+          <button onClick={onClose} className="opacity-80 hover:opacity-100">
+            Close
+          </button>
+        </div>
       </div>
       <div className="p-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
         <Cell label="Reputation" value={clubReputation(state, club).toFixed(1)} />
         <Cell label="Strength" value={clubStrengthFor(state, club, state.season).toFixed(1)} />
-        <Cell label="Tier" value={String(tierOfClub(state, club))} />
+        <Cell label="Football level" value={String(legacyTierToFootballLevel(tierOfClub(state, club)))} />
         <Cell label="Expectation" value={pred ? EXPECTATION_LABEL[pred.expectation] : "—"} />
-        <Cell label="Promotions" value={String(record?.promotions ?? 0)} />
-        <Cell label="Relegations" value={String(record?.relegations ?? 0)} />
+        <Cell label="Promotions" value={String(legacy?.promotions ?? record?.promotions ?? 0)} />
+        <Cell label="Relegations" value={String(legacy?.relegations ?? record?.relegations ?? 0)} />
         <Cell label="Predicted finish" value={pred ? `${pred.rank}` : "—"} />
+        <Cell label="League titles" value={String(legacy?.leagueTitles ?? 0)} />
+        <Cell label="Best finish" value={legacy?.bestLeagueFinish ? `Level ${legacyTierToFootballLevel(legacy.bestLeagueFinish.tier)} · ${legacy.bestLeagueFinish.position}` : "—"} />
+        <Cell label="Record buy" value={legacy?.recordTransferPaid ? fmtMoney(legacy.recordTransferPaid.fee) : "—"} />
+        <Cell label="Record sale" value={legacy?.recordTransferReceived ? fmtMoney(legacy.recordTransferReceived.fee) : "—"} />
+        <Cell label="Record crowd" value={legacy?.recordAttendance ? legacy.recordAttendance.attendance.toLocaleString() : "—"} />
         <Cell label="Seasons on record" value={String(history.length)} />
       </div>
       {snaps.length > 0 && (

@@ -13,6 +13,10 @@ import { runWeeklyGenerators } from "../inbox";
 import { totalCapitalSpend } from "../infrastructure";
 import { categorySpendToDate } from "../sustainability";
 import { commercialIncomeForSeason } from "../commercial";
+import { startPlayerLoanInPlace } from "../loans";
+import { userSquad } from "../recruitment";
+import { buildWorldSimulationPlan } from "../world";
+import { isUserClubReference } from "../clubReference";
 import type { GameState, FinanceEntry } from "../types";
 
 let passed = 0;
@@ -59,9 +63,12 @@ const twoSeasons = run(46 * 2 + 6);
   check("input snapshot hash unchanged", stateHash(twoSeasons) === before);
   check("chunks were produced for aged history", chunks.length > 0, String(chunks.length));
   check(
-    "only inbox may archive detail from the current season",
+    "only high-frequency feeds may archive detail from the current season",
     chunks.every(
-      (c) => c.season < twoSeasons.season || (c.kind === "history:inbox" && c.season === twoSeasons.season),
+      (c) =>
+        c.season < twoSeasons.season ||
+        ((c.kind === "history:inbox" || c.kind === "history:scouting") &&
+          c.season === twoSeasons.season),
     ),
   );
   const again = compactState(core);
@@ -249,6 +256,53 @@ console.log("\n[H5] Store wiring: chunks, manifest, retrieval");
     `${fin2.length} vs ${reloaded.archive!.finance.entryCount}`,
   );
   check("second-generation core still reconciles", reconcile(reloaded).ok);
+}
+
+/* ---------------------------------------------------------------- */
+console.log("\n[H5b] Completed loan history survives repository storage");
+{
+  const { store } = makeStore();
+  let s = newGame("Loan Archive FC", "Ada Archive", "PHASE1B|LOAN-HISTORY|FIXED");
+  const player = userSquad(s)[0];
+  check("loan history fixture has a user player", !!player);
+  const destination = buildWorldSimulationPlan(s).focusClubIds.find(
+    (clubId) => !isUserClubReference(s, clubId),
+  );
+  check("loan history fixture has an external Focus club", !!destination);
+
+  const started = player && destination
+    ? startPlayerLoanInPlace(s, player.id, destination, 4, 50, "Rotation")
+    : { ok: false as const, reason: "fixture setup failed" };
+  check("loan history fixture starts a real loan", started.ok, started.reason);
+
+  const loanId = started.ok ? started.loan!.id : "";
+  for (let i = 0; i < 52; i++) s = advanceWeek(s);
+  check(
+    "loan is completed before archive save",
+    s.football.loans?.find((loan) => loan.id === loanId)?.status === "Completed",
+  );
+
+  const diags = await store.save(s);
+  check("loan history save succeeds", diags.length === 0, JSON.stringify(diags));
+  const loaded = (await store.load()).state!;
+  check(
+    "aged completed loan leaves the hot core",
+    !(loaded.football.loans ?? []).some((loan) => loan.id === loanId),
+  );
+
+  const loanHistory = await store.history!.readAll<import("../types").PlayerLoanAgreement>(
+    "history:loans",
+  );
+  const archivedLoan = loanHistory.find((loan) => loan.id === loanId);
+  check("completed loan is retrievable through history repository", !!archivedLoan);
+  check("archived loan keeps Completed status", archivedLoan?.status === "Completed");
+  check(
+    "archived loan keeps the same parties and wage share",
+    !!archivedLoan &&
+      archivedLoan.playerId === player?.id &&
+      archivedLoan.loanClubId === destination &&
+      archivedLoan.loanClubWageContributionPct === 50,
+  );
 }
 
 /* ---------------------------------------------------------------- */

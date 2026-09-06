@@ -8,6 +8,7 @@
 import type { GameState } from "../types";
 import { resolveRemainingSeason, syncTable, playerLeagueId } from "../league";
 import { makePyramidSchedule, applySeasonRollover, findLeague } from "../pyramid";
+import { isUserClubReference, userClubReference } from "../clubReference";
 import { runEndOfSeasonReview, rollBoardToNewSeason } from "../board";
 import { awardPrizeMoney, closeSeasonFinance, openSeasonFinance } from "../finance";
 import { closeCommercialSeason } from "../commercial";
@@ -15,6 +16,13 @@ import { closeRecruitmentSeason, rollRecruitmentToNewSeason } from "../recruitme
 import { runPlayerCareerRollover } from "../careers";
 import { runStaffCareerRollover } from "../staffCareers";
 import { advanceFringeWorldToSeason } from "../fringe";
+import { advancePersistentFringePlayersToSeason } from "../fringePlayers";
+import { accumulateClubLegacySeasonInPlace } from "../clubLegacy";
+import { advanceAiClubPerformanceSeasonInPlace } from "../aiClubPerformance";
+import {
+  compactDepartingFocusPlayersInPlace,
+  repairFreshFocusHydrationInPlace,
+} from "../playerFidelityReconcile";
 import { rollInfrastructureToNewSeason } from "../infrastructure";
 import { SEASON_END_WEEK } from "../calendar";
 import { ordinal } from "../format";
@@ -38,10 +46,18 @@ export function tickSeasonRollover(s: GameState): void {
   const closingLeagueId = playerLeagueId(s);
   const closingLeague = findLeague(s, closingLeagueId);
   const rollover = applySeasonRollover(s);
+  // Preserve the tiny permanent facts we would otherwise have to reconstruct
+  // from large historical tables later. Only real known outcomes, transfers
+  // and user attendance are accumulated; unknown history is left unknown.
+  accumulateClubLegacySeasonInPlace(s, rollover.outcomes, closingSeason);
+  // AI clubs carry one cheap institutional-performance value into the next
+  // season. It is derived from the finished season, mean-reverting and bounded
+  // to three strength points, so it cannot become a second reputation system.
+  advanceAiClubPerformanceSeasonInPlace(s, rollover.outcomes, closingSeason);
   // End of season: configuration-driven league prize money, awarded exactly
   // once (guarded by a ledger dedupe key, not by the calendar).
   const sorted = [...s.league].sort((a, b) => b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga));
-  const pos = sorted.findIndex((r) => r.team === s.clubName) + 1;
+  const pos = sorted.findIndex((r) => isUserClubReference(s, r.team)) + 1;
   if (closingLeague && pos > 0) {
     const award = awardPrizeMoney(s, closingSeason, closingLeague, pos);
     if (award) {
@@ -51,8 +67,8 @@ export function tickSeasonRollover(s: GameState): void {
       }
     }
   }
-  // Board's final judgement on the season just completed. Must run before
-  // the season counter moves so it is filed against the correct season.
+  // Board review is identity-native: presentation metadata never substitutes
+  // for the user's immutable club reference during rollover.
   runEndOfSeasonReview(s);
   // Immutable financial record of the season just closed.
   closeSeasonFinance(s, closingSeason, closingLeagueId);
@@ -65,11 +81,13 @@ export function tickSeasonRollover(s: GameState): void {
   s.season += 1;
   s.week = 1;
   // Advance compact outer-world identity before recruitment moves the Focus
-  // boundary. Newly focused clubs hydrate from this evolved snapshot.
+  // boundary. Clubs returning to Focus therefore hydrate the same people after
+  // their cheap statistical age/development/retirement step has run.
   advanceFringeWorldToSeason(s);
+  advancePersistentFringePlayersToSeason(s);
   if (s.leagues?.length) {
     s.leagueSchedule = makePyramidSchedule(s.leagues, `${s.saveSeed}|season${s.season}`);
-    s.fixtures = fixturesForClub(s.leagueSchedule, s.clubName);
+    s.fixtures = fixturesForClub(s.leagueSchedule, userClubReference(s));
     s.league = makeLeagueRows(userLeagueTeams(s));
   } else {
     s.fixtures = makeFixtures(s.clubName, `${s.saveSeed}|season${s.season}`);
@@ -84,15 +102,21 @@ export function tickSeasonRollover(s: GameState): void {
       s.inbox.push({ ...it, week: 1, season: s.season });
   }
   // Detailed Focus players now follow deterministic age/potential development
-  // and decline curves. Fringe clubs continue to evolve through their compact
-  // aggregate and hydrate coherently when they cross into Focus.
+  // and decline curves. Fringe clubs continue to evolve statistically.
   runPlayerCareerRollover(s);
+  // The pyramid has already changed, so capture every detailed club that is
+  // about to fall outside Focus before recruitment removes those player rows.
+  compactDepartingFocusPlayersInPlace(s);
   // Staff careers advance on the same yearly boundary: hired staff age,
   // develop/decline, may retire, and the new-season market is refreshed.
   runStaffCareerRollover(s);
   // Player values and wage expectations are then recalculated from the evolved
-  // abilities; GameState.squad is re-projected from canonical football state.
+  // abilities; the legacy recruitment reconciler creates/removes detailed rows.
   rollRecruitmentToNewSeason(s);
+  // Any newly Focused club is then rebound to its persistent compact people,
+  // retaining the recruitment-calculated contract economics without rerolling
+  // player identity, DOB, position or ability.
+  repairFreshFocusHydrationInPlace(s);
   // Physical plant ages one year and re-derives its projections.
   rollInfrastructureToNewSeason(s);
   // New season objectives, derived from the freshly stored projection.

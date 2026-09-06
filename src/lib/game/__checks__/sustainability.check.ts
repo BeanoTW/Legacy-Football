@@ -22,6 +22,7 @@ import { newGame, advanceWeek, migrateSave, SAVE_VERSION } from "../engine";
 import { reconcile } from "../finance";
 import { runBoardReview } from "../board";
 import { clubGrowthFactor } from "../recruitment";
+import { isUserClubReference } from "../clubReference";
 import {
   ensureSustainability,
   defaultSustainability,
@@ -173,7 +174,7 @@ console.log("\n[B] Recommended reserve");
   const lean = clone(MID);
   const heavy = clone(MID);
   for (const c of heavy.football?.contracts ?? []) {
-    if (c.clubId === heavy.clubName && (c.status === "Active" || c.status === "Expiring"))
+    if (isUserClubReference(heavy, c.clubId) && (c.status === "Active" || c.status === "Expiring"))
       c.weeklyWage *= 3;
   }
   check(
@@ -251,7 +252,7 @@ console.log("\n[C] Needs");
 
   const gutted = clone(MID);
   for (const pl of gutted.football?.players ?? []) {
-    if (pl.currentClubId === gutted.clubName) {
+    if (isUserClubReference(gutted, pl.currentClubId)) {
       pl.currentClubId = null;
       pl.contractId = null;
     }
@@ -488,7 +489,7 @@ console.log("\n[G] Capacity and wage pressure");
   check("G6. wage-to-revenue is reported", wageRatio > 0);
   const bloated = clone(MID);
   for (const c of bloated.football?.contracts ?? []) {
-    if (c.clubId === bloated.clubName && (c.status === "Active" || c.status === "Expiring"))
+    if (isUserClubReference(bloated, c.clubId) && (c.status === "Active" || c.status === "Expiring"))
       c.weeklyWage *= 4;
   }
   check("G7. a bloated wage bill raises the wage ratio", wageToRevenue(bloated) > wageRatio);

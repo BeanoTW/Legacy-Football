@@ -1,5 +1,7 @@
 import type { FootballPlayer, GameState } from "./types";
 import { activeContract, weeksLeftOnContract } from "./recruitment";
+import { isUserClubReference, userClubReference } from "./clubReference";
+import { clubSimulationSeedKey } from "./clubIdentity";
 
 const NICKNAMES = [
   "The Foundry",
@@ -19,14 +21,17 @@ function stableIndex(value: string, length: number): number {
 }
 
 /** Stable presentation identity: no save migration and no gameplay randomness. */
-export function clubNickname(state: Pick<GameState, "clubName" | "saveSeed">): string {
-  return NICKNAMES[stableIndex(`${state.saveSeed}|${state.clubName}|nickname`, NICKNAMES.length)];
+export function clubNickname(
+  state: Pick<GameState, "clubName" | "saveSeed" | "clubIdentity">,
+): string {
+  const seedKey = clubSimulationSeedKey(state, userClubReference(state));
+  return NICKNAMES[stableIndex(`${state.saveSeed}|${seedKey}|nickname`, NICKNAMES.length)];
 }
 
 export function chairmanStyle(state: GameState): { label: string; detail: string } {
   const transfers = state.football?.transferHistory ?? [];
-  const arrivals = transfers.filter((move) => move.toClubId === state.clubName).length;
-  const departures = transfers.filter((move) => move.fromClubId === state.clubName).length;
+  const arrivals = transfers.filter((move) => isUserClubReference(state, move.toClubId)).length;
+  const departures = transfers.filter((move) => isUserClubReference(state, move.fromClubId)).length;
   if (state.cash < 0) return { label: "High-wire owner", detail: "Ambition is running ahead of the balance sheet." };
   if (state.fanHappiness >= 82) return { label: "Supporters' chairman", detail: "The terraces believe the club is in safe hands." };
   if (arrivals + departures >= 6) return { label: "Market operator", detail: "Your reign is being shaped in the transfer market." };

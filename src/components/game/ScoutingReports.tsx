@@ -2,16 +2,20 @@ import { ArrowLeft, Binoculars, CheckCircle2, Handshake, Star } from "lucide-rea
 import type { GameState } from "@/lib/game/types";
 import {
   ageOf,
-  askingPrice,
-  playerById,
   playerInterestAssessment,
   playerName,
-  shortlistIds,
+  submitTransferEnquiry,
   submitTransferOffer,
-  toggleShortlist,
 } from "@/lib/game/recruitment";
 import { scoutingReport } from "@/lib/game/scouting";
+import { transferTargetPlayer } from "@/lib/game/recruitmentTargetBridge";
+import {
+  chairmanRecruitmentEstimate,
+  isChairmanShortlisted,
+  toggleChairmanShortlist,
+} from "@/lib/game/recruitmentKnowledge";
 import { fmtMoney } from "@/lib/game/engine";
+import { clubDisplayName } from "@/lib/game/clubReference";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { DetailScreen } from "./shared/layout";
@@ -31,8 +35,12 @@ export function ScoutingReports({
     return b.startedAtAbsoluteWeek - a.startedAtAbsoluteWeek;
   });
 
-  const approach = (playerId: string, fee: number) =>
-    update((s) => submitTransferOffer(s, playerId, fee).state);
+  const approach = (playerId: string, freeAgent: boolean, weeklyWage: number) =>
+    update((s) =>
+      freeAgent
+        ? submitTransferOffer(s, playerId, 0, "First Team", weeklyWage).state
+        : submitTransferEnquiry(s, playerId, "First Team", weeklyWage).state,
+    );
 
   return (
     <DetailScreen
@@ -52,12 +60,14 @@ export function ScoutingReports({
       )}
 
       {assignments.map((assignment) => {
-        const player = playerById(state, assignment.playerId);
+        const player = transferTargetPlayer(state, assignment.playerId);
         if (!player) return null;
         const report = scoutingReport(state, player);
         const interest = playerInterestAssessment(state, player);
-        const watched = shortlistIds(state).includes(player.id);
+        const watched = isChairmanShortlisted(state, player.id);
         const freeAgent = player.currentClubId === null;
+        const estimate = chairmanRecruitmentEstimate(state, player.id);
+        if (!estimate) return null;
 
         return (
           <article key={player.id} className="rounded-lg border bg-card p-2.5 shadow-sm">
@@ -70,7 +80,7 @@ export function ScoutingReports({
                   </span>
                 </div>
                 <div className="text-[10px] text-muted-foreground">
-                  {ageOf(player, state.season)}y · {player.currentClubId ?? "Free agent"} · {interest.label}
+                  {ageOf(player, state.season)}y · {player.currentClubId ? clubDisplayName(state, player.currentClubId) : "Free agent"} · {interest.label}
                 </div>
               </div>
               <div className="shrink-0 text-right">
@@ -103,7 +113,7 @@ export function ScoutingReports({
                 size="sm"
                 variant={watched ? "default" : "outline"}
                 className="h-7 px-2 text-[10px]"
-                onClick={() => update((s) => toggleShortlist(s, player.id))}
+                onClick={() => update((s) => toggleChairmanShortlist(s, player.id))}
               >
                 <Star className={cn("mr-1 size-3", watched && "fill-current")} />
                 {watched ? "Shortlisted" : "Shortlist"}
@@ -112,7 +122,9 @@ export function ScoutingReports({
                 size="sm"
                 variant="secondary"
                 className="h-7 px-2 text-[10px]"
-                onClick={() => approach(player.id, freeAgent ? 0 : askingPrice(state, player))}
+                onClick={() =>
+                  approach(player.id, freeAgent, estimate.openingWeeklyWage)
+                }
               >
                 <Handshake className="mr-1 size-3" />
                 {freeAgent ? "Approach player" : "Approach club"}

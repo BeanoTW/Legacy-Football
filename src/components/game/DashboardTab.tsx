@@ -18,6 +18,7 @@ import { canonicalPlayerWagesWeekly, clubKpi } from "@/lib/game/selectors/club";
 import { commitmentProgress, sustainabilitySnapshot } from "@/lib/game/sustainability";
 import { WEEKS_PER_SEASON } from "@/lib/game/time";
 import { HEALTH_TONE, Meter, Row, Section, Stat, ord, sum } from "./shared/primitives";
+import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 
 export function DashboardTab({ state }: { state: GameState }) {
   const last12 = state.ledger.slice(-12);
@@ -44,7 +45,7 @@ export function DashboardTab({ state }: { state: GameState }) {
   const leagueSorted = [...state.league].sort(
     (a, b) => b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga) || b.gf - a.gf,
   );
-  const myPos = leagueSorted.findIndex((r) => r.team === state.clubName) + 1;
+  const myPos = leagueSorted.findIndex((r) => isUserClubReference(state, r.team)) + 1;
 
   return (
     <div className="grid gap-4 lg:grid-cols-3">
@@ -141,7 +142,7 @@ export function DashboardTab({ state }: { state: GameState }) {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="font-display text-lg">
-                  {lastResult.home ? "H" : "A"} vs {lastResult.opponent}
+                  {lastResult.home ? "H" : "A"} vs {clubDisplayName(state, lastResult.opponent)}
                 </div>
                 <span
                   className={cn(

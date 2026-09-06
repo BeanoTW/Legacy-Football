@@ -6,6 +6,7 @@
  */
 import type { GameState } from "./types";
 import { profileForTier, tierOfUser, clubSizeFactor } from "./economy";
+import { detailedSquadStrength } from "./footballStrength";
 import { stadiumCapacity, stadiumUsableCapacity, facilityModifiers } from "./infrastructure";
 
 /**
@@ -33,10 +34,9 @@ export const avgTicketPrice = (s: GameState) => {
 
 export const playerWagesWeekly = (s: GameState) => s.squad.reduce((a, p) => a + p.wage, 0);
 
-export const squadRating = (s: GameState) => {
-  const top16 = [...s.squad].sort((a, b) => b.rating - a.rating).slice(0, 16);
-  return top16.reduce((a, p) => a + p.rating, 0) / top16.length;
-};
+/** Legacy-facing squad rating now delegates to the canonical football scale. */
+export const squadRating = (s: GameState) =>
+  detailedSquadStrength(s.squad.map((player) => player.rating)) ?? 0;
 
 export const totalWeeklyExpenses = (s: GameState) =>
   playerWagesWeekly(s) +

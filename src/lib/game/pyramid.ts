@@ -36,6 +36,12 @@ import {
   hasFullSchedule,
   isLeagueSeasonComplete,
 } from "./league";
+import {
+  clubDisplayName,
+  isUserClubReference,
+  sameClubReference,
+  userClubReference,
+} from "./clubReference";
 import { hashString } from "./rng";
 import { applySeasonIdentity, storePredictions, initClubReputations } from "./reputation";
 import { WORLD_DIVISIONS, promotionDestinationsForDefinition } from "./worldPyramid";
@@ -78,7 +84,7 @@ export function makeLeagues(clubName: string): League[] {
 
 export const findLeague = (s: GameState, id: string) => (s.leagues ?? []).find((l) => l.id === id);
 export const leagueOfClub = (s: GameState, club: string) =>
-  (s.leagues ?? []).find((l) => l.clubIds.includes(club));
+  (s.leagues ?? []).find((l) => l.clubIds.some((candidate) => sameClubReference(s, candidate, club)));
 
 /* ---------- Scheduling ---------- */
 
@@ -307,7 +313,8 @@ export function applySeasonRollover(s: GameState): {
     }
     rec.currentLeagueId = lid;
   }
-  s.playerLeagueId = membership.get(s.clubName) ?? s.playerLeagueId;
+  const userMembership = [...membership.entries()].find(([club]) => isUserClubReference(s, club));
+  s.playerLeagueId = userMembership?.[1] ?? s.playerLeagueId;
 
   storePredictions(s, s.season + 1);
 
@@ -348,9 +355,14 @@ function item(
 export function rolloverInboxItems(s: GameState, outcomes: LeagueOutcome[]): InboxItem[] {
   const out: InboxItem[] = [];
   const season = s.season;
+  const userRef = userClubReference(s);
 
   for (const o of outcomes) {
     if (o.champion) {
+      const championName = clubDisplayName(s, o.champion);
+      const runnerUpName = o.runnerUp ? clubDisplayName(s, o.runnerUp) : null;
+      const promotedNames = o.promoted.map((club) => clubDisplayName(s, club));
+      const relegatedNames = o.relegated.map((club) => clubDisplayName(s, club));
       out.push(
         item(
           s,
@@ -359,24 +371,24 @@ export function rolloverInboxItems(s: GameState, outcomes: LeagueOutcome[]): Inb
           "League",
           "league",
           "normal",
-          `${o.leagueName} champions: ${o.champion}`,
-          `${o.champion} are confirmed as ${o.leagueName} champions for season ${season}.` +
-            (o.runnerUp ? ` ${o.runnerUp} finish as runners-up.` : "") +
-            (o.promoted.length ? ` Promoted: ${o.promoted.join(", ")}.` : "") +
-            (o.relegated.length ? ` Relegated: ${o.relegated.join(", ")}.` : ""),
+          `${o.leagueName} champions: ${championName}`,
+          `${championName} are confirmed as ${o.leagueName} champions for season ${season}.` +
+            (runnerUpName ? ` ${runnerUpName} finish as runners-up.` : "") +
+            (promotedNames.length ? ` Promoted: ${promotedNames.join(", ")}.` : "") +
+            (relegatedNames.length ? ` Relegated: ${relegatedNames.join(", ")}.` : ""),
         ),
       );
     }
   }
 
-  const mine = outcomes.find((o) => o.table.some((r) => r.team === s.clubName));
+  const mine = outcomes.find((o) => o.table.some((r) => isUserClubReference(s, r.team)));
   if (mine) {
-    const pos = mine.table.findIndex((r) => r.team === s.clubName) + 1;
-    if (mine.promoted.includes(s.clubName)) {
+    const pos = mine.table.findIndex((r) => isUserClubReference(s, r.team)) + 1;
+    if (mine.promoted.some((club) => isUserClubReference(s, club))) {
       out.push(
         item(
           s,
-          `club-promoted:${s.clubName}:s${season}`,
+          `club-promoted:${userRef}:s${season}`,
           "The Board",
           "Board of Directors",
           "board",
@@ -387,11 +399,11 @@ export function rolloverInboxItems(s: GameState, outcomes: LeagueOutcome[]): Inb
             `The board will set new targets before the first fixture of season ${season + 1}.`,
         ),
       );
-    } else if (mine.relegated.includes(s.clubName)) {
+    } else if (mine.relegated.some((club) => isUserClubReference(s, club))) {
       out.push(
         item(
           s,
-          `club-relegated:${s.clubName}:s${season}`,
+          `club-relegated:${userRef}:s${season}`,
           "The Board",
           "Board of Directors",
           "board",
@@ -405,7 +417,7 @@ export function rolloverInboxItems(s: GameState, outcomes: LeagueOutcome[]): Inb
       out.push(
         item(
           s,
-          `fans-relegation:${s.clubName}:s${season}`,
+          `fans-relegation:${userRef}:s${season}`,
           "Supporters' Trust",
           "Fan Liaison",
           "fans",
@@ -415,11 +427,11 @@ export function rolloverInboxItems(s: GameState, outcomes: LeagueOutcome[]): Inb
             `Season-ticket renewals are expected to slow until the club sets out a plan.`,
         ),
       );
-    } else if (mine.champion === s.clubName) {
+    } else if (isUserClubReference(s, mine.champion)) {
       out.push(
         item(
           s,
-          `club-champions:${s.clubName}:s${season}`,
+          `club-champions:${userRef}:s${season}`,
           "The Board",
           "Board of Directors",
           "board",
@@ -457,7 +469,7 @@ export function pyramidIntegrity(s: GameState): { ok: boolean; problems: string[
     if (l.clubIds.length !== CLUBS_PER_DIVISION)
       problems.push(`${l.id} has ${l.clubIds.length} clubs`);
   }
-  if (!all.includes(s.clubName)) problems.push("user club is not in any league");
+  if (!all.some((club) => isUserClubReference(s, club))) problems.push("user club is not in any league");
   const fixtureLeagues = new Set((s.leagueSchedule ?? []).map(leagueOf));
   for (const l of s.leagues ?? [])
     if (!fixtureLeagues.has(l.id)) problems.push(`${l.id} has no fixtures`);

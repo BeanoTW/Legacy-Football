@@ -11,7 +11,9 @@
 
 import type { GameState, LeagueRow, MatchRecord, ScheduledFixture } from "./types";
 import { mulberry32, hashString } from "./rng";
-import { clubStrengthFor } from "./reputation";
+import { clubMatchStrength } from "./matchStrength";
+import { isUserClubReference } from "./clubReference";
+import { clubSimulationSeedKey } from "./clubIdentity";
 import {
   buildWorldSimulationPlan,
   simulationLevelForClub,
@@ -43,7 +45,7 @@ export function matchSeed(
 }
 
 export function clubStrength(s: GameState, season: number, club: string): number {
-  return clubStrengthFor(s, club, season);
+  return clubMatchStrength(s, club, season);
 }
 
 export function goalsFrom(rng: () => number, strength: number, oppStrength: number): number {
@@ -73,7 +75,14 @@ export function simulateFixture(
   leagueId: string = LEAGUE_ID,
   override?: { homeStrength?: number; awayStrength?: number },
 ): { homeGoals: number; awayGoals: number; seed: string } {
-  const seed = matchSeed(s.saveSeed, season, round, home, away, leagueId);
+  const seed = matchSeed(
+    s.saveSeed,
+    season,
+    round,
+    clubSimulationSeedKey(s, home),
+    clubSimulationSeedKey(s, away),
+    leagueId,
+  );
   const rng = mulberry32(hashString(seed));
   const hs = (override?.homeStrength ?? clubStrength(s, season, home)) + HOME_ADVANTAGE;
   const as = override?.awayStrength ?? clubStrength(s, season, away);
@@ -91,26 +100,24 @@ export function simulateAiFixture(
   return simulateFixture(s, season, round, home, away, leagueId);
 }
 
-/** Strength gateway for a fixture resolved at a particular fidelity level. */
+/**
+ * Fidelity changes how much state a club carries, never the football-strength
+ * scale used by match simulation. The same club therefore keeps the same
+ * quality reading when it crosses the Focus/Fringe boundary.
+ */
 export function clubStrengthAtLevel(
   s: GameState,
   season: number,
   club: string,
   level: WorldSimulationLevel,
 ): number {
-  if (level === "fringe") {
-    const compact = s.fringeWorld?.[club];
-    if (compact?.lastSimulatedSeason === season) {
-      return Math.max(1, Math.min(100, compact.strength + compact.form));
-    }
-  }
+  void level;
   return clubStrength(s, season, club);
 }
 
 /**
- * Focus fixtures retain the detailed reputation/history model. Fringe-only
- * fixtures resolve from compact persistent strength and form, without
- * hydrating players or contracts.
+ * Both Focus and Fringe fixtures consume the same canonical strength gateway;
+ * the simulation level only controls how the underlying club state is stored.
  */
 export function simulateAiFixtureAtLevel(
   s: GameState,
@@ -121,7 +128,6 @@ export function simulateAiFixtureAtLevel(
   leagueId: string,
   level: WorldSimulationLevel,
 ): { homeGoals: number; awayGoals: number; seed: string } {
-  if (level === "focus") return simulateAiFixture(s, season, round, home, away, leagueId);
   return simulateFixture(s, season, round, home, away, leagueId, {
     homeStrength: clubStrengthAtLevel(s, season, home, level),
     awayStrength: clubStrengthAtLevel(s, season, away, level),
@@ -246,7 +252,7 @@ export function resolveWeek(s: GameState, week: number, userRecord?: MatchRecord
     const lid = leagueOf(f);
     const id = fixtureId(s.season, f.round, f.home, f.away, lid);
     if (s.matchRecords.some((r) => r.id === id)) continue;
-    const isUser = f.home === s.clubName || f.away === s.clubName;
+    const isUser = isUserClubReference(s, f.home) || isUserClubReference(s, f.away);
     if (isUser) {
       if (userRecord && userRecord.id === id) s.matchRecords.push(userRecord);
       continue;

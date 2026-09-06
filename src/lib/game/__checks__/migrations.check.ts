@@ -18,6 +18,7 @@ import {
 import { legacyMigrateSave } from "./legacyMigrate";
 import { stateHash, stateHashParts, stableStringify } from "../diagnostics/stateHash";
 import type { GameState } from "../types";
+import { persistedClubReferencesAreOpaque } from "../clubReferenceMigration";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -139,6 +140,7 @@ const SCENARIOS: { label: string; weeks: number; seed: string }[] = [
 ];
 
 const SOURCE_VERSIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+const LEGACY_PARITY_VERSION = 15;
 
 /* Sanity: the richest fixture really does carry the features the brief lists. */
 console.log("\n[G0] Fixture richness");
@@ -168,24 +170,31 @@ for (const sc of SCENARIOS) {
     const src = downgradeTo(v, base);
     safe(`${sc.label} @v${v}`, () => {
       const legacy = legacyMigrateSave(clone(src));
-      const modern = runMigrations(clone(src), SAVE_VERSION, DEPS).state;
+      legacy.version = LEGACY_PARITY_VERSION;
+      const modernLegacy = runMigrations(clone(src), LEGACY_PARITY_VERSION, DEPS).state;
       const lh = stateHash(legacy);
-      const mh = stateHash(modern);
+      const mh = stateHash(modernLegacy);
       const same = lh === mh;
       let drift = "";
       if (!same) {
         const a = stateHashParts(legacy);
-        const b = stateHashParts(modern);
+        const b = stateHashParts(modernLegacy);
         drift = Object.keys({ ...a, ...b })
           .filter((k) => a[k] !== b[k])
           .join(", ");
       }
-      check(`${sc.label} v${v}: identical state hash`, same, `drift: ${drift}`);
-      check(`${sc.label} v${v}: version = ${SAVE_VERSION}`, modern.version === SAVE_VERSION);
+      check(`${sc.label} v${v}: legacy v15 state hash parity`, same, `drift: ${drift}`);
       check(
-        `${sc.label} v${v}: byte-identical canonical serialization`,
-        stableStringify(legacy) === stableStringify(modern),
+        `${sc.label} v${v}: legacy parity lands on v${LEGACY_PARITY_VERSION}`,
+        modernLegacy.version === LEGACY_PARITY_VERSION,
       );
+      check(
+        `${sc.label} v${v}: legacy v15 canonical serialization parity`,
+        stableStringify(legacy) === stableStringify(modernLegacy),
+      );
+
+      const current = runMigrations(clone(src), SAVE_VERSION, DEPS).state;
+      check(`${sc.label} v${v}: upgrades to current schema v${SAVE_VERSION}`, current.version === SAVE_VERSION);
     });
   }
 }
@@ -518,7 +527,7 @@ for (const sc of SCENARIOS) {
     const src = downgradeTo(1, richSave(sc.weeks, sc.seed));
     const first = runMigrations(clone(src), SAVE_VERSION, DEPS);
     check(
-      `${sc.label}: applied all 11 steps`,
+      `${sc.label}: applied all ${MIGRATIONS.length} steps`,
       first.applied.length === MIGRATIONS.length,
       first.applied.join(","),
     );
@@ -529,8 +538,21 @@ for (const sc of SCENARIOS) {
       `${sc.label}: stable after serialize/deserialize/re-migrate`,
       stateHash(second.state) === stateHash(first.state),
     );
+    check(
+      `${sc.label}: current save references are opaque`,
+      persistedClubReferencesAreOpaque(first.state),
+    );
+
+    // The frozen inline migrator intentionally stops at the pre-ID schema
+    // shape. Compare it with the registry at that same v15 checkpoint rather
+    // than expecting intentional v16/v17 identity changes to be byte-identical.
     const legacy = legacyMigrateSave(clone(src));
-    check(`${sc.label}: matches legacy inline path`, stateHash(legacy) === stateHash(first.state));
+    legacy.version = LEGACY_PARITY_VERSION;
+    const checkpoint = runMigrations(clone(src), LEGACY_PARITY_VERSION, DEPS).state;
+    check(
+      `${sc.label}: frozen inline path still matches registry at v${LEGACY_PARITY_VERSION}`,
+      stateHash(legacy) === stateHash(checkpoint),
+    );
   });
 }
 

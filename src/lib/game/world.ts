@@ -1,4 +1,10 @@
 import type { GameState } from "./types";
+import { isUserClubReference } from "./clubReference";
+import {
+  boundedAdjacentLeagueIds,
+  boundedRecentOpponentIds,
+  boundedTrackedClubIds,
+} from "./worldFocusPolicy";
 
 /**
  * Simulation fidelity is deliberately separate from league tier.
@@ -37,7 +43,7 @@ export interface WorldFocusOptions {
   trackedClubIds?: readonly string[];
   /** Recent opponents can temporarily receive full fidelity. */
   recentOpponentIds?: readonly string[];
-  /** Include the divisions immediately above/below the player's league. */
+  /** Include a bounded set of divisions immediately above/below the player's league. */
   includeAdjacentLeagues?: boolean;
 }
 
@@ -48,14 +54,17 @@ function uniqueSorted(values: readonly string[]): string[] {
 /**
  * Pure deterministic planner for world simulation fidelity.
  *
- * Phase 2 deliberately does NOT change match results yet. It establishes the
- * boundary every future world subsystem can query before doing expensive work.
- * The player's division is always focus. Adjacent promotion/relegation leagues
- * are focus by default so movement across the pyramid never crosses an
- * unmodelled boundary.
+ * Detailed simulation is deliberately bounded. The player's division is always
+ * Focus. At most one adjacent league in each direction is hydrated, while
+ * tracked clubs and recent opponents receive individual Focus slots subject to
+ * hard budgets. Old relevance can therefore fall back to Fringe rather than
+ * accumulating forever.
  */
 export function buildWorldSimulationPlan(
-  state: Pick<GameState, "season" | "clubName" | "playerLeagueId" | "leagues" | "trackedClubIds">,
+  state: Pick<
+    GameState,
+    "season" | "clubName" | "playerLeagueId" | "leagues" | "trackedClubIds" | "clubIdentity"
+  >,
   options: WorldFocusOptions = {},
 ): WorldSimulationPlan {
   const playerLeague = state.leagues.find((league) => league.id === state.playerLeagueId);
@@ -67,17 +76,18 @@ export function buildWorldSimulationPlan(
 
   const focusLeagueIds = new Set<string>([playerLeague.id]);
   const includeAdjacent = options.includeAdjacentLeagues ?? true;
+  const adjacentLeagueIds = includeAdjacent
+    ? new Set(boundedAdjacentLeagueIds(state.leagues, playerLeague.tier))
+    : new Set<string>();
+  for (const leagueId of adjacentLeagueIds) focusLeagueIds.add(leagueId);
 
-  if (includeAdjacent) {
-    for (const league of state.leagues) {
-      if (Math.abs(league.tier - playerLeague.tier) === 1) {
-        focusLeagueIds.add(league.id);
-      }
-    }
-  }
-
-  const tracked = new Set([...(state.trackedClubIds ?? []), ...(options.trackedClubIds ?? [])]);
-  const recent = new Set(options.recentOpponentIds ?? []);
+  const tracked = new Set(
+    boundedTrackedClubIds(state, [
+      ...(state.trackedClubIds ?? []),
+      ...(options.trackedClubIds ?? []),
+    ]),
+  );
+  const recent = new Set(boundedRecentOpponentIds(state, options.recentOpponentIds ?? []));
 
   const clubs: WorldClubSimulationProfile[] = [];
   for (const league of [...state.leagues].sort(
@@ -86,11 +96,11 @@ export function buildWorldSimulationPlan(
     for (const clubId of uniqueSorted(league.clubIds)) {
       const reasons: WorldFocusReason[] = [];
 
-      if (clubId === state.clubName) reasons.push("playerClub");
+      if (isUserClubReference(state, clubId)) reasons.push("playerClub");
       if (league.id === playerLeague.id) reasons.push("sameLeague");
-      if (includeAdjacent && league.tier === playerLeague.tier - 1)
+      if (adjacentLeagueIds.has(league.id) && league.tier < playerLeague.tier)
         reasons.push("promotionNeighbour");
-      if (includeAdjacent && league.tier === playerLeague.tier + 1)
+      if (adjacentLeagueIds.has(league.id) && league.tier > playerLeague.tier)
         reasons.push("relegationNeighbour");
       if (recent.has(clubId)) reasons.push("recentOpponent");
       if (tracked.has(clubId)) reasons.push("tracked");

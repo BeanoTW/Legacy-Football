@@ -9,6 +9,15 @@
 import type { GameState, FixtureResult } from "./types";
 import { runWeeklyGenerators } from "./inbox";
 import { runRecruitmentWeek } from "./recruitment";
+import { processDuePlayerLoansInPlace } from "./loans";
+import {
+  compactDepartingFocusPlayersInPlace,
+  repairFreshFocusHydrationInPlace,
+} from "./playerFidelityReconcile";
+import {
+  advancePlayerClubPerformanceWeekInPlace,
+  applyPlayerClubMatchOutcomeInPlace,
+} from "./playerClubPerformance";
 import { progressScoutingDayInPlace, progressScoutingWeekInPlace } from "./scouting";
 import { runInfrastructureWeek } from "./infrastructure";
 import { runSustainabilityWeek } from "./sustainability";
@@ -86,10 +95,28 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   const s: GameState = structuredClone(prev);
   ensureFinance(s);
 
+  // Loan contributions affect the payroll booked for this exact week. Close
+  // any agreement due at the current absolute week before recurring wages are
+  // posted; recruitment later repeats the same operation idempotently before
+  // contract expiries.
+  processDuePlayerLoansInPlace(s);
   runInfrastructureWeek(s);
   postRecurringWeek(s);
+  // Commercial and recruitment are identity-native and can run directly.
   runCommercialWeek(s);
+  // Capture any Focus→Fringe boundary change before legacy recruitment removes
+  // detailed rows. Conversely, repair a direct tracking hydration from an
+  // earlier UI action before weekly football systems use the temporary players.
+  compactDepartingFocusPlayersInPlace(s);
+  repairFreshFocusHydrationInPlace(s);
   runRecruitmentWeek(s, isTransferWindowOpen(s));
+  // Recruitment may itself reconcile the world boundary; replace any freshly
+  // generated Focus placeholders with the same persistent compact people.
+  repairFreshFocusHydrationInPlace(s);
+  // Cohesion reads the settled squad after this week's recruitment activity.
+  // It is processed before the fixture so genuine squad churn can influence
+  // the performance that is realised on the pitch that same week.
+  advancePlayerClubPerformanceWeekInPlace(s);
   progressScoutingWeekInPlace(s);
 
   const { fxResult, matchdayNote }: { fxResult: FixtureResult | null; matchdayNote?: string } =
@@ -105,7 +132,12 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
     const row = s.ledger.find((l) => l.season === s.season && l.week === s.week);
     if (row) row.matchdayNote = matchdayNote;
   }
-  if (fxResult) s.results.push(fxResult);
+  if (fxResult) {
+    s.results.push(fxResult);
+    // The completed result changes morale for subsequent fixtures; it never
+    // feeds back into the score that has already been decided.
+    applyPlayerClubMatchOutcomeInPlace(s, fxResult);
+  }
   resolveWeek(s, s.week);
   syncTable(s);
 

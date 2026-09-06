@@ -33,6 +33,7 @@ import { sustainabilityConfidenceAdjustment } from "./sustainability";
 import { clubPrediction, EXPECTATION_LABEL } from "./reputation";
 import { playerLeagueId } from "./league";
 import { commercialWeeklyIncome, activeContracts } from "./commercial";
+import { isUserClubReference, userClubReference } from "./clubReference";
 import {
   netSpendThisSeason,
   transferIncomeThisSeason,
@@ -350,7 +351,7 @@ export function wageRatio(s: GameState): number {
 /** Current league position of the user's club (1 = top). */
 export function currentPosition(s: GameState): number {
   const table = s.league ?? [];
-  const idx = table.findIndex((r) => r.team === s.clubName);
+  const idx = table.findIndex((r) => isUserClubReference(s, r.team));
   return idx >= 0 ? idx + 1 : table.length || 20;
 }
 
@@ -424,7 +425,7 @@ function ambitionBias(board: BoardState): number {
  * they are always achievable-but-demanding rather than arbitrary.
  */
 export function makeObjectives(s: GameState, season: number, board: BoardState): BoardObjective[] {
-  const pred = clubPrediction(s, s.clubName, season);
+  const pred = clubPrediction(s, userClubReference(s), season);
   const league = (s.leagues ?? []).find((l) => l.id === playerLeagueId(s));
   const size = league?.clubIds.length ?? 20;
   const predictedRank = pred?.rank ?? Math.ceil(size / 2);
@@ -877,7 +878,8 @@ export function makeBoard(saveSeed: string, clubName: string): BoardState {
 /** Ensure the board exists and holds objectives for the current season. */
 export function ensureBoard(s: GameState): void {
   if (!s.board || !Array.isArray(s.board.directors) || s.board.directors.length === 0) {
-    s.board = makeBoard(s.saveSeed ?? `${s.clubName}|board`, s.clubName);
+    const userRef = userClubReference(s);
+    s.board = makeBoard(s.saveSeed ?? `${userRef}|board`, userRef);
   }
   if (!Array.isArray(s.board.objectives)) s.board.objectives = [];
   if (!Array.isArray(s.board.reviews)) s.board.reviews = [];

@@ -1,8 +1,28 @@
-import { negotiationWageForLevel } from "../levelEconomy";
+import {
+  negotiationWageForLevel,
+  negotiationWageStepForLevel,
+} from "../levelEconomy";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
+
+assert(
+  negotiationWageStepForLevel(287, 6) === 25,
+  "professional levels should keep £25 negotiation increments",
+);
+assert(
+  negotiationWageStepForLevel(137, 7) === 10,
+  "level 7 wages below £500 should use £10 negotiation increments",
+);
+assert(
+  negotiationWageStepForLevel(72, 8) === 10,
+  "level 8 wages below £500 should use £10 negotiation increments",
+);
+assert(
+  negotiationWageStepForLevel(550, 7) === 25,
+  "semi-pro wages at £500+ should return to £25 increments",
+);
 
 for (const level of [1, 2, 3, 4, 5, 6] as const) {
   const raw = 287;

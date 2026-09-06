@@ -17,6 +17,11 @@ import { makeBoard, ensureBoard } from "./board";
 import { initFinance } from "./finance";
 import { openingStaffPool } from "./staff";
 import { fixturesForClub, makeLeagueRows } from "./schedule";
+import { ensureClubIdentityStateInPlace } from "./clubIdentity";
+import { migrateClubReferencesToIdsInPlace } from "./clubReferenceMigration";
+import { ensureEmploymentStateInPlace } from "./employment";
+import { ensurePlayerRegistrationStateInPlace } from "./playerRegistration";
+import { ensureLoanStateInPlace } from "./loans";
 
 /**
  * Canonical save schema version. Single source of truth: `newGame` stamps it,
@@ -26,7 +31,7 @@ import { fixturesForClub, makeLeagueRows } from "./schedule";
  * (src/lib/game/migrations) — no module holds per-version field knowledge
  * outside that registry.
  */
-export const SAVE_VERSION = 15;
+export const SAVE_VERSION = 20;
 
 export function newGame(clubName: string, managerName: string, seed?: string): GameState {
   // `seed` is optional: verification suites pass a fixed seed so the whole
@@ -54,6 +59,21 @@ export function newGame(clubName: string, managerName: string, seed?: string): G
   // Strategic pressure layer. Owns only commitments + the idle-cash clock;
   // every number it reports is derived from the systems above.
   ensureSustainability(base);
+
+  // Schema v17 persists club identity separately from presentation. Build the
+  // opening world with readable source names, then canonicalise every stored
+  // club reference once all seed-time systems have finished constructing it.
+  ensureClubIdentityStateInPlace(base);
+  migrateClubReferencesToIdsInPlace(base);
+  // Schema v18: persist the club operating model only after club references
+  // are opaque IDs, then retain the employment basis on every signed contract.
+  ensureEmploymentStateInPlace(base);
+  // Schema v19: ownership and playing registration become explicit. Existing
+  // opening behaviour is preserved because both initially match currentClubId.
+  ensurePlayerRegistrationStateInPlace(base);
+  // Schema v20: loans are explicit agreements layered over the sparse
+  // ownership/registration model. Fresh careers begin with none.
+  ensureLoanStateInPlace(base);
 
   return runWeeklyGenerators(base);
 }

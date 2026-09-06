@@ -50,6 +50,7 @@ import { squadOf, userWageBill } from "./recruitment";
 import { clubReputation, clubStrengthFor } from "./reputation";
 import { absoluteWeek } from "./time";
 import { archivedBucketSum } from "./archive";
+import { isUserClubReference, userClubReference } from "./clubReference";
 
 const int = (n: number) => Math.round(Number.isFinite(n) ? n : 0);
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
@@ -217,7 +218,7 @@ export function committedWages(s: GameState, weeks = 52): number {
   const now = absoluteWeek(s.season, s.week);
   let total = 0;
   for (const c of s.football?.contracts ?? []) {
-    if (c.clubId !== s.clubName || c.status !== "Active") continue;
+    if (!isUserClubReference(s, c.clubId) || c.status !== "Active") continue;
     const expiry = absoluteWeek(c.expirySeason, c.expiryWeek);
     const left = clamp(expiry - now, 0, weeks);
     total += c.weeklyWage * left;
@@ -235,7 +236,7 @@ export function contractExposure(s: GameState): number {
   let expiring = 0;
   let total = 0;
   for (const c of s.football?.contracts ?? []) {
-    if (c.clubId !== s.clubName || c.status !== "Active") continue;
+    if (!isUserClubReference(s, c.clubId) || c.status !== "Active") continue;
     total += c.weeklyWage;
     if (absoluteWeek(c.expirySeason, c.expiryWeek) - now <= 46) expiring += c.weeklyWage;
   }
@@ -355,11 +356,11 @@ export function infrastructureNeed(s: GameState): number {
 
 /** How far the squad sits below what this division expects of the club. */
 export function squadNeed(s: GameState): number {
-  const squad = squadOf(s, s.clubName);
+  const squad = squadOf(s, userClubReference(s));
   if (!squad.length) return 1;
   const ours = squad.reduce((t, p) => t + p.currentAbility, 0) / squad.length;
   const league = s.leagues?.find((l) => l.id === s.playerLeagueId);
-  const rivals = (league?.clubIds ?? []).filter((c: string) => c !== s.clubName);
+  const rivals = (league?.clubIds ?? []).filter((club: string) => !isUserClubReference(s, club));
   if (!rivals.length) return clamp01((60 - ours) / 25);
   const par =
     rivals.reduce((a: number, c: string) => a + clubStrengthFor(s, c, s.season), 0) / rivals.length;
@@ -500,9 +501,10 @@ export function reinvestmentPressure(s: GameState): ReinvestmentPressure {
 
   // A club that just went up is expected to back it up.
   const promoted =
-    (s.clubRecords?.[s.clubName]?.promotions ?? 0) > 0 &&
+    (s.clubRecords?.[userClubReference(s)]?.promotions ?? 0) > 0 &&
     (s.seasonHistory ?? []).some(
-      (h) => h.season === s.season - 1 && h.promoted?.includes?.(s.clubName),
+      (h) =>
+        h.season === s.season - 1 && h.promoted?.some((club) => isUserClubReference(s, club)),
     );
   const ambition = promoted ? 1.15 : 1;
 
@@ -755,7 +757,9 @@ export function directorStance(s: GameState, role: DirectorRole): DirectorStance
     default: {
       // Chairman: balances growth, ambition, security and reputation.
       const stance =
-        p.score * 0.5 - (covered ? 0 : 30) + (clubReputation(s, s.clubName) < 45 ? 10 : 0);
+        p.score * 0.5 -
+        (covered ? 0 : 30) +
+        (clubReputation(s, userClubReference(s)) < 45 ? 10 : 0);
       return mk(
         stance,
         n.worst.area === "squad"
@@ -1035,8 +1039,8 @@ export type TierMovement = "promoted" | "relegated" | null;
 export function tierMovement(s: GameState, season = s.season): TierMovement {
   const prev = (s.seasonHistory ?? []).filter((h) => h.season === season - 1);
   for (const h of prev) {
-    if (h.promoted?.includes?.(s.clubName)) return "promoted";
-    if (h.relegated?.includes?.(s.clubName)) return "relegated";
+    if (h.promoted?.some((club) => isUserClubReference(s, club))) return "promoted";
+    if (h.relegated?.some((club) => isUserClubReference(s, club))) return "relegated";
   }
   return null;
 }
@@ -1171,7 +1175,7 @@ export function boardSustainabilityAdjustments(s: GameState): Record<DirectorRol
 
 export function staffWagePressureFactor(s: GameState): number {
   const tier = leagueTierOf(s);
-  const rep = clubReputation(s, s.clubName);
+  const rep = clubReputation(s, userClubReference(s));
   const move = tierMovement(s);
   const growth =
     1 +

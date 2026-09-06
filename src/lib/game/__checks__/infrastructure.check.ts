@@ -7,6 +7,7 @@
 import { readFileSync } from "node:fs";
 
 import { newGame, advanceWeek, migrateSave, staffJoinTerms } from "../engine";
+import { isUserClubReference } from "../clubReference";
 import {
   ASSET_CONFIG,
   CANCELLATION_PENALTY_PCT,
@@ -635,7 +636,9 @@ console.log("\n[H] Cross-system modifiers");
     b.level = 1;
     b.qualityRating = 10;
   }
-  const player = recGood.football.players.find((p) => p.currentClubId !== recGood.clubName)!;
+  const player = recGood.football.players.find(
+    (p) => p.currentClubId !== null && !isUserClubReference(recGood, p.currentClubId),
+  )!;
   const dGood = wageDemand(recGood, player);
   const dBad = wageDemand(recBad, recBad.football.players.find((p) => p.id === player.id)!);
   check(
@@ -762,7 +765,9 @@ console.log("\n[J] Static audit");
   );
   check(
     "J3. recruitment does not duplicate facility maths",
-    src("recruitment.ts").includes("facilityModifiers(s).recruitmentAttraction"),
+    ["recruitment.ts", "recruitmentLegacy.ts"].some((file) =>
+      src(file).includes("facilityModifiers(s).recruitmentAttraction"),
+    ),
   );
   check(
     "J4. staff attraction flows from the canonical selector",

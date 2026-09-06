@@ -1,16 +1,19 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, Binoculars, Handshake, Shield, Star } from "lucide-react";
+import { ArrowLeft, Binoculars, Handshake, Repeat2, Shield, Star } from "lucide-react";
 import type { GameState } from "@/lib/game/types";
 import { RecruitmentOperations } from "./RecruitmentOperations";
 import { ScoutingBrowser } from "./ScoutingBrowser";
 import { ScoutingReports } from "./ScoutingReports";
 import { OutgoingSalesDesk } from "./OutgoingSalesDesk";
+import { LoanDesk } from "./LoanDesk";
 import { Button } from "@/components/ui/button";
 import { fmtMoneyExact } from "@/lib/game/engine";
-import { openNegotiations, recruitmentSnapshot, shortlistIds } from "@/lib/game/recruitment";
+import { openNegotiations, recruitmentSnapshot } from "@/lib/game/recruitment";
+import { chairmanShortlistIds } from "@/lib/game/recruitmentKnowledge";
+import { isUserClubReference } from "@/lib/game/clubReference";
 import { OverviewScreen, WorkflowTile } from "./shared/layout";
 
-type View = "home" | "operations" | "find" | "reports" | "sales";
+type View = "home" | "operations" | "find" | "reports" | "sales" | "loans";
 
 export function RecruitmentFlow({
   state,
@@ -31,6 +34,9 @@ export function RecruitmentFlow({
   if (view === "sales") {
     return <OutgoingSalesDesk state={state} update={update} onBack={() => setView("home")} />;
   }
+  if (view === "loans") {
+    return <LoanDesk state={state} update={update} onBack={() => setView("home")} />;
+  }
   if (view === "operations") {
     return (
       <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
@@ -47,10 +53,16 @@ export function RecruitmentFlow({
   const negotiations = state.football ? openNegotiations(state) : [];
   const incomingDeals = negotiations.filter((negotiation) => negotiation.direction === "in").length;
   const sales = negotiations.filter((negotiation) => negotiation.direction === "out").length;
-  const shortlist = state.football ? shortlistIds(state).length : 0;
+  const shortlist = state.football ? chairmanShortlistIds(state).length : 0;
   const scoutingAssignments = state.football?.scouting?.assignments ?? [];
   const activeScouting = scoutingAssignments.filter((assignment) => assignment.status === "active").length;
   const completedReports = scoutingAssignments.filter((assignment) => assignment.status === "complete").length;
+  const activeLoans = (state.football?.loans ?? []).filter(
+    (loan) =>
+      loan.status === "Active" &&
+      (isUserClubReference(state, loan.parentClubId) ||
+        isUserClubReference(state, loan.loanClubId)),
+  ).length;
 
   return (
     <OverviewScreen
@@ -97,6 +109,12 @@ export function RecruitmentFlow({
           title="Sell players"
           sub={sales ? `${sales} offer${sales === 1 ? "" : "s"} waiting` : "List players and manage incoming bids"}
           onClick={() => setView("sales")}
+        />
+        <TransferAction
+          icon={<Repeat2 className="size-5 md:size-6" />}
+          title="Loans"
+          sub={activeLoans ? `${activeLoans} active agreement${activeLoans === 1 ? "" : "s"}` : "No active loan agreements"}
+          onClick={() => setView("loans")}
         />
       </div>
     </OverviewScreen>

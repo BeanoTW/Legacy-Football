@@ -3,6 +3,11 @@ import { runAiCareerTransfers } from "../careers";
 import { buildWorldSimulationPlan } from "../world";
 import { SQUAD_SIZE } from "../recruitment";
 import type { GameState } from "../types";
+import { isUserClubReference } from "../clubReference";
+import {
+  playerRegisteredClubId,
+  setPlayerClubIdentityInPlace,
+} from "../playerRegistration";
 
 let passed = 0;
 let failed = 0;
@@ -22,15 +27,17 @@ const seedState = (): GameState => newGame("Career Market FC", "Chair", "CAREER_
 function prepareVacancies(state: GameState): Set<string> {
   const focus = new Set(buildWorldSimulationPlan(state).focusClubIds);
   const buyers = [...focus]
-    .filter((club) => club !== state.clubName)
+    .filter((club) => !isUserClubReference(state, club))
     .sort()
     .slice(0, 8);
   for (const buyer of buyers) {
-    const squad = state.football.players.filter((player) => player.currentClubId === buyer);
+    const squad = state.football.players.filter(
+      (player) => playerRegisteredClubId(player) === buyer,
+    );
     for (const player of squad.slice(0, 3)) {
       const contract = state.football.contracts.find((row) => row.id === player.contractId);
       if (contract) contract.status = "Expired";
-      player.currentClubId = null;
+      setPlayerClubIdentityInPlace(player, null);
       player.contractId = null;
     }
   }
@@ -44,7 +51,9 @@ console.log("\n[CT1] Deterministic AI market");
   const b = clone(a);
   const beforeCash = a.cash;
   const userIds = new Set(
-    a.football.players.filter((p) => p.currentClubId === a.clubName).map((p) => p.id),
+    a.football.players
+      .filter((p) => isUserClubReference(a, playerRegisteredClubId(p)))
+      .map((p) => p.id),
   );
   const movedA = runAiCareerTransfers(a, focusA);
   const movedB = runAiCareerTransfers(b, new Set(focusA));
@@ -72,7 +81,7 @@ console.log("\n[CT1] Deterministic AI market");
     "no user player is autonomously moved",
     a.football.players
       .filter((p) => userIds.has(p.id))
-      .every((p) => p.currentClubId === a.clubName),
+      .every((p) => isUserClubReference(a, playerRegisteredClubId(p))),
   );
 }
 
@@ -94,8 +103,8 @@ console.log("\n[CT2] Transfer records and squad safety");
         r.type === "transfer" &&
         !!r.fromClubId &&
         !!r.toClubId &&
-        r.fromClubId !== s.clubName &&
-        r.toClubId !== s.clubName,
+        !isUserClubReference(s, r.fromClubId) &&
+        !isUserClubReference(s, r.toClubId),
     ),
   );
   check(
@@ -109,14 +118,16 @@ console.log("\n[CT2] Transfer records and squad safety");
   check(
     "no Focus squad grows above the canonical squad size",
     [...focus].every(
-      (club) => s.football.players.filter((p) => p.currentClubId === club).length <= SQUAD_SIZE,
+      (club) =>
+        s.football.players.filter((p) => playerRegisteredClubId(p) === club).length <= SQUAD_SIZE,
     ),
   );
   check(
     "every moved player has exactly one live contract at the destination",
     newTransfers.every((r) => {
       const player = s.football.players.find((p) => p.id === r.playerId);
-      if (!player || player.currentClubId !== r.toClubId || !player.contractId) return false;
+      if (!player || playerRegisteredClubId(player) !== r.toClubId || !player.contractId)
+        return false;
       return (
         s.football.contracts.filter(
           (c) => c.playerId === player.id && (c.status === "Active" || c.status === "Expiring"),

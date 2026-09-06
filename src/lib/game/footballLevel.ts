@@ -1,4 +1,5 @@
 import type { GameState, League } from "./types";
+import { isUserClubReference } from "./clubReference";
 
 /**
  * Canonical English football level used by the expanded world model.
@@ -46,6 +47,8 @@ export function footballLevelOfClub(state: GameState, clubId: string): FootballL
 export function footballLevelOfUser(state: GameState): FootballLevel {
   const league =
     (state.leagues ?? []).find((candidate) => candidate.id === state.playerLeagueId) ??
-    (state.leagues ?? []).find((candidate) => candidate.clubIds?.includes(state.clubName));
+    (state.leagues ?? []).find((candidate) =>
+      candidate.clubIds?.some((club) => isUserClubReference(state, club)),
+    );
   return legacyTierToFootballLevel(league?.tier ?? 1);
 }

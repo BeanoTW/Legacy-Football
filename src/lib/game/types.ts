@@ -86,6 +86,7 @@ export type InboxEffect =
   | { kind: "recruitmentWithdraw"; negotiationId: string }
   | { kind: "recruitmentAcceptPlayerTerms"; negotiationId: string }
   | { kind: "recruitmentImproveTerms"; negotiationId: string }
+  | { kind: "recruitmentBeginRegistration"; negotiationId: string }
   | { kind: "recruitmentCompleteTransfer"; negotiationId: string }
   | { kind: "recruitmentRenewContract"; playerId: string; upliftPct?: number; seasons?: number }
   | { kind: "recruitmentReleasePlayer"; playerId: string }
@@ -976,8 +977,17 @@ export interface FootballPlayer {
   preferredFoot: PreferredFoot;
   primaryPosition: Position;
   secondaryPositions: Position[];
-  /** Club name, or null while unattached (free agent). */
+  /**
+   * Club the player is registered to represent. This remains the persisted
+   * compatibility field so existing saves/UI stay compact and stable.
+   */
   currentClubId: string | null;
+  /**
+   * Parent/contract-owning club override. Omitted while ownership matches
+   * currentClubId; populated only when the two identities genuinely diverge
+   * (for example, a loan).
+   */
+  ownerClubId?: string | null;
   /** Standing in the game world, 0-100. */
   reputation: number;
   currentAbility: number;
@@ -995,6 +1005,18 @@ export interface FootballPlayer {
 
 export type PlayerContractStatus = "Active" | "Agreed" | "Expiring" | "Expired" | "Released";
 
+/** Club operating model. Separate from football level so clubs at one level can differ. */
+export type ClubOperatingModel = "PartTime" | "FullTime";
+/** Employment term written onto a signed player contract. */
+export type ContractEmploymentType = ClubOperatingModel;
+/** Derived player status when no active signed contract exists. */
+export type PlayerEmploymentStatus = "NonContract" | ContractEmploymentType;
+
+export interface RecruitmentEmploymentState {
+  /** Persisted per-club operating model; promotion alone never rewrites it. */
+  clubModels: Record<string, ClubOperatingModel>;
+}
+
 export interface PlayerContract {
   id: string;
   playerId: string;
@@ -1004,6 +1026,8 @@ export interface PlayerContract {
   expirySeason: number;
   expiryWeek: number;
   weeklyWage: number;
+  /** Employment basis agreed when this contract was signed. */
+  employmentType?: ContractEmploymentType;
   squadRole: SquadRole;
   signingBonus: number;
   /** Fee agreed for the transfer that created this contract, if any. */
@@ -1012,9 +1036,11 @@ export interface PlayerContract {
 }
 
 export type NegotiationStage =
+  | "enquiry"
   | "clubTalks"
   | "playerTalks"
   | "agreed"
+  | "registration"
   | "completed"
   | "rejected"
   | "withdrawn";
@@ -1024,7 +1050,15 @@ export type NegotiationParty = "club" | "player";
 export interface NegotiationLogEntry {
   round: number;
   party: NegotiationParty;
-  action: "offer" | "accept" | "reject" | "counter" | "withdraw" | "complete";
+  action:
+    | "enquiry"
+    | "offer"
+    | "accept"
+    | "reject"
+    | "counter"
+    | "register"
+    | "withdraw"
+    | "complete";
   note: string;
   absoluteWeek: number;
 }
@@ -1045,6 +1079,10 @@ export interface TransferNegotiation {
   fee: number;
   /** Selling club's latest counter, if it made one. */
   clubCounterFee?: number;
+  /** Another club with a live bid on this target, discovered through enquiry. */
+  competingClubId?: string;
+  /** Persisted rival transfer fee. Undefined when there is no competing bid. */
+  competingOfferFee?: number;
   proposedWeeklyWage: number;
   proposedLengthSeasons: number;
   proposedSigningBonus: number;
@@ -1086,6 +1124,8 @@ export interface PlayerContractRecord {
   playerName: string;
   clubId: string;
   weeklyWage: number;
+  /** Recorded for contracts closed after employment modelling was introduced. */
+  employmentType?: ContractEmploymentType;
   startSeason: number;
   endSeason: number;
   seasons: number;
@@ -1124,6 +1164,23 @@ export interface PlayerScoutingReport {
   scoutId: string | null;
 }
 
+export type LoanPlayingTimeExpectation = "Backup" | "Rotation" | "Regular" | "Important";
+export type PlayerLoanStatus = "Active" | "Completed" | "Terminated";
+
+export interface PlayerLoanAgreement {
+  id: string;
+  playerId: string;
+  parentClubId: string;
+  loanClubId: string;
+  startAbsoluteWeek: number;
+  endAbsoluteWeek: number;
+  /** Percentage of the parent contract wage funded by the loan club, 0-100. */
+  loanClubWageContributionPct: number;
+  playingTimeExpectation: LoanPlayingTimeExpectation;
+  status: PlayerLoanStatus;
+  endedAbsoluteWeek?: number;
+}
+
 export interface RecruitmentState {
   /** Every player in the world. Append-only; players are never deleted. */
   players: FootballPlayer[];
@@ -1134,6 +1191,10 @@ export interface RecruitmentState {
   shortlist: string[];
   /** Persistent assignments; knowledge grows from elapsed in-world weeks. */
   scoutingReports: PlayerScoutingReport[];
+  /** Loan lifecycle. Optional only for pre-v20/runtime compatibility. */
+  loans?: PlayerLoanAgreement[];
+  /** Club operating models. Optional only for pre-v18/runtime compatibility. */
+  employment?: RecruitmentEmploymentState;
   department: RecruitmentDepartment;
   /** Append-only immutable histories. */
   transferHistory: TransferRecord[];
@@ -1142,6 +1203,8 @@ export interface RecruitmentState {
   /** Monotonic counters used for deterministic ids. */
   nextContractId: number;
   nextNegotiationId: number;
+  /** Monotonic loan id counter. Optional only for pre-v20/runtime compatibility. */
+  nextLoanId?: number;
   nextRecordId: number;
   /** Season the world database was generated for. */
   generatedSeason: number;
@@ -1424,7 +1487,7 @@ export type FringeWorldState = Record<string, FringeClubState>;
 
 export interface GameState {
   /** Save schema version. Bump + add a migration in loadGame when persisted shape changes. */
-  version: 15;
+  version: number;
 
   /** Stable per-save seed. Used for deterministic inbox generation. */
   saveSeed: string;

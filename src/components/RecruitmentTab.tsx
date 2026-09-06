@@ -8,6 +8,7 @@ import {
   assignScout,
   askingPrice,
   averageSquadAge,
+  beginTransferRegistration,
   completeTransfer,
   contractSecurityPct,
   freeAgents,
@@ -940,9 +941,19 @@ function DealsView({
               ))}
             </div>
             <div className="flex gap-2 flex-wrap">
-              {n.stage === "agreed" && (
+              {incoming && n.stage === "agreed" && (
+                <Button size="sm" onClick={() => act((s) => beginTransferRegistration(s, n.id))}>
+                  Begin medical & registration
+                </Button>
+              )}
+              {incoming && n.stage === "registration" && (
                 <Button size="sm" onClick={() => act((s) => completeTransfer(s, n.id))}>
-                  Complete deal
+                  Complete registration
+                </Button>
+              )}
+              {!incoming && n.stage === "agreed" && (
+                <Button size="sm" onClick={() => act((s) => completeTransfer(s, n.id))}>
+                  Complete sale
                 </Button>
               )}
               {incoming && n.stage === "clubTalks" && (

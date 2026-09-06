@@ -4,6 +4,8 @@ import { ChevronLeft, ChevronRight, Globe2 } from "lucide-react";
 import type { GameState } from "@/lib/game/types";
 import { playerLeagueId, tableFor } from "@/lib/game/league";
 import { cn } from "@/lib/utils";
+import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
+import { footballLevelOfLeague } from "@/lib/game/footballLevel";
 
 export function WorldInspector({ state }: { state: GameState }) {
   const leagues = useMemo(
@@ -86,7 +88,7 @@ export function WorldInspector({ state }: { state: GameState }) {
           <div className="min-w-0 text-center">
             <div className="truncate font-display text-lg sm:text-xl">{league.name}</div>
             <div className="text-[11px] opacity-70">
-              Tier {league.tier} · {league.clubIds.length} clubs
+              Football Level {footballLevelOfLeague(league)} · {league.clubIds.length} clubs
               {league.id === playerLeague ? " · Your division" : ""}
             </div>
           </div>
@@ -116,7 +118,7 @@ export function WorldInspector({ state }: { state: GameState }) {
             </thead>
             <tbody>
               {rows.map((row, rowIndex) => {
-                const isMe = row.team === state.clubName;
+                const isMe = isUserClubReference(state, row.team);
                 const promotion = league.promotionPlaces > 0 && rowIndex < league.promotionPlaces;
                 const relegation =
                   league.relegationPlaces > 0 && rowIndex >= rows.length - league.relegationPlaces;
@@ -137,7 +139,7 @@ export function WorldInspector({ state }: { state: GameState }) {
                       </span>
                     </td>
                     <td className="max-w-48 truncate py-1.5 pr-2">
-                      {row.team}
+                      {clubDisplayName(state, row.team)}
                       {isMe ? " · YOU" : ""}
                     </td>
                     <td className="px-2 py-1.5 text-right text-muted-foreground">{row.p}</td>

@@ -182,6 +182,306 @@ console.log("\n[U5] Canonical selectors, not UI arithmetic");
     "inbox decisions go through handleInboxChoice",
     /handleInboxChoice\(/.test(read("src/components/game/InboxTab.tsx")),
   );
+  const squad = read("src/components/game/SquadSelectionTab.tsx");
+  check(
+    "squad employment display uses canonical club and contract selectors",
+    /clubOperatingModel\(/.test(squad) &&
+      /contractEmploymentType\(/.test(squad) &&
+      /Club operating model/.test(squad),
+  );
+  check(
+    "professionalisation UI uses readiness and canonical action rather than direct state mutation",
+    /userProfessionalisationReadiness\(state\)/.test(squad) &&
+      /professionaliseUserClub\(s\)/.test(squad) &&
+      /Confirm full-time transition/.test(squad) &&
+      !/employment\.clubModels\[[^\]]+\]\s*=/.test(squad) &&
+      !/setClubOperatingModelInPlace\(/.test(squad),
+  );
+}
+
+console.log("\n[U6] Recruitment knowledge boundary");
+{
+  const browser = read("src/components/game/ScoutingBrowser.tsx");
+  const reports = read("src/components/game/ScoutingReports.tsx");
+  check(
+    "Find Players does not read exact seller asking price before talks",
+    !/transferTargetAskingPrice\(/.test(browser) && !/askingPrice\(/.test(browser),
+  );
+  check(
+    "Find Players does not read exact wage demand before talks",
+    !/wageDemand\(/.test(browser),
+  );
+  check(
+    "Scouting Reports do not read exact seller asking price before talks",
+    !/transferTargetAskingPrice\(/.test(reports) && !/askingPrice\(/.test(reports),
+  );
+  check(
+    "contracted scouting approaches use the explicit enquiry action",
+    /submitTransferEnquiry\(/.test(browser) && /submitTransferEnquiry\(/.test(reports),
+  );
+  const operations = read("src/components/game/RecruitmentOperations.tsx");
+  check(
+    "recruitment squad views use canonical employment selectors",
+    /clubOperatingModel\(/.test(operations) &&
+      /contractEmploymentType\(/.test(operations) &&
+      /ProfileFact label="Employment"/.test(operations),
+  );
+  check(
+    "the live negotiations screen exposes the enquiry-to-bid action",
+    /submitEnquiryOffer\(/.test(operations),
+  );
+  check(
+    "negotiation controls use canonical level-aware fee and wage steps",
+    /recruitmentTransferFeePolicyForClub\(/.test(operations) &&
+      /recruitmentTransferFeePolicyForUser\(/.test(operations) &&
+      /recruitmentUserNegotiationWageStep\(/.test(operations) &&
+      !/n\.fee \+ 5000|step=\{5000\}|proposedWeeklyWage \+ 25|step=\{25\}/.test(operations),
+  );
+  check(
+    "incoming agreements expose persisted registration before completion",
+    /beginTransferRegistration\(/.test(operations) &&
+      /n\.stage === "registration"/.test(operations) &&
+      /Complete registration/.test(operations),
+  );
+}
+
+console.log("\n[U7] Loan chairman boundary");
+{
+  const loanDesk = read("src/components/game/LoanDesk.tsx");
+  const browser = read("src/components/game/ScoutingBrowser.tsx");
+  const loanUi = [loanDesk, browser].join("\n");
+  check(
+    "loan UI never calls the low-level registration primitive",
+    !/startPlayerLoanInPlace\(/.test(loanUi),
+  );
+  check(
+    "loan-out UI uses the chairman market action",
+    /arrangeUserPlayerLoanOut\(/.test(loanDesk),
+  );
+  check(
+    "loan-in UI uses the chairman market action",
+    /arrangeUserPlayerLoanIn\(/.test(browser),
+  );
+  check(
+    "loan termination UI uses the chairman-authorised action",
+    /terminateUserPlayerLoan\(/.test(loanDesk) && !/terminatePlayerLoan\(/.test(loanDesk),
+  );
+  check(
+    "loan registration controls expose the canonical transfer-window state",
+    /isTransferWindowOpen\(state\)/.test(loanDesk) &&
+      /windowStatus\(state\)/.test(loanDesk) &&
+      /isTransferWindowOpen\(state\)/.test(browser) &&
+      /windowStatus\(state\)/.test(browser),
+  );
+}
+
+
+console.log("\n[U8] Opaque club identity presentation boundary");
+{
+  const leagueBrowser = read("src/components/LeagueBrowser.tsx");
+  check(
+    "league browser renders club references through the display-name gateway",
+    /clubDisplayName\(state, r\.team\)/.test(leagueBrowser) &&
+      /clubDisplayName\(state, f\.home\)/.test(leagueBrowser) &&
+      /clubDisplayName\(state, f\.away\)/.test(leagueBrowser) &&
+      /clubDisplayName\(state, c\.club\)/.test(leagueBrowser),
+  );
+  check(
+    "league browser highlights the user club through canonical identity",
+    /isUserClubReference\(state, r\.team\)/.test(leagueBrowser) &&
+      /isUserClubReference\(state, c\.club\)/.test(leagueBrowser),
+  );
+  check(
+    "league browser club profiles read durable legacy facts canonically",
+    /canonicalClubReference\(state, club\)/.test(leagueBrowser) &&
+      /clubLegacyRecord\(state, canonicalClubId\)/.test(leagueBrowser) &&
+      /sameClubReference\(state, s\.club, canonicalClubId\)/.test(leagueBrowser),
+  );
+  check(
+    "league browser surfaces permanent club legacy records",
+    /label="League titles"/.test(leagueBrowser) &&
+      /label="Best finish"/.test(leagueBrowser) &&
+      /label="Record buy"/.test(leagueBrowser) &&
+      /label="Record sale"/.test(leagueBrowser) &&
+      /label="Record crowd"/.test(leagueBrowser),
+  );
+
+  const clubHub = read("src/components/game/ClubHub.tsx");
+  const fixtures = read("src/components/game/FixturesTab.tsx");
+  const dashboard = read("src/components/game/DashboardTab.tsx");
+  const world = read("src/components/game/WorldInspector.tsx");
+  check(
+    "core club screens never compare opaque ownership or table identity to clubName",
+    [clubHub, fixtures, dashboard, world].every(
+      (source) =>
+        !/currentClubId\s*===\s*state\.clubName/.test(source) &&
+        !/(?:row|r)\.team\s*===\s*state\.clubName/.test(source),
+    ),
+  );
+  check(
+    "core club screens render stored opponent and table refs through display-name gateway",
+    /clubDisplayName\(state, nextFixture\.opponent\)/.test(clubHub) &&
+      /clubDisplayName\(state, r\.team\)/.test(clubHub) &&
+      /clubDisplayName\(state, f\.opponent\)/.test(fixtures) &&
+      /clubDisplayName\(state, r\.team\)/.test(fixtures) &&
+      /clubDisplayName\(state, lastResult\.opponent\)/.test(dashboard) &&
+      /clubDisplayName\(state, row\.team\)/.test(world),
+  );
+  check(
+    "club hub squad count uses the canonical registration-aware squad selector",
+    /userSquad\(state\)\.length/.test(clubHub) &&
+      !/football\?\.players\?\.filter/.test(clubHub),
+  );
+}
+
+
+console.log("\n[U9] Chairman club tracking");
+{
+  const leagueBrowser = read("src/components/LeagueBrowser.tsx");
+  check(
+    "league browser exposes the canonical world-tracking action",
+    /setWorldClubTracked\(next, canonicalClubId, !tracked\)/.test(leagueBrowser) &&
+      /Track club/.test(leagueBrowser) &&
+      /Stop tracking/.test(leagueBrowser),
+  );
+  check(
+    "club tracking is wired through the route update boundary",
+    /<LeagueBrowser state=\{state\} update=\{update\}/.test(route),
+  );
+  check(
+    "the user club cannot be redundantly tracked from its own profile",
+    /!isUserClub &&/.test(leagueBrowser),
+  );
+}
+
+
+console.log("\n[U10] Football performance visibility");
+{
+  const squad = read("src/components/game/SquadSelectionTab.tsx");
+  check(
+    "squad screen surfaces canonical cohesion and morale state",
+    /PLAYER_COHESION_DEFAULT/.test(squad) &&
+      /PLAYER_MORALE_DEFAULT/.test(squad) &&
+      /label="Cohesion"/.test(squad) &&
+      /label="Morale"/.test(squad),
+  );
+  check(
+    "squad screen derives manager quality from the canonical performance selector",
+    /playerManagerQuality\(state\)/.test(squad) &&
+      /label="Manager"/.test(squad),
+  );
+}
+
+
+console.log("\n[U11] Legacy history surface");
+{
+  const history = read("src/components/game/HistoryTab.tsx");
+  check(
+    "history screen surfaces the durable club legacy accumulator",
+    /clubLegacyRecord\(state, userId\)/.test(history) &&
+      /title="Club legacy"/.test(history) &&
+      /label="League titles"/.test(history) &&
+      /label="Record crowd"/.test(history),
+  );
+  check(
+    "history screen exposes completed season outcomes without display-name identity comparisons",
+    /title="Season record"/.test(history) &&
+      /isUserClubReference\(state, archived\.champion\)/.test(history) &&
+      /archived\?\.promoted\.some/.test(history) &&
+      /archived\?\.relegated\.some/.test(history),
+  );
+}
+
+
+console.log("\n[U12] Legacy Football product surface");
+{
+  const newGame = read("src/components/game/NewGame.tsx");
+  check(
+    "new career screen uses the Legacy Football product name",
+    /title="Legacy Football"/.test(newGame) &&
+      /Build a club legacy from non-league to the top/.test(newGame),
+  );
+  check(
+    "history navigation is presented as Legacy rather than the old ledger-only label",
+    /\["history",\s*"Legacy",\s*History\]/.test(tabs) &&
+      !/\["history",\s*"Ledger"/.test(tabs),
+  );
+  check(
+    "route metadata uses the Legacy Football product identity",
+    /Legacy Football — Chairman Simulation/.test(route) &&
+      !/Chairman FC — Football Finance Sim/.test(route),
+  );
+}
+
+
+console.log("\n[U13] Canonical football level terminology");
+{
+  const leagueBrowser = read("src/components/LeagueBrowser.tsx");
+  const world = read("src/components/game/WorldInspector.tsx");
+  const history = read("src/components/game/HistoryTab.tsx");
+  const clubHub = read("src/components/game/ClubHub.tsx");
+  check(
+    "league and world screens expose football levels instead of persisted tier numbers",
+    /Football Level \{footballLevelOfLeague\(league\)\}/.test(leagueBrowser) &&
+      /Football Level \{footballLevelOfLeague\(league\)\}/.test(world) &&
+      !/Tier \{league\.tier\}/.test(leagueBrowser) &&
+      !/Tier \{league\.tier\}/.test(world),
+  );
+  check(
+    "legacy best-finish cards convert persisted tiers before display",
+    /legacyTierToFootballLevel\(legacy\.bestLeagueFinish\.tier\)/.test(leagueBrowser) &&
+      /legacyTierToFootballLevel\(legacy\.bestLeagueFinish\.tier\)/.test(history),
+  );
+  check(
+    "club hub shows the chairman's current competition on the canonical football scale",
+    /footballLevelOfLeague\(currentLeague\)/.test(clubHub) &&
+      /currentLeague\.name/.test(clubHub),
+  );
+}
+
+
+console.log("\n[U14] New career setup matches the live game");
+{
+  const newGame = read("src/components/game/NewGame.tsx");
+  check(
+    "new career copy advertises the actual Level 7 semi-professional start",
+    /semi-professional club at Football Level 7/.test(newGame),
+  );
+  check(
+    "new career opening cash matches the canonical £220,000 start",
+    /£220,000/.test(newGame) && !/£3M/.test(newGame),
+  );
+}
+
+
+console.log("\n[U15] Match centre identity and competition context");
+{
+  const matchday = read("src/components/game/MatchDayOverlay.tsx");
+  check(
+    "match centre resolves stored opponent references through the display-name gateway",
+    /clubDisplayName\(state, lm\.fixture\.opponent\)/.test(matchday),
+  );
+  check(
+    "match centre shows the live competition instead of stale Division Four copy",
+    /matchLeague\.name/.test(matchday) &&
+      /footballLevelOfLeague\(matchLeague\)/.test(matchday) &&
+      !/Division Four/.test(matchday),
+  );
+}
+
+
+console.log("\n[U16] Calendar and advance opponent identity");
+{
+  const preview = read("src/components/game/AdvanceInboxPreview.tsx");
+  const calendar = read("src/components/game/ContinueCalendar.tsx");
+  check(
+    "advance preview resolves stored opponent references through the display-name gateway",
+    /clubDisplayName\(state, fixture\.opponent\)/.test(preview),
+  );
+  check(
+    "calendar resolves stored opponent references through the display-name gateway",
+    /clubDisplayName\(state, fixture\.opponent\)/.test(calendar),
+  );
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

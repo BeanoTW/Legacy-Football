@@ -5,11 +5,13 @@
 import { newGame, advanceWeek, migrateSave, SAVE_VERSION } from "../engine";
 import {
   clubReputation,
+  setClubReputation,
   clubStrengthFor,
   strengthParts,
   predictLeague,
   predictSeason,
   predictionFor,
+  clubPrediction,
   expectationFor,
   applySeasonIdentity,
   reputationDelta,
@@ -28,6 +30,8 @@ import {
 } from "../league";
 import { DIVISION_ONE, DIVISION_TWO, makePyramidSchedule } from "../pyramid";
 import type { GameState, ExpectationLevel } from "../types";
+import { clubFootballStrength } from "../footballStrength";
+import { isUserClubReference, userClubReference } from "../clubReference";
 
 let passed = 0;
 let failed = 0;
@@ -46,11 +50,11 @@ function fresh(seed = "REP_SEED_1"): GameState {
   g.saveSeed = seed;
   g.leagueSchedule = makePyramidSchedule(g.leagues, `${seed}|season1`);
   g.fixtures = g.leagueSchedule
-    .filter((f) => f.home === g.clubName || f.away === g.clubName)
+    .filter((f) => isUserClubReference(g, f.home) || isUserClubReference(g, f.away))
     .map((f) => ({
       week: f.week,
-      opponent: f.home === g.clubName ? f.away : f.home,
-      home: f.home === g.clubName,
+      opponent: isUserClubReference(g, f.home) ? f.away : f.home,
+      home: isUserClubReference(g, f.home),
     }))
     .sort((a, b) => a.week - b.week);
   // Re-seed the identity layer under the fixed test seed.
@@ -98,6 +102,37 @@ console.log("\n[R1] Reputation persistence");
     "still persistent after a second season",
     s3.season === 3 && Object.keys(s3.clubReputations).length === worldClubCount,
   );
+}
+
+console.log("\n[R1b] Opaque club identity gateway");
+{
+  const g = fresh("REP_IDENTITY_GATEWAY");
+  const userId = userClubReference(g);
+  const displayName = g.clubName;
+  const before = clubReputation(g, userId);
+  check(
+    "display name and opaque id resolve the same reputation",
+    clubReputation(g, displayName) === before,
+  );
+  check(
+    "display name and opaque id resolve the same strength",
+    clubStrengthFor(g, displayName, g.season) === clubStrengthFor(g, userId, g.season),
+  );
+  const byId = clubPrediction(g, userId, g.season);
+  const byDisplay = clubPrediction(g, displayName, g.season);
+  check(
+    "display name and opaque id resolve the same stored prediction",
+    !!byId && !!byDisplay && JSON.stringify(byId) === JSON.stringify(byDisplay),
+  );
+
+  if (displayName !== userId) g.clubReputations[displayName] = 11;
+  setClubReputation(g, displayName, 42.5);
+  check("setting reputation through display metadata updates the canonical id", g.clubReputations[userId] === 42.5);
+  check(
+    "setting reputation through display metadata collapses any legacy display-name alias",
+    displayName === userId || !(displayName in g.clubReputations),
+  );
+  check("display-name reputation reads remain canonical after mutation", clubReputation(g, displayName) === 42.5);
 }
 
 console.log("\n[R2] Promotion raises reputation, relegation lowers it");
@@ -215,7 +250,9 @@ console.log("\n[R5] Stronger clubs win more often over large simulations");
 {
   const g = fresh("REP_SEED_5");
   const clubs = g.leagues[0].clubIds;
-  const ranked = [...clubs].sort((x, y) => clubStrengthFor(g, y, 1) - clubStrengthFor(g, x, 1));
+  const ranked = [...clubs].sort(
+    (x, y) => clubFootballStrength(g, y, 1) - clubFootballStrength(g, x, 1),
+  );
   const strong = ranked[0];
   const weak = ranked[ranked.length - 1];
   let strongWins = 0,
@@ -234,9 +271,9 @@ console.log("\n[R5] Stronger clubs win more often over large simulations");
     `${strongWins} vs ${weakWins}`,
   );
 
-  // Table-level: detailed reputation strength is a Focus-simulation input.
-  // Distant divisions may deliberately use compact fringe strength, so verify
-  // the correlation in the player's current Focus division rather than tier 1.
+  // Table-level: canonical football strength is the actual match-simulation input.
+  // Verify that quality remains positively associated with final position in the
+  // player's current Focus division, where detailed squad state is available.
   let rankScore = 0;
   let samples = 0;
   for (const seed of ["REP_SEED_5A", "REP_SEED_5B", "REP_SEED_5C", "REP_SEED_5D"]) {
@@ -245,7 +282,10 @@ console.log("\n[R5] Stronger clubs win more often over large simulations");
     const sampleClubs = focusLeague.clubIds;
     const preRank = new Map(
       [...sampleClubs]
-        .sort((x, y) => clubStrengthFor(sample, y, 1) - clubStrengthFor(sample, x, 1))
+        .sort(
+          (x, y) =>
+            clubFootballStrength(sample, y, 1) - clubFootballStrength(sample, x, 1),
+        )
         .map((club, index) => [club, index + 1]),
     );
     const played = playSeason(sample);
@@ -261,7 +301,7 @@ console.log("\n[R5] Stronger clubs win more often over large simulations");
     }
   }
   check(
-    "focus-league strength is positively associated with final position",
+    "canonical focus strength is positively associated with final position",
     samples > 0 && rankScore > 0,
     `rank association ${rankScore.toFixed(1)} across ${samples} club-seasons`,
   );
@@ -496,11 +536,18 @@ console.log("\n[R11] Save migration (v4 → v5)");
     JSON.stringify(again.clubReputations) === JSON.stringify(m.clubReputations) &&
       again.seasonPredictions.length === m.seasonPredictions.length,
   );
-  // An existing save with hand-set reputations keeps them.
+  // This fixture is a current ID-shaped state with only its version number
+  // downgraded for migration coverage. Keep the hand-set reputation under the
+  // fixture's actual club key; mixing a legacy display-name key into an
+  // otherwise ID-shaped save would create two keys for the same club.
   const kept = structuredClone(g);
-  kept.clubReputations = { "Dalton Town": 12.5 };
+  const keptState = kept as unknown as GameState;
+  kept.clubReputations = { [userClubReference(keptState)]: 12.5 };
   const m2 = migrateSave(kept);
-  check("existing reputation values are preserved", m2.clubReputations["Dalton Town"] === 12.5);
+  check(
+    "existing reputation values are preserved",
+    m2.clubReputations[userClubReference(m2)] === 12.5,
+  );
   check(
     "initClubReputations is deterministic",
     JSON.stringify(initClubReputations(m.leagues, "X")) ===

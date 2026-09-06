@@ -7,6 +7,7 @@ import { playerAttributes, scoutingReport } from "@/lib/game/scouting";
 import {
   activeContract,
   ageOf,
+  beginTransferRegistration,
   completeTransfer,
   improvePersonalTerms,
   improveTransferOffer,
@@ -14,12 +15,28 @@ import {
   playerById,
   playerName,
   respondToIncomingOffer,
+  submitEnquiryOffer,
+  transferRegistrationReadiness,
   userWageBill,
   userSquad,
   weeksLeftOnContract,
   withdrawFromTalks,
 } from "@/lib/game/recruitment";
 import { MOOD_TONE_CLASS, playerMood } from "@/lib/game/character";
+import { transferTargetPlayer } from "@/lib/game/recruitmentTargetBridge";
+import { chairmanRecruitmentEstimate } from "@/lib/game/recruitmentKnowledge";
+import { clubDisplayName, userClubReference } from "@/lib/game/clubReference";
+import { activeLoanForPlayer } from "@/lib/game/loans";
+import { absoluteWeek } from "@/lib/game/time";
+import { clubOperatingModel, contractEmploymentType } from "@/lib/game/employment";
+import {
+  recruitmentTransferFeePolicyForClub,
+  recruitmentTransferFeePolicyForUser,
+  recruitmentUserNegotiationWageStep,
+} from "@/lib/game/recruitmentEconomy";
+
+const employmentLabel = (value: "PartTime" | "FullTime") =>
+  value === "PartTime" ? "Part-time" : "Full-time";
 
 export function RecruitmentOperations({
   state,
@@ -44,6 +61,9 @@ export function RecruitmentOperations({
     });
   const deals = openNegotiations(state);
   const squad = userSquad(state);
+  const clubEmployment = employmentLabel(
+    clubOperatingModel(state, userClubReference(state)),
+  );
   const selectedPlayer = selectedPlayerId ? playerById(state, selectedPlayerId) : undefined;
   const positionGroups = useMemo(
     () =>
@@ -77,7 +97,17 @@ export function RecruitmentOperations({
 
   const playerRow = (player: (typeof squad)[number]) => {
     const contract = activeContract(state, player.id);
-    const weeksLeft = contract ? weeksLeftOnContract(state, contract) : 0;
+    const loan = activeLoanForPlayer(state, player.id);
+    const weeksLeft = loan
+      ? Math.max(0, loan.endAbsoluteWeek - absoluteWeek(state.season, state.week))
+      : contract
+        ? weeksLeftOnContract(state, contract)
+        : 0;
+    const employment = contract ? employmentLabel(contractEmploymentType(state, contract)) : null;
+    const displayedWage =
+      contract && loan
+        ? Math.round((contract.weeklyWage * loan.loanClubWageContributionPct) / 100)
+        : contract?.weeklyWage ?? 0;
     const mood = playerMood(state, player);
     return (
       <button
@@ -89,15 +119,26 @@ export function RecruitmentOperations({
           {player.primaryPosition}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-semibold">{playerName(player)}</span>
+          <span className="flex items-center gap-1.5">
+            <span className="block truncate font-semibold">{playerName(player)}</span>
+            {loan && (
+              <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">
+                LOAN
+              </span>
+            )}
+          </span>
           <span className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
-            <span className="truncate">Age {ageOf(player, state.season)} · {contract?.squadRole ?? "Unregistered"}</span>
+            <span className="truncate">
+              {loan
+                ? `Age ${ageOf(player, state.season)} · On loan from ${clubDisplayName(state, loan.parentClubId)}`
+                : `Age ${ageOf(player, state.season)} · ${contract?.squadRole ?? "Unregistered"}${employment ? ` · ${employment}` : ""}`}
+            </span>
             <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${MOOD_TONE_CLASS[mood.tone]}`}>{mood.label}</span>
           </span>
         </span>
         <span className="shrink-0 text-right text-sm">
           <span className="block">
-            {contract ? `${fmtMoneyExact(contract.weeklyWage)}/wk` : "No deal"}
+            {contract ? `${fmtMoneyExact(displayedWage)}/wk` : "No deal"}
           </span>
           <span
             className={
@@ -106,7 +147,7 @@ export function RecruitmentOperations({
                 : "block text-xs text-muted-foreground"
             }
           >
-            {contract ? `${weeksLeft} weeks left` : "No contract"}
+            {contract ? `${weeksLeft} ${loan ? "loan" : "contract"} weeks left` : "No contract"}
           </span>
         </span>
         <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
@@ -141,7 +182,7 @@ export function RecruitmentOperations({
             <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
               Select a player to view abilities, profile and contract details.
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <PlanningMetric label="Squad" value={String(squad.length)} />
               <PlanningMetric
                 label="Expiring"
@@ -149,6 +190,7 @@ export function RecruitmentOperations({
                 urgent={expiringCount > 0}
               />
               <PlanningMetric label="Wages" value={`${fmtMoney(userWageBill(state))}/wk`} />
+              <PlanningMetric label="Club model" value={clubEmployment} />
             </div>
             {positionNeeds.length > 0 && (
               <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
@@ -192,10 +234,23 @@ export function RecruitmentOperations({
         ) : (
           <div className="space-y-3">
             {deals.map((n) => {
-              const p = playerById(state, n.playerId);
+              const p = transferTargetPlayer(state, n.playerId);
               if (!p) return null;
               const incoming = n.direction === "in";
               const report = scoutingReport(state, p);
+              const estimate = incoming ? chairmanRecruitmentEstimate(state, p.id) : null;
+              const feeStep =
+                incoming && n.fromClubId
+                  ? recruitmentTransferFeePolicyForClub(state, n.fromClubId).feeStep
+                  : recruitmentTransferFeePolicyForUser(state).feeStep;
+              const wageStep = recruitmentUserNegotiationWageStep(
+                state,
+                n.proposedWeeklyWage,
+              );
+              const registration =
+                incoming && (n.stage === "agreed" || n.stage === "registration")
+                  ? transferRegistrationReadiness(state, n.id)
+                  : null;
               return (
                 <article key={n.id} className="rounded-2xl border bg-card p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -224,9 +279,81 @@ export function RecruitmentOperations({
                     </div>
                   )}
                   <div className="text-sm text-muted-foreground mt-4">
-                    Fee {fmtMoneyExact(n.clubCounterFee ?? n.fee)} · Wage{" "}
-                    {fmtMoneyExact(n.proposedWeeklyWage)}/wk
+                    {n.stage === "enquiry"
+                      ? `Seller position ${fmtMoneyExact(n.clubCounterFee ?? 0)}`
+                      : `Fee ${fmtMoneyExact(n.clubCounterFee ?? n.fee)}`}{" "}
+                    · Planned wage {fmtMoneyExact(n.proposedWeeklyWage)}/wk
                   </div>
+                  {incoming && n.stage === "enquiry" && (
+                    <div className="mt-4 rounded-xl border bg-muted/30 p-3">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Club enquiry
+                      </div>
+                      <div className="mt-1 text-sm">
+                        Selling club position:{" "}
+                        <strong>{fmtMoneyExact(n.clubCounterFee ?? 0)}</strong>
+                      </div>
+                      {estimate?.valueRange && (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          Recruitment estimate:{" "}
+                          <strong>
+                            {fmtMoneyExact(estimate.valueRange[0])}–
+                            {fmtMoneyExact(estimate.valueRange[1])}
+                          </strong>
+                        </div>
+                      )}
+                      <label
+                        className="mt-3 block text-xs text-muted-foreground"
+                        htmlFor={`enquiry-fee-${n.id}`}
+                      >
+                        Your opening transfer bid
+                      </label>
+                      <input
+                        id={`enquiry-fee-${n.id}`}
+                        type="number"
+                        min={0}
+                        step={feeStep}
+                        value={
+                          feeOffers[n.id] ??
+                          String(estimate?.openingFee ?? n.clubCounterFee ?? 0)
+                        }
+                        onChange={(event) =>
+                          setFeeOffers((current) => ({ ...current, [n.id]: event.target.value }))
+                        }
+                        className="mt-1 h-10 w-full rounded-lg border bg-background px-3 tabular-nums"
+                      />
+                    </div>
+                  )}
+                  {incoming && n.competingClubId && n.competingOfferFee !== undefined && (
+                    <div className="mt-4 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                        Competing bid
+                      </div>
+                      <div className="mt-1 text-sm">
+                        <strong>{clubDisplayName(state, n.competingClubId)}</strong> have{" "}
+                        <strong>{fmtMoneyExact(n.competingOfferFee)}</strong> on the table.
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        The seller will not accept less than a live rival offer, and the agent has extra leverage.
+                      </div>
+                    </div>
+                  )}
+                  {incoming &&
+                    (n.stage === "agreed" || n.stage === "registration") &&
+                    registration && (
+                      <div className="mt-4 rounded-xl border bg-muted/30 p-3">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Medical & registration
+                        </div>
+                        <div className="mt-1 text-sm">
+                          {registration.allowed
+                            ? n.stage === "registration"
+                              ? "Registration is open and the deal still satisfies the current squad, window and financial checks."
+                              : "Terms are agreed. The deal is eligible to enter medical and registration."
+                            : registration.reason}
+                        </div>
+                      </div>
+                    )}
                   {incoming && n.stage === "clubTalks" && (
                     <div className="mt-4 rounded-xl border bg-muted/30 p-3">
                       <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -246,9 +373,9 @@ export function RecruitmentOperations({
                       <input
                         id={`fee-${n.id}`}
                         type="number"
-                        min={n.fee + 5000}
-                        step={5000}
-                        value={feeOffers[n.id] ?? String(n.clubCounterFee ?? n.fee + 5000)}
+                        min={n.fee + feeStep}
+                        step={feeStep}
+                        value={feeOffers[n.id] ?? String(n.clubCounterFee ?? n.fee + feeStep)}
                         onChange={(event) =>
                           setFeeOffers((current) => ({ ...current, [n.id]: event.target.value }))
                         }
@@ -275,11 +402,11 @@ export function RecruitmentOperations({
                       <input
                         id={`wage-${n.id}`}
                         type="number"
-                        min={n.proposedWeeklyWage + 25}
-                        step={25}
+                        min={n.proposedWeeklyWage + wageStep}
+                        step={wageStep}
                         value={
                           wageOffers[n.id] ??
-                          String(n.playerCounterWage ?? n.proposedWeeklyWage + 25)
+                          String(n.playerCounterWage ?? n.proposedWeeklyWage + wageStep)
                         }
                         onChange={(event) =>
                           setWageOffers((current) => ({ ...current, [n.id]: event.target.value }))
@@ -289,9 +416,48 @@ export function RecruitmentOperations({
                     </div>
                   )}
                   <div className="flex gap-2 flex-wrap mt-3">
-                    {n.stage === "agreed" && (
+                    {incoming && n.stage === "enquiry" && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          const fee = Number(
+                            feeOffers[n.id] ?? estimate?.openingFee ?? n.clubCounterFee ?? 0,
+                          );
+                          setFeeOffers((current) => {
+                            const next = { ...current };
+                            delete next[n.id];
+                            return next;
+                          });
+                          act((s) => submitEnquiryOffer(s, n.id, fee));
+                        }}
+                      >
+                        Submit opening bid
+                      </Button>
+                    )}
+                    {incoming && n.stage === "agreed" && (
+                      <Button
+                        size="sm"
+                        onClick={() => act((s) => beginTransferRegistration(s, n.id))}
+                        disabled={registration ? !registration.allowed : false}
+                        title={registration?.reason}
+                      >
+                        Begin medical & registration
+                      </Button>
+                    )}
+                    {incoming && n.stage === "registration" && (
+                      <Button
+                        size="sm"
+                        onClick={() => act((s) => completeTransfer(s, n.id))}
+                        disabled={registration ? !registration.allowed : false}
+                        title={registration?.reason}
+                      >
+                        Complete registration
+                      </Button>
+                    )}
+                    {!incoming && n.stage === "agreed" && (
                       <Button size="sm" onClick={() => act((s) => completeTransfer(s, n.id))}>
-                        Complete deal
+                        Complete sale
                       </Button>
                     )}
                     {incoming && n.stage === "clubTalks" && (
@@ -299,8 +465,13 @@ export function RecruitmentOperations({
                         size="sm"
                         variant="secondary"
                         onClick={() => {
-                          const fallback = n.clubCounterFee ?? n.fee + 5000;
+                          const fallback = n.clubCounterFee ?? n.fee + feeStep;
                           const fee = Number(feeOffers[n.id] ?? fallback);
+                          setFeeOffers((current) => {
+                            const next = { ...current };
+                            delete next[n.id];
+                            return next;
+                          });
                           act((s) => improveTransferOffer(s, n.id, fee));
                         }}
                       >
@@ -312,7 +483,8 @@ export function RecruitmentOperations({
                         size="sm"
                         variant="secondary"
                         onClick={() => {
-                          const fallback = n.playerCounterWage ?? n.proposedWeeklyWage + 25;
+                          const fallback =
+                            n.playerCounterWage ?? n.proposedWeeklyWage + wageStep;
                           const wage = Number(wageOffers[n.id] ?? fallback);
                           act((s) => improvePersonalTerms(s, n.id, wage));
                         }}
@@ -373,7 +545,16 @@ function PlayerProfile({
 }) {
   const attrs = playerAttributes(player);
   const contract = activeContract(state, player.id);
+  const loan = activeLoanForPlayer(state, player.id);
+  const employment = contract ? employmentLabel(contractEmploymentType(state, contract)) : "—";
   const mood = playerMood(state, player);
+  const displayedWage =
+    contract && loan
+      ? Math.round((contract.weeklyWage * loan.loanClubWageContributionPct) / 100)
+      : contract?.weeklyWage ?? 0;
+  const loanWeeks = loan
+    ? Math.max(0, loan.endAbsoluteWeek - absoluteWeek(state.season, state.week))
+    : null;
   return (
     <div className="space-y-4">
       <Button variant="ghost" onClick={onBack}>
@@ -395,13 +576,24 @@ function PlayerProfile({
           </div>
         </div>
         <div className="p-5">
-          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4 lg:grid-cols-7">
             <ProfileFact label="Value" value={fmtMoney(player.marketValue)} />
             <ProfileFact
-              label="Wage"
-              value={contract ? `${fmtMoneyExact(contract.weeklyWage)}/wk` : "—"}
+              label={loan ? "Our wage share" : "Wage"}
+              value={contract ? `${fmtMoneyExact(displayedWage)}/wk` : "—"}
             />
-            <ProfileFact label="Role" value={contract?.squadRole ?? "—"} />
+            <ProfileFact
+              label={loan ? "Loan role" : "Role"}
+              value={loan?.playingTimeExpectation ?? contract?.squadRole ?? "—"}
+            />
+            {loan ? (
+              <ProfileFact
+                label="Loan status"
+                value={`From ${clubDisplayName(state, loan.parentClubId)} · ${loanWeeks}w left`}
+              />
+            ) : (
+              <ProfileFact label="Employment" value={employment} />
+            )}
             <ProfileFact label="Preferred foot" value={player.preferredFoot} />
             <ProfileFact label="Personality" value={player.personality} />
             <ProfileFact label="Mood" value={mood.label} />

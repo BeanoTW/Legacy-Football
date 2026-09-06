@@ -35,6 +35,8 @@ import type {
   WageSummary,
   WeekLedger,
 } from "./types";
+import { isUserClubReference, userClubReference } from "./clubReference";
+import { loanWageAdjustmentForClub } from "./loans";
 import { absoluteWeek } from "./time";
 import {
   profileForTier,
@@ -348,13 +350,14 @@ export function syncWeekLedger(s: GameState, season: number, week: number): void
 export const playerWageBill = (s: GameState) => {
   const contracts = s.football?.contracts;
   if (contracts) {
-    return int(
-      contracts
-        .filter(
-          (c) => c.clubId === s.clubName && (c.status === "Active" || c.status === "Expiring"),
-        )
-        .reduce((a, c) => a + c.weeklyWage, 0),
+    const liveContracts = contracts.filter(
+      (c) => c.status === "Active" || c.status === "Expiring",
     );
+    const contractual = liveContracts
+      .filter((c) => isUserClubReference(s, c.clubId))
+      .reduce((a, c) => a + c.weeklyWage, 0);
+    const adjusted = contractual + loanWageAdjustmentForClub(s, userClubReference(s));
+    return int(Math.max(0, adjusted));
   }
   return int((s.squad ?? []).reduce((a, p) => a + p.wage, 0));
 };
@@ -408,7 +411,7 @@ export function leagueDistributionWeekly(s: GameState): number {
 export function leagueTierOf(s: GameState): number {
   const l =
     (s.leagues ?? []).find((x) => x.id === s.playerLeagueId) ??
-    (s.leagues ?? []).find((x) => x.clubIds?.includes(s.clubName));
+    (s.leagues ?? []).find((x) => x.clubIds?.some((club) => isUserClubReference(s, club)));
   return l?.tier ?? 1;
 }
 
@@ -455,7 +458,7 @@ export function weeklyRevenueEstimate(s: GameState): number {
   // size. The old stand-capacity projection predated economy.ts and badly
   // understated income, which starved the derived wage ceiling.
   const tier = tierOfUser(s);
-  const rep = clubReputation(s, s.clubName);
+  const rep = clubReputation(s, userClubReference(s));
   const baseline = revenueBaseline(tier, rep).totalSeason / SEASON_MATCH_WEEKS;
   return Math.max(1, int(Math.max(baseline, recurringWeeklyIncome(s))));
 }
@@ -1080,7 +1083,7 @@ export function projectedPrizeMoney(s: GameState): number {
   const league = (s.leagues ?? []).find((l) => l.id === s.playerLeagueId);
   if (!league) return 0;
   const table = s.league ?? [];
-  const idx = table.findIndex((r) => r.team === s.clubName);
+  const idx = table.findIndex((r) => isUserClubReference(s, r.team));
   const size = league.clubIds?.length || Math.max(1, table.length);
   const position = idx >= 0 ? idx + 1 : Math.ceil(size / 2);
   return prizeMoneyFor(league, position, size).total;
@@ -1430,7 +1433,7 @@ export function initFinance(s: GameState): void {
 /** The wage structure of the user's contracted squad, banded for its level. */
 export function squadWageStructure(s: GameState): WageStructure {
   const wages = (s.football?.contracts ?? [])
-    .filter((c) => c.clubId === s.clubName && (c.status === "Active" || c.status === "Expiring"))
+    .filter((c) => isUserClubReference(s, c.clubId) && (c.status === "Active" || c.status === "Expiring"))
     .map((c) => c.weeklyWage);
   return wageStructureFrom(wages, leagueTierOf(s));
 }

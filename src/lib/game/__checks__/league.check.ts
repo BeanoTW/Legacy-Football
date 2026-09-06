@@ -9,6 +9,7 @@ import {
   SAVE_VERSION,
 } from "../engine";
 import { DIVISION_ONE } from "../pyramid";
+import { isUserClubReference } from "../clubReference";
 import {
   buildTable,
   sortTable,
@@ -40,11 +41,11 @@ function fresh(seed = "LEAGUE_SEED_1"): GameState {
   // Rebuild the schedule under the fixed test seed so runs are reproducible.
   g.leagueSchedule = makeLeagueSchedule(g.leagues, `${g.saveSeed}|season1`);
   g.fixtures = g.leagueSchedule
-    .filter((f) => f.home === g.clubName || f.away === g.clubName)
+    .filter((f) => isUserClubReference(g, f.home) || isUserClubReference(g, f.away))
     .map((f) => ({
       week: f.week,
-      opponent: f.home === g.clubName ? f.away : f.home,
-      home: f.home === g.clubName,
+      opponent: isUserClubReference(g, f.home) ? f.away : f.home,
+      home: isUserClubReference(g, f.home),
     }))
     .sort((a, b) => a.week - b.week);
   return g;
@@ -333,7 +334,7 @@ console.log("\n[8] Legacy (v2) save compatibility");
   });
   check(
     "legacy week advance still counts the user's own match",
-    (after.league.find((r) => r.team === "Legacy FC")?.p ?? 0) === 1,
+    (after.league.find((r) => isUserClubReference(after, r.team))?.p ?? 0) === 1,
   );
   check("legacy path creates no match records", after.matchRecords.length === 0);
 }
@@ -345,12 +346,14 @@ console.log("\n[9] User club is not privileged");
   const teams = initial.leagues.find((league) => league.id === leagueId)!.clubIds;
   const t = playSeason(initial);
   const rows = buildTable(teams, t.matchRecords, 1, leagueId);
-  const user = rows.find((r) => r.team === "Dalton Town")!;
+  const user = rows.find((r) => isUserClubReference(initial, r.team))!;
   check("user club has 38 played like everyone else", user.p === 38);
   check(
     "user club appears in exactly 38 season-1 records",
     t.matchRecords.filter(
-      (r) => r.season === 1 && (r.home === "Dalton Town" || r.away === "Dalton Town"),
+      (r) =>
+        r.season === 1 &&
+        (isUserClubReference(initial, r.home) || isUserClubReference(initial, r.away)),
     ).length === 38,
   );
 }

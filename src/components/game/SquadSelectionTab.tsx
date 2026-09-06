@@ -12,7 +12,22 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MOOD_TONE_CLASS, playerMood } from "@/lib/game/character";
 import { fmtMoney } from "@/lib/game/engine";
+import { activeLoanForPlayer } from "@/lib/game/loans";
+import { absoluteWeek } from "@/lib/game/time";
+import { clubDisplayName } from "@/lib/game/clubReference";
 import { POSITION_BADGE_CLASS, POSITION_PITCH_CLASS } from "./playerPosition";
+import {
+  clubOperatingModel,
+  contractEmploymentType,
+  professionaliseUserClub,
+  userProfessionalisationReadiness,
+} from "@/lib/game/employment";
+import { userClubReference } from "@/lib/game/clubReference";
+import {
+  PLAYER_COHESION_DEFAULT,
+  PLAYER_MORALE_DEFAULT,
+  playerManagerQuality,
+} from "@/lib/game/playerClubPerformance";
 
 const FORMATION: Position[] = [
   "GK",
@@ -30,6 +45,9 @@ const FORMATION: Position[] = [
 type Preset = "strongest" | "rested" | "youth";
 type SquadView = "pitch" | "details";
 
+const employmentLabel = (value: "PartTime" | "FullTime") =>
+  value === "PartTime" ? "Part-time" : "Full-time";
+
 export function SquadSelectionTab({
   state,
   update,
@@ -44,12 +62,29 @@ export function SquadSelectionTab({
     stored === "rested" || stored === "youth" ? stored : "strongest",
   );
   const [view, setView] = useState<SquadView>("pitch");
+  const [professionalisationReview, setProfessionalisationReview] = useState(false);
+  const [employmentNote, setEmploymentNote] = useState<string | null>(null);
   const squad = useMemo(() => userSquad(state), [state]);
   const xi = useMemo(() => chooseXi(squad, preset, state.season), [squad, preset, state.season]);
   const selected = new Set(xi.map((player) => player.id));
   const bench = squad
     .filter((player) => !selected.has(player.id))
     .sort((a, b) => b.currentAbility - a.currentAbility);
+  const clubEmployment = employmentLabel(
+    clubOperatingModel(state, userClubReference(state)),
+  );
+  const professionalisation = userProfessionalisationReadiness(state);
+  const cohesion = state.playerClubPerformance?.cohesion ?? PLAYER_COHESION_DEFAULT;
+  const morale = state.playerClubPerformance?.morale ?? PLAYER_MORALE_DEFAULT;
+  const managerQuality = playerManagerQuality(state);
+
+  const professionalise = () =>
+    update((s) => {
+      const outcome = professionaliseUserClub(s);
+      setEmploymentNote(outcome.result.reason);
+      if (outcome.result.ok) setProfessionalisationReview(false);
+      return outcome.state;
+    });
 
   const choose = (next: Preset) => {
     setPreset(next);
@@ -92,16 +127,99 @@ export function SquadSelectionTab({
                 <div className="text-[10px] uppercase tracking-[0.2em] opacity-70">Football department</div>
                 <h2 className="font-display text-2xl">Squad & selection</h2>
                 <p className="mt-1 max-w-2xl text-sm opacity-80">Pitch view for the XI; details view for quick contract and squad review.</p>
+                <div className="mt-2 inline-flex rounded-full border border-current/20 bg-black/10 px-2.5 py-1 text-xs font-semibold">
+                  Club operating model · {clubEmployment}
+                </div>
               </div>
               <Shield className="size-8 opacity-70" />
             </div>
           </div>
-          <div className="grid grid-cols-3 divide-x text-center">
+          <div className="grid grid-cols-3 divide-x border-t text-center md:grid-cols-6">
             <Summary label="Players" value={String(squad.length)} />
             <Summary label="Suggested XI" value={String(xi.length)} />
             <Summary label="Avg ability" value={averageAbility(xi).toFixed(1)} />
+            <Summary label="Cohesion" value={Math.round(cohesion).toString()} />
+            <Summary label="Morale" value={Math.round(morale).toString()} />
+            <Summary label="Manager" value={Math.round(managerQuality).toString()} />
           </div>
         </section>
+
+        {professionalisation.currentModel === "PartTime" && (
+          <section className="rounded-xl border bg-card p-3 shadow-sm lg:col-start-1">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                  Employment model
+                </div>
+                <div className="font-display text-xl">Move to full-time football</div>
+              </div>
+              <Shield className="size-5 text-primary" />
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Full-time status improves access to stronger players, but future signings and renewals
+              expect professional wages. Existing player contracts stay exactly as signed.
+            </p>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-lg border bg-muted/30 p-2">
+                <div className="text-xs font-semibold">{professionalisation.trainingLabel}</div>
+                <div className="text-[10px] text-muted-foreground">Training ground</div>
+              </div>
+              <div className="rounded-lg border bg-muted/30 p-2">
+                <div className="text-xs font-semibold">
+                  {professionalisation.recruitmentReputationBonus > 0
+                    ? `+${professionalisation.recruitmentReputationBonus} appeal`
+                    : "Professional level"}
+                </div>
+                <div className="text-[10px] text-muted-foreground">Player interest</div>
+              </div>
+              <div className="rounded-lg border bg-muted/30 p-2">
+                <div className="text-xs font-semibold">
+                  {professionalisation.futureWageFactor > 1
+                    ? `~+${Math.round((professionalisation.futureWageFactor - 1) * 100)}%`
+                    : "Level baseline"}
+                </div>
+                <div className="text-[10px] text-muted-foreground">Future wages</div>
+              </div>
+            </div>
+            {!professionalisation.allowed ? (
+              <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
+                {professionalisation.reason}
+              </div>
+            ) : professionalisationReview ? (
+              <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
+                <div className="text-sm font-semibold">Confirm permanent transition?</div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  The club will operate full-time from now on. Existing part-time contracts remain
+                  part-time until each player signs new terms.
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button size="sm" onClick={professionalise}>
+                    Confirm full-time transition
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setProfessionalisationReview(false)}
+                  >
+                    Keep part-time
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button
+                className="mt-3"
+                size="sm"
+                variant="outline"
+                onClick={() => setProfessionalisationReview(true)}
+              >
+                Review full-time transition
+              </Button>
+            )}
+            {employmentNote && (
+              <div className="mt-3 text-xs text-muted-foreground">{employmentNote}</div>
+            )}
+          </section>
+        )}
 
         <section className="rounded-xl border bg-card p-3 shadow-sm lg:col-start-1">
           <div className="mb-3 flex items-center justify-between gap-3">
@@ -169,13 +287,30 @@ function Pitch({ xi }: { xi: FootballPlayer[] }) {
 
 function CompactPlayerRow({ state, player, inXi }: { state: GameState; player: FootballPlayer; inXi: boolean }) {
   const contract = activeContract(state, player.id);
-  return <div className="grid grid-cols-[minmax(0,1.3fr)_repeat(4,auto)] items-center gap-2 px-3 py-2 text-xs"><div className="min-w-0"><div className="flex items-center gap-1.5"><span className="truncate font-semibold">{playerName(player)}</span>{inXi && <span className="text-[9px] font-bold text-primary">XI</span>}<span className={cn("rounded border px-1.5 py-0.5 text-[9px] font-bold", POSITION_BADGE_CLASS[player.primaryPosition])}>{player.primaryPosition}</span></div><div className="truncate text-[10px] text-muted-foreground">{ageOf(player, state.season)}y · {contract?.squadRole ?? "No role"}</div></div><div className="text-right"><div className="font-display text-base">{player.currentAbility}</div><div className="text-[9px] text-muted-foreground">OVR</div></div><div className="text-right"><div>{player.potentialAbility}</div><div className="text-[9px] text-muted-foreground">POT</div></div><div className="text-right"><div>{contract ? fmtMoney(contract.weeklyWage) : "—"}</div><div className="text-[9px] text-muted-foreground">/wk</div></div><div className="text-right"><div>{contract ? `${weeksLeftOnContract(state, contract)}w` : "—"}</div><div className="text-[9px] text-muted-foreground">contract</div></div></div>;
+  const loan = activeLoanForPlayer(state, player.id);
+  const employment = contract ? employmentLabel(contractEmploymentType(state, contract)) : null;
+  const wage = contract
+    ? loan
+      ? Math.round((contract.weeklyWage * loan.loanClubWageContributionPct) / 100)
+      : contract.weeklyWage
+    : null;
+  const weeks = loan
+    ? Math.max(0, loan.endAbsoluteWeek - absoluteWeek(state.season, state.week))
+    : contract
+      ? weeksLeftOnContract(state, contract)
+      : null;
+  return <div className="grid grid-cols-[minmax(0,1.3fr)_repeat(4,auto)] items-center gap-2 px-3 py-2 text-xs"><div className="min-w-0"><div className="flex items-center gap-1.5"><span className="truncate font-semibold">{playerName(player)}</span>{inXi && <span className="text-[9px] font-bold text-primary">XI</span>}<span className={cn("rounded border px-1.5 py-0.5 text-[9px] font-bold", POSITION_BADGE_CLASS[player.primaryPosition])}>{player.primaryPosition}</span>{loan && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">LOAN</span>}</div><div className="truncate text-[10px] text-muted-foreground">{ageOf(player, state.season)}y · {loan ? `On loan from ${clubDisplayName(state, loan.parentClubId)}` : contract?.squadRole ?? "No role"}{!loan && employment ? ` · ${employment}` : ""}</div></div><div className="text-right"><div className="font-display text-base">{player.currentAbility}</div><div className="text-[9px] text-muted-foreground">OVR</div></div><div className="text-right"><div>{player.potentialAbility}</div><div className="text-[9px] text-muted-foreground">POT</div></div><div className="text-right"><div>{wage !== null ? fmtMoney(wage) : "—"}</div><div className="text-[9px] text-muted-foreground">{loan ? "our /wk" : "/wk"}</div></div><div className="text-right"><div>{weeks !== null ? `${weeks}w` : "—"}</div><div className="text-[9px] text-muted-foreground">{loan ? "loan" : "contract"}</div></div></div>;
 }
 
 function PlayerRow({ state, player }: { state: GameState; player: FootballPlayer }) {
   const contract = activeContract(state, player.id);
+  const loan = activeLoanForPlayer(state, player.id);
+  const employment = contract ? employmentLabel(contractEmploymentType(state, contract)) : null;
   const mood = playerMood(state, player);
-  return <div className="grid grid-cols-[1fr_auto] gap-3 px-4 py-3"><div className="min-w-0"><div className="flex items-center gap-2"><span className="truncate font-semibold">{playerName(player)}</span><span className={cn("rounded border px-1.5 py-0.5 text-[10px] font-bold", POSITION_BADGE_CLASS[player.primaryPosition])}>{player.primaryPosition}</span></div><div className="mt-0.5 text-xs text-muted-foreground">{ageOf(player, state.season)}y · {player.nationality} · Ability {player.currentAbility} · Potential {player.potentialAbility}</div><div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground"><span className="truncate">{contract ? `${contract.squadRole} · ${weeksLeftOnContract(state, contract)} weeks left` : "No active contract"}</span><span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${MOOD_TONE_CLASS[mood.tone]}`}>{mood.label}</span></div></div><div className="text-right"><div className="font-display text-xl">{player.currentAbility}</div><div className="text-[10px] uppercase text-muted-foreground">OVR</div></div></div>;
+  const loanWeeks = loan
+    ? Math.max(0, loan.endAbsoluteWeek - absoluteWeek(state.season, state.week))
+    : null;
+  return <div className="grid grid-cols-[1fr_auto] gap-3 px-4 py-3"><div className="min-w-0"><div className="flex items-center gap-2"><span className="truncate font-semibold">{playerName(player)}</span><span className={cn("rounded border px-1.5 py-0.5 text-[10px] font-bold", POSITION_BADGE_CLASS[player.primaryPosition])}>{player.primaryPosition}</span>{loan && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">LOAN</span>}</div><div className="mt-0.5 text-xs text-muted-foreground">{ageOf(player, state.season)}y · {player.nationality} · Ability {player.currentAbility} · Potential {player.potentialAbility}</div><div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground"><span className="truncate">{loan ? `On loan from ${clubDisplayName(state, loan.parentClubId)} · ${loanWeeks} weeks left · ${loan.loanClubWageContributionPct}% wages` : contract ? `${contract.squadRole} · ${employment} · ${weeksLeftOnContract(state, contract)} weeks left` : "No active contract"}</span><span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${MOOD_TONE_CLASS[mood.tone]}`}>{mood.label}</span></div></div><div className="text-right"><div className="font-display text-xl">{player.currentAbility}</div><div className="text-[10px] uppercase text-muted-foreground">OVR</div></div></div>;
 }
 
 function PresetButton({ active, onClick, title, sub }: { active: boolean; onClick: () => void; title: string; sub: string }) {

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { requiresInboxDecision } from "@/lib/game/inbox";
 import { calendarDay } from "@/lib/game/calendar";
+import { clubDisplayName } from "@/lib/game/clubReference";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
 
@@ -29,7 +30,7 @@ export function AdvanceInboxPreview({
   const interrupted = !isContinuing && !!reason;
   const isMatchday = interrupted && reason?.toLowerCase().includes("matchday");
   const fixture = state.fixtures.find((item) => item.week === state.week);
-  const matchdayLabel = fixture ? `${fixture.home ? "Home" : "Away"} vs ${fixture.opponent}. The week pauses here until the match is played.` : undefined;
+  const matchdayLabel = fixture ? `${fixture.home ? "Home" : "Away"} vs ${clubDisplayName(state, fixture.opponent)}. The week pauses here until the match is played.` : undefined;
 
   return (
     <div className="fixed inset-0 z-40 bg-black/45 px-3 pb-20 pt-20 backdrop-blur-[2px] md:px-6 md:pb-24">

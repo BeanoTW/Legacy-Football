@@ -10,6 +10,9 @@ import { financialHealth as canonicalFinancialHealth, sustainabilitySnapshot } f
 import { HEALTH_TONE, initials, ord } from "./shared/primitives";
 import type { Tab } from "./tabs";
 import { chairmanStyle, clubNickname } from "@/lib/game/character";
+import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
+import { userSquad } from "@/lib/game/recruitment";
+import { footballLevelOfLeague } from "@/lib/game/footballLevel";
 
 function financialHealth(state: GameState): { label: string; tone: "good" | "bad" | "muted" } {
   const h = canonicalFinancialHealth(state);
@@ -50,17 +53,18 @@ export function ClubHub({ state, update, setTab }: { state: GameState; update: (
   const unread = unreadCount(state);
   const decisions = actionableInbox(state).length;
   const activeNegotiations = state.football?.negotiations?.filter((n) => n.stage !== "completed" && n.stage !== "withdrawn" && n.stage !== "rejected").length ?? 0;
-  const squadSize = state.football?.players?.filter((player) => player.currentClubId === state.clubName).length ?? state.squad.length;
+  const squadSize = userSquad(state).length;
   const leagueSorted = [...state.league].sort((a, b) => b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga) || b.gf - a.gf);
-  const myIdx = leagueSorted.findIndex((r) => r.team === state.clubName);
+  const myIdx = leagueSorted.findIndex((r) => isUserClubReference(state, r.team));
   const miniLeague = leagueSorted.slice(Math.max(0, myIdx - 2), Math.min(leagueSorted.length, myIdx + 3));
   const ownership = chairmanStyle(state);
+  const currentLeague = state.leagues.find((league) => league.id === state.playerLeagueId);
 
   return (
     <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-2 md:gap-3 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,.85fr)] xl:grid-rows-[auto_minmax(0,1fr)]">
       <section className="overflow-hidden rounded-xl border shadow-sm xl:col-span-2">
         <div className="panel-strip flex items-center justify-between gap-2 px-3 py-2 md:px-5">
-          <div className="flex min-w-0 items-center gap-2 md:gap-4"><div className="club-crest grid size-9 md:size-11 shrink-0 place-items-center rounded-lg bg-black/25 font-display text-base md:text-xl">{initials(state.clubName)}</div><div className="min-w-0"><div className="truncate font-display text-xl md:text-2xl leading-none">{state.clubName}</div><div className="mt-0.5 truncate text-[10px] opacity-80 md:text-xs">{clubNickname(state)} · {myIdx >= 0 ? `${myIdx + 1}${ord(myIdx + 1)}` : "—"} · S{state.season} · W{state.week}</div></div></div>
+          <div className="flex min-w-0 items-center gap-2 md:gap-4"><div className="club-crest grid size-9 md:size-11 shrink-0 place-items-center rounded-lg bg-black/25 font-display text-base md:text-xl">{initials(state.clubName)}</div><div className="min-w-0"><div className="truncate font-display text-xl md:text-2xl leading-none">{state.clubName}</div><div className="mt-0.5 truncate text-[10px] opacity-80 md:text-xs">{clubNickname(state)} · {currentLeague ? `${currentLeague.name} · Level ${footballLevelOfLeague(currentLeague)}` : "League unknown"} · {myIdx >= 0 ? `${myIdx + 1}${ord(myIdx + 1)}` : "—"} · S{state.season} · W{state.week}</div></div></div>
           <div className="shrink-0 text-right"><div className="text-[9px] md:text-xs opacity-70">{ownership.label}</div><div className="font-display text-xl md:text-2xl leading-none">{Math.round(state.reputation)}</div></div>
         </div>
       </section>
@@ -96,11 +100,11 @@ export function ClubHub({ state, update, setTab }: { state: GameState; update: (
 
 function MatchStrip({ state, nextFixture, update }: { state: GameState; nextFixture: GameState["fixtures"][number] | undefined; update: (fn: (s: GameState) => GameState) => void }) {
   const matchReady = !!nextFixture && isMatchday(state);
-  return <div className="flex items-center gap-2 px-3 py-2 md:px-4"><div className="min-w-0 flex-1"><div className="text-[9px] md:text-xs font-bold uppercase tracking-wide text-muted-foreground">Next match · W{state.week}</div>{nextFixture ? <div className="mt-0.5 flex min-w-0 items-center gap-2"><span className="truncate font-display text-base md:text-xl">{nextFixture.home ? state.clubName : nextFixture.opponent}</span><span className="text-[10px] font-bold text-muted-foreground">v</span><span className="truncate font-display text-base md:text-xl">{nextFixture.home ? nextFixture.opponent : state.clubName}</span></div> : <div className="mt-0.5 truncate text-xs md:text-sm text-muted-foreground">{phaseOf(state.week) === "preseason" ? "Pre-season preparation" : phaseOf(state.week) === "midseason" ? "Mid-season break" : "No fixture this week"}</div>}</div>{matchReady ? <button onClick={() => update((s) => startMatchDay(s))} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground"><Play className="size-4" /> Match</button> : nextFixture ? <div className="shrink-0 rounded-lg border px-3 py-2 text-[10px] font-semibold text-muted-foreground">Saturday</div> : null}</div>;
+  return <div className="flex items-center gap-2 px-3 py-2 md:px-4"><div className="min-w-0 flex-1"><div className="text-[9px] md:text-xs font-bold uppercase tracking-wide text-muted-foreground">Next match · W{state.week}</div>{nextFixture ? <div className="mt-0.5 flex min-w-0 items-center gap-2"><span className="truncate font-display text-base md:text-xl">{nextFixture.home ? state.clubName : clubDisplayName(state, nextFixture.opponent)}</span><span className="text-[10px] font-bold text-muted-foreground">v</span><span className="truncate font-display text-base md:text-xl">{nextFixture.home ? clubDisplayName(state, nextFixture.opponent) : state.clubName}</span></div> : <div className="mt-0.5 truncate text-xs md:text-sm text-muted-foreground">{phaseOf(state.week) === "preseason" ? "Pre-season preparation" : phaseOf(state.week) === "midseason" ? "Mid-season break" : "No fixture this week"}</div>}</div>{matchReady ? <button onClick={() => update((s) => startMatchDay(s))} className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-bold text-primary-foreground"><Play className="size-4" /> Match</button> : nextFixture ? <div className="shrink-0 rounded-lg border px-3 py-2 text-[10px] font-semibold text-muted-foreground">Saturday</div> : null}</div>;
 }
 
 function LeaguePanel({ state, miniLeague, leagueSorted, setTab }: { state: GameState; miniLeague: GameState["league"]; leagueSorted: GameState["league"]; setTab: (t: Tab) => void }) {
-  return <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-card shadow-sm"><div className="banner-strip flex shrink-0 items-center justify-between px-3 py-1.5 text-[10px] md:text-sm"><span>League position</span><button className="inline-flex items-center gap-1 opacity-90 hover:opacity-100" onClick={() => setTab("world")}>Full table <ArrowRight className="size-3.5" /></button></div><div className="contained-scroll flex-1"><table className="w-full text-[10px] md:text-sm tnum"><tbody>{miniLeague.map((r) => { const pos = leagueSorted.indexOf(r) + 1; const isMe = r.team === state.clubName; return <tr key={r.team} className={cn("border-b last:border-0", isMe && "bg-primary/10 font-semibold")}><td className="w-8 px-2 md:px-4 py-1.5 text-muted-foreground">{pos}</td><td className="truncate px-1.5 py-1.5">{r.team}</td><td className="px-1.5 py-1.5 text-right text-muted-foreground">{r.p} P</td><td className="px-2 md:px-4 py-1.5 text-right font-display text-xs md:text-base">{r.pts}</td></tr>; })}</tbody></table></div></section>;
+  return <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-card shadow-sm"><div className="banner-strip flex shrink-0 items-center justify-between px-3 py-1.5 text-[10px] md:text-sm"><span>League position</span><button className="inline-flex items-center gap-1 opacity-90 hover:opacity-100" onClick={() => setTab("world")}>Full table <ArrowRight className="size-3.5" /></button></div><div className="contained-scroll flex-1"><table className="w-full text-[10px] md:text-sm tnum"><tbody>{miniLeague.map((r) => { const pos = leagueSorted.indexOf(r) + 1; const isMe = isUserClubReference(state, r.team); return <tr key={r.team} className={cn("border-b last:border-0", isMe && "bg-primary/10 font-semibold")}><td className="w-8 px-2 md:px-4 py-1.5 text-muted-foreground">{pos}</td><td className="truncate px-1.5 py-1.5">{clubDisplayName(state, r.team)}</td><td className="px-1.5 py-1.5 text-right text-muted-foreground">{r.p} P</td><td className="px-2 md:px-4 py-1.5 text-right font-display text-xs md:text-base">{r.pts}</td></tr>; })}</tbody></table></div></section>;
 }
 
 function ActionTile({ icon, title, value, sub, urgent = false, onClick }: { icon: React.ReactNode; title: string; value: string; sub?: string; urgent?: boolean; onClick: () => void }) {

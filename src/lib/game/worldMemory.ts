@@ -1,4 +1,5 @@
 import type { GameState, TransferRecord } from "./types";
+import { isUserClubReference } from "./clubReference";
 
 /**
  * Living-world retention policy.
@@ -60,7 +61,7 @@ export interface TransferMemoryContext {
 }
 
 export function memoryScopeForClub(state: GameState, clubId: string): WorldMemoryScope {
-  if (clubId === state.clubName) return "user";
+  if (isUserClubReference(state, clubId)) return "user";
   if (state.leagues.some((league) => league.clubIds.includes(clubId))) return "domestic";
   return "external";
 }

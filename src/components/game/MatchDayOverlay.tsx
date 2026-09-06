@@ -10,6 +10,8 @@ import {
   kickoff,
 } from "@/lib/game/engine";
 import { Info2, initials } from "./shared/primitives";
+import { clubDisplayName } from "@/lib/game/clubReference";
+import { footballLevelOfLeague } from "@/lib/game/footballLevel";
 
 export function MatchDayOverlay({
   state,
@@ -20,7 +22,8 @@ export function MatchDayOverlay({
 }) {
   const lm = state.liveMatch!;
   const usName = state.clubName;
-  const themName = lm.fixture.opponent;
+  const themName = clubDisplayName(state, lm.fixture.opponent);
+  const matchLeague = state.leagues.find((league) => league.id === lm.leagueId);
   const homeName = lm.fixture.home ? usName : themName;
   const awayName = lm.fixture.home ? themName : usName;
   const homeGoals = lm.fixture.home ? lm.ourGoals : lm.theirGoals;
@@ -81,7 +84,7 @@ export function MatchDayOverlay({
                   <span className="text-muted-foreground mx-2 sm:mx-3">–</span>
                   {awayGoals}
                 </div>
-                <div className="mt-2 text-xs text-white/60">Division Four · {lm.weather}</div>
+                <div className="mt-2 text-xs text-white/60">{matchLeague ? `${matchLeague.name} · Level ${footballLevelOfLeague(matchLeague)} · ` : ""}{lm.weather}</div>
               </div>
               <TeamBadge name={awayName} label="Away" active={!lm.fixture.home} />
             </div>

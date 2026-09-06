@@ -16,6 +16,7 @@ import {
 } from "../pyramid";
 import { buildTable, isLeagueSeasonComplete, tableFor } from "../league";
 import type { GameState } from "../types";
+import { canonicalClubReference, clubDisplayName, isUserClubReference } from "../clubReference";
 
 let passed = 0;
 let failed = 0;
@@ -34,11 +35,11 @@ function fresh(seed = "PYRAMID_SEED_1"): GameState {
   g.saveSeed = seed;
   g.leagueSchedule = makePyramidSchedule(g.leagues, `${seed}|season1`);
   g.fixtures = g.leagueSchedule
-    .filter((f) => f.home === g.clubName || f.away === g.clubName)
+    .filter((f) => isUserClubReference(g, f.home) || isUserClubReference(g, f.away))
     .map((f) => ({
       week: f.week,
-      opponent: f.home === g.clubName ? f.away : f.home,
-      home: f.home === g.clubName,
+      opponent: isUserClubReference(g, f.home) ? f.away : f.home,
+      home: isUserClubReference(g, f.home),
     }))
     .sort((a, b) => a.week - b.week);
   return g;
@@ -69,7 +70,7 @@ console.log("\n[1] Pyramid shape");
   const tiers = [...new Set(g.leagues.map((l) => l.tier))].sort((a, b) => a - b);
   const deepestTier = Math.max(...tiers);
   const deepest = g.leagues.filter((l) => l.tier === deepestTier);
-  const mine = g.leagues.find((l) => l.clubIds.includes(g.clubName));
+  const mine = g.leagues.find((l) => l.clubIds.some((club) => isUserClubReference(g, club)));
   check("expanded world has eight divisions", g.leagues.length === 8, String(g.leagues.length));
   check("tier levels are contiguous even with parallel divisions", tiers.join(",") === "1,2,3,4,5");
   check("four parallel regional divisions occupy the deepest tier", deepest.length === 4);
@@ -156,12 +157,12 @@ console.log("\n[6] Player follows their actual club division");
   const initial = fresh();
   const startingLeague = initial.leagues.find((l) => l.id === initial.playerLeagueId)!;
   const t = playSeason(initial);
-  const mine = t.leagues.find((l) => l.clubIds.includes(t.clubName))!;
+  const mine = t.leagues.find((l) => l.clubIds.some((club) => isUserClubReference(t, club)))!;
   check("playerLeagueId matches actual membership", t.playerLeagueId === mine.id);
-  check("user table shows the user's division", t.league.length === 20 && t.league.some((r) => r.team === t.clubName));
+  check("user table shows the user's division", t.league.length === 20 && t.league.some((r) => isUserClubReference(t, r.team)));
   check("user fixtures only involve current-division opponents", t.fixtures.every((f) => mine.clubIds.includes(f.opponent)));
   const h = t.seasonHistory.find((x) => x.season === 1 && x.leagueId === startingLeague.id)!;
-  check("player either stays or follows a recorded promotion", mine.id === startingLeague.id || h.promoted.includes(t.clubName));
+  check("player either stays or follows a recorded promotion", mine.id === startingLeague.id || h.promoted.some((club) => isUserClubReference(t, club)));
   check("champion mail exists for every division", t.inbox.filter((i) => i.eventKey.startsWith("league-champion")).length === t.leagues.length);
 }
 
@@ -199,24 +200,51 @@ console.log("\n[8] Two consecutive seasons + projections");
 
 console.log("\n[9] v3 save migration expands without rewriting active top flight");
 {
-  const g = newGame("Legacy FC", "Old Boss") as unknown as Record<string, unknown>;
+  const modern = newGame("Legacy FC", "Old Boss");
+  const g = structuredClone(modern) as unknown as Record<string, unknown>;
   g.version = 3;
   g.week = 12;
+
+  // A genuine v3 save stored display names, not the opaque IDs stamped by a
+  // current newGame. Reconstruct that old boundary before exercising v3->v17.
+  g.league = modern.league.map((row) => ({
+    ...row,
+    team: clubDisplayName(modern, row.team),
+  }));
+  g.fixtures = modern.fixtures.map((fixture) => ({
+    ...fixture,
+    opponent: clubDisplayName(modern, fixture.opponent),
+  }));
+  g.leagueSchedule = modern.leagueSchedule
+    .filter((f) => f.league === DIVISION_ONE)
+    .map(({ league, ...rest }) => ({
+      ...rest,
+      home: clubDisplayName(modern, rest.home),
+      away: clubDisplayName(modern, rest.away),
+    }));
+
   delete g.leagues;
   delete g.playerLeagueId;
   delete g.seasonHistory;
   delete g.clubRecords;
-  g.leagueSchedule = (g.leagueSchedule as { league?: string }[])
-    .filter((f) => f.league === DIVISION_ONE)
-    .map(({ league, ...rest }) => rest);
   const originalTopScheduleLength = (g.leagueSchedule as unknown[]).length;
   const m = migrateSave(g);
   check("migrated to current schema", m.version === SAVE_VERSION);
   check("full eight-division world created", m.leagues.length === 8 && m.leagues.every((l) => l.clubIds.length === CLUBS_PER_DIVISION));
   check("four regional Level 7 divisions created", m.leagues.filter((l) => l.tier === 5).length === 4);
-  check("user club placed in exactly one league", m.leagues.filter((l) => l.clubIds.includes("Legacy FC")).length === 1);
+  check(
+    "user club placed in exactly one league",
+    m.leagues.filter((l) => l.clubIds.some((club) => isUserClubReference(m, club))).length === 1,
+  );
   check("no duplicate clubs across divisions", new Set(pyramidClubs(m)).size === pyramidClubs(m).length);
-  check("existing tier-1 membership preserved", m.leagues[0].clubIds.length === 20 && m.leagues[0].clubIds.every((c) => (g.league as { team: string }[]).some((r) => r.team === c)));
+  const expectedTopMembership = new Set(
+    (g.league as { team: string }[]).map((row) => canonicalClubReference(m, row.team)),
+  );
+  check(
+    "existing tier-1 membership preserved",
+    m.leagues[0].clubIds.length === 20 &&
+      m.leagues[0].clubIds.every((club) => expectedTopMembership.has(club)),
+  );
   const migratedTopSchedule = m.leagueSchedule.filter((f) => f.league === undefined || f.league === DIVISION_ONE);
   check("active top schedule preserved while lower leagues append", migratedTopSchedule.length === originalTopScheduleLength && m.leagueSchedule.some((f) => f.league === "league-4") && m.leagueSchedule.some((f) => f.league === "regional-premier-central"));
   check("history starts empty", m.seasonHistory.length === 0);

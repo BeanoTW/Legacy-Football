@@ -7,6 +7,10 @@ on:
       - 'chatgpt/**'
   pull_request:
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -54,8 +58,13 @@ jobs:
         run: bun run lint
 
   game-checks:
+    name: game-checks shard ${{ matrix.shard }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -75,8 +84,55 @@ jobs:
             echo "No game verification suites found."
             exit 1
           fi
-          for check in "${checks[@]}"; do
+
+          shard=${{ matrix.shard }}
+          shard_count=4
+          ran=0
+          for i in "${!checks[@]}"; do
+            if (( i % shard_count != shard )); then
+              continue
+            fi
+            check="${checks[$i]}"
             echo "::group::$check"
             bun "$check"
             echo "::endgroup::"
+            ran=$((ran + 1))
           done
+
+          if (( ran == 0 )); then
+            echo "Shard $shard did not receive any checks."
+            exit 1
+          fi
+          echo "Shard $shard completed $ran checks."
+
+  release-guard:
+    name: release-guard
+    if: always()
+    needs:
+      - build
+      - typecheck
+      - lint
+      - game-checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify all release checks passed
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+          TYPECHECK_RESULT: ${{ needs.typecheck.result }}
+          LINT_RESULT: ${{ needs.lint.result }}
+          GAME_CHECKS_RESULT: ${{ needs.game-checks.result }}
+        run: |
+          set -euo pipefail
+          printf 'build=%s\ntypecheck=%s\nlint=%s\ngame-checks=%s\n' \
+            "$BUILD_RESULT" "$TYPECHECK_RESULT" "$LINT_RESULT" "$GAME_CHECKS_RESULT"
+
+          for result in "$BUILD_RESULT" "$TYPECHECK_RESULT" "$LINT_RESULT" "$GAME_CHECKS_RESULT"; do
+            if [ "$result" != "success" ]; then
+              echo "Release guard failed because a required CI job did not succeed."
+              exit 1
+            fi
+          done
+
+          echo "All release checks passed."
+

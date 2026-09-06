@@ -7,6 +7,7 @@
    Run with:  bun src/lib/game/__checks__/matchday.check.ts
 */
 import { readFileSync } from "node:fs";
+import { clubDisplayName, isUserClubReference } from "../clubReference";
 
 import {
   newGame,
@@ -101,6 +102,21 @@ console.log("\n[A] Identity");
   check(
     "A2. match seed identity is stable",
     matchSeedBase(PRE.saveSeed, id1, key) === matchSeedBase(PRE.saveSeed, id2, key),
+  );
+
+  const legacyHome = clubDisplayName(PRE, id1.homeClub);
+  const legacyAway = clubDisplayName(PRE, id1.awayClub);
+  const legacyIdentity = {
+    ...id1,
+    fixtureId: makeFixtureId(id1.season, id1.round, legacyHome, legacyAway, id1.leagueId),
+    homeClub: legacyHome,
+    awayClub: legacyAway,
+    homeSeedKey: undefined,
+    awaySeedKey: undefined,
+  };
+  check(
+    "A2b. opaque IDs preserve the pre-migration live-match seed root",
+    matchSeedBase(PRE.saveSeed, id1, key) === matchSeedBase(PRE.saveSeed, legacyIdentity, key),
   );
 
   // Advance past this fixture to the next one and compare identities.
@@ -408,7 +424,7 @@ console.log("\n[G] Fixture completion");
     (lm.fixture.home ? mine[0]?.homeGoals : mine[0]?.awayGoals) === lm.ourGoals &&
       (lm.fixture.home ? mine[0]?.awayGoals : mine[0]?.homeGoals) === lm.theirGoals,
   );
-  const row = tableFor(after, playerLeagueId(after)).find((r) => r.team === after.clubName)!;
+  const row = tableFor(after, playerLeagueId(after)).find((r) => isUserClubReference(after, r.team))!;
   check("G30. table projection reflects the result once", row.p === 1);
   check(
     "G30b. every other fixture in the round resolved once",
@@ -653,17 +669,55 @@ console.log("\n[J] Save / migration");
 
   const played = commitLiveMatchAndAdvance(applyHalfTimeChoice(kickoff(clone(started)), "steady"));
   const legacyPlayed = JSON.parse(JSON.stringify(played)) as LegacySave;
-  legacyPlayed.version = 10;
-  // Isolate the live-match migration contract. A genuine v10 transfer pot is
-  // intentionally released to cash by v14 and writes its own migration entry.
-  legacyPlayed.transferBudget = 0;
+
+  // J46 is specifically the v16 -> v17 club-reference contract. Build the
+  // relevant v16 history shape explicitly instead of pretending a current save
+  // is v10 and replaying unrelated world/finance migrations as part of this
+  // assertion.
+  legacyPlayed.version = 16;
+  legacyPlayed.matchRecords = legacyPlayed.matchRecords.map((record) => ({
+    ...record,
+    home: clubDisplayName(played, record.home),
+    away: clubDisplayName(played, record.away),
+  }));
+  legacyPlayed.results = legacyPlayed.results.map((result) => ({
+    ...result,
+    opponent: clubDisplayName(played, result.opponent),
+  }));
   const m4 = migrateSave(
     JSON.parse(JSON.stringify(legacyPlayed)) as unknown as Record<string, unknown>,
   );
+  const completedMatchHistory = (state: GameState) =>
+    state.matchRecords
+      .map(
+        (record) =>
+          `${record.league}|s${record.season}|r${record.round}|${clubDisplayName(state, record.home)}>${clubDisplayName(state, record.away)}|${record.homeGoals}-${record.awayGoals}|${record.outcome}|${record.userInvolved}`,
+      )
+      .sort();
+  const userResultHistory = (state: GameState) =>
+    state.results.map((result) =>
+      [
+        result.week,
+        clubDisplayName(state, result.opponent),
+        result.home,
+        result.goalsFor,
+        result.goalsAgainst,
+        result.attendance,
+        result.gateReceipts,
+        result.tvIncome,
+        result.result,
+      ].join("|"),
+    );
   check(
-    "J46. existing completed matches are untouched",
-    JSON.stringify(m4.matchRecords) === JSON.stringify(played.matchRecords) &&
-      JSON.stringify(m4.results) === JSON.stringify(played.results),
+    "J46. existing completed match history survives identity migration",
+    JSON.stringify(completedMatchHistory(m4)) === JSON.stringify(completedMatchHistory(played)) &&
+      JSON.stringify(userResultHistory(m4)) === JSON.stringify(userResultHistory(played)),
+  );
+  check(
+    "J46b. historical friendly labels remain presentation labels",
+    m4.results
+      .filter((result) => result.opponent.endsWith(" (friendly)"))
+      .every((result) => !result.opponent.startsWith("c_")),
   );
   check(
     "J47. no historical records are fabricated",

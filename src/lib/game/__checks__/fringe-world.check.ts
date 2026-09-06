@@ -10,7 +10,7 @@ import {
 import { buildWorldSimulationPlan } from "../world";
 import { newGame } from "../newGame";
 import { clubStrengthAtLevel, simulateAiFixtureAtLevel } from "../league";
-import { clubStrengthFor } from "../reputation";
+import { clubFootballStrength } from "../footballStrength";
 import {
   FREE_AGENT_POOL,
   SQUAD_SIZE,
@@ -59,8 +59,10 @@ const fringeClub = plan.fringeClubIds[0];
 const persisted = worldA[fringeClub];
 const reconciled = reconcileFringeWorldState(state, worldA);
 assert(reconciled[fringeClub]?.strength === persisted.strength, "reconciliation must preserve persistent Fringe identity");
-assert(clubStrengthAtLevel(state, state.season, fringeClub, "fringe") === Math.max(1, Math.min(100, persisted.strength + persisted.form)), "Fringe fixtures must read compact strength and form");
-assert(clubStrengthAtLevel(state, state.season, fringeClub, "focus") === clubStrengthFor(state, fringeClub, state.season), "Focus fixtures must retain the detailed strength model");
+const canonicalStrength = clubFootballStrength(state, fringeClub, state.season);
+assert(clubStrengthAtLevel(state, state.season, fringeClub, "fringe") === canonicalStrength, "Fringe fixtures must use the canonical football-strength scale");
+assert(clubStrengthAtLevel(state, state.season, fringeClub, "focus") === canonicalStrength, "Focus fixtures must use the canonical football-strength scale");
+assert(clubStrengthAtLevel(state, state.season, fringeClub, "focus") === clubStrengthAtLevel(state, state.season, fringeClub, "fringe"), "crossing the Focus/Fringe boundary must not change club strength");
 const fringeOpponent = plan.fringeClubIds[1];
 const lightweightResult = simulateAiFixtureAtLevel(state, state.season, 1, fringeClub, fringeOpponent, leagues[3].id, "fringe");
 assert(JSON.stringify(lightweightResult) === JSON.stringify(simulateAiFixtureAtLevel(state, state.season, 1, fringeClub, fringeOpponent, leagues[3].id, "fringe")), "lightweight Fringe fixtures must remain deterministic");

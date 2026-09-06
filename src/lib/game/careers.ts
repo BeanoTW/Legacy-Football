@@ -13,6 +13,14 @@ import { buildWorldSimulationPlan } from "./world";
 import { clubReputation } from "./reputation";
 import { tierOfClub } from "./economy";
 import { WEEKS_PER_SEASON } from "./time";
+import { activeLoanForPlayer } from "./loans";
+import { isUserClubReference, sameClubReference } from "./clubReference";
+import {
+  ensurePlayerRegistrationStateInPlace,
+  playerOwnerClubId,
+  playerRegisteredClubId,
+  setPlayerClubIdentityInPlace,
+} from "./playerRegistration";
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 const round = (value: number) => Math.round(value);
@@ -71,10 +79,20 @@ const POSITIONS: Position[] = ["GK", "DEF", "DEF", "MID", "MID", "FWD"];
  */
 export function runPlayerCareerRollover(s: GameState): void {
   if (!s.football?.players?.length) return;
+  ensurePlayerRegistrationStateInPlace(s);
 
   const focus = new Set(buildWorldSimulationPlan(s).focusClubIds);
   for (const player of s.football.players) {
-    if (!player.currentClubId || !focus.has(player.currentClubId)) continue;
+    const registeredClubId = playerRegisteredClubId(player);
+    const ownerClubId = playerOwnerClubId(player);
+    const onActiveLoan = Boolean(activeLoanForPlayer(s, player.id));
+    if (
+      !onActiveLoan &&
+      (!registeredClubId || !focus.has(registeredClubId)) &&
+      (!ownerClubId || !focus.has(ownerClubId))
+    ) {
+      continue;
+    }
     progressPlayerForSeason(s, player);
   }
 
@@ -134,7 +152,7 @@ export function runAiCareerTransfers(s: GameState, focusOverride?: Set<string>):
 
   const focus = focusOverride ?? new Set(buildWorldSimulationPlan(s).focusClubIds);
   const aiClubs = [...focus]
-    .filter((club) => club !== s.clubName)
+    .filter((club) => !isUserClubReference(s, club))
     .sort((a, b) => a.localeCompare(b));
   let completed = 0;
   const movedPlayerIds = new Set<string>();
@@ -145,12 +163,13 @@ export function runAiCareerTransfers(s: GameState, focusOverride?: Set<string>):
 
     const targetPosition = positionNeed(buyerSquad);
     const candidate = chooseAiTransferCandidate(s, buyer, targetPosition, aiClubs, movedPlayerIds);
-    if (!candidate || !candidate.currentClubId) continue;
+    const seller = candidate ? playerOwnerClubId(candidate) : null;
+    if (!candidate || !seller) continue;
 
     const rng = seededRng(s.saveSeed, "aiCareerTransfer", buyer, candidate.id, s.season);
     if (rng() > 0.72) continue;
 
-    completeAiCareerTransfer(s, candidate, candidate.currentClubId, buyer, rng);
+    completeAiCareerTransfer(s, candidate, seller, buyer, rng);
     movedPlayerIds.add(candidate.id);
     completed++;
   }
@@ -159,7 +178,9 @@ export function runAiCareerTransfers(s: GameState, focusOverride?: Set<string>):
 }
 
 function clubPlayers(s: GameState, club: string): FootballPlayer[] {
-  return s.football.players.filter((player) => player.currentClubId === club);
+  return s.football.players.filter((player) =>
+    sameClubReference(s, playerRegisteredClubId(player), club),
+  );
 }
 
 function positionNeed(squad: FootballPlayer[]): Position {
@@ -181,9 +202,14 @@ function chooseAiTransferCandidate(
 ): FootballPlayer | null {
   const buyerRep = clubReputation(s, buyer);
   const candidates = s.football.players.filter((player) => {
-    if (movedPlayerIds.has(player.id)) return false;
-    const seller = player.currentClubId;
-    if (!seller || seller === buyer || seller === s.clubName || !aiClubs.includes(seller)) {
+    if (movedPlayerIds.has(player.id) || activeLoanForPlayer(s, player.id)) return false;
+    const seller = playerOwnerClubId(player);
+    if (
+      !seller ||
+      sameClubReference(s, seller, buyer) ||
+      isUserClubReference(s, seller) ||
+      !aiClubs.some((club) => sameClubReference(s, club, seller))
+    ) {
       return false;
     }
     if (player.primaryPosition !== position || player.availability !== "available") return false;
@@ -280,7 +306,7 @@ function completeAiCareerTransfer(
   };
 
   s.football.contracts.push(newContract);
-  player.currentClubId = buyer;
+  setPlayerClubIdentityInPlace(player, buyer);
   player.contractId = newContract.id;
   player.transferStatus = "unlisted";
   player.wageExpectation = wage;
@@ -348,7 +374,8 @@ function processRetirements(s: GameState, focus: Set<string>): void {
   const retiredIds = new Set<string>();
 
   for (const player of s.football.players) {
-    const club = player.currentClubId;
+    if (activeLoanForPlayer(s, player.id)) continue;
+    const club = playerRegisteredClubId(player);
     if (!club || !focus.has(club) || !shouldRetire(s, player)) continue;
 
     const contract = s.football.contracts.find(
@@ -423,7 +450,9 @@ function pruneDeadContracts(s: GameState): void {
  * transfer/contract history; discarded free-agent detail is not authoritative.
  */
 function pruneFreeAgentPool(s: GameState): void {
-  const free = s.football.players.filter((player) => player.currentClubId === null);
+  const free = s.football.players.filter(
+    (player) => playerOwnerClubId(player) === null && playerRegisteredClubId(player) === null,
+  );
   if (free.length <= MAX_FREE_AGENTS) return;
 
   const protectedIds = new Set<string>(s.football.shortlist);
@@ -448,13 +477,18 @@ function pruneFreeAgentPool(s: GameState): void {
   ]);
 
   s.football.players = s.football.players.filter(
-    (player) => player.currentClubId !== null || retained.has(player.id),
+    (player) =>
+      playerOwnerClubId(player) !== null ||
+      playerRegisteredClubId(player) !== null ||
+      retained.has(player.id),
   );
 }
 
 function runYouthIntake(s: GameState, focus: Set<string>): void {
   for (const club of [...focus].sort()) {
-    const active = s.football.players.filter((player) => player.currentClubId === club);
+    const active = s.football.players.filter(
+      (player) => playerRegisteredClubId(player) === club,
+    );
     const count = clamp(SQUAD_SIZE - active.length, 0, 3);
 
     for (let index = 0; index < count; index++) {
