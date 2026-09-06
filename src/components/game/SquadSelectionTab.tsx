@@ -23,6 +23,11 @@ import {
   userProfessionalisationReadiness,
 } from "@/lib/game/employment";
 import { userClubReference } from "@/lib/game/clubReference";
+import {
+  PLAYER_COHESION_DEFAULT,
+  PLAYER_MORALE_DEFAULT,
+  playerManagerQuality,
+} from "@/lib/game/playerClubPerformance";
 
 const FORMATION: Position[] = [
   "GK",
@@ -69,6 +74,9 @@ export function SquadSelectionTab({
     clubOperatingModel(state, userClubReference(state)),
   );
   const professionalisation = userProfessionalisationReadiness(state);
+  const cohesion = state.playerClubPerformance?.cohesion ?? PLAYER_COHESION_DEFAULT;
+  const morale = state.playerClubPerformance?.morale ?? PLAYER_MORALE_DEFAULT;
+  const managerQuality = playerManagerQuality(state);
 
   const professionalise = () =>
     update((s) => {
@@ -126,10 +134,13 @@ export function SquadSelectionTab({
               <Shield className="size-8 opacity-70" />
             </div>
           </div>
-          <div className="grid grid-cols-3 divide-x text-center">
+          <div className="grid grid-cols-3 divide-x border-t text-center md:grid-cols-6">
             <Summary label="Players" value={String(squad.length)} />
             <Summary label="Suggested XI" value={String(xi.length)} />
             <Summary label="Avg ability" value={averageAbility(xi).toFixed(1)} />
+            <Summary label="Cohesion" value={Math.round(cohesion).toString()} />
+            <Summary label="Morale" value={Math.round(morale).toString()} />
+            <Summary label="Manager" value={Math.round(managerQuality).toString()} />
           </div>
         </section>
 
