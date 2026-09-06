@@ -903,7 +903,7 @@ export function futureWageCommitments(s: GameState, seasons = 3): WageCommitment
     const season = s.season + i;
     const live = (s.football?.contracts ?? []).filter(
       (c) =>
-        c.clubId === s.clubName &&
+        isUserClubReference(s, c.clubId) &&
         (c.status === "Active" || c.status === "Expiring") &&
         c.expirySeason >= season &&
         c.startSeason <= season,
@@ -929,7 +929,7 @@ export function futureWageCommitments(s: GameState, seasons = 3): WageCommitment
 export function transferSpendThisSeason(s: GameState): number {
   return int(
     (s.football?.transferHistory ?? [])
-      .filter((r) => r.season === s.season && r.toClubId === s.clubName)
+      .filter((r) => r.season === s.season && isUserClubReference(s, r.toClubId))
       .reduce((a, r) => a + r.fee + r.signingBonus, 0),
   );
 }
@@ -937,7 +937,7 @@ export function transferSpendThisSeason(s: GameState): number {
 export function transferIncomeThisSeason(s: GameState): number {
   return int(
     (s.football?.transferHistory ?? [])
-      .filter((r) => r.season === s.season && r.fromClubId === s.clubName)
+      .filter((r) => r.season === s.season && isUserClubReference(s, r.fromClubId))
       .reduce((a, r) => a + r.fee, 0),
   );
 }
@@ -2656,12 +2656,16 @@ export function closeRecruitmentSeason(
   const summary: RecruitmentSeasonSummary = {
     season,
     spend: int(
-      rows.filter((r) => r.toClubId === s.clubName).reduce((a, r) => a + r.fee + r.signingBonus, 0),
+      rows
+        .filter((r) => isUserClubReference(s, r.toClubId))
+        .reduce((a, r) => a + r.fee + r.signingBonus, 0),
     ),
-    income: int(rows.filter((r) => r.fromClubId === s.clubName).reduce((a, r) => a + r.fee, 0)),
+    income: int(
+      rows.filter((r) => isUserClubReference(s, r.fromClubId)).reduce((a, r) => a + r.fee, 0),
+    ),
     netSpend: 0,
-    playersIn: rows.filter((r) => r.toClubId === s.clubName).length,
-    playersOut: rows.filter((r) => r.fromClubId === s.clubName).length,
+    playersIn: rows.filter((r) => isUserClubReference(s, r.toClubId)).length,
+    playersOut: rows.filter((r) => isUserClubReference(s, r.fromClubId)).length,
     wageBillAtClose: userWageBill(s),
   };
   summary.netSpend = summary.spend - summary.income;
@@ -2764,7 +2768,10 @@ export function incomingTransfersThisSeason(s: GameState): number {
 /** Count of contracts renewed at the user's club this season. */
 export function renewalsThisSeason(s: GameState): number {
   return (s.football?.contractHistory ?? []).filter(
-    (r) => r.season === s.season && r.clubId === s.clubName && r.outcome === "renewed",
+    (r) =>
+      r.season === s.season &&
+      isUserClubReference(s, r.clubId) &&
+      r.outcome === "renewed",
   ).length;
 }
 
