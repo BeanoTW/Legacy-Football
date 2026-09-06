@@ -51,12 +51,14 @@ export function leagueOfClubIn(leagues: League[] | undefined, club: string): Lea
   return (leagues ?? []).find((l) => l.clubIds.includes(club));
 }
 
-export function tierOfClub(s: GameState, club: string): number {
-  return (
-    (s.leagues ?? []).find((league) =>
-      league.clubIds.some((candidate) => sameClubReference(s, candidate, club)),
-    )?.tier ?? 1
+export function leagueOfClub(s: GameState, club: string): League | undefined {
+  return (s.leagues ?? []).find((league) =>
+    league.clubIds.some((candidate) => sameClubReference(s, candidate, club)),
   );
+}
+
+export function tierOfClub(s: GameState, club: string): number {
+  return leagueOfClub(s, club)?.tier ?? 1;
 }
 
 /* ---------- Reputation ---------- */
@@ -141,7 +143,7 @@ export function strengthParts(s: GameState, club: string, season: number): Stren
     const mid = (size + 1) / 2;
     form = clamp(((mid - prev.position) / mid) * 4, -4, 4);
     const prevTier = (s.leagues ?? []).find((l) => l.id === prev.leagueId)?.tier;
-    const nowLeague = leagueOfClubIn(s.leagues, club);
+    const nowLeague = leagueOfClub(s, club);
     if (prev.leagueId !== nowLeague?.id && prevTier !== undefined && nowLeague) {
       // promoted: still adjusting to the level. relegated: retains class.
       movement = nowLeague.tier < prevTier ? -3.5 : 3.5;
@@ -251,9 +253,7 @@ export function clubPrediction(
   club: string,
   season: number,
 ): ClubPrediction | undefined {
-  const lg = (s.leagues ?? []).find((league) =>
-    league.clubIds.some((candidate) => sameClubReference(s, candidate, club)),
-  );
+  const lg = leagueOfClub(s, club);
   if (!lg) return undefined;
   const stored = predictionFor(s, season, lg.id);
   return (stored ?? predictLeague(s, lg, season)).clubs.find((candidate) =>
