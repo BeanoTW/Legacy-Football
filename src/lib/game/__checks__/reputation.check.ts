@@ -125,10 +125,11 @@ console.log("\n[R1b] Opaque club identity gateway");
     !!byId && !!byDisplay && JSON.stringify(byId) === JSON.stringify(byDisplay),
   );
 
+  if (displayName !== userId) g.clubReputations[displayName] = 11;
   setClubReputation(g, displayName, 42.5);
   check("setting reputation through display metadata updates the canonical id", g.clubReputations[userId] === 42.5);
   check(
-    "setting reputation through display metadata does not create a second display-name key",
+    "setting reputation through display metadata collapses any legacy display-name alias",
     displayName === userId || !(displayName in g.clubReputations),
   );
   check("display-name reputation reads remain canonical after mutation", clubReputation(g, displayName) === 42.5);
