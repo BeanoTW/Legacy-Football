@@ -5,6 +5,7 @@ import {
   canAuthorisePurchase,
   canAuthoriseWage,
   arrangeUserPlayerLoanIn,
+  loanInAvailabilityReason,
   playerName,
   ageOf,
   playerInterestAssessment,
@@ -139,6 +140,7 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
       const interest = playerInterestAssessment(state, player);
       const watched = isChairmanShortlisted(state, player.id);
       const freeAgent = player.currentClubId === null;
+      const loanUnavailable = freeAgent ? "Free agents cannot be borrowed" : loanInAvailabilityReason(state, player.id);
       const estimate = chairmanRecruitmentEstimate(state, player.id);
       if (!estimate) return null;
       const valueRange = estimate.valueRange;
@@ -158,7 +160,7 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
         <div className={cn("mt-1.5 rounded-md border px-2 py-1 text-[10px]", budgetComfortable ? "bg-muted/40" : "border-destructive/40 bg-destructive/5")} title={affordabilityReason}><span className="font-semibold">{budgetComfortable ? "Estimated fit" : "Budget risk"}</span> · {freeAgent ? "No fee" : valueRange ? `${fmtMoney(valueRange[0])}–${fmtMoney(valueRange[1])} value` : "Fee unknown"} · {wageRange ? `${fmtMoney(wageRange[0])}–${fmtMoney(wageRange[1])}/wk` : "Wage unknown"}</div>
         <div className="mt-1.5 flex flex-wrap gap-1"><Button size="sm" variant={watched ? "default" : "outline"} className="h-7 px-2 text-[10px]" onClick={() => update((s) => toggleChairmanShortlist(s, player.id))}><Star className={cn("mr-1 size-3", watched && "fill-current")} />{watched ? "Shortlisted" : "Shortlist"}</Button>{!assignment ? <Button size="sm" className="h-7 px-2 text-[10px]" onClick={() => update((s) => startScouting(s, player.id))}><Binoculars className="mr-1 size-3" /> Scout</Button> : report.complete ? <span className="inline-flex items-center px-1 text-[10px] font-semibold text-[color:var(--color-income)]"><CheckCircle2 className="mr-1 size-3" /> Full report</span> : <span className="px-1 text-[10px] text-muted-foreground"><Binoculars className="mr-1 inline size-3" /> Scouting</span>}<Button size="sm" variant="secondary" className="h-7 px-2 text-[10px]" onClick={() =>
           approach(player.id, freeAgent, estimate.openingWeeklyWage)
-        }><Handshake className="mr-1 size-3" /> {freeAgent ? "Approach player" : "Approach club"}</Button>{!freeAgent && <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" disabled={!loanWindowOpen} title={loanWindowOpen ? "Request a temporary loan" : `${loanWindow.label} · ${loanWindow.detail}`} onClick={() => setLoanTargetId((current) => current === player.id ? null : player.id)}><Repeat2 className="mr-1 size-3" /> Loan</Button>}</div>
+        }><Handshake className="mr-1 size-3" /> {freeAgent ? "Approach player" : "Approach club"}</Button>{!freeAgent && <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" disabled={!loanWindowOpen || Boolean(loanUnavailable)} title={!loanWindowOpen ? `${loanWindow.label} · ${loanWindow.detail}` : loanUnavailable ?? "Request a temporary loan"} onClick={() => setLoanTargetId((current) => current === player.id ? null : player.id)}><Repeat2 className="mr-1 size-3" /> Loan</Button>}</div>
         {loanTargetId === player.id && !freeAgent && (
           <div className="mt-2 grid gap-1.5 rounded-md border bg-muted/30 p-2 sm:grid-cols-4">
             <select value={loanDuration} onChange={(event) => setLoanDuration(Number(event.target.value))} className="h-8 rounded-md border bg-background px-2 text-[10px]">
