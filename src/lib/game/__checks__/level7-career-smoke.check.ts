@@ -9,6 +9,7 @@ import { footballLevelOfUser } from "../footballLevel";
 import { isUserClubReference } from "../clubReference";
 import {
   MAX_NEGOTIATION_ROUNDS,
+  arrangeUserPlayerLoanIn,
   arrangeUserPlayerLoanOut,
   canAuthorisePurchase,
   canAuthoriseWage,
@@ -182,6 +183,43 @@ assert(
   "career loan-out must be active before long-run progression",
 );
 
+// Borrow one external player through the same chairman-facing market path.
+// Try deterministic external candidates until a parent club accepts maximum
+// wage support and an Important playing-time commitment.
+let borrowState: GameState | null = null;
+let borrowPlayerId: string | null = null;
+let borrowParentClubId: string | null = null;
+for (const candidate of s.football.players
+  .filter((player) => {
+    const owner = playerOwnerClubId(player);
+    const registered = playerRegisteredClubId(player);
+    return (
+      owner !== null &&
+      registered !== null &&
+      !isUserClubReference(s, owner) &&
+      !isUserClubReference(s, registered) &&
+      owner === registered &&
+      Boolean(player.contractId)
+    );
+  })
+  .sort((a, b) => a.currentAbility - b.currentAbility || a.id.localeCompare(b.id))) {
+  const attempted = arrangeUserPlayerLoanIn(s, candidate.id, {
+    durationWeeks: 4,
+    loanClubWageContributionPct: 100,
+    playingTimeExpectation: "Important",
+  });
+  if (!attempted.result.ok) continue;
+  borrowState = attempted.state;
+  borrowPlayerId = candidate.id;
+  borrowParentClubId = playerOwnerClubId(candidate);
+  break;
+}
+assert(borrowState && borrowPlayerId && borrowParentClubId, "career smoke must find one borrowable external player");
+s = borrowState;
+const smokeBorrowLoan = activeLoanForPlayer(s, borrowPlayerId);
+assert(smokeBorrowLoan, "career loan-in must be active before long-run progression");
+const smokeBorrowLoanId = smokeBorrowLoan.id;
+
 const targetSeason = s.season + 2;
 let rolloverReloads = 0;
 let safetyWeeks = 0;
@@ -244,6 +282,24 @@ assert(
 assert(
   s.football.loans?.find((loan) => loan.id === smokeLoanId)?.status === "Completed",
   "career loan agreement must finish as completed history",
+);
+assert(
+  activeLoanForPlayer(s, borrowPlayerId) === undefined,
+  "short incoming career loan must have ended during the multi-season run",
+);
+const returnedBorrowPlayer = s.football.players.find((player) => player.id === borrowPlayerId);
+assert(returnedBorrowPlayer, "borrowed player must still exist after the multi-season run");
+assert(
+  playerOwnerClubId(returnedBorrowPlayer) === borrowParentClubId,
+  "completed incoming loan must preserve parent-club ownership",
+);
+assert(
+  playerRegisteredClubId(returnedBorrowPlayer) === borrowParentClubId,
+  "completed incoming loan must restore parent-club registration",
+);
+assert(
+  s.football.loans?.find((loan) => loan.id === smokeBorrowLoanId)?.status === "Completed",
+  "incoming career loan agreement must finish as completed history",
 );
 assert(reconcile(s).ok, "final two-season state must reconcile");
 
