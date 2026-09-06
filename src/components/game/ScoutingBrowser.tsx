@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, Binoculars, CheckCircle2, Handshake, Search, Star } from "lucide-react";
-import type { GameState, Position } from "@/lib/game/types";
+import { ArrowLeft, Binoculars, CheckCircle2, Handshake, Repeat2, Search, Star } from "lucide-react";
+import type { GameState, LoanPlayingTimeExpectation, Position } from "@/lib/game/types";
 import {
   canAuthorisePurchase,
   canAuthoriseWage,
+  arrangeUserPlayerLoanIn,
   playerName,
   ageOf,
   playerInterestAssessment,
@@ -37,6 +38,10 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
   const [searched, setSearched] = useState(false);
   const [briefId, setBriefId] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [loanTargetId, setLoanTargetId] = useState<string | null>(null);
+  const [loanDuration, setLoanDuration] = useState(12);
+  const [loanContribution, setLoanContribution] = useState(50);
+  const [loanRole, setLoanRole] = useState<LoanPlayingTimeExpectation>("Regular");
   const rows = useMemo(() => {
     if (!searched) return [];
 
@@ -79,6 +84,18 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
       return result.state;
     });
 
+  const requestLoan = (playerId: string) => {
+    const result = arrangeUserPlayerLoanIn(state, playerId, {
+      durationWeeks: loanDuration,
+      loanClubWageContributionPct: loanContribution,
+      playingTimeExpectation: loanRole,
+    });
+    setNote(result.result.reason);
+    if (result.result.ok) {
+      setLoanTargetId(null);
+      update(() => result.state);
+    }
+  };
 
   const runSearch = () => {
     const id = `ui-market:s${state.season}:w${state.week}:p${position}`;
@@ -138,7 +155,21 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
         <div className={cn("mt-1.5 rounded-md border px-2 py-1 text-[10px]", budgetComfortable ? "bg-muted/40" : "border-destructive/40 bg-destructive/5")} title={affordabilityReason}><span className="font-semibold">{budgetComfortable ? "Estimated fit" : "Budget risk"}</span> · {freeAgent ? "No fee" : valueRange ? `${fmtMoney(valueRange[0])}–${fmtMoney(valueRange[1])} value` : "Fee unknown"} · {wageRange ? `${fmtMoney(wageRange[0])}–${fmtMoney(wageRange[1])}/wk` : "Wage unknown"}</div>
         <div className="mt-1.5 flex flex-wrap gap-1"><Button size="sm" variant={watched ? "default" : "outline"} className="h-7 px-2 text-[10px]" onClick={() => update((s) => toggleChairmanShortlist(s, player.id))}><Star className={cn("mr-1 size-3", watched && "fill-current")} />{watched ? "Shortlisted" : "Shortlist"}</Button>{!assignment ? <Button size="sm" className="h-7 px-2 text-[10px]" onClick={() => update((s) => startScouting(s, player.id))}><Binoculars className="mr-1 size-3" /> Scout</Button> : report.complete ? <span className="inline-flex items-center px-1 text-[10px] font-semibold text-[color:var(--color-income)]"><CheckCircle2 className="mr-1 size-3" /> Full report</span> : <span className="px-1 text-[10px] text-muted-foreground"><Binoculars className="mr-1 inline size-3" /> Scouting</span>}<Button size="sm" variant="secondary" className="h-7 px-2 text-[10px]" onClick={() =>
           approach(player.id, freeAgent, estimate.openingWeeklyWage)
-        }><Handshake className="mr-1 size-3" /> {freeAgent ? "Approach player" : "Approach club"}</Button></div>
+        }><Handshake className="mr-1 size-3" /> {freeAgent ? "Approach player" : "Approach club"}</Button>{!freeAgent && <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" onClick={() => setLoanTargetId((current) => current === player.id ? null : player.id)}><Repeat2 className="mr-1 size-3" /> Loan</Button>}</div>
+        {loanTargetId === player.id && !freeAgent && (
+          <div className="mt-2 grid gap-1.5 rounded-md border bg-muted/30 p-2 sm:grid-cols-4">
+            <select value={loanDuration} onChange={(event) => setLoanDuration(Number(event.target.value))} className="h-8 rounded-md border bg-background px-2 text-[10px]">
+              {[4, 8, 12, 24].map((weeks) => <option key={weeks} value={weeks}>{weeks} weeks</option>)}
+            </select>
+            <select value={loanContribution} onChange={(event) => setLoanContribution(Number(event.target.value))} className="h-8 rounded-md border bg-background px-2 text-[10px]">
+              {[20, 35, 50, 65, 80, 100].map((pct) => <option key={pct} value={pct}>{pct}% wage share</option>)}
+            </select>
+            <select value={loanRole} onChange={(event) => setLoanRole(event.target.value as LoanPlayingTimeExpectation)} className="h-8 rounded-md border bg-background px-2 text-[10px]">
+              {(["Backup", "Rotation", "Regular", "Important"] as const).map((role) => <option key={role} value={role}>{role}</option>)}
+            </select>
+            <Button size="sm" className="h-8 text-[10px]" onClick={() => requestLoan(player.id)}>Request loan</Button>
+          </div>
+        )}
       </article>;
     })}
   </DetailScreen>;
