@@ -409,6 +409,23 @@ const weakBorrow = arrangeUserPlayerLoanIn(
 );
 assert.equal(weakBorrow.result.ok, false);
 
+const overWageBorrowSource = structuredClone(borrowSource);
+overWageBorrowSource.finance!.budgets!.wages = userWageBill(overWageBorrowSource);
+const overWageBorrow = arrangeUserPlayerLoanIn(
+  overWageBorrowSource,
+  borrowPlayer.id,
+  {
+    durationWeeks: 4,
+    loanClubWageContributionPct: 100,
+    playingTimeExpectation: "Important",
+  },
+);
+assert.equal(overWageBorrow.result.ok, false);
+assert.ok(
+  overWageBorrow.result.reason.includes("Wage bill would reach"),
+  "incoming loan must respect chairman wage authority",
+);
+
 // Chairman-facing clone action must terminate safely without mutating the
 // source object, and must restore ownership/registration/payroll in the clone.
 const uiTerminationSource = newGame(
