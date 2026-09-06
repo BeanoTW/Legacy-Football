@@ -275,5 +275,28 @@ console.log("\n[U7] Loan chairman boundary");
   );
 }
 
+
+console.log("\n[U8] Opaque club identity presentation boundary");
+{
+  const leagueBrowser = read("src/components/LeagueBrowser.tsx");
+  check(
+    "league browser renders club references through the display-name gateway",
+    /clubDisplayName\(state, r\.team\)/.test(leagueBrowser) &&
+      /clubDisplayName\(state, f\.home\)/.test(leagueBrowser) &&
+      /clubDisplayName\(state, f\.away\)/.test(leagueBrowser) &&
+      /clubDisplayName\(state, c\.club\)/.test(leagueBrowser),
+  );
+  check(
+    "league browser highlights the user club through canonical identity",
+    /isUserClubReference\(state, r\.team\)/.test(leagueBrowser) &&
+      /isUserClubReference\(state, c\.club\)/.test(leagueBrowser),
+  );
+  check(
+    "league browser club profiles read durable legacy facts canonically",
+    /canonicalClubReference\(state, club\)/.test(leagueBrowser) &&
+      /clubLegacyRecord\(state, canonicalClubId\)/.test(leagueBrowser),
+  );
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
