@@ -220,6 +220,51 @@ const smokeBorrowLoan = activeLoanForPlayer(s, borrowPlayerId);
 assert(smokeBorrowLoan, "career loan-in must be active before long-run progression");
 const smokeBorrowLoanId = smokeBorrowLoan.id;
 
+// Let both four-week agreements run to their due boundary before the longer
+// career simulation. Ownership/registration are asserted immediately on
+// return, before later AI transfer activity is allowed to move either player.
+for (let i = 0; i < 5; i++) {
+  s = advanceWeek(s);
+  assert(Number.isFinite(s.cash), `loan lifecycle must keep cash finite at S${s.season} W${s.week}`);
+  assert(reconcile(s).ok, "finances must reconcile while short loans settle");
+}
+assert(
+  activeLoanForPlayer(s, smokeLoanPlayerId) === undefined,
+  "short outgoing career loan must end on schedule",
+);
+const returnedLoanPlayer = s.football.players.find((player) => player.id === smokeLoanPlayerId);
+assert(returnedLoanPlayer, "loaned player must still exist immediately after return");
+assert(
+  isUserClubReference(s, playerOwnerClubId(returnedLoanPlayer)),
+  "completed outgoing loan must restore user-club ownership",
+);
+assert(
+  isUserClubReference(s, playerRegisteredClubId(returnedLoanPlayer)),
+  "completed outgoing loan must restore user-club registration",
+);
+assert(
+  s.football.loans?.find((loan) => loan.id === smokeLoanId)?.status === "Completed",
+  "outgoing career loan agreement must finish as completed history",
+);
+assert(
+  activeLoanForPlayer(s, borrowPlayerId) === undefined,
+  "short incoming career loan must end on schedule",
+);
+const returnedBorrowPlayer = s.football.players.find((player) => player.id === borrowPlayerId);
+assert(returnedBorrowPlayer, "borrowed player must still exist immediately after return");
+assert(
+  playerOwnerClubId(returnedBorrowPlayer) === borrowParentClubId,
+  "completed incoming loan must preserve parent-club ownership",
+);
+assert(
+  playerRegisteredClubId(returnedBorrowPlayer) === borrowParentClubId,
+  "completed incoming loan must restore parent-club registration",
+);
+assert(
+  s.football.loans?.find((loan) => loan.id === smokeBorrowLoanId)?.status === "Completed",
+  "incoming career loan agreement must finish as completed history",
+);
+
 const targetSeason = s.season + 2;
 let rolloverReloads = 0;
 let safetyWeeks = 0;
@@ -266,40 +311,12 @@ assert(
 );
 assert(userSquad(s).length >= 16, "automatic recruitment must keep a playable squad across two seasons");
 assert(
-  activeLoanForPlayer(s, smokeLoanPlayerId) === undefined,
-  "short career loan must have ended during the multi-season run",
-);
-const returnedLoanPlayer = s.football.players.find((player) => player.id === smokeLoanPlayerId);
-assert(returnedLoanPlayer, "loaned player must still exist after the multi-season run");
-assert(
-  isUserClubReference(s, playerOwnerClubId(returnedLoanPlayer)),
-  "completed loan must restore user-club ownership",
-);
-assert(
-  isUserClubReference(s, playerRegisteredClubId(returnedLoanPlayer)),
-  "completed loan must restore user-club registration",
-);
-assert(
   s.football.loans?.find((loan) => loan.id === smokeLoanId)?.status === "Completed",
-  "career loan agreement must finish as completed history",
-);
-assert(
-  activeLoanForPlayer(s, borrowPlayerId) === undefined,
-  "short incoming career loan must have ended during the multi-season run",
-);
-const returnedBorrowPlayer = s.football.players.find((player) => player.id === borrowPlayerId);
-assert(returnedBorrowPlayer, "borrowed player must still exist after the multi-season run");
-assert(
-  playerOwnerClubId(returnedBorrowPlayer) === borrowParentClubId,
-  "completed incoming loan must preserve parent-club ownership",
-);
-assert(
-  playerRegisteredClubId(returnedBorrowPlayer) === borrowParentClubId,
-  "completed incoming loan must restore parent-club registration",
+  "completed outgoing loan history must survive the long career run",
 );
 assert(
   s.football.loans?.find((loan) => loan.id === smokeBorrowLoanId)?.status === "Completed",
-  "incoming career loan agreement must finish as completed history",
+  "completed incoming loan history must survive the long career run",
 );
 assert(reconcile(s).ok, "final two-season state must reconcile");
 
