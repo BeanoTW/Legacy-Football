@@ -3,6 +3,7 @@ import type { GameState } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
 import { startMatchDay } from "@/lib/game/engine";
 import { Section } from "./shared/primitives";
+import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 
 export function FixturesTab({
   state,
@@ -36,7 +37,7 @@ export function FixturesTab({
                   >
                     {f.home ? "H" : "A"}
                   </span>
-                  <span>{f.opponent}</span>
+                  <span>{clubDisplayName(state, f.opponent)}</span>
                 </div>
                 {result ? (
                   <span
@@ -87,11 +88,11 @@ export function FixturesTab({
                     key={r.team}
                     className={cn(
                       "border-b last:border-b-0",
-                      r.team === state.clubName && "bg-accent/20 font-semibold",
+                      isUserClubReference(state, r.team) && "bg-accent/20 font-semibold",
                     )}
                   >
                     <td className="py-1.5 pr-2 text-muted-foreground">{i + 1}</td>
-                    <td className="py-1.5 pr-2">{r.team}</td>
+                    <td className="py-1.5 pr-2">{clubDisplayName(state, r.team)}</td>
                     <td className="text-right py-1.5 pr-2">{r.p}</td>
                     <td className="text-right py-1.5 pr-2">{r.w}</td>
                     <td className="text-right py-1.5 pr-2">{r.d}</td>
