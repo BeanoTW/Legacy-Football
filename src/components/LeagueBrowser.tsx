@@ -23,6 +23,7 @@ import {
   canonicalClubReference,
   clubDisplayName,
   isUserClubReference,
+  sameClubReference,
 } from "@/lib/game/clubReference";
 import { clubLegacyRecord } from "@/lib/game/clubLegacy";
 
@@ -333,7 +334,7 @@ function ClubCard({
   const legacy = clubLegacyRecord(state, canonicalClubId);
   const history = (record?.leagueHistory ?? []).slice(-8).reverse();
   const snaps = (state.clubSnapshots ?? [])
-    .filter((s) => s.club === club)
+    .filter((s) => sameClubReference(state, s.club, canonicalClubId))
     .slice(-8)
     .reverse();
   return (
