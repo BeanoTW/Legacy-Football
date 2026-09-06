@@ -16,6 +16,7 @@ import {
 import {
   activeContract,
   ageOf,
+  arrangeUserPlayerLoanIn,
   arrangeUserPlayerLoanOut,
   assignScout,
   availabilityReason,
@@ -42,6 +43,7 @@ import {
 import { buildWorldSimulationPlan } from "../world";
 import { runPlayerCareerRollover } from "../careers";
 import { recruitmentWageForClub } from "../recruitmentEconomy";
+import { isUserClubReference } from "../clubReference";
 
 const state = newGame("Loan Audit FC", "Auditor", "PLAYER_LOAN_AUDIT");
 assert.equal(SAVE_VERSION, 20);
@@ -355,6 +357,57 @@ const invalidLoanMarket = arrangeUserPlayerLoanOut(
 );
 assert.equal(invalidLoanMarket.result.ok, false);
 assert.equal(invalidLoanMarket.result.reason, "Loan wage contribution must be between 0% and 100%");
+
+// Chairman can also borrow a contracted external player when the parent club
+// has squad depth and the offered wage/playing-time terms are strong enough.
+const borrowSource = newGame("Loan Borrow FC", "Auditor", "PLAYER_LOAN_BORROW");
+const borrowPlan = buildWorldSimulationPlan(borrowSource);
+const borrowPlayer = borrowSource.football.players.find((candidate) => {
+  const owner = playerOwnerClubId(candidate);
+  return (
+    owner &&
+    !isUserClubReference(borrowSource, owner) &&
+    borrowPlan.focusClubIds.includes(owner) &&
+    squadOf(borrowSource, owner).length > 16 &&
+    Boolean(activeContract(borrowSource, candidate.id))
+  );
+});
+assert.ok(borrowPlayer, "borrow fixture needs a contracted external Focus player");
+const borrowParent = playerOwnerClubId(borrowPlayer)!;
+const borrowResult = arrangeUserPlayerLoanIn(
+  borrowSource,
+  borrowPlayer.id,
+  {
+    durationWeeks: 4,
+    loanClubWageContributionPct: 100,
+    playingTimeExpectation: "Important",
+  },
+);
+assert.ok(borrowResult.result.ok, borrowResult.result.reason);
+assert.equal(
+  activeLoanForPlayer(borrowSource, borrowPlayer.id),
+  undefined,
+  "clone loan-in action must not mutate its source state",
+);
+const borrowedPlayer = borrowResult.state.football.players.find(
+  (row) => row.id === borrowPlayer.id,
+)!;
+assert.equal(playerOwnerClubId(borrowedPlayer), borrowParent);
+assert.ok(isUserClubReference(borrowResult.state, playerRegisteredClubId(borrowedPlayer)));
+assert.equal(
+  activeLoanForPlayer(borrowResult.state, borrowPlayer.id)?.loanClubWageContributionPct,
+  100,
+);
+const weakBorrow = arrangeUserPlayerLoanIn(
+  borrowSource,
+  borrowPlayer.id,
+  {
+    durationWeeks: 4,
+    loanClubWageContributionPct: 0,
+    playingTimeExpectation: "Backup",
+  },
+);
+assert.equal(weakBorrow.result.ok, false);
 
 // Chairman-facing clone action must terminate safely without mutating the
 // source object, and must restore ownership/registration/payroll in the clone.
