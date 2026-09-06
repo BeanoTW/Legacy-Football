@@ -2288,6 +2288,32 @@ export interface LoanInOfferTerms {
 }
 
 /**
+ * Chairman-facing availability gate for a loan enquiry. Wide-world compact
+ * players can be bought through the transfer materialisation bridge, but a
+ * loan must preserve a live parent contract and dual ownership/registration,
+ * so only detailed club-squad players are eligible in the beta loan market.
+ */
+export function loanInAvailabilityReason(
+  s: GameState,
+  playerId: string,
+): string | null {
+  const player = transferTargetPlayer(s, playerId);
+  if (!player) return "Unknown player";
+  if (player.currentClubId === null) return "Free agents cannot be borrowed";
+  if (
+    isUserClubReference(s, playerOwnerClubId(player)) ||
+    isUserClubReference(s, playerRegisteredClubId(player))
+  ) {
+    return "Player is already owned by or registered to your club";
+  }
+  if (!s.football?.players.some((candidate) => candidate.id === playerId)) {
+    return "This club is outside your active loan market right now";
+  }
+  if (activeLoanForPlayer(s, playerId)) return "Player already has an active loan";
+  return null;
+}
+
+/**
  * Ask an external player's parent club for a temporary registration.
  * Parent willingness is derived from squad depth, the player's current role,
  * wage contribution and the playing-time commitment offered by the chairman.
@@ -2300,16 +2326,9 @@ export function arrangeUserPlayerLoanInInPlace(
   ensureRecruitment(s);
   if (!isTransferWindowOpen(s))
     return { ok: false, reason: "Loans can only be registered while the transfer window is open" };
-  const player = transferTargetPlayer(s, playerId);
-  if (!player) return { ok: false, reason: "Unknown player" };
-  if (
-    isUserClubReference(s, playerOwnerClubId(player)) ||
-    isUserClubReference(s, playerRegisteredClubId(player))
-  ) {
-    return { ok: false, reason: "Player is already owned by or registered to your club" };
-  }
-  if (activeLoanForPlayer(s, playerId))
-    return { ok: false, reason: "Player already has an active loan" };
+  const unavailable = loanInAvailabilityReason(s, playerId);
+  if (unavailable) return { ok: false, reason: unavailable };
+  const player = transferTargetPlayer(s, playerId)!;
 
   const parentClubId = playerOwnerClubId(player);
   const registeredClubId = playerRegisteredClubId(player);
