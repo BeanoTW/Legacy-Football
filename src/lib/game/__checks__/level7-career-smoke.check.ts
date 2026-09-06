@@ -9,6 +9,7 @@ import { footballLevelOfUser } from "../footballLevel";
 import { isUserClubReference } from "../clubReference";
 import {
   MAX_NEGOTIATION_ROUNDS,
+  arrangeUserPlayerLoanOut,
   canAuthorisePurchase,
   canAuthoriseWage,
   beginTransferRegistrationInPlace,
@@ -22,6 +23,8 @@ import {
   userSquad,
   userWageBill,
 } from "../recruitment";
+import { activeLoanForPlayer } from "../loans";
+import { playerOwnerClubId, playerRegisteredClubId } from "../playerRegistration";
 import type { GameState, TransferNegotiation } from "../types";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -155,6 +158,30 @@ assert(footballLevelOfUser(finalReload) === 7, "early career progression must re
 // that only emerge after repeated recruitment, payroll, careers, world
 // fidelity and history maintenance.
 s = finalReload;
+
+// Put one real chairman loan through the live career before the long run. The
+// agreement must survive weekly systems, end on schedule and restore the
+// player's parent ownership/registration without manual cleanup.
+const loanCandidate = userSquad(s)
+  .slice()
+  .sort((a, b) => a.currentAbility - b.currentAbility || a.id.localeCompare(b.id))
+  .find((player) => Boolean(player.contractId));
+assert(loanCandidate, "multi-season smoke needs one contracted player available to loan out");
+const loanStart = arrangeUserPlayerLoanOut(s, loanCandidate.id, {
+  durationWeeks: 4,
+  loanClubWageContributionPct: 20,
+  playingTimeExpectation: "Backup",
+});
+assert(loanStart.result.ok, `career loan-out must be accepted: ${loanStart.result.reason}`);
+assert(loanStart.result.loan, "career loan-out must persist an agreement");
+s = loanStart.state;
+const smokeLoanId = loanStart.result.loan.id;
+const smokeLoanPlayerId = loanCandidate.id;
+assert(
+  activeLoanForPlayer(s, smokeLoanPlayerId)?.id === smokeLoanId,
+  "career loan-out must be active before long-run progression",
+);
+
 const targetSeason = s.season + 2;
 let rolloverReloads = 0;
 let safetyWeeks = 0;
@@ -200,6 +227,24 @@ assert(
   "a player must never finish the smoke run on multiple active loans",
 );
 assert(userSquad(s).length >= 16, "automatic recruitment must keep a playable squad across two seasons");
+assert(
+  activeLoanForPlayer(s, smokeLoanPlayerId) === undefined,
+  "short career loan must have ended during the multi-season run",
+);
+const returnedLoanPlayer = s.football.players.find((player) => player.id === smokeLoanPlayerId);
+assert(returnedLoanPlayer, "loaned player must still exist after the multi-season run");
+assert(
+  isUserClubReference(s, playerOwnerClubId(returnedLoanPlayer)),
+  "completed loan must restore user-club ownership",
+);
+assert(
+  isUserClubReference(s, playerRegisteredClubId(returnedLoanPlayer)),
+  "completed loan must restore user-club registration",
+);
+assert(
+  s.football.loans?.find((loan) => loan.id === smokeLoanId)?.status === "Completed",
+  "career loan agreement must finish as completed history",
+);
 assert(reconcile(s).ok, "final two-season state must reconcile");
 
 console.log("level7-career-smoke.check.ts: PASS");
