@@ -31,6 +31,7 @@ import { useGame } from "@/hooks/useGame";
 import type { GameState } from "@/lib/game/types";
 import type { SaveSlotId, SaveSlotSummary } from "@/lib/game/engine";
 import { avgTicketPrice, fmtMoney, fmtMoneyExact, phaseOf, CALENDAR } from "@/lib/game/engine";
+import { chairmanStyle, clubNickname } from "@/lib/game/character";
 import { clubKpi } from "@/lib/game/selectors/club";
 import { unreadCount } from "@/lib/game/inbox";
 import { actionableInbox } from "@/lib/game/attention";
@@ -92,6 +93,7 @@ function Game({ state, update, isContinuing, continueReason, startContinue, stop
       .sort((a, b) => b.season - a.season || b.week - a.week || b.id.localeCompare(a.id));
   }, [continueBaselineIds, state.inbox]);
   const phaseLabel = ({ preseason: "Pre-season", firstHalf: "League — 1st half", midseason: "Mid-season break", secondHalf: "League — 2nd half" } as const)[phaseOf(state.week)];
+  const chairman = chairmanStyle(state);
 
   useEffect(() => {
     if (blockingDecisions.length === 0 || (!isContinuing && !continueReason)) return;
@@ -116,11 +118,20 @@ function Game({ state, update, isContinuing, continueReason, startContinue, stop
   return (
     <div className="game-shell">
       <div className="lf-masthead shrink-0">
-        <TopBar title={state.clubName} subtitle={`Season ${state.season} · Week ${state.week}/${CALENDAR.seasonEnd} · ${phaseLabel}`} />
+        <TopBar
+          title={state.clubName}
+          subtitle={clubNickname(state)}
+          detail={`Season ${state.season} · Week ${state.week}/${CALENDAR.seasonEnd} · ${phaseLabel}`}
+          right={
+            <div className="lf-chairman-badge">
+              <span>{chairman.label}</span>
+              <strong>{Math.round(state.reputation)}</strong>
+            </div>
+          }
+        />
       </div>
 
       <MobileNav tab={tab} setTab={(next) => { setDecisionQueue(false); setTab(next); }} unread={unreadCount(state)} />
-      <ContinueCalendar state={state} isContinuing={isContinuing} />
 
       <div className="lf-kpi-ribbon shrink-0 border-b bg-panel text-panel-foreground hidden xl:block">
         <div className="mx-auto max-w-[1600px] px-5 py-1.5 grid grid-cols-4 gap-2 tnum">
@@ -160,7 +171,7 @@ function Game({ state, update, isContinuing, continueReason, startContinue, stop
         <div className="game-screen">
           <ScreenBoundary name={ALL_TABS.find(([id]) => id === tab)?.[1] ?? tab}>
             {tab === "inbox" && <InboxTab state={state} update={update} decisionQueue={decisionQueue} onDecisionQueueCleared={() => { setDecisionQueue(false); setTab("hub"); }} />}
-            {tab === "hub" && <ClubHub state={state} update={update} setTab={setTab} />}
+            {tab === "hub" && <ClubHub state={state} update={update} setTab={setTab} isContinuing={isContinuing} />}
             {tab === "squad" && <SquadSelectionTab state={state} update={update} />}
             {tab === "dashboard" && <DashboardTab state={state} />}
             {tab === "cashflow" && <CashFlowTab state={state} />}
