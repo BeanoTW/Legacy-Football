@@ -197,7 +197,7 @@ export function PlayerProfileSheet({ state }: { state: GameState }) {
             <div className="font-semibold">Contract & availability</div>
             <div className="mt-2 space-y-1 text-muted-foreground">
               {owned && contract ? (
-                <div>{fmtMoneyExact(contract.weeklyWage)}/wk · {contract.seasons} season contract</div>
+                <div>{fmtMoneyExact(contract.weeklyWage)}/wk · {Math.max(1, contract.expirySeason - state.season + 1)} season contract</div>
               ) : player.currentClubId ? (
                 <div>{fullKnowledge ? "Contract details known to recruitment staff" : "Contract details require scouting"}</div>
               ) : (

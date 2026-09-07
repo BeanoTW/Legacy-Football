@@ -27,7 +27,7 @@ function discover<T extends ReturnType<typeof newGame>>(
 
 
 const base = newGame("Transfer Economy Audit FC", "Auditor", "KNOWN_TRANSFER_ECONOMY_AUDIT");
-const discovered = createScoutingBrief(base, { id: "transfer-economy-audit", maxAge: 40 });
+const discovered = discover(base, { id: "transfer-economy-audit", maxAge: 40 });
 const brief = scoutingBrief(discovered, "transfer-economy-audit");
 if (!brief) throw new Error("scouting brief missing");
 

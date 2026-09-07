@@ -1,5 +1,5 @@
-import { newGame } from "../engine";
-import { createScoutingBrief, scoutingBrief, scoutingCandidateSource } from "../scoutingDiscovery";
+import { advanceDay, newGame } from "../engine";
+import { createScoutingBrief, scoutingBrief, scoutingCandidateSource, scoutingSearchPlan } from "../scoutingDiscovery";
 import { knownPlayerIdentity, playerFidelity } from "../playerLifecycle";
 import {
   chairmanRecruitmentEstimate,
@@ -22,8 +22,19 @@ function check(label: string, condition: boolean, extra?: string) {
   }
 }
 
+function discover<T extends ReturnType<typeof newGame>>(
+  state: T,
+  input: Parameters<typeof createScoutingBrief>[1],
+): T {
+  let next = createScoutingBrief(state, input) as T;
+  const days = scoutingSearchPlan(next).searchDays;
+  for (let day = 0; day < days; day++) next = advanceDay(next) as T;
+  return next;
+}
+
+
 const base = newGame("Knowledge Audit FC", "Auditor", "KNOWLEDGE_SHORTLIST_AUDIT");
-const discovered = createScoutingBrief(base, { id: "known-shortlist-audit", maxAge: 40 });
+const discovered = discover(base, { id: "known-shortlist-audit", maxAge: 40 });
 const brief = scoutingBrief(discovered, "known-shortlist-audit");
 if (!brief) throw new Error("scouting brief missing");
 

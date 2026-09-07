@@ -1,5 +1,5 @@
 import { strict as assert } from "node:assert";
-import { advanceWeek, migrateSave, newGame, SAVE_VERSION } from "../engine";
+import { advanceDay, advanceWeek, migrateSave, newGame, SAVE_VERSION } from "../engine";
 import { playerWageBill } from "../finance";
 import {
   activeLoanForPlayer,
@@ -45,7 +45,7 @@ import { buildWorldSimulationPlan } from "../world";
 import { runPlayerCareerRollover } from "../careers";
 import { recruitmentWageForClub } from "../recruitmentEconomy";
 import { isUserClubReference, sameClubReference } from "../clubReference";
-import { createScoutingBrief, scoutingBrief } from "../scoutingDiscovery";
+import { createScoutingBrief, scoutingBrief, scoutingSearchPlan } from "../scoutingDiscovery";
 
 function discover<T extends ReturnType<typeof newGame>>(
   state: T,
