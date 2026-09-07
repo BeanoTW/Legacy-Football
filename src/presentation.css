@@ -1427,10 +1427,6 @@
     background: white;
   }
 
-  .game-main {
-    padding-bottom: calc(4.8rem + env(safe-area-inset-bottom));
-  }
-
   .lf-home-dashboard {
     gap: 0.45rem;
     padding-bottom: 0.2rem;
