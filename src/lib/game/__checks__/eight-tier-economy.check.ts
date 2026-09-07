@@ -16,6 +16,7 @@ import {
   economicProfileForLevel,
   playerValueForLevel,
   revenueBaselineForLevel,
+  staffMarketWage,
   staffWageForLevel,
   sustainableWeeklyWageBillForLevel,
   weeklyWageForLevel,
@@ -120,7 +121,21 @@ console.log("\n[C] Representative squad + staff solvency");
   }
 }
 
-console.log("\n[D] Transfer-fee affordability");
+console.log("\n[D] Staff market wage integrity");
+{
+  const eliteManager = staffMarketWage(8_500, 95);
+  const eliteAssistant = staffMarketWage(4_200, 95);
+  const semiProManager = staffMarketWage(8_500, 44);
+
+  assert(eliteManager >= 140_000,
+    `95-reputation manager is implausibly cheap: ${fmt(eliteManager)}/wk`);
+  assert(eliteAssistant >= 60_000,
+    `95-reputation assistant manager is implausibly cheap: ${fmt(eliteAssistant)}/wk`);
+  assert(semiProManager <= 1_500,
+    `semi-pro manager market wage is implausibly high: ${fmt(semiProManager)}/wk`);
+}
+
+console.log("\n[E] Transfer-fee affordability");
 {
   const starAbility: Record<FootballLevel, number> = {
     1:85, 2:77, 3:69, 4:64, 5:59, 6:56, 7:53, 8:50,
