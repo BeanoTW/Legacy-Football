@@ -14,7 +14,11 @@ import {
   userWageBill,
 } from "@/lib/game/recruitment";
 import { scoutingAssignment, scoutingReport, startScouting } from "@/lib/game/scouting";
-import { createScoutingBrief, scoutingBrief } from "@/lib/game/scoutingDiscovery";
+import {
+  createScoutingBrief,
+  scoutingBrief,
+  scoutingBriefDaysRemaining,
+} from "@/lib/game/scoutingDiscovery";
 import { transferTargetPlayer } from "@/lib/game/recruitmentTargetBridge";
 import {
   chairmanRecruitmentEstimate,
@@ -53,6 +57,8 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
   const [loanRole, setLoanRole] = useState<LoanPlayingTimeExpectation>("Regular");
   const loanWindowOpen = isTransferWindowOpen(state);
   const loanWindow = windowStatus(state);
+  const activeBrief = briefId ? scoutingBrief(state, briefId) : null;
+  const searchDaysRemaining = briefId ? scoutingBriefDaysRemaining(state, briefId) : 0;
   const rows = useMemo(() => {
     if (!searched) return [];
 
@@ -153,9 +159,9 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
   };
 
   if (!searched) return (
-    <DetailScreen title="Find players" subtitle="Set your market parameters, then compare matching players." actions={<Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="mr-2 size-4" /> Back</Button>} className="grid place-items-start">
+    <DetailScreen title="Find players" subtitle="Set the brief, send your scouts out, then review the players they bring back." actions={<Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="mr-2 size-4" /> Back</Button>} className="grid place-items-start">
       <section className="w-full max-w-3xl rounded-xl border bg-card p-4 shadow-sm">
-        <div className="mb-3"><div className="font-display text-lg">Search parameters</div><div className="text-xs text-muted-foreground">Scouting improves knowledge. It is never required before you approach a player or club.</div></div>
+        <div className="mb-3"><div className="font-display text-lg">Scouting brief</div><div className="text-xs text-muted-foreground">Your scouts will search these parameters and return with an initial report. Better scouting teams work faster, find more players and estimate them more accurately.</div></div>
         <div className="space-y-3">
           <div><div className="mb-1.5 text-xs font-semibold text-muted-foreground">Position</div><div className="grid grid-cols-5 gap-1.5 sm:grid-cols-8">{POSITIONS.map((p) => <button key={p} onClick={() => setPosition(p)} className={cn("rounded-lg border px-2 py-1.5 text-xs font-semibold", position === p ? "border-primary bg-primary text-primary-foreground" : "bg-background")}>{p}</button>)}</div></div>
           <div className="grid gap-2 sm:grid-cols-2">
@@ -175,7 +181,7 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
             <NumberFilter label="Max wage £/wk" value={maxWage} min={0} step={50} placeholder="Any" onChange={setMaxWage} />
           </div>
           <div className="grid gap-1.5 sm:grid-cols-2"><FilterToggle active={willingOnly} onClick={() => setWillingOnly((v) => !v)} title="Willing to join" sub="Keen or open to talks" /><FilterToggle active={watchedOnly} onClick={() => setWatchedOnly((v) => !v)} title="Shortlist only" sub="Players you are tracking" /></div>
-          <div className="flex gap-2"><Button onClick={runSearch}><Search className="mr-2 size-4" /> Find players</Button><Button variant="outline" onClick={resetFilters}>Reset</Button></div>
+          <div className="flex gap-2"><Button onClick={runSearch}><Search className="mr-2 size-4" /> Send scouts</Button><Button variant="outline" onClick={resetFilters}>Reset</Button></div>
         </div>
       </section>
     </DetailScreen>
@@ -186,12 +192,27 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
   const wageHeadroom = wageCeiling > 0 ? Math.max(0, wageCeiling - wageBill) : null;
   const toolbar = <div className="space-y-1.5">{note && <div className="truncate rounded-lg border bg-muted/40 px-3 py-1.5 text-xs">{note}</div>}<div className="flex flex-wrap items-center gap-1 text-[11px]"><span className="rounded-md bg-muted px-2 py-1 font-semibold">Cash {fmtMoney(state.cash)}</span><span className="rounded-md bg-muted px-2 py-1 font-semibold">Wages {fmtMoney(wageBill)}/wk{wageHeadroom !== null ? ` · ${fmtMoney(wageHeadroom)} headroom` : ""}</span><span className="rounded-md bg-muted px-2 py-1">{position === "ALL" ? "All positions" : position}</span>{willingOnly && <span className="rounded-md bg-muted px-2 py-1">Willing</span>}{marketStatus === "free" && <span className="rounded-md bg-muted px-2 py-1">Free agents</span>}{marketStatus === "contracted" && <span className="rounded-md bg-muted px-2 py-1">At a club</span>}{watchedOnly && <span className="rounded-md bg-muted px-2 py-1">Shortlist</span>}<button onClick={() => setSearched(false)} className="ml-auto rounded-md border px-2 py-1 font-semibold">Filters</button></div></div>;
 
-  return <DetailScreen title="Find players" subtitle={`${rows.length} matching players`} actions={<Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="mr-2 size-4" /> Back</Button>} toolbar={toolbar} className="touch-pan-y grid gap-1.5 xl:grid-cols-2 xl:items-start">
+  if (activeBrief?.status === "active") {
+    return <DetailScreen title="Scouts searching" subtitle={`Results expected in ${searchDaysRemaining} day${searchDaysRemaining === 1 ? "" : "s"}`} actions={<Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="mr-2 size-4" /> Back</Button>} toolbar={toolbar}>
+      <section className="max-w-2xl rounded-xl border bg-card p-5 shadow-sm">
+        <div className="flex items-center gap-3"><Binoculars className="size-6" /><div><div className="font-display text-xl">Scouting team dispatched</div><div className="text-sm text-muted-foreground">They are actively searching the market against your brief.</div></div></div>
+        <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
+          <div className="rounded-lg bg-muted p-2"><div className="font-display text-lg">{activeBrief.scoutQuality ?? 50}</div><div className="text-muted-foreground">Scout quality</div></div>
+          <div className="rounded-lg bg-muted p-2"><div className="font-display text-lg">Up to {activeBrief.candidateLimit ?? 10}</div><div className="text-muted-foreground">Players</div></div>
+          <div className="rounded-lg bg-muted p-2"><div className="font-display text-lg">{activeBrief.initialKnowledgeDays ?? 2}d</div><div className="text-muted-foreground">Initial work</div></div>
+        </div>
+        <p className="mt-4 text-xs text-muted-foreground">When they return, every player will already have an initial report. You can then send a scout back for a few more days to complete a full report.</p>
+      </section>
+    </DetailScreen>;
+  }
+
+  return <DetailScreen title="Find players" subtitle={`${rows.length} players returned by your scouts`} actions={<Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="mr-2 size-4" /> Back</Button>} toolbar={toolbar} className="touch-pan-y grid gap-1.5 xl:grid-cols-2 xl:items-start">
     {rows.length === 0 && <div className="rounded-xl border bg-card p-4 text-sm text-muted-foreground">No players match those filters.</div>}
     {rows.map(({ player }) => {
       const assignment = scoutingAssignment(state, player.id);
       const tactical = tacticalPositionProfile(player);
       const report = scoutingReport(state, player);
+      const initialReport = !assignment && report.knowledgePct > 0;
       const interest = playerInterestAssessment(state, player);
       const watched = isChairmanShortlisted(state, player.id);
       const freeAgent = player.currentClubId === null;
@@ -211,9 +232,9 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
       return <article key={player.id} className="rounded-lg border bg-card p-2.5 shadow-sm">
         <div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="flex items-center gap-1.5"><button type="button" onClick={() => openPlayerProfile(player.id)} className="truncate text-left font-display text-base hover:underline">{playerName(player)}</button><span className={cn("rounded border px-1 py-0.5 text-[9px] font-bold", POSITION_BADGE_CLASS[positionUnit(tactical.primary)])}>{tactical.primary}</span></div><div className="text-[10px] text-muted-foreground">{ageOf(player, state.season)}y · {player.nationality} · {player.currentClubId ? clubDisplayName(state, player.currentClubId) : "Free agent"}</div></div><div className="shrink-0 text-right"><div className="font-display text-base">{report.knowledgePct}%</div><div className="text-[8px] text-muted-foreground">knowledge</div></div></div>
         <div className="mt-1.5 grid grid-cols-5 gap-1">{report.attributes.map((attr) => <div key={attr.key} className="rounded bg-muted/50 px-1 py-0.5"><div className="truncate text-[8px] text-muted-foreground">{attr.label}</div><div className="text-[10px] font-semibold tabular-nums">{!attr.known ? "?" : attr.exact !== undefined ? attr.exact : `${attr.min}–${attr.max}`}</div></div>)}</div>
-        <div className="mt-1.5 grid grid-cols-2 gap-x-3 text-[10px]"><span>Value <strong>{report.valueRange ? `${fmtMoney(report.valueRange[0])}–${fmtMoney(report.valueRange[1])}` : "?"}</strong></span><span>Wage <strong>{report.wageRange ? `${fmtMoney(report.wageRange[0])}–${fmtMoney(report.wageRange[1])}/wk` : "?"}</strong></span><span>Interest <strong title={interest.reason}>{interest.label}</strong></span><span>{assignment ? (report.complete ? "Full report" : "Scouting active") : "Not scouted"}</span></div>
+        <div className="mt-1.5 grid grid-cols-2 gap-x-3 text-[10px]"><span>Value <strong>{report.valueRange ? `${fmtMoney(report.valueRange[0])}–${fmtMoney(report.valueRange[1])}` : "?"}</strong></span><span>Wage <strong>{report.wageRange ? `${fmtMoney(report.wageRange[0])}–${fmtMoney(report.wageRange[1])}/wk` : "?"}</strong></span><span>Interest <strong title={interest.reason}>{interest.label}</strong></span><span>{assignment ? (report.complete ? "Full report" : "Scouting further") : initialReport ? "Initial scout report" : "Not scouted"}</span></div>
         <div className={cn("mt-1.5 rounded-md border px-2 py-1 text-[10px]", budgetComfortable ? "bg-muted/40" : "border-destructive/40 bg-destructive/5")} title={affordabilityReason}><span className="font-semibold">{budgetComfortable ? "Estimated fit" : "Budget risk"}</span> · {freeAgent ? "No fee" : valueRange ? `${fmtMoney(valueRange[0])}–${fmtMoney(valueRange[1])} value` : "Fee unknown"} · {wageRange ? `${fmtMoney(wageRange[0])}–${fmtMoney(wageRange[1])}/wk` : "Wage unknown"}</div>
-        <div className="mt-1.5 flex flex-wrap gap-1"><Button size="sm" variant={watched ? "default" : "outline"} className="h-7 px-2 text-[10px]" onClick={() => update((s) => toggleChairmanShortlist(s, player.id))}><Star className={cn("mr-1 size-3", watched && "fill-current")} />{watched ? "Shortlisted" : "Shortlist"}</Button>{!assignment ? <Button size="sm" className="h-7 px-2 text-[10px]" onClick={() => update((s) => startScouting(s, player.id))}><Binoculars className="mr-1 size-3" /> Scout</Button> : report.complete ? <span className="inline-flex items-center px-1 text-[10px] font-semibold text-[color:var(--color-income)]"><CheckCircle2 className="mr-1 size-3" /> Full report</span> : <span className="px-1 text-[10px] text-muted-foreground"><Binoculars className="mr-1 inline size-3" /> Scouting</span>}<Button size="sm" variant="secondary" className="h-7 px-2 text-[10px]" onClick={() =>
+        <div className="mt-1.5 flex flex-wrap gap-1"><Button size="sm" variant={watched ? "default" : "outline"} className="h-7 px-2 text-[10px]" onClick={() => update((s) => toggleChairmanShortlist(s, player.id))}><Star className={cn("mr-1 size-3", watched && "fill-current")} />{watched ? "Shortlisted" : "Shortlist"}</Button>{!assignment ? <Button size="sm" className="h-7 px-2 text-[10px]" onClick={() => update((s) => startScouting(s, player.id))}><Binoculars className="mr-1 size-3" /> {initialReport ? "Scout further" : "Scout"}</Button> : report.complete ? <span className="inline-flex items-center px-1 text-[10px] font-semibold text-[color:var(--color-income)]"><CheckCircle2 className="mr-1 size-3" /> Full report</span> : <span className="px-1 text-[10px] text-muted-foreground"><Binoculars className="mr-1 inline size-3" /> Scouting</span>}<Button size="sm" variant="secondary" className="h-7 px-2 text-[10px]" onClick={() =>
           approach(player.id, freeAgent, estimate.openingWeeklyWage)
         }><Handshake className="mr-1 size-3" /> {freeAgent ? "Approach player" : "Approach club"}</Button>{!freeAgent && <Button size="sm" variant="outline" className="h-7 px-2 text-[10px]" disabled={!loanWindowOpen || Boolean(loanUnavailable)} title={!loanWindowOpen ? `${loanWindow.label} · ${loanWindow.detail}` : loanUnavailable ?? "Request a temporary loan"} onClick={() => setLoanTargetId((current) => current === player.id ? null : player.id)}><Repeat2 className="mr-1 size-3" /> Loan</Button>}</div>
         {loanTargetId === player.id && !freeAgent && (

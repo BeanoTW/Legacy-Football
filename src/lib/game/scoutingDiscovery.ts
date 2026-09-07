@@ -1,6 +1,7 @@
 import type { FootballPlayer, GameState, Position, TacticalPosition } from "./types";
 import { hashString } from "./rng";
 import { absoluteWeek } from "./time";
+import { calendarDay } from "./calendar";
 import { ageOf, BASE_YEAR } from "./recruitment";
 import { ensureFringeWorldState } from "./fringe";
 import { projectFringePlayer } from "./fringePlayerProjection";
@@ -13,7 +14,7 @@ import {
 import { isUserClubReference } from "./clubReference";
 import { positionFamiliarity } from "./positions";
 
-export type ScoutingBriefStatus = "complete";
+export type ScoutingBriefStatus = "active" | "complete";
 export type ScoutingCandidateSource = "detailed" | "fringe";
 
 /** Hidden simulation facts captured when a candidate is discovered. */
@@ -38,10 +39,25 @@ export interface DiscoveredCandidateView {
 export interface ScoutingBrief {
   id: string;
   position?: Position;
+  tacticalPosition?: TacticalPosition;
+  minAge?: number;
   maxAge?: number;
   maxMarketValue?: number;
+  maxWeeklyWage?: number;
+  nationality?: string;
+  clubStatus?: "free" | "contracted";
   minCurrentAbility?: number;
   createdAtAbsoluteWeek: number;
+  /** Absolute presentation day when this search was dispatched. */
+  createdAtDay?: number;
+  /** Day on which the scouts return with the initial candidate batch. */
+  dueAtDay?: number;
+  /** Quality snapshot at dispatch; later staff changes do not rewrite the report. */
+  scoutQuality?: number;
+  /** Initial observation already completed when a candidate is returned. */
+  initialKnowledgeDays?: number;
+  /** Maximum number of candidates this search team can bring back. */
+  candidateLimit?: number;
   status: ScoutingBriefStatus;
   candidateIds: string[];
   /** Optional for backwards compatibility with briefs created before world discovery. */
@@ -116,14 +132,44 @@ function unsignedHash(value: string): number {
   return hashString(value) >>> 0;
 }
 
-function scoutingQuality(state: GameState): number {
+export interface ScoutingSearchPlan {
+  quality: number;
+  searchDays: number;
+  initialKnowledgeDays: number;
+  candidateLimit: number;
+}
+
+export function scoutingQuality(state: GameState): number {
   const department = state.football?.department.recruitmentRating ?? 50;
-  const chief = state.hiredStaff.find((staff) => staff.role === "Chief Scout")?.stats.scouting ?? 0;
+  const chief = state.hiredStaff.find((staff) => staff.role === "Chief Scout");
   const scouts = state.hiredStaff.filter((staff) => staff.role === "Scout");
-  const averageScout = scouts.length
-    ? scouts.reduce((sum, staff) => sum + staff.stats.scouting, 0) / scouts.length
-    : 0;
-  return Math.max(1, Math.min(100, Math.round((department + chief + averageScout) / 3)));
+  const ratings = [department];
+  if (chief) ratings.push(chief.stats.scouting);
+  if (scouts.length) {
+    ratings.push(scouts.reduce((sum, staff) => sum + staff.stats.scouting, 0) / scouts.length);
+  }
+  return Math.max(
+    1,
+    Math.min(100, Math.round(ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length)),
+  );
+}
+
+export function scoutingSearchPlan(state: GameState): ScoutingSearchPlan {
+  const quality = scoutingQuality(state);
+  const scoutCount = state.hiredStaff.filter(
+    (staff) => staff.role === "Scout" || staff.role === "Chief Scout",
+  ).length;
+  const searchDays = quality >= 80 ? 2 : quality >= 55 ? 3 : 4;
+  const initialKnowledgeDays = quality >= 80 ? 4 : quality >= 55 ? 3 : 2;
+  const candidateLimit = Math.max(
+    10,
+    Math.min(32, 8 + Math.floor(quality / 6) + Math.min(8, scoutCount * 2)),
+  );
+  return { quality, searchDays, initialKnowledgeDays, candidateLimit };
+}
+
+function absoluteDay(state: GameState): number {
+  return absoluteWeek(state.season, state.week) * 7 + calendarDay(state);
 }
 
 function detailedCandidate(state: GameState, player: FootballPlayer): DetailedCandidate {
@@ -250,43 +296,41 @@ function ranked(
 }
 
 /**
- * Runs a deterministic scouting brief against both detailed players and the
- * compact football world. A brief returns only a handful of identities. Better
- * scouting changes discovery reliability; it never creates stronger players.
+ * Select and persist candidates when the scouting team returns. Selection is
+ * deterministic and never creates stronger players.
  */
-export function createScoutingBrief(state: GameState, input: ScoutingBriefInput): GameState {
-  const next = structuredClone(state);
-  if (!next.football) return next;
-  next.football.scoutingDiscovery ??= { briefs: [] };
-  if (next.football.scoutingDiscovery.briefs.some((brief) => brief.id === input.id)) return next;
+function completeScoutingBriefInPlace(state: GameState, brief: ScoutingBrief): void {
+  if (!state.football || brief.status === "complete") return;
 
-  const quality = scoutingQuality(next);
-  // The underlying football world is already large; the previous 4–6 result
-  // cap made that world feel tiny from the chairman's chair. A search now
-  // exposes a genuinely useful market sample while scouting quality still
-  // affects how broad and reliable the shortlist is.
-  const candidateLimit = quality >= 75 ? 48 : quality >= 45 ? 40 : 32;
+  const input: ScoutingBriefInput = {
+    id: brief.id,
+    position: brief.position,
+    tacticalPosition: brief.tacticalPosition,
+    minAge: brief.minAge,
+    maxAge: brief.maxAge,
+    maxMarketValue: brief.maxMarketValue,
+    maxWeeklyWage: brief.maxWeeklyWage,
+    nationality: brief.nationality,
+    clubStatus: brief.clubStatus,
+    minCurrentAbility: brief.minCurrentAbility,
+  };
+  const candidateLimit = brief.candidateLimit ?? scoutingSearchPlan(state).candidateLimit;
   const detailed = ranked(
-    next,
-    next.football.players.map((player) => detailedCandidate(next, player)),
+    state,
+    state.football.players.map((player) => detailedCandidate(state, player)),
     input,
   );
-  const fringe = ranked(next, fringeCandidates(next), input);
+  const fringe = ranked(state, fringeCandidates(state), input);
 
-  // Free agents should always form a meaningful part of an open market search,
-  // especially at lower levels where they are a core recruitment route.
   const freeDetailed = detailed.filter(
     (candidate) => candidate.source === "detailed" && candidate.currentClubId === null,
   );
   const contractedDetailed = detailed.filter(
     (candidate) => candidate.source === "detailed" && candidate.currentClubId !== null,
   );
-  const freeQuota = Math.min(
-    freeDetailed.length,
-    Math.max(8, Math.floor(candidateLimit * 0.3)),
-  );
+  const freeQuota = Math.min(freeDetailed.length, Math.max(4, Math.floor(candidateLimit * 0.3)));
   const fringeQuota = fringe.length
-    ? Math.min(fringe.length, Math.max(6, Math.floor(candidateLimit * 0.25)))
+    ? Math.min(fringe.length, Math.max(3, Math.floor(candidateLimit * 0.25)))
     : 0;
 
   const selected: DiscoveryCandidate[] = [
@@ -301,37 +345,116 @@ export function createScoutingBrief(state: GameState, input: ScoutingBriefInput)
   ]
     .filter((candidate) => !selectedIds.has(candidate.id))
     .sort((a, b) => {
-      const difference = discoveryScore(next, b, input) - discoveryScore(next, a, input);
+      const difference = discoveryScore(state, b, input) - discoveryScore(state, a, input);
       return difference || a.id.localeCompare(b.id);
     });
   selected.push(...remainder.slice(0, Math.max(0, candidateLimit - selected.length)));
 
-  next.football.scoutingDiscovery.profiles ??= {};
+  state.football.scoutingDiscovery ??= { briefs: [] };
+  state.football.scoutingDiscovery.profiles ??= {};
   const candidateIds: string[] = [];
   const candidateSources: Record<string, ScoutingCandidateSource> = {};
   const candidateProfiles: Record<string, ScoutingCandidateProfile> = {};
   for (const candidate of selected) {
     if (candidate.source === "detailed") {
-      preserveKnownPlayerInPlace(next, candidate.player, ["scouted"]);
+      preserveKnownPlayerInPlace(state, candidate.player, ["scouted"]);
     } else {
-      preserveKnownIdentityInPlace(next, candidate.identity, ["scouted"]);
+      preserveKnownIdentityInPlace(state, candidate.identity, ["scouted"]);
     }
     const profile = profileOf(candidate);
     candidateIds.push(candidate.id);
     candidateSources[candidate.id] = candidate.source;
     candidateProfiles[candidate.id] = profile;
-    next.football.scoutingDiscovery.profiles[candidate.id] ??= profile;
+    state.football.scoutingDiscovery.profiles[candidate.id] ??= profile;
   }
 
+  brief.candidateIds = candidateIds;
+  brief.candidateSources = candidateSources;
+  brief.candidateProfiles = candidateProfiles;
+  brief.status = "complete";
+
+  const eventKey = `scouting-search:${brief.id}:complete`;
+  if (!state.inbox.some((item) => item.eventKey === eventKey)) {
+    state.inbox.push({
+      id: `inbox-${hashString(eventKey).toString(36)}`,
+      generatorId: "scouting-search",
+      eventKey,
+      sender: state.football.department.headOfRecruitment || "Head Scout",
+      department: "Head Scout",
+      category: "transfers",
+      subject: `Scouting search complete: ${candidateIds.length} players found`,
+      body: `The scouting team has returned with ${candidateIds.length} candidates and an initial assessment on each. You can now ask for deeper scouting on individual players.`,
+      priority: "normal",
+      week: state.week,
+      season: state.season,
+      status: "unread",
+    });
+  }
+}
+
+/**
+ * Dispatch a scouting brief. Results arrive after a quality-dependent number
+ * of in-world days rather than appearing instantly.
+ */
+export function createScoutingBrief(state: GameState, input: ScoutingBriefInput): GameState {
+  const next = structuredClone(state);
+  if (!next.football) return next;
+  next.football.scoutingDiscovery ??= { briefs: [] };
+  if (next.football.scoutingDiscovery.briefs.some((brief) => brief.id === input.id)) return next;
+
+  const plan = scoutingSearchPlan(next);
+  const nowDay = absoluteDay(next);
   next.football.scoutingDiscovery.briefs.push({
     ...input,
     createdAtAbsoluteWeek: absoluteWeek(next.season, next.week),
-    status: "complete",
-    candidateIds,
-    candidateSources,
-    candidateProfiles,
+    createdAtDay: nowDay,
+    dueAtDay: nowDay + plan.searchDays,
+    scoutQuality: plan.quality,
+    initialKnowledgeDays: plan.initialKnowledgeDays,
+    candidateLimit: plan.candidateLimit,
+    status: "active",
+    candidateIds: [],
+    candidateSources: {},
+    candidateProfiles: {},
   });
   return next;
+}
+
+/** Progress active search briefs to the visible day boundary. */
+export function progressScoutingDiscoveryDayInPlace(state: GameState, targetDay: number): void {
+  const briefs = state.football?.scoutingDiscovery?.briefs;
+  if (!briefs) return;
+  for (const brief of briefs) {
+    if (brief.status !== "active") continue;
+    const dueAtDay = brief.dueAtDay ?? (brief.createdAtAbsoluteWeek * 7 + 4);
+    if (targetDay >= dueAtDay) completeScoutingBriefInPlace(state, brief);
+  }
+}
+
+export function scoutingBriefDaysRemaining(state: GameState, briefId: string): number {
+  const brief = scoutingBrief(state, briefId);
+  if (!brief || brief.status === "complete") return 0;
+  const dueAtDay = brief.dueAtDay ?? (brief.createdAtAbsoluteWeek * 7 + 4);
+  return Math.max(0, dueAtDay - absoluteDay(state));
+}
+
+export function scoutingInitialKnowledge(
+  state: GameState,
+  playerId: string,
+): { days: number; quality: number } {
+  const briefs = (state.football?.scoutingDiscovery?.briefs ?? [])
+    .filter((brief) => brief.status === "complete" && brief.candidateIds.includes(playerId))
+    .sort(
+      (a, b) =>
+        (b.createdAtDay ?? b.createdAtAbsoluteWeek * 7) -
+        (a.createdAtDay ?? a.createdAtAbsoluteWeek * 7),
+    );
+  const brief = briefs[0];
+  if (!brief) return { days: 0, quality: 50 };
+  return {
+    days: Math.max(0, Math.min(4, brief.initialKnowledgeDays ?? 2)),
+    quality: Math.max(1, Math.min(100, brief.scoutQuality ?? 50)),
+  };
 }
 
 export function scoutingBrief(state: GameState, briefId: string): ScoutingBrief | null {
@@ -366,7 +489,7 @@ export function discoveredCandidateViews(
   briefId: string,
 ): DiscoveredCandidateView[] {
   const brief = scoutingBrief(state, briefId);
-  if (!brief) return [];
+  if (!brief || brief.status !== "complete") return [];
   return brief.candidateIds.flatMap((playerId) => {
     const detailed = state.football?.players.find((player) => player.id === playerId);
     const known = knownPlayerIdentity(state, playerId);
@@ -394,6 +517,7 @@ export function discoveredPlayerIds(state: GameState): Set<string> {
     state.football?.scoutingDiscovery?.historicalCandidateIds ?? [],
   );
   for (const brief of state.football?.scoutingDiscovery?.briefs ?? []) {
+    if (brief.status !== "complete") continue;
     for (const playerId of brief.candidateIds) discovered.add(playerId);
   }
   // Newer discovery writes an explicit lifecycle reason. Read it too so

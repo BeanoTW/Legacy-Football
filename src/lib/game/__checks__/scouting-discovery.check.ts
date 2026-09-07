@@ -1,10 +1,11 @@
-import { newGame } from "../engine";
+import { advanceDay, newGame } from "../engine";
 import { ageOf, BASE_YEAR } from "../recruitment";
 import {
   createScoutingBrief,
   discoveredCandidateViews,
   scoutingBrief,
   scoutingCandidateSource,
+  scoutingSearchPlan,
 } from "../scoutingDiscovery";
 import {
   knownPlayerIdentity,
@@ -46,13 +47,25 @@ const input = {
   position: targetPosition,
   maxAge: 40,
 };
-const first = createScoutingBrief(base, input);
-const second = createScoutingBrief(base, input);
+const dispatched = createScoutingBrief(base, input);
+const dispatchedBrief = scoutingBrief(dispatched, input.id);
+const plan = scoutingSearchPlan(base);
+check("brief starts as an active scouting search", dispatchedBrief?.status === "active");
+check("active search does not expose candidates immediately", dispatchedBrief?.candidateIds.length === 0);
+
+function finishSearch(state: typeof base): typeof base {
+  let next = state;
+  for (let day = 0; day < plan.searchDays; day++) next = advanceDay(next);
+  return next;
+}
+
+const first = finishSearch(createScoutingBrief(base, input));
+const second = finishSearch(createScoutingBrief(base, input));
 const firstBrief = scoutingBrief(first, input.id);
 const secondBrief = scoutingBrief(second, input.id);
 const views = discoveredCandidateViews(first, input.id);
 
-check("brief persists", Boolean(firstBrief && secondBrief));
+check("brief persists and completes after scouting time", firstBrief?.status === "complete" && secondBrief?.status === "complete");
 check(
   "same save and brief are deterministic",
   JSON.stringify(firstBrief?.candidateIds ?? []) === JSON.stringify(secondBrief?.candidateIds ?? []),
@@ -78,6 +91,25 @@ check(
   ),
 );
 check("chairman view identifies a compact-world result", views.some((view) => view.source === "fringe"));
+
+const firstReturned = firstBrief?.candidateIds[0];
+check(
+  "returned candidates already have useful initial scouting knowledge",
+  Boolean(firstReturned) &&
+    (scoutingReportById(first, firstReturned!)?.knowledgePct ?? 0) > 0 &&
+    (scoutingReportById(first, firstReturned!)?.knowledgePct ?? 100) < 100,
+);
+
+const lowQuality = structuredClone(base);
+lowQuality.football!.department.recruitmentRating = 25;
+lowQuality.hiredStaff = [];
+const highQuality = structuredClone(base);
+highQuality.football!.department.recruitmentRating = 90;
+const lowPlan = scoutingSearchPlan(lowQuality);
+const highPlan = scoutingSearchPlan(highQuality);
+check("better scouting returns faster", highPlan.searchDays < lowPlan.searchDays);
+check("better scouting returns more initial knowledge", highPlan.initialKnowledgeDays > lowPlan.initialKnowledgeDays);
+check("better scouting can return more players", highPlan.candidateLimit > lowPlan.candidateLimit);
 
 for (const playerId of firstBrief?.candidateIds ?? []) {
   const detailed = first.football?.players.find((candidate) => candidate.id === playerId);
@@ -122,8 +154,13 @@ const fringeTarget = (firstBrief?.candidateIds ?? []).find(
 check("compact target available for deeper scouting", Boolean(fringeTarget));
 if (fringeTarget) {
   const beforeDetailedCount = first.football!.players.length;
+  const initialKnowledge = scoutingReportById(first, fringeTarget)?.knowledgePct ?? 0;
   const deeper = startScouting(first, fringeTarget);
   check("compact target can start an assignment", Boolean(scoutingAssignment(deeper, fringeTarget)));
+  check(
+    "follow-up assignment starts from the scouting team's existing work",
+    (scoutingReportById(deeper, fringeTarget)?.knowledgePct ?? 0) >= initialKnowledge,
+  );
   check(
     "starting compact scouting does not hydrate the player",
     deeper.football!.players.length === beforeDetailedCount && playerFidelity(deeper, fringeTarget) === "known",
