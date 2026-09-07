@@ -54,7 +54,7 @@ export function LeagueBrowser({ state, update }: { state: GameState; update: (fn
   if (!league) return null;
 
   const toolbar = (
-    <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+    <div className="lf-league-toolbar overflow-hidden rounded-2xl border bg-card shadow-sm">
         <div className="flex gap-2 overflow-x-auto p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <Segmented
             options={leagues.map((l) => [l.id, l.name] as const)}
@@ -95,10 +95,10 @@ export function LeagueBrowser({ state, update }: { state: GameState; update: (fn
 
   return (
     <DetailScreen
-      title="League browser"
-      subtitle="Tables, fixtures and predictions across the football pyramid."
+      title="League tables"
+      subtitle="Browse every division, then switch to fixtures or predictions when you need the detail."
       toolbar={toolbar}
-      className="touch-pan-y space-y-3"
+      className="lf-league-browser touch-pan-y space-y-3"
     >
       {view === "table" && <TableView state={state} rows={rows} season={season} onPick={setClub} />}
       {view === "fixtures" && <FixturesView state={state} fixtures={fixtures} />}
@@ -127,14 +127,14 @@ function Segmented<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <div className="inline-flex rounded-md border overflow-hidden">
+    <div className="lf-league-segments inline-flex gap-1">
       {options.map(([id, label]) => (
         <button
           key={id}
           onClick={() => onChange(id)}
           className={cn(
-            "px-2.5 py-1 text-xs whitespace-nowrap",
-            value === id ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted",
+            "rounded-full border px-3 py-1 text-xs font-semibold whitespace-nowrap",
+            value === id ? "border-primary bg-primary text-primary-foreground" : "bg-card text-muted-foreground hover:bg-muted",
           )}
         >
           {label}
@@ -159,7 +159,7 @@ function TableView({
     return <Empty>No table stored for this season yet.</Empty>;
   }
   return (
-    <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
+    <div className="lf-league-table rounded-2xl border bg-card shadow-sm overflow-x-auto">
       <table className="w-full text-sm tnum">
         <thead className="text-xs uppercase text-muted-foreground">
           <tr className="border-b">
