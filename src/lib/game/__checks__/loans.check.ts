@@ -47,6 +47,17 @@ import { recruitmentWageForClub } from "../recruitmentEconomy";
 import { isUserClubReference, sameClubReference } from "../clubReference";
 import { createScoutingBrief, scoutingBrief } from "../scoutingDiscovery";
 
+function discover<T extends ReturnType<typeof newGame>>(
+  state: T,
+  input: Parameters<typeof createScoutingBrief>[1],
+): T {
+  let next = createScoutingBrief(state, input) as T;
+  const days = scoutingSearchPlan(next).searchDays;
+  for (let day = 0; day < days; day++) next = advanceDay(next) as T;
+  return next;
+}
+
+
 const state = newGame("Loan Audit FC", "Auditor", "PLAYER_LOAN_AUDIT");
 assert.equal(SAVE_VERSION, 20);
 assert.deepEqual(state.football.loans, []);
@@ -467,7 +478,7 @@ assert.ok(
   "incoming loan must respect chairman wage authority",
 );
 
-const compactLoanSource = createScoutingBrief(
+const compactLoanSource = discover(
   borrowSource,
   { id: "loan-compact-gate", maxAge: 40 },
 );
