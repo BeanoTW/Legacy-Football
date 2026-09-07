@@ -20,6 +20,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { DetailScreen } from "./shared/layout";
 import { POSITION_BADGE_CLASS } from "./playerPosition";
+import { positionUnit, tacticalPositionProfile } from "@/lib/game/positions";
+import { openPlayerProfile } from "./shared/PlayerProfileSheet";
 
 export function ScoutingReports({
   state,
@@ -74,9 +76,9 @@ export function ScoutingReports({
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className="truncate font-display text-base">{playerName(player)}</span>
-                  <span className={cn("rounded border px-1 py-0.5 text-[9px] font-bold", POSITION_BADGE_CLASS[player.primaryPosition])}>
-                    {player.primaryPosition}
+                  <button type="button" onClick={() => openPlayerProfile(player.id)} className="truncate text-left font-display text-base hover:underline">{playerName(player)}</button>
+                  <span className={cn("rounded border px-1 py-0.5 text-[9px] font-bold", POSITION_BADGE_CLASS[positionUnit(tacticalPositionProfile(player).primary)])}>
+                    {tacticalPositionProfile(player).primary}
                   </span>
                 </div>
                 <div className="text-[10px] text-muted-foreground">
