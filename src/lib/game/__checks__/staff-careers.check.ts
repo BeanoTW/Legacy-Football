@@ -156,7 +156,7 @@ console.log("\n[F] Manager leverage packages");
   s.cash = 500_000;
 
   const attainable = seededStaff("Manager", 70, "attainable");
-  attainable.reputation = 55;
+  attainable.reputation = 47;
   attainable.wage = 8_000;
   const attainableTerms = managerJoinTerms(s, attainable);
   check(
