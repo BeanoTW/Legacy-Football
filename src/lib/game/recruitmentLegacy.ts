@@ -24,7 +24,6 @@ import type {
   PlayerContractRecord,
   Player,
   Position,
-  TacticalPosition,
   RecruitmentDepartment,
   RecruitmentSeasonSummary,
   RecruitmentState,
@@ -99,7 +98,6 @@ import {
   transferTargetAvailabilityReason,
   transferTargetPlayer,
 } from "./recruitmentTargetBridge";
-import { POSITION_RELATIONSHIPS } from "./positions";
 
 const int = (n: number) => Math.round(n) || 0;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -112,27 +110,9 @@ function deepestWorldFootballLevel(s: GameState): FootballLevel {
 
 /* ---------- Constants ---------- */
 
-/** Legacy broad squad shape retained for callers that only need unit counts. */
-export const SQUAD_TEMPLATE = { GK: 2, DEF: 9, MID: 8, FWD: 3 } as const;
-
-/** Detailed 22-player opening squad shape. */
-export const DETAILED_SQUAD_TEMPLATE: Record<TacticalPosition, number> = {
-  GK: 2,
-  RB: 2,
-  CB: 3,
-  LB: 2,
-  RWB: 1,
-  LWB: 1,
-  CDM: 1,
-  CM: 2,
-  CAM: 1,
-  RM: 1,
-  LM: 1,
-  RW: 1,
-  LW: 1,
-  ST: 3,
-};
-export const SQUAD_SIZE = Object.values(DETAILED_SQUAD_TEMPLATE).reduce((sum, count) => sum + count, 0);
+export const SQUAD_TEMPLATE: Record<Position, number> = { GK: 3, DEF: 8, MID: 7, FWD: 4 };
+export const SQUAD_SIZE =
+  SQUAD_TEMPLATE.GK + SQUAD_TEMPLATE.DEF + SQUAD_TEMPLATE.MID + SQUAD_TEMPLATE.FWD;
 export const MIN_SQUAD_SIZE = 16;
 export const MAX_SQUAD_SIZE = 30;
 /**
@@ -344,19 +324,11 @@ function makePlayerFor(
   const rng = seededRng(key);
   const id = `p-${slug(clubId ?? "free")}-${index}-${hashString(key).toString(36)}`;
 
-  const slots: TacticalPosition[] = [];
-  (Object.keys(DETAILED_SQUAD_TEMPLATE) as TacticalPosition[]).forEach((pos) => {
-    for (let i = 0; i < DETAILED_SQUAD_TEMPLATE[pos]; i++) slots.push(pos);
+  const slots: Position[] = [];
+  (Object.keys(SQUAD_TEMPLATE) as Position[]).forEach((pos) => {
+    for (let i = 0; i < SQUAD_TEMPLATE[pos]; i++) slots.push(pos);
   });
-  const tacticalPrimaryPosition = slots[index % slots.length];
-  const primaryPosition: Position =
-    tacticalPrimaryPosition === "GK"
-      ? "GK"
-      : ["RB", "CB", "LB", "RWB", "LWB"].includes(tacticalPrimaryPosition)
-        ? "DEF"
-        : ["CDM", "CM", "CAM", "RM", "LM"].includes(tacticalPrimaryPosition)
-          ? "MID"
-          : "FWD";
+  const primaryPosition = slots[index % slots.length];
 
   // Free-agent ability is bottom-heavy across a broad band. Most are ordinary
   // professionals, good players are uncommon and elite unattached players are
@@ -372,18 +344,14 @@ function makePlayerFor(
     96,
   );
   const reputation = clamp(int(currentAbility * 0.85 + rngRange(rng, -6, 8)), 5, 98);
-
-  // Positional versatility follows real football relationships rather than
-  // assigning unrelated broad buckets. Some specialists have only one natural
-  // position; versatile players may be natural in two or three and comfortable
-  // covering another adjacent role.
-  const related = [...POSITION_RELATIONSHIPS[tacticalPrimaryPosition]];
-  const versatilityRoll = rng();
-  const secondaryCount =
-    primaryPosition === "GK" ? 0 : versatilityRoll < 0.34 ? 0 : versatilityRoll < 0.74 ? 1 : versatilityRoll < 0.94 ? 2 : 3;
-  const secondary = related.slice(0, secondaryCount);
-  const naturalSlots = versatilityRoll > 0.9 ? 2 : versatilityRoll > 0.72 ? 1 : 0;
-  const naturalTacticalPositions = secondary.slice(0, naturalSlots);
+  const secondary: Position[] =
+    rng() > 0.65
+      ? [
+          (["GK", "DEF", "MID", "FWD"] as Position[]).filter((p) => p !== primaryPosition)[
+            rngInt(rng, 0, 2)
+          ],
+        ]
+      : [];
 
   return {
     id,
@@ -397,18 +365,7 @@ function makePlayerFor(
     nationality: NATIONS[rngInt(rng, 0, NATIONS.length - 1)],
     preferredFoot: FOOT[rngInt(rng, 0, FOOT.length - 1)],
     primaryPosition,
-    secondaryPositions: [...new Set(secondary.map((position) =>
-      position === "GK"
-        ? "GK"
-        : ["RB", "CB", "LB", "RWB", "LWB"].includes(position)
-          ? "DEF"
-          : ["CDM", "CM", "CAM", "RM", "LM"].includes(position)
-            ? "MID"
-            : "FWD",
-    ))] as Position[],
-    tacticalPrimaryPosition,
-    tacticalSecondaryPositions: secondary,
-    ...(naturalTacticalPositions.length ? { naturalTacticalPositions } : {}),
+    secondaryPositions: secondary,
     currentClubId: clubId,
     reputation,
     currentAbility,
