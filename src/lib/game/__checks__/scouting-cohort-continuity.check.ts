@@ -1,5 +1,5 @@
 import { strict as assert } from "node:assert";
-import { newGame } from "../engine";
+import { advanceDay, newGame } from "../engine";
 import { advanceFringeWorldToSeason } from "../fringe";
 import { advancePersistentFringePlayersToSeason } from "../fringePlayers";
 import { projectFringePlayer } from "../fringePlayerProjection";
@@ -8,11 +8,23 @@ import {
   scoutingBrief,
   scoutingCandidateProfile,
   scoutingCandidateSource,
+  scoutingSearchPlan,
 } from "../scoutingDiscovery";
 import { knownPlayerIdentity } from "../playerLifecycle";
 
+function discover<T extends ReturnType<typeof newGame>>(
+  state: T,
+  input: Parameters<typeof createScoutingBrief>[1],
+): T {
+  let next = createScoutingBrief(state, input) as T;
+  const days = scoutingSearchPlan(next).searchDays;
+  for (let day = 0; day < days; day++) next = advanceDay(next) as T;
+  return next;
+}
+
+
 const base = newGame("Scouting Cohort Audit FC", "Auditor", "SCOUTING_COHORT_CONTINUITY_AUDIT");
-const discovered = createScoutingBrief(base, { id: "cohort-discovery", maxAge: 40 });
+const discovered = discover(base, { id: "cohort-discovery", maxAge: 40 });
 const brief = scoutingBrief(discovered, "cohort-discovery");
 if (!brief) throw new Error("scouting brief missing");
 const playerId = brief.candidateIds.find(
