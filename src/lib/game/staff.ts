@@ -281,7 +281,7 @@ export function staffJoinTerms(
     note = "Keen — club is a step up";
   }
 
-  const wageDemand = roundWage(levelStaff.wage * (1 + premiumPct));
+  const wageDemand = roundWage(staff.wage * (1 + premiumPct));
   const signingBonus = wageDemand * (leverage === "high" ? 6 : leverage === "incentivised" ? 3 : 2);
   return {
     willing,
