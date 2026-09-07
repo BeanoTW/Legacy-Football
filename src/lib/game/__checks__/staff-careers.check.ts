@@ -2,6 +2,7 @@ import { advanceWeek, makeStaff, newGame } from "../engine";
 import { reconcile } from "../finance";
 import { hashString, mulberry32 } from "../rng";
 import { renewStaffContract, runStaffCareerRollover } from "../staffCareers";
+import { managerJoinTerms } from "../staff";
 
 let passed = 0;
 let failed = 0;
@@ -145,6 +146,38 @@ console.log("\n[E] Market continuity");
   check(
     "E3. manager market spans multiple candidates",
     a.staffCandidates.filter((st) => st.role === "Manager").length >= 5,
+  );
+}
+
+console.log("\n[F] Manager leverage packages");
+{
+  const s = newGame("Staff FC", "Chair", "STAFF-CAREER-F");
+  s.reputation = 30;
+  s.cash = 500_000;
+
+  const attainable = seededStaff("Manager", 70, "attainable");
+  attainable.reputation = 55;
+  attainable.wage = 8_000;
+  const attainableTerms = managerJoinTerms(s, attainable);
+  check(
+    "F1. attainable step-up manager no longer demands a giant wage multiplier",
+    attainableTerms.willing && attainableTerms.premiumPct <= 0.4,
+    JSON.stringify(attainableTerms),
+  );
+  check(
+    "F2. stronger manager leverage is shifted into security and signing package",
+    attainableTerms.contractWeeks >= 104 && attainableTerms.signingBonus >= attainableTerms.wageDemand * 4,
+    JSON.stringify(attainableTerms),
+  );
+
+  const elite = seededStaff("Manager", 90, "elite");
+  elite.reputation = 90;
+  elite.wage = 25_000;
+  const eliteTerms = managerJoinTerms(s, elite);
+  check(
+    "F3. manager far above the club refuses regardless of money",
+    !eliteTerms.willing && eliteTerms.leverage === "unavailable",
+    JSON.stringify(eliteTerms),
   );
 }
 
