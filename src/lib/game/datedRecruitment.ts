@@ -183,10 +183,11 @@ export function improvePlayerTermsInPlace(
 }
 
 export function withdrawNegotiationInPlace(s: GameState, negotiationId: string): NegotiationResult {
+  const n = s.football?.negotiations.find((x) => x.id === negotiationId);
   const result = legacyWithdrawNegotiationInPlace(s, negotiationId);
-  if (result.ok && result.negotiation) {
-    clearTransferResponseInPlace(result.negotiation);
-    delete result.negotiation.pendingEnquiryFee;
+  if (result.ok && n) {
+    clearTransferResponseInPlace(n);
+    delete n.pendingEnquiryFee;
   }
   return result;
 }
@@ -282,8 +283,7 @@ function resolveClubReplyInPlace(s: GameState, n: TransferNegotiation, dueDay: n
     return;
   }
 
-  const resolvedStage: TransferNegotiation["stage"] = n.stage;
-  if (resolvedStage === "rejected") {
+  if (n.stage === "rejected") {
     pushInboxOnce(
       s,
       inboxItem(
@@ -318,9 +318,8 @@ function resolvePlayerReplyInPlace(s: GameState, n: TransferNegotiation, dueDay:
   }
   clearTransferResponseInPlace(n);
   legacyEvaluatePlayerResponseInPlace(s, n);
-  const resolvedStage: TransferNegotiation["stage"] = n.stage;
 
-  if (resolvedStage === "agreed") {
+  if (n.stage === "agreed") {
     pushInboxOnce(
       s,
       inboxItem(
@@ -335,7 +334,7 @@ function resolvePlayerReplyInPlace(s: GameState, n: TransferNegotiation, dueDay:
     return;
   }
 
-  if (resolvedStage === "rejected") {
+  if (n.stage === "rejected") {
     pushInboxOnce(
       s,
       inboxItem(
