@@ -1,11 +1,12 @@
 import type {
-  DetailedPosition,
+  TacticalPosition,
   FootballPlayer,
   Position,
   PositionFamiliarity,
+  TacticalPosition,
 } from "./types";
 
-export const DETAILED_POSITIONS: readonly DetailedPosition[] = [
+export const DETAILED_POSITIONS: readonly TacticalPosition[] = [
   "GK",
   "RB",
   "CB",
@@ -22,7 +23,7 @@ export const DETAILED_POSITIONS: readonly DetailedPosition[] = [
   "ST",
 ] as const;
 
-export const POSITION_RELATIONSHIPS: Record<DetailedPosition, readonly DetailedPosition[]> = {
+export const POSITION_RELATIONSHIPS: Record<TacticalPosition, readonly TacticalPosition[]> = {
   GK: [],
   RB: ["RWB", "CB", "RM"],
   CB: ["RB", "LB", "CDM"],
@@ -39,9 +40,9 @@ export const POSITION_RELATIONSHIPS: Record<DetailedPosition, readonly DetailedP
   ST: ["CAM", "RW", "LW"],
 };
 
-export type PositionUnit = "GK" | "DEF" | "MID" | "FWD";
+export type PositionUnit = Position;
 
-export function positionUnit(position: Position): PositionUnit {
+export function positionUnit(position: TacticalPosition | Position): PositionUnit {
   if (position === "GK") return "GK";
   if (position === "DEF" || ["RB", "CB", "LB", "RWB", "LWB"].includes(position)) return "DEF";
   if (position === "MID" || ["CDM", "CM", "CAM", "RM", "LM"].includes(position)) return "MID";
@@ -49,13 +50,13 @@ export function positionUnit(position: Position): PositionUnit {
 }
 
 export function positionFamiliarity(
-  player: Pick<FootballPlayer, "primaryPosition" | "secondaryPositions" | "positionFamiliarity">,
-  position: Position,
+  player: Pick<FootballPlayer, "tacticalPrimaryPosition" | "tacticalSecondaryPositions" | "positionFamiliarity">,
+  position: TacticalPosition,
 ): PositionFamiliarity | "Unfamiliar" {
-  if (player.primaryPosition === position) return "Natural";
+  if (player.tacticalPrimaryPosition === position) return "Natural";
   const explicit = player.positionFamiliarity?.[position];
   if (explicit) return explicit;
-  if (player.secondaryPositions.includes(position)) return "Comfortable";
+  if (player.tacticalSecondaryPositions?.includes(position)) return "Comfortable";
   return "Unfamiliar";
 }
 
@@ -66,6 +67,6 @@ export const POSITION_EFFECTIVENESS: Record<PositionFamiliarity | "Unfamiliar", 
   Unfamiliar: 0.75,
 };
 
-export function positionEffectiveness(player: FootballPlayer, position: Position): number {
+export function positionEffectiveness(player: FootballPlayer, position: TacticalPosition): number {
   return POSITION_EFFECTIVENESS[positionFamiliarity(player, position)];
 }
