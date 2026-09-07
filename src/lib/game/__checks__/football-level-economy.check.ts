@@ -1,6 +1,7 @@
 import { profileForTier, revenueBaseline, weeklyWageFor } from "../economy.ts";
 import {
   LEGACY_TIER_TO_FOOTBALL_LEVEL_OFFSET,
+  footballLevelOfLeague,
   footballLevelToLegacyTier,
   legacyTierToFootballLevel,
   type FootballLevel,
@@ -190,3 +191,22 @@ for (const badTier of [-2, 7]) {
 console.log(
   "✓ canonical football levels preserve legacy economics with native level 7-8 wages and transfer fees",
 );
+
+
+const liveWorldLevels: ReadonlyArray<readonly [string, number, FootballLevel]> = [
+  ["league-1", 1, 1],
+  ["league-2", 2, 2],
+  ["league-3", 3, 3],
+  ["league-4", 4, 4],
+  ["regional-premier-central", 5, 7],
+  ["regional-premier-south", 5, 7],
+  ["regional-premier-isthmian", 5, 7],
+  ["regional-premier-north", 5, 7],
+];
+
+for (const [id, tier, expectedLevel] of liveWorldLevels) {
+  const actual = footballLevelOfLeague({ id, tier });
+  if (actual !== expectedLevel) {
+    throw new Error(`Live league ${id} displayed football level ${actual}; expected ${expectedLevel}`);
+  }
+}

@@ -35,13 +35,34 @@ export function footballLevelToLegacyTier(level: FootballLevel): number {
   return level - LEGACY_TIER_TO_FOOTBALL_LEVEL_OFFSET;
 }
 
-export function footballLevelOfLeague(league: Pick<League, "tier">): FootballLevel {
-  return legacyTierToFootballLevel(league.tier);
+const WORLD_LEAGUE_LEVELS: Readonly<Record<string, FootballLevel>> = {
+  "league-1": 1,
+  "league-2": 2,
+  "league-3": 3,
+  "league-4": 4,
+  "regional-premier-central": 7,
+  "regional-premier-south": 7,
+  "regional-premier-isthmian": 7,
+  "regional-premier-north": 7,
+};
+
+/**
+ * Resolve the canonical football level of a live league.
+ *
+ * The expanded world deliberately preserves old persisted tier values for
+ * economic/save compatibility, so its visible football level cannot be
+ * inferred from tier alone. Known world league identities therefore take
+ * precedence; genuinely legacy leagues still use the fixed tier bridge.
+ */
+export function footballLevelOfLeague(
+  league: Pick<League, "id" | "tier">,
+): FootballLevel {
+  return WORLD_LEAGUE_LEVELS[league.id] ?? legacyTierToFootballLevel(league.tier);
 }
 
 export function footballLevelOfClub(state: GameState, clubId: string): FootballLevel {
   const league = (state.leagues ?? []).find((candidate) => candidate.clubIds?.includes(clubId));
-  return legacyTierToFootballLevel(league?.tier ?? 1);
+  return league ? footballLevelOfLeague(league) : legacyTierToFootballLevel(1);
 }
 
 export function footballLevelOfUser(state: GameState): FootballLevel {
@@ -50,5 +71,5 @@ export function footballLevelOfUser(state: GameState): FootballLevel {
     (state.leagues ?? []).find((candidate) =>
       candidate.clubIds?.some((club) => isUserClubReference(state, club)),
     );
-  return legacyTierToFootballLevel(league?.tier ?? 1);
+  return league ? footballLevelOfLeague(league) : legacyTierToFootballLevel(1);
 }
