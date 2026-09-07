@@ -2,6 +2,8 @@ import { useState } from "react";
 import { ArrowLeft, Repeat2 } from "lucide-react";
 import type { GameState, LoanPlayingTimeExpectation, PlayerLoanAgreement } from "@/lib/game/types";
 import { Button } from "@/components/ui/button";
+import { tacticalPositionProfile } from "@/lib/game/positions";
+import { openPlayerProfile } from "./shared/PlayerProfileSheet";
 import { activeContract, arrangeUserPlayerLoanOut, playerById, playerName } from "@/lib/game/recruitment";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { absoluteWeek } from "@/lib/game/time";
@@ -108,7 +110,7 @@ export function LoanDesk({
               <option value="">Choose player</option>
               {eligibleLoanOutPlayers.map((player) => (
                 <option key={player.id} value={player.id}>
-                  {playerName(player)} · {player.primaryPosition} · {player.currentAbility}
+                  {playerName(player)} · {tacticalPositionProfile(player).primary} · {player.currentAbility}
                 </option>
               ))}
             </select>
@@ -249,9 +251,9 @@ function LoanRow({ loan, state, update }: { loan: PlayerLoanAgreement; state: Ga
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
-            <span className="truncate text-sm font-semibold">{playerName(player)}</span>
+            <button type="button" onClick={() => openPlayerProfile(player.id)} className="truncate text-left text-sm font-semibold hover:underline">{playerName(player)}</button>
             <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-bold">
-              {player.primaryPosition}
+              {tacticalPositionProfile(player).primary}
             </span>
           </div>
           <div className="mt-0.5 text-[11px] text-muted-foreground">
