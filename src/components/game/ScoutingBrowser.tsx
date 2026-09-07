@@ -36,7 +36,7 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
   const [position, setPosition] = useState<Position | "ALL">("ALL");
   const [watchedOnly, setWatchedOnly] = useState(false);
   const [freeAgentsOnly, setFreeAgentsOnly] = useState(false);
-  const [willingOnly, setWillingOnly] = useState(true);
+  const [willingOnly, setWillingOnly] = useState(false);
   const [searched, setSearched] = useState(false);
   const [briefId, setBriefId] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
