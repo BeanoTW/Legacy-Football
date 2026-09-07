@@ -1,9 +1,10 @@
 import { strict as assert } from "node:assert";
-import { newGame } from "../engine";
+import { advanceDay, newGame } from "../engine";
 import {
   createScoutingBrief,
   scoutingBrief,
   scoutingCandidateSource,
+  scoutingSearchPlan,
 } from "../scoutingDiscovery";
 import {
   markKnownPlayerNegotiationInPlace,
@@ -28,7 +29,18 @@ import {
   transferTargetPlayer,
 } from "../recruitmentTargetBridge";
 
-const state = createScoutingBrief(
+function discover<T extends ReturnType<typeof newGame>>(
+  state: T,
+  input: Parameters<typeof createScoutingBrief>[1],
+): T {
+  let next = createScoutingBrief(state, input) as T;
+  const days = scoutingSearchPlan(next).searchDays;
+  for (let day = 0; day < days; day++) next = advanceDay(next) as T;
+  return next;
+}
+
+
+const state = discover(
   newGame("Negotiation Audit FC", "Auditor", "KNOWN_NEGOTIATION_AUDIT"),
   { id: "known-negotiation-audit", maxAge: 40 },
 );
@@ -85,7 +97,7 @@ assert.equal(markKnownPlayerNegotiationInPlace(state, compactId, false), true);
 assert.ok(!knownPlayerIdentity(state, compactId)?.reasons.includes("negotiation"));
 
 
-const enquiryState = createScoutingBrief(
+const enquiryState = discover(
   newGame("Enquiry Audit FC", "Auditor", "TARGET_BRIDGE_INTEGRATION"),
   { id: "known-enquiry-audit", maxAge: 40 },
 );
@@ -163,7 +175,7 @@ assert.equal(enquiry.negotiation.clubRounds, 1);
 // The canonical incoming-deal path must not need to seed exact hidden wage
 // demand. A credible but deliberately sub-demand opening should create a real
 // agent counter, then improved terms can resolve through the normal state machine.
-const termsState = createScoutingBrief(
+const termsState = discover(
   newGame("Negotiation Terms FC", "Auditor", "TARGET_BRIDGE_INTEGRATION"),
   { id: "known-negotiation-terms", maxAge: 40 },
 );

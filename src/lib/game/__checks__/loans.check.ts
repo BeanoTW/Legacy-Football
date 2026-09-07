@@ -1,5 +1,5 @@
 import { strict as assert } from "node:assert";
-import { advanceWeek, migrateSave, newGame, SAVE_VERSION } from "../engine";
+import { advanceDay, advanceWeek, migrateSave, newGame, SAVE_VERSION } from "../engine";
 import { playerWageBill } from "../finance";
 import {
   activeLoanForPlayer,
@@ -45,7 +45,18 @@ import { buildWorldSimulationPlan } from "../world";
 import { runPlayerCareerRollover } from "../careers";
 import { recruitmentWageForClub } from "../recruitmentEconomy";
 import { isUserClubReference, sameClubReference } from "../clubReference";
-import { createScoutingBrief, scoutingBrief } from "../scoutingDiscovery";
+import { createScoutingBrief, scoutingBrief, scoutingSearchPlan } from "../scoutingDiscovery";
+
+function discover<T extends ReturnType<typeof newGame>>(
+  state: T,
+  input: Parameters<typeof createScoutingBrief>[1],
+): T {
+  let next = createScoutingBrief(state, input) as T;
+  const days = scoutingSearchPlan(next).searchDays;
+  for (let day = 0; day < days; day++) next = advanceDay(next) as T;
+  return next;
+}
+
 
 const state = newGame("Loan Audit FC", "Auditor", "PLAYER_LOAN_AUDIT");
 assert.equal(SAVE_VERSION, 20);
@@ -467,7 +478,7 @@ assert.ok(
   "incoming loan must respect chairman wage authority",
 );
 
-const compactLoanSource = createScoutingBrief(
+const compactLoanSource = discover(
   borrowSource,
   { id: "loan-compact-gate", maxAge: 40 },
 );

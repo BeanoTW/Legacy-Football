@@ -3,7 +3,12 @@ import { hashString } from "./rng";
 import { absoluteWeek } from "./time";
 import { calendarDay } from "./calendar";
 import { preserveKnownPlayerInPlace } from "./playerLifecycle";
-import { preserveScoutingCandidateProfileInPlace } from "./scoutingDiscovery";
+import {
+  preserveScoutingCandidateProfileInPlace,
+  progressScoutingDiscoveryDayInPlace,
+  scoutingInitialKnowledge,
+  scoutingQuality,
+} from "./scoutingDiscovery";
 import { knownPlayerDetail } from "./knownPlayerDetail";
 import { isUserClubReference } from "./clubReference";
 
@@ -133,13 +138,14 @@ export function startScouting(state: GameState, playerId: string): GameState {
   }
   const nowWeek = absoluteWeek(next.season, next.week);
   const nowDay = absoluteDay(next);
+  const initial = scoutingInitialKnowledge(next, playerId);
   next.football.scouting.assignments.push({
     playerId,
     startedAtAbsoluteWeek: nowWeek,
-    weeksObserved: 0,
+    weeksObserved: initial.days,
     lastProgressAbsoluteWeek: nowWeek,
-    status: "active",
-    startedAtDay: nowDay,
+    status: initial.days >= FULL_REPORT_DAYS ? "complete" : "active",
+    startedAtDay: nowDay - initial.days,
     lastProgressDay: nowDay,
   });
   return next;
@@ -176,6 +182,7 @@ function pushScoutingReport(state: GameState, player: FootballPlayer, days: numb
 }
 
 function progressScoutingToDayInPlace(state: GameState, targetDay: number): void {
+  progressScoutingDiscoveryDayInPlace(state, targetDay);
   if (!state.football?.scouting) return;
   const nowWeek = absoluteWeek(state.season, state.week);
   for (const assignment of state.football.scouting.assignments) {
@@ -220,7 +227,15 @@ function rangeAround(value: number, width: number): [number, number] {
 export function scoutingReport(state: GameState, player: FootballPlayer): ScoutingReport {
   const owned = isUserClubReference(state, player.currentClubId);
   const assignment = scoutingAssignment(state, player.id);
-  const days = owned ? FULL_REPORT_DAYS : (assignment?.weeksObserved ?? 0);
+  const initial = scoutingInitialKnowledge(state, player.id);
+  const days = owned
+    ? FULL_REPORT_DAYS
+    : Math.max(assignment?.weeksObserved ?? 0, initial.days);
+  const reportQuality = owned
+    ? 100
+    : initial.days > 0
+      ? initial.quality
+      : scoutingQuality(state);
   const knowledgePct = owned
     ? 100
     : Math.min(100, Math.round((days / FULL_REPORT_DAYS) * 100));
@@ -231,8 +246,14 @@ export function scoutingReport(state: GameState, player: FootballPlayer): Scouti
       ? KEYS.length
       : days >= PARTIAL_REPORT_DAYS
         ? 7
-        : Math.min(4, 2 + days);
-  const width = days >= FULL_REPORT_DAYS ? 0 : days >= PARTIAL_REPORT_DAYS ? 5 : 12;
+        : days > 0
+          ? Math.min(4, 2 + days)
+          : 0;
+  const qualityFactor = 1.2 - reportQuality / 200;
+  const baseWidth =
+    days >= FULL_REPORT_DAYS ? 0 : days >= PARTIAL_REPORT_DAYS ? 5 : days >= 3 ? 8 : 12;
+  const width =
+    days >= FULL_REPORT_DAYS ? 0 : Math.max(3, Math.round(baseWidth * qualityFactor));
   const order = [...KEYS].sort(
     (a, b) => hashString(`${player.id}|reveal|${a}`) - hashString(`${player.id}|reveal|${b}`),
   );
@@ -243,7 +264,10 @@ export function scoutingReport(state: GameState, player: FootballPlayer): Scouti
     const [min, max] = rangeAround(attrs[key], width);
     return { key, label: LABELS[key], known: true, min, max };
   });
-  const moneyWidth = days >= FULL_REPORT_DAYS ? 0.05 : days >= PARTIAL_REPORT_DAYS ? 0.18 : 0.5;
+  const baseMoneyWidth =
+    days >= FULL_REPORT_DAYS ? 0.05 : days >= PARTIAL_REPORT_DAYS ? 0.18 : days >= 3 ? 0.28 : 0.5;
+  const moneyWidth =
+    days >= FULL_REPORT_DAYS ? baseMoneyWidth : baseMoneyWidth * qualityFactor;
   return {
     playerId: player.id,
     knowledgePct,

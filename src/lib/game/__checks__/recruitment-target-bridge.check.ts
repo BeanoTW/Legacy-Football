@@ -1,10 +1,11 @@
 import { strict as assert } from "node:assert";
-import { newGame } from "../engine";
+import { advanceDay, newGame } from "../engine";
 import { applyEffects, runWeeklyGenerators } from "../inbox";
 import {
   createScoutingBrief,
   scoutingBrief,
   scoutingCandidateSource,
+  scoutingSearchPlan,
 } from "../scoutingDiscovery";
 import {
   materializeTransferTargetForCompletionInPlace,
@@ -29,7 +30,18 @@ import {
   wageDemand,
 } from "../recruitment";
 
-const state = createScoutingBrief(
+function discover<T extends ReturnType<typeof newGame>>(
+  state: T,
+  input: Parameters<typeof createScoutingBrief>[1],
+): T {
+  let next = createScoutingBrief(state, input) as T;
+  const days = scoutingSearchPlan(next).searchDays;
+  for (let day = 0; day < days; day++) next = advanceDay(next) as T;
+  return next;
+}
+
+
+const state = discover(
   newGame("Target Bridge Audit FC", "Auditor", "TARGET_BRIDGE_AUDIT"),
   { id: "target-bridge-audit", maxAge: 40 },
 );
@@ -109,7 +121,7 @@ assert.equal(transferTargetAskingPrice(state, detailed, () => 765432), 765432);
 // Exercise the real public recruitment path. A scouted Fringe target must remain
 // compact through both negotiation stages, then materialise exactly once when
 // the canonical transfer engine completes the signing.
-const integrationState = createScoutingBrief(
+const integrationState = discover(
   newGame("Target Bridge Integration FC", "Auditor", "TARGET_BRIDGE_INTEGRATION"),
   { id: "target-bridge-integration", maxAge: 40 },
 );

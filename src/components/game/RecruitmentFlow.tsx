@@ -67,7 +67,7 @@ export function RecruitmentFlow({
   return (
     <OverviewScreen
       title="Transfers"
-      subtitle="Find players, gather information and manage live deals. Squad and contracts now live in the dedicated Squad area."
+      subtitle="Your football staff bring recruitment options to you. Scout the interesting ones, then decide which deals are worth pursuing."
       className="grid content-start gap-2 md:gap-3 xl:grid-cols-[minmax(320px,.9fr)_minmax(0,1.6fr)] xl:content-stretch"
     >
       {snap && (
@@ -88,8 +88,8 @@ export function RecruitmentFlow({
       <div className="grid grid-cols-2 gap-2 md:gap-3 xl:grid-cols-2">
         <TransferAction
           icon={<Binoculars className="size-5 md:size-6" />}
-          title="Find players"
-          sub="Filter the market, compare players, scout or approach immediately"
+          title="Recommended players"
+          sub="Manager and scouting staff bring suitable options to your attention"
           onClick={() => setView("find")}
         />
         <TransferAction
