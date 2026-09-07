@@ -24,7 +24,7 @@ import type {
   PlayerContractRecord,
   Player,
   Position,
-  DetailedPosition,
+  TacticalPosition,
   PositionFamiliarity,
   RecruitmentDepartment,
   RecruitmentSeasonSummary,
@@ -117,7 +117,7 @@ function deepestWorldFootballLevel(s: GameState): FootballLevel {
 export const SQUAD_TEMPLATE = { GK: 2, DEF: 9, MID: 8, FWD: 3 } as const;
 
 /** Detailed 22-player opening squad shape. */
-export const DETAILED_SQUAD_TEMPLATE: Record<DetailedPosition, number> = {
+export const DETAILED_SQUAD_TEMPLATE: Record<TacticalPosition, number> = {
   GK: 2,
   RB: 2,
   CB: 3,
@@ -345,11 +345,19 @@ function makePlayerFor(
   const rng = seededRng(key);
   const id = `p-${slug(clubId ?? "free")}-${index}-${hashString(key).toString(36)}`;
 
-  const slots: DetailedPosition[] = [];
-  (Object.keys(DETAILED_SQUAD_TEMPLATE) as DetailedPosition[]).forEach((pos) => {
+  const slots: TacticalPosition[] = [];
+  (Object.keys(DETAILED_SQUAD_TEMPLATE) as TacticalPosition[]).forEach((pos) => {
     for (let i = 0; i < DETAILED_SQUAD_TEMPLATE[pos]; i++) slots.push(pos);
   });
-  const primaryPosition = slots[index % slots.length];
+  const tacticalPrimaryPosition = slots[index % slots.length];
+  const primaryPosition: Position =
+    tacticalPrimaryPosition === "GK"
+      ? "GK"
+      : ["RB", "CB", "LB", "RWB", "LWB"].includes(tacticalPrimaryPosition)
+        ? "DEF"
+        : ["CDM", "CM", "CAM", "RM", "LM"].includes(tacticalPrimaryPosition)
+          ? "MID"
+          : "FWD";
 
   // Free-agent ability is bottom-heavy across a broad band. Most are ordinary
   // professionals, good players are uncommon and elite unattached players are
@@ -370,13 +378,13 @@ function makePlayerFor(
   // assigning unrelated broad buckets. Some specialists have only one natural
   // position; versatile players may be natural in two or three and comfortable
   // covering another adjacent role.
-  const related = [...POSITION_RELATIONSHIPS[primaryPosition]];
+  const related = [...POSITION_RELATIONSHIPS[tacticalPrimaryPosition]];
   const versatilityRoll = rng();
   const secondaryCount =
     primaryPosition === "GK" ? 0 : versatilityRoll < 0.34 ? 0 : versatilityRoll < 0.74 ? 1 : versatilityRoll < 0.94 ? 2 : 3;
   const secondary = related.slice(0, secondaryCount);
-  const positionFamiliarity: Partial<Record<Position, PositionFamiliarity>> = {
-    [primaryPosition]: "Natural",
+  const positionFamiliarity: Partial<Record<TacticalPosition, PositionFamiliarity>> = {
+    [tacticalPrimaryPosition]: "Natural",
   };
   secondary.forEach((position, secondaryIndex) => {
     const naturalSlots = versatilityRoll > 0.9 ? 2 : versatilityRoll > 0.72 ? 1 : 0;
@@ -400,7 +408,17 @@ function makePlayerFor(
     nationality: NATIONS[rngInt(rng, 0, NATIONS.length - 1)],
     preferredFoot: FOOT[rngInt(rng, 0, FOOT.length - 1)],
     primaryPosition,
-    secondaryPositions: secondary,
+    secondaryPositions: [...new Set(secondary.map((position) =>
+      position === "GK"
+        ? "GK"
+        : ["RB", "CB", "LB", "RWB", "LWB"].includes(position)
+          ? "DEF"
+          : ["CDM", "CM", "CAM", "RM", "LM"].includes(position)
+            ? "MID"
+            : "FWD",
+    ))] as Position[],
+    tacticalPrimaryPosition,
+    tacticalSecondaryPositions: secondary,
     positionFamiliarity,
     currentClubId: clubId,
     reputation,
