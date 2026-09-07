@@ -8,3 +8,12 @@
 
 export * from "./transferResponses";
 export * from "./recruitmentLegacy";
+export {
+  counterClubOfferInPlace,
+  improvePlayerTermsInPlace,
+  openTransferEnquiryInPlace,
+  openTransferNegotiationInPlace,
+  processDueTransferResponsesInPlace,
+  submitEnquiryOfferInPlace,
+  withdrawNegotiationInPlace,
+} from "./datedRecruitment";
