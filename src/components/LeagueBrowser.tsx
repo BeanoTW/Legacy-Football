@@ -28,6 +28,7 @@ import {
 import { clubLegacyRecord } from "@/lib/game/clubLegacy";
 import { setWorldClubTracked } from "@/lib/game/recruitment";
 import { footballLevelOfLeague, legacyTierToFootballLevel } from "@/lib/game/footballLevel";
+import { leaguePresentationName } from "@/lib/game/clubPresentation";
 
 type View = "table" | "fixtures" | "predictions";
 
@@ -57,7 +58,7 @@ export function LeagueBrowser({ state, update }: { state: GameState; update: (fn
     <div className="lf-league-toolbar overflow-hidden rounded-2xl border bg-card shadow-sm">
         <div className="flex gap-2 overflow-x-auto p-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <Segmented
-            options={leagues.map((l) => [l.id, l.name] as const)}
+            options={leagues.map((l) => [l.id, leaguePresentationName(l.name)] as const)}
             value={leagueId}
             onChange={(v) => {
               setLeagueId(v);
