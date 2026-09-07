@@ -75,11 +75,6 @@ function restorePendingPlayerState(
   scheduleTransferResponseInPlace(s, n, "player", 1, 2);
 }
 
-/**
- * Chairman-facing enquiry. The legacy engine still calculates the seller's
- * deterministic position immediately, but this adapter keeps it hidden until
- * the persisted reply day arrives.
- */
 export function openTransferEnquiryInPlace(
   s: GameState,
   playerId: string,
@@ -92,8 +87,6 @@ export function openTransferEnquiryInPlace(
   const n = result.negotiation;
   if (!result.ok || !n) return result;
 
-  // Free agents have no selling club, so the public enquiry action is really
-  // an opening personal-terms proposal. Hide the legacy immediate player reply.
   if (wasFreeAgent) {
     restorePendingPlayerState(s, n, Math.min(2, n.log.length));
     return { ...result, reason: "Terms sent to player" };
@@ -112,7 +105,6 @@ export function openTransferEnquiryInPlace(
   return { ...result, reason: "Enquiry sent" };
 }
 
-/** Turn a returned enquiry into a bid, but do not expose the seller's answer yet. */
 export function submitEnquiryOfferInPlace(
   s: GameState,
   negotiationId: string,
@@ -127,17 +119,10 @@ export function submitEnquiryOfferInPlace(
   const previousPlayerRounds = n.playerRounds;
   const result = legacySubmitEnquiryOfferInPlace(s, negotiationId, fee);
   if (!result.ok || !result.negotiation) return result;
-  restorePendingClubState(
-    s,
-    result.negotiation,
-    beforeLog + 1,
-    previousCounter,
-    previousPlayerRounds,
-  );
+  restorePendingClubState(s, result.negotiation, beforeLog + 1, previousCounter, previousPlayerRounds);
   return { ...result, reason: "Offer sent — awaiting club response" };
 }
 
-/** Open a new bid or free-agent proposal and persist the reply date. */
 export function openTransferNegotiationInPlace(
   s: GameState,
   playerId: string,
@@ -160,7 +145,6 @@ export function openTransferNegotiationInPlace(
   return { ...result, reason: "Offer sent — awaiting club response" };
 }
 
-/** Improve a transfer bid; the counterparty now answers on a future day. */
 export function counterClubOfferInPlace(
   s: GameState,
   negotiationId: string,
@@ -175,17 +159,10 @@ export function counterClubOfferInPlace(
   const previousPlayerRounds = n.playerRounds;
   const result = legacyCounterClubOfferInPlace(s, negotiationId, fee);
   if (!result.ok || !result.negotiation) return result;
-  restorePendingClubState(
-    s,
-    result.negotiation,
-    beforeLog + 1,
-    previousCounter,
-    previousPlayerRounds,
-  );
+  restorePendingClubState(s, result.negotiation, beforeLog + 1, previousCounter, previousPlayerRounds);
   return { ...result, reason: "Improved offer sent — awaiting club response" };
 }
 
-/** Improve personal terms; the player/agent now answers on a future day. */
 export function improvePlayerTermsInPlace(
   s: GameState,
   negotiationId: string,
@@ -205,10 +182,7 @@ export function improvePlayerTermsInPlace(
   return { ...result, reason: "Terms sent — awaiting player response" };
 }
 
-export function withdrawNegotiationInPlace(
-  s: GameState,
-  negotiationId: string,
-): NegotiationResult {
+export function withdrawNegotiationInPlace(s: GameState, negotiationId: string): NegotiationResult {
   const result = legacyWithdrawNegotiationInPlace(s, negotiationId);
   if (result.ok && result.negotiation) {
     clearTransferResponseInPlace(result.negotiation);
@@ -261,9 +235,7 @@ function resolveEnquiryInPlace(s: GameState, n: TransferNegotiation, dueDay: num
     absoluteWeek: nowAbsWeek(s),
   });
   syncTransferTargetNegotiationInPlace(s, n);
-  const rival = n.competingClubId
-    ? ` We are aware of interest from ${n.competingClubId}.`
-    : "";
+  const rival = n.competingClubId ? ` We are aware of interest from ${n.competingClubId}.` : "";
   pushInboxOnce(
     s,
     inboxItem(
@@ -286,14 +258,9 @@ function resolveClubReplyInPlace(s: GameState, n: TransferNegotiation, dueDay: n
   clearTransferResponseInPlace(n);
   legacyEvaluateClubResponseInPlace(s, n);
   const additions = n.log.slice(beforeLog);
-  const acceptOffset = additions.findIndex(
-    (entry) => entry.party === "club" && entry.action === "accept",
-  );
+  const acceptOffset = additions.findIndex((entry) => entry.party === "club" && entry.action === "accept");
 
   if (acceptOffset >= 0) {
-    // The legacy evaluator immediately evaluates the player's pre-proposed
-    // terms. Keep the seller acceptance, rewind that nested reply, then give
-    // the player/agent their own persisted response date.
     trimResponseLog(n, beforeLog + acceptOffset + 1);
     n.stage = "playerTalks";
     n.playerRounds = 1;
@@ -315,7 +282,8 @@ function resolveClubReplyInPlace(s: GameState, n: TransferNegotiation, dueDay: n
     return;
   }
 
-  if (n.stage === "rejected") {
+  const resolvedStage: TransferNegotiation["stage"] = n.stage;
+  if (resolvedStage === "rejected") {
     pushInboxOnce(
       s,
       inboxItem(
@@ -350,8 +318,9 @@ function resolvePlayerReplyInPlace(s: GameState, n: TransferNegotiation, dueDay:
   }
   clearTransferResponseInPlace(n);
   legacyEvaluatePlayerResponseInPlace(s, n);
+  const resolvedStage: TransferNegotiation["stage"] = n.stage;
 
-  if (n.stage === "agreed") {
+  if (resolvedStage === "agreed") {
     pushInboxOnce(
       s,
       inboxItem(
@@ -366,7 +335,7 @@ function resolvePlayerReplyInPlace(s: GameState, n: TransferNegotiation, dueDay:
     return;
   }
 
-  if (n.stage === "rejected") {
+  if (resolvedStage === "rejected") {
     pushInboxOnce(
       s,
       inboxItem(
@@ -393,7 +362,6 @@ function resolvePlayerReplyInPlace(s: GameState, n: TransferNegotiation, dueDay:
   );
 }
 
-/** Resolve every transfer reply whose persisted day has arrived. Idempotent. */
 export function processDueTransferResponsesInPlace(s: GameState): void {
   for (const n of s.football?.negotiations ?? []) {
     if (!transferResponseIsDue(s, n) || n.pendingResponseAtDay === undefined) continue;
