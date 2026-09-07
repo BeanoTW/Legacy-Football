@@ -51,7 +51,7 @@ const CLUB_PRESENTATION_ALIASES: Record<string, string> = {
   "Duncastle": "Wolverton Wanderers",
 
   // 2026/27 League One-inspired set
-  "Little Marsh FC": "Leicester United",
+  "Little Marsh FC": "Leicestor City",
   "Ferrisdale": "Notts City",
   "Oldcourt Wanderers": "Oxford City",
   "Alderwick Town": "MK United",
