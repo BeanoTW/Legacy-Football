@@ -36,6 +36,7 @@ export function TopBar({
       <div className="mx-auto max-w-6xl px-4 py-3 flex items-center gap-3">
         <Trophy className="size-6 shrink-0" />
         <div className="flex-1 min-w-0">
+          <div className="lf-brand-kicker">Legacy Football</div>
           <h1 className="font-display text-xl leading-none truncate">{title}</h1>
           {subtitle && <div className="text-xs opacity-80 mt-0.5 truncate">{subtitle}</div>}
         </div>

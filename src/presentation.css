@@ -1,0 +1,725 @@
+/* Legacy Football — game presentation layer
+   This file deliberately sits above the simulation UI. It upgrades hierarchy,
+   depth and football-game character without changing game state or workflows. */
+
+:root {
+  --lf-shell-dark: oklch(0.19 0.025 220);
+  --lf-shell-mid: oklch(0.24 0.03 220);
+  --lf-glass: color-mix(in oklab, var(--color-card) 88%, transparent);
+  --lf-line: color-mix(in oklab, var(--color-border) 76%, transparent);
+  --lf-shadow: 0 18px 50px rgb(8 18 28 / 12%);
+  --lf-card-shadow: 0 8px 24px rgb(8 18 28 / 8%);
+}
+
+/* Give the application the visual weight of a management game rather than a
+   generic dashboard while retaining the existing club theme variables. */
+.game-shell {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 76% -12%, color-mix(in oklab, var(--color-primary) 18%, transparent) 0, transparent 32rem),
+    radial-gradient(circle at 8% 20%, color-mix(in oklab, var(--color-banner) 11%, transparent) 0, transparent 28rem),
+    linear-gradient(180deg, color-mix(in oklab, var(--color-background) 96%, white) 0, var(--color-background) 34rem);
+}
+
+.game-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.34;
+  background-image:
+    linear-gradient(rgb(255 255 255 / 2%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 2%) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(to bottom, black, transparent 68%);
+}
+
+/* Club masthead */
+.game-shell > .shrink-0:first-child {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(105deg, color-mix(in oklab, var(--color-panel) 96%, black) 0%, var(--color-panel) 52%, color-mix(in oklab, var(--color-primary) 82%, black) 100%);
+  color: var(--color-panel-foreground);
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+  box-shadow: 0 12px 30px rgb(6 15 24 / 16%);
+}
+
+.game-shell > .shrink-0:first-child::after {
+  content: "";
+  position: absolute;
+  right: -4rem;
+  top: -7rem;
+  width: 24rem;
+  height: 24rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in oklab, var(--color-banner) 24%, transparent), transparent 68%);
+  pointer-events: none;
+}
+
+/* Desktop KPI ribbon */
+.game-shell > .border-b.bg-panel {
+  border-color: rgb(255 255 255 / 10%);
+  background: color-mix(in oklab, var(--color-panel) 90%, black);
+  box-shadow: inset 0 -1px rgb(255 255 255 / 4%);
+}
+
+/* Primary desktop navigation: reads as the persistent game command bar. */
+.game-shell > nav {
+  position: relative;
+  z-index: 5;
+  border-color: var(--lf-line);
+  background: color-mix(in oklab, var(--color-card) 91%, transparent);
+  backdrop-filter: blur(14px) saturate(125%);
+  box-shadow: 0 7px 22px rgb(8 18 28 / 6%);
+}
+
+.game-shell > nav button {
+  border-color: color-mix(in oklab, var(--color-border) 84%, transparent);
+  box-shadow: inset 0 1px rgb(255 255 255 / 50%);
+}
+
+.game-shell > nav button.bg-primary {
+  box-shadow:
+    inset 0 1px rgb(255 255 255 / 18%),
+    0 5px 16px color-mix(in oklab, var(--color-primary) 28%, transparent);
+}
+
+/* Main screen becomes a bounded game workspace. */
+.game-main {
+  max-width: 100rem;
+}
+
+.game-screen {
+  border-radius: 0.9rem;
+}
+
+/* Upgrade common panel/card surfaces without touching component logic. */
+.game-screen :is(.bg-card, [data-slot="card"]) {
+  border-color: var(--lf-line);
+  box-shadow: var(--lf-card-shadow);
+}
+
+.game-screen :is(.rounded-xl, .rounded-2xl).border {
+  border-color: var(--lf-line);
+}
+
+.game-screen h1,
+.game-screen h2,
+.game-screen h3 {
+  text-wrap: balance;
+}
+
+.game-screen h1,
+.game-screen h2 {
+  letter-spacing: 0.015em;
+}
+
+/* Make important football actions feel tactile while preserving button tokens. */
+.game-screen button,
+.game-shell nav button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.game-screen button:not(:disabled) {
+  transition-property: transform, box-shadow, background-color, border-color, color, opacity;
+  transition-duration: 150ms;
+}
+
+@media (hover: hover) {
+  .game-screen button:not(:disabled):hover {
+    transform: translateY(-1px);
+  }
+}
+
+.game-screen button:not(:disabled):active {
+  transform: translateY(0);
+}
+
+/* Financial/status figures retain the compact instrument-panel feel. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Desktop: more deliberate breathing room and cinematic frame. */
+@media (min-width: 1280px) {
+  .game-main {
+    padding-top: 0.85rem;
+    padding-bottom: 0.85rem;
+  }
+
+  .game-screen {
+    background: color-mix(in oklab, var(--color-background) 72%, transparent);
+  }
+}
+
+/* Mobile keeps the same visual language but avoids expensive blur and depth. */
+@media (max-width: 767px) {
+  .game-shell {
+    background:
+      linear-gradient(180deg, color-mix(in oklab, var(--color-primary) 6%, var(--color-background)) 0, var(--color-background) 18rem);
+  }
+
+  .game-screen {
+    border-radius: 0;
+  }
+
+  .game-screen :is(.bg-card, [data-slot="card"]) {
+    box-shadow: 0 4px 14px rgb(8 18 28 / 5%);
+  }
+}
+
+.dark {
+  --lf-line: rgb(255 255 255 / 10%);
+  --lf-shadow: 0 20px 55px rgb(0 0 0 / 26%);
+  --lf-card-shadow: 0 8px 24px rgb(0 0 0 / 18%);
+  --lf-glass: color-mix(in oklab, var(--color-card) 90%, transparent);
+}
+
+
+/* Club home presentation — management-game hierarchy inspired by the visual
+   reference, while keeping Legacy Football's existing chairman workflows. */
+.lf-club-identity {
+  position: relative;
+  background:
+    linear-gradient(120deg, color-mix(in oklab, var(--color-panel) 97%, black), color-mix(in oklab, var(--color-primary) 34%, var(--color-panel)));
+  color: var(--color-panel-foreground);
+}
+
+.lf-club-identity::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 86% 18%, color-mix(in oklab, var(--color-banner) 28%, transparent), transparent 26rem),
+    linear-gradient(90deg, transparent 50%, rgb(255 255 255 / 3%));
+}
+
+.lf-controls > div:first-child h2 {
+  letter-spacing: 0.025em;
+}
+
+.lf-action-tile {
+  position: relative;
+  overflow: hidden;
+}
+
+.lf-action-tile::after {
+  content: "";
+  position: absolute;
+  inset: auto -2.5rem -3.5rem auto;
+  width: 7rem;
+  height: 7rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-primary) 7%, transparent);
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+
+@media (hover: hover) {
+  .lf-action-tile:hover::after {
+    transform: scale(1.18);
+    opacity: 0.9;
+  }
+}
+
+.lf-match-card {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, color-mix(in oklab, var(--color-card) 94%, var(--color-primary) 6%), var(--color-card));
+  box-shadow: var(--lf-shadow);
+}
+
+.lf-match-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.4;
+  background:
+    linear-gradient(90deg, transparent 49.7%, color-mix(in oklab, var(--color-primary) 14%, transparent) 50%, transparent 50.3%),
+    radial-gradient(circle at 50% 50%, transparent 0 4.3rem, color-mix(in oklab, var(--color-primary) 11%, transparent) 4.4rem 4.5rem, transparent 4.6rem);
+}
+
+.lf-match-inner {
+  position: relative;
+  z-index: 1;
+}
+
+.lf-match-kicker {
+  margin-bottom: 0.8rem;
+  font-size: 0.68rem;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+}
+
+.lf-match-versus {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.lf-match-team {
+  min-width: 0;
+  text-align: center;
+}
+
+.lf-match-team .font-display {
+  margin-top: 0.45rem;
+  font-size: clamp(1rem, 1.5vw, 1.45rem);
+  line-height: 1.05;
+}
+
+.lf-match-team > span {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-muted-foreground);
+}
+
+.lf-team-mark {
+  display: grid;
+  place-items: center;
+  width: 3.4rem;
+  height: 3.4rem;
+  margin-inline: auto;
+  border-radius: 1rem;
+  border: 1px solid color-mix(in oklab, var(--color-primary) 30%, var(--color-border));
+  background:
+    linear-gradient(145deg, color-mix(in oklab, var(--color-primary) 84%, black), color-mix(in oklab, var(--color-primary) 60%, white));
+  color: white;
+  box-shadow:
+    inset 0 1px rgb(255 255 255 / 24%),
+    0 10px 24px color-mix(in oklab, var(--color-primary) 18%, transparent);
+  font-family: var(--font-display, inherit);
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.lf-vs {
+  display: grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-muted) 78%, transparent);
+  border: 1px solid var(--lf-line);
+  color: var(--color-muted-foreground);
+  font-size: 0.67rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+}
+
+.lf-match-footer {
+  margin-top: 0.9rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--lf-line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.lf-match-action {
+  box-shadow: 0 8px 22px color-mix(in oklab, var(--color-primary) 30%, transparent);
+}
+
+@media (min-width: 1280px) {
+  .lf-match-card .lf-match-inner {
+    min-height: 13.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .lf-match-versus {
+    gap: 1.4rem;
+  }
+
+  .lf-team-mark {
+    width: 4.1rem;
+    height: 4.1rem;
+    border-radius: 1.15rem;
+    font-size: 1.15rem;
+  }
+
+  .lf-vs {
+    width: 2.7rem;
+    height: 2.7rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .lf-match-card::before {
+    opacity: 0.22;
+  }
+
+  .lf-match-versus {
+    gap: 0.45rem;
+  }
+
+  .lf-team-mark {
+    width: 2.7rem;
+    height: 2.7rem;
+    border-radius: 0.85rem;
+    font-size: 0.82rem;
+  }
+
+  .lf-match-footer {
+    margin-top: 0.7rem;
+    padding-top: 0.6rem;
+  }
+}
+
+
+.lf-club-desk {
+  min-width: 0;
+}
+
+.lf-desk-card {
+  min-height: 5.2rem;
+  transition: border-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+}
+
+@media (hover: hover) {
+  .lf-desk-card:hover {
+    border-color: color-mix(in oklab, var(--color-primary) 38%, var(--color-border));
+    box-shadow: var(--lf-card-shadow);
+    transform: translateY(-1px);
+  }
+}
+
+.lf-continue-bar {
+  border-color: color-mix(in oklab, var(--color-primary) 18%, var(--color-border));
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--color-card) 88%, transparent), color-mix(in oklab, var(--color-card) 98%, black));
+}
+
+.lf-continue-button {
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 28px color-mix(in oklab, var(--color-primary) 28%, transparent);
+}
+
+.lf-continue-button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 20%, rgb(255 255 255 / 10%) 50%, transparent 80%);
+  transform: translateX(-120%);
+}
+
+@media (hover: hover) {
+  .lf-continue-button:hover::after {
+    animation: lf-continue-sheen 900ms ease;
+  }
+}
+
+@keyframes lf-continue-sheen {
+  to {
+    transform: translateX(120%);
+  }
+}
+
+@media (min-width: 1024px) {
+  .lf-continue-bar {
+    left: 50%;
+    right: auto;
+    width: min(70rem, calc(100vw - 3rem));
+    transform: translateX(-50%);
+    bottom: 1rem;
+    border: 1px solid var(--lf-line);
+    border-radius: 1rem;
+    padding: 0.45rem;
+    box-shadow: 0 16px 44px rgb(0 0 0 / 18%);
+  }
+
+  .lf-continue-bar > div {
+    max-width: none;
+  }
+}
+
+
+/* Global game shell hierarchy */
+.lf-masthead header {
+  position: relative;
+  min-height: 4.7rem;
+}
+
+.lf-masthead header > div {
+  max-width: 100rem;
+  padding-top: 0.8rem;
+  padding-bottom: 0.8rem;
+}
+
+.lf-masthead header svg {
+  display: grid;
+  place-items: center;
+  padding: 0.35rem;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 0.8rem;
+  background: rgb(0 0 0 / 18%);
+  border: 1px solid rgb(255 255 255 / 14%);
+}
+
+.lf-brand-kicker {
+  margin-bottom: 0.18rem;
+  font-size: 0.56rem;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.62;
+}
+
+.lf-kpi-ribbon {
+  background:
+    linear-gradient(90deg, color-mix(in oklab, var(--color-panel) 94%, black), color-mix(in oklab, var(--color-primary) 16%, var(--color-panel)));
+}
+
+.lf-kpi-ribbon > div > div {
+  background: rgb(0 0 0 / 13%);
+  border: 1px solid rgb(255 255 255 / 6%);
+}
+
+.lf-primary-nav {
+  box-shadow: 0 9px 26px rgb(8 18 28 / 7%);
+}
+
+.lf-primary-nav > div {
+  max-width: 100rem;
+}
+
+.lf-primary-nav button {
+  min-height: 2.8rem;
+  border-radius: 0.72rem;
+  font-weight: 700;
+}
+
+.lf-primary-nav button.bg-primary {
+  position: relative;
+  overflow: hidden;
+}
+
+.lf-primary-nav button.bg-primary::after {
+  content: "";
+  position: absolute;
+  inset: auto 12% -1px;
+  height: 2px;
+  border-radius: 999px 999px 0 0;
+  background: rgb(255 255 255 / 55%);
+}
+
+.lf-mobile-nav {
+  box-shadow: 0 8px 22px rgb(8 18 28 / 8%);
+}
+
+.lf-mobile-nav ul {
+  max-width: 36rem;
+  margin-inline: auto;
+}
+
+.lf-mobile-nav li > button {
+  position: relative;
+}
+
+.lf-mobile-nav li > button.text-primary::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 30%;
+  right: 30%;
+  height: 2px;
+  border-radius: 999px 999px 0 0;
+  background: var(--color-primary);
+}
+
+@media (min-width: 768px) {
+  .lf-masthead header h1 {
+    font-size: 1.55rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .lf-masthead header {
+    min-height: 4rem;
+  }
+
+  .lf-masthead header > div {
+    padding-top: 0.6rem;
+    padding-bottom: 0.6rem;
+  }
+
+  .lf-brand-kicker {
+    font-size: 0.5rem;
+  }
+}
+
+
+/* Shared department presentation */
+.lf-screen-header {
+  padding: 0.15rem 0 0.35rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--color-border) 70%, transparent);
+}
+
+.lf-screen-header h1 {
+  letter-spacing: 0.025em;
+}
+
+.lf-workflow-tile {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, color-mix(in oklab, var(--color-card) 98%, white), color-mix(in oklab, var(--color-primary) 3%, var(--color-card)));
+}
+
+.lf-workflow-tile::after {
+  content: "";
+  position: absolute;
+  right: -2.4rem;
+  bottom: -3.2rem;
+  width: 7rem;
+  height: 7rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-primary) 8%, transparent);
+}
+
+@media (hover: hover) {
+  .lf-workflow-tile:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--lf-card-shadow);
+  }
+}
+
+/* Squad department */
+.lf-squad-overview {
+  background:
+    linear-gradient(140deg, color-mix(in oklab, var(--color-card) 96%, var(--color-primary) 4%), var(--color-card));
+}
+
+.lf-squad-overview .panel-strip {
+  position: relative;
+  overflow: hidden;
+}
+
+.lf-squad-overview .panel-strip::after {
+  content: "";
+  position: absolute;
+  right: -3rem;
+  top: -4rem;
+  width: 12rem;
+  height: 12rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in oklab, var(--color-banner) 20%, transparent), transparent 70%);
+}
+
+.lf-pitch-card {
+  position: relative;
+  isolation: isolate;
+  background:
+    linear-gradient(rgb(255 255 255 / 2%), rgb(255 255 255 / 2%)),
+    linear-gradient(180deg, oklch(0.31 0.07 155), oklch(0.24 0.06 155));
+  box-shadow: 0 16px 36px rgb(6 25 16 / 18%);
+}
+
+.lf-pitch-card::before {
+  content: "";
+  position: absolute;
+  inset: 4.6rem 1rem 1rem;
+  z-index: -1;
+  border: 1px solid rgb(255 255 255 / 20%);
+  border-radius: 0.6rem;
+  background:
+    linear-gradient(90deg, transparent 49.8%, rgb(255 255 255 / 14%) 50%, transparent 50.2%),
+    radial-gradient(circle at center, transparent 0 3.6rem, rgb(255 255 255 / 12%) 3.7rem 3.8rem, transparent 3.9rem);
+}
+
+.lf-squad-list {
+  box-shadow: var(--lf-card-shadow);
+}
+
+.lf-squad-list > div:first-child {
+  background: color-mix(in oklab, var(--color-card) 88%, var(--color-primary) 12%);
+}
+
+
+/* Bounded department polish: transfers, staff and facilities */
+.lf-transfer-budget {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(145deg, color-mix(in oklab, var(--color-card) 96%, var(--color-primary) 4%), var(--color-card));
+  box-shadow: var(--lf-card-shadow);
+}
+
+.lf-transfer-budget::after {
+  content: "";
+  position: absolute;
+  right: -4rem;
+  top: -5rem;
+  width: 12rem;
+  height: 12rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, color-mix(in oklab, var(--color-primary) 14%, transparent), transparent 70%);
+  pointer-events: none;
+}
+
+.lf-staff-grid > * {
+  box-shadow: var(--lf-card-shadow);
+}
+
+.lf-facility-summary {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(145deg, color-mix(in oklab, var(--color-card) 96%, var(--color-primary) 4%), var(--color-card));
+  box-shadow: var(--lf-card-shadow);
+}
+
+.lf-facility-summary::after {
+  content: "";
+  position: absolute;
+  right: -3rem;
+  bottom: -4rem;
+  width: 11rem;
+  height: 11rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-primary) 7%, transparent);
+  pointer-events: none;
+}
+
+.lf-facility-action {
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--lf-card-shadow);
+}
+
+.lf-facility-action::after {
+  content: "";
+  position: absolute;
+  right: -2.5rem;
+  bottom: -3.5rem;
+  width: 7rem;
+  height: 7rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-primary) 8%, transparent);
+}
+
+@media (hover: hover) {
+  .lf-facility-action:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--lf-shadow);
+  }
+}

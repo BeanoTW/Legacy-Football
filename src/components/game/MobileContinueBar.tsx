@@ -13,10 +13,10 @@ export function MobileContinueBar({
   label: string;
 }) {
   return (
-    <div className="fixed bottom-0 inset-x-0 z-50 border-t bg-card/95 backdrop-blur px-3 pt-2 pb-[calc(.5rem+env(safe-area-inset-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,.12)]">
+    <div className="lf-continue-bar fixed bottom-0 inset-x-0 z-50 border-t bg-card/95 backdrop-blur px-3 pt-2 pb-[calc(.5rem+env(safe-area-inset-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,.12)]">
       <div className="mx-auto w-full max-w-[1600px]">
         <Button
-          className="w-full h-12 md:h-14 text-base md:text-lg font-bold justify-between px-4 md:px-6"
+          className="lf-continue-button w-full h-12 md:h-14 text-base md:text-lg font-bold justify-between px-4 md:px-6"
           variant={isContinuing ? "destructive" : "default"}
           onClick={isContinuing ? stopContinue : startContinue}
         >

@@ -9,7 +9,7 @@ export function MobileNav({ tab, setTab, unread }: { tab: Tab; setTab: (t: Tab) 
   const primary = ALL_TABS.filter(([id]) => PRIMARY_TAB_IDS.includes(id));
   const secondary = ALL_TABS.filter(([id]) => !PRIMARY_TAB_IDS.includes(id));
   return (
-    <nav className="md:hidden sticky top-0 z-40 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85 shadow-sm">
+    <nav className="lf-mobile-nav md:hidden sticky top-0 z-40 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85 shadow-sm">
       <ul className="grid grid-cols-5">
         {primary.map(([id, label, Icon]) => (
           <li key={id}><button onClick={() => setTab(id)} className={cn("relative w-full min-h-12 flex flex-col items-center justify-center gap-0.5 py-1 text-[9px] font-semibold transition-colors", tab === id ? "text-primary" : "text-muted-foreground")}><Icon className="size-4" /><span className="truncate max-w-full px-0.5">{label}</span>{id === "inbox" && unread > 0 && <span className="absolute top-0.5 right-[calc(50%-18px)] min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] leading-4 text-center font-semibold">{unread > 9 ? "9+" : unread}</span>}</button></li>

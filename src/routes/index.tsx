@@ -115,14 +115,14 @@ function Game({ state, update, isContinuing, continueReason, startContinue, stop
 
   return (
     <div className="game-shell">
-      <div className="shrink-0">
+      <div className="lf-masthead shrink-0">
         <TopBar title={state.clubName} subtitle={`Season ${state.season} · Week ${state.week}/${CALENDAR.seasonEnd} · ${phaseLabel}`} />
       </div>
 
       <MobileNav tab={tab} setTab={(next) => { setDecisionQueue(false); setTab(next); }} unread={unreadCount(state)} />
       <ContinueCalendar state={state} isContinuing={isContinuing} />
 
-      <div className="shrink-0 border-b bg-panel text-panel-foreground hidden xl:block">
+      <div className="lf-kpi-ribbon shrink-0 border-b bg-panel text-panel-foreground hidden xl:block">
         <div className="mx-auto max-w-[1600px] px-5 py-1.5 grid grid-cols-4 gap-2 tnum">
           <Kpi icon={<Wallet className="size-4" />} label="Bank balance" value={fmtMoneyExact(kpi.cash)} tone={kpi.cash >= 0 ? "good" : "bad"} info="Cash in the club's bank account." />
           <Kpi icon={<CircleDollarSign className="size-4" />} label="Weekly net" value={fmtMoney(kpi.weeklyNetRecurring)} tone={kpi.weeklyNetRecurring >= 0 ? "good" : "bad"} info="Recurring income minus fixed weekly outgoings." />
@@ -131,7 +131,7 @@ function Game({ state, update, isContinuing, continueReason, startContinue, stop
         </div>
       </div>
 
-      <nav className="shrink-0 border-b bg-card hidden md:block">
+      <nav className="lf-primary-nav shrink-0 border-b bg-card hidden md:block">
         <div className="mx-auto max-w-[1600px] px-3 xl:px-5 py-1.5 flex items-center gap-2">
           <div className="grid grid-cols-6 gap-2 flex-1">
             {desktopPrimary.map(([id, label, Icon]) => (

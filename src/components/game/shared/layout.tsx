@@ -18,7 +18,7 @@ export function ScreenHeader({
   actions?: ReactNode;
 }) {
   return (
-    <header className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+    <header className="lf-screen-header grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
       <div className="min-w-0">
         <h1 className="truncate font-display text-xl leading-tight md:text-2xl xl:text-3xl">
           {title}
@@ -99,7 +99,7 @@ export function WorkflowTile({
     <button
       onClick={onClick}
       className={cn(
-        "flex min-h-[4.25rem] w-full flex-col justify-center gap-1.5 rounded-xl border bg-card p-2.5 text-left shadow-sm transition-colors hover:border-primary/50 md:min-h-[5.5rem] md:p-3",
+        "lf-workflow-tile flex min-h-[4.25rem] w-full flex-col justify-center gap-1.5 rounded-xl border bg-card p-2.5 text-left shadow-sm transition-colors hover:border-primary/50 md:min-h-[5.5rem] md:p-3",
         urgent && "border-amber-500/70 bg-amber-500/5",
       )}
     >
