@@ -360,7 +360,7 @@ function LeaguePanel({
       <div className="banner-strip flex shrink-0 items-center justify-between px-3 py-1.5 text-[10px] md:text-sm">
         <span>League position</span>
         <button className="inline-flex items-center gap-1 opacity-90 hover:opacity-100" onClick={() => setTab("world")}>
-          Full table <ArrowRight className="size-3.5" />
+          Competitions <ArrowRight className="size-3.5" />
         </button>
       </div>
       <div className="contained-scroll flex-1">
