@@ -67,7 +67,7 @@ export function ClubHub({ state, update, setTab }: { state: GameState; update: (
   const currentLeague = state.leagues.find((league) => league.id === state.playerLeagueId);
 
   return (
-    <div className="grid h-full min-h-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-2 md:gap-3 xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,.85fr)] xl:grid-rows-[auto_minmax(0,1fr)]">
+    <div className="flex min-h-0 flex-col gap-2 md:gap-3 xl:grid xl:h-full xl:grid-cols-[minmax(0,1.65fr)_minmax(320px,.85fr)] xl:grid-rows-[auto_minmax(0,1fr)]">
       <section className="lf-club-identity overflow-hidden rounded-xl border shadow-sm xl:col-span-2">
         <div className="panel-strip flex items-center justify-between gap-2 px-3 py-2 md:px-5">
           <div className="flex min-w-0 items-center gap-2 md:gap-4"><div className="club-crest grid size-9 md:size-11 shrink-0 place-items-center rounded-lg bg-black/25 font-display text-base md:text-xl">{initials(state.clubName)}</div><div className="min-w-0"><div className="truncate font-display text-xl md:text-2xl leading-none">{state.clubName}</div><div className="mt-0.5 truncate text-[10px] opacity-80 md:text-xs">{clubNickname(state)} · {currentLeague ? `${currentLeague.name} · Level ${footballLevelOfLeague(currentLeague)}` : "League unknown"} · {myIdx >= 0 ? `${myIdx + 1}${ord(myIdx + 1)}` : "—"} · S{state.season} · W{state.week}</div></div></div>
@@ -79,7 +79,7 @@ export function ClubHub({ state, update, setTab }: { state: GameState; update: (
         <MatchStrip state={state} nextFixture={nextFixture} update={update} />
       </section>
 
-      <div className="grid min-h-0 grid-rows-[auto_auto_auto_auto_minmax(0,1fr)] gap-2 md:gap-3 xl:grid-rows-[auto_auto_auto_auto_minmax(0,1fr)]">
+      <div className="flex min-h-0 flex-col gap-2 md:gap-3 xl:grid xl:grid-rows-[auto_auto_auto_auto_minmax(0,1fr)]">
         <section className="lf-controls min-h-0">
           <div className="mb-1 flex items-center justify-between"><h2 className="font-display text-base md:text-xl">Chairman controls</h2><span className="text-[9px] md:text-xs text-muted-foreground">Main workflows</span></div>
           <div className="lf-control-grid grid grid-cols-2 gap-1.5 md:grid-cols-3 md:gap-2">
