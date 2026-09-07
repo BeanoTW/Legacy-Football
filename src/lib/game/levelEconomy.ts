@@ -117,6 +117,32 @@ export function weeklyWageForLevel(inputs: LevelWageInputs): number {
   return weeklyWageFor({ ...legacyInputs, tier: footballLevelToLegacyTier(level) });
 }
 
+/**
+ * Staff candidate wages are generated on the Level 3 / Division One scale.
+ * This converts that canonical quote to the user's current football level.
+ *
+ * The lower-pyramid steps are deliberately leaner than the old generic staff
+ * cost factor: semi-professional clubs cannot carry an EFL-sized backroom
+ * payroll simply because the candidate market happens to contain elite staff.
+ */
+const STAFF_WAGE_SCALE_BY_LEVEL: Record<FootballLevel, number> = {
+  1: 6.5,
+  2: 2.4,
+  3: 1,
+  4: 0.65,
+  5: 0.32,
+  6: 0.12,
+  7: 0.09,
+  8: 0.035,
+};
+
+export function staffWageForLevel(baseLevelThreeWeeklyWage: number, level: FootballLevel): number {
+  const raw = Math.max(0, baseLevelThreeWeeklyWage) * STAFF_WAGE_SCALE_BY_LEVEL[level];
+  const floor = level >= 7 ? 25 : 200;
+  const step = raw < 500 ? (level >= 7 ? 10 : 25) : 50;
+  return Math.max(floor, int(raw / step) * step);
+}
+
 export function contractWageForLevel(
   baseWeeklyWage: number,
   scalar: number,

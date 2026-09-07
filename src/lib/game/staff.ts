@@ -8,6 +8,8 @@ import type { GameState, Staff, StaffRole, StaffStats } from "./types";
 import { mulberry32, hashString } from "./rng";
 import { facilityModifiers } from "./infrastructure";
 import { sameClubReference, userClubReference } from "./clubReference";
+import { footballLevelOfUser } from "./footballLevel";
+import { staffWageForLevel } from "./levelEconomy";
 import { postEntry } from "./finance";
 
 /* ---------- Name pools ---------- */
@@ -279,7 +281,7 @@ export function staffJoinTerms(
     note = "Keen — club is a step up";
   }
 
-  const wageDemand = roundWage(staff.wage * (1 + premiumPct));
+  const wageDemand = roundWage(levelStaff.wage * (1 + premiumPct));
   const signingBonus = wageDemand * (leverage === "high" ? 6 : leverage === "incentivised" ? 3 : 2);
   return {
     willing,
@@ -324,8 +326,12 @@ function managerTrajectoryPull(s: GameState): number {
  * clearly operating in another football world.
  */
 export function managerJoinTerms(s: GameState, staff: Staff): JoinTerms {
+  const levelStaff = {
+    ...staff,
+    wage: staffWageForLevel(staff.wage, footballLevelOfUser(s)),
+  };
   if (staff.role !== "Manager") {
-    return staffJoinTerms(s.reputation, staff, facilityModifiers(s).staffAttraction);
+    return staffJoinTerms(s.reputation, levelStaff, facilityModifiers(s).staffAttraction);
   }
 
   const facilitiesPull = Math.max(-6, Math.min(6, facilityModifiers(s).staffAttraction));
@@ -337,7 +343,7 @@ export function managerJoinTerms(s: GameState, staff: Staff): JoinTerms {
   if (gap > 20) {
     return {
       willing: false,
-      wageDemand: roundWage(staff.wage * 1.25),
+      wageDemand: roundWage(levelStaff.wage * 1.25),
       signingBonus: 0,
       premiumPct: 0.25,
       contractWeeks: 0,
@@ -349,7 +355,7 @@ export function managerJoinTerms(s: GameState, staff: Staff): JoinTerms {
 
   if (gap > 12) {
     const premiumPct = Math.min(0.4, 0.24 + (gap - 12) * 0.02);
-    const wageDemand = roundWage(staff.wage * (1 + premiumPct));
+    const wageDemand = roundWage(levelStaff.wage * (1 + premiumPct));
     return {
       willing: true,
       wageDemand,
@@ -368,7 +374,7 @@ export function managerJoinTerms(s: GameState, staff: Staff): JoinTerms {
 
   if (gap > 5) {
     const premiumPct = 0.1 + (gap - 5) * 0.015;
-    const wageDemand = roundWage(staff.wage * (1 + premiumPct));
+    const wageDemand = roundWage(levelStaff.wage * (1 + premiumPct));
     return {
       willing: true,
       wageDemand,
@@ -386,7 +392,7 @@ export function managerJoinTerms(s: GameState, staff: Staff): JoinTerms {
   }
 
   const premiumPct = gap < -10 ? -0.05 : 0;
-  const wageDemand = roundWage(staff.wage * (1 + premiumPct));
+  const wageDemand = roundWage(levelStaff.wage * (1 + premiumPct));
   return {
     willing: true,
     wageDemand,
@@ -400,9 +406,12 @@ export function managerJoinTerms(s: GameState, staff: Staff): JoinTerms {
 }
 
 export function staffJoinTermsForState(s: GameState, staff: Staff): JoinTerms {
-  return staff.role === "Manager"
-    ? managerJoinTerms(s, staff)
-    : staffJoinTerms(s.reputation, staff, facilityModifiers(s).staffAttraction);
+  if (staff.role === "Manager") return managerJoinTerms(s, staff);
+  const levelStaff = {
+    ...staff,
+    wage: staffWageForLevel(staff.wage, footballLevelOfUser(s)),
+  };
+  return staffJoinTerms(s.reputation, levelStaff, facilityModifiers(s).staffAttraction);
 }
 
 export interface SpendResult {
