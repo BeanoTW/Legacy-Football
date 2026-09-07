@@ -1,4 +1,30 @@
-export type Position = "GK" | "DEF" | "MID" | "FWD";
+/** Legacy broad position buckets retained only so historical saves remain readable. */
+export type LegacyPosition = "GK" | "DEF" | "MID" | "FWD";
+
+/** Tactical playing positions used by new players, recruitment and squad selection. */
+export type DetailedPosition =
+  | "GK"
+  | "RB"
+  | "CB"
+  | "LB"
+  | "RWB"
+  | "LWB"
+  | "CDM"
+  | "CM"
+  | "CAM"
+  | "RM"
+  | "LM"
+  | "RW"
+  | "LW"
+  | "ST";
+
+/**
+ * Position accepts old broad values at the persistence boundary. New football
+ * generation should use DetailedPosition (GK is shared by both models).
+ */
+export type Position = DetailedPosition | Exclude<LegacyPosition, "GK">;
+
+export type PositionFamiliarity = "Natural" | "Accomplished" | "Comfortable";
 
 /* ---------------- Inbox / Communication framework ----------------
    Backbone every department uses to talk to the player. Generators
@@ -976,7 +1002,13 @@ export interface FootballPlayer {
   nationality: string;
   preferredFoot: PreferredFoot;
   primaryPosition: Position;
+  /** Other positions the player can credibly cover. */
   secondaryPositions: Position[];
+  /**
+   * Tactical familiarity by position. Optional for historical saves; callers
+   * treat primaryPosition as Natural and legacy secondaryPositions as Comfortable.
+   */
+  positionFamiliarity?: Partial<Record<Position, PositionFamiliarity>>;
   /**
    * Club the player is registered to represent. This remains the persisted
    * compatibility field so existing saves/UI stay compact and stable.
