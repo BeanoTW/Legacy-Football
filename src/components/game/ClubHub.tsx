@@ -42,6 +42,7 @@ export function ClubHub({
   const nextFixture = state.fixtures.find((fixture) => fixture.week === state.week);
   const manager = state.hiredStaff.find((staff) => staff.role === "Manager");
   const staffCount = state.hiredStaff.length;
+  const squadSize = userSquad(state).length;
   const fanbase = fanbaseEstimate(state);
   const suggestedSteps = [
     !manager
@@ -70,7 +71,6 @@ export function ClubHub({
         negotiation.stage !== "withdrawn" &&
         negotiation.stage !== "rejected",
     ).length ?? 0;
-  const squadSize = userSquad(state).length;
   const boardConf = Math.max(
     20,
     Math.min(99, Math.round(50 + state.fanHappiness / 4 + (state.cash > 0 ? 15 : -20))),
