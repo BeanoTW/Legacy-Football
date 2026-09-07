@@ -723,3 +723,37 @@
     box-shadow: var(--lf-shadow);
   }
 }
+
+
+/* Mobile polish fixes after live visual QA */
+.lf-league-toolbar {
+  border-color: color-mix(in oklab, var(--color-border) 72%, transparent);
+  background:
+    linear-gradient(145deg, color-mix(in oklab, var(--color-card) 97%, var(--color-primary) 3%), var(--color-card));
+}
+
+.lf-league-segments {
+  border: 0;
+}
+
+.lf-league-table {
+  box-shadow: var(--lf-card-shadow);
+}
+
+.lf-league-table thead {
+  background: color-mix(in oklab, var(--color-card) 88%, var(--color-primary) 12%);
+}
+
+@media (max-width: 767px) {
+  .lf-league-browser {
+    overflow: visible;
+  }
+
+  .lf-league-toolbar {
+    border-radius: 1rem;
+  }
+
+  .lf-league-table {
+    border-radius: 1rem;
+  }
+}
