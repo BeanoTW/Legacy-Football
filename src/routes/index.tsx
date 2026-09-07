@@ -121,9 +121,10 @@ function Game({ state, update, isContinuing, continueReason, startContinue, stop
           subtitle={clubNickname(state)}
           detail={`Season ${state.season} · Week ${state.week}/${CALENDAR.seasonEnd} · ${phaseLabel}`}
           right={
-            <div className="lf-chairman-badge">
+            <div className="lf-chairman-badge" title={chairman.detail}>
               <span>{chairman.label}</span>
               <strong>{Math.round(state.reputation)}</strong>
+              <small>Reputation</small>
             </div>
           }
         />

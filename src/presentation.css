@@ -1351,3 +1351,265 @@
     border-bottom: 0;
   }
 }
+
+
+/* Mobile home density + clarity pass */
+.lf-suggested-next {
+  overflow: hidden;
+}
+
+.lf-suggested-next .lf-home-panel-heading small {
+  color: var(--color-muted-foreground);
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.lf-suggested-list {
+  display: grid;
+}
+
+.lf-suggested-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 0.75rem;
+  border-top: 1px solid var(--lf-line);
+  text-align: left;
+}
+
+.lf-suggested-row strong,
+.lf-suggested-row small {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lf-suggested-row strong {
+  font-size: 0.74rem;
+}
+
+.lf-suggested-row small {
+  margin-top: 0.08rem;
+  color: var(--color-muted-foreground);
+  font-size: 0.58rem;
+}
+
+@media (max-width: 767px) {
+  .game-shell,
+  .game-main,
+  .game-screen,
+  .lf-home-dashboard {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .lf-mobile-nav {
+    background: color-mix(in oklab, var(--color-panel) 96%, black) !important;
+    border-color: rgb(255 255 255 / 10%);
+    color: var(--color-panel-foreground);
+    backdrop-filter: none;
+  }
+
+  .lf-mobile-nav button {
+    color: rgb(255 255 255 / 68%);
+  }
+
+  .lf-mobile-nav button.text-primary {
+    color: white;
+  }
+
+  .lf-mobile-nav li > button.text-primary::after {
+    background: white;
+  }
+
+  .game-main {
+    padding-bottom: calc(4.8rem + env(safe-area-inset-bottom));
+  }
+
+  .lf-home-dashboard {
+    gap: 0.45rem;
+    padding-bottom: 0.2rem;
+  }
+
+  /* The week strip is still available from Fixtures, but does not consume
+     the mobile home viewport. */
+  .lf-home-calendar {
+    display: none;
+  }
+
+  .lf-home-desk {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.45rem;
+  }
+
+  .lf-home-panel-heading {
+    min-height: 2rem;
+    padding: 0.45rem 0.6rem;
+    font-size: 0.68rem;
+  }
+
+  .lf-home-panel-heading button,
+  .lf-home-panel-heading > span:last-child {
+    font-size: 0.58rem;
+  }
+
+  .lf-task-row,
+  .lf-suggested-row {
+    min-height: 2.9rem;
+    padding: 0.42rem 0.55rem;
+    gap: 0.45rem;
+  }
+
+  .lf-task-icon {
+    width: 1.7rem;
+    height: 1.7rem;
+    border-radius: 0.5rem;
+  }
+
+  .lf-task-row strong,
+  .lf-suggested-row strong {
+    font-size: 0.66rem;
+  }
+
+  .lf-task-row small,
+  .lf-suggested-row small {
+    font-size: 0.52rem;
+  }
+
+  .lf-news-card .lf-news-art {
+    display: none;
+  }
+
+  .lf-news-card > .p-3 {
+    padding: 0.5rem 0.6rem;
+  }
+
+  .lf-news-card strong {
+    font-size: 0.66rem;
+    line-height: 1.15;
+  }
+
+  .lf-news-card p {
+    margin-top: 0.15rem;
+    font-size: 0.52rem;
+  }
+
+  .lf-suggested-next .lf-suggested-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .lf-suggested-next .lf-suggested-row {
+    align-items: flex-start;
+    border-top: 0;
+    border-right: 1px solid var(--lf-line);
+  }
+
+  .lf-suggested-next .lf-suggested-row:last-child {
+    border-right: 0;
+  }
+
+  .lf-suggested-next .lf-task-icon {
+    display: none;
+  }
+
+  .lf-suggested-next .lf-suggested-row > svg {
+    display: none;
+  }
+
+  .lf-suggested-next .lf-suggested-row strong,
+  .lf-suggested-next .lf-suggested-row small {
+    white-space: normal;
+    text-overflow: clip;
+  }
+
+  .lf-management-grid {
+    gap: 0.4rem;
+  }
+
+  .lf-action-tile {
+    min-height: 4.05rem;
+    gap: 0.45rem;
+    padding: 0.5rem;
+    border-radius: 0.75rem;
+  }
+
+  .lf-action-icon {
+    width: 1.8rem;
+    height: 1.8rem;
+    border-radius: 0.55rem;
+  }
+
+  .lf-action-title {
+    font-size: 0.56rem;
+  }
+
+  .lf-action-value {
+    font-size: 0.72rem;
+  }
+
+  .lf-action-sub {
+    display: none;
+  }
+
+  .lf-action-tile > svg {
+    width: 0.8rem;
+    height: 0.8rem;
+  }
+
+  .lf-club-overview {
+    border-radius: 0.85rem;
+  }
+
+  .lf-overview-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .lf-overview-metric {
+    min-height: 3.65rem;
+    padding: 0.45rem 0.35rem;
+    border-bottom: 0;
+    border-right: 1px solid var(--lf-line);
+  }
+
+  .lf-overview-metric:nth-child(3),
+  .lf-overview-metric:nth-child(5) {
+    border-right: 1px solid var(--lf-line);
+  }
+
+  .lf-overview-metric:last-child {
+    border-right: 0;
+  }
+
+  .lf-overview-metric > span:first-child {
+    font-size: 0.45rem;
+    line-height: 1.05;
+  }
+
+  .lf-overview-metric strong {
+    margin-top: 0.1rem;
+    font-size: 0.72rem;
+  }
+
+  .lf-overview-metric small {
+    display: none;
+  }
+
+  .lf-overview-meter {
+    height: 0.2rem;
+    margin-top: 0.3rem;
+  }
+
+  .lf-continue-bar {
+    padding-top: 0.4rem;
+    padding-bottom: calc(0.4rem + env(safe-area-inset-bottom));
+  }
+
+  .lf-continue-button {
+    height: 2.75rem !important;
+  }
+}

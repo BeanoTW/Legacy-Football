@@ -42,7 +42,22 @@ export function ClubHub({
   const nextFixture = state.fixtures.find((fixture) => fixture.week === state.week);
   const manager = state.hiredStaff.find((staff) => staff.role === "Manager");
   const staffCount = state.hiredStaff.length;
+  const squadSize = userSquad(state).length;
   const fanbase = fanbaseEstimate(state);
+  const suggestedSteps = [
+    !manager
+      ? { label: "Hire a manager", detail: "No manager is currently appointed.", tab: "staff" as Tab }
+      : null,
+    staffCount < 3
+      ? { label: "Build the backroom team", detail: `${staffCount} staff currently employed.`, tab: "staff" as Tab }
+      : null,
+    squadSize < 18
+      ? { label: "Review squad depth", detail: `${squadSize} senior players available.`, tab: "squad" as Tab }
+      : null,
+    state.cash < 0
+      ? { label: "Review club finances", detail: "The club is currently overdrawn.", tab: "cashflow" as Tab }
+      : null,
+  ].filter((item): item is { label: string; detail: string; tab: Tab } => item !== null);
   const decisionItems = actionableInbox(state);
   const topDecisions = decisionItems.slice(0, 2);
   const latestNews = state.inbox
@@ -56,7 +71,6 @@ export function ClubHub({
         negotiation.stage !== "withdrawn" &&
         negotiation.stage !== "rejected",
     ).length ?? 0;
-  const squadSize = userSquad(state).length;
   const boardConf = Math.max(
     20,
     Math.min(99, Math.round(50 + state.fanHappiness / 4 + (state.cash > 0 ? 15 : -20))),
@@ -85,11 +99,34 @@ export function ClubHub({
         />
       </section>
 
-      <ContinueCalendar
-        state={state}
-        isContinuing={isContinuing}
-        onOpenSchedule={() => setTab("fixtures")}
-      />
+      <div className="lf-home-calendar">
+        <ContinueCalendar
+          state={state}
+          isContinuing={isContinuing}
+          onOpenSchedule={() => setTab("fixtures")}
+        />
+      </div>
+
+      {suggestedSteps.length > 0 && (
+        <section className="lf-suggested-next rounded-2xl border bg-card shadow-sm">
+          <div className="lf-home-panel-heading">
+            <span>Suggested next steps</span>
+            <small>Optional</small>
+          </div>
+          <div className="lf-suggested-list">
+            {suggestedSteps.slice(0, 3).map((item) => (
+              <button key={item.label} onClick={() => setTab(item.tab)} className="lf-suggested-row">
+                <span className="lf-task-icon"><Target className="size-4" /></span>
+                <span className="min-w-0 flex-1">
+                  <strong>{item.label}</strong>
+                  <small>{item.detail}</small>
+                </span>
+                <ArrowRight className="size-4 shrink-0 opacity-55" />
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="lf-home-desk grid gap-2 md:grid-cols-[1.15fr_.85fr] md:gap-3">
         <div className="lf-home-panel overflow-hidden rounded-2xl border bg-card shadow-sm">
