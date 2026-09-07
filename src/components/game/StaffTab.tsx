@@ -12,7 +12,7 @@ import {
   hiredStaffWagesWeekly,
   sackStaffMember,
   severanceFor,
-  staffJoinTerms,
+  staffJoinTermsForState,
 } from "@/lib/game/engine";
 import { renewStaffContract } from "@/lib/game/staffCareers";
 import { facilityModifiers } from "@/lib/game/infrastructure";
@@ -82,7 +82,7 @@ export function StaffTab({
   const weeklyStaffCost = hiredStaffWagesWeekly(state);
   const enriched = state.staffCandidates.map((c) => ({
     staff: c,
-    terms: staffJoinTerms(state.reputation, c, facilityModifiers(state).staffAttraction),
+    terms: staffJoinTermsForState(state, c),
   }));
   const willingCount = enriched.filter((e) => e.terms.willing).length;
   const footballStaffCount = state.hiredStaff.filter((s) => FOOTBALL_ROLES.includes(s.role)).length;
@@ -404,7 +404,7 @@ export function StaffCard({
   onRenew?: () => void;
   action: "hire" | "release";
   affordable?: boolean;
-  terms?: ReturnType<typeof staffJoinTerms>;
+  terms?: ReturnType<typeof staffJoinTermsForState>;
 }) {
   const wage = terms ? terms.wageDemand : staff.wage;
   const bonus = terms ? terms.signingBonus : staff.wage * 2;
@@ -470,13 +470,20 @@ export function StaffCard({
       {terms && (
         <div
           className={cn(
-            "mt-3 text-xs rounded-xl px-3 py-2",
+            "mt-3 rounded-xl px-3 py-2 text-xs",
             !terms.willing && "bg-rose-500/10 text-rose-600",
             terms.willing && premiumPct > 0 && "bg-amber-500/10 text-amber-700",
             terms.willing && premiumPct <= 0 && "bg-emerald-500/10 text-emerald-700",
           )}
         >
-          {terms.note}
+          <div className="font-semibold">{terms.note}</div>
+          {staff.role === "Manager" && (
+            <div className="mt-1.5 space-y-0.5 opacity-90">
+              {terms.packageNotes.map((item) => (
+                <div key={item}>• {item}</div>
+              ))}
+            </div>
+          )}
         </div>
       )}
       <div className="mt-4 flex items-center justify-between gap-3">
@@ -484,7 +491,9 @@ export function StaffCard({
           <div className="font-semibold">{fmtMoneyExact(wage)}/wk</div>
           <div className="text-xs text-muted-foreground">
             {action === "hire"
-              ? `Bonus ${fmtMoneyExact(bonus)}`
+              ? staff.role === "Manager" && terms
+                ? `Bonus ${fmtMoneyExact(bonus)} · ${Math.round(terms.contractWeeks / 52)}y deal`
+                : `Bonus ${fmtMoneyExact(bonus)}`
               : `Severance ${fmtMoneyExact(severanceFor(staff))}`}
           </div>
         </div>
