@@ -74,8 +74,12 @@ declare module "./types" {
 export interface ScoutingBriefInput {
   id: string;
   position?: Position;
+  minAge?: number;
   maxAge?: number;
   maxMarketValue?: number;
+  maxWeeklyWage?: number;
+  nationality?: string;
+  clubStatus?: "free" | "contracted";
   minCurrentAbility?: number;
 }
 
@@ -87,6 +91,8 @@ interface CandidateBase {
   marketValue: number;
   wageExpectation: number;
   age: number;
+  nationality: string;
+  currentClubId: string | null;
   primaryPosition: Position;
 }
 
@@ -128,6 +134,8 @@ function detailedCandidate(state: GameState, player: FootballPlayer): DetailedCa
     marketValue: player.marketValue,
     wageExpectation: player.wageExpectation,
     age: ageOf(player, state.season),
+    nationality: player.nationality,
+    currentClubId: player.currentClubId,
     primaryPosition: player.primaryPosition,
   };
 }
@@ -181,6 +189,8 @@ function fringeCandidates(state: GameState): FringeCandidate[] {
         marketValue: projected.marketValue,
         wageExpectation: projected.wageExpectation,
         age: projected.age,
+        nationality: projected.identity.nationality,
+        currentClubId: projected.identity.currentClubId,
         primaryPosition: projected.primaryPosition,
       });
     }
@@ -198,8 +208,13 @@ function eligible(
     return false;
   }
   if (input.position && candidate.primaryPosition !== input.position) return false;
+  if (input.minAge !== undefined && candidate.age < input.minAge) return false;
   if (input.maxAge !== undefined && candidate.age > input.maxAge) return false;
   if (input.maxMarketValue !== undefined && candidate.marketValue > input.maxMarketValue) return false;
+  if (input.maxWeeklyWage !== undefined && candidate.wageExpectation > input.maxWeeklyWage) return false;
+  if (input.nationality && candidate.nationality.toLowerCase() !== input.nationality.toLowerCase()) return false;
+  if (input.clubStatus === "free" && candidate.currentClubId !== null) return false;
+  if (input.clubStatus === "contracted" && candidate.currentClubId === null) return false;
   return true;
 }
 
@@ -240,7 +255,11 @@ export function createScoutingBrief(state: GameState, input: ScoutingBriefInput)
   if (next.football.scoutingDiscovery.briefs.some((brief) => brief.id === input.id)) return next;
 
   const quality = scoutingQuality(next);
-  const candidateLimit = quality >= 75 ? 6 : quality >= 45 ? 5 : 4;
+  // The underlying football world is already large; the previous 4–6 result
+  // cap made that world feel tiny from the chairman's chair. A search now
+  // exposes a genuinely useful market sample while scouting quality still
+  // affects how broad and reliable the shortlist is.
+  const candidateLimit = quality >= 75 ? 48 : quality >= 45 ? 40 : 32;
   const detailed = ranked(
     next,
     next.football.players.map((player) => detailedCandidate(next, player)),
@@ -248,13 +267,32 @@ export function createScoutingBrief(state: GameState, input: ScoutingBriefInput)
   );
   const fringe = ranked(next, fringeCandidates(next), input);
 
-  // Wide-world scouting must genuinely reach beyond the current Focus bubble.
-  // Reserve a small share for eligible Fringe discoveries, then fill remaining
-  // slots with the strongest deterministic results from either source.
-  const fringeQuota = fringe.length ? Math.min(2, Math.max(1, Math.floor(candidateLimit / 3))) : 0;
-  const selected: DiscoveryCandidate[] = fringe.slice(0, fringeQuota);
+  // Free agents should always form a meaningful part of an open market search,
+  // especially at lower levels where they are a core recruitment route.
+  const freeDetailed = detailed.filter(
+    (candidate) => candidate.source === "detailed" && candidate.currentClubId === null,
+  );
+  const contractedDetailed = detailed.filter(
+    (candidate) => candidate.source === "detailed" && candidate.currentClubId !== null,
+  );
+  const freeQuota = Math.min(
+    freeDetailed.length,
+    Math.max(8, Math.floor(candidateLimit * 0.3)),
+  );
+  const fringeQuota = fringe.length
+    ? Math.min(fringe.length, Math.max(6, Math.floor(candidateLimit * 0.25)))
+    : 0;
+
+  const selected: DiscoveryCandidate[] = [
+    ...freeDetailed.slice(0, freeQuota),
+    ...fringe.slice(0, fringeQuota),
+  ];
   const selectedIds = new Set(selected.map((candidate) => candidate.id));
-  const remainder = [...detailed, ...fringe.slice(fringeQuota)]
+  const remainder = [
+    ...contractedDetailed,
+    ...freeDetailed.slice(freeQuota),
+    ...fringe.slice(fringeQuota),
+  ]
     .filter((candidate) => !selectedIds.has(candidate.id))
     .sort((a, b) => {
       const difference = discoveryScore(next, b, input) - discoveryScore(next, a, input);

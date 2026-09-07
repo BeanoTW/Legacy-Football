@@ -35,8 +35,13 @@ const POSITIONS: (Position | "ALL")[] = ["ALL", "GK", "DEF", "MID", "FWD"];
 export function ScoutingBrowser({ state, update, onBack }: { state: GameState; update: (fn: (s: GameState) => GameState) => void; onBack: () => void }) {
   const [position, setPosition] = useState<Position | "ALL">("ALL");
   const [watchedOnly, setWatchedOnly] = useState(false);
-  const [freeAgentsOnly, setFreeAgentsOnly] = useState(false);
-  const [willingOnly, setWillingOnly] = useState(true);
+  const [marketStatus, setMarketStatus] = useState<"all" | "free" | "contracted">("all");
+  const [willingOnly, setWillingOnly] = useState(false);
+  const [minAge, setMinAge] = useState(16);
+  const [maxAge, setMaxAge] = useState(40);
+  const [maxValue, setMaxValue] = useState(0);
+  const [maxWage, setMaxWage] = useState(0);
+  const [nationality, setNationality] = useState("");
   const [searched, setSearched] = useState(false);
   const [briefId, setBriefId] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -68,7 +73,12 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
 
     return visiblePlayers
       .filter((player) => position === "ALL" || player.primaryPosition === position)
-      .filter((player) => !freeAgentsOnly || player.currentClubId === null)
+      .filter((player) => marketStatus !== "free" || player.currentClubId === null)
+      .filter((player) => marketStatus !== "contracted" || player.currentClubId !== null)
+      .filter((player) => ageOf(player, state.season) >= minAge && ageOf(player, state.season) <= maxAge)
+      .filter((player) => !nationality || player.nationality.toLowerCase() === nationality.trim().toLowerCase())
+      .filter((player) => !maxValue || player.marketValue <= maxValue)
+      .filter((player) => !maxWage || player.wageExpectation <= maxWage)
       .filter((player) => {
         if (!willingOnly) return true;
         const level = playerInterestAssessment(state, player).level;
@@ -77,7 +87,7 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
       .filter((player) => !watchedOnly || watched.has(player.id))
       .slice(0, 80)
       .map((player) => ({ player }));
-  }, [state, position, watchedOnly, freeAgentsOnly, willingOnly, searched, briefId]);
+  }, [state, position, watchedOnly, marketStatus, willingOnly, minAge, maxAge, maxValue, maxWage, nationality, searched, briefId]);
 
   const approach = (playerId: string, freeAgent: boolean, weeklyWage: number) =>
     update((s) => {
@@ -102,16 +112,42 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
   };
 
   const runSearch = () => {
-    const id = `ui-market:s${state.season}:w${state.week}:p${position}`;
+    const normalizedNationality = nationality.trim();
+    const id = [
+      `ui-market:s${state.season}:w${state.week}`,
+      `p${position}`,
+      `a${minAge}-${maxAge}`,
+      `m${marketStatus}`,
+      `v${maxValue || "any"}`,
+      `wg${maxWage || "any"}`,
+      `n${normalizedNationality.toLowerCase() || "any"}`,
+    ].join(":");
     setBriefId(id);
     setSearched(true);
     update((s) =>
       createScoutingBrief(s, {
         id,
         position: position === "ALL" ? undefined : position,
-        maxAge: 40,
+        minAge,
+        maxAge,
+        maxMarketValue: maxValue || undefined,
+        maxWeeklyWage: maxWage || undefined,
+        nationality: normalizedNationality || undefined,
+        clubStatus: marketStatus === "all" ? undefined : marketStatus,
       }),
     );
+  };
+
+  const resetFilters = () => {
+    setPosition("ALL");
+    setMarketStatus("all");
+    setWillingOnly(false);
+    setWatchedOnly(false);
+    setMinAge(16);
+    setMaxAge(40);
+    setMaxValue(0);
+    setMaxWage(0);
+    setNationality("");
   };
 
   if (!searched) return (
@@ -120,8 +156,24 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
         <div className="mb-3"><div className="font-display text-lg">Search parameters</div><div className="text-xs text-muted-foreground">Scouting improves knowledge. It is never required before you approach a player or club.</div></div>
         <div className="space-y-3">
           <div><div className="mb-1.5 text-xs font-semibold text-muted-foreground">Position</div><div className="grid grid-cols-5 gap-1.5">{POSITIONS.map((p) => <button key={p} onClick={() => setPosition(p)} className={cn("rounded-lg border px-2 py-1.5 text-xs font-semibold", position === p ? "border-primary bg-primary text-primary-foreground" : "bg-background")}>{p}</button>)}</div></div>
-          <div className="grid gap-1.5 sm:grid-cols-3"><FilterToggle active={willingOnly} onClick={() => setWillingOnly((v) => !v)} title="Willing to join" sub="Keen or open to talks" /><FilterToggle active={freeAgentsOnly} onClick={() => setFreeAgentsOnly((v) => !v)} title="Free agents" sub="Approach player directly" /><FilterToggle active={watchedOnly} onClick={() => setWatchedOnly((v) => !v)} title="Shortlist only" sub="Players you are tracking" /></div>
-          <Button onClick={runSearch}><Search className="mr-2 size-4" /> Find players</Button>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="grid gap-1 text-xs font-semibold text-muted-foreground">Market
+              <select value={marketStatus} onChange={(event) => setMarketStatus(event.target.value as "all" | "free" | "contracted")} className="h-10 rounded-lg border bg-background px-2 text-sm text-foreground">
+                <option value="all">All players</option><option value="free">Free agents</option><option value="contracted">At a club</option>
+              </select>
+            </label>
+            <label className="grid gap-1 text-xs font-semibold text-muted-foreground">Nationality
+              <input value={nationality} onChange={(event) => setNationality(event.target.value)} placeholder="Any nationality" className="h-10 rounded-lg border bg-background px-3 text-sm text-foreground" />
+            </label>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <NumberFilter label="Min age" value={minAge} min={16} max={40} onChange={setMinAge} />
+            <NumberFilter label="Max age" value={maxAge} min={16} max={40} onChange={setMaxAge} />
+            <NumberFilter label="Max value £" value={maxValue} min={0} step={5000} placeholder="Any" onChange={setMaxValue} />
+            <NumberFilter label="Max wage £/wk" value={maxWage} min={0} step={50} placeholder="Any" onChange={setMaxWage} />
+          </div>
+          <div className="grid gap-1.5 sm:grid-cols-2"><FilterToggle active={willingOnly} onClick={() => setWillingOnly((v) => !v)} title="Willing to join" sub="Keen or open to talks" /><FilterToggle active={watchedOnly} onClick={() => setWatchedOnly((v) => !v)} title="Shortlist only" sub="Players you are tracking" /></div>
+          <div className="flex gap-2"><Button onClick={runSearch}><Search className="mr-2 size-4" /> Find players</Button><Button variant="outline" onClick={resetFilters}>Reset</Button></div>
         </div>
       </section>
     </DetailScreen>
@@ -130,7 +182,7 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
   const wageCeiling = state.finance?.budgets?.wages ?? 0;
   const wageBill = userWageBill(state);
   const wageHeadroom = wageCeiling > 0 ? Math.max(0, wageCeiling - wageBill) : null;
-  const toolbar = <div className="space-y-1.5">{note && <div className="truncate rounded-lg border bg-muted/40 px-3 py-1.5 text-xs">{note}</div>}<div className="flex flex-wrap items-center gap-1 text-[11px]"><span className="rounded-md bg-muted px-2 py-1 font-semibold">Cash {fmtMoney(state.cash)}</span><span className="rounded-md bg-muted px-2 py-1 font-semibold">Wages {fmtMoney(wageBill)}/wk{wageHeadroom !== null ? ` · ${fmtMoney(wageHeadroom)} headroom` : ""}</span><span className="rounded-md bg-muted px-2 py-1">{position === "ALL" ? "All positions" : position}</span>{willingOnly && <span className="rounded-md bg-muted px-2 py-1">Willing</span>}{freeAgentsOnly && <span className="rounded-md bg-muted px-2 py-1">Free agents</span>}{watchedOnly && <span className="rounded-md bg-muted px-2 py-1">Shortlist</span>}<button onClick={() => setSearched(false)} className="ml-auto rounded-md border px-2 py-1 font-semibold">Filters</button></div></div>;
+  const toolbar = <div className="space-y-1.5">{note && <div className="truncate rounded-lg border bg-muted/40 px-3 py-1.5 text-xs">{note}</div>}<div className="flex flex-wrap items-center gap-1 text-[11px]"><span className="rounded-md bg-muted px-2 py-1 font-semibold">Cash {fmtMoney(state.cash)}</span><span className="rounded-md bg-muted px-2 py-1 font-semibold">Wages {fmtMoney(wageBill)}/wk{wageHeadroom !== null ? ` · ${fmtMoney(wageHeadroom)} headroom` : ""}</span><span className="rounded-md bg-muted px-2 py-1">{position === "ALL" ? "All positions" : position}</span>{willingOnly && <span className="rounded-md bg-muted px-2 py-1">Willing</span>}{marketStatus === "free" && <span className="rounded-md bg-muted px-2 py-1">Free agents</span>}{marketStatus === "contracted" && <span className="rounded-md bg-muted px-2 py-1">At a club</span>}{watchedOnly && <span className="rounded-md bg-muted px-2 py-1">Shortlist</span>}<button onClick={() => setSearched(false)} className="ml-auto rounded-md border px-2 py-1 font-semibold">Filters</button></div></div>;
 
   return <DetailScreen title="Find players" subtitle={`${rows.length} matching players`} actions={<Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="mr-2 size-4" /> Back</Button>} toolbar={toolbar} className="touch-pan-y grid gap-1.5 xl:grid-cols-2 xl:items-start">
     {rows.length === 0 && <div className="rounded-xl border bg-card p-4 text-sm text-muted-foreground">No players match those filters.</div>}
@@ -182,4 +234,9 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
 
 function FilterToggle({ active, onClick, title, sub }: { active: boolean; onClick: () => void; title: string; sub: string }) {
   return <button onClick={onClick} className={cn("rounded-lg border p-2.5 text-left transition-colors", active ? "border-primary bg-primary/10" : "bg-background hover:bg-muted")}><div className="flex items-center gap-2"><div className={cn("size-3 rounded-full border", active && "border-primary bg-primary")} /><span className="text-xs font-semibold">{title}</span></div><div className="mt-0.5 pl-5 text-[10px] text-muted-foreground">{sub}</div></button>;
+}
+
+
+function NumberFilter({ label, value, min, max, step = 1, placeholder, onChange }: { label: string; value: number; min: number; max?: number; step?: number; placeholder?: string; onChange: (value: number) => void }) {
+  return <label className="grid gap-1 text-xs font-semibold text-muted-foreground">{label}<input type="number" value={value || ""} min={min} max={max} step={step} placeholder={placeholder} onChange={(event) => onChange(Math.max(min, Number(event.target.value) || 0))} className="h-10 rounded-lg border bg-background px-2 text-sm text-foreground" /></label>;
 }
