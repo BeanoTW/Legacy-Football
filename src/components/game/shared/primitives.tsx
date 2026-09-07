@@ -25,10 +25,12 @@ export function InfoTip({ children, label }: { children: React.ReactNode; label?
 export function TopBar({
   title,
   subtitle,
+  detail,
   right,
 }: {
   title: string;
   subtitle?: string;
+  detail?: string;
   right?: React.ReactNode;
 }) {
   return (
@@ -38,7 +40,8 @@ export function TopBar({
         <div className="flex-1 min-w-0">
           <div className="lf-brand-kicker">Legacy Football</div>
           <h1 className="font-display text-xl leading-none truncate">{title}</h1>
-          {subtitle && <div className="text-xs opacity-80 mt-0.5 truncate">{subtitle}</div>}
+          {subtitle && <div className="lf-club-subtitle truncate">{subtitle}</div>}
+          {detail && <div className="lf-club-detail truncate">{detail}</div>}
         </div>
         {right}
       </div>
