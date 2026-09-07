@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { CircleDollarSign, Menu, Ticket, Users, Wallet } from "lucide-react";
 
-import { LeagueBrowser } from "@/components/LeagueBrowser";
 import { BoardTab } from "@/components/BoardTab";
 import { CommercialTab } from "@/components/CommercialTab";
 import { ALL_TABS, DESKTOP_PRIMARY_TAB_IDS, type Tab } from "@/components/game/tabs";
@@ -181,7 +180,6 @@ function Game({ state, update, isContinuing, continueReason, startContinue, stop
             {tab === "fixtures" && <FixturesTab state={state} update={update} />}
             {tab === "board" && <BoardTab state={state} />}
             {tab === "commercial" && <CommercialTab state={state} update={update} />}
-            {tab === "leagues" && <LeagueBrowser state={state} update={update} />}
             {tab === "world" && <WorldInspector state={state} />}
             {tab === "history" && <HistoryTab state={state} />}
             {tab === "settings" && <SettingsTab activeSlot={activeSlot} slots={saveSlots} onSwitch={switchSlot} onDelete={deleteSlot} />}
