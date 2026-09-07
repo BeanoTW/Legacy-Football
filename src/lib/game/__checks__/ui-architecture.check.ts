@@ -67,7 +67,6 @@ console.log("\n[U2] Navigation completeness");
     "staff",
     "stadium",
     "fixtures",
-    "leagues",
     "world",
     "history",
     "settings",
@@ -95,12 +94,12 @@ console.log("\n[U2] Navigation completeness");
     RETIRED.every((t) => !registered.includes(t)),
   );
   check(
-    "mobile nav exposes four core areas plus More",
-    /grid-cols-5/.test(read("src/components/game/MobileNav.tsx")),
+    "mobile nav exposes five core areas plus More",
+    /grid-cols-6/.test(read("src/components/game/MobileNav.tsx")),
   );
   check(
     "primary mobile tabs match the chairman core flow",
-    /PRIMARY_TAB_IDS:\s*Tab\[\]\s*=\s*\["hub",\s*"inbox",\s*"squad",\s*"recruitment"\]/.test(tabs),
+    /PRIMARY_TAB_IDS:\s*Tab\[\]\s*=\s*\["hub",\s*"inbox",\s*"squad",\s*"recruitment",\s*"stadium"\]/.test(tabs),
   );
 }
 
@@ -164,7 +163,7 @@ console.log("\n[U5] Canonical selectors, not UI arithmetic");
   const hub = read("src/components/game/ClubHub.tsx");
   check(
     "hub health comes from the sustainability selector",
-    /canonicalFinancialHealth\(/.test(hub) && !/reserve\s*=\s*state\.cash\s*\*/.test(hub),
+    /sustainabilitySnapshot\(state\)/.test(hub) && !/reserve\s*=\s*state\.cash\s*\*/.test(hub),
   );
   check(
     "financial health panel reads the snapshot selector",
@@ -321,7 +320,7 @@ console.log("\n[U8] Opaque club identity presentation boundary");
   check(
     "core club screens render stored opponent and table refs through display-name gateway",
     /clubDisplayName\(state, nextFixture\.opponent\)/.test(clubHub) &&
-      /clubDisplayName\(state, r\.team\)/.test(clubHub) &&
+      /clubDisplayName\(state, row\.team\)/.test(clubHub) &&
       /clubDisplayName\(state, f\.opponent\)/.test(fixtures) &&
       /clubDisplayName\(state, r\.team\)/.test(fixtures) &&
       /clubDisplayName\(state, lastResult\.opponent\)/.test(dashboard) &&
@@ -345,8 +344,8 @@ console.log("\n[U9] Chairman club tracking");
       /Stop tracking/.test(leagueBrowser),
   );
   check(
-    "club tracking is wired through the route update boundary",
-    /<LeagueBrowser state=\{state\} update=\{update\}/.test(route),
+    "legacy league browser is not routed alongside the consolidated competitions screen",
+    !/<LeagueBrowser\b/.test(route) && /<WorldInspector state=\{state\}/.test(route),
   );
   check(
     "the user club cannot be redundantly tracked from its own profile",
@@ -433,9 +432,9 @@ console.log("\n[U13] Canonical football level terminology");
       /legacyTierToFootballLevel\(legacy\.bestLeagueFinish\.tier\)/.test(history),
   );
   check(
-    "club hub shows the chairman's current competition on the canonical football scale",
-    /footballLevelOfLeague\(currentLeague\)/.test(clubHub) &&
-      /currentLeague\.name/.test(clubHub),
+    "competitions screen shows the chairman's current competition on the canonical football scale",
+    /footballLevelOfLeague\(league\)/.test(world) &&
+      /leaguePresentationName\(league\.name\)/.test(world),
   );
 }
 
