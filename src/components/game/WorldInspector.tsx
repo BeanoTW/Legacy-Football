@@ -6,7 +6,7 @@ import { playerLeagueId, tableFor } from "@/lib/game/league";
 import { cn } from "@/lib/utils";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { footballLevelOfLeague } from "@/lib/game/footballLevel";
-import { leaguePresentationName } from "@/lib/game/clubPresentation";
+import { clubPresentationName, leaguePresentationName } from "@/lib/game/clubPresentation";
 
 export function WorldInspector({ state }: { state: GameState }) {
   const leagues = useMemo(
@@ -140,7 +140,7 @@ export function WorldInspector({ state }: { state: GameState }) {
                       </span>
                     </td>
                     <td className="max-w-48 truncate py-1.5 pr-2">
-                      {clubDisplayName(state, row.team)}
+                      {clubPresentationName(clubDisplayName(state, row.team))}
                       {isMe ? " · YOU" : ""}
                     </td>
                     <td className="px-2 py-1.5 text-right text-muted-foreground">{row.p}</td>
