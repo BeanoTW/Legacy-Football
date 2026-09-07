@@ -143,6 +143,35 @@ export function staffWageForLevel(baseLevelThreeWeeklyWage: number, level: Footb
   return Math.max(floor, int(raw / step) * step);
 }
 
+/**
+ * Staff carry an intrinsic market wage based on their own standing, not the
+ * division of the club currently viewing them. This prevents an elite coach
+ * from appearing to cost semi-professional money simply because a tiny club
+ * opened the staff market.
+ */
+export function staffMarketWage(
+  baseLevelThreeWeeklyWage: number,
+  reputation: number,
+): number {
+  const rep = clamp(reputation, 20, 95);
+  const marketLevel: FootballLevel =
+    rep >= 90 ? 1 :
+    rep >= 82 ? 2 :
+    rep >= 72 ? 3 :
+    rep >= 64 ? 4 :
+    rep >= 56 ? 5 :
+    rep >= 49 ? 6 :
+    rep >= 42 ? 7 : 8;
+  const levelWage = staffWageForLevel(baseLevelThreeWeeklyWage, marketLevel);
+  // Elite staff sit in a superstar labour market just like elite players.
+  // Reputation above 70 adds a convex premium so 90-95 reputation managers
+  // reach genuine top-club salary territory instead of stopping around £50k/wk.
+  const elitePremium = Math.exp(Math.max(0, rep - 70) * 0.04);
+  const raw = levelWage * elitePremium;
+  const step = raw >= 10_000 ? 500 : raw >= 1_000 ? 50 : 10;
+  return Math.max(levelWage, int(raw / step) * step);
+}
+
 export function contractWageForLevel(
   baseWeeklyWage: number,
   scalar: number,
@@ -216,7 +245,11 @@ export function playerValueForLevel(
   const peak = clamp(1.25 - Math.abs(age - 25) * 0.045, 0.35, 1.25);
   const upside = 1 + Math.max(0, potential - ability) / 90;
   const scale = economicProfileForLevel(level).transferMarketScale;
-  const raw = ability ** 3 * 0.55 * peak * upside * scale;
+  // Elite transfer fees are much more convex than ordinary-player prices.
+  // A 90+ top-flight player belongs in the £100m+ market; merely scaling an
+  // ability-cubed curve kept superstars implausibly close to normal starters.
+  const eliteMarketPremium = Math.max(1, Math.exp((ability - 70) * 0.08));
+  const raw = ability ** 3 * 0.55 * peak * upside * scale * eliteMarketPremium;
   const policy = transferFeePolicyForLevel(level);
   return Math.max(policy.valueFloor, int(raw / policy.valueStep) * policy.valueStep);
 }

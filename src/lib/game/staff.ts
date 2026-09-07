@@ -8,8 +8,7 @@ import type { GameState, Staff, StaffRole, StaffStats } from "./types";
 import { mulberry32, hashString } from "./rng";
 import { facilityModifiers } from "./infrastructure";
 import { sameClubReference, userClubReference } from "./clubReference";
-import { footballLevelOfUser } from "./footballLevel";
-import { staffWageForLevel } from "./levelEconomy";
+import { staffMarketWage } from "./levelEconomy";
 import { postEntry } from "./finance";
 
 /* ---------- Name pools ---------- */
@@ -326,12 +325,12 @@ function managerTrajectoryPull(s: GameState): number {
  * clearly operating in another football world.
  */
 export function managerJoinTerms(s: GameState, staff: Staff): JoinTerms {
-  const levelStaff = {
+  const marketStaff = {
     ...staff,
-    wage: staffWageForLevel(staff.wage, footballLevelOfUser(s)),
+    wage: staffMarketWage(staff.wage, staff.reputation),
   };
   if (staff.role !== "Manager") {
-    return staffJoinTerms(s.reputation, levelStaff, facilityModifiers(s).staffAttraction);
+    return staffJoinTerms(s.reputation, marketStaff, facilityModifiers(s).staffAttraction);
   }
 
   const facilitiesPull = Math.max(-6, Math.min(6, facilityModifiers(s).staffAttraction));
@@ -343,7 +342,7 @@ export function managerJoinTerms(s: GameState, staff: Staff): JoinTerms {
   if (gap > 20) {
     return {
       willing: false,
-      wageDemand: roundWage(levelStaff.wage * 1.25),
+      wageDemand: roundWage(marketStaff.wage * 1.25),
       signingBonus: 0,
       premiumPct: 0.25,
       contractWeeks: 0,
@@ -355,7 +354,7 @@ export function managerJoinTerms(s: GameState, staff: Staff): JoinTerms {
 
   if (gap > 12) {
     const premiumPct = Math.min(0.4, 0.24 + (gap - 12) * 0.02);
-    const wageDemand = roundWage(levelStaff.wage * (1 + premiumPct));
+    const wageDemand = roundWage(marketStaff.wage * (1 + premiumPct));
     return {
       willing: true,
       wageDemand,
@@ -374,7 +373,7 @@ export function managerJoinTerms(s: GameState, staff: Staff): JoinTerms {
 
   if (gap > 5) {
     const premiumPct = 0.1 + (gap - 5) * 0.015;
-    const wageDemand = roundWage(levelStaff.wage * (1 + premiumPct));
+    const wageDemand = roundWage(marketStaff.wage * (1 + premiumPct));
     return {
       willing: true,
       wageDemand,
@@ -392,7 +391,7 @@ export function managerJoinTerms(s: GameState, staff: Staff): JoinTerms {
   }
 
   const premiumPct = gap < -10 ? -0.05 : 0;
-  const wageDemand = roundWage(levelStaff.wage * (1 + premiumPct));
+  const wageDemand = roundWage(marketStaff.wage * (1 + premiumPct));
   return {
     willing: true,
     wageDemand,
@@ -407,11 +406,76 @@ export function managerJoinTerms(s: GameState, staff: Staff): JoinTerms {
 
 export function staffJoinTermsForState(s: GameState, staff: Staff): JoinTerms {
   if (staff.role === "Manager") return managerJoinTerms(s, staff);
-  const levelStaff = {
+  const marketStaff = {
     ...staff,
-    wage: staffWageForLevel(staff.wage, footballLevelOfUser(s)),
+    wage: staffMarketWage(staff.wage, staff.reputation),
   };
-  return staffJoinTerms(s.reputation, levelStaff, facilityModifiers(s).staffAttraction);
+  return staffJoinTerms(s.reputation, marketStaff, facilityModifiers(s).staffAttraction);
+}
+
+export interface ManagerOffer {
+  wage: number;
+  signingBonus: number;
+  contractWeeks: number;
+}
+
+export interface ManagerOfferEvaluation {
+  outcome: "accepted" | "counter" | "rejected" | "unavailable";
+  message: string;
+  counterOffer?: ManagerOffer;
+}
+
+const roundBonus = (value: number) => Math.max(0, Math.round(value / 100) * 100);
+
+export function evaluateManagerOffer(
+  s: GameState,
+  staff: Staff,
+  offer: ManagerOffer,
+): ManagerOfferEvaluation {
+  const terms = managerJoinTerms(s, staff);
+  if (!terms.willing || staff.role !== "Manager") {
+    return {
+      outcome: "unavailable",
+      message: terms.note,
+    };
+  }
+
+  const wageRatio = offer.wage / Math.max(1, terms.wageDemand);
+  const bonusRatio = offer.signingBonus / Math.max(1, terms.signingBonus);
+  const contractRatio = offer.contractWeeks / Math.max(52, terms.contractWeeks);
+  const score = wageRatio * 0.55 + bonusRatio * 0.25 + contractRatio * 0.2;
+  const threshold =
+    terms.leverage === "high" ? 1.04 : terms.leverage === "incentivised" ? 0.99 : 0.94;
+
+  if (wageRatio >= 0.8 && bonusRatio >= 0.5 && score >= threshold) {
+    return {
+      outcome: "accepted",
+      message: "Terms accepted. The manager is ready to sign.",
+    };
+  }
+
+  if (score < threshold - 0.22 || wageRatio < 0.68) {
+    return {
+      outcome: "rejected",
+      message: "That package is too far below expectations. Improve the offer.",
+    };
+  }
+
+  const counterWage = roundWage((offer.wage + terms.wageDemand) / 2);
+  const counterBonus = roundBonus((offer.signingBonus + terms.signingBonus) / 2);
+  const targetYears = Math.max(2, Math.round(terms.contractWeeks / 52));
+  const offeredYears = Math.max(1, Math.round(offer.contractWeeks / 52));
+  const counterYears = Math.max(offeredYears, Math.ceil((offeredYears + targetYears) / 2));
+
+  return {
+    outcome: "counter",
+    message: "The manager is interested, but wants you to improve the package.",
+    counterOffer: {
+      wage: counterWage,
+      signingBonus: counterBonus,
+      contractWeeks: counterYears * 52,
+    },
+  };
 }
 
 export interface SpendResult {
@@ -444,6 +508,51 @@ export function hireStaffMember(s: GameState, id: string): SpendResult {
     subcategory: "Signing bonus",
     description: `Signing bonus — ${cand.name} (${cand.role})`,
     amount: terms.signingBonus,
+    direction: "expense",
+    sourceSystem: "staff",
+    linkedEntityId: cand.id,
+    dedupeKey: `staff-hire:${cand.id}`,
+  });
+  return { state: ns, ok: true };
+}
+
+export function hireManagerWithOffer(
+  s: GameState,
+  id: string,
+  offer: ManagerOffer,
+): SpendResult {
+  const cand = s.staffCandidates.find((c) => c.id === id);
+  if (!cand) return { state: s, ok: false, reason: "Candidate no longer available" };
+  if (cand.role !== "Manager") {
+    return { state: s, ok: false, reason: "This negotiation flow is for managers only." };
+  }
+  if (s.hiredStaff.some((h) => h.role === "Manager")) {
+    return { state: s, ok: false, reason: "You already employ a Manager. Sack them first." };
+  }
+
+  const evaluation = evaluateManagerOffer(s, cand, offer);
+  if (evaluation.outcome !== "accepted") {
+    return { state: s, ok: false, reason: evaluation.message };
+  }
+  if (s.cash < offer.signingBonus) {
+    return { state: s, ok: false, reason: "Not enough cash for the signing bonus." };
+  }
+
+  const ns: GameState = structuredClone(s);
+  ns.hiredStaff = [
+    ...ns.hiredStaff,
+    {
+      ...cand,
+      wage: roundWage(offer.wage),
+      contractWeeks: Math.max(52, Math.round(offer.contractWeeks / 52) * 52),
+    },
+  ];
+  ns.staffCandidates = ns.staffCandidates.filter((c) => c.id !== id);
+  postEntry(ns, {
+    category: "Staff",
+    subcategory: "Signing bonus",
+    description: `Signing bonus — ${cand.name} (Manager)`,
+    amount: roundBonus(offer.signingBonus),
     direction: "expense",
     sourceSystem: "staff",
     linkedEntityId: cand.id,

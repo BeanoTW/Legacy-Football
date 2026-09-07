@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import {
   fmtMoneyExact,
+  evaluateManagerOffer,
+  hireManagerWithOffer,
   hireStaffMember,
   hiredStaffWagesWeekly,
   sackStaffMember,
@@ -16,6 +18,13 @@ import {
 } from "@/lib/game/engine";
 import { renewStaffContract } from "@/lib/game/staffCareers";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { OverviewScreen, WorkflowTile } from "./shared/layout";
 
 const STAT_KEYS: (keyof Staff["stats"])[] = [
@@ -76,6 +85,10 @@ export function StaffTab({
   const [maxWage, setMaxWage] = useState(0);
   const [willingOnly, setWillingOnly] = useState(true);
   const [sortBy, setSortBy] = useState<"rating" | "wage" | "age" | "fit">("fit");
+  const [managerNegotiationId, setManagerNegotiationId] = useState<string | null>(null);
+  const [managerOffer, setManagerOffer] = useState<{ wage: number; signingBonus: number; contractWeeks: number } | null>(null);
+  const [managerCounter, setManagerCounter] = useState<{ wage: number; signingBonus: number; contractWeeks: number } | null>(null);
+  const [managerMessage, setManagerMessage] = useState("");
 
   const manager = state.hiredStaff.find((s) => s.role === "Manager");
   const weeklyStaffCost = hiredStaffWagesWeekly(state);
@@ -89,9 +102,39 @@ export function StaffTab({
   const expiringCount = state.hiredStaff.filter((s) => s.contractWeeks <= 24).length;
 
   const hire = (id: string) => {
+    const candidate = state.staffCandidates.find((c) => c.id === id);
+    if (candidate?.role === "Manager") {
+      const terms = staffJoinTermsForState(state, candidate);
+      setManagerNegotiationId(id);
+      setManagerOffer({
+        wage: terms.wageDemand,
+        signingBonus: terms.signingBonus,
+        contractWeeks: terms.contractWeeks,
+      });
+      setManagerCounter(null);
+      setManagerMessage(terms.note);
+      return;
+    }
     const res = hireStaffMember(state, id);
     if (!res.ok) return alert(res.reason ?? "Unable to hire.");
     update(() => res.state);
+  };
+
+  const submitManagerOffer = () => {
+    if (!managerNegotiationId || !managerOffer) return;
+    const candidate = state.staffCandidates.find((c) => c.id === managerNegotiationId);
+    if (!candidate) return;
+    const evaluation = evaluateManagerOffer(state, candidate, managerOffer);
+    setManagerMessage(evaluation.message);
+    setManagerCounter(evaluation.counterOffer ?? null);
+    if (evaluation.outcome !== "accepted") return;
+
+    const res = hireManagerWithOffer(state, managerNegotiationId, managerOffer);
+    if (!res.ok) return setManagerMessage(res.reason ?? "Unable to complete the deal.");
+    update(() => res.state);
+    setManagerNegotiationId(null);
+    setManagerOffer(null);
+    setManagerCounter(null);
   };
 
   const release = (id: string) => {
@@ -298,6 +341,30 @@ export function StaffTab({
             </div>
           )}
         </div>
+
+        <ManagerNegotiationDialog
+          open={Boolean(managerNegotiationId)}
+          candidate={state.staffCandidates.find((c) => c.id === managerNegotiationId) ?? null}
+          offer={managerOffer}
+          counter={managerCounter}
+          message={managerMessage}
+          cash={state.cash}
+          onOpenChange={(open) => {
+            if (!open) {
+              setManagerNegotiationId(null);
+              setManagerOffer(null);
+              setManagerCounter(null);
+            }
+          }}
+          onOfferChange={setManagerOffer}
+          onSubmit={submitManagerOffer}
+          onUseCounter={() => {
+            if (!managerCounter) return;
+            setManagerOffer(managerCounter);
+            setManagerCounter(null);
+            setManagerMessage("Counter-offer loaded. You can accept it or adjust the package again.");
+          }}
+        />
       </div>
     );
   }
@@ -498,7 +565,7 @@ export function StaffCard({
         </div>
         {action === "hire" ? (
           <Button className="min-w-24" onClick={onAction} disabled={!canHire}>
-            <UserPlus className="size-4 mr-1" /> Hire
+            <UserPlus className="size-4 mr-1" /> {staff.role === "Manager" ? "Negotiate" : "Hire"}
           </Button>
         ) : (
           <div className="flex gap-2">
@@ -514,5 +581,123 @@ export function StaffCard({
         )}
       </div>
     </div>
+  );
+}
+
+
+function ManagerNegotiationDialog({
+  open,
+  candidate,
+  offer,
+  counter,
+  message,
+  cash,
+  onOpenChange,
+  onOfferChange,
+  onSubmit,
+  onUseCounter,
+}: {
+  open: boolean;
+  candidate: Staff | null;
+  offer: { wage: number; signingBonus: number; contractWeeks: number } | null;
+  counter: { wage: number; signingBonus: number; contractWeeks: number } | null;
+  message: string;
+  cash: number;
+  onOpenChange: (open: boolean) => void;
+  onOfferChange: (offer: { wage: number; signingBonus: number; contractWeeks: number }) => void;
+  onSubmit: () => void;
+  onUseCounter: () => void;
+}) {
+  if (!candidate || !offer) return null;
+  const years = Math.round(offer.contractWeeks / 52);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Negotiate with {candidate.name}</DialogTitle>
+        </DialogHeader>
+
+        <div className="rounded-xl border bg-muted/40 p-3 text-sm">
+          <div className="font-semibold">{candidate.rating} overall · {candidate.reputation} reputation</div>
+          <div className="mt-1 text-muted-foreground">{message}</div>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <Label>Weekly wage</Label>
+            <Input
+              type="number"
+              min={200}
+              step={500}
+              value={offer.wage}
+              onChange={(e) => onOfferChange({ ...offer, wage: Math.max(200, Number(e.target.value) || 0) })}
+              className="mt-2 h-12"
+            />
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {[0.9, 1, 1.1].map((multiplier) => (
+                <Button
+                  key={multiplier}
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOfferChange({ ...offer, wage: Math.round((offer.wage * multiplier) / 50) * 50 })}
+                >
+                  {multiplier < 1 ? "-10%" : multiplier > 1 ? "+10%" : "Keep"}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <Label>Signing bonus</Label>
+            <Input
+              type="number"
+              min={0}
+              step={1000}
+              value={offer.signingBonus}
+              onChange={(e) => onOfferChange({ ...offer, signingBonus: Math.max(0, Number(e.target.value) || 0) })}
+              className="mt-2 h-12"
+            />
+          </div>
+
+          <div>
+            <Label>Contract length</Label>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {[2, 3, 4].map((optionYears) => (
+                <Button
+                  key={optionYears}
+                  type="button"
+                  variant={years === optionYears ? "default" : "outline"}
+                  onClick={() => onOfferChange({ ...offer, contractWeeks: optionYears * 52 })}
+                >
+                  {optionYears} years
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {counter && (
+            <div className="rounded-xl border border-amber-500/50 bg-amber-500/5 p-3 text-sm">
+              <div className="font-semibold">Counter-offer</div>
+              <div className="mt-1 text-muted-foreground">
+                {fmtMoneyExact(counter.wage)}/wk · {fmtMoneyExact(counter.signingBonus)} bonus · {Math.round(counter.contractWeeks / 52)} years
+              </div>
+              <Button className="mt-3 w-full" variant="outline" onClick={onUseCounter}>
+                Use counter-offer
+              </Button>
+            </div>
+          )}
+
+          <div className="text-xs text-muted-foreground">
+            Cash available: {fmtMoneyExact(cash)}. Better wages, bonus or security can compensate for a weaker item elsewhere.
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Walk away</Button>
+          <Button onClick={onSubmit} disabled={offer.signingBonus > cash}>Make offer</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

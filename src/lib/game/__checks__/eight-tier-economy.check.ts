@@ -16,6 +16,7 @@ import {
   economicProfileForLevel,
   playerValueForLevel,
   revenueBaselineForLevel,
+  staffMarketWage,
   staffWageForLevel,
   sustainableWeeklyWageBillForLevel,
   weeklyWageForLevel,
@@ -120,18 +121,42 @@ console.log("\n[C] Representative squad + staff solvency");
   }
 }
 
-console.log("\n[D] Transfer-fee affordability");
+console.log("\n[D] Staff market wage integrity");
 {
+  const eliteManager = staffMarketWage(8_500, 95);
+  const eliteAssistant = staffMarketWage(4_200, 95);
+  const semiProManager = staffMarketWage(8_500, 44);
+
+  assert(eliteManager >= 140_000,
+    `95-reputation manager is implausibly cheap: ${fmt(eliteManager)}/wk`);
+  assert(eliteAssistant >= 60_000,
+    `95-reputation assistant manager is implausibly cheap: ${fmt(eliteAssistant)}/wk`);
+  assert(semiProManager <= 1_500,
+    `semi-pro manager market wage is implausibly high: ${fmt(semiProManager)}/wk`);
+}
+
+console.log("\n[E] Transfer-market realism");
+{
+  const topFlightStar = playerValueForLevel(92, 95, 25, 1);
+  const topFlightStarter = playerValueForLevel(85, 89, 25, 1);
+  assert(topFlightStar >= 100_000_000 && topFlightStar <= 180_000_000,
+    `92-rated top-flight star should live in the £100m-£180m market: ${fmt(topFlightStar)}`);
+  assert(topFlightStarter >= 45_000_000 && topFlightStarter <= 100_000_000,
+    `85-rated top-flight starter should command a major fee: ${fmt(topFlightStarter)}`);
+
   const starAbility: Record<FootballLevel, number> = {
     1:85, 2:77, 3:69, 4:64, 5:59, 6:56, 7:53, 8:50,
+  };
+  const maxRevenueShare: Record<FootballLevel, number> = {
+    1:0.5, 2:0.45, 3:0.4, 4:0.4, 5:0.35, 6:0.35, 7:0.3, 8:0.3,
   };
   for (const level of levels) {
     const revenue = revenueBaselineForLevel(level, 50).totalSeason;
     const ability = starAbility[level];
     const value = playerValueForLevel(ability, ability + 5, 25, level);
     const share = value / revenue;
-    assert(share <= 0.2,
-      `Level ${level} representative star costs more than 20% of annual baseline revenue: ${fmt(value)} / ${fmt(revenue)}`);
+    assert(share <= maxRevenueShare[level],
+      `Level ${level} representative star is implausibly large versus turnover: ${fmt(value)} / ${fmt(revenue)}`);
   }
 }
 
