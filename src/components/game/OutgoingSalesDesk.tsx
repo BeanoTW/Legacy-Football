@@ -15,6 +15,8 @@ import { playerOwnerClubId } from "@/lib/game/playerRegistration";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { tacticalPositionProfile } from "@/lib/game/positions";
+import { openPlayerProfile } from "./shared/PlayerProfileSheet";
 
 export function OutgoingSalesDesk({
   state,
@@ -245,9 +247,9 @@ function PlayerSummary({ player, state }: { player: FootballPlayer; state: GameS
   return (
     <div className="min-w-0">
       <div className="flex flex-wrap items-center gap-1.5">
-        <div className="truncate text-sm font-semibold">{playerName(player)}</div>
+        <button type="button" onClick={() => openPlayerProfile(player.id)} className="truncate text-left text-sm font-semibold hover:underline">{playerName(player)}</button>
         <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-bold">
-          {player.primaryPosition}
+          {tacticalPositionProfile(player).primary}
         </span>
         {player.transferStatus === "listed" && (
           <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 dark:text-amber-300">
