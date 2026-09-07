@@ -64,10 +64,14 @@ export {
   staffJoinTerms,
   staffJoinTermsForState,
   managerJoinTerms,
+  evaluateManagerOffer,
+  hireManagerWithOffer,
   hireStaffMember,
   sackStaffMember,
   severanceFor,
   type JoinTerms,
+  type ManagerOffer,
+  type ManagerOfferEvaluation,
   type SpendResult,
 } from "./staff";
 export {

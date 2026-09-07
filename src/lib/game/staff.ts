@@ -413,6 +413,71 @@ export function staffJoinTermsForState(s: GameState, staff: Staff): JoinTerms {
   return staffJoinTerms(s.reputation, marketStaff, facilityModifiers(s).staffAttraction);
 }
 
+export interface ManagerOffer {
+  wage: number;
+  signingBonus: number;
+  contractWeeks: number;
+}
+
+export interface ManagerOfferEvaluation {
+  outcome: "accepted" | "counter" | "rejected" | "unavailable";
+  message: string;
+  counterOffer?: ManagerOffer;
+}
+
+const roundBonus = (value: number) => Math.max(0, Math.round(value / 100) * 100);
+
+export function evaluateManagerOffer(
+  s: GameState,
+  staff: Staff,
+  offer: ManagerOffer,
+): ManagerOfferEvaluation {
+  const terms = managerJoinTerms(s, staff);
+  if (!terms.willing || staff.role !== "Manager") {
+    return {
+      outcome: "unavailable",
+      message: terms.note,
+    };
+  }
+
+  const wageRatio = offer.wage / Math.max(1, terms.wageDemand);
+  const bonusRatio = offer.signingBonus / Math.max(1, terms.signingBonus);
+  const contractRatio = offer.contractWeeks / Math.max(52, terms.contractWeeks);
+  const score = wageRatio * 0.55 + bonusRatio * 0.25 + contractRatio * 0.2;
+  const threshold =
+    terms.leverage === "high" ? 1.04 : terms.leverage === "incentivised" ? 0.99 : 0.94;
+
+  if (wageRatio >= 0.8 && bonusRatio >= 0.5 && score >= threshold) {
+    return {
+      outcome: "accepted",
+      message: "Terms accepted. The manager is ready to sign.",
+    };
+  }
+
+  if (score < threshold - 0.22 || wageRatio < 0.68) {
+    return {
+      outcome: "rejected",
+      message: "That package is too far below expectations. Improve the offer.",
+    };
+  }
+
+  const counterWage = roundWage((offer.wage + terms.wageDemand) / 2);
+  const counterBonus = roundBonus((offer.signingBonus + terms.signingBonus) / 2);
+  const targetYears = Math.max(2, Math.round(terms.contractWeeks / 52));
+  const offeredYears = Math.max(1, Math.round(offer.contractWeeks / 52));
+  const counterYears = Math.max(offeredYears, Math.ceil((offeredYears + targetYears) / 2));
+
+  return {
+    outcome: "counter",
+    message: "The manager is interested, but wants you to improve the package.",
+    counterOffer: {
+      wage: counterWage,
+      signingBonus: counterBonus,
+      contractWeeks: counterYears * 52,
+    },
+  };
+}
+
 export interface SpendResult {
   state: GameState;
   ok: boolean;
@@ -443,6 +508,51 @@ export function hireStaffMember(s: GameState, id: string): SpendResult {
     subcategory: "Signing bonus",
     description: `Signing bonus — ${cand.name} (${cand.role})`,
     amount: terms.signingBonus,
+    direction: "expense",
+    sourceSystem: "staff",
+    linkedEntityId: cand.id,
+    dedupeKey: `staff-hire:${cand.id}`,
+  });
+  return { state: ns, ok: true };
+}
+
+export function hireManagerWithOffer(
+  s: GameState,
+  id: string,
+  offer: ManagerOffer,
+): SpendResult {
+  const cand = s.staffCandidates.find((c) => c.id === id);
+  if (!cand) return { state: s, ok: false, reason: "Candidate no longer available" };
+  if (cand.role !== "Manager") {
+    return { state: s, ok: false, reason: "This negotiation flow is for managers only." };
+  }
+  if (s.hiredStaff.some((h) => h.role === "Manager")) {
+    return { state: s, ok: false, reason: "You already employ a Manager. Sack them first." };
+  }
+
+  const evaluation = evaluateManagerOffer(s, cand, offer);
+  if (evaluation.outcome !== "accepted") {
+    return { state: s, ok: false, reason: evaluation.message };
+  }
+  if (s.cash < offer.signingBonus) {
+    return { state: s, ok: false, reason: "Not enough cash for the signing bonus." };
+  }
+
+  const ns: GameState = structuredClone(s);
+  ns.hiredStaff = [
+    ...ns.hiredStaff,
+    {
+      ...cand,
+      wage: roundWage(offer.wage),
+      contractWeeks: Math.max(52, Math.round(offer.contractWeeks / 52) * 52),
+    },
+  ];
+  ns.staffCandidates = ns.staffCandidates.filter((c) => c.id !== id);
+  postEntry(ns, {
+    category: "Staff",
+    subcategory: "Signing bonus",
+    description: `Signing bonus — ${cand.name} (Manager)`,
+    amount: roundBonus(offer.signingBonus),
     direction: "expense",
     sourceSystem: "staff",
     linkedEntityId: cand.id,
