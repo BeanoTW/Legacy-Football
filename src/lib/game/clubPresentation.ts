@@ -2,10 +2,11 @@
  * Presentation-only aliases for the fictional football world.
  *
  * Persisted club identities and save-sensitive source names must never change.
- * These aliases make the world feel recognisably English without storing or
- * migrating different club keys.
+ * These aliases make the pyramid feel recognisably English while keeping the
+ * canonical simulation keys untouched.
  */
 const CLUB_PRESENTATION_ALIASES: Record<string, string> = {
+  // Level 3-style top flight
   "Ashford City": "Monchester City",
   "Millbrook": "Monchester United",
   "Northfield": "Liverford",
@@ -27,6 +28,8 @@ const CLUB_PRESENTATION_ALIASES: Record<string, string> = {
   "Sandborough": "Ipswich Town",
   "Oakhaven": "Southampton Athletic",
 
+  // Level 4-style second division
+  "Ridgeport": "Burnley Town",
   "Thornbury": "Leeds City",
   "Larkfield United": "Sheffield United",
   "Castleford Rovers": "Middlesborough",
@@ -37,7 +40,64 @@ const CLUB_PRESENTATION_ALIASES: Record<string, string> = {
   "Draymoor": "Norwich City",
   "Colverton": "Watford Town",
   "Ashby Rangers": "Queens Park Rangers",
+  "Sea View United": "Swansea City",
+  "Nortonwood": "Stoke Town",
+  "Beckwith": "Preston North",
+  "Hollowfield": "Hull City",
+  "Grangemouth City": "Cardiff City",
+  "Verity Park": "Bristol City",
+  "Stonebridge": "Derby County",
+  "Tarnbeck": "Portsmouth City",
+  "Duncastle": "Millwall Town",
 
+  // Level 5-style third division
+  "Little Marsh FC": "Bolton Wanderers",
+  "Ferrisdale": "Reading Town",
+  "Oldcourt Wanderers": "Wigan Athletic",
+  "Alderwick Town": "Barnsley Town",
+  "Brambleford": "Blackpool Town",
+  "Creston Athletic": "Charlton Athletic",
+  "Dunmere United": "Huddersfield Town",
+  "Eastborough": "Peterborough United",
+  "Foxley Rovers": "Rotherham United",
+  "Glenhaven": "Shrewsbury Town",
+  "Hartwick City": "Lincoln City",
+  "Ivydale": "Exeter City",
+  "Juniper Town": "Wycombe Wanderers",
+  "Kirkstead": "Leyton Orient",
+  "Langford Athletic": "Stevenage Town",
+  "Moorhaven": "Mansfield Town",
+  "Norchester": "Northampton Town",
+  "Oakmere United": "Oxford United",
+  "Pemberton Rovers": "Plymouth Argyle",
+  "Queensferry Athletic": "Cambridge United",
+
+  // Level 6-style fourth division
+  "Redmarsh": "Bradford City",
+  "Stonely Town": "Doncaster Rovers",
+  "Westcombe": "Gillingham Town",
+  "Arden Vale": "Crawley Town",
+  "Briarley": "Crewe Alexandra",
+  "Coldwater City": "Colchester United",
+  "Dalesford United": "Fleetwood Town",
+  "Evermoor": "Harrogate Town",
+  "Farnwick Athletic": "Newport County",
+  "Greycastle": "Notts County",
+  "Hawthorne Rovers": "Salford City",
+  "Inglemere": "Swindon Town",
+  "Kingswell Town": "Tranmere Rovers",
+  "Lowfield United": "Walsall Town",
+  "Mereford": "Accrington Town",
+  "Northcross Athletic": "Barrow Town",
+  "Orchard Vale": "Bromley Town",
+  "Parkminster": "Cheltenham Town",
+  "Ravenswood City": "Grimsby Town",
+  "Southmere": "Morecambe Town",
+
+  // Level 7 Central
+  "Telford Vale": "AFC Telford",
+  "Underhill Rovers": "Rushall Olympic",
+  "Westhaven Athletic": "Alfreton Town",
   "Banbury Cross": "Banbury United",
   "Brackley Borough": "Brackley Town",
   "Kettering Athletic": "Kettering Town",
@@ -53,8 +113,98 @@ const CLUB_PRESENTATION_ALIASES: Record<string, string> = {
   "Bromsgrove Athletic": "Bromsgrove Sporting",
   "Coalville Town": "Coalville",
   "Harborough United": "Harborough Town",
+  "Royston Borough": "Royston Town",
+  "Hitchin Athletic": "Hitchin Town",
+
+  // Level 7 South
+  "Barwell Town": "Barwell FC",
+  "Alvechurch FC": "Alvechurch",
+  "Needham Borough": "Needham Market",
+  "Salisbury Rovers": "Salisbury FC",
+  "Poole Athletic": "Poole Town",
+  "Dorchester Town": "Dorchester Town",
+  "Wimborne United": "Wimborne Town",
+  "Taunton Borough": "Taunton Town",
+  "Tiverton Athletic": "Tiverton Town",
+  "Plymouth Parkway": "Plymouth Parkway",
+  "Gosport Town": "Gosport Borough",
+  "Havant Borough": "Havant & Waterlooville",
+  "Walton Athletic": "Walton & Hersham",
+  "Bracknell Town": "Bracknell Town",
+  "Chertsey Rovers": "Chertsey Town",
+  "Hungerford United": "Hungerford Town",
+  "Swindon Borough": "Swindon Supermarine",
+  "Gloucester Vale": "Gloucester City",
+  "Basingstoke Town": "Basingstoke Town",
+  "Sholing Athletic": "Sholing FC",
+
+  // Level 7 Isthmian
+  "Winchester City": "Winchester City",
+  "Farnborough Rovers": "Farnborough FC",
+  "Weston Athletic": "Weston-super-Mare",
+  "Hornchurch Athletic": "Hornchurch",
+  "Dulwich Borough": "Dulwich Hamlet",
+  "Lewes Town": "Lewes FC",
+  "Folkestone United": "Folkestone Invicta",
+  "Cray Wanderers": "Cray Wanderers",
+  "Billericay Town": "Billericay Town",
+  "Chatham Athletic": "Chatham Town",
+  "Horsham Borough": "Horsham FC",
+  "Carshalton United": "Carshalton Athletic",
+  "Hashtag Athletic": "Hashtag United",
+  "Potters Bar Town": "Potters Bar Town",
+  "Wingate Borough": "Wingate & Finchley",
+  "Canvey Athletic": "Canvey Island",
+  "Whitehawk FC": "Whitehawk",
+  "Bognor Regis Town": "Bognor Regis Town",
+  "Hendon Borough": "Hendon FC",
+  "Cheshunt Athletic": "Cheshunt FC",
+
+  // Level 7 North
+  "Dartford Rovers": "Dartford FC",
+  "Ramsgate Town": "Ramsgate FC",
+  "Burgess Hill Athletic": "Burgess Hill Town",
+  "Macclesfield Town": "Macclesfield FC",
+  "Worksop Athletic": "Worksop Town",
+  "Hyde United": "Hyde United",
+  "Morpeth Town": "Morpeth Town",
+  "Whitby Athletic": "Whitby Town",
+  "Ashton Borough": "Ashton United",
+  "Guiseley Town": "Guiseley AFC",
+  "Lancaster City": "Lancaster City",
+  "Prescot Rovers": "Prescot Cables",
+  "Ilkeston Athletic": "Ilkeston Town",
+  "Matlock Town": "Matlock Town",
+  "Bamber Bridge FC": "Bamber Bridge",
+  "Hebburn Athletic": "Hebburn Town",
+  "Mickleover Town": "Mickleover FC",
+  "Gainsborough Athletic": "Gainsborough Trinity",
+  "Workington Borough": "Workington AFC",
+  "Warrington Town": "Warrington Town",
+  "Stockton Athletic": "Stockton Town",
+  "Leek Town": "Leek Town",
+  "Basford United": "Basford United",
 };
 
 export function clubPresentationName(sourceName: string): string {
   return CLUB_PRESENTATION_ALIASES[sourceName] ?? sourceName;
+}
+
+/**
+ * Competition labels are also presentation-only. IDs and persisted league
+ * names remain stable underneath so old saves do not need a migration.
+ */
+const LEAGUE_PRESENTATION_ALIASES: Record<string, string> = {
+  "Division One": "Premier Division",
+  "Division Two": "Championship",
+  "Division Three": "League One",
+  "Division Four": "League Two",
+  "Regional Premier Central": "Southern Premier Central",
+  "Regional Premier South": "Southern Premier South",
+  "Regional Premier Isthmian": "Isthmian Premier",
+  "Regional Premier North": "Northern Premier",
+};
+
+export function leaguePresentationName(sourceName: string): string {
+  return LEAGUE_PRESENTATION_ALIASES[sourceName] ?? sourceName;
 }
