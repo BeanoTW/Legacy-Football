@@ -3,7 +3,6 @@ import type {
   FootballPlayer,
   Position,
   PositionFamiliarity,
-  TacticalPosition,
 } from "./types";
 
 export const DETAILED_POSITIONS: readonly TacticalPosition[] = [
@@ -50,13 +49,14 @@ export function positionUnit(position: TacticalPosition | Position): PositionUni
 }
 
 export function positionFamiliarity(
-  player: Pick<FootballPlayer, "tacticalPrimaryPosition" | "tacticalSecondaryPositions" | "positionFamiliarity">,
+  player: Pick<FootballPlayer, "tacticalPrimaryPosition" | "tacticalSecondaryPositions" | "naturalTacticalPositions">,
   position: TacticalPosition,
 ): PositionFamiliarity | "Unfamiliar" {
   if (player.tacticalPrimaryPosition === position) return "Natural";
-  const explicit = player.positionFamiliarity?.[position];
-  if (explicit) return explicit;
-  if (player.tacticalSecondaryPositions?.includes(position)) return "Comfortable";
+  if (player.naturalTacticalPositions?.includes(position)) return "Natural";
+  const index = player.tacticalSecondaryPositions?.indexOf(position) ?? -1;
+  if (index === 0) return "Accomplished";
+  if (index > 0) return "Comfortable";
   return "Unfamiliar";
 }
 
