@@ -143,6 +143,28 @@ export function staffWageForLevel(baseLevelThreeWeeklyWage: number, level: Footb
   return Math.max(floor, int(raw / step) * step);
 }
 
+/**
+ * Staff carry an intrinsic market wage based on their own standing, not the
+ * division of the club currently viewing them. This prevents an elite coach
+ * from appearing to cost semi-professional money simply because a tiny club
+ * opened the staff market.
+ */
+export function staffMarketWage(
+  baseLevelThreeWeeklyWage: number,
+  reputation: number,
+): number {
+  const rep = clamp(reputation, 20, 95);
+  const marketLevel: FootballLevel =
+    rep >= 90 ? 1 :
+    rep >= 82 ? 2 :
+    rep >= 72 ? 3 :
+    rep >= 64 ? 4 :
+    rep >= 56 ? 5 :
+    rep >= 49 ? 6 :
+    rep >= 42 ? 7 : 8;
+  return staffWageForLevel(baseLevelThreeWeeklyWage, marketLevel);
+}
+
 export function contractWageForLevel(
   baseWeeklyWage: number,
   scalar: number,
