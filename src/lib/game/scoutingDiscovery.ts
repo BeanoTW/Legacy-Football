@@ -240,7 +240,11 @@ export function createScoutingBrief(state: GameState, input: ScoutingBriefInput)
   if (next.football.scoutingDiscovery.briefs.some((brief) => brief.id === input.id)) return next;
 
   const quality = scoutingQuality(next);
-  const candidateLimit = quality >= 75 ? 6 : quality >= 45 ? 5 : 4;
+  // The underlying football world is already large; the previous 4–6 result
+  // cap made that world feel tiny from the chairman's chair. A search now
+  // exposes a genuinely useful market sample while scouting quality still
+  // affects how broad and reliable the shortlist is.
+  const candidateLimit = quality >= 75 ? 48 : quality >= 45 ? 40 : 32;
   const detailed = ranked(
     next,
     next.football.players.map((player) => detailedCandidate(next, player)),
@@ -248,13 +252,32 @@ export function createScoutingBrief(state: GameState, input: ScoutingBriefInput)
   );
   const fringe = ranked(next, fringeCandidates(next), input);
 
-  // Wide-world scouting must genuinely reach beyond the current Focus bubble.
-  // Reserve a small share for eligible Fringe discoveries, then fill remaining
-  // slots with the strongest deterministic results from either source.
-  const fringeQuota = fringe.length ? Math.min(2, Math.max(1, Math.floor(candidateLimit / 3))) : 0;
-  const selected: DiscoveryCandidate[] = fringe.slice(0, fringeQuota);
+  // Free agents should always form a meaningful part of an open market search,
+  // especially at lower levels where they are a core recruitment route.
+  const freeDetailed = detailed.filter(
+    (candidate) => candidate.source === "detailed" && candidate.player.currentClubId === null,
+  );
+  const contractedDetailed = detailed.filter(
+    (candidate) => candidate.source === "detailed" && candidate.player.currentClubId !== null,
+  );
+  const freeQuota = Math.min(
+    freeDetailed.length,
+    Math.max(8, Math.floor(candidateLimit * 0.3)),
+  );
+  const fringeQuota = fringe.length
+    ? Math.min(fringe.length, Math.max(6, Math.floor(candidateLimit * 0.25)))
+    : 0;
+
+  const selected: DiscoveryCandidate[] = [
+    ...freeDetailed.slice(0, freeQuota),
+    ...fringe.slice(0, fringeQuota),
+  ];
   const selectedIds = new Set(selected.map((candidate) => candidate.id));
-  const remainder = [...detailed, ...fringe.slice(fringeQuota)]
+  const remainder = [
+    ...contractedDetailed,
+    ...freeDetailed.slice(freeQuota),
+    ...fringe.slice(fringeQuota),
+  ]
     .filter((candidate) => !selectedIds.has(candidate.id))
     .sort((a, b) => {
       const difference = discoveryScore(next, b, input) - discoveryScore(next, a, input);
