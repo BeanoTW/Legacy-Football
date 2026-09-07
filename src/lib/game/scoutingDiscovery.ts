@@ -74,8 +74,12 @@ declare module "./types" {
 export interface ScoutingBriefInput {
   id: string;
   position?: Position;
+  minAge?: number;
   maxAge?: number;
   maxMarketValue?: number;
+  maxWeeklyWage?: number;
+  nationality?: string;
+  clubStatus?: "free" | "contracted";
   minCurrentAbility?: number;
 }
 
@@ -87,6 +91,8 @@ interface CandidateBase {
   marketValue: number;
   wageExpectation: number;
   age: number;
+  nationality: string;
+  currentClubId: string | null;
   primaryPosition: Position;
 }
 
@@ -128,6 +134,8 @@ function detailedCandidate(state: GameState, player: FootballPlayer): DetailedCa
     marketValue: player.marketValue,
     wageExpectation: player.wageExpectation,
     age: ageOf(player, state.season),
+    nationality: player.nationality,
+    currentClubId: player.currentClubId,
     primaryPosition: player.primaryPosition,
   };
 }
@@ -181,6 +189,8 @@ function fringeCandidates(state: GameState): FringeCandidate[] {
         marketValue: projected.marketValue,
         wageExpectation: projected.wageExpectation,
         age: projected.age,
+        nationality: projected.identity.nationality,
+        currentClubId: projected.identity.currentClubId,
         primaryPosition: projected.primaryPosition,
       });
     }
@@ -198,8 +208,13 @@ function eligible(
     return false;
   }
   if (input.position && candidate.primaryPosition !== input.position) return false;
+  if (input.minAge !== undefined && candidate.age < input.minAge) return false;
   if (input.maxAge !== undefined && candidate.age > input.maxAge) return false;
   if (input.maxMarketValue !== undefined && candidate.marketValue > input.maxMarketValue) return false;
+  if (input.maxWeeklyWage !== undefined && candidate.wageExpectation > input.maxWeeklyWage) return false;
+  if (input.nationality && candidate.nationality.toLowerCase() !== input.nationality.toLowerCase()) return false;
+  if (input.clubStatus === "free" && candidate.currentClubId !== null) return false;
+  if (input.clubStatus === "contracted" && candidate.currentClubId === null) return false;
   return true;
 }
 
@@ -255,10 +270,10 @@ export function createScoutingBrief(state: GameState, input: ScoutingBriefInput)
   // Free agents should always form a meaningful part of an open market search,
   // especially at lower levels where they are a core recruitment route.
   const freeDetailed = detailed.filter(
-    (candidate) => candidate.source === "detailed" && candidate.player.currentClubId === null,
+    (candidate) => candidate.source === "detailed" && candidate.currentClubId === null,
   );
   const contractedDetailed = detailed.filter(
-    (candidate) => candidate.source === "detailed" && candidate.player.currentClubId !== null,
+    (candidate) => candidate.source === "detailed" && candidate.currentClubId !== null,
   );
   const freeQuota = Math.min(
     freeDetailed.length,
