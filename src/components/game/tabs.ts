@@ -4,7 +4,6 @@ import {
   Calendar,
   CircleDollarSign,
   Gavel,
-  Globe2,
   Handshake,
   Home,
   LineChart as LineIcon,
@@ -51,8 +50,7 @@ export const ALL_TABS: TabDef[] = [
   ["commercial", "Commercial", Handshake],
   ["tickets", "Tickets", Ticket],
   ["dashboard", "Reports", LineIcon],
-  ["leagues", "Leagues", Trophy],
-  ["world", "World", Globe2],
+  ["world", "Competitions", Trophy],
   ["history", "Legacy", History],
   ["settings", "Settings", Settings],
 ];
