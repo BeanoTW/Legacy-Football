@@ -162,7 +162,14 @@ export function staffMarketWage(
     rep >= 56 ? 5 :
     rep >= 49 ? 6 :
     rep >= 42 ? 7 : 8;
-  return staffWageForLevel(baseLevelThreeWeeklyWage, marketLevel);
+  const levelWage = staffWageForLevel(baseLevelThreeWeeklyWage, marketLevel);
+  // Elite staff sit in a superstar labour market just like elite players.
+  // Reputation above 70 adds a convex premium so 90-95 reputation managers
+  // reach genuine top-club salary territory instead of stopping around £50k/wk.
+  const elitePremium = Math.exp(Math.max(0, rep - 70) * 0.04);
+  const raw = levelWage * elitePremium;
+  const step = raw >= 10_000 ? 500 : raw >= 1_000 ? 50 : 10;
+  return Math.max(levelWage, int(raw / step) * step);
 }
 
 export function contractWageForLevel(
