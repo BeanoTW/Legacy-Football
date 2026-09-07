@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ArrowLeft, List, Shield, Sparkles, Users } from "lucide-react";
-import type { FootballPlayer, GameState, Position } from "@/lib/game/types";
+import type { FootballPlayer, GameState, TacticalPosition } from "@/lib/game/types";
 import {
   activeContract,
   ageOf,
@@ -23,24 +23,26 @@ import {
   userProfessionalisationReadiness,
 } from "@/lib/game/employment";
 import { userClubReference } from "@/lib/game/clubReference";
+import { positionFamiliarity, positionUnit, tacticalPositionProfile } from "@/lib/game/positions";
+import { openPlayerProfile } from "./shared/PlayerProfileSheet";
 import {
   PLAYER_COHESION_DEFAULT,
   PLAYER_MORALE_DEFAULT,
   playerManagerQuality,
 } from "@/lib/game/playerClubPerformance";
 
-const FORMATION: Position[] = [
+const FORMATION: TacticalPosition[] = [
   "GK",
-  "DEF",
-  "DEF",
-  "DEF",
-  "DEF",
-  "MID",
-  "MID",
-  "MID",
-  "MID",
-  "FWD",
-  "FWD",
+  "LB",
+  "CB",
+  "CB",
+  "RB",
+  "LM",
+  "CM",
+  "CM",
+  "RM",
+  "ST",
+  "ST",
 ];
 type Preset = "strongest" | "rested" | "youth";
 type SquadView = "pitch" | "details";
@@ -256,33 +258,86 @@ export function SquadSelectionTab({
 
 function chooseXi(players: FootballPlayer[], preset: Preset, season: number): FootballPlayer[] {
   const used = new Set<string>();
-  const score = (player: FootballPlayer) => {
-    if (preset === "youth") return player.currentAbility + Math.max(0, 25 - ageOf(player, season)) * 2.4 + player.potentialAbility * 0.12;
-    if (preset === "rested") return player.currentAbility + (player.availability === "available" ? 8 : -30) + (ageOf(player, season) <= 24 ? 4 : 0);
-    return player.currentAbility;
+  const score = (player: FootballPlayer, position: TacticalPosition) => {
+    const familiarity = positionFamiliarity(player, position);
+    const familiarityBonus =
+      familiarity === "Natural" ? 12 : familiarity === "Accomplished" ? 7 : familiarity === "Comfortable" ? 2 : -20;
+    const presetScore =
+      preset === "youth"
+        ? Math.max(0, 25 - ageOf(player, season)) * 2.4 + player.potentialAbility * 0.12
+        : preset === "rested"
+          ? (player.availability === "available" ? 8 : -30) + (ageOf(player, season) <= 24 ? 4 : 0)
+          : 0;
+    return player.currentAbility + familiarityBonus + presetScore;
   };
+
   return FORMATION.map((position) => {
-    const candidates = players.filter((player) => !used.has(player.id)).filter((player) => player.primaryPosition === position || player.secondaryPositions.includes(position)).sort((a, b) => score(b) - score(a));
-    const fallback = players.filter((player) => !used.has(player.id)).sort((a, b) => score(b) - score(a));
-    const chosen = candidates[0] ?? fallback[0];
+    const broadUnit = positionUnit(position);
+    const available = players.filter((player) => !used.has(player.id));
+
+    // Goalkeepers are specialist players: never place a GK outfield and never
+    // fill the goalkeeper slot with an outfield player.
+    const specialists = available
+      .filter((player) =>
+        position === "GK"
+          ? player.primaryPosition === "GK"
+          : player.primaryPosition !== "GK" && positionFamiliarity(player, position) !== "Unfamiliar",
+      )
+      .sort((a, b) => score(b, position) - score(a, position));
+
+    const sameUnitFallback = available
+      .filter((player) =>
+        position === "GK"
+          ? player.primaryPosition === "GK"
+          : player.primaryPosition !== "GK" && player.primaryPosition === broadUnit,
+      )
+      .sort((a, b) => score(b, position) - score(a, position));
+
+    const outfieldFallback = available
+      .filter((player) => position !== "GK" && player.primaryPosition !== "GK")
+      .sort((a, b) => score(b, position) - score(a, position));
+
+    const chosen = specialists[0] ?? sameUnitFallback[0] ?? outfieldFallback[0];
     if (chosen) used.add(chosen.id);
     return chosen;
   }).filter((player): player is FootballPlayer => Boolean(player));
 }
 
 function Pitch({ xi }: { xi: FootballPlayer[] }) {
-  const groups: Array<{ label: string; players: FootballPlayer[] }> = [
-    { label: "Forwards", players: xi.filter((p) => p.primaryPosition === "FWD").slice(0, 2) },
-    { label: "Midfield", players: xi.filter((p) => p.primaryPosition === "MID").slice(0, 4) },
-    { label: "Defence", players: xi.filter((p) => p.primaryPosition === "DEF").slice(0, 4) },
-    { label: "Goalkeeper", players: xi.filter((p) => p.primaryPosition === "GK").slice(0, 1) },
-  ];
-  const remaining = xi.filter((player) => !groups.some((group) => group.players.some((member) => member.id === player.id)));
-  for (const player of remaining) {
-    const target = groups.find((group) => group.players.length < (group.label === "Goalkeeper" ? 1 : group.label === "Forwards" ? 2 : 4));
-    target?.players.push(player);
-  }
-  return <div className="relative touch-pan-y overflow-hidden rounded-xl border border-white/20 bg-emerald-800/70 px-3 py-3"><div className="pointer-events-none absolute inset-x-4 top-1/2 border-t border-white/25" /><div className="pointer-events-none absolute left-1/2 top-1/2 size-20 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/25" /><div className="relative space-y-3 xl:space-y-4">{groups.map((group) => <div key={group.label} className="flex justify-center gap-2 sm:gap-4">{group.players.map((player) => <div key={player.id} className="w-20 text-center sm:w-24"><div className={cn("mx-auto grid size-10 place-items-center rounded-full border font-display text-sm", POSITION_PITCH_CLASS[player.primaryPosition])}>{player.currentAbility}</div><div className="mt-1 truncate text-[11px] font-semibold">{player.lastName}</div><div className="text-[9px] text-white/60">{player.primaryPosition}</div></div>)}</div>)}</div></div>;
+  const rows: Array<Array<{ player: FootballPlayer; slot: TacticalPosition }>> = [
+    FORMATION.slice(9, 11).map((slot, index) => ({ player: xi[index + 9], slot })),
+    FORMATION.slice(5, 9).map((slot, index) => ({ player: xi[index + 5], slot })),
+    FORMATION.slice(1, 5).map((slot, index) => ({ player: xi[index + 1], slot })),
+    [{ player: xi[0], slot: "GK" }],
+  ].map((row) => row.filter((entry): entry is { player: FootballPlayer; slot: TacticalPosition } => Boolean(entry.player)));
+
+  return (
+    <div className="relative touch-pan-y overflow-hidden rounded-xl border border-white/20 bg-emerald-800/70 px-3 py-3">
+      <div className="pointer-events-none absolute inset-x-4 top-1/2 border-t border-white/25" />
+      <div className="pointer-events-none absolute left-1/2 top-1/2 size-20 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/25" />
+      <div className="relative space-y-3 xl:space-y-4">
+        {rows.map((row, rowIndex) => (
+          <div key={rowIndex} className="flex justify-center gap-2 sm:gap-4">
+            {row.map(({ player, slot }) => (
+              <button
+                key={player.id}
+                type="button"
+                onClick={() => openPlayerProfile(player.id)}
+                className="w-20 rounded-lg text-center transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:w-24"
+                aria-label={`Open ${playerName(player)} profile`}
+              >
+                <div className={cn("mx-auto grid size-10 place-items-center rounded-full border font-display text-sm", POSITION_PITCH_CLASS[positionUnit(slot)])}>
+                  {player.currentAbility}
+                </div>
+                <div className="mt-1 truncate text-[11px] font-semibold">{player.lastName}</div>
+                <div className="text-[9px] font-semibold text-white/70">{slot}</div>
+              </button>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function CompactPlayerRow({ state, player, inXi }: { state: GameState; player: FootballPlayer; inXi: boolean }) {
@@ -299,7 +354,8 @@ function CompactPlayerRow({ state, player, inXi }: { state: GameState; player: F
     : contract
       ? weeksLeftOnContract(state, contract)
       : null;
-  return <div className="grid grid-cols-[minmax(0,1.3fr)_repeat(4,auto)] items-center gap-2 px-3 py-2 text-xs"><div className="min-w-0"><div className="flex items-center gap-1.5"><span className="truncate font-semibold">{playerName(player)}</span>{inXi && <span className="text-[9px] font-bold text-primary">XI</span>}<span className={cn("rounded border px-1.5 py-0.5 text-[9px] font-bold", POSITION_BADGE_CLASS[player.primaryPosition])}>{player.primaryPosition}</span>{loan && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">LOAN</span>}</div><div className="truncate text-[10px] text-muted-foreground">{ageOf(player, state.season)}y · {loan ? `On loan from ${clubDisplayName(state, loan.parentClubId)}` : contract?.squadRole ?? "No role"}{!loan && employment ? ` · ${employment}` : ""}</div></div><div className="text-right"><div className="font-display text-base">{player.currentAbility}</div><div className="text-[9px] text-muted-foreground">OVR</div></div><div className="text-right"><div>{player.potentialAbility}</div><div className="text-[9px] text-muted-foreground">POT</div></div><div className="text-right"><div>{wage !== null ? fmtMoney(wage) : "—"}</div><div className="text-[9px] text-muted-foreground">{loan ? "our /wk" : "/wk"}</div></div><div className="text-right"><div>{weeks !== null ? `${weeks}w` : "—"}</div><div className="text-[9px] text-muted-foreground">{loan ? "loan" : "contract"}</div></div></div>;
+  const tactical = tacticalPositionProfile(player);
+  return <button type="button" onClick={() => openPlayerProfile(player.id)} className="grid w-full grid-cols-[minmax(0,1.3fr)_repeat(4,auto)] items-center gap-2 px-3 py-2 text-left text-xs transition-colors hover:bg-muted/40"><div className="min-w-0"><div className="flex items-center gap-1.5"><span className="truncate font-semibold">{playerName(player)}</span>{inXi && <span className="text-[9px] font-bold text-primary">XI</span>}<span className={cn("rounded border px-1.5 py-0.5 text-[9px] font-bold", POSITION_BADGE_CLASS[positionUnit(tactical.primary)])}>{tactical.primary}</span>{loan && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">LOAN</span>}</div><div className="truncate text-[10px] text-muted-foreground">{ageOf(player, state.season)}y · {loan ? `On loan from ${clubDisplayName(state, loan.parentClubId)}` : contract?.squadRole ?? "No role"}{!loan && employment ? ` · ${employment}` : ""}</div></div><div className="text-right"><div className="font-display text-base">{player.currentAbility}</div><div className="text-[9px] text-muted-foreground">OVR</div></div><div className="text-right"><div>{player.potentialAbility}</div><div className="text-[9px] text-muted-foreground">POT</div></div><div className="text-right"><div>{wage !== null ? fmtMoney(wage) : "—"}</div><div className="text-[9px] text-muted-foreground">{loan ? "our /wk" : "/wk"}</div></div><div className="text-right"><div>{weeks !== null ? `${weeks}w` : "—"}</div><div className="text-[9px] text-muted-foreground">{loan ? "loan" : "contract"}</div></div></button>;
 }
 
 function PlayerRow({ state, player }: { state: GameState; player: FootballPlayer }) {
@@ -310,7 +366,8 @@ function PlayerRow({ state, player }: { state: GameState; player: FootballPlayer
   const loanWeeks = loan
     ? Math.max(0, loan.endAbsoluteWeek - absoluteWeek(state.season, state.week))
     : null;
-  return <div className="grid grid-cols-[1fr_auto] gap-3 px-4 py-3"><div className="min-w-0"><div className="flex items-center gap-2"><span className="truncate font-semibold">{playerName(player)}</span><span className={cn("rounded border px-1.5 py-0.5 text-[10px] font-bold", POSITION_BADGE_CLASS[player.primaryPosition])}>{player.primaryPosition}</span>{loan && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">LOAN</span>}</div><div className="mt-0.5 text-xs text-muted-foreground">{ageOf(player, state.season)}y · {player.nationality} · Ability {player.currentAbility} · Potential {player.potentialAbility}</div><div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground"><span className="truncate">{loan ? `On loan from ${clubDisplayName(state, loan.parentClubId)} · ${loanWeeks} weeks left · ${loan.loanClubWageContributionPct}% wages` : contract ? `${contract.squadRole} · ${employment} · ${weeksLeftOnContract(state, contract)} weeks left` : "No active contract"}</span><span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${MOOD_TONE_CLASS[mood.tone]}`}>{mood.label}</span></div></div><div className="text-right"><div className="font-display text-xl">{player.currentAbility}</div><div className="text-[10px] uppercase text-muted-foreground">OVR</div></div></div>;
+  const tactical = tacticalPositionProfile(player);
+  return <button type="button" onClick={() => openPlayerProfile(player.id)} className="grid w-full grid-cols-[1fr_auto] gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"><div className="min-w-0"><div className="flex items-center gap-2"><span className="truncate font-semibold">{playerName(player)}</span><span className={cn("rounded border px-1.5 py-0.5 text-[10px] font-bold", POSITION_BADGE_CLASS[positionUnit(tactical.primary)])}>{tactical.primary}</span>{loan && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">LOAN</span>}</div><div className="mt-0.5 text-xs text-muted-foreground">{ageOf(player, state.season)}y · {player.nationality} · Ability {player.currentAbility} · Potential {player.potentialAbility}</div><div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground"><span className="truncate">{loan ? `On loan from ${clubDisplayName(state, loan.parentClubId)} · ${loanWeeks} weeks left · ${loan.loanClubWageContributionPct}% wages` : contract ? `${contract.squadRole} · ${employment} · ${weeksLeftOnContract(state, contract)} weeks left` : "No active contract"}</span><span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${MOOD_TONE_CLASS[mood.tone]}`}>{mood.label}</span></div></div><div className="text-right"><div className="font-display text-xl">{player.currentAbility}</div><div className="text-[10px] uppercase text-muted-foreground">OVR</div></div></button>;
 }
 
 function PresetButton({ active, onClick, title, sub }: { active: boolean; onClick: () => void; title: string; sub: string }) {

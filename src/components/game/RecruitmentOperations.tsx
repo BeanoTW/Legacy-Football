@@ -29,6 +29,8 @@ import { clubDisplayName, userClubReference } from "@/lib/game/clubReference";
 import { activeLoanForPlayer } from "@/lib/game/loans";
 import { absoluteWeek } from "@/lib/game/time";
 import { clubOperatingModel, contractEmploymentType } from "@/lib/game/employment";
+import { tacticalPositionProfile } from "@/lib/game/positions";
+import { openPlayerProfile } from "./shared/PlayerProfileSheet";
 import {
   recruitmentTransferFeePolicyForClub,
   recruitmentTransferFeePolicyForUser,
@@ -116,7 +118,7 @@ export function RecruitmentOperations({
         onClick={() => setSelectedPlayerId(player.id)}
       >
         <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-xs font-bold text-primary">
-          {player.primaryPosition}
+          {tacticalPositionProfile(player).primary}
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5">
@@ -255,9 +257,9 @@ export function RecruitmentOperations({
                 <article key={n.id} className="rounded-2xl border bg-card p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="font-display text-xl">{playerName(p)}</div>
+                      <button type="button" onClick={() => openPlayerProfile(p.id)} className="font-display text-xl hover:underline">{playerName(p)}</button>
                       <div className="text-sm text-muted-foreground">
-                        {p.primaryPosition} ·{" "}
+                        {tacticalPositionProfile(p).primary} ·{" "}
                         {incoming
                           ? `${report.knowledgePct}% scouted`
                           : `Overall ${p.currentAbility}`}
@@ -566,7 +568,7 @@ function PlayerProfile({
             <div>
               <div className="font-display text-3xl">{playerName(player)}</div>
               <div className="mt-1 text-sm opacity-80">
-                {player.primaryPosition} · Age {ageOf(player, state.season)} · {player.nationality}
+                {tacticalPositionProfile(player).primary} · Age {ageOf(player, state.season)} · {player.nationality}
               </div>
             </div>
             <div className="rounded-xl bg-black/20 px-3 py-2 text-center">

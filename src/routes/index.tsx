@@ -36,6 +36,7 @@ import { actionableInbox } from "@/lib/game/attention";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { PlayerProfileSheet } from "@/components/game/shared/PlayerProfileSheet";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -115,6 +116,7 @@ function Game({ state, update, isContinuing, continueReason, startContinue, stop
 
   return (
     <div className="game-shell">
+      <PlayerProfileSheet state={state} />
       <div className="lf-masthead shrink-0">
         <TopBar
           title={state.clubName}
