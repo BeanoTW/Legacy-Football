@@ -1,5 +1,5 @@
 import { strict as assert } from "node:assert";
-import { newGame } from "../engine";
+import { advanceDay, newGame } from "../engine";
 import {
   chairmanRecruitmentPlayerIds,
   chairmanRecruitmentPlayerView,
@@ -9,9 +9,21 @@ import {
   createScoutingBrief,
   scoutingBrief,
   scoutingCandidateSource,
+  scoutingSearchPlan,
 } from "../scoutingDiscovery";
 import { startScouting } from "../scouting";
 import { isUserClubReference } from "../clubReference";
+
+function discover<T extends ReturnType<typeof newGame>>(
+  state: T,
+  input: Parameters<typeof createScoutingBrief>[1],
+): T {
+  let next = createScoutingBrief(state, input) as T;
+  const days = scoutingSearchPlan(next).searchDays;
+  for (let day = 0; day < days; day++) next = advanceDay(next) as T;
+  return next;
+}
+
 
 const base = newGame("Knowledge Gate FC", "Auditor", "CHAIRMAN_VIEW_AUDIT");
 const externalDetailed = base.football?.players.find(
@@ -25,7 +37,7 @@ assert.equal(
 );
 assert.equal(chairmanRecruitmentPlayerView(base, externalDetailed.id), null);
 
-const discovered = createScoutingBrief(base, { id: "chairman-view-audit", maxAge: 40 });
+const discovered = discover(base, { id: "chairman-view-audit", maxAge: 40 });
 const brief = scoutingBrief(discovered, "chairman-view-audit");
 if (!brief) throw new Error("brief missing");
 assert.ok(brief.candidateIds.length > 0);
@@ -44,7 +56,8 @@ if (!compactId) throw new Error("compact candidate missing");
 const compact = chairmanRecruitmentPlayerView(discovered, compactId);
 assert.ok(compact);
 assert.equal(compact.scoutingStatus, "notStarted");
-assert.equal(compact.knowledgePct, 0);
+assert.ok(compact.knowledgePct > 0, "staff recommendation should arrive with initial knowledge");
+assert.ok(compact.knowledgePct < 100, "initial recommendation should not be a full report");
 assert.ok(compact.valueRange, "discovery may show a broad report valuation range");
 
 const scouting = startScouting(discovered, compactId);
