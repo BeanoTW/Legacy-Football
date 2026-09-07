@@ -8,7 +8,6 @@ import { CommercialTab } from "@/components/CommercialTab";
 import { ALL_TABS, DESKTOP_PRIMARY_TAB_IDS, type Tab } from "@/components/game/tabs";
 import { MobileNav } from "@/components/game/MobileNav";
 import { MobileContinueBar } from "@/components/game/MobileContinueBar";
-import { ContinueCalendar } from "@/components/game/ContinueCalendar";
 import { AdvanceInboxPreview } from "@/components/game/AdvanceInboxPreview";
 import { NewGame } from "@/components/game/NewGame";
 import { Kpi, TopBar } from "@/components/game/shared/primitives";
