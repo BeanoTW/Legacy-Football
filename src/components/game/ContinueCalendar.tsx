@@ -1,10 +1,11 @@
 import { CalendarDays } from "lucide-react";
 import type { GameState } from "@/lib/game/types";
-import { calendarDay } from "@/lib/game/calendar";
+import { calendarDay, DAY_NAMES } from "@/lib/game/calendar";
 import { cn } from "@/lib/utils";
 import { clubDisplayName } from "@/lib/game/clubReference";
 import { clubPresentationName } from "@/lib/game/clubPresentation";
 import { CALENDAR } from "@/lib/game/engine";
+import { timelineEventsForWeek } from "@/lib/game/timeline";
 
 export function ContinueCalendar({
   state,
@@ -27,6 +28,10 @@ export function ContinueCalendar({
           const fixture = state.fixtures.find((item) => item.week === week);
           const active = index === 0;
           const opponent = fixture ? clubPresentationName(clubDisplayName(state, fixture.opponent)) : null;
+          const events = timelineEventsForWeek(state, week);
+          const nonFixtureEvents = events.filter((event) => event.kind !== "fixture");
+          const nextEvent = nonFixtureEvents[0];
+          const extraEvents = Math.max(0, nonFixtureEvents.length - 1);
           return (
             <div
               key={week}
@@ -38,15 +43,22 @@ export function ContinueCalendar({
             >
               <div className="lf-week-number">W{week}</div>
               <div className="lf-week-type">
-                {fixture ? (week <= 6 ? "Friendly" : "League") : active ? "This week" : "Open"}
+                {fixture ? (week <= 6 ? "Friendly" : "League") : nextEvent ? "Club event" : active ? "This week" : "Open"}
               </div>
               <div className="lf-week-meta">
                 {fixture
                   ? `${fixture.home ? "H" : "A"} · ${opponent}`
-                  : active
-                    ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][day]
-                    : "—"}
+                  : nextEvent
+                    ? `${DAY_NAMES[nextEvent.day]} · ${nextEvent.label}${extraEvents ? ` +${extraEvents}` : ""}`
+                    : active
+                      ? DAY_NAMES[day]
+                      : "—"}
               </div>
+              {fixture && nextEvent ? (
+                <div className="lf-week-meta">
+                  {DAY_NAMES[nextEvent.day]} · {nextEvent.label}{extraEvents ? ` +${extraEvents}` : ""}
+                </div>
+              ) : null}
             </div>
           );
         })}
