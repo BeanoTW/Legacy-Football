@@ -3,6 +3,7 @@ import type { GameState } from "@/lib/game/types";
 import { calendarDay } from "@/lib/game/calendar";
 import { cn } from "@/lib/utils";
 import { clubDisplayName } from "@/lib/game/clubReference";
+import { clubPresentationName } from "@/lib/game/clubPresentation";
 import { CALENDAR } from "@/lib/game/engine";
 
 export function ContinueCalendar({
@@ -25,7 +26,7 @@ export function ContinueCalendar({
         {weeks.map((week, index) => {
           const fixture = state.fixtures.find((item) => item.week === week);
           const active = index === 0;
-          const opponent = fixture ? clubDisplayName(state, fixture.opponent) : null;
+          const opponent = fixture ? clubPresentationName(clubDisplayName(state, fixture.opponent)) : null;
           return (
             <div
               key={week}
