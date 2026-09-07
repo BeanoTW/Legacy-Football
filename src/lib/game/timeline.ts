@@ -1,6 +1,7 @@
 import type { GameState, TransferNegotiation } from "./types";
 import { calendarDay } from "./calendar";
 import { absoluteWeek } from "./time";
+import { transferAbsoluteDay } from "./transferResponses";
 
 export type TimelineEventKind = "fixture" | "scouting" | "transfer" | "club";
 
@@ -15,7 +16,7 @@ export interface TimelineEvent {
 }
 
 export function currentAbsoluteDay(state: GameState): number {
-  return absoluteWeek(state.season, state.week) * 7 + calendarDay(state);
+  return transferAbsoluteDay(state);
 }
 
 function seasonWeekFromAbsoluteDay(state: GameState, absoluteDay: number): { week: number; day: number } {
@@ -46,6 +47,18 @@ function transferEventLabel(negotiation: TransferNegotiation): string {
       return "Transfer completion deadline";
     default:
       return "Transfer deadline";
+  }
+}
+
+function transferResponseLabel(negotiation: TransferNegotiation): string {
+  switch (negotiation.pendingResponseKind) {
+    case "enquiry":
+      return "Transfer enquiry response";
+    case "player":
+      return "Player response due";
+    case "club":
+    default:
+      return "Club transfer response";
   }
 }
 
@@ -96,15 +109,32 @@ export function upcomingTimelineEvents(state: GameState, horizonDays = 42): Time
     ) {
       continue;
     }
-    // Negotiations currently expire on an absolute-week boundary. Project the
-    // deadline onto Friday so the chairman sees it before the weekend tick.
-    const absoluteDay = negotiation.expiresAtAbsoluteWeek * 7 + 4;
-    if (absoluteDay < now || absoluteDay > end) continue;
-    const date = seasonWeekFromAbsoluteDay(state, absoluteDay);
+
+    if (negotiation.pendingResponseAtDay !== undefined) {
+      const absoluteDay = negotiation.pendingResponseAtDay;
+      if (absoluteDay >= now && absoluteDay <= end) {
+        const date = seasonWeekFromAbsoluteDay(state, absoluteDay);
+        events.push({
+          id: `transfer:${negotiation.id}:response`,
+          kind: "transfer",
+          absoluteDay,
+          week: date.week,
+          day: date.day,
+          label: transferResponseLabel(negotiation),
+          detail: playerName(state, negotiation.playerId),
+        });
+      }
+    }
+
+    // Existing week-granularity expiry remains the safety net for old saves and
+    // stalled talks while day-level response scheduling is introduced.
+    const deadlineDay = negotiation.expiresAtAbsoluteWeek * 7 + 4;
+    if (deadlineDay < now || deadlineDay > end) continue;
+    const date = seasonWeekFromAbsoluteDay(state, deadlineDay);
     events.push({
       id: `transfer:${negotiation.id}:deadline`,
       kind: "transfer",
-      absoluteDay,
+      absoluteDay: deadlineDay,
       week: date.week,
       day: date.day,
       label: transferEventLabel(negotiation),

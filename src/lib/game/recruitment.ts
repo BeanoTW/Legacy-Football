@@ -6,4 +6,5 @@
    is no longer required.
 ========================================================================= */
 
+export * from "./transferResponses";
 export * from "./recruitmentLegacy";
