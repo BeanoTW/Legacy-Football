@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { ArrowLeft, Binoculars, CheckCircle2, Handshake, Repeat2, Search, Star } from "lucide-react";
-import type { GameState, LoanPlayingTimeExpectation, Position } from "@/lib/game/types";
+import type { GameState, LoanPlayingTimeExpectation, TacticalPosition } from "@/lib/game/types";
 import {
   canAuthorisePurchase,
   canAuthoriseWage,
@@ -29,11 +29,12 @@ import { cn } from "@/lib/utils";
 import { DetailScreen } from "./shared/layout";
 import { POSITION_BADGE_CLASS } from "./playerPosition";
 import { isTransferWindowOpen, windowStatus } from "@/lib/game/calendar";
+import { DETAILED_POSITIONS, positionFamiliarity, positionUnit, tacticalPositionProfile } from "@/lib/game/positions";
 
-const POSITIONS: (Position | "ALL")[] = ["ALL", "GK", "DEF", "MID", "FWD"];
+const POSITIONS: (TacticalPosition | "ALL")[] = ["ALL", ...DETAILED_POSITIONS];
 
 export function ScoutingBrowser({ state, update, onBack }: { state: GameState; update: (fn: (s: GameState) => GameState) => void; onBack: () => void }) {
-  const [position, setPosition] = useState<Position | "ALL">("ALL");
+  const [position, setPosition] = useState<TacticalPosition | "ALL">("ALL");
   const [watchedOnly, setWatchedOnly] = useState(false);
   const [marketStatus, setMarketStatus] = useState<"all" | "free" | "contracted">("all");
   const [willingOnly, setWillingOnly] = useState(false);
@@ -72,7 +73,7 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
     });
 
     return visiblePlayers
-      .filter((player) => position === "ALL" || player.primaryPosition === position)
+      .filter((player) => position === "ALL" || positionFamiliarity(player, position) !== "Unfamiliar")
       .filter((player) => marketStatus !== "free" || player.currentClubId === null)
       .filter((player) => marketStatus !== "contracted" || player.currentClubId !== null)
       .filter((player) => ageOf(player, state.season) >= minAge && ageOf(player, state.season) <= maxAge)
@@ -127,7 +128,7 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
     update((s) =>
       createScoutingBrief(s, {
         id,
-        position: position === "ALL" ? undefined : position,
+        tacticalPosition: position === "ALL" ? undefined : position,
         minAge,
         maxAge,
         maxMarketValue: maxValue || undefined,
@@ -155,7 +156,7 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
       <section className="w-full max-w-3xl rounded-xl border bg-card p-4 shadow-sm">
         <div className="mb-3"><div className="font-display text-lg">Search parameters</div><div className="text-xs text-muted-foreground">Scouting improves knowledge. It is never required before you approach a player or club.</div></div>
         <div className="space-y-3">
-          <div><div className="mb-1.5 text-xs font-semibold text-muted-foreground">Position</div><div className="grid grid-cols-5 gap-1.5">{POSITIONS.map((p) => <button key={p} onClick={() => setPosition(p)} className={cn("rounded-lg border px-2 py-1.5 text-xs font-semibold", position === p ? "border-primary bg-primary text-primary-foreground" : "bg-background")}>{p}</button>)}</div></div>
+          <div><div className="mb-1.5 text-xs font-semibold text-muted-foreground">Position</div><div className="grid grid-cols-5 gap-1.5 sm:grid-cols-8">{POSITIONS.map((p) => <button key={p} onClick={() => setPosition(p)} className={cn("rounded-lg border px-2 py-1.5 text-xs font-semibold", position === p ? "border-primary bg-primary text-primary-foreground" : "bg-background")}>{p}</button>)}</div></div>
           <div className="grid gap-2 sm:grid-cols-2">
             <label className="grid gap-1 text-xs font-semibold text-muted-foreground">Market
               <select value={marketStatus} onChange={(event) => setMarketStatus(event.target.value as "all" | "free" | "contracted")} className="h-10 rounded-lg border bg-background px-2 text-sm text-foreground">
@@ -188,6 +189,7 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
     {rows.length === 0 && <div className="rounded-xl border bg-card p-4 text-sm text-muted-foreground">No players match those filters.</div>}
     {rows.map(({ player }) => {
       const assignment = scoutingAssignment(state, player.id);
+      const tactical = tacticalPositionProfile(player);
       const report = scoutingReport(state, player);
       const interest = playerInterestAssessment(state, player);
       const watched = isChairmanShortlisted(state, player.id);
@@ -206,7 +208,7 @@ export function ScoutingBrowser({ state, update, onBack }: { state: GameState; u
           ? wageAuthority.reason
           : "The top of the current scouting estimate fits chairman authority";
       return <article key={player.id} className="rounded-lg border bg-card p-2.5 shadow-sm">
-        <div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="flex items-center gap-1.5"><span className="truncate font-display text-base">{playerName(player)}</span><span className={cn("rounded border px-1 py-0.5 text-[9px] font-bold", POSITION_BADGE_CLASS[player.primaryPosition])}>{player.primaryPosition}</span></div><div className="text-[10px] text-muted-foreground">{ageOf(player, state.season)}y · {player.nationality} · {player.currentClubId ? clubDisplayName(state, player.currentClubId) : "Free agent"}</div></div><div className="shrink-0 text-right"><div className="font-display text-base">{report.knowledgePct}%</div><div className="text-[8px] text-muted-foreground">knowledge</div></div></div>
+        <div className="flex items-start justify-between gap-2"><div className="min-w-0"><div className="flex items-center gap-1.5"><span className="truncate font-display text-base">{playerName(player)}</span><span className={cn("rounded border px-1 py-0.5 text-[9px] font-bold", POSITION_BADGE_CLASS[positionUnit(tactical.primary)])}>{tactical.primary}</span></div><div className="text-[10px] text-muted-foreground">{ageOf(player, state.season)}y · {player.nationality} · {player.currentClubId ? clubDisplayName(state, player.currentClubId) : "Free agent"}</div></div><div className="shrink-0 text-right"><div className="font-display text-base">{report.knowledgePct}%</div><div className="text-[8px] text-muted-foreground">knowledge</div></div></div>
         <div className="mt-1.5 grid grid-cols-5 gap-1">{report.attributes.map((attr) => <div key={attr.key} className="rounded bg-muted/50 px-1 py-0.5"><div className="truncate text-[8px] text-muted-foreground">{attr.label}</div><div className="text-[10px] font-semibold tabular-nums">{!attr.known ? "?" : attr.exact !== undefined ? attr.exact : `${attr.min}–${attr.max}`}</div></div>)}</div>
         <div className="mt-1.5 grid grid-cols-2 gap-x-3 text-[10px]"><span>Value <strong>{report.valueRange ? `${fmtMoney(report.valueRange[0])}–${fmtMoney(report.valueRange[1])}` : "?"}</strong></span><span>Wage <strong>{report.wageRange ? `${fmtMoney(report.wageRange[0])}–${fmtMoney(report.wageRange[1])}/wk` : "?"}</strong></span><span>Interest <strong title={interest.reason}>{interest.label}</strong></span><span>{assignment ? (report.complete ? "Full report" : "Scouting active") : "Not scouted"}</span></div>
         <div className={cn("mt-1.5 rounded-md border px-2 py-1 text-[10px]", budgetComfortable ? "bg-muted/40" : "border-destructive/40 bg-destructive/5")} title={affordabilityReason}><span className="font-semibold">{budgetComfortable ? "Estimated fit" : "Budget risk"}</span> · {freeAgent ? "No fee" : valueRange ? `${fmtMoney(valueRange[0])}–${fmtMoney(valueRange[1])} value` : "Fee unknown"} · {wageRange ? `${fmtMoney(wageRange[0])}–${fmtMoney(wageRange[1])}/wk` : "Wage unknown"}</div>
