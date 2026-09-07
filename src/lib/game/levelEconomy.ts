@@ -238,7 +238,11 @@ export function playerValueForLevel(
   const peak = clamp(1.25 - Math.abs(age - 25) * 0.045, 0.35, 1.25);
   const upside = 1 + Math.max(0, potential - ability) / 90;
   const scale = economicProfileForLevel(level).transferMarketScale;
-  const raw = ability ** 3 * 0.55 * peak * upside * scale;
+  // Elite transfer fees are much more convex than ordinary-player prices.
+  // A 90+ top-flight player belongs in the £100m+ market; merely scaling an
+  // ability-cubed curve kept superstars implausibly close to normal starters.
+  const eliteMarketPremium = Math.max(1, Math.exp((ability - 70) * 0.08));
+  const raw = ability ** 3 * 0.55 * peak * upside * scale * eliteMarketPremium;
   const policy = transferFeePolicyForLevel(level);
   return Math.max(policy.valueFloor, int(raw / policy.valueStep) * policy.valueStep);
 }
