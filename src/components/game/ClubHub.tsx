@@ -21,6 +21,7 @@ import type { Tab } from "./tabs";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { userSquad } from "@/lib/game/recruitment";
 import { ContinueCalendar } from "./ContinueCalendar";
+import { clubPresentationName } from "@/lib/game/clubPresentation";
 
 function fanbaseEstimate(state: GameState): number {
   const cap = totalCapacity(state);
@@ -259,11 +260,11 @@ function MatchStrip({
   const homeName = nextFixture
     ? nextFixture.home
       ? state.clubName
-      : clubDisplayName(state, nextFixture.opponent)
+      : clubPresentationName(clubDisplayName(state, nextFixture.opponent))
     : state.clubName;
   const awayName = nextFixture
     ? nextFixture.home
-      ? clubDisplayName(state, nextFixture.opponent)
+      ? clubPresentationName(clubDisplayName(state, nextFixture.opponent))
       : state.clubName
     : "Opposition TBC";
 
@@ -372,7 +373,7 @@ function LeaguePanel({
               return (
                 <tr key={row.team} className={cn("border-b last:border-0", isMe && "bg-primary/10 font-semibold")}>
                   <td className="w-8 px-2 py-1.5 text-muted-foreground md:px-4">{pos}</td>
-                  <td className="truncate px-1.5 py-1.5">{clubDisplayName(state, row.team)}</td>
+                  <td className="truncate px-1.5 py-1.5">{clubPresentationName(clubDisplayName(state, row.team))}</td>
                   <td className="px-1.5 py-1.5 text-right text-muted-foreground">{row.p} P</td>
                   <td className="px-2 py-1.5 text-right font-display text-xs md:px-4 md:text-base">{row.pts}</td>
                 </tr>
