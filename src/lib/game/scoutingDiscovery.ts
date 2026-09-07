@@ -275,11 +275,43 @@ function discoveryScore(
   candidate: DiscoveryCandidate,
   input: ScoutingBriefInput,
 ): number {
-  const quality = scoutingQuality(state);
-  const fit =
-    input.minCurrentAbility === undefined ? 0 : candidate.currentAbility - input.minCurrentAbility;
-  const noise = (unsignedHash(`${state.saveSeed}|brief:${input.id}|${candidate.id}`) % 101) - 50;
-  return fit * (0.35 + quality / 160) + noise * (1.15 - quality / 125);
+  const scoutQuality = scoutingQuality(state);
+  const managerRating =
+    state.hiredStaff.find((staff) => staff.role === "Manager")?.rating ??
+    state.football?.department.recruitmentRating ??
+    50;
+  const decisionQuality = Math.round(scoutQuality * 0.75 + managerRating * 0.25);
+
+  // Staff-led recruitment should surface players who make sense for this club,
+  // not simply the strongest names in the world. The manager influences fit;
+  // scouting quality influences how reliably the department finds those fits.
+  const targetAbility = 32 + state.reputation * 0.62;
+  const abilityFit =
+    input.minCurrentAbility === undefined
+      ? -Math.abs(candidate.currentAbility - targetAbility) +
+        Math.max(0, candidate.currentAbility - targetAbility) * 0.45
+      : candidate.currentAbility - input.minCurrentAbility;
+
+  const affordableReference = Math.max(25_000, state.cash * 0.8);
+  const affordability =
+    candidate.currentClubId === null
+      ? 6
+      : candidate.marketValue <= affordableReference
+        ? 5
+        : -Math.min(
+            28,
+            Math.log2(Math.max(1, candidate.marketValue / affordableReference)) * 9,
+          );
+  const ageFit = candidate.age <= 24 ? 3 : candidate.age >= 32 ? -3 : 0;
+  const noise =
+    (unsignedHash(`${state.saveSeed}|brief:${input.id}|${candidate.id}`) % 101) - 50;
+
+  return (
+    abilityFit * (0.6 + decisionQuality / 120) +
+    affordability +
+    ageFit +
+    noise * (1.05 - decisionQuality / 125)
+  );
 }
 
 function ranked(

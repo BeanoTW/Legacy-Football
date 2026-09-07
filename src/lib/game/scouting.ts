@@ -246,7 +246,9 @@ export function scoutingReport(state: GameState, player: FootballPlayer): Scouti
       ? KEYS.length
       : days >= PARTIAL_REPORT_DAYS
         ? 7
-        : Math.min(4, 2 + days);
+        : days > 0
+          ? Math.min(4, 2 + days)
+          : 0;
   const qualityFactor = 1.2 - reportQuality / 200;
   const baseWidth =
     days >= FULL_REPORT_DAYS ? 0 : days >= PARTIAL_REPORT_DAYS ? 5 : days >= 3 ? 8 : 12;
