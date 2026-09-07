@@ -25,7 +25,6 @@ import type {
   Player,
   Position,
   TacticalPosition,
-  PositionFamiliarity,
   RecruitmentDepartment,
   RecruitmentSeasonSummary,
   RecruitmentState,
@@ -383,18 +382,8 @@ function makePlayerFor(
   const secondaryCount =
     primaryPosition === "GK" ? 0 : versatilityRoll < 0.34 ? 0 : versatilityRoll < 0.74 ? 1 : versatilityRoll < 0.94 ? 2 : 3;
   const secondary = related.slice(0, secondaryCount);
-  const positionFamiliarity: Partial<Record<TacticalPosition, PositionFamiliarity>> = {
-    [tacticalPrimaryPosition]: "Natural",
-  };
-  secondary.forEach((position, secondaryIndex) => {
-    const naturalSlots = versatilityRoll > 0.9 ? 2 : versatilityRoll > 0.72 ? 1 : 0;
-    positionFamiliarity[position] =
-      secondaryIndex < naturalSlots
-        ? "Natural"
-        : secondaryIndex === naturalSlots
-          ? "Accomplished"
-          : "Comfortable";
-  });
+  const naturalSlots = versatilityRoll > 0.9 ? 2 : versatilityRoll > 0.72 ? 1 : 0;
+  const naturalTacticalPositions = secondary.slice(0, naturalSlots);
 
   return {
     id,
@@ -419,7 +408,7 @@ function makePlayerFor(
     ))] as Position[],
     tacticalPrimaryPosition,
     tacticalSecondaryPositions: secondary,
-    positionFamiliarity,
+    ...(naturalTacticalPositions.length ? { naturalTacticalPositions } : {}),
     currentClubId: clubId,
     reputation,
     currentAbility,
