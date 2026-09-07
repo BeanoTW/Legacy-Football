@@ -1,4 +1,4 @@
-import type { GameState } from "./types";
+import type { GameState, TransferNegotiation } from "./types";
 import { calendarDay } from "./calendar";
 import { absoluteWeek } from "./time";
 
@@ -22,6 +22,31 @@ function seasonWeekFromAbsoluteDay(state: GameState, absoluteDay: number): { wee
   const seasonStart = absoluteWeek(state.season, 1) * 7;
   const relative = Math.max(0, absoluteDay - seasonStart);
   return { week: Math.floor(relative / 7) + 1, day: relative % 7 };
+}
+
+function playerName(state: GameState, playerId: string): string {
+  const player = state.football?.players.find((candidate) => candidate.id === playerId);
+  if (player) return `${player.firstName} ${player.lastName}`;
+  const known = state.football?.playerLifecycle?.knownPlayers.find(
+    (candidate) => candidate.playerId === playerId,
+  );
+  return known ? `${known.firstName} ${known.lastName}` : "Player";
+}
+
+function transferEventLabel(negotiation: TransferNegotiation): string {
+  switch (negotiation.stage) {
+    case "enquiry":
+      return "Transfer enquiry deadline";
+    case "clubTalks":
+      return "Club negotiation deadline";
+    case "playerTalks":
+      return "Player talks deadline";
+    case "agreed":
+    case "registration":
+      return "Transfer completion deadline";
+    default:
+      return "Transfer deadline";
+  }
 }
 
 /**
@@ -60,6 +85,30 @@ export function upcomingTimelineEvents(state: GameState, horizonDays = 42): Time
       day: date.day,
       label: "Scouting report due",
       detail: brief.tacticalPosition ?? brief.position ?? "Player search",
+    });
+  }
+
+  for (const negotiation of state.football?.negotiations ?? []) {
+    if (
+      negotiation.stage === "completed" ||
+      negotiation.stage === "rejected" ||
+      negotiation.stage === "withdrawn"
+    ) {
+      continue;
+    }
+    // Negotiations currently expire on an absolute-week boundary. Project the
+    // deadline onto Friday so the chairman sees it before the weekend tick.
+    const absoluteDay = negotiation.expiresAtAbsoluteWeek * 7 + 4;
+    if (absoluteDay < now || absoluteDay > end) continue;
+    const date = seasonWeekFromAbsoluteDay(state, absoluteDay);
+    events.push({
+      id: `transfer:${negotiation.id}:deadline`,
+      kind: "transfer",
+      absoluteDay,
+      week: date.week,
+      day: date.day,
+      label: transferEventLabel(negotiation),
+      detail: playerName(state, negotiation.playerId),
     });
   }
 
