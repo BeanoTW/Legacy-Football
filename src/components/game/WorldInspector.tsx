@@ -65,7 +65,7 @@ export function WorldInspector({ state }: { state: GameState }) {
       </div>
 
       <div
-        className="touch-pan-y flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-card shadow-sm"
+        className="touch-pan-y flex flex-col rounded-2xl border bg-card shadow-sm lg:min-h-0 lg:flex-1 lg:overflow-hidden"
         onTouchStart={(event) => {
           event.currentTarget.dataset.touchX = String(event.touches[0]?.clientX ?? 0);
         }}
@@ -102,7 +102,7 @@ export function WorldInspector({ state }: { state: GameState }) {
           </button>
         </div>
 
-        <div className="contained-scroll flex-1">
+        <div className="overflow-x-auto lg:contained-scroll lg:flex-1">
           <table className="w-full min-w-[430px] text-sm tnum">
             <thead className="sticky top-0 z-[1] border-b bg-card text-[10px] uppercase tracking-wide text-muted-foreground shadow-sm">
               <tr>
