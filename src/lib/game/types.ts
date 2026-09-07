@@ -1,5 +1,23 @@
 export type Position = "GK" | "DEF" | "MID" | "FWD";
 
+export type TacticalPosition =
+  | "GK"
+  | "RB"
+  | "CB"
+  | "LB"
+  | "RWB"
+  | "LWB"
+  | "CDM"
+  | "CM"
+  | "CAM"
+  | "RM"
+  | "LM"
+  | "RW"
+  | "LW"
+  | "ST";
+
+export type PositionFamiliarity = "Natural" | "Accomplished" | "Comfortable";
+
 /* ---------------- Inbox / Communication framework ----------------
    Backbone every department uses to talk to the player. Generators
    live in src/lib/game/inbox.ts and are registered in a single array

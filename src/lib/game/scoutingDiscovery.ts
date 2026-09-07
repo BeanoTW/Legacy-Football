@@ -1,4 +1,4 @@
-import type { FootballPlayer, GameState, Position } from "./types";
+import type { FootballPlayer, GameState, Position, TacticalPosition } from "./types";
 import { hashString } from "./rng";
 import { absoluteWeek } from "./time";
 import { ageOf, BASE_YEAR } from "./recruitment";
@@ -11,6 +11,7 @@ import {
   type KnownPlayerSeed,
 } from "./playerLifecycle";
 import { isUserClubReference } from "./clubReference";
+import { positionFamiliarity } from "./positions";
 
 export type ScoutingBriefStatus = "complete";
 export type ScoutingCandidateSource = "detailed" | "fringe";
@@ -74,6 +75,7 @@ declare module "./types" {
 export interface ScoutingBriefInput {
   id: string;
   position?: Position;
+  tacticalPosition?: TacticalPosition;
   minAge?: number;
   maxAge?: number;
   maxMarketValue?: number;
@@ -208,6 +210,10 @@ function eligible(
     return false;
   }
   if (input.position && candidate.primaryPosition !== input.position) return false;
+  if (
+    input.tacticalPosition &&
+    positionFamiliarity(candidate, input.tacticalPosition) === "Unfamiliar"
+  ) return false;
   if (input.minAge !== undefined && candidate.age < input.minAge) return false;
   if (input.maxAge !== undefined && candidate.age > input.maxAge) return false;
   if (input.maxMarketValue !== undefined && candidate.marketValue > input.maxMarketValue) return false;
