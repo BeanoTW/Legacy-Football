@@ -1613,3 +1613,10 @@
     height: 2.75rem !important;
   }
 }
+
+
+/* Remove native button spacing from the mobile Club News card. */
+.lf-news-card {
+  display: block;
+  padding: 0;
+}
