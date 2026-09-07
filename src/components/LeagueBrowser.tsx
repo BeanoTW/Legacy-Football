@@ -28,7 +28,7 @@ import {
 import { clubLegacyRecord } from "@/lib/game/clubLegacy";
 import { setWorldClubTracked } from "@/lib/game/recruitment";
 import { footballLevelOfLeague, legacyTierToFootballLevel } from "@/lib/game/footballLevel";
-import { leaguePresentationName } from "@/lib/game/clubPresentation";
+import { clubPresentationName, leaguePresentationName } from "@/lib/game/clubPresentation";
 
 type View = "table" | "fixtures" | "predictions";
 
@@ -185,7 +185,7 @@ function TableView({
               )}
             >
               <td className="py-1.5 px-3 text-muted-foreground">{i + 1}</td>
-              <td className="py-1.5 pr-2">{clubDisplayName(state, r.team)}</td>
+              <td className="py-1.5 pr-2">{clubPresentationName(clubDisplayName(state, r.team))}</td>
               <td className="py-1.5 pr-2 text-right">{r.p}</td>
               <td className="py-1.5 pr-2 text-right">{r.w}</td>
               <td className="py-1.5 pr-2 text-right">{r.d}</td>
@@ -281,7 +281,7 @@ function PredictionsView({
   return (
     <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
       <div className="px-3 py-2 border-b text-xs">
-        Predicted champion: <span className="font-semibold">{champion ? clubDisplayName(state, champion) : "—"}</span>
+        Predicted champion: <span className="font-semibold">{champion ? clubPresentationName(clubDisplayName(state, champion)) : "—"}</span>
         {past && " · shown against the actual finish"}
       </div>
       <div className="divide-y text-sm">
@@ -298,7 +298,7 @@ function PredictionsView({
             >
               <span className="text-muted-foreground tnum">{c.rank}</span>
               <span>
-                <span className="block truncate">{clubDisplayName(state, c.club)}</span>
+                <span className="block truncate">{clubPresentationName(clubDisplayName(state, c.club))}</span>
                 <span className="block text-[11px] text-muted-foreground">
                   {EXPECTATION_LABEL[c.expectation]}
                 </span>
