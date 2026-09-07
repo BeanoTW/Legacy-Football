@@ -7,6 +7,7 @@
 import type { GameState, Staff, StaffRole, StaffStats } from "./types";
 import { mulberry32, hashString } from "./rng";
 import { facilityModifiers } from "./infrastructure";
+import { sameClubReference, userClubReference } from "./clubReference";
 import { postEntry } from "./finance";
 
 /* ---------- Name pools ---------- */
@@ -228,19 +229,25 @@ export const hiredStaffWagesWeekly = (s: GameState) =>
   (s.hiredStaff ?? []).reduce((a, st) => a + st.wage, 0);
 
 /* ---------- Staff join terms ----------
- * Reputation gap between staff and club drives willingness.
- * - gap <= 5:  happy to join at listed wage
- * - gap 6-15: will join but demands a wage premium
- * - gap 16-25: will only entertain a big overpay
- * - gap > 25: refuses outright — club is too small
+ * Ordinary staff still use a simple reputation fit. Managers use a leverage
+ * model: a stronger candidate can ask for security and an upfront package,
+ * but weekly wages stay within a believable band and a manager far above the
+ * club simply refuses.
  */
+export type ManagerLeverage = "normal" | "incentivised" | "high" | "unavailable";
+
 export interface JoinTerms {
   willing: boolean;
   wageDemand: number; // £/wk they'll actually sign for
   signingBonus: number; // upfront cash
   premiumPct: number; // % over listed wage (0 = none)
+  contractWeeks: number;
+  leverage: ManagerLeverage;
   note: string;
+  packageNotes: string[];
 }
+
+const roundWage = (value: number) => Math.max(200, Math.round(value / 50) * 50);
 
 export function staffJoinTerms(
   clubReputation: number,
@@ -248,32 +255,154 @@ export function staffJoinTerms(
   /** Canonical infrastructure staffAttraction points (see facilityModifiers). */
   staffAttraction = 0,
 ): JoinTerms {
-  // Facilities read as club standing to a prospective employee: capped so a
-  // small club with a great training ground is still a small club.
   const effectiveRep = clubReputation + Math.max(-8, Math.min(8, staffAttraction));
   const gap = staff.reputation - effectiveRep;
   let premiumPct = 0;
   let willing = true;
   let note = "Happy to join";
+  let leverage: ManagerLeverage = "normal";
 
   if (gap > 25) {
     willing = false;
-    premiumPct = 1.5;
+    leverage = "unavailable";
     note = "Won't consider a club this size";
   } else if (gap > 15) {
-    premiumPct = 0.6 + (gap - 15) * 0.05;
-    note = "Demands a huge overpay";
+    premiumPct = 0.35;
+    leverage = "high";
+    note = "Needs a strong package";
   } else if (gap > 5) {
-    premiumPct = 0.15 + (gap - 5) * 0.03;
-    note = "Wants a wage premium";
+    premiumPct = 0.12 + (gap - 5) * 0.015;
+    leverage = "incentivised";
+    note = "Wants improved terms";
   } else if (gap < -10) {
     premiumPct = -0.05;
     note = "Keen — club is a step up";
   }
 
-  const wageDemand = Math.max(200, Math.round((staff.wage * (1 + premiumPct)) / 50) * 50);
-  const signingBonus = wageDemand * 2;
-  return { willing, wageDemand, signingBonus, premiumPct, note };
+  const wageDemand = roundWage(staff.wage * (1 + premiumPct));
+  const signingBonus = wageDemand * (leverage === "high" ? 6 : leverage === "incentivised" ? 3 : 2);
+  return {
+    willing,
+    wageDemand,
+    signingBonus,
+    premiumPct,
+    contractWeeks: leverage === "high" ? 156 : 104,
+    leverage,
+    note,
+    packageNotes: leverage === "high"
+      ? ["Three-season contract security", "Larger signing bonus"]
+      : leverage === "incentivised"
+        ? ["Two-season contract security", "Enhanced signing bonus"]
+        : ["Standard contract package"],
+  };
+}
+
+function managerTrajectoryPull(s: GameState): number {
+  const userClub = userClubReference(s);
+  const recent = (s.clubSnapshots ?? [])
+    .filter((snapshot) => sameClubReference(s, snapshot.club, userClub))
+    .slice()
+    .sort((a, b) => b.season - a.season)
+    .slice(0, 2);
+  if (!recent.length) return 0;
+
+  const reputationMomentum =
+    recent.reduce((sum, snapshot) => sum + (snapshot.reputationAfter - snapshot.reputation), 0) /
+    recent.length;
+  const performanceMomentum =
+    recent.reduce((sum, snapshot) => {
+      const overachievement = snapshot.expectedFinish - snapshot.actualFinish;
+      return sum + Math.max(-2, Math.min(2, overachievement * 0.35));
+    }, 0) / recent.length;
+
+  return Math.max(-4, Math.min(4, reputationMomentum * 0.6 + performanceMomentum));
+}
+
+/**
+ * Manager-specific package using club trajectory, finances and facilities.
+ * Money can bridge a modest reputation gap; it cannot buy a manager who is
+ * clearly operating in another football world.
+ */
+export function managerJoinTerms(s: GameState, staff: Staff): JoinTerms {
+  if (staff.role !== "Manager") {
+    return staffJoinTerms(s.reputation, staff, facilityModifiers(s).staffAttraction);
+  }
+
+  const facilitiesPull = Math.max(-6, Math.min(6, facilityModifiers(s).staffAttraction));
+  const trajectoryPull = managerTrajectoryPull(s);
+  const financialPull = s.cash >= 5_000_000 ? 2 : s.cash >= 1_000_000 ? 1 : s.cash < 100_000 ? -2 : 0;
+  const effectiveRep = s.reputation + facilitiesPull + trajectoryPull + financialPull;
+  const gap = staff.reputation - effectiveRep;
+
+  if (gap > 20) {
+    return {
+      willing: false,
+      wageDemand: roundWage(staff.wage * 1.25),
+      signingBonus: 0,
+      premiumPct: 0.25,
+      contractWeeks: 0,
+      leverage: "unavailable",
+      note: "Not interested — the step down is too large",
+      packageNotes: ["No financial package can bridge this reputation gap"],
+    };
+  }
+
+  if (gap > 12) {
+    const premiumPct = Math.min(0.4, 0.24 + (gap - 12) * 0.02);
+    const wageDemand = roundWage(staff.wage * (1 + premiumPct));
+    return {
+      willing: true,
+      wageDemand,
+      signingBonus: wageDemand * 8,
+      premiumPct,
+      contractWeeks: 156,
+      leverage: "high",
+      note: "Interested only with substantial security",
+      packageNotes: [
+        "Three-season guaranteed contract",
+        "Eight-week signing bonus",
+        "Club trajectory and facilities counted in your favour",
+      ],
+    };
+  }
+
+  if (gap > 5) {
+    const premiumPct = 0.1 + (gap - 5) * 0.015;
+    const wageDemand = roundWage(staff.wage * (1 + premiumPct));
+    return {
+      willing: true,
+      wageDemand,
+      signingBonus: wageDemand * 4,
+      premiumPct,
+      contractWeeks: 104,
+      leverage: "incentivised",
+      note: "Open to the job if the package reflects the step down",
+      packageNotes: [
+        "Two-season guaranteed contract",
+        "Four-week signing bonus",
+        "Club trajectory and facilities counted in your favour",
+      ],
+    };
+  }
+
+  const premiumPct = gap < -10 ? -0.05 : 0;
+  const wageDemand = roundWage(staff.wage * (1 + premiumPct));
+  return {
+    willing: true,
+    wageDemand,
+    signingBonus: wageDemand * 2,
+    premiumPct,
+    contractWeeks: 104,
+    leverage: "normal",
+    note: gap < -10 ? "Keen — club is a step up" : "Happy to discuss normal terms",
+    packageNotes: ["Standard two-season contract"],
+  };
+}
+
+export function staffJoinTermsForState(s: GameState, staff: Staff): JoinTerms {
+  return staff.role === "Manager"
+    ? managerJoinTerms(s, staff)
+    : staffJoinTerms(s.reputation, staff, facilityModifiers(s).staffAttraction);
 }
 
 export interface SpendResult {
@@ -288,7 +417,7 @@ export function hireStaffMember(s: GameState, id: string): SpendResult {
   if (s.hiredStaff.some((h) => h.role === cand.role)) {
     return { state: s, ok: false, reason: `You already employ a ${cand.role}. Sack them first.` };
   }
-  const terms = staffJoinTerms(s.reputation, cand, facilityModifiers(s).staffAttraction);
+  const terms = staffJoinTermsForState(s, cand);
   if (!terms.willing) {
     return { state: s, ok: false, reason: `${cand.name} won't join a club of this reputation.` };
   }
@@ -296,7 +425,10 @@ export function hireStaffMember(s: GameState, id: string): SpendResult {
     return { state: s, ok: false, reason: "Not enough cash for the signing bonus." };
   }
   const ns: GameState = structuredClone(s);
-  ns.hiredStaff = [...ns.hiredStaff, { ...cand, wage: terms.wageDemand }];
+  ns.hiredStaff = [
+    ...ns.hiredStaff,
+    { ...cand, wage: terms.wageDemand, contractWeeks: terms.contractWeeks },
+  ];
   ns.staffCandidates = ns.staffCandidates.filter((c) => c.id !== id);
   postEntry(ns, {
     category: "Staff",

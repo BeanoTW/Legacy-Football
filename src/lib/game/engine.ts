@@ -62,6 +62,8 @@ export {
   staffPoolFor,
   hiredStaffWagesWeekly,
   staffJoinTerms,
+  staffJoinTermsForState,
+  managerJoinTerms,
   hireStaffMember,
   sackStaffMember,
   severanceFor,
