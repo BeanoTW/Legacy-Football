@@ -1,5 +1,4 @@
 import type { ClubIdentityLookupState } from "./clubIdentity";
-import { clubPresentationName } from "./clubPresentation";
 import {
   clubIdForState,
   isOpaqueClubId,
@@ -34,9 +33,8 @@ export function canonicalClubReference(state: ClubIdentityLookupState, ref: stri
 
 /** Presentation only. Never use this return value as a persisted identity key. */
 export function clubDisplayName(state: ClubIdentityLookupState, ref: string): string {
-  if (ref === state.clubName || ref === state.clubIdentity?.userClubId) return state.clubName;
-  const sourceName = isOpaqueClubId(ref) ? registeredClubDisplayName(state, ref) ?? ref : ref;
-  return clubPresentationName(sourceName);
+  if (!isOpaqueClubId(ref)) return ref;
+  return registeredClubDisplayName(state, ref) ?? ref;
 }
 
 export function sameClubReference(
