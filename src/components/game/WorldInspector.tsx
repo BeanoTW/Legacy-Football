@@ -6,6 +6,7 @@ import { playerLeagueId, tableFor } from "@/lib/game/league";
 import { cn } from "@/lib/utils";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { footballLevelOfLeague } from "@/lib/game/footballLevel";
+import { clubPresentationName, leaguePresentationName } from "@/lib/game/clubPresentation";
 
 export function WorldInspector({ state }: { state: GameState }) {
   const leagues = useMemo(
@@ -59,7 +60,7 @@ export function WorldInspector({ state }: { state: GameState }) {
                 : "bg-card text-muted-foreground hover:bg-muted",
             )}
           >
-            {item.name}
+            {leaguePresentationName(item.name)}
           </button>
         ))}
       </div>
@@ -86,7 +87,7 @@ export function WorldInspector({ state }: { state: GameState }) {
             <ChevronLeft className="size-4" />
           </button>
           <div className="min-w-0 text-center">
-            <div className="truncate font-display text-lg sm:text-xl">{league.name}</div>
+            <div className="truncate font-display text-lg sm:text-xl">{leaguePresentationName(league.name)}</div>
             <div className="text-[11px] opacity-70">
               Football Level {footballLevelOfLeague(league)} · {league.clubIds.length} clubs
               {league.id === playerLeague ? " · Your division" : ""}
@@ -139,7 +140,7 @@ export function WorldInspector({ state }: { state: GameState }) {
                       </span>
                     </td>
                     <td className="max-w-48 truncate py-1.5 pr-2">
-                      {clubDisplayName(state, row.team)}
+                      {clubPresentationName(clubDisplayName(state, row.team))}
                       {isMe ? " · YOU" : ""}
                     </td>
                     <td className="px-2 py-1.5 text-right text-muted-foreground">{row.p}</td>
@@ -160,7 +161,7 @@ export function WorldInspector({ state }: { state: GameState }) {
         {leagues.map((item, itemIndex) => (
           <button
             key={item.id}
-            aria-label={`Open ${item.name}`}
+            aria-label={`Open ${leaguePresentationName(item.name)}`}
             onClick={() => setIndex(itemIndex)}
             className={cn(
               "h-1.5 rounded-full transition-all",
