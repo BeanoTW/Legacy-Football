@@ -996,14 +996,6 @@ export interface FootballPlayer {
   primaryPosition: Position;
   secondaryPositions: Position[];
   /**
-   * Detailed tactical positions. Optional so historical saves remain valid
-   * while the broader GK/DEF/MID/FWD fields continue as compatibility buckets.
-   */
-  tacticalPrimaryPosition?: TacticalPosition;
-  tacticalSecondaryPositions?: TacticalPosition[];
-  /** Additional natural positions beyond the primary; kept compact for save-size discipline. */
-  naturalTacticalPositions?: TacticalPosition[];
-  /**
    * Club the player is registered to represent. This remains the persisted
    * compatibility field so existing saves/UI stay compact and stable.
    */
