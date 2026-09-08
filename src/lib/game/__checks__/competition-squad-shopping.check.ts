@@ -33,5 +33,17 @@ assert(
   !source.includes("state.football.players.push") && !source.includes("state.football.players ="),
   "competition browsing never mutates canonical player storage",
 );
+assert(
+  !source.includes("onTouchStart") && !source.includes("onTouchEnd"),
+  "horizontal table scrolling cannot trigger league changes through swipe gestures",
+);
+assert(
+  source.includes('aria-label="Previous division"') && source.includes('aria-label="Next division"'),
+  "league changes remain available through explicit previous and next arrows",
+);
+assert(
+  !source.includes("onClick={() => selectLeague(itemIndex)}"),
+  "league pills and position indicators cannot bypass arrow-only division navigation",
+);
 
-console.log("\n6 passed, 0 failed");
+console.log("\n9 passed, 0 failed");
