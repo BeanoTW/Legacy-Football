@@ -260,6 +260,7 @@ function resolveClubReplyInPlace(s: GameState, n: TransferNegotiation, dueDay: n
   legacyEvaluateClubResponseInPlace(s, n);
   const additions = n.log.slice(beforeLog);
   const acceptOffset = additions.findIndex((entry) => entry.party === "club" && entry.action === "accept");
+  const resolvedStage: TransferNegotiation["stage"] = n.stage;
 
   if (acceptOffset >= 0) {
     trimResponseLog(n, beforeLog + acceptOffset + 1);
@@ -283,7 +284,7 @@ function resolveClubReplyInPlace(s: GameState, n: TransferNegotiation, dueDay: n
     return;
   }
 
-  if (n.stage === "rejected") {
+  if (resolvedStage === "rejected") {
     pushInboxOnce(
       s,
       inboxItem(
@@ -318,8 +319,9 @@ function resolvePlayerReplyInPlace(s: GameState, n: TransferNegotiation, dueDay:
   }
   clearTransferResponseInPlace(n);
   legacyEvaluatePlayerResponseInPlace(s, n);
+  const resolvedStage: TransferNegotiation["stage"] = n.stage;
 
-  if (n.stage === "agreed") {
+  if (resolvedStage === "agreed") {
     pushInboxOnce(
       s,
       inboxItem(
@@ -334,7 +336,7 @@ function resolvePlayerReplyInPlace(s: GameState, n: TransferNegotiation, dueDay:
     return;
   }
 
-  if (n.stage === "rejected") {
+  if (resolvedStage === "rejected") {
     pushInboxOnce(
       s,
       inboxItem(
