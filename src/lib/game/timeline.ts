@@ -1,5 +1,5 @@
 import type { GameState, TransferNegotiation } from "./types";
-import { calendarDay } from "./calendar";
+import { calendarDay, FRIENDLY_WEEKS, MATCHDAY_INDEX } from "./calendar";
 import { absoluteWeek } from "./time";
 import { transferAbsoluteDay } from "./transferResponses";
 
@@ -62,6 +62,10 @@ function transferResponseLabel(negotiation: TransferNegotiation): string {
   }
 }
 
+function fixtureEventLabel(week: number): string {
+  return FRIENDLY_WEEKS.has(week) ? "Friendly" : "League match";
+}
+
 /**
  * Chairman-facing projection of already-scheduled club events. This is a read
  * model only: domain systems remain responsible for resolving their events.
@@ -72,16 +76,17 @@ export function upcomingTimelineEvents(state: GameState, horizonDays = 42): Time
   const events: TimelineEvent[] = [];
 
   for (const fixture of state.fixtures) {
-    const absoluteDay = absoluteWeek(state.season, fixture.week) * 7 + 5;
+    const absoluteDay = absoluteWeek(state.season, fixture.week) * 7 + MATCHDAY_INDEX;
     if (absoluteDay < now || absoluteDay > end) continue;
+    const friendly = FRIENDLY_WEEKS.has(fixture.week);
     events.push({
       id: `fixture:${fixture.week}:${fixture.opponent}`,
       kind: "fixture",
       absoluteDay,
       week: fixture.week,
-      day: 5,
-      label: "Matchday",
-      detail: fixture.home ? "Home fixture" : "Away fixture",
+      day: MATCHDAY_INDEX,
+      label: fixtureEventLabel(fixture.week),
+      detail: `${fixture.home ? "Home" : "Away"} ${friendly ? "friendly" : "league fixture"}`,
     });
   }
 
