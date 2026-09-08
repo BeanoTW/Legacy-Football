@@ -1,10 +1,19 @@
 /* =========================================================================
    RECRUITMENT PUBLIC SURFACE
    -------------------------------------------------------------------------
-   Recruitment is now identity-native. The implementation no longer treats
-   GameState.clubName as a club key, so the temporary canonicalisation facade
-   is no longer required.
+   The canonical mutation engine remains synchronous and deterministic.
+   Chairman-facing actions are explicitly wrapped by the dated adapter so UI
+   interactions wait for their scheduled club/player response.
 ========================================================================= */
 
 export * from "./transferResponses";
 export * from "./recruitmentLegacy";
+export { processDueTransferResponsesInPlace } from "./datedRecruitment";
+export {
+  improvePersonalTerms,
+  improveTransferOffer,
+  submitEnquiryOffer,
+  submitTransferEnquiry,
+  submitTransferOffer,
+  withdrawFromTalks,
+} from "./datedRecruitmentUi";

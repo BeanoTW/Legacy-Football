@@ -8,7 +8,7 @@
  */
 import type { GameState, FixtureResult } from "./types";
 import { runWeeklyGenerators } from "./inbox";
-import { runRecruitmentWeek } from "./recruitment";
+import { processDueTransferResponsesInPlace, runRecruitmentWeek } from "./recruitment";
 import { processDuePlayerLoansInPlace } from "./loans";
 import {
   compactDepartingFocusPlayersInPlace,
@@ -101,6 +101,9 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   const s: GameState = structuredClone(prev);
   ensureFinance(s);
 
+  // A response due on Sunday must land before weekly football settlement.
+  processDueTransferResponsesInPlace(s);
+
   // Loan contributions affect the payroll booked for this exact week. Close
   // any agreement due at the current absolute week before recurring wages are
   // posted; recruitment later repeats the same operation idempotently before
@@ -153,6 +156,9 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   ensureBoard(s);
   maybeRunMidSeasonReview(s);
   setCalendarDay(s, 0);
+  // Monday replies scheduled across the week boundary should already be in the
+  // chairman's Inbox when the new week opens.
+  processDueTransferResponsesInPlace(s);
 
   return runWeeklyGenerators(s);
 }
@@ -171,6 +177,7 @@ export function advanceDay(prev: GameState): GameState {
     const next = structuredClone(prev);
     setCalendarDay(next, day + 1);
     progressScoutingDayInPlace(next);
+    processDueTransferResponsesInPlace(next);
     return next;
   }
   return advanceWeek(prev);
