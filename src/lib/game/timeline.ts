@@ -162,6 +162,22 @@ export function upcomingTimelineEvents(state: GameState, horizonDays = 42): Time
       }
     }
 
+    if (negotiation.stage === "registration" && negotiation.registrationDueAtDay !== undefined) {
+      const absoluteDay = negotiation.registrationDueAtDay;
+      if (absoluteDay >= now && absoluteDay <= end) {
+        const date = seasonWeekFromAbsoluteDay(state, absoluteDay);
+        events.push({
+          id: `transfer:${negotiation.id}:registration`,
+          kind: "transfer",
+          absoluteDay,
+          week: date.week,
+          day: date.day,
+          label: "Medical & registration complete",
+          detail: playerName(state, negotiation.playerId),
+        });
+      }
+    }
+
     // Existing week-granularity expiry remains the safety net for old saves and
     // stalled talks while day-level response scheduling is introduced.
     const deadlineDay = negotiation.expiresAtAbsoluteWeek * 7 + 4;
