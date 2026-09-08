@@ -23,6 +23,10 @@ import {
 } from "@/lib/game/recruitment";
 import { scoutingAssignment, scoutingReport, startScouting } from "@/lib/game/scouting";
 import { scoutingBriefDaysRemaining } from "@/lib/game/scoutingDiscovery";
+import {
+  chairmanScoutingFitScore,
+  scoutingPlayerLevelLabel,
+} from "@/lib/game/chairmanScoutingBrief";
 import { transferTargetPlayer } from "@/lib/game/recruitmentTargetBridge";
 import {
   chairmanRecruitmentEstimate,
@@ -75,6 +79,12 @@ export function ScoutingBrowser({
         const player = transferTargetPlayer(state, playerId);
         return player ? [player] : [];
       })
+      .sort((a, b) => {
+        const fit =
+          chairmanScoutingFitScore(state, brief.id, b.id) -
+          chairmanScoutingFitScore(state, brief.id, a.id);
+        return fit || playerName(a).localeCompare(playerName(b));
+      })
       .slice(0, 40);
   }, [brief, state]);
 
@@ -104,6 +114,7 @@ export function ScoutingBrowser({
   const wageBill = userWageBill(state);
   const wageHeadroom = wageCeiling > 0 ? Math.max(0, wageCeiling - wageBill) : null;
   const daysRemaining = brief ? scoutingBriefDaysRemaining(state, brief.id) : 0;
+  const levelLabel = scoutingPlayerLevelLabel(brief?.playerLevel);
 
   const toolbar = (
     <div className="space-y-1.5">
@@ -115,6 +126,7 @@ export function ScoutingBrowser({
           {wageHeadroom !== null ? ` · ${fmtMoney(wageHeadroom)} headroom` : ""}
         </span>
         <span className="rounded-md bg-muted px-2 py-1">{brief?.scoutQuality ?? 50} scouting quality</span>
+        {brief?.playerLevel && <span className="rounded-md bg-muted px-2 py-1">Target · {levelLabel}</span>}
       </div>
     </div>
   );
@@ -139,21 +151,21 @@ export function ScoutingBrowser({
     return (
       <DetailScreen
         title="Recruitment options"
-        subtitle={`Your football staff are looking for options · ${daysRemaining} day${daysRemaining === 1 ? "" : "s"} remaining`}
+        subtitle={`Scouts are looking for ${levelLabel.toLowerCase()} options · ${daysRemaining} day${daysRemaining === 1 ? "" : "s"} remaining`}
         actions={<Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="mr-2 size-4" /> Back</Button>}
         toolbar={toolbar}
       >
         <section className="max-w-2xl rounded-xl border bg-card p-5 shadow-sm">
           <div className="flex items-center gap-3">
             <Binoculars className="size-7" />
-            <div><div className="font-display text-xl">Scouts are working</div><div className="text-sm text-muted-foreground">Your recruitment team is working to the brief you sent.</div></div>
+            <div><div className="font-display text-xl">Scouts are working</div><div className="text-sm text-muted-foreground">Your recruitment team is working to the brief you sent: {levelLabel}.</div></div>
           </div>
           <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
             <div className="rounded-lg bg-muted p-2"><div className="font-display text-lg">{brief.scoutQuality ?? 50}</div><div className="text-muted-foreground">Scout quality</div></div>
             <div className="rounded-lg bg-muted p-2"><div className="font-display text-lg">Up to {brief.candidateLimit ?? 10}</div><div className="text-muted-foreground">Options</div></div>
             <div className="rounded-lg bg-muted p-2"><div className="font-display text-lg">{daysRemaining}d</div><div className="text-muted-foreground">Remaining</div></div>
           </div>
-          <p className="mt-4 text-xs text-muted-foreground">When the list arrives, every player has an initial assessment. Send scouts back to the interesting ones for a fuller report before deciding whether to negotiate.</p>
+          <p className="mt-4 text-xs text-muted-foreground">When the list arrives, staff rank the candidates against the quality level you asked for. Send scouts back to the interesting ones for a fuller report before deciding whether to negotiate.</p>
         </section>
       </DetailScreen>
     );
@@ -162,7 +174,7 @@ export function ScoutingBrowser({
   return (
     <DetailScreen
       title="Recruitment options"
-      subtitle={`${rows.length} players brought to your attention by the football staff`}
+      subtitle={`${rows.length} ${levelLabel.toLowerCase()} options brought to your attention by the football staff`}
       actions={<Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="mr-2 size-4" /> Back</Button>}
       toolbar={toolbar}
       className="touch-pan-y grid gap-2 xl:grid-cols-2 xl:items-start"

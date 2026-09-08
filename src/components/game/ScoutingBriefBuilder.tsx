@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { ArrowLeft, Binoculars } from "lucide-react";
 import type { GameState, Position } from "@/lib/game/types";
-import { createScoutingBrief, scoutingSearchPlan } from "@/lib/game/scoutingDiscovery";
+import { scoutingSearchPlan } from "@/lib/game/scoutingDiscovery";
+import {
+  createChairmanScoutingBrief,
+  SCOUTING_PLAYER_LEVELS,
+  type ScoutingPlayerLevel,
+} from "@/lib/game/chairmanScoutingBrief";
 import { Button } from "@/components/ui/button";
 import { DetailScreen } from "./shared/layout";
 
@@ -23,18 +28,21 @@ export function ScoutingBriefBuilder({
   onBack: () => void;
 }) {
   const [position, setPosition] = useState<"" | Position>("");
+  const [playerLevel, setPlayerLevel] = useState<ScoutingPlayerLevel>("firstTeam");
   const [minAge, setMinAge] = useState(18);
   const [maxAge, setMaxAge] = useState(32);
   const [clubStatus, setClubStatus] = useState<"" | "free" | "contracted">("");
   const [maxFee, setMaxFee] = useState("");
   const [maxWage, setMaxWage] = useState("");
   const plan = scoutingSearchPlan(state);
+  const selectedLevel = SCOUTING_PLAYER_LEVELS.find((item) => item.value === playerLevel)!;
 
   const dispatch = () => {
     const sequence = state.football?.scoutingDiscovery?.briefs.length ?? 0;
-    update((s) => createScoutingBrief(s, {
+    update((s) => createChairmanScoutingBrief(s, {
       id: `chairman-brief:s${s.season}:w${s.week}:r${sequence + 1}`,
       position: position || undefined,
+      playerLevel,
       minAge,
       maxAge,
       clubStatus: clubStatus || undefined,
@@ -54,7 +62,7 @@ export function ScoutingBriefBuilder({
           <Binoculars className="mt-0.5 size-7 shrink-0" />
           <div>
             <div className="font-display text-xl">What should the scouts look for?</div>
-            <p className="mt-1 text-sm text-muted-foreground">Set the essentials. Your staff will rank suitable players using their own judgement rather than giving you a searchable player database.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Give the football staff a broad recruitment brief. They interpret what "first-team" or "star" quality means for your current squad rather than asking you for hidden ability numbers.</p>
           </div>
         </div>
 
@@ -63,6 +71,12 @@ export function ScoutingBriefBuilder({
             <select className="h-10 rounded-md border bg-background px-3 text-sm font-normal" value={position} onChange={(e) => setPosition(e.target.value as "" | Position)}>
               {POSITIONS.map((item) => <option key={item.value || "any"} value={item.value}>{item.label}</option>)}
             </select>
+          </label>
+          <label className="grid gap-1 text-xs font-semibold">Player level
+            <select className="h-10 rounded-md border bg-background px-3 text-sm font-normal" value={playerLevel} onChange={(e) => setPlayerLevel(e.target.value as ScoutingPlayerLevel)}>
+              {SCOUTING_PLAYER_LEVELS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select>
+            <span className="font-normal text-muted-foreground">{selectedLevel.description}</span>
           </label>
           <label className="grid gap-1 text-xs font-semibold">Player status
             <select className="h-10 rounded-md border bg-background px-3 text-sm font-normal" value={clubStatus} onChange={(e) => setClubStatus(e.target.value as "" | "free" | "contracted")}>
@@ -81,6 +95,10 @@ export function ScoutingBriefBuilder({
           <label className="grid gap-1 text-xs font-semibold">Maximum weekly wage <span className="font-normal text-muted-foreground">Optional · £/wk</span>
             <input className="h-10 rounded-md border bg-background px-3 text-sm font-normal" inputMode="numeric" placeholder="No limit" value={maxWage} onChange={(e) => setMaxWage(e.target.value.replace(/[^0-9]/g, ""))} />
           </label>
+        </div>
+
+        <div className="mt-4 rounded-lg border bg-muted/30 px-3 py-2 text-xs">
+          <span className="font-semibold">Brief:</span> {position ? POSITIONS.find((item) => item.value === position)?.label : "Any position"} · {selectedLevel.label} · age {minAge}–{maxAge}
         </div>
 
         <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
