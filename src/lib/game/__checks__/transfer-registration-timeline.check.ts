@@ -60,13 +60,21 @@ const completed = advanced.football?.negotiations.find((item) => item.id === "TN
 if (!completed) throw new Error("completed negotiation missing");
 assert(completed.stage === "completed", "Advance resolves due registration through canonical completion");
 assert(Boolean(completed.completedTransferId), "canonical transfer record is linked to the negotiation");
+const completionMessage = advanced.inbox.find(
+  (item) => item.subject === `Transfer completed: ${target.firstName} ${target.lastName}`,
+);
+assert(Boolean(completionMessage), "completed registration generates a high-priority transfer inbox message");
 assert(
-  advanced.inbox.some((item) => item.subject === `Transfer completed: ${target.firstName} ${target.lastName}`),
-  "completed registration generates a high-priority transfer inbox message",
+  completionMessage!.eventKey === `recruitment-transfer-complete:${completed.completedTransferId}`,
+  "completion uses the weekly generator's canonical event key to prevent duplicate messages",
+);
+assert(
+  completionMessage!.conversationKey === "transfer:TN-REG-CHECK",
+  "completion remains attached to the same transfer conversation",
 );
 assert(
   !upcomingTimelineEvents(advanced, 7).some((item) => item.id === "transfer:TN-REG-CHECK:registration"),
   "completed registration disappears from upcoming events",
 );
 
-console.log("\n8 passed, 0 failed");
+console.log("\n10 passed, 0 failed");
