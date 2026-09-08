@@ -29,6 +29,7 @@ export function ContinueCalendar({
           const active = index === 0;
           const opponent = fixture ? clubPresentationName(clubDisplayName(state, fixture.opponent)) : null;
           const events = timelineEventsForWeek(state, week);
+          const fixtureEvent = events.find((event) => event.kind === "fixture");
           const nonFixtureEvents = events.filter((event) => event.kind !== "fixture");
           const nextEvent = nonFixtureEvents[0];
           const extraEvents = Math.max(0, nonFixtureEvents.length - 1);
@@ -43,7 +44,13 @@ export function ContinueCalendar({
             >
               <div className="lf-week-number">W{week}</div>
               <div className="lf-week-type">
-                {fixture ? (week <= 6 ? "Friendly" : "League") : nextEvent ? "Club event" : active ? "This week" : "Open"}
+                {fixture
+                  ? (fixtureEvent?.label ?? "Match")
+                  : nextEvent
+                    ? "Club event"
+                    : active
+                      ? "This week"
+                      : "Open"}
               </div>
               <div className="lf-week-meta">
                 {fixture
