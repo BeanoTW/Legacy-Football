@@ -14,6 +14,7 @@ import {
   isChairmanShortlisted,
   toggleChairmanShortlist,
 } from "@/lib/game/recruitmentKnowledge";
+import { currentAbsoluteDay, upcomingTimelineEvents } from "@/lib/game/timeline";
 import { fmtMoney } from "@/lib/game/engine";
 import { clubDisplayName } from "@/lib/game/clubReference";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,10 @@ export function ScoutingReports({
     if (a.status !== b.status) return a.status === "active" ? -1 : 1;
     return b.startedAtAbsoluteWeek - a.startedAtAbsoluteWeek;
   });
+  const nowDay = currentAbsoluteDay(state);
+  const scoutingEvents = upcomingTimelineEvents(state, 14).filter(
+    (event) => event.kind === "scouting" && event.id.startsWith("scouting:player:"),
+  );
 
   const approach = (playerId: string, freeAgent: boolean, weeklyWage: number) =>
     update((s) =>
@@ -69,6 +74,10 @@ export function ScoutingReports({
         const watched = isChairmanShortlisted(state, player.id);
         const freeAgent = player.currentClubId === null;
         const estimate = chairmanRecruitmentEstimate(state, player.id);
+        const dueEvent = scoutingEvents.find((event) =>
+          event.id.startsWith(`scouting:player:${player.id}:`),
+        );
+        const dueInDays = dueEvent ? Math.max(0, dueEvent.absoluteDay - nowDay) : null;
         if (!estimate) return null;
 
         return (
@@ -91,6 +100,11 @@ export function ScoutingReports({
                   {report.complete ? <CheckCircle2 className="size-3" /> : <Binoculars className="size-3" />}
                   {report.complete ? "Full report" : "Scouting"}
                 </div>
+                {!report.complete && dueEvent && dueInDays !== null && (
+                  <div className="mt-0.5 text-[8px] font-semibold text-primary">
+                    {dueEvent.label.replace(" due", "")} · {dueInDays === 0 ? "today" : `${dueInDays}d`}
+                  </div>
+                )}
               </div>
             </div>
 
