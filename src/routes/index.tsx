@@ -116,7 +116,7 @@ function Game({ state, update, isContinuing, continueReason, startContinue, stop
 
   return (
     <div className="game-shell">
-      <PlayerProfileSheet state={state} />
+      <PlayerProfileSheet state={state} update={update} />
       <div className="lf-masthead shrink-0">
         <TopBar
           title={state.clubName}
