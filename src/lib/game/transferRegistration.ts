@@ -42,36 +42,47 @@ export const beginTransferRegistration = (state: GameState, negotiationId: strin
   cloned(state, (working) => beginDatedTransferRegistrationInPlace(working, negotiationId));
 
 /**
- * Compatibility wrapper for callers that still expose a completion action.
- * New incoming registrations with a dated clock cannot be completed manually;
- * older saves without that clock retain the previous completion path.
+ * In-place compatibility boundary used by Inbox effects. A modern incoming
+ * registration may not bypass its persisted Advance clock; old saves without
+ * that clock retain the previous completion path.
  */
-export const completeTransfer = (state: GameState, negotiationId: string) =>
-  cloned(state, (working) => {
-    const negotiation = working.football?.negotiations.find((item) => item.id === negotiationId);
-    if (
-      negotiation?.direction === "in" &&
-      negotiation.stage === "registration" &&
-      negotiation.registrationDueAtDay !== undefined
-    ) {
-      return {
-        ok: false,
-        reason: "Registration is in progress and will complete through Advance",
-        negotiation,
-      } satisfies NegotiationResult;
-    }
-    return completeTransferInPlace(working, negotiationId);
-  });
+export function completeDatedTransferInPlace(
+  state: GameState,
+  negotiationId: string,
+): NegotiationResult {
+  const negotiation = state.football?.negotiations.find((item) => item.id === negotiationId);
+  if (
+    negotiation?.direction === "in" &&
+    negotiation.stage === "registration" &&
+    negotiation.registrationDueAtDay !== undefined
+  ) {
+    return {
+      ok: false,
+      reason: "Registration is in progress and will complete through Advance",
+      negotiation,
+    };
+  }
+  return completeTransferInPlace(state, negotiationId);
+}
 
-function pushCompletionInbox(state: GameState, negotiation: TransferNegotiation, dueDay: number): void {
+export const completeTransfer = (state: GameState, negotiationId: string) =>
+  cloned(state, (working) => completeDatedTransferInPlace(working, negotiationId));
+
+function pushCompletionInbox(state: GameState, negotiation: TransferNegotiation): void {
   const player = transferTargetPlayer(state, negotiation.playerId);
   const name = player ? playerName(player) : "New signing";
-  const eventKey = `transfer-registration:${negotiation.id}:${dueDay}`;
+  const transferId = negotiation.completedTransferId;
+  if (!transferId) return;
+  // Match the weekly completion generator's canonical key so Advance produces
+  // one coherent completion message rather than a second duplicate on Monday.
+  const eventKey = `recruitment-transfer-complete:${transferId}`;
   if (state.inbox.some((item) => item.eventKey === eventKey)) return;
   state.inbox.push({
     id: `inbox-${hashString(eventKey).toString(36)}`,
-    generatorId: "recruitment-transfer-registration",
+    generatorId: "recruitment-transfer-complete",
     eventKey,
+    conversationKey: `transfer:${negotiation.id}`,
+    relatedEntityId: negotiation.id,
     sender: "Director of Football",
     department: "Director of Football",
     category: "transfers",
@@ -92,6 +103,6 @@ export function processDueTransferRegistrationsInPlace(state: GameState): void {
     const result = completeTransferInPlace(state, negotiation.id);
     if (!result.ok) continue;
     delete negotiation.registrationDueAtDay;
-    pushCompletionInbox(state, negotiation, dueDay);
+    pushCompletionInbox(state, negotiation);
   }
 }
