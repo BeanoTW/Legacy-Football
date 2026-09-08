@@ -5,6 +5,7 @@ import {
   Inbox,
   Mail,
   Pause,
+  RefreshCw,
   Trophy,
   X,
 } from "lucide-react";
@@ -12,7 +13,7 @@ import type { GameState, InboxItem } from "@/lib/game/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { requiresInboxDecision } from "@/lib/game/inbox";
-import { calendarDay } from "@/lib/game/calendar";
+import { calendarDay, FRIENDLY_WEEKS, windowStatus } from "@/lib/game/calendar";
 import { clubDisplayName } from "@/lib/game/clubReference";
 import { timelineEventsForWeek } from "@/lib/game/timeline";
 
@@ -43,6 +44,8 @@ export function AdvanceInboxPreview({
   const fixture = state.fixtures.find((item) => item.week === state.week);
   const currentDay = calendarDay(state);
   const weekEvents = timelineEventsForWeek(state, state.week);
+  const transferWindow = windowStatus(state);
+  const isFriendlyWeek = FRIENDLY_WEEKS.has(state.week);
   const newIds = new Set(items.map((item) => item.id));
   const inboxItems = state.inbox
     .slice()
@@ -99,8 +102,20 @@ export function AdvanceInboxPreview({
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="font-display text-xl">
-                {isMatchday ? "It’s matchday" : interrupted ? "Time stopped" : "Time is moving"}
+              <div className="flex items-center gap-2">
+                <div className="font-display text-xl">
+                  {isMatchday ? "It’s matchday" : interrupted ? "Time stopped" : "Time is moving"}
+                </div>
+                {transferWindow.open && (
+                  <span
+                    title={transferWindow.detail}
+                    aria-label={transferWindow.label}
+                    className="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-primary"
+                  >
+                    <RefreshCw className="size-3 animate-[spin_4s_linear_infinite]" />
+                    Window open
+                  </span>
+                )}
               </div>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 {isMatchday
@@ -145,49 +160,43 @@ export function AdvanceInboxPreview({
                 const active = index === currentDay;
                 const passed = index < currentDay;
                 const dayEvents = weekEvents.filter((event) => event.day === index);
-                const hasFixture = dayEvents.some((event) => event.kind === "fixture");
+                const fixtureEvent = dayEvents.find((event) => event.kind === "fixture");
+                const deadlineEvent = dayEvents.find((event) => event.kind !== "fixture");
                 return (
                   <div
                     key={dayLabel}
                     className={cn(
-                      "relative grid min-h-14 place-items-center border-r last:border-r-0 text-center transition-colors duration-300",
+                      "relative flex min-h-[4.6rem] min-w-0 flex-col items-center border-r px-0.5 py-2 last:border-r-0 text-center transition-colors duration-300",
                       active && "bg-primary text-primary-foreground",
                       passed && !active && "bg-muted/55 text-muted-foreground",
                       !passed && !active && "bg-card text-foreground",
                     )}
                   >
                     <span className="text-[8px] font-bold tracking-[0.12em]">{dayLabel}</span>
-                    <span className="mt-1 flex min-h-2 items-center justify-center gap-0.5">
-                      {dayEvents.length > 0 ? (
-                        dayEvents.slice(0, 3).map((event) => (
-                          <span
-                            key={event.id}
-                            className={cn(
-                              "size-1.5 rounded-full",
-                              active
-                                ? "bg-current"
-                                : event.kind === "fixture"
-                                  ? "bg-emerald-500"
-                                  : "bg-primary",
-                            )}
-                          />
-                        ))
-                      ) : (
-                        <span
-                          className={cn(
-                            "size-1.5 rounded-full",
-                            active ? "bg-current/40" : passed ? "bg-muted-foreground/30" : "bg-border",
-                          )}
-                        />
-                      )}
-                    </span>
-                    {hasFixture && (
-                      <Trophy
+                    {fixtureEvent ? (
+                      <>
+                        <Trophy className={cn("mt-1 size-3", active ? "text-current" : "text-emerald-600")} />
+                        <span className="mt-0.5 max-w-full truncate text-[7px] font-bold leading-tight">
+                          {isFriendlyWeek ? "FRIENDLY" : "MATCH"}
+                        </span>
+                      </>
+                    ) : deadlineEvent ? (
+                      <>
+                        <CalendarDays className={cn("mt-1 size-3", active ? "text-current" : "text-primary")} />
+                        <span className="mt-0.5 max-w-full truncate text-[7px] font-bold leading-tight">
+                          {deadlineEvent.kind === "transfer" ? "TRANSFER" : deadlineEvent.kind === "scouting" ? "SCOUT" : "EVENT"}
+                        </span>
+                      </>
+                    ) : (
+                      <span
                         className={cn(
-                          "absolute right-1 top-1 size-2.5",
-                          active ? "text-current" : "text-emerald-600",
+                          "mt-3 size-1.5 rounded-full",
+                          active ? "bg-current/40" : passed ? "bg-muted-foreground/30" : "bg-border",
                         )}
                       />
+                    )}
+                    {dayEvents.length > 1 && (
+                      <span className="mt-auto text-[7px] font-bold opacity-75">+{dayEvents.length - 1}</span>
                     )}
                     {active && isContinuing && (
                       <span className="absolute inset-x-1 bottom-0 h-0.5 animate-pulse rounded-full bg-current" />
@@ -211,37 +220,54 @@ export function AdvanceInboxPreview({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {weekEvents.map((event) => (
-                    <div
-                      key={event.id}
-                      className={cn(
-                        "flex items-center gap-3 rounded-2xl border p-3",
-                        event.day === currentDay && "border-primary/50 bg-primary/5",
-                        event.kind === "fixture" && "border-emerald-500/40 bg-emerald-500/5",
-                      )}
-                    >
-                      <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted">
-                        {event.kind === "fixture" ? (
-                          <Trophy className="size-4 text-emerald-600" />
-                        ) : (
-                          <CalendarDays className="size-4 text-primary" />
+                  {weekEvents.map((event) => {
+                    const eventFixture =
+                      event.kind === "fixture"
+                        ? state.fixtures.find(
+                            (candidate) => candidate.week === event.week && candidate.opponent === fixture?.opponent,
+                          ) ?? fixture
+                        : undefined;
+                    return (
+                      <div
+                        key={event.id}
+                        className={cn(
+                          "flex items-center gap-3 rounded-2xl border p-3",
+                          event.day === currentDay && "border-primary/50 bg-primary/5",
+                          event.kind === "fixture" && "border-emerald-500/40 bg-emerald-500/5",
                         )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                          {DAYS[event.day]}
+                      >
+                        <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted">
+                          {event.kind === "fixture" ? (
+                            <Trophy className="size-4 text-emerald-600" />
+                          ) : (
+                            <CalendarDays className="size-4 text-primary" />
+                          )}
                         </div>
-                        <div className="truncate text-sm font-semibold">{event.label}</div>
-                        {event.kind === "fixture" && fixture?.week === state.week ? (
-                          <div className="truncate text-xs text-muted-foreground">
-                            {fixture.home ? "Home" : "Away"} vs {clubDisplayName(state, fixture.opponent)}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                            <span>{DAYS[event.day]}</span>
+                            {event.kind === "fixture" && (
+                              <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[8px] text-emerald-700">
+                                {isFriendlyWeek ? "Friendly" : "Match"}
+                              </span>
+                            )}
                           </div>
-                        ) : event.detail ? (
-                          <div className="truncate text-xs text-muted-foreground">{event.detail}</div>
-                        ) : null}
+                          <div className="truncate text-sm font-semibold">
+                            {event.kind === "fixture" && eventFixture
+                              ? `${eventFixture.home ? "vs" : "at"} ${clubDisplayName(state, eventFixture.opponent)}`
+                              : event.label}
+                          </div>
+                          {event.kind === "fixture" && eventFixture ? (
+                            <div className="truncate text-xs text-muted-foreground">
+                              {eventFixture.home ? "Home" : "Away"} · {isFriendlyWeek ? "Pre-season friendly" : "Competitive fixture"}
+                            </div>
+                          ) : event.detail ? (
+                            <div className="truncate text-xs text-muted-foreground">{event.detail}</div>
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </section>
