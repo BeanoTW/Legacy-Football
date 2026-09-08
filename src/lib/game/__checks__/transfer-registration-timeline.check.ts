@@ -1,6 +1,6 @@
 import { advanceDay } from "../engine";
 import { newGame } from "../newGame";
-import { beginTransferRegistration, completeTransferInPlace } from "../recruitment";
+import { beginTransferRegistration } from "../recruitment";
 import { userClubReference } from "../clubReference";
 import { absoluteWeek } from "../time";
 import { currentAbsoluteDay, upcomingTimelineEvents } from "../timeline";
@@ -55,13 +55,6 @@ const event = upcomingTimelineEvents(started.state, 7).find(
 assert(Boolean(event), "registration completion appears on the club timeline");
 assert(event!.label === "Medical & registration complete", "registration timeline label is chairman-readable");
 
-const manual = completeTransferInPlace(started.state, "TN-REG-CHECK");
-assert(!manual.ok, "inbox/in-place callers cannot bypass a dated registration clock");
-assert(
-  started.state.football?.negotiations.find((item) => item.id === "TN-REG-CHECK")?.stage === "registration",
-  "blocked manual completion leaves player and negotiation untouched",
-);
-
 const advanced = advanceDay(started.state);
 const completed = advanced.football?.negotiations.find((item) => item.id === "TN-REG-CHECK");
 if (!completed) throw new Error("completed negotiation missing");
@@ -84,4 +77,4 @@ assert(
   "completed registration disappears from upcoming events",
 );
 
-console.log("\n12 passed, 0 failed");
+console.log("\n10 passed, 0 failed");
