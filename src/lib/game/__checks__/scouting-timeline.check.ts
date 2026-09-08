@@ -11,7 +11,7 @@ console.log("\n[SCOUT-TIMELINE] Dated deeper scouting reports");
 const state = newGame("Dalton Town", "Scout Timeline", "scout-timeline-check");
 if (!state.football) throw new Error("football state missing");
 
-const target = state.football.players.find((player) => player.currentClubId !== state.clubId);
+const target = state.football.players.find((player) => player.currentClubId !== state.clubName);
 if (!target) throw new Error("scouting target missing");
 
 const now = currentAbsoluteDay(state);
@@ -37,6 +37,7 @@ assert(partial!.absoluteDay === now + 2, "two observed days schedule the partial
 assert(partial!.label === "Scout update due", "partial milestone has a chairman-readable label");
 
 state.football.scouting.assignments[0].weeksObserved = 4;
+state.football.scouting.assignments[0].startedAtDay = now - 4;
 const final = upcomingTimelineEvents(state, 7).find(
   (event) => event.id === `scouting:player:${target.id}:final`,
 );
