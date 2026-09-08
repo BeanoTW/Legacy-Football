@@ -46,13 +46,9 @@ export function WorldInspector({ state }: { state: GameState }) {
 
   if (!league) return null;
 
-  const selectLeague = (nextIndex: number) => {
-    setIndex(nextIndex);
-    setSelectedClub(null);
-  };
-
   const move = (delta: number) => {
-    selectLeague(Math.max(0, Math.min(leagues.length - 1, safeIndex + delta)));
+    setIndex(Math.max(0, Math.min(leagues.length - 1, safeIndex + delta)));
+    setSelectedClub(null);
   };
 
   return (
@@ -65,7 +61,7 @@ export function WorldInspector({ state }: { state: GameState }) {
           <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3">
             <h1 className="font-display text-2xl sm:text-3xl">League tables</h1>
             <p className="text-xs text-muted-foreground sm:text-sm">
-              Select a club to browse its squad.
+              Use the arrows to change division. Select a club to browse its squad.
             </p>
           </div>
         </div>
@@ -76,33 +72,22 @@ export function WorldInspector({ state }: { state: GameState }) {
 
       <div className="flex shrink-0 items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none]">
         {leagues.map((item, itemIndex) => (
-          <button
+          <span
             key={item.id}
-            onClick={() => selectLeague(itemIndex)}
+            aria-current={itemIndex === safeIndex ? "true" : undefined}
             className={cn(
-              "shrink-0 rounded-full border px-3 py-1 text-xs font-semibold transition-colors",
+              "shrink-0 rounded-full border px-3 py-1 text-xs font-semibold",
               itemIndex === safeIndex
                 ? "border-primary bg-primary text-primary-foreground"
-                : "bg-card text-muted-foreground hover:bg-muted",
+                : "bg-card text-muted-foreground",
             )}
           >
             {leaguePresentationName(item.name)}
-          </button>
+          </span>
         ))}
       </div>
 
-      <div
-        className="touch-pan-y flex flex-col rounded-2xl border bg-card shadow-sm lg:min-h-0 lg:flex-1 lg:overflow-hidden"
-        onTouchStart={(event) => {
-          event.currentTarget.dataset.touchX = String(event.touches[0]?.clientX ?? 0);
-        }}
-        onTouchEnd={(event) => {
-          const start = Number(event.currentTarget.dataset.touchX ?? 0);
-          const end = event.changedTouches[0]?.clientX ?? start;
-          if (Math.abs(end - start) < 55) return;
-          move(end < start ? 1 : -1);
-        }}
-      >
+      <div className="flex flex-col rounded-2xl border bg-card shadow-sm lg:min-h-0 lg:flex-1 lg:overflow-hidden">
         <div className="panel-strip flex shrink-0 items-center justify-between gap-3 px-3 py-2.5 sm:px-4">
           <button
             aria-label="Previous division"
@@ -206,12 +191,10 @@ export function WorldInspector({ state }: { state: GameState }) {
         />
       )}
 
-      <div className="flex shrink-0 items-center justify-center gap-1.5">
+      <div className="flex shrink-0 items-center justify-center gap-1.5" aria-hidden="true">
         {leagues.map((item, itemIndex) => (
-          <button
+          <span
             key={item.id}
-            aria-label={`Open ${leaguePresentationName(item.name)}`}
-            onClick={() => selectLeague(itemIndex)}
             className={cn(
               "h-1.5 rounded-full transition-all",
               itemIndex === safeIndex ? "w-7 bg-primary" : "w-1.5 bg-muted-foreground/30",
