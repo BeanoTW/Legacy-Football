@@ -19,7 +19,8 @@ export const SEASON_END_WEEK = CALENDAR.seasonEnd;
 export const WINDOW_PRESEASON_END = CALENDAR.preSeasonEnd;
 export const WINDOW_MIDSEASON = CALENDAR.midSeasonStart;
 
-export const FRIENDLY_WEEKS = new Set<number>([2, 4, 25, 27]);
+/** Pre-season warm-up fixtures only. The mid-season window is transfers, not friendlies. */
+export const FRIENDLY_WEEKS = new Set<number>([2, 4]);
 export const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 export const MATCHDAY_INDEX = 5;
 const DAY_FLAG = "calendar.dayOfWeek";
