@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Archive, ChevronRight, Filter, MailOpen, Trash2 } from "lucide-react";
+import { Archive, ChevronRight, Filter, MailOpen, MessagesSquare, Trash2 } from "lucide-react";
 import type { GameState, InboxItem, InboxCategory, InboxDepartment } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,10 @@ import {
   requiresInboxDecision,
   unreadCount,
 } from "@/lib/game/inbox";
+import {
+  inboxConversationCount,
+  inboxConversationItems,
+} from "@/lib/game/inboxCommunication";
 
 export type InboxFilter = "all" | "unread" | "decisions" | "archive";
 
@@ -168,6 +172,7 @@ export function InboxTab({
         <div className="contained-scroll touch-pan-y min-h-0 flex-1 space-y-1.5 pr-0.5 md:space-y-3">
           {items.map((it) => {
             const decision = requiresInboxDecision(it);
+            const conversationCount = inboxConversationCount(state.inbox, it);
             return (
             <button
               key={it.id}
@@ -182,6 +187,11 @@ export function InboxTab({
                 <div className="flex items-center gap-2 text-[10px] md:text-xs text-muted-foreground">
                   <span>{it.department}</span>
                   {decision && <span className="font-semibold text-amber-600">Decision</span>}
+                  {conversationCount > 1 && (
+                    <span className="inline-flex items-center gap-1 font-medium text-foreground/70">
+                      <MessagesSquare className="size-3" /> {conversationCount}
+                    </span>
+                  )}
                   <span className="ml-auto">W{it.week}</span>
                 </div>
                 <div className={cn("truncate text-sm leading-tight md:mt-1 md:text-base", (it.status === "unread" || it.status === "awaitingDecision") && "font-semibold")}>{it.subject}</div>
@@ -218,6 +228,8 @@ export function InboxTab({
 
 export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelete }: { item: InboxItem; state: GameState; onClose: () => void; onChoose: (choiceId: string) => void; onDismiss: () => void; onDelete: () => void }) {
   const decision = requiresInboxDecision(item);
+  const conversation = inboxConversationItems(state.inbox, item);
+  const hasConversation = conversation.length > 1;
   return (
     <Sheet open onOpenChange={(v) => !v && onClose()}>
       <SheetContent side="bottom" className="rounded-t-3xl max-h-[90vh] overflow-y-auto">
@@ -226,7 +238,36 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
           <SheetTitle className="text-xl leading-tight">{item.subject}</SheetTitle>
           <div className="text-sm text-muted-foreground">From {item.sender}</div>
         </SheetHeader>
-        <div className="mt-5 text-base whitespace-pre-wrap leading-relaxed">{item.body}</div>
+        {hasConversation ? (
+          <div className="mt-5 space-y-3">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <MessagesSquare className="size-4" /> Conversation · {conversation.length} messages
+            </div>
+            {conversation.map((message) => {
+              const current = message.id === item.id;
+              return (
+                <div
+                  key={message.id}
+                  className={cn(
+                    "rounded-2xl border p-4",
+                    current ? "border-primary/40 bg-primary/5" : "bg-muted/25",
+                  )}
+                >
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="font-semibold text-foreground">{message.sender}</span>
+                    <span>·</span>
+                    <span>S{message.season} W{message.week}</span>
+                    {current && <span className="ml-auto font-semibold text-primary">Latest</span>}
+                  </div>
+                  <div className="mt-1 font-semibold">{message.subject}</div>
+                  <div className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{message.body}</div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-5 text-base whitespace-pre-wrap leading-relaxed">{item.body}</div>
+        )}
         {decision && item.choices && item.choices.length > 0 && (
           <div className="mt-6 space-y-3">
             {item.status === "completed" && item.chosenChoiceId ? (
