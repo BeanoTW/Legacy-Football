@@ -62,6 +62,26 @@ function transferResponseLabel(negotiation: TransferNegotiation): string {
   }
 }
 
+function nextDetailedScoutingMilestone(assignment: {
+  startedAtAbsoluteWeek: number;
+  startedAtDay?: number;
+  weeksObserved: number;
+}): { absoluteDay: number; label: string; milestone: "update" | "final" } {
+  const startedAtDay = assignment.startedAtDay ?? assignment.startedAtAbsoluteWeek * 7;
+  if (assignment.weeksObserved < 4) {
+    return {
+      absoluteDay: startedAtDay + 4,
+      label: "Scout update due",
+      milestone: "update",
+    };
+  }
+  return {
+    absoluteDay: startedAtDay + 6,
+    label: "Final scout report due",
+    milestone: "final",
+  };
+}
+
 /**
  * Chairman-facing projection of already-scheduled club events. This is a read
  * model only: domain systems remain responsible for resolving their events.
@@ -96,8 +116,24 @@ export function upcomingTimelineEvents(state: GameState, horizonDays = 42): Time
       absoluteDay,
       week: date.week,
       day: date.day,
-      label: "Scouting report due",
+      label: "Scouting search returns",
       detail: brief.tacticalPosition ?? brief.position ?? "Player search",
+    });
+  }
+
+  for (const assignment of state.football?.scouting?.assignments ?? []) {
+    if (assignment.status !== "active") continue;
+    const milestone = nextDetailedScoutingMilestone(assignment);
+    if (milestone.absoluteDay < now || milestone.absoluteDay > end) continue;
+    const date = seasonWeekFromAbsoluteDay(state, milestone.absoluteDay);
+    events.push({
+      id: `scouting:player:${assignment.playerId}:${milestone.milestone}`,
+      kind: "scouting",
+      absoluteDay: milestone.absoluteDay,
+      week: date.week,
+      day: date.day,
+      label: milestone.label,
+      detail: playerName(state, assignment.playerId),
     });
   }
 
