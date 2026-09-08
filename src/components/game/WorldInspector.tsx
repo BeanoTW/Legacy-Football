@@ -1,12 +1,32 @@
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Globe2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Globe2, Users, X } from "lucide-react";
 
-import type { GameState } from "@/lib/game/types";
+import type { FootballPlayer, GameState, Position } from "@/lib/game/types";
 import { playerLeagueId, tableFor } from "@/lib/game/league";
+import { ageOf, playerName, squadOf } from "@/lib/game/recruitment";
 import { cn } from "@/lib/utils";
-import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
+import {
+  canonicalClubReference,
+  clubDisplayName,
+  isUserClubReference,
+} from "@/lib/game/clubReference";
 import { footballLevelOfLeague } from "@/lib/game/footballLevel";
 import { clubPresentationName, leaguePresentationName } from "@/lib/game/clubPresentation";
+import { openPlayerProfile } from "./shared/PlayerProfileSheet";
+
+const POSITION_ORDER: Record<Position, number> = { GK: 0, DEF: 1, MID: 2, FWD: 3 };
+
+function sortedSquad(state: GameState, club: string): FootballPlayer[] {
+  const canonical = canonicalClubReference(state, club);
+  return squadOf(state, canonical)
+    .slice()
+    .sort(
+      (a, b) =>
+        POSITION_ORDER[a.primaryPosition] - POSITION_ORDER[b.primaryPosition] ||
+        b.currentAbility - a.currentAbility ||
+        a.id.localeCompare(b.id),
+    );
+}
 
 export function WorldInspector({ state }: { state: GameState }) {
   const leagues = useMemo(
@@ -19,6 +39,7 @@ export function WorldInspector({ state }: { state: GameState }) {
     leagues.findIndex((league) => league.id === playerLeague),
   );
   const [index, setIndex] = useState(initialIndex);
+  const [selectedClub, setSelectedClub] = useState<string | null>(null);
   const safeIndex = Math.min(index, Math.max(0, leagues.length - 1));
   const league = leagues[safeIndex];
   const rows = league ? tableFor(state, league.id) : [];
@@ -26,7 +47,8 @@ export function WorldInspector({ state }: { state: GameState }) {
   if (!league) return null;
 
   const move = (delta: number) => {
-    setIndex((current) => Math.max(0, Math.min(leagues.length - 1, current + delta)));
+    setIndex(Math.max(0, Math.min(leagues.length - 1, safeIndex + delta)));
+    setSelectedClub(null);
   };
 
   return (
@@ -39,7 +61,7 @@ export function WorldInspector({ state }: { state: GameState }) {
           <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3">
             <h1 className="font-display text-2xl sm:text-3xl">League tables</h1>
             <p className="text-xs text-muted-foreground sm:text-sm">
-              Slide sideways to change division.
+              Use the arrows to change division. Select a club to browse its squad.
             </p>
           </div>
         </div>
@@ -50,33 +72,22 @@ export function WorldInspector({ state }: { state: GameState }) {
 
       <div className="flex shrink-0 items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none]">
         {leagues.map((item, itemIndex) => (
-          <button
+          <span
             key={item.id}
-            onClick={() => setIndex(itemIndex)}
+            aria-current={itemIndex === safeIndex ? "true" : undefined}
             className={cn(
-              "shrink-0 rounded-full border px-3 py-1 text-xs font-semibold transition-colors",
+              "shrink-0 rounded-full border px-3 py-1 text-xs font-semibold",
               itemIndex === safeIndex
                 ? "border-primary bg-primary text-primary-foreground"
-                : "bg-card text-muted-foreground hover:bg-muted",
+                : "bg-card text-muted-foreground",
             )}
           >
             {leaguePresentationName(item.name)}
-          </button>
+          </span>
         ))}
       </div>
 
-      <div
-        className="touch-pan-y flex flex-col rounded-2xl border bg-card shadow-sm lg:min-h-0 lg:flex-1 lg:overflow-hidden"
-        onTouchStart={(event) => {
-          event.currentTarget.dataset.touchX = String(event.touches[0]?.clientX ?? 0);
-        }}
-        onTouchEnd={(event) => {
-          const start = Number(event.currentTarget.dataset.touchX ?? 0);
-          const end = event.changedTouches[0]?.clientX ?? start;
-          if (Math.abs(end - start) < 55) return;
-          move(end < start ? 1 : -1);
-        }}
-      >
+      <div className="flex flex-col rounded-2xl border bg-card shadow-sm lg:min-h-0 lg:flex-1 lg:overflow-hidden">
         <div className="panel-strip flex shrink-0 items-center justify-between gap-3 px-3 py-2.5 sm:px-4">
           <button
             aria-label="Previous division"
@@ -123,10 +134,16 @@ export function WorldInspector({ state }: { state: GameState }) {
                 const promotion = league.promotionPlaces > 0 && rowIndex < league.promotionPlaces;
                 const relegation =
                   league.relegationPlaces > 0 && rowIndex >= rows.length - league.relegationPlaces;
+                const selected = selectedClub === row.team;
                 return (
                   <tr
                     key={row.team}
-                    className={cn("border-b last:border-0", isMe && "bg-primary/10 font-semibold")}
+                    onClick={() => setSelectedClub(row.team)}
+                    className={cn(
+                      "cursor-pointer border-b last:border-0 transition-colors hover:bg-muted/60",
+                      isMe && "bg-primary/10 font-semibold",
+                      selected && "bg-accent/30",
+                    )}
                   >
                     <td className="px-3 py-1.5 text-muted-foreground">
                       <span
@@ -139,9 +156,18 @@ export function WorldInspector({ state }: { state: GameState }) {
                         {rowIndex + 1}
                       </span>
                     </td>
-                    <td className="max-w-48 truncate py-1.5 pr-2">
-                      {clubPresentationName(clubDisplayName(state, row.team))}
-                      {isMe ? " · YOU" : ""}
+                    <td className="max-w-48 py-1.5 pr-2">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setSelectedClub(row.team);
+                        }}
+                        className="max-w-full truncate text-left font-semibold hover:underline"
+                      >
+                        {clubPresentationName(clubDisplayName(state, row.team))}
+                        {isMe ? " · YOU" : ""}
+                      </button>
                     </td>
                     <td className="px-2 py-1.5 text-right text-muted-foreground">{row.p}</td>
                     <td className="px-2 py-1.5 text-right">{row.w}</td>
@@ -157,12 +183,18 @@ export function WorldInspector({ state }: { state: GameState }) {
         </div>
       </div>
 
-      <div className="flex shrink-0 items-center justify-center gap-1.5">
+      {selectedClub && (
+        <ClubSquadPanel
+          state={state}
+          club={selectedClub}
+          onClose={() => setSelectedClub(null)}
+        />
+      )}
+
+      <div className="flex shrink-0 items-center justify-center gap-1.5" aria-hidden="true">
         {leagues.map((item, itemIndex) => (
-          <button
+          <span
             key={item.id}
-            aria-label={`Open ${leaguePresentationName(item.name)}`}
-            onClick={() => setIndex(itemIndex)}
             className={cn(
               "h-1.5 rounded-full transition-all",
               itemIndex === safeIndex ? "w-7 bg-primary" : "w-1.5 bg-muted-foreground/30",
@@ -171,5 +203,87 @@ export function WorldInspector({ state }: { state: GameState }) {
         ))}
       </div>
     </div>
+  );
+}
+
+function ClubSquadPanel({
+  state,
+  club,
+  onClose,
+}: {
+  state: GameState;
+  club: string;
+  onClose: () => void;
+}) {
+  const canonical = canonicalClubReference(state, club);
+  const displayName = clubPresentationName(clubDisplayName(state, canonical));
+  const squad = sortedSquad(state, canonical);
+  const isMe = isUserClubReference(state, canonical);
+
+  return (
+    <section className="shrink-0 overflow-hidden rounded-2xl border bg-card shadow-sm">
+      <div className="panel-strip flex items-center justify-between gap-3 px-3 py-2.5 sm:px-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <Users className="size-4 shrink-0" />
+            <div className="truncate font-display text-lg">{displayName}</div>
+          </div>
+          <div className="mt-0.5 text-[11px] opacity-70">
+            {isMe ? "Your squad" : "Club squad"} · select a player to view their profile
+          </div>
+        </div>
+        <button
+          type="button"
+          aria-label="Close club squad"
+          onClick={onClose}
+          className="grid size-8 shrink-0 place-items-center rounded-lg bg-black/15"
+        >
+          <X className="size-4" />
+        </button>
+      </div>
+
+      {squad.length === 0 ? (
+        <div className="px-4 py-6 text-sm text-muted-foreground">
+          Detailed squad data is not currently available for this club. The club can still be followed through the competition until its players enter your recruitment network.
+        </div>
+      ) : (
+        <div className="max-h-[360px] overflow-y-auto">
+          <table className="w-full text-sm tnum">
+            <thead className="sticky top-0 z-[1] border-b bg-card text-[10px] uppercase tracking-wide text-muted-foreground">
+              <tr>
+                <th className="px-3 py-1.5 text-left">Pos</th>
+                <th className="py-1.5 text-left">Player</th>
+                <th className="px-2 py-1.5 text-right">Age</th>
+                <th className="px-3 py-1.5 text-right">OVR</th>
+              </tr>
+            </thead>
+            <tbody>
+              {squad.map((player) => (
+                <tr key={player.id} className="border-b last:border-0 hover:bg-muted/50">
+                  <td className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">
+                    {player.primaryPosition}
+                  </td>
+                  <td className="py-1.5 pr-2">
+                    <button
+                      type="button"
+                      onClick={() => openPlayerProfile(player.id)}
+                      className="max-w-full truncate text-left font-semibold hover:underline"
+                    >
+                      {playerName(player)}
+                    </button>
+                  </td>
+                  <td className="px-2 py-1.5 text-right text-muted-foreground">
+                    {ageOf(player, state.season)}
+                  </td>
+                  <td className="px-3 py-1.5 text-right font-display text-base">
+                    {player.currentAbility}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
