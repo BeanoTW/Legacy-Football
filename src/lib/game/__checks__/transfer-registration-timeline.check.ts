@@ -1,6 +1,6 @@
 import { advanceDay } from "../engine";
 import { newGame } from "../newGame";
-import { beginTransferRegistration } from "../recruitment";
+import { beginTransferRegistration, completeTransferInPlace } from "../recruitment";
 import { userClubReference } from "../clubReference";
 import { absoluteWeek } from "../time";
 import { currentAbsoluteDay, upcomingTimelineEvents } from "../timeline";
@@ -55,18 +55,33 @@ const event = upcomingTimelineEvents(started.state, 7).find(
 assert(Boolean(event), "registration completion appears on the club timeline");
 assert(event!.label === "Medical & registration complete", "registration timeline label is chairman-readable");
 
+const manual = completeTransferInPlace(started.state, "TN-REG-CHECK");
+assert(!manual.ok, "inbox/in-place callers cannot bypass a dated registration clock");
+assert(
+  started.state.football?.negotiations.find((item) => item.id === "TN-REG-CHECK")?.stage === "registration",
+  "blocked manual completion leaves player and negotiation untouched",
+);
+
 const advanced = advanceDay(started.state);
 const completed = advanced.football?.negotiations.find((item) => item.id === "TN-REG-CHECK");
 if (!completed) throw new Error("completed negotiation missing");
 assert(completed.stage === "completed", "Advance resolves due registration through canonical completion");
 assert(Boolean(completed.completedTransferId), "canonical transfer record is linked to the negotiation");
+const completionMessage = advanced.inbox.find(
+  (item) => item.subject === `Transfer completed: ${target.firstName} ${target.lastName}`,
+);
+assert(Boolean(completionMessage), "completed registration generates a high-priority transfer inbox message");
 assert(
-  advanced.inbox.some((item) => item.subject === `Transfer completed: ${target.firstName} ${target.lastName}`),
-  "completed registration generates a high-priority transfer inbox message",
+  completionMessage!.eventKey === `recruitment-transfer-complete:${completed.completedTransferId}`,
+  "completion uses the weekly generator's canonical event key to prevent duplicate messages",
+);
+assert(
+  completionMessage!.conversationKey === "transfer:TN-REG-CHECK",
+  "completion remains attached to the same transfer conversation",
 );
 assert(
   !upcomingTimelineEvents(advanced, 7).some((item) => item.id === "transfer:TN-REG-CHECK:registration"),
   "completed registration disappears from upcoming events",
 );
 
-console.log("\n8 passed, 0 failed");
+console.log("\n12 passed, 0 failed");
