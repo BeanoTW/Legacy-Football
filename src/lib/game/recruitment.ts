@@ -10,7 +10,9 @@ export * from "./transferResponses";
 export * from "./recruitmentLegacy";
 export { processDueTransferResponsesInPlace } from "./transferEvents";
 export {
+  beginDatedTransferRegistrationInPlace as beginTransferRegistrationInPlace,
   beginTransferRegistration,
+  completeDatedTransferInPlace as completeTransferInPlace,
   completeTransfer,
   processDueTransferRegistrationsInPlace,
 } from "./transferRegistration";
