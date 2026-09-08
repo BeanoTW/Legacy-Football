@@ -8,7 +8,12 @@
 
 export * from "./transferResponses";
 export * from "./recruitmentLegacy";
-export { processDueTransferResponsesInPlace } from "./datedRecruitment";
+export { processDueTransferResponsesInPlace } from "./transferEvents";
+export {
+  beginTransferRegistration,
+  completeTransfer,
+  processDueTransferRegistrationsInPlace,
+} from "./transferRegistration";
 export {
   improvePersonalTerms,
   improveTransferOffer,
