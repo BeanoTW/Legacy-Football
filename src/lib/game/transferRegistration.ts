@@ -1,6 +1,11 @@
 import type { GameState, TransferNegotiation } from "./types";
 import { hashString } from "./rng";
-import { beginTransferRegistrationInPlace, completeTransferInPlace, playerName, type NegotiationResult } from "./recruitmentLegacy";
+import {
+  beginTransferRegistrationInPlace,
+  completeTransferInPlace,
+  playerName,
+  type NegotiationResult,
+} from "./recruitmentLegacy";
 import { transferAbsoluteDay } from "./transferResponses";
 import { transferTargetPlayer } from "./recruitmentTargetBridge";
 
@@ -10,6 +15,14 @@ declare module "./types" {
     registrationDueAtDay?: number;
   }
 }
+
+const cloned = <T>(
+  state: GameState,
+  mutate: (working: GameState) => T,
+): { state: GameState; result: T } => {
+  const working = structuredClone(state);
+  return { state: working, result: mutate(working) };
+};
 
 export function beginDatedTransferRegistrationInPlace(
   state: GameState,
@@ -23,6 +36,32 @@ export function beginDatedTransferRegistrationInPlace(
   }
   return { ...result, reason: "Medical and registration opened — completion due tomorrow" };
 }
+
+/** Chairman-facing registration action. Completion now belongs to Advance. */
+export const beginTransferRegistration = (state: GameState, negotiationId: string) =>
+  cloned(state, (working) => beginDatedTransferRegistrationInPlace(working, negotiationId));
+
+/**
+ * Compatibility wrapper for callers that still expose a completion action.
+ * New incoming registrations with a dated clock cannot be completed manually;
+ * older saves without that clock retain the previous completion path.
+ */
+export const completeTransfer = (state: GameState, negotiationId: string) =>
+  cloned(state, (working) => {
+    const negotiation = working.football?.negotiations.find((item) => item.id === negotiationId);
+    if (
+      negotiation?.direction === "in" &&
+      negotiation.stage === "registration" &&
+      negotiation.registrationDueAtDay !== undefined
+    ) {
+      return {
+        ok: false,
+        reason: "Registration is in progress and will complete through Advance",
+        negotiation,
+      } satisfies NegotiationResult;
+    }
+    return completeTransferInPlace(working, negotiationId);
+  });
 
 function pushCompletionInbox(state: GameState, negotiation: TransferNegotiation, dueDay: number): void {
   const player = transferTargetPlayer(state, negotiation.playerId);
