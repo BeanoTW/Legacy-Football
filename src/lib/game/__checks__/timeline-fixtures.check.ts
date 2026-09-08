@@ -1,30 +1,37 @@
 import type { GameState } from "../types";
-import { MATCHDAY_INDEX } from "../calendar";
-import { timelineEventsForWeek, upcomingTimelineEvents } from "../timeline";
+import { FRIENDLY_WEEKS, MATCHDAY_INDEX } from "../calendar";
+import { timelineEventsForWeek } from "../timeline";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
-const state = {
+assert(FRIENDLY_WEEKS.has(2) && FRIENDLY_WEEKS.has(4), "pre-season should retain its two friendly slots");
+assert(!FRIENDLY_WEEKS.has(25) && !FRIENDLY_WEEKS.has(27), "mid-season must not create friendlies");
+
+const preseason = {
+  season: 1,
+  week: 1,
+  inboxFlags: { "calendar.dayOfWeek": 0 },
+  fixtures: [],
+} as unknown as GameState;
+
+const friendly = timelineEventsForWeek(preseason, 2).find((event) => event.kind === "fixture");
+assert(friendly, "generated pre-season friendly should be visible before its week arrives");
+assert(friendly.label === "Friendly", "pre-season slot must be labelled as a friendly");
+assert(friendly.detail === "Pre-season friendly", "generated friendly should explain the scheduled event");
+assert(friendly.day === MATCHDAY_INDEX, "friendly should use the canonical matchday index");
+
+const midseason = {
   season: 1,
   week: 24,
   inboxFlags: { "calendar.dayOfWeek": 0 },
-  fixtures: [
-    { week: 25, opponent: "friendly-opponent", home: true },
-    { week: 28, opponent: "league-opponent", home: false },
-  ],
+  fixtures: [{ week: 25, opponent: "league-opponent", home: false }],
 } as unknown as GameState;
 
-const events = upcomingTimelineEvents(state, 35);
-const friendly = events.find((event) => event.id === "fixture:25:friendly-opponent");
-assert(friendly, "mid-season friendly should appear on the Advance timeline");
-assert(friendly.label === "Friendly", "week 25 fixture must be labelled as a friendly");
-assert(friendly.day === MATCHDAY_INDEX, "friendly should use the canonical matchday index");
-
-const league = timelineEventsForWeek(state, 28).find((event) => event.kind === "fixture");
-assert(league, "league fixture should appear on the week timeline");
-assert(league.label === "League match", "non-friendly fixture must be labelled as a league match");
-assert(league.detail === "Away league fixture", "fixture detail should retain home/away context");
+const league = timelineEventsForWeek(midseason, 25).find((event) => event.kind === "fixture");
+assert(league, "mid-season league fixture should appear on the week timeline");
+assert(league.label === "League match", "week 25 must not be mistaken for a friendly");
+assert(league.day === MATCHDAY_INDEX, "league fixture should use the canonical matchday index");
 
 console.log("timeline fixtures check passed");
