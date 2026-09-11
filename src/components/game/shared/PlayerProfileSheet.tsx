@@ -23,6 +23,7 @@ import { activeLoanForPlayer } from "@/lib/game/loans";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { fmtMoneyExact } from "@/lib/game/engine";
 import { scoutingAssignment, scoutingReportById, startScouting } from "@/lib/game/scouting";
+import { scoutedOverallPresentation } from "@/lib/game/scoutingPresentation";
 import { isTransferWindowOpen, windowStatus } from "@/lib/game/calendar";
 import { cn } from "@/lib/utils";
 import { POSITION_BADGE_CLASS } from "../playerPosition";
@@ -85,6 +86,7 @@ export function PlayerProfileSheet({
   const club = player.currentClubId ? clubDisplayName(state, player.currentClubId) : "Free agent";
   const owned = isUserClubReference(state, player.currentClubId);
   const report = scoutingReportById(state, player.id);
+  const overall = scoutedOverallPresentation(state, player, report);
   const assignment = scoutingAssignment(state, player.id);
   const knowledge = owned ? 100 : report?.knowledgePct ?? 0;
   const fullKnowledge = owned || Boolean(report?.complete);
@@ -137,7 +139,7 @@ export function PlayerProfileSheet({
                 </div>
               </div>
               <div className="shrink-0 rounded-lg bg-background px-3 py-2 text-center text-foreground">
-                <div className="font-display text-3xl leading-none">{player.currentAbility}</div>
+                <div className="font-display text-3xl leading-none">{overall.label}</div>
                 <div className="mt-1 text-[8px] uppercase tracking-wider">Overall</div>
               </div>
             </div>
