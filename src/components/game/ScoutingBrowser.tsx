@@ -22,6 +22,7 @@ import {
   userWageBill,
 } from "@/lib/game/recruitment";
 import { scoutingAssignment, scoutingReport, startScouting } from "@/lib/game/scouting";
+import { scoutedOverallPresentation } from "@/lib/game/scoutingPresentation";
 import { scoutingBriefDaysRemaining } from "@/lib/game/scoutingDiscovery";
 import {
   chairmanScoutingFitScore,
@@ -187,6 +188,7 @@ export function ScoutingBrowser({
         const assignment = scoutingAssignment(state, player.id);
         const tactical = tacticalPositionProfile(player);
         const report = scoutingReport(state, player);
+        const overall = scoutedOverallPresentation(state, player, report);
         const interest = playerInterestAssessment(state, player);
         const watched = isChairmanShortlisted(state, player.id);
         const freeAgent = player.currentClubId === null;
@@ -207,14 +209,14 @@ export function ScoutingBrowser({
                 </div>
                 <div className="text-[10px] text-muted-foreground">{ageOf(player, state.season)} · {player.nationality} · {player.currentClubId ? clubDisplayName(state, player.currentClubId) : "Free agent"}</div>
               </div>
-              <div className="shrink-0 text-right"><div className="font-display text-2xl leading-none">{player.currentAbility}</div><div className="text-[8px] uppercase tracking-wider text-muted-foreground">Overall</div></div>
+              <div className="shrink-0 text-right"><div className="font-display text-2xl leading-none">{overall.label}</div><div className="text-[8px] uppercase tracking-wider text-muted-foreground">Overall</div></div>
             </div>
             <div className="mt-2 grid grid-cols-5 gap-1">
               {report.attributes.slice(0, 5).map((attr) => <div key={attr.key} className="rounded bg-muted/50 px-1 py-1"><div className="truncate text-[8px] text-muted-foreground">{attr.label}</div><div className="text-[10px] font-semibold tabular-nums">{!attr.known ? "?" : attr.exact !== undefined ? attr.exact : `${attr.min}–${attr.max}`}</div></div>)}
             </div>
             <div className="mt-2 grid grid-cols-2 gap-x-3 text-[10px]">
               <span>Knowledge <strong>{report.knowledgePct}%</strong></span><span>Interest <strong title={interest.reason}>{interest.label}</strong></span>
-              <span>Value <strong>{report.valueRange ? `${fmtMoney(report.valueRange[0])}–${fmtMoney(report.valueRange[1])}` : "?"}</strong></span><span>Wage <strong>{report.wageRange ? `${fmtMoney(report.wageRange[0])}–${fmtMoney(report.wageRange[1])}/wk` : "?"}</strong></span>
+              <span>Value <strong>{report.knowledgePct > 0 && report.valueRange ? `${fmtMoney(report.valueRange[0])}–${fmtMoney(report.valueRange[1])}` : "?"}</strong></span><span>Wage <strong>{report.knowledgePct > 0 && report.wageRange ? `${fmtMoney(report.wageRange[0])}–${fmtMoney(report.wageRange[1])}/wk` : "?"}</strong></span>
             </div>
             <div className={cn("mt-2 rounded-md border px-2 py-1 text-[10px]", budgetComfortable ? "bg-muted/40" : "border-destructive/40 bg-destructive/5")}><span className="font-semibold">{budgetComfortable ? "Within authority" : "Budget risk"}</span>{" · "}{assignment ? report.complete ? "Full report" : "Scout following up" : initialReport ? "Initial staff report" : "Basic knowledge"}</div>
             <div className="mt-2 flex flex-wrap gap-1">
