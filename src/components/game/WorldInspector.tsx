@@ -12,6 +12,11 @@ import {
 } from "@/lib/game/clubReference";
 import { footballLevelOfLeague } from "@/lib/game/footballLevel";
 import { clubPresentationName, leaguePresentationName } from "@/lib/game/clubPresentation";
+import {
+  browsableFringeSquad,
+  preserveFringePlayerForProfile,
+  type BrowsableFringePlayer,
+} from "@/lib/game/fringeSquadBrowsing";
 import { openPlayerProfile } from "./shared/PlayerProfileSheet";
 
 const POSITION_ORDER: Record<Position, number> = { GK: 0, DEF: 1, MID: 2, FWD: 3 };
@@ -28,7 +33,24 @@ function sortedSquad(state: GameState, club: string): FootballPlayer[] {
     );
 }
 
-export function WorldInspector({ state }: { state: GameState }) {
+function sortedFringeSquad(state: GameState, club: string): BrowsableFringePlayer[] {
+  return browsableFringeSquad(state, club)
+    .slice()
+    .sort(
+      (a, b) =>
+        POSITION_ORDER[a.primaryPosition] - POSITION_ORDER[b.primaryPosition] ||
+        b.currentAbility - a.currentAbility ||
+        a.playerId.localeCompare(b.playerId),
+    );
+}
+
+export function WorldInspector({
+  state,
+  update,
+}: {
+  state: GameState;
+  update: (fn: (s: GameState) => GameState) => void;
+}) {
   const leagues = useMemo(
     () => [...state.leagues].sort((a, b) => a.tier - b.tier),
     [state.leagues],
@@ -187,6 +209,7 @@ export function WorldInspector({ state }: { state: GameState }) {
         <ClubSquadPanel
           state={state}
           club={selectedClub}
+          update={update}
           onClose={() => setSelectedClub(null)}
         />
       )}
@@ -209,16 +232,24 @@ export function WorldInspector({ state }: { state: GameState }) {
 function ClubSquadPanel({
   state,
   club,
+  update,
   onClose,
 }: {
   state: GameState;
   club: string;
+  update: (fn: (s: GameState) => GameState) => void;
   onClose: () => void;
 }) {
   const canonical = canonicalClubReference(state, club);
   const displayName = clubPresentationName(clubDisplayName(state, canonical));
-  const squad = sortedSquad(state, canonical);
+  const detailedSquad = sortedSquad(state, canonical);
+  const fringeSquad = detailedSquad.length === 0 ? sortedFringeSquad(state, canonical) : [];
   const isMe = isUserClubReference(state, canonical);
+
+  const openFringePlayer = (player: BrowsableFringePlayer) => {
+    update((s) => preserveFringePlayerForProfile(s, player));
+    openPlayerProfile(player.playerId);
+  };
 
   return (
     <section className="shrink-0 overflow-hidden rounded-2xl border bg-card shadow-sm">
@@ -242,9 +273,9 @@ function ClubSquadPanel({
         </button>
       </div>
 
-      {squad.length === 0 ? (
+      {detailedSquad.length === 0 && fringeSquad.length === 0 ? (
         <div className="px-4 py-6 text-sm text-muted-foreground">
-          Detailed squad data is not currently available for this club. The club can still be followed through the competition until its players enter your recruitment network.
+          Squad identities are not available for this club yet.
         </div>
       ) : (
         <div className="max-h-[360px] overflow-y-auto">
@@ -258,7 +289,7 @@ function ClubSquadPanel({
               </tr>
             </thead>
             <tbody>
-              {squad.map((player) => (
+              {detailedSquad.map((player) => (
                 <tr key={player.id} className="border-b last:border-0 hover:bg-muted/50">
                   <td className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">
                     {player.primaryPosition}
@@ -280,8 +311,31 @@ function ClubSquadPanel({
                   </td>
                 </tr>
               ))}
+              {fringeSquad.map((player) => (
+                <tr key={player.playerId} className="border-b last:border-0 hover:bg-muted/50">
+                  <td className="px-3 py-1.5 text-xs font-semibold text-muted-foreground">
+                    {player.primaryPosition}
+                  </td>
+                  <td className="py-1.5 pr-2">
+                    <button
+                      type="button"
+                      onClick={() => openFringePlayer(player)}
+                      className="max-w-full truncate text-left font-semibold hover:underline"
+                    >
+                      {player.firstName} {player.lastName}
+                    </button>
+                  </td>
+                  <td className="px-2 py-1.5 text-right text-muted-foreground">{player.age}</td>
+                  <td className="px-3 py-1.5 text-right font-display text-base text-muted-foreground">?</td>
+                </tr>
+              ))}
             </tbody>
           </table>
+          {fringeSquad.length > 0 && (
+            <div className="border-t bg-muted/30 px-3 py-2 text-[10px] text-muted-foreground">
+              Public squad information is available. Scout a player to reveal reliable ability, value and wage information.
+            </div>
+          )}
         </div>
       )}
     </section>
