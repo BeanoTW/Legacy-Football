@@ -17,6 +17,9 @@ export interface ManagerSquadFit {
   score: number;
   band: SquadFitBand;
   formation: ManagerFormation;
+  /** Shape the manager would currently get the most from, allowing adaptable managers to lean on an alternative. */
+  bestFormation: ManagerFormation;
+  bestFormationScore: number;
   alternativeScore: number | null;
   strengths: string[];
   gaps: string[];
@@ -135,19 +138,27 @@ export function managerSquadFit(state: GameState, manager: Staff): ManagerSquadF
     .map((formation) => ({ formation, ...scoreFormation(players, formation) }))
     .sort((a, b) => b.score - a.score);
   const bestAlternative = alternatives[0] ?? null;
+  const shouldUseAlternative = Boolean(
+    identity.adaptability === "High" &&
+      bestAlternative &&
+      bestAlternative.score >= primary.score + 5,
+  );
+  const selectedShape = shouldUseAlternative && bestAlternative ? bestAlternative : {
+    formation: identity.preferredFormation,
+    ...primary,
+  };
   const adaptabilityBonus =
     identity.adaptability === "High" && bestAlternative && bestAlternative.score > primary.score
       ? Math.min(6, (bestAlternative.score - primary.score) * 0.35)
       : 0;
   const score = clamp(primary.score + adaptabilityBonus);
   const fitBand = band(score);
-  const strengths = primary.strengths.slice(0, 2);
-  const gaps = primary.gaps.slice(0, 2);
-  const needs = primary.needs.slice(0, 3);
-  const alternativeText =
-    bestAlternative && bestAlternative.score >= primary.score + 5
-      ? ` His ${bestAlternative.formation} alternative suits the current group better.`
-      : "";
+  const strengths = selectedShape.strengths.slice(0, 2);
+  const gaps = selectedShape.gaps.slice(0, 2);
+  const needs = selectedShape.needs.slice(0, 3);
+  const alternativeText = shouldUseAlternative && bestAlternative
+    ? ` His ${bestAlternative.formation} alternative suits the current group better, so recruitment priorities reflect that shape.`
+    : "";
   const summary =
     players.length < 11
       ? `The squad is too thin to judge ${identity.preferredFormation} properly yet.`
@@ -156,6 +167,8 @@ export function managerSquadFit(state: GameState, manager: Staff): ManagerSquadF
     score,
     band: fitBand,
     formation: identity.preferredFormation,
+    bestFormation: selectedShape.formation,
+    bestFormationScore: selectedShape.score,
     alternativeScore: bestAlternative?.score ?? null,
     strengths,
     gaps,
