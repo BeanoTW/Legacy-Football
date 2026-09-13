@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, Binoculars, Handshake, Repeat2, Shield, Star } from "lucide-react";
+import { ArrowLeft, Binoculars, Handshake, History, Repeat2, Shield, Star } from "lucide-react";
 import type { GameState } from "@/lib/game/types";
 import { RecruitmentOperations } from "./RecruitmentOperations";
 import { ScoutingBrowser } from "./ScoutingBrowser";
@@ -7,6 +7,7 @@ import { ScoutingBriefBuilder } from "./ScoutingBriefBuilder";
 import { ScoutingReports } from "./ScoutingReports";
 import { OutgoingSalesDesk } from "./OutgoingSalesDesk";
 import { LoanDesk } from "./LoanDesk";
+import { TransferHistory } from "./TransferHistory";
 import { Button } from "@/components/ui/button";
 import { fmtMoneyExact } from "@/lib/game/engine";
 import { openNegotiations, recruitmentSnapshot } from "@/lib/game/recruitment";
@@ -14,7 +15,7 @@ import { chairmanShortlistIds } from "@/lib/game/recruitmentKnowledge";
 import { isUserClubReference } from "@/lib/game/clubReference";
 import { OverviewScreen, WorkflowTile } from "./shared/layout";
 
-type View = "home" | "operations" | "find" | "brief" | "reports" | "sales" | "loans";
+type View = "home" | "operations" | "find" | "brief" | "reports" | "sales" | "loans" | "history";
 
 export function RecruitmentFlow({ state, update }: { state: GameState; update: (fn: (s: GameState) => GameState) => void }) {
   const [view, setView] = useState<View>("home");
@@ -29,6 +30,7 @@ export function RecruitmentFlow({ state, update }: { state: GameState; update: (
   if (view === "reports") return <ScoutingReports state={state} update={update} onBack={() => setView("home")} />;
   if (view === "sales") return <OutgoingSalesDesk state={state} update={update} onBack={() => setView("home")} />;
   if (view === "loans") return <LoanDesk state={state} update={update} onBack={() => setView("home")} />;
+  if (view === "history") return <TransferHistory state={state} onBack={() => setView("home")} />;
   if (view === "operations") {
     return <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden"><Button className="w-fit shrink-0" variant="ghost" size="sm" onClick={() => setView("home")}><ArrowLeft className="mr-2 size-4" /> Back to transfers</Button><div className="min-h-0 flex-1 overflow-hidden"><RecruitmentOperations state={state} update={update} /></div></div>;
   }
@@ -41,6 +43,7 @@ export function RecruitmentFlow({ state, update }: { state: GameState; update: (
   const activeScouting = scoutingAssignments.filter((assignment) => assignment.status === "active").length;
   const completedReports = scoutingAssignments.filter((assignment) => assignment.status === "complete").length;
   const activeLoans = (state.football?.loans ?? []).filter((loan) => loan.status === "Active" && (isUserClubReference(state, loan.parentClubId) || isUserClubReference(state, loan.loanClubId))).length;
+  const transferHistoryCount = state.football?.transferHistory.filter((record) => (record.fromClubId && isUserClubReference(state, record.fromClubId)) || (record.toClubId && isUserClubReference(state, record.toClubId))).length ?? 0;
 
   return (
     <OverviewScreen title="Transfers" subtitle="Your football staff bring recruitment options to you. Scout the interesting ones, then decide which deals are worth pursuing." className="grid content-start gap-2 md:gap-3 xl:grid-cols-[minmax(320px,.9fr)_minmax(0,1.6fr)] xl:content-stretch">
@@ -51,6 +54,7 @@ export function RecruitmentFlow({ state, update }: { state: GameState; update: (
         <TransferAction icon={<Star className="size-5 md:size-6" />} title="Scouting reports" sub={activeScouting || completedReports ? `${activeScouting} active · ${completedReports} full · ${shortlist} watched` : "Players you scout stay here until you are done with them"} onClick={() => setView("reports")} />
         <TransferAction icon={<Shield className="size-5 md:size-6" />} title="Sell players" sub={sales ? `${sales} offer${sales === 1 ? "" : "s"} waiting` : "List players and manage incoming bids"} onClick={() => setView("sales")} />
         <TransferAction icon={<Repeat2 className="size-5 md:size-6" />} title="Loans" sub={activeLoans ? `${activeLoans} active agreement${activeLoans === 1 ? "" : "s"}` : "No active loan agreements"} onClick={() => setView("loans")} />
+        <TransferAction icon={<History className="size-5 md:size-6" />} title="Transfer history" sub={transferHistoryCount ? `${transferHistoryCount} completed transfer${transferHistoryCount === 1 ? "" : "s"} recorded` : "Permanent record of completed deals"} onClick={() => setView("history")} />
       </div>
     </OverviewScreen>
   );
