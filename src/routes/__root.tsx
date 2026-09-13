@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import presentationCss from "../presentation.css?url";
 import homeOverhaulCss from "../home-overhaul.css?url";
+import stadiumAtmosphereCss from "../stadium-atmosphere.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
@@ -61,6 +62,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: appCss },
       { rel: "stylesheet", href: presentationCss },
       { rel: "stylesheet", href: homeOverhaulCss },
+      { rel: "stylesheet", href: stadiumAtmosphereCss },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
