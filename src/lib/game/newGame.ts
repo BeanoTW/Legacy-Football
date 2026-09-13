@@ -16,6 +16,7 @@ import { ensureFringeWorldState } from "./fringe";
 import { makeBoard, ensureBoard } from "./board";
 import { initFinance } from "./finance";
 import { openingStaffPool } from "./staff";
+import { ensureAttainableStaffMarket } from "./staffMarketAttainability";
 import { fixturesForClub, makeLeagueRows } from "./schedule";
 import { ensureClubIdentityStateInPlace } from "./clubIdentity";
 import { migrateClubReferencesToIdsInPlace } from "./clubReferenceMigration";
@@ -74,6 +75,11 @@ export function newGame(clubName: string, managerName: string, seed?: string): G
   // Schema v20: loans are explicit agreements layered over the sparse
   // ownership/registration model. Fresh careers begin with none.
   ensureLoanStateInPlace(base);
+
+  // The broad opening world market is generated independently of the user's
+  // club. Reconcile it once the full club state exists so a Level 7 career
+  // always has a believable minimum of genuinely attainable key staff.
+  base.staffCandidates = ensureAttainableStaffMarket(base, base.staffCandidates);
 
   return runWeeklyGenerators(base);
 }
