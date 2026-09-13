@@ -106,15 +106,21 @@ export function ScoutingBriefBuilder({
                     </Button>
                   )}
                 </div>
+                {managerFit.bestFormation !== managerFit.formation && (
+                  <div className="mt-2 rounded-lg border border-primary/15 bg-background/70 px-2.5 py-2 text-xs">
+                    <span className="font-semibold">Current tactical plan:</span>{" "}
+                    {managerFit.bestFormation}. The manager is adapting away from his preferred {managerFit.formation} because it suits this squad better.
+                  </div>
+                )}
                 {managerNeed ? (
                   <div className="mt-2 text-sm">
-                    <span className="font-semibold">Priority:</span>{" "}
+                    <span className="font-semibold">Priority for {managerFit.bestFormation}:</span>{" "}
                     {POSITIONS.find((item) => item.value === managerNeed.position)?.label}.{" "}
                     <span className="text-muted-foreground">{managerNeed.reason}</span>
                   </div>
                 ) : (
                   <div className="mt-2 text-sm text-muted-foreground">
-                    The manager has no obvious positional shortage in his preferred system right now.
+                    The manager has no obvious positional shortage in the system he would use with this squad right now.
                   </div>
                 )}
                 {managerFit.needs.length > 1 && (
@@ -175,45 +181,19 @@ export function ScoutingBriefBuilder({
           </label>
           <label className="grid gap-1 text-xs font-semibold">
             Minimum age
-            <input
-              className="h-10 rounded-md border bg-background px-3 text-sm font-normal"
-              type="number"
-              min={16}
-              max={40}
-              value={minAge}
-              onChange={(e) => setMinAge(Number(e.target.value))}
-            />
+            <input className="h-10 rounded-md border bg-background px-3 text-sm font-normal" type="number" min={16} max={40} value={minAge} onChange={(e) => setMinAge(Number(e.target.value))} />
           </label>
           <label className="grid gap-1 text-xs font-semibold">
             Maximum age
-            <input
-              className="h-10 rounded-md border bg-background px-3 text-sm font-normal"
-              type="number"
-              min={16}
-              max={45}
-              value={maxAge}
-              onChange={(e) => setMaxAge(Number(e.target.value))}
-            />
+            <input className="h-10 rounded-md border bg-background px-3 text-sm font-normal" type="number" min={16} max={45} value={maxAge} onChange={(e) => setMaxAge(Number(e.target.value))} />
           </label>
           <label className="grid gap-1 text-xs font-semibold">
             Maximum transfer fee <span className="font-normal text-muted-foreground">Optional · £</span>
-            <input
-              className="h-10 rounded-md border bg-background px-3 text-sm font-normal"
-              inputMode="numeric"
-              placeholder="No limit"
-              value={maxFee}
-              onChange={(e) => setMaxFee(e.target.value.replace(/[^0-9]/g, ""))}
-            />
+            <input className="h-10 rounded-md border bg-background px-3 text-sm font-normal" inputMode="numeric" placeholder="No limit" value={maxFee} onChange={(e) => setMaxFee(e.target.value.replace(/[^0-9]/g, ""))} />
           </label>
           <label className="grid gap-1 text-xs font-semibold">
             Maximum weekly wage <span className="font-normal text-muted-foreground">Optional · £/wk</span>
-            <input
-              className="h-10 rounded-md border bg-background px-3 text-sm font-normal"
-              inputMode="numeric"
-              placeholder="No limit"
-              value={maxWage}
-              onChange={(e) => setMaxWage(e.target.value.replace(/[^0-9]/g, ""))}
-            />
+            <input className="h-10 rounded-md border bg-background px-3 text-sm font-normal" inputMode="numeric" placeholder="No limit" value={maxWage} onChange={(e) => setMaxWage(e.target.value.replace(/[^0-9]/g, ""))} />
           </label>
         </div>
 
@@ -224,25 +204,12 @@ export function ScoutingBriefBuilder({
         </div>
 
         <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
-          <div className="rounded-lg bg-muted p-2">
-            <div className="font-display text-lg">{plan.quality}</div>
-            <div className="text-muted-foreground">Scout quality</div>
-          </div>
-          <div className="rounded-lg bg-muted p-2">
-            <div className="font-display text-lg">{plan.searchDays}d</div>
-            <div className="text-muted-foreground">Expected search</div>
-          </div>
-          <div className="rounded-lg bg-muted p-2">
-            <div className="font-display text-lg">Up to {plan.candidateLimit}</div>
-            <div className="text-muted-foreground">Options</div>
-          </div>
+          <div className="rounded-lg bg-muted p-2"><div className="font-display text-lg">{plan.quality}</div><div className="text-muted-foreground">Scout quality</div></div>
+          <div className="rounded-lg bg-muted p-2"><div className="font-display text-lg">{plan.searchDays}d</div><div className="text-muted-foreground">Expected search</div></div>
+          <div className="rounded-lg bg-muted p-2"><div className="font-display text-lg">Up to {plan.candidateLimit}</div><div className="text-muted-foreground">Options</div></div>
         </div>
 
-        {minAge > maxAge && (
-          <p className="mt-3 text-xs text-destructive">
-            Maximum age must be at least the minimum age.
-          </p>
-        )}
+        {minAge > maxAge && <p className="mt-3 text-xs text-destructive">Maximum age must be at least the minimum age.</p>}
         <Button className="mt-5 w-full sm:w-auto" disabled={minAge > maxAge} onClick={dispatch}>
           <Binoculars className="mr-2 size-4" /> Send scouts
         </Button>
