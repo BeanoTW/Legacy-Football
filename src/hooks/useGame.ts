@@ -3,6 +3,7 @@ import type { GameState } from "@/lib/game/types";
 import {
   advanceDay,
   advanceWeek,
+  skipTransferDeadlineDay,
   loadGame,
   saveGame,
   clearGame,
@@ -94,6 +95,12 @@ export function useGame() {
     setContinueReason(null);
   }, []);
 
+  const skipDeadlineDay = useCallback(() => {
+    setIsContinuing(false);
+    setContinueReason(null);
+    setState((prev) => (prev ? skipTransferDeadlineDay(prev) : prev));
+  }, []);
+
   useEffect(() => {
     if (!isContinuing || !state) return;
     const before = continuationInterrupt(state);
@@ -157,6 +164,7 @@ export function useGame() {
     continueReason,
     startContinue,
     stopContinue,
+    skipDeadlineDay,
     activeSlot,
     saveSlots,
     switchSlot,

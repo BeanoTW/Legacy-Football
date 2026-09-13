@@ -6,6 +6,7 @@ import {
   Mail,
   Pause,
   RefreshCw,
+  Repeat2,
   Trophy,
   X,
 } from "lucide-react";
@@ -13,7 +14,14 @@ import type { GameState, InboxItem } from "@/lib/game/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { requiresInboxDecision } from "@/lib/game/inbox";
-import { calendarDay, FRIENDLY_WEEKS, windowStatus } from "@/lib/game/calendar";
+import {
+  calendarDay,
+  FRIENDLY_WEEKS,
+  isTransferDeadlineDay,
+  isTransferDeadlineWeek,
+  transferDeadlineHoursRemaining,
+  windowStatus,
+} from "@/lib/game/calendar";
 import { clubDisplayName } from "@/lib/game/clubReference";
 import { timelineEventsForWeek } from "@/lib/game/timeline";
 
@@ -45,6 +53,9 @@ export function AdvanceInboxPreview({
   const currentDay = calendarDay(state);
   const weekEvents = timelineEventsForWeek(state, state.week);
   const transferWindow = windowStatus(state);
+  const deadlineWeek = isTransferDeadlineWeek(state);
+  const deadlineDay = isTransferDeadlineDay(state);
+  const deadlineHours = transferDeadlineHoursRemaining(state);
   const isFriendlyWeek = FRIENDLY_WEEKS.has(state.week);
   const newIds = new Set(items.map((item) => item.id));
   const inboxItems = state.inbox
@@ -75,25 +86,31 @@ export function AdvanceInboxPreview({
         <header
           className={cn(
             "shrink-0 border-b px-4 py-3",
-            isMatchday
-              ? "bg-emerald-500/10"
-              : interrupted
-                ? "bg-amber-500/10"
-                : "bg-primary/5",
+            deadlineDay
+              ? "bg-amber-500/10"
+              : isMatchday
+                ? "bg-emerald-500/10"
+                : interrupted
+                  ? "bg-amber-500/10"
+                  : "bg-primary/5",
           )}
         >
           <div className="flex items-start gap-3">
             <div
               className={cn(
                 "grid size-10 shrink-0 place-items-center rounded-xl",
-                isMatchday
-                  ? "bg-emerald-500/15 text-emerald-700"
-                  : interrupted
-                    ? "bg-amber-500/15 text-amber-700"
-                    : "bg-primary/10 text-primary",
+                deadlineDay
+                  ? "bg-amber-500/15 text-amber-700"
+                  : isMatchday
+                    ? "bg-emerald-500/15 text-emerald-700"
+                    : interrupted
+                      ? "bg-amber-500/15 text-amber-700"
+                      : "bg-primary/10 text-primary",
               )}
             >
-              {isMatchday ? (
+              {deadlineDay ? (
+                <Repeat2 className="size-5" />
+              ) : isMatchday ? (
                 <Trophy className="size-5" />
               ) : interrupted ? (
                 <AlertTriangle className="size-5" />
@@ -102,9 +119,15 @@ export function AdvanceInboxPreview({
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <div className="font-display text-xl">
-                  {isMatchday ? "It’s matchday" : interrupted ? "Time stopped" : "Time is moving"}
+                  {deadlineDay
+                    ? "Transfer deadline day"
+                    : isMatchday
+                      ? "It’s matchday"
+                      : interrupted
+                        ? "Time stopped"
+                        : "Time is moving"}
                 </div>
                 {transferWindow.open && (
                   <span
@@ -118,12 +141,14 @@ export function AdvanceInboxPreview({
                 )}
               </div>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {isMatchday
-                  ? (matchdayLabel ??
-                    "The week pauses here. Your team is ready and the fixture is waiting.")
-                  : interrupted
-                    ? reason
-                    : "Your schedule and inbox stay visible while the days pass."}
+                {deadlineDay
+                  ? `${deadlineHours} hour${deadlineHours === 1 ? "" : "s"} remaining. Time now advances one hour at a time until the window closes.`
+                  : isMatchday
+                    ? (matchdayLabel ??
+                      "The week pauses here. Your team is ready and the fixture is waiting.")
+                    : interrupted
+                      ? reason
+                      : "Your schedule and inbox stay visible while the days pass."}
               </p>
             </div>
             {!isContinuing && (
@@ -140,19 +165,25 @@ export function AdvanceInboxPreview({
 
         <div className="grid shrink-0 grid-cols-4 divide-x border-b bg-muted/25 text-center">
           <PreviewMetric label="Week" value={`${state.week}`} />
-          <PreviewMetric label="Today" value={DAYS[currentDay].slice(0, 3)} />
+          <PreviewMetric label={deadlineDay ? "Time left" : "Today"} value={deadlineDay ? `${deadlineHours}H` : DAYS[currentDay].slice(0, 3)} accent={deadlineDay} />
           <PreviewMetric label="Inbox" value={`${unread}`} />
           <PreviewMetric
             label="Status"
-            value={isMatchday ? "MATCH" : isContinuing ? "LIVE" : "PAUSED"}
-            accent={isMatchday || isContinuing}
+            value={deadlineDay ? "DEADLINE" : isMatchday ? "MATCH" : isContinuing ? "LIVE" : "PAUSED"}
+            accent={deadlineDay || isMatchday || isContinuing}
           />
         </div>
 
         <div className="shrink-0 border-b bg-background/60 px-3 py-2">
           <div className="mb-1.5 flex items-center justify-between text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
             <span>Week {state.week}</span>
-            <span>{isContinuing ? "Advancing day by day" : "Calendar paused"}</span>
+            <span>
+              {deadlineDay
+                ? `Deadline day · ${deadlineHours}h left`
+                : isContinuing
+                  ? "Advancing day by day"
+                  : "Calendar paused"}
+            </span>
           </div>
           <div className="relative overflow-hidden rounded-xl border bg-card">
             <div className="grid grid-cols-7 transition-all duration-300 ease-out" aria-label="Current week">
@@ -162,40 +193,54 @@ export function AdvanceInboxPreview({
                 const dayEvents = weekEvents.filter((event) => event.day === index);
                 const fixtureEvent = dayEvents.find((event) => event.kind === "fixture");
                 const deadlineEvent = dayEvents.find((event) => event.kind !== "fixture");
+                const closesWindow = transferWindow.open && deadlineWeek && index === 6;
                 return (
                   <div
                     key={dayLabel}
+                    title={closesWindow ? "Transfer window closes · final 24 hours" : transferWindow.open ? "Transfer window open" : undefined}
                     className={cn(
-                      "relative flex min-h-[4.6rem] min-w-0 flex-col items-center border-r px-0.5 py-2 last:border-r-0 text-center transition-colors duration-300",
+                      "relative flex min-h-[4.9rem] min-w-0 flex-col items-center border-r px-0.5 py-2 last:border-r-0 text-center transition-colors duration-300",
                       active && "bg-primary text-primary-foreground",
                       passed && !active && "bg-muted/55 text-muted-foreground",
                       !passed && !active && "bg-card text-foreground",
+                      closesWindow && !active && "ring-1 ring-inset ring-amber-400/70",
                     )}
                   >
                     <span className="text-[8px] font-bold tracking-[0.12em]">{dayLabel}</span>
+                    {transferWindow.open && (
+                      <Repeat2
+                        aria-label={closesWindow ? "Transfer window closes" : "Transfer window open"}
+                        className={cn("mt-1 size-3", closesWindow && "animate-pulse", active ? "text-current" : "text-primary")}
+                      />
+                    )}
                     {fixtureEvent ? (
                       <>
-                        <Trophy className={cn("mt-1 size-3", active ? "text-current" : "text-emerald-600")} />
+                        <Trophy className={cn("mt-0.5 size-3", active ? "text-current" : "text-emerald-600")} />
                         <span className="mt-0.5 max-w-full truncate text-[7px] font-bold leading-tight">
                           {isFriendlyWeek ? "FRIENDLY" : "MATCH"}
                         </span>
                       </>
                     ) : deadlineEvent ? (
                       <>
-                        <CalendarDays className={cn("mt-1 size-3", active ? "text-current" : "text-primary")} />
+                        <CalendarDays className={cn("mt-0.5 size-3", active ? "text-current" : "text-primary")} />
                         <span className="mt-0.5 max-w-full truncate text-[7px] font-bold leading-tight">
                           {deadlineEvent.kind === "transfer" ? "TRANSFER" : deadlineEvent.kind === "scouting" ? "SCOUT" : "EVENT"}
                         </span>
                       </>
-                    ) : (
+                    ) : !transferWindow.open ? (
                       <span
                         className={cn(
                           "mt-3 size-1.5 rounded-full",
                           active ? "bg-current/40" : passed ? "bg-muted-foreground/30" : "bg-border",
                         )}
                       />
+                    ) : null}
+                    {closesWindow && (
+                      <span className="mt-auto max-w-full text-[6px] font-black uppercase leading-none tracking-tight">
+                        Last 24h
+                      </span>
                     )}
-                    {dayEvents.length > 1 && (
+                    {!closesWindow && dayEvents.length > 1 && (
                       <span className="mt-auto text-[7px] font-bold opacity-75">+{dayEvents.length - 1}</span>
                     )}
                     {active && isContinuing && (
@@ -210,6 +255,18 @@ export function AdvanceInboxPreview({
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
           <div className="space-y-4">
+            {deadlineDay && (
+              <section className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-3">
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-amber-700">
+                  <Repeat2 className="size-3.5" /> Final 24 hours
+                </div>
+                <div className="mt-1 font-display text-2xl">{deadlineHours} hours remaining</div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Transfer activity can continue during these hourly ticks. The normal week settles once, when the final hour expires.
+                </p>
+              </section>
+            )}
+
             <section>
               <div className="mb-2 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
                 <CalendarDays className="size-3.5" /> This week
@@ -342,7 +399,7 @@ export function AdvanceInboxPreview({
         <footer className="grid shrink-0 grid-cols-2 gap-2 border-t bg-card p-3">
           {isContinuing ? (
             <Button variant="destructive" className="col-span-2 h-12" onClick={onStop}>
-              <Pause className="mr-2 size-5" /> Stop advancing
+              <Pause className="mr-2 size-5" /> {deadlineDay ? "Pause deadline day" : "Stop advancing"}
             </Button>
           ) : (
             <>

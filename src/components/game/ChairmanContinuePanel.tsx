@@ -1,7 +1,13 @@
-import { AlertCircle, CalendarDays, ChevronsRight, Mail, Pause, Play } from "lucide-react";
+import { AlertCircle, CalendarDays, ChevronsRight, Mail, Pause, Play, Repeat2 } from "lucide-react";
 import type { GameState } from "@/lib/game/types";
 import { actionableInbox, importantUnread } from "@/lib/game/attention";
-import { DAY_NAMES, MATCHDAY_INDEX, calendarDay } from "@/lib/game/engine";
+import {
+  CALENDAR,
+  DAY_NAMES,
+  MATCHDAY_INDEX,
+  calendarDay,
+  isTransferWindowOpen,
+} from "@/lib/game/engine";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +29,9 @@ export function ChairmanContinuePanel({
   const cards = [...actionable, ...important];
   const currentDay = calendarDay(state);
   const hasFixture = state.fixtures.some((fixture) => fixture.week === state.week);
+  const windowOpen = isTransferWindowOpen(state);
+  const deadlineWeek = state.week === CALENDAR.preSeasonEnd || state.week === CALENDAR.midSeasonEnd;
+  const deadlineDay = deadlineWeek && currentDay === 6;
 
   return (
     <section className="overflow-hidden rounded-[1.75rem] border bg-card shadow-sm">
@@ -36,11 +45,13 @@ export function ChairmanContinuePanel({
               {isContinuing ? `${DAY_NAMES[currentDay]} — time is running` : DAY_NAMES[currentDay]}
             </div>
             <div className="mt-2 max-w-xl text-sm opacity-80">
-              {isContinuing
-                ? "Days move at a readable pace. Stop whenever you want; the game pauses itself for matches and important decisions."
-                : cards.length
-                  ? `${cards.length} item${cards.length === 1 ? "" : "s"} worth checking before you move on.`
-                  : "Nothing is blocking you. Continue until something genuinely needs your attention."}
+              {deadlineDay
+                ? "Transfer deadline day · final 24 hours of the window."
+                : isContinuing
+                  ? "Days move at a readable pace. Stop whenever you want; the game pauses itself for matches and important decisions."
+                  : cards.length
+                    ? `${cards.length} item${cards.length === 1 ? "" : "s"} worth checking before you move on.`
+                    : "Nothing is blocking you. Continue until something genuinely needs your attention."}
             </div>
           </div>
           <div className="hidden size-14 shrink-0 place-items-center rounded-2xl bg-black/20 sm:grid">
@@ -53,25 +64,41 @@ export function ChairmanContinuePanel({
             const active = index === currentDay;
             const passed = index < currentDay;
             const matchday = hasFixture && index === MATCHDAY_INDEX;
+            const closesWindow = windowOpen && deadlineWeek && index === 6;
             return (
               <div
                 key={day}
+                title={closesWindow ? "Transfer window closes · final 24 hours" : windowOpen ? "Transfer window open" : undefined}
                 className={cn(
                   "relative rounded-xl border px-1 py-2 text-center transition-all",
                   active && "scale-[1.04] border-white/70 bg-white text-foreground shadow-md",
                   !active && passed && "border-white/10 bg-black/20 opacity-60",
                   !active && !passed && "border-white/15 bg-black/10",
+                  closesWindow && !active && "ring-1 ring-amber-300/70",
                 )}
               >
                 <div className="text-[10px] font-bold uppercase tracking-wide">{day}</div>
-                {matchday && (
-                  <div
-                    className={cn(
-                      "mx-auto mt-1 size-1.5 rounded-full",
-                      active ? "bg-amber-500" : "bg-amber-300",
-                    )}
-                  />
-                )}
+                <div className="mt-1 flex min-h-3 items-center justify-center gap-1">
+                  {windowOpen ? (
+                    <Repeat2
+                      aria-label={closesWindow ? "Transfer window closes" : "Transfer window open"}
+                      className={cn("size-3", closesWindow && "animate-pulse")}
+                    />
+                  ) : null}
+                  {matchday ? (
+                    <span
+                      className={cn(
+                        "size-1.5 rounded-full",
+                        active ? "bg-amber-500" : "bg-amber-300",
+                      )}
+                    />
+                  ) : null}
+                </div>
+                {closesWindow ? (
+                  <div className="mt-1 text-[8px] font-black uppercase leading-none tracking-tight">
+                    Last 24h
+                  </div>
+                ) : null}
               </div>
             );
           })}
