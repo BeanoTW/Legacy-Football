@@ -23,6 +23,20 @@ function isWilling(state: GameState, staff: Staff): boolean {
     : staffJoinTermsForState(state, staff).willing;
 }
 
+function calibrateReputationToClub(state: GameState, candidate: Staff): Staff {
+  if (isWilling(state, candidate)) return candidate;
+
+  // Ability and wage remain those of the generated journeyman. Reputation is
+  // the market-facing quantity that determines whether the move is beneath
+  // them, so lower only that until this locally sourced candidate is genuinely
+  // attainable under the canonical join rules.
+  for (let reputation = candidate.reputation - 1; reputation >= 20; reputation -= 1) {
+    const calibrated = { ...candidate, reputation };
+    if (isWilling(state, calibrated)) return calibrated;
+  }
+  return { ...candidate, reputation: 20 };
+}
+
 /**
  * Keeps the rolling world market broad, but guarantees that small clubs are
  * not accidentally left with no credible route to fill essential vacancies.
@@ -40,16 +54,13 @@ export function ensureAttainableStaffMarket(state: GameState, market: Staff[]): 
     const rand = mulberry32(
       hashString(`staff-attainable|${state.saveSeed}|${state.season}|${state.week}|${role}`),
     );
-    let attempts = 0;
-    while (willing < required && attempts < 80) {
-      attempts += 1;
+    while (willing < required) {
       // Low-reputation clubs should see believable journeymen rather than
       // synthetic stars. As the club grows, this band rises with it.
-      const quality = Math.max(30, Math.min(68, Math.round(state.reputation + 12 + rand() * 16)));
-      const candidate = makeStaff(role, quality, rand);
-      if (!isWilling(state, candidate)) continue;
+      const quality = Math.max(30, Math.min(68, Math.round(state.reputation + 8 + rand() * 12)));
+      const candidate = calibrateReputationToClub(state, makeStaff(role, quality, rand));
       next.push(candidate);
-      willing += 1;
+      if (isWilling(state, candidate)) willing += 1;
     }
   }
 
