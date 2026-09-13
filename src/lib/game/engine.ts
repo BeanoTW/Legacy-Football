@@ -32,7 +32,16 @@ import type { SaveStore, Diagnostic } from "./storage/types";
 import { SAVE_VERSION } from "./newGame";
 import { squadRating } from "./sim";
 import { staffPoolFor } from "./staff";
-import { SEASON_END_WEEK, calendarDay, isTransferWindowOpen, setCalendarDay } from "./calendar";
+import {
+  SEASON_END_WEEK,
+  calendarDay,
+  clearTransferDeadlineHour,
+  isTransferDeadlineDay,
+  isTransferWindowOpen,
+  setCalendarDay,
+  setTransferDeadlineHour,
+  transferDeadlineHour,
+} from "./calendar";
 import { tickMatchday, type MatchOverride } from "./tick/matchday";
 import { tickLegacyAiResults, tickContractsAndMarkets, tickTicketBacklash } from "./tick/world";
 import { tickSeasonRollover } from "./tick/rollover";
@@ -86,6 +95,10 @@ export {
   isMatchday,
   phaseOf,
   isTransferWindowOpen,
+  isTransferDeadlineWeek,
+  isTransferDeadlineDay,
+  transferDeadlineHour,
+  transferDeadlineHoursRemaining,
   windowStatus,
   type SeasonPhase,
 } from "./calendar";
@@ -156,6 +169,7 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   ensureBoard(s);
   maybeRunMidSeasonReview(s);
   setCalendarDay(s, 0);
+  clearTransferDeadlineHour(s);
   // Monday replies scheduled across the week boundary should already be in the
   // chairman's Inbox when the new week opens.
   processDueTransferResponsesInPlace(s);
@@ -164,14 +178,27 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
 }
 
 /**
- * Advance one visible calendar day.
+ * Advance one visible calendar unit.
  *
- * Monday through Saturday move the presentation clock and progress genuine
- * day-scale systems such as scouting. Crossing Sunday settles the completed
- * week through `advanceWeek`, preserving deterministic weekly finance/match
- * invariants while allowing four-day and six-day scout reports to really land.
+ * Normal weeks advance one day at a time. On the final Sunday of either
+ * transfer window, the same control switches to a one-hour tick. Weekly
+ * settlement still happens exactly once, after hour 23, so finance, fixtures
+ * and contracts remain on their established deterministic boundaries.
  */
 export function advanceDay(prev: GameState): GameState {
+  if (isTransferDeadlineDay(prev)) {
+    const hour = transferDeadlineHour(prev);
+    if (hour < 23) {
+      const next = structuredClone(prev);
+      setTransferDeadlineHour(next, hour + 1);
+      // Deadline-day club replies can surface between hourly chairman actions;
+      // the canonical due-response processor remains idempotent.
+      processDueTransferResponsesInPlace(next);
+      return next;
+    }
+    return advanceWeek(prev);
+  }
+
   const day = calendarDay(prev);
   if (day < 6) {
     const next = structuredClone(prev);
@@ -180,6 +207,16 @@ export function advanceDay(prev: GameState): GameState {
     processDueTransferResponsesInPlace(next);
     return next;
   }
+  return advanceWeek(prev);
+}
+
+/**
+ * Optional fast-forward for the FIFA-style deadline-day flow. This skips the
+ * remaining presentation hours but still settles the week through the same
+ * canonical boundary as twenty-four individual hourly ticks.
+ */
+export function skipTransferDeadlineDay(prev: GameState): GameState {
+  if (!isTransferDeadlineDay(prev)) return prev;
   return advanceWeek(prev);
 }
 
