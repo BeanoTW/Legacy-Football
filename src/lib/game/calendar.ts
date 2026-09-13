@@ -23,6 +23,7 @@ export const FRIENDLY_WEEKS = new Set<number>([2, 4, 25, 27]);
 export const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 export const MATCHDAY_INDEX = 5;
 const DAY_FLAG = "calendar.dayOfWeek";
+const DEADLINE_HOUR_FLAG = "calendar.transferDeadlineHour";
 
 export type SeasonPhase = "preseason" | "firstHalf" | "midseason" | "secondHalf";
 
@@ -55,6 +56,41 @@ export function isMatchday(state: GameState): boolean {
 export function isTransferWindowOpen(s: GameState): boolean {
   const p = phaseOf(s.week);
   return p === "preseason" || p === "midseason";
+}
+
+export function isTransferDeadlineWeek(state: GameState): boolean {
+  return state.week === CALENDAR.preSeasonEnd || state.week === CALENDAR.midSeasonEnd;
+}
+
+export function isTransferDeadlineDay(state: GameState): boolean {
+  return isTransferWindowOpen(state) && isTransferDeadlineWeek(state) && calendarDay(state) === 6;
+}
+
+/**
+ * Deadline day owns a deliberately narrow sub-day clock. The rest of the game
+ * remains day/week based; only the final transfer-window Sunday advances in
+ * one-hour steps so negotiations can become a distinct last-day experience.
+ */
+export function transferDeadlineHour(state: GameState): number {
+  if (!isTransferDeadlineDay(state)) return 0;
+  const raw = state.inboxFlags?.[DEADLINE_HOUR_FLAG];
+  if (typeof raw !== "number" || !Number.isInteger(raw)) return 0;
+  return Math.max(0, Math.min(23, raw));
+}
+
+export function transferDeadlineHoursRemaining(state: GameState): number {
+  if (!isTransferDeadlineDay(state)) return 0;
+  return 24 - transferDeadlineHour(state);
+}
+
+export function setTransferDeadlineHour(state: GameState, hour: number): void {
+  state.inboxFlags ??= {};
+  state.inboxFlags[DEADLINE_HOUR_FLAG] = Math.max(0, Math.min(23, Math.trunc(hour)));
+}
+
+export function clearTransferDeadlineHour(state: GameState): void {
+  if (!state.inboxFlags) return;
+  delete state.inboxFlags[DEADLINE_HOUR_FLAG];
 }
 
 export function windowStatus(s: GameState): {
