@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#07151d"/>
+      <stop offset="0.55" stop-color="#123038"/>
+      <stop offset="1" stop-color="#0a1d22"/>
+    </linearGradient>
+    <linearGradient id="pitch" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#467c55"/>
+      <stop offset="1" stop-color="#1f4f3a"/>
+    </linearGradient>
+    <radialGradient id="glow">
+      <stop offset="0" stop-color="#fff" stop-opacity=".95"/>
+      <stop offset=".2" stop-color="#dff8ff" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#9edbe8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="9"/></filter>
+    <pattern id="crowd" width="22" height="18" patternUnits="userSpaceOnUse">
+      <circle cx="5" cy="7" r="2" fill="#dce8e9" opacity=".5"/>
+      <circle cx="13" cy="4" r="1.8" fill="#b7c9cb" opacity=".35"/>
+      <circle cx="18" cy="12" r="2.2" fill="#f3f5f5" opacity=".42"/>
+      <circle cx="9" cy="15" r="1.4" fill="#8fa8ab" opacity=".3"/>
+    </pattern>
+  </defs>
+  <rect width="1600" height="900" fill="url(#sky)"/>
+  <path d="M0 190 Q800 15 1600 190 L1600 365 Q800 205 0 365Z" fill="#071217"/>
+  <path d="M0 250 Q800 90 1600 250 L1600 430 Q800 275 0 430Z" fill="url(#crowd)" opacity=".92"/>
+  <path d="M0 430 Q800 315 1600 430 L1600 610 Q800 430 0 610Z" fill="#0b171b"/>
+  <path d="M0 442 Q800 332 1600 442 L1600 585 Q800 462 0 585Z" fill="url(#crowd)" opacity=".82"/>
+  <path d="M255 625 L1345 625 L1118 850 L482 850 Z" fill="url(#pitch)"/>
+  <path d="M800 625 L800 850 M482 850 L1118 850 M255 625 L1345 625" stroke="#e6f3ea" stroke-opacity=".45" stroke-width="4" fill="none"/>
+  <ellipse cx="800" cy="735" rx="116" ry="54" fill="none" stroke="#e6f3ea" stroke-opacity=".38" stroke-width="4"/>
+  <g opacity=".95">
+    <circle cx="230" cy="185" r="105" fill="url(#glow)" filter="url(#blur)"/>
+    <circle cx="520" cy="112" r="95" fill="url(#glow)" filter="url(#blur)"/>
+    <circle cx="1080" cy="112" r="95" fill="url(#glow)" filter="url(#blur)"/>
+    <circle cx="1370" cy="185" r="105" fill="url(#glow)" filter="url(#blur)"/>
+  </g>
+  <g fill="#f8ffff" opacity=".9">
+    <rect x="176" y="176" width="108" height="8" rx="4"/>
+    <rect x="466" y="105" width="108" height="8" rx="4"/>
+    <rect x="1026" y="105" width="108" height="8" rx="4"/>
+    <rect x="1316" y="176" width="108" height="8" rx="4"/>
+  </g>
+  <path d="M0 0 H1600 V900 H0Z" fill="none" stroke="#fff" stroke-opacity=".04" stroke-width="18"/>
+  <rect width="1600" height="900" fill="#06343b" opacity=".1"/>
+</svg>
