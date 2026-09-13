@@ -4,6 +4,15 @@ import { userClubReference } from "./clubReference";
 
 export type SquadFitBand = "Excellent" | "Good" | "Workable" | "Poor";
 
+export interface ManagerSquadNeed {
+  position: Position;
+  required: number;
+  available: number;
+  average: number;
+  severity: number;
+  reason: string;
+}
+
 export interface ManagerSquadFit {
   score: number;
   band: SquadFitBand;
@@ -11,6 +20,7 @@ export interface ManagerSquadFit {
   alternativeScore: number | null;
   strengths: string[];
   gaps: string[];
+  needs: ManagerSquadNeed[];
   summary: string;
 }
 
@@ -23,7 +33,18 @@ const SHAPE_NEEDS: Record<ManagerFormation, ShapeNeed> = {
   "5-3-2": { GK: 1, DEF: 5, MID: 3, FWD: 2 },
 };
 
-const LABEL: Record<Position, string> = { GK: "goalkeeper", DEF: "defenders", MID: "midfielders", FWD: "forwards" };
+const LABEL: Record<Position, string> = {
+  GK: "goalkeeper",
+  DEF: "defenders",
+  MID: "midfielders",
+  FWD: "forwards",
+};
+const SINGULAR: Record<Position, string> = {
+  GK: "goalkeeper",
+  DEF: "defender",
+  MID: "midfielder",
+  FWD: "forward",
+};
 const clamp = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
 
 function playersForUser(state: GameState): FootballPlayer[] {
@@ -31,26 +52,72 @@ function playersForUser(state: GameState): FootballPlayer[] {
   return state.football.players.filter((p) => p.currentClubId === user);
 }
 
-function positionQuality(players: FootballPlayer[], position: Position, needed: number): { score: number; count: number; average: number } {
-  const options = players.filter((p) => p.primaryPosition === position || p.secondaryPositions.includes(position));
-  const best = options.map((p) => p.currentAbility).sort((a, b) => b - a).slice(0, needed);
+function positionQuality(
+  players: FootballPlayer[],
+  position: Position,
+  needed: number,
+): { score: number; count: number; average: number } {
+  const options = players.filter(
+    (p) => p.primaryPosition === position || p.secondaryPositions.includes(position),
+  );
+  const best = options
+    .map((p) => p.currentAbility)
+    .sort((a, b) => b - a)
+    .slice(0, needed);
   const average = best.length ? best.reduce((sum, n) => sum + n, 0) / best.length : 0;
   const coverage = Math.min(1, options.length / Math.max(1, needed));
   return { score: average * coverage, count: options.length, average };
 }
 
-function scoreFormation(players: FootballPlayer[], formation: ManagerFormation): { score: number; strengths: string[]; gaps: string[] } {
+function scoreFormation(
+  players: FootballPlayer[],
+  formation: ManagerFormation,
+): {
+  score: number;
+  strengths: string[];
+  gaps: string[];
+  needs: ManagerSquadNeed[];
+} {
   const need = SHAPE_NEEDS[formation];
   const strengths: string[] = [];
   const gaps: string[] = [];
+  const needs: ManagerSquadNeed[] = [];
   const units = (Object.keys(need) as Position[]).map((position) => {
-    const result = positionQuality(players, position, need[position]);
-    if (result.count < need[position]) gaps.push(`Short of ${LABEL[position]} for ${formation}`);
-    else if (result.average >= 68) strengths.push(`Strong ${LABEL[position]} group`);
+    const required = need[position];
+    const result = positionQuality(players, position, required);
+    if (result.count < required) {
+      const missing = required - result.count;
+      const reason = `Needs ${missing} more natural ${SINGULAR[position]}${missing === 1 ? "" : "s"} for ${formation}.`;
+      gaps.push(`Short of ${LABEL[position]} for ${formation}`);
+      needs.push({
+        position,
+        required,
+        available: result.count,
+        average: result.average,
+        severity: missing * 30 + Math.max(0, 62 - result.average),
+        reason,
+      });
+    } else if (result.average < 58) {
+      needs.push({
+        position,
+        required,
+        available: result.count,
+        average: result.average,
+        severity: Math.max(1, 62 - result.average),
+        reason: `The current ${LABEL[position]} group is a weak fit for ${formation}.`,
+      });
+    } else if (result.average >= 68) {
+      strengths.push(`Strong ${LABEL[position]} group`);
+    }
     return result.score;
   });
   const firstTeamCoverage = Math.min(1, players.length / 11);
-  return { score: clamp((units.reduce((a, b) => a + b, 0) / units.length) * firstTeamCoverage), strengths, gaps };
+  return {
+    score: clamp((units.reduce((a, b) => a + b, 0) / units.length) * firstTeamCoverage),
+    strengths,
+    gaps,
+    needs: needs.sort((a, b) => b.severity - a.severity),
+  };
 }
 
 function band(score: number): SquadFitBand {
@@ -64,16 +131,35 @@ export function managerSquadFit(state: GameState, manager: Staff): ManagerSquadF
   const identity = managerFootballIdentity(manager);
   const players = playersForUser(state);
   const primary = scoreFormation(players, identity.preferredFormation);
-  const alternatives = identity.alternativeFormations.map((formation) => ({ formation, ...scoreFormation(players, formation) })).sort((a, b) => b.score - a.score);
+  const alternatives = identity.alternativeFormations
+    .map((formation) => ({ formation, ...scoreFormation(players, formation) }))
+    .sort((a, b) => b.score - a.score);
   const bestAlternative = alternatives[0] ?? null;
-  const adaptabilityBonus = identity.adaptability === "High" && bestAlternative && bestAlternative.score > primary.score ? Math.min(6, (bestAlternative.score - primary.score) * 0.35) : 0;
+  const adaptabilityBonus =
+    identity.adaptability === "High" && bestAlternative && bestAlternative.score > primary.score
+      ? Math.min(6, (bestAlternative.score - primary.score) * 0.35)
+      : 0;
   const score = clamp(primary.score + adaptabilityBonus);
   const fitBand = band(score);
   const strengths = primary.strengths.slice(0, 2);
   const gaps = primary.gaps.slice(0, 2);
-  const alternativeText = bestAlternative && bestAlternative.score >= primary.score + 5 ? ` His ${bestAlternative.formation} alternative suits the current group better.` : "";
-  const summary = players.length < 11
-    ? `The squad is too thin to judge ${identity.preferredFormation} properly yet.`
-    : `${fitBand} fit for the current squad in ${identity.preferredFormation}.${alternativeText}`;
-  return { score, band: fitBand, formation: identity.preferredFormation, alternativeScore: bestAlternative?.score ?? null, strengths, gaps, summary };
+  const needs = primary.needs.slice(0, 3);
+  const alternativeText =
+    bestAlternative && bestAlternative.score >= primary.score + 5
+      ? ` His ${bestAlternative.formation} alternative suits the current group better.`
+      : "";
+  const summary =
+    players.length < 11
+      ? `The squad is too thin to judge ${identity.preferredFormation} properly yet.`
+      : `${fitBand} fit for the current squad in ${identity.preferredFormation}.${alternativeText}`;
+  return {
+    score,
+    band: fitBand,
+    formation: identity.preferredFormation,
+    alternativeScore: bestAlternative?.score ?? null,
+    strengths,
+    gaps,
+    needs,
+    summary,
+  };
 }
