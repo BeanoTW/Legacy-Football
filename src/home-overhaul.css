@@ -1,0 +1,12 @@
+/* Chairman Home visual pass */
+.lf-home-dashboard{gap:.8rem}
+.lf-home-dashboard .lf-match-card{min-height:17rem;border-color:rgb(255 255 255/9%);background:linear-gradient(90deg,rgb(4 13 18/92%),rgb(8 28 31/80%) 45%,rgb(7 24 26/92%)),linear-gradient(135deg,var(--color-panel),color-mix(in oklab,var(--color-primary) 48%,black));color:white;box-shadow:0 22px 55px rgb(2 12 16/25%)}
+.lf-home-dashboard .lf-match-inner{min-height:17rem;display:grid;grid-template-columns:minmax(15rem,.72fr) minmax(20rem,1.28fr);align-items:center;gap:1.5rem;padding:1.5rem 1.75rem}
+.lf-home-dashboard .lf-match-copy h2{font-size:clamp(2rem,4vw,3.35rem);line-height:.92;text-transform:uppercase}
+.lf-home-dashboard .lf-match-copy p{margin-top:.65rem;color:rgb(255 255 255/68%)}
+.lf-home-dashboard .lf-match-actions{display:flex;gap:.55rem;margin-top:1.1rem}
+.lf-home-dashboard .lf-match-primary,.lf-home-dashboard .lf-match-secondary{display:inline-flex;align-items:center;gap:.45rem;border-radius:.65rem;padding:.65rem .9rem;font-size:.72rem;font-weight:800;text-transform:uppercase}
+.lf-home-dashboard .lf-match-primary{background:var(--color-banner);color:var(--color-banner-foreground)}
+.lf-home-dashboard .lf-match-secondary{border:1px solid rgb(255 255 255/17%);background:rgb(255 255 255/7%);color:white}
+.lf-home-dashboard .lf-team-mark{width:5rem;height:5.7rem;border-radius:1.15rem 1.15rem 1.55rem 1.55rem;border:2px solid rgb(255 255 255/28%);font-size:1.25rem}
+@media(max-width:767px){.lf-home-dashboard .lf-match-card{min-height:14.5rem}.lf-home-dashboard .lf-match-inner{min-height:14.5rem;display:flex;flex-direction:column;gap:.9rem;padding:1rem}.lf-home-dashboard .lf-match-copy{width:100%}.lf-home-dashboard .lf-match-copy h2{font-size:1.75rem}.lf-home-dashboard .lf-match-versus{width:100%}.lf-home-dashboard .lf-team-mark{width:3.25rem;height:3.7rem}}
