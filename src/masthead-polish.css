@@ -1,0 +1,135 @@
+/* Club masthead: keep the stadium atmospheric but make the identity readable. */
+.lf-masthead {
+  position: relative;
+  isolation: isolate;
+  min-height: 11.5rem;
+  overflow: hidden;
+  border-bottom: 1px solid rgb(255 255 255 / 12%);
+  color: white;
+}
+
+.lf-masthead::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgb(2 13 17 / 68%) 0%, rgb(3 18 22 / 35%) 48%, rgb(2 12 16 / 64%) 100%),
+    linear-gradient(180deg, rgb(0 0 0 / 4%) 35%, rgb(0 0 0 / 52%) 100%);
+}
+
+.lf-masthead .panel-strip {
+  position: relative;
+  z-index: 1;
+  min-height: 11.5rem;
+  display: flex;
+  align-items: flex-end;
+  background: transparent;
+  color: white;
+}
+
+.lf-masthead .panel-strip > div {
+  width: 100%;
+  padding-top: 2.6rem;
+  padding-bottom: 1.35rem;
+  align-items: flex-end;
+}
+
+.lf-masthead .panel-strip > div > svg {
+  width: 3.75rem;
+  height: 3.75rem;
+  padding: 0.85rem;
+  border: 1px solid rgb(255 255 255 / 25%);
+  border-radius: 1rem;
+  background: rgb(2 16 20 / 58%);
+  color: white;
+  filter: drop-shadow(0 8px 18px rgb(0 0 0 / 28%));
+  backdrop-filter: blur(5px);
+}
+
+.lf-masthead .lf-brand-kicker {
+  margin-bottom: 0.35rem;
+  color: rgb(255 255 255 / 68%);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.lf-masthead h1 {
+  color: white;
+  font-size: clamp(1.75rem, 4vw, 2.8rem);
+  line-height: 0.95;
+  text-shadow: 0 3px 20px rgb(0 0 0 / 46%);
+}
+
+.lf-masthead .lf-club-subtitle {
+  margin-top: 0.32rem;
+  color: rgb(255 255 255 / 84%);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.lf-masthead .lf-club-detail {
+  margin-top: 0.35rem;
+  color: rgb(255 255 255 / 66%);
+  font-size: 0.72rem;
+}
+
+.lf-masthead .lf-chairman-badge {
+  min-width: 7.5rem;
+  padding: 0.72rem 0.9rem;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 1rem;
+  background: rgb(2 16 20 / 62%);
+  color: white;
+  box-shadow: 0 12px 30px rgb(0 0 0 / 22%);
+  backdrop-filter: blur(7px);
+}
+
+.lf-masthead .lf-chairman-badge span,
+.lf-masthead .lf-chairman-badge small {
+  color: rgb(255 255 255 / 70%);
+}
+
+.lf-masthead .lf-chairman-badge strong {
+  color: white;
+  text-shadow: 0 2px 12px rgb(0 0 0 / 30%);
+}
+
+@media (max-width: 767px) {
+  .lf-masthead,
+  .lf-masthead .panel-strip {
+    min-height: 10.8rem;
+  }
+
+  .lf-masthead .panel-strip > div {
+    gap: 0.7rem;
+    padding: 1.25rem 0.9rem 1rem;
+  }
+
+  .lf-masthead .panel-strip > div > svg {
+    width: 3.25rem;
+    height: 3.25rem;
+    padding: 0.72rem;
+  }
+
+  .lf-masthead h1 {
+    font-size: 1.8rem;
+  }
+
+  .lf-masthead .lf-club-subtitle {
+    font-size: 0.88rem;
+  }
+
+  .lf-masthead .lf-club-detail {
+    max-width: 15rem;
+    font-size: 0.66rem;
+  }
+
+  .lf-masthead .lf-chairman-badge {
+    min-width: 5.8rem;
+    padding: 0.58rem 0.62rem;
+  }
+}
