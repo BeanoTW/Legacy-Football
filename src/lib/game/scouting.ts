@@ -5,10 +5,10 @@ import { calendarDay } from "./calendar";
 import { preserveKnownPlayerInPlace } from "./playerLifecycle";
 import {
   preserveScoutingCandidateProfileInPlace,
-  progressScoutingDiscoveryDayInPlace,
   scoutingInitialKnowledge,
   scoutingQuality,
 } from "./scoutingDiscovery";
+import { progressSemanticScoutingDiscoveryDayInPlace } from "./semanticScoutingSelection";
 import { knownPlayerDetail } from "./knownPlayerDetail";
 import { isUserClubReference } from "./clubReference";
 
@@ -182,7 +182,7 @@ function pushScoutingReport(state: GameState, player: FootballPlayer, days: numb
 }
 
 function progressScoutingToDayInPlace(state: GameState, targetDay: number): void {
-  progressScoutingDiscoveryDayInPlace(state, targetDay);
+  progressSemanticScoutingDiscoveryDayInPlace(state, targetDay);
   if (!state.football?.scouting) return;
   const nowWeek = absoluteWeek(state.season, state.week);
   for (const assignment of state.football.scouting.assignments) {
