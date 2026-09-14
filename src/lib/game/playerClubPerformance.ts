@@ -1,6 +1,7 @@
 import type { FixtureResult, GameState, Staff } from "./types";
 import { absoluteWeek } from "./time";
 import { FOOTBALL_STRENGTH_MAX, FOOTBALL_STRENGTH_MIN } from "./footballStrength";
+import { managerMatchPrep } from "./managerMatchPrep";
 
 export const PLAYER_COHESION_DEFAULT = 50;
 export const PLAYER_MORALE_DEFAULT = 50;
@@ -111,10 +112,10 @@ export function applyPlayerClubMatchOutcomeInPlace(
 }
 
 /**
- * Small bounded realisation effect. Squad quality stays primary: even perfect
- * cohesion, morale and management can add at most five points to the canonical
- * football-strength scale, and the worst possible environment can remove at
- * most five.
+ * Small bounded realisation effect. Squad quality stays primary: cohesion,
+ * morale, manager quality and tactical suitability can alter the way that
+ * quality is realised, but the total management layer remains capped at five
+ * points on the canonical football-strength scale.
  */
 export function playerClubPerformanceAdjustment(state: GameState): number {
   const performance = state.playerClubPerformance ?? {
@@ -122,10 +123,12 @@ export function playerClubPerformanceAdjustment(state: GameState): number {
     morale: PLAYER_MORALE_DEFAULT,
   };
   const manager = playerManagerQuality(state);
+  const matchPrep = managerMatchPrep(state);
   const raw =
     (performance.cohesion - 50) * 0.025 +
     (performance.morale - 50) * 0.035 +
-    (manager - 50) * 0.04;
+    (manager - 50) * 0.04 +
+    matchPrep.strengthAdjustment;
   return round2(
     Math.max(-PLAYER_PERFORMANCE_MAX_ADJUSTMENT, Math.min(PLAYER_PERFORMANCE_MAX_ADJUSTMENT, raw)),
   );
