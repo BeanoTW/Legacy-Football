@@ -15,6 +15,7 @@ import {
   toggleChairmanShortlist,
 } from "@/lib/game/recruitmentKnowledge";
 import { currentAbsoluteDay, upcomingTimelineEvents } from "@/lib/game/timeline";
+import { managerRecruitmentBrief } from "@/lib/game/managerRecruitmentBrief";
 import { fmtMoney } from "@/lib/game/engine";
 import { clubDisplayName } from "@/lib/game/clubReference";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,8 @@ export function ScoutingReports({
   const scoutingEvents = upcomingTimelineEvents(state, 14).filter(
     (event) => event.kind === "scouting" && event.id.startsWith("scouting:player:"),
   );
+  const manager = state.hiredStaff.find((staff) => staff.role === "Manager");
+  const managerBrief = manager ? managerRecruitmentBrief(state, manager) : null;
 
   const approach = (playerId: string, freeAgent: boolean, weeklyWage: number) =>
     update((s) =>
@@ -74,6 +77,12 @@ export function ScoutingReports({
         const watched = isChairmanShortlisted(state, player.id);
         const freeAgent = player.currentClubId === null;
         const estimate = chairmanRecruitmentEstimate(state, player.id);
+        const managerPriority = managerBrief?.priorities.find(
+          (priority) => priority.position === player.primaryPosition,
+        );
+        const managerPriorityRank = managerPriority
+          ? managerBrief?.priorities.findIndex((priority) => priority.position === managerPriority.position) ?? -1
+          : -1;
         const dueEvent = scoutingEvents.find((event) =>
           event.id.startsWith(`scouting:player:${player.id}:`),
         );
@@ -107,6 +116,20 @@ export function ScoutingReports({
                 )}
               </div>
             </div>
+
+            {manager && managerPriority && (
+              <div className={cn(
+                "mt-1.5 rounded-md border px-2 py-1.5 text-[10px]",
+                managerPriorityRank === 0
+                  ? "border-primary/30 bg-primary/[0.06]"
+                  : "border-muted bg-muted/30",
+              )}>
+                <span className="font-semibold">
+                  {managerPriorityRank === 0 ? `${manager.name}'s priority` : `${manager.name}'s squad need`}
+                </span>
+                <span className="text-muted-foreground"> · {managerPriority.headline} · {managerPriority.playerLevel === "startingXI" ? "Starting XI level" : managerPriority.playerLevel === "firstTeam" ? "First-team level" : "Squad depth"}</span>
+              </div>
+            )}
 
             <div className="mt-1.5 grid grid-cols-5 gap-1">
               {report.attributes.map((attribute) => (
