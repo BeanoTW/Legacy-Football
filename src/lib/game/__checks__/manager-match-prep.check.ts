@@ -63,11 +63,11 @@ assert.ok(fitted.squadFitScore > 60, "strong coverage should score above the neu
 assert.ok(fitted.strengthAdjustment > 0, "good tactical fit should create a small positive matchday edge");
 assert.ok(Math.abs(fitted.strengthAdjustment) <= 1.5, "tactical fit must stay tightly bounded");
 
-// Give an adaptable 4-3-3 manager a squad with no natural forwards but strong
-// coverage for his 4-2-3-1 alternative. He should use the better-fitting shape
-// rather than stubbornly forcing his nominal preference.
+// Give an adaptable 4-3-3 manager a squad with exactly one natural forward.
+// That is enough to fully cover his 4-2-3-1 alternative, but leaves the
+// preferred 4-3-3 two forwards short. He should therefore change shape.
 const adaptableState = fresh();
-reshapeUserSquad(adaptableState, ["GK", "DEF", "DEF", "DEF", "DEF", "MID", "MID", "MID", "MID", "MID", "MID"], 72);
+reshapeUserSquad(adaptableState, ["GK", "DEF", "DEF", "DEF", "DEF", "MID", "MID", "MID", "MID", "MID", "FWD"], 72);
 adaptableState.hiredStaff = [manager({ tactics: 90, development: 88, attack: 82, defense: 62 })];
 const adaptable = managerMatchPrep(adaptableState);
 assert.equal(adaptable.preferredFormation, "4-3-3", "audit manager should prefer the attacking shape");
