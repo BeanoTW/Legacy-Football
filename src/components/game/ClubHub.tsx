@@ -22,6 +22,7 @@ import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { userSquad } from "@/lib/game/recruitment";
 import { ContinueCalendar } from "./ContinueCalendar";
 import { clubPresentationName } from "@/lib/game/clubPresentation";
+import { managerMatchPrep } from "@/lib/game/managerMatchPrep";
 
 function fanbaseEstimate(state: GameState): number {
   const cap = totalCapacity(state);
@@ -53,7 +54,7 @@ export function ClubHub({ state, update, setTab, isContinuing }: { state: GameSt
 
   return (
     <div className="lf-home-dashboard flex min-h-0 flex-col gap-3">
-      <section className="lf-match-card overflow-hidden rounded-2xl border bg-card shadow-sm"><MatchStrip state={state} nextFixture={nextFixture} update={update} onOpenSchedule={() => setTab("fixtures")} /></section>
+      <section className="lf-match-card overflow-hidden rounded-2xl border bg-card shadow-sm"><MatchStrip state={state} nextFixture={nextFixture} update={update} onOpenSchedule={() => setTab("fixtures")} onOpenStaff={() => setTab("staff")} /></section>
       <div className="lf-home-calendar"><ContinueCalendar state={state} isContinuing={isContinuing} onOpenSchedule={() => setTab("fixtures")} /></div>
       {suggestedSteps.length > 0 && (
         <section className="lf-suggested-next rounded-2xl border bg-card shadow-sm">
@@ -97,12 +98,14 @@ export function ClubHub({ state, update, setTab, isContinuing }: { state: GameSt
   );
 }
 
-function MatchStrip({ state, nextFixture, update, onOpenSchedule }: { state: GameState; nextFixture: GameState["fixtures"][number] | undefined; update: (fn: (s: GameState) => GameState) => void; onOpenSchedule: () => void }) {
+function MatchStrip({ state, nextFixture, update, onOpenSchedule, onOpenStaff }: { state: GameState; nextFixture: GameState["fixtures"][number] | undefined; update: (fn: (s: GameState) => GameState) => void; onOpenSchedule: () => void; onOpenStaff: () => void }) {
   const matchReady = !!nextFixture && isMatchday(state);
   const isPreseason = phaseOf(state.week) === "preseason";
+  const prep = managerMatchPrep(state);
   const homeName = nextFixture ? nextFixture.home ? state.clubName : clubPresentationName(clubDisplayName(state, nextFixture.opponent)) : state.clubName;
   const awayName = nextFixture ? nextFixture.home ? clubPresentationName(clubDisplayName(state, nextFixture.opponent)) : state.clubName : "Opposition TBC";
-  return <div className="lf-match-inner"><div className="lf-match-copy"><div className="lf-match-kicker">Next match · Week {state.week}</div><h2>{nextFixture ? "Matchday" : isPreseason ? "Pre-season preparation" : "No fixture this week"}</h2><p>{nextFixture ? `${nextFixture.home ? "Home" : "Away"} · Saturday · ${state.week <= 6 ? "Friendly" : "League"}` : isPreseason ? "Friendly · Date TBC · Home" : "Use the schedule to review upcoming fixtures."}</p><div className="lf-match-actions">{matchReady ? <button onClick={() => update((current) => startMatchDay(current))} className="lf-match-primary"><Play className="size-4" /> View match</button> : <button onClick={onOpenSchedule} className="lf-match-primary"><Play className="size-4" /> View schedule</button>}<button onClick={onOpenSchedule} className="lf-match-secondary">Match prep</button></div></div><div className="lf-match-versus"><div className="lf-match-team"><div className="lf-team-mark">{initials(homeName)}</div><div className="truncate font-display">{homeName}</div></div><div className="lf-vs">VS</div><div className="lf-match-team"><div className={cn("lf-team-mark", !nextFixture && "is-tbc")}>{nextFixture ? initials(awayName) : "?"}</div><div className="truncate font-display">{awayName}</div></div></div></div>;
+  const fitTone = prep.squadFitBand === "Excellent" ? "text-emerald-600" : prep.squadFitBand === "Good" ? "text-green-600" : prep.squadFitBand === "Workable" ? "text-amber-600" : prep.squadFitBand === "Poor" ? "text-rose-600" : "text-muted-foreground";
+  return <div className="lf-match-inner"><div className="lf-match-copy"><div className="lf-match-kicker">Next match · Week {state.week}</div><h2>{nextFixture ? "Matchday" : isPreseason ? "Pre-season preparation" : "No fixture this week"}</h2><p>{nextFixture ? `${nextFixture.home ? "Home" : "Away"} · Saturday · ${state.week <= 6 ? "Friendly" : "League"}` : isPreseason ? "Friendly · Date TBC · Home" : "Use the schedule to review upcoming fixtures."}</p>{nextFixture && <div className="mt-3 rounded-xl border border-white/15 bg-black/20 p-3 backdrop-blur-sm"><div className="flex items-center justify-between gap-3"><div><div className="text-[10px] font-semibold uppercase tracking-[0.16em] opacity-70">Manager's match plan</div><div className="mt-1 text-sm font-semibold">{prep.managerName} · {prep.selectedFormation} · {prep.style}</div></div><div className={cn("shrink-0 text-right text-xs font-semibold", fitTone)}>{prep.squadFitBand}<div className="font-normal opacity-70">{prep.squadFitScore}/100 fit</div></div></div><p className="mt-2 text-xs leading-relaxed opacity-80">{prep.summary}</p>{prep.selectedFormation !== prep.preferredFormation && <div className="mt-2 text-[11px] font-medium text-amber-500">Adapted from preferred {prep.preferredFormation} to suit the current squad.</div>}</div>}<div className="lf-match-actions">{matchReady ? <button onClick={() => update((current) => startMatchDay(current))} className="lf-match-primary"><Play className="size-4" /> View match</button> : <button onClick={onOpenSchedule} className="lf-match-primary"><Play className="size-4" /> View schedule</button>}<button onClick={onOpenStaff} className="lf-match-secondary">Manager profile</button></div></div><div className="lf-match-versus"><div className="lf-match-team"><div className="lf-team-mark">{initials(homeName)}</div><div className="truncate font-display">{homeName}</div></div><div className="lf-vs">VS</div><div className="lf-match-team"><div className={cn("lf-team-mark", !nextFixture && "is-tbc")}>{nextFixture ? initials(awayName) : "?"}</div><div className="truncate font-display">{awayName}</div></div></div></div>;
 }
 
 function OverviewMetric({ label, value, detail, meter, className, onClick }: { label: string; value: string; detail?: string; meter?: number; className?: string; onClick: () => void }) {
