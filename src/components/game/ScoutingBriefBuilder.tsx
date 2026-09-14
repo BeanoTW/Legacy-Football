@@ -3,6 +3,7 @@ import { ArrowLeft, Binoculars, ClipboardList } from "lucide-react";
 import type { GameState, Position } from "@/lib/game/types";
 import { scoutingSearchPlan } from "@/lib/game/scoutingDiscovery";
 import { managerSquadFit } from "@/lib/game/managerSquadFit";
+import { managerRecruitmentBrief } from "@/lib/game/managerRecruitmentBrief";
 import {
   createChairmanScoutingBrief,
   SCOUTING_PLAYER_LEVELS,
@@ -39,12 +40,13 @@ export function ScoutingBriefBuilder({
   const selectedLevel = SCOUTING_PLAYER_LEVELS.find((item) => item.value === playerLevel)!;
   const manager = state.hiredStaff.find((staff) => staff.role === "Manager");
   const managerFit = manager ? managerSquadFit(state, manager) : null;
-  const managerNeed = managerFit?.needs[0] ?? null;
+  const recruitmentBrief = manager ? managerRecruitmentBrief(state, manager) : null;
+  const managerPriority = recruitmentBrief?.priorities[0] ?? null;
 
   const useManagerRecommendation = () => {
-    if (!managerNeed) return;
-    setPosition(managerNeed.position);
-    setPlayerLevel("firstTeam");
+    if (!managerPriority) return;
+    setPosition(managerPriority.position);
+    setPlayerLevel(managerPriority.playerLevel);
   };
 
   const dispatch = () => {
@@ -86,7 +88,7 @@ export function ScoutingBriefBuilder({
           </div>
         </div>
 
-        {manager && managerFit && (
+        {manager && managerFit && recruitmentBrief && (
           <div className="mt-5 rounded-xl border border-primary/20 bg-primary/[0.04] p-3.5">
             <div className="flex items-start gap-3">
               <ClipboardList className="mt-0.5 size-5 shrink-0 text-primary" />
@@ -94,40 +96,42 @@ export function ScoutingBriefBuilder({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      Manager recruitment view
+                      {recruitmentBrief.headline}
                     </div>
                     <div className="font-semibold">
-                      {manager.name} · {managerFit.formation} · {managerFit.band} squad fit
+                      {manager.name} · {managerFit.bestFormation} · {managerFit.band} squad fit
                     </div>
                   </div>
-                  {managerNeed && (
+                  {managerPriority && (
                     <Button type="button" size="sm" variant="outline" onClick={useManagerRecommendation}>
                       Use recommendation
                     </Button>
                   )}
                 </div>
-                {managerFit.bestFormation !== managerFit.formation && (
-                  <div className="mt-2 rounded-lg border border-primary/15 bg-background/70 px-2.5 py-2 text-xs">
-                    <span className="font-semibold">Current tactical plan:</span>{" "}
-                    {managerFit.bestFormation}. The manager is adapting away from his preferred {managerFit.formation} because it suits this squad better.
-                  </div>
-                )}
-                {managerNeed ? (
+
+                <div className="mt-2 rounded-lg border border-primary/15 bg-background/70 px-3 py-2 text-sm leading-relaxed">
+                  “{recruitmentBrief.message}”
+                  <div className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">— {manager.name}, Manager</div>
+                </div>
+
+                {managerPriority ? (
                   <div className="mt-2 text-sm">
-                    <span className="font-semibold">Priority for {managerFit.bestFormation}:</span>{" "}
-                    {POSITIONS.find((item) => item.value === managerNeed.position)?.label}.{" "}
-                    <span className="text-muted-foreground">{managerNeed.reason}</span>
+                    <span className="font-semibold">Priority:</span>{" "}
+                    {POSITIONS.find((item) => item.value === managerPriority.position)?.label} ·{" "}
+                    {SCOUTING_PLAYER_LEVELS.find((item) => item.value === managerPriority.playerLevel)?.label}.{" "}
+                    <span className="text-muted-foreground">{managerPriority.rationale}</span>
                   </div>
                 ) : (
                   <div className="mt-2 text-sm text-muted-foreground">
-                    The manager has no obvious positional shortage in the system he would use with this squad right now.
+                    No urgent positional shortage. Recruitment can focus on upgrading quality rather than filling a structural hole.
                   </div>
                 )}
-                {managerFit.needs.length > 1 && (
+
+                {recruitmentBrief.priorities.length > 1 && (
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    {managerFit.needs.slice(1).map((need) => (
-                      <span key={need.position} className="rounded-full border bg-background/70 px-2 py-1 text-[10px]">
-                        Also: {POSITIONS.find((item) => item.value === need.position)?.label}
+                    {recruitmentBrief.priorities.slice(1).map((priority) => (
+                      <span key={priority.position} className="rounded-full border bg-background/70 px-2 py-1 text-[10px]">
+                        Also: {POSITIONS.find((item) => item.value === priority.position)?.label}
                       </span>
                     ))}
                   </div>
