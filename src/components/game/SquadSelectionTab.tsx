@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { ArrowLeft, List, Shield, Sparkles, Users } from "lucide-react";
 import type { FootballPlayer, GameState, TacticalPosition } from "@/lib/game/types";
+import type { ManagerFormation } from "@/lib/game/managerIdentity";
+import { managerMatchPrep } from "@/lib/game/managerMatchPrep";
 import {
   activeContract,
   ageOf,
@@ -31,24 +33,32 @@ import {
   playerManagerQuality,
 } from "@/lib/game/playerClubPerformance";
 
-const FORMATION: TacticalPosition[] = [
-  "GK",
-  "LB",
-  "CB",
-  "CB",
-  "RB",
-  "LM",
-  "CM",
-  "CM",
-  "RM",
-  "ST",
-  "ST",
-];
+const FORMATION_SLOTS: Record<ManagerFormation, TacticalPosition[]> = {
+  "4-4-2": ["GK", "LB", "CB", "CB", "RB", "LM", "CM", "CM", "RM", "ST", "ST"],
+  "4-3-3": ["GK", "LB", "CB", "CB", "RB", "CM", "CM", "CM", "LW", "ST", "RW"],
+  "4-2-3-1": ["GK", "LB", "CB", "CB", "RB", "CDM", "CDM", "LW", "CAM", "RW", "ST"],
+  "3-5-2": ["GK", "CB", "CB", "CB", "LWB", "CM", "CM", "CM", "RWB", "ST", "ST"],
+  "5-3-2": ["GK", "LWB", "CB", "CB", "CB", "RWB", "CM", "CM", "CM", "ST", "ST"],
+};
+
+const FORMATION_ROWS: Record<ManagerFormation, number[][]> = {
+  "4-4-2": [[9, 10], [5, 6, 7, 8], [1, 2, 3, 4], [0]],
+  "4-3-3": [[8, 9, 10], [5, 6, 7], [1, 2, 3, 4], [0]],
+  "4-2-3-1": [[10], [7, 8, 9], [5, 6], [1, 2, 3, 4], [0]],
+  "3-5-2": [[9, 10], [4, 5, 6, 7, 8], [1, 2, 3], [0]],
+  "5-3-2": [[9, 10], [6, 7, 8], [1, 2, 3, 4, 5], [0]],
+};
+
 type Preset = "strongest" | "rested" | "youth";
 type SquadView = "pitch" | "details";
 
 const employmentLabel = (value: "PartTime" | "FullTime") =>
   value === "PartTime" ? "Part-time" : "Full-time";
+
+const managerFormation = (state: GameState): ManagerFormation => {
+  const selected = managerMatchPrep(state).selectedFormation;
+  return selected in FORMATION_SLOTS ? selected as ManagerFormation : "4-4-2";
+};
 
 export function SquadSelectionTab({
   state,
@@ -67,7 +77,9 @@ export function SquadSelectionTab({
   const [professionalisationReview, setProfessionalisationReview] = useState(false);
   const [employmentNote, setEmploymentNote] = useState<string | null>(null);
   const squad = useMemo(() => userSquad(state), [state]);
-  const xi = useMemo(() => chooseXi(squad, preset, state.season), [squad, preset, state.season]);
+  const matchPrep = useMemo(() => managerMatchPrep(state), [state]);
+  const formation = managerFormation(state);
+  const xi = useMemo(() => chooseXi(squad, preset, state.season, formation), [squad, preset, state.season, formation]);
   const selected = new Set(xi.map((player) => player.id));
   const bench = squad
     .filter((player) => !selected.has(player.id))
@@ -95,7 +107,7 @@ export function SquadSelectionTab({
       inboxFlags: {
         ...s.inboxFlags,
         "chairman.selection.preset": next,
-        "chairman.selection.ids": chooseXi(userSquad(s), next, s.season)
+        "chairman.selection.ids": chooseXi(userSquad(s), next, s.season, managerFormation(s))
           .map((player) => player.id)
           .join(","),
       },
@@ -138,7 +150,7 @@ export function SquadSelectionTab({
           </div>
           <div className="grid grid-cols-3 divide-x border-t text-center md:grid-cols-6">
             <Summary label="Players" value={String(squad.length)} />
-            <Summary label="Suggested XI" value={String(xi.length)} />
+            <Summary label="Manager's XI" value={String(xi.length)} />
             <Summary label="Avg ability" value={averageAbility(xi).toFixed(1)} />
             <Summary label="Cohesion" value={Math.round(cohesion).toString()} />
             <Summary label="Morale" value={Math.round(morale).toString()} />
@@ -150,76 +162,29 @@ export function SquadSelectionTab({
           <section className="rounded-xl border bg-card p-3 shadow-sm lg:col-start-1">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                  Employment model
-                </div>
+                <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Employment model</div>
                 <div className="font-display text-xl">Move to full-time football</div>
               </div>
               <Shield className="size-5 text-primary" />
             </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Full-time status improves access to stronger players, but future signings and renewals
-              expect professional wages. Existing player contracts stay exactly as signed.
-            </p>
+            <p className="mt-2 text-sm text-muted-foreground">Full-time status improves access to stronger players, but future signings and renewals expect professional wages. Existing player contracts stay exactly as signed.</p>
             <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-lg border bg-muted/30 p-2">
-                <div className="text-xs font-semibold">{professionalisation.trainingLabel}</div>
-                <div className="text-[10px] text-muted-foreground">Training ground</div>
-              </div>
-              <div className="rounded-lg border bg-muted/30 p-2">
-                <div className="text-xs font-semibold">
-                  {professionalisation.recruitmentReputationBonus > 0
-                    ? `+${professionalisation.recruitmentReputationBonus} appeal`
-                    : "Professional level"}
-                </div>
-                <div className="text-[10px] text-muted-foreground">Player interest</div>
-              </div>
-              <div className="rounded-lg border bg-muted/30 p-2">
-                <div className="text-xs font-semibold">
-                  {professionalisation.futureWageFactor > 1
-                    ? `~+${Math.round((professionalisation.futureWageFactor - 1) * 100)}%`
-                    : "Level baseline"}
-                </div>
-                <div className="text-[10px] text-muted-foreground">Future wages</div>
-              </div>
+              <div className="rounded-lg border bg-muted/30 p-2"><div className="text-xs font-semibold">{professionalisation.trainingLabel}</div><div className="text-[10px] text-muted-foreground">Training ground</div></div>
+              <div className="rounded-lg border bg-muted/30 p-2"><div className="text-xs font-semibold">{professionalisation.recruitmentReputationBonus > 0 ? `+${professionalisation.recruitmentReputationBonus} appeal` : "Professional level"}</div><div className="text-[10px] text-muted-foreground">Player interest</div></div>
+              <div className="rounded-lg border bg-muted/30 p-2"><div className="text-xs font-semibold">{professionalisation.futureWageFactor > 1 ? `~+${Math.round((professionalisation.futureWageFactor - 1) * 100)}%` : "Level baseline"}</div><div className="text-[10px] text-muted-foreground">Future wages</div></div>
             </div>
             {!professionalisation.allowed ? (
-              <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
-                {professionalisation.reason}
-              </div>
+              <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">{professionalisation.reason}</div>
             ) : professionalisationReview ? (
               <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
                 <div className="text-sm font-semibold">Confirm permanent transition?</div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  The club will operate full-time from now on. Existing part-time contracts remain
-                  part-time until each player signs new terms.
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Button size="sm" onClick={professionalise}>
-                    Confirm full-time transition
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setProfessionalisationReview(false)}
-                  >
-                    Keep part-time
-                  </Button>
-                </div>
+                <div className="mt-1 text-xs text-muted-foreground">The club will operate full-time from now on. Existing part-time contracts remain part-time until each player signs new terms.</div>
+                <div className="mt-3 flex flex-wrap gap-2"><Button size="sm" onClick={professionalise}>Confirm full-time transition</Button><Button size="sm" variant="outline" onClick={() => setProfessionalisationReview(false)}>Keep part-time</Button></div>
               </div>
             ) : (
-              <Button
-                className="mt-3"
-                size="sm"
-                variant="outline"
-                onClick={() => setProfessionalisationReview(true)}
-              >
-                Review full-time transition
-              </Button>
+              <Button className="mt-3" size="sm" variant="outline" onClick={() => setProfessionalisationReview(true)}>Review full-time transition</Button>
             )}
-            {employmentNote && (
-              <div className="mt-3 text-xs text-muted-foreground">{employmentNote}</div>
-            )}
+            {employmentNote && <div className="mt-3 text-xs text-muted-foreground">{employmentNote}</div>}
           </section>
         )}
 
@@ -237,8 +202,8 @@ export function SquadSelectionTab({
 
         {view === "pitch" ? (
           <section className="lf-pitch-card min-h-[29rem] overflow-hidden rounded-xl border bg-emerald-950 p-3 text-white shadow-sm lg:col-start-1">
-            <div className="mb-4 flex items-center justify-between"><div><div className="text-[10px] uppercase tracking-[0.18em] text-white/60">4-4-2 suggestion</div><div className="font-display text-2xl">First XI</div></div><Users className="size-6 text-white/70" /></div>
-            <Pitch xi={xi} />
+            <div className="mb-4 flex items-center justify-between"><div><div className="text-[10px] uppercase tracking-[0.18em] text-white/60">{matchPrep.managerId ? `Manager's XI · ${formation}` : `Caretaker XI · ${formation}`}</div><div className="font-display text-2xl">First XI</div></div><Users className="size-6 text-white/70" /></div>
+            <Pitch xi={xi} formation={formation} />
           </section>
         ) : (
           <section className="overflow-hidden rounded-xl border bg-card shadow-sm lg:col-start-1">
@@ -256,60 +221,42 @@ export function SquadSelectionTab({
   );
 }
 
-function chooseXi(players: FootballPlayer[], preset: Preset, season: number): FootballPlayer[] {
+function chooseXi(players: FootballPlayer[], preset: Preset, season: number, formation: ManagerFormation): FootballPlayer[] {
   const used = new Set<string>();
   const score = (player: FootballPlayer, position: TacticalPosition) => {
     const familiarity = positionFamiliarity(player, position);
-    const familiarityBonus =
-      familiarity === "Natural" ? 12 : familiarity === "Accomplished" ? 7 : familiarity === "Comfortable" ? 2 : -20;
-    const presetScore =
-      preset === "youth"
-        ? Math.max(0, 25 - ageOf(player, season)) * 2.4 + player.potentialAbility * 0.12
-        : preset === "rested"
-          ? (player.availability === "available" ? 8 : -30) + (ageOf(player, season) <= 24 ? 4 : 0)
-          : 0;
+    const familiarityBonus = familiarity === "Natural" ? 12 : familiarity === "Accomplished" ? 7 : familiarity === "Comfortable" ? 2 : -20;
+    const presetScore = preset === "youth"
+      ? Math.max(0, 25 - ageOf(player, season)) * 2.4 + player.potentialAbility * 0.12
+      : preset === "rested"
+        ? (player.availability === "available" ? 8 : -30) + (ageOf(player, season) <= 24 ? 4 : 0)
+        : 0;
     return player.currentAbility + familiarityBonus + presetScore;
   };
 
-  return FORMATION.map((position) => {
+  return FORMATION_SLOTS[formation].map((position) => {
     const broadUnit = positionUnit(position);
     const available = players.filter((player) => !used.has(player.id));
-
-    // Goalkeepers are specialist players: never place a GK outfield and never
-    // fill the goalkeeper slot with an outfield player.
     const specialists = available
-      .filter((player) =>
-        position === "GK"
-          ? player.primaryPosition === "GK"
-          : player.primaryPosition !== "GK" && positionFamiliarity(player, position) !== "Unfamiliar",
-      )
+      .filter((player) => position === "GK" ? player.primaryPosition === "GK" : player.primaryPosition !== "GK" && positionFamiliarity(player, position) !== "Unfamiliar")
       .sort((a, b) => score(b, position) - score(a, position));
-
     const sameUnitFallback = available
-      .filter((player) =>
-        position === "GK"
-          ? player.primaryPosition === "GK"
-          : player.primaryPosition !== "GK" && player.primaryPosition === broadUnit,
-      )
+      .filter((player) => position === "GK" ? player.primaryPosition === "GK" : player.primaryPosition !== "GK" && player.primaryPosition === broadUnit)
       .sort((a, b) => score(b, position) - score(a, position));
-
     const outfieldFallback = available
       .filter((player) => position !== "GK" && player.primaryPosition !== "GK")
       .sort((a, b) => score(b, position) - score(a, position));
-
     const chosen = specialists[0] ?? sameUnitFallback[0] ?? outfieldFallback[0];
     if (chosen) used.add(chosen.id);
     return chosen;
   }).filter((player): player is FootballPlayer => Boolean(player));
 }
 
-function Pitch({ xi }: { xi: FootballPlayer[] }) {
-  const rows: Array<Array<{ player: FootballPlayer; slot: TacticalPosition }>> = [
-    FORMATION.slice(9, 11).map((slot, index) => ({ player: xi[index + 9], slot })),
-    FORMATION.slice(5, 9).map((slot, index) => ({ player: xi[index + 5], slot })),
-    FORMATION.slice(1, 5).map((slot, index) => ({ player: xi[index + 1], slot })),
-    [{ player: xi[0], slot: "GK" }],
-  ].map((row) => row.filter((entry): entry is { player: FootballPlayer; slot: TacticalPosition } => Boolean(entry.player)));
+function Pitch({ xi, formation }: { xi: FootballPlayer[]; formation: ManagerFormation }) {
+  const slots = FORMATION_SLOTS[formation];
+  const rows = FORMATION_ROWS[formation]
+    .map((indices) => indices.map((index) => ({ player: xi[index], slot: slots[index] })))
+    .map((row) => row.filter((entry): entry is { player: FootballPlayer; slot: TacticalPosition } => Boolean(entry.player)));
 
   return (
     <div className="relative touch-pan-y overflow-hidden rounded-xl border border-white/20 bg-emerald-800/70 px-3 py-3">
@@ -319,16 +266,8 @@ function Pitch({ xi }: { xi: FootballPlayer[] }) {
         {rows.map((row, rowIndex) => (
           <div key={rowIndex} className="flex justify-center gap-2 sm:gap-4">
             {row.map(({ player, slot }) => (
-              <button
-                key={player.id}
-                type="button"
-                onClick={() => openPlayerProfile(player.id)}
-                className="w-20 rounded-lg text-center transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:w-24"
-                aria-label={`Open ${playerName(player)} profile`}
-              >
-                <div className={cn("mx-auto grid size-10 place-items-center rounded-full border font-display text-sm", POSITION_PITCH_CLASS[positionUnit(slot)])}>
-                  {player.currentAbility}
-                </div>
+              <button key={player.id} type="button" onClick={() => openPlayerProfile(player.id)} className="w-20 rounded-lg text-center transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:w-24" aria-label={`Open ${playerName(player)} profile`}>
+                <div className={cn("mx-auto grid size-10 place-items-center rounded-full border font-display text-sm", POSITION_PITCH_CLASS[positionUnit(slot)])}>{player.currentAbility}</div>
                 <div className="mt-1 truncate text-[11px] font-semibold">{player.lastName}</div>
                 <div className="text-[9px] font-semibold text-white/70">{slot}</div>
               </button>
@@ -344,16 +283,8 @@ function CompactPlayerRow({ state, player, inXi }: { state: GameState; player: F
   const contract = activeContract(state, player.id);
   const loan = activeLoanForPlayer(state, player.id);
   const employment = contract ? employmentLabel(contractEmploymentType(state, contract)) : null;
-  const wage = contract
-    ? loan
-      ? Math.round((contract.weeklyWage * loan.loanClubWageContributionPct) / 100)
-      : contract.weeklyWage
-    : null;
-  const weeks = loan
-    ? Math.max(0, loan.endAbsoluteWeek - absoluteWeek(state.season, state.week))
-    : contract
-      ? weeksLeftOnContract(state, contract)
-      : null;
+  const wage = contract ? loan ? Math.round((contract.weeklyWage * loan.loanClubWageContributionPct) / 100) : contract.weeklyWage : null;
+  const weeks = loan ? Math.max(0, loan.endAbsoluteWeek - absoluteWeek(state.season, state.week)) : contract ? weeksLeftOnContract(state, contract) : null;
   const tactical = tacticalPositionProfile(player);
   return <button type="button" onClick={() => openPlayerProfile(player.id)} className="grid w-full grid-cols-[minmax(0,1.3fr)_repeat(4,auto)] items-center gap-2 px-3 py-2 text-left text-xs transition-colors hover:bg-muted/40"><div className="min-w-0"><div className="flex items-center gap-1.5"><span className="truncate font-semibold">{playerName(player)}</span>{inXi && <span className="text-[9px] font-bold text-primary">XI</span>}<span className={cn("rounded border px-1.5 py-0.5 text-[9px] font-bold", POSITION_BADGE_CLASS[positionUnit(tactical.primary)])}>{tactical.primary}</span>{loan && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">LOAN</span>}</div><div className="truncate text-[10px] text-muted-foreground">{ageOf(player, state.season)}y · {loan ? `On loan from ${clubDisplayName(state, loan.parentClubId)}` : contract?.squadRole ?? "No role"}{!loan && employment ? ` · ${employment}` : ""}</div></div><div className="text-right"><div className="font-display text-base">{player.currentAbility}</div><div className="text-[9px] text-muted-foreground">OVR</div></div><div className="text-right"><div>{player.potentialAbility}</div><div className="text-[9px] text-muted-foreground">POT</div></div><div className="text-right"><div>{wage !== null ? fmtMoney(wage) : "—"}</div><div className="text-[9px] text-muted-foreground">{loan ? "our /wk" : "/wk"}</div></div><div className="text-right"><div>{weeks !== null ? `${weeks}w` : "—"}</div><div className="text-[9px] text-muted-foreground">{loan ? "loan" : "contract"}</div></div></button>;
 }
@@ -363,9 +294,7 @@ function PlayerRow({ state, player }: { state: GameState; player: FootballPlayer
   const loan = activeLoanForPlayer(state, player.id);
   const employment = contract ? employmentLabel(contractEmploymentType(state, contract)) : null;
   const mood = playerMood(state, player);
-  const loanWeeks = loan
-    ? Math.max(0, loan.endAbsoluteWeek - absoluteWeek(state.season, state.week))
-    : null;
+  const loanWeeks = loan ? Math.max(0, loan.endAbsoluteWeek - absoluteWeek(state.season, state.week)) : null;
   const tactical = tacticalPositionProfile(player);
   return <button type="button" onClick={() => openPlayerProfile(player.id)} className="grid w-full grid-cols-[1fr_auto] gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"><div className="min-w-0"><div className="flex items-center gap-2"><span className="truncate font-semibold">{playerName(player)}</span><span className={cn("rounded border px-1.5 py-0.5 text-[10px] font-bold", POSITION_BADGE_CLASS[positionUnit(tactical.primary)])}>{tactical.primary}</span>{loan && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">LOAN</span>}</div><div className="mt-0.5 text-xs text-muted-foreground">{ageOf(player, state.season)}y · {player.nationality} · Ability {player.currentAbility} · Potential {player.potentialAbility}</div><div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground"><span className="truncate">{loan ? `On loan from ${clubDisplayName(state, loan.parentClubId)} · ${loanWeeks} weeks left · ${loan.loanClubWageContributionPct}% wages` : contract ? `${contract.squadRole} · ${employment} · ${weeksLeftOnContract(state, contract)} weeks left` : "No active contract"}</span><span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${MOOD_TONE_CLASS[mood.tone]}`}>{mood.label}</span></div></div><div className="text-right"><div className="font-display text-xl">{player.currentAbility}</div><div className="text-[10px] uppercase text-muted-foreground">OVR</div></div></button>;
 }
