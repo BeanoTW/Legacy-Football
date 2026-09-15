@@ -1,12 +1,12 @@
 import type { GameState, Staff } from "./types";
-import { managerFootballIdentity } from "./managerIdentity";
+import { managerFootballIdentity, type ManagerFormation } from "./managerIdentity";
 import { managerSquadFit, type SquadFitBand } from "./managerSquadFit";
 
 export interface ManagerMatchPrep {
   managerId: string | null;
   managerName: string;
-  preferredFormation: string;
-  selectedFormation: string;
+  preferredFormation: ManagerFormation;
+  selectedFormation: ManagerFormation;
   squadFitScore: number;
   squadFitBand: SquadFitBand | "Caretaker";
   style: string;
