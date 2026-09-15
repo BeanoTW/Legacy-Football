@@ -55,11 +55,6 @@ type SquadView = "pitch" | "details";
 const employmentLabel = (value: "PartTime" | "FullTime") =>
   value === "PartTime" ? "Part-time" : "Full-time";
 
-const managerFormation = (state: GameState): ManagerFormation => {
-  const selected = managerMatchPrep(state).selectedFormation;
-  return selected in FORMATION_SLOTS ? selected as ManagerFormation : "4-4-2";
-};
-
 export function SquadSelectionTab({
   state,
   update,
@@ -78,7 +73,7 @@ export function SquadSelectionTab({
   const [employmentNote, setEmploymentNote] = useState<string | null>(null);
   const squad = useMemo(() => userSquad(state), [state]);
   const matchPrep = useMemo(() => managerMatchPrep(state), [state]);
-  const formation = managerFormation(state);
+  const formation = matchPrep.selectedFormation;
   const xi = useMemo(() => chooseXi(squad, preset, state.season, formation), [squad, preset, state.season, formation]);
   const selected = new Set(xi.map((player) => player.id));
   const bench = squad
@@ -107,7 +102,7 @@ export function SquadSelectionTab({
       inboxFlags: {
         ...s.inboxFlags,
         "chairman.selection.preset": next,
-        "chairman.selection.ids": chooseXi(userSquad(s), next, s.season, managerFormation(s))
+        "chairman.selection.ids": chooseXi(userSquad(s), next, s.season, managerMatchPrep(s).selectedFormation)
           .map((player) => player.id)
           .join(","),
       },
@@ -178,100 +173,91 @@ export function SquadSelectionTab({
             ) : professionalisationReview ? (
               <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 p-3">
                 <div className="text-sm font-semibold">Confirm permanent transition?</div>
-                <div className="mt-1 text-xs text-muted-foreground">The club will operate full-time from now on. Existing part-time contracts remain part-time until each player signs new terms.</div>
-                <div className="mt-3 flex flex-wrap gap-2"><Button size="sm" onClick={professionalise}>Confirm full-time transition</Button><Button size="sm" variant="outline" onClick={() => setProfessionalisationReview(false)}>Keep part-time</Button></div>
+                <p className="mt-1 text-xs text-muted-foreground">This changes the club's employment model immediately. Existing contracts remain valid; future recruitment and renewals use full-time terms.</p>
+                <div className="mt-3 flex gap-2">
+                  <Button size="sm" onClick={professionalise}>Confirm full-time</Button>
+                  <Button size="sm" variant="outline" onClick={() => setProfessionalisationReview(false)}>Not yet</Button>
+                </div>
               </div>
             ) : (
-              <Button className="mt-3" size="sm" variant="outline" onClick={() => setProfessionalisationReview(true)}>Review full-time transition</Button>
+              <Button className="mt-3 w-full" size="sm" onClick={() => setProfessionalisationReview(true)}>Review transition</Button>
             )}
-            {employmentNote && <div className="mt-3 text-xs text-muted-foreground">{employmentNote}</div>}
+            {employmentNote && <div className="mt-2 text-xs text-muted-foreground">{employmentNote}</div>}
           </section>
         )}
 
         <section className="rounded-xl border bg-card p-3 shadow-sm lg:col-start-1">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div><div className="font-display text-xl">Chairman&apos;s preference</div><div className="text-xs text-muted-foreground">The manager retains final team selection unless ownership rules say otherwise.</div></div>
-            <Sparkles className="size-5 text-primary" />
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Selection preset</div>
+              <div className="font-display text-lg">Manager's shortlist</div>
+            </div>
+            <Sparkles className="size-4 text-primary" />
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <PresetButton active={preset === "strongest"} onClick={() => choose("strongest")} title="Strongest" sub="Best XI" />
-            <PresetButton active={preset === "rested"} onClick={() => choose("rested")} title="Rested" sub="Rotate depth" />
-            <PresetButton active={preset === "youth"} onClick={() => choose("youth")} title="Youth" sub="Favour U23s" />
+            <PresetButton active={preset === "strongest"} onClick={() => choose("strongest")} title="Strongest" detail="Ability first" />
+            <PresetButton active={preset === "rested"} onClick={() => choose("rested")} title="Fresh" detail="Condition first" />
+            <PresetButton active={preset === "youth"} onClick={() => choose("youth")} title="Youth" detail="Development" />
           </div>
         </section>
 
-        {view === "pitch" ? (
-          <section className="lf-pitch-card min-h-[29rem] overflow-hidden rounded-xl border bg-emerald-950 p-3 text-white shadow-sm lg:col-start-1">
-            <div className="mb-4 flex items-center justify-between"><div><div className="text-[10px] uppercase tracking-[0.18em] text-white/60">{matchPrep.managerId ? `Manager's XI · ${formation}` : `Caretaker XI · ${formation}`}</div><div className="font-display text-2xl">First XI</div></div><Users className="size-6 text-white/70" /></div>
-            <Pitch xi={xi} formation={formation} />
-          </section>
-        ) : (
-          <section className="overflow-hidden rounded-xl border bg-card shadow-sm lg:col-start-1">
-            <div className="border-b px-3 py-2"><div className="font-display text-xl">Squad details & contracts</div><div className="text-xs text-muted-foreground">Important football and contract information in one compact list.</div></div>
-            <div className="divide-y">{[...xi, ...bench].map((player) => <CompactPlayerRow key={player.id} state={state} player={player} inXi={selected.has(player.id)} />)}</div>
-          </section>
-        )}
+        <section className="min-h-[34rem] overflow-hidden rounded-xl border bg-card shadow-sm lg:col-start-2 lg:row-span-3 lg:row-start-1">
+          {view === "pitch" ? (
+            <Pitch xi={xi} formation={formation} managerName={matchPrep.managerName} />
+          ) : (
+            <SquadDetails squad={squad} selected={selected} season={state.season} />
+          )}
+        </section>
 
-        <section className="lf-squad-list flex min-h-0 flex-col rounded-xl border bg-card shadow-sm lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:overflow-hidden">
-          <div className="border-b px-4 py-3"><div className="font-display text-xl">Wider squad</div><div className="text-xs text-muted-foreground">Exact ability is visible because these are your contracted players.</div></div>
-          <div className="min-h-0 flex-1 divide-y lg:overflow-auto lg:overscroll-contain lg:[scrollbar-gutter:stable]">{bench.map((player) => <PlayerRow key={player.id} state={state} player={player} />)}</div>
+        <section className="rounded-xl border bg-card p-3 shadow-sm lg:col-start-1">
+          <div className="mb-2 flex items-center justify-between">
+            <div>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Wider squad</div>
+              <div className="font-display text-lg">Bench & depth</div>
+            </div>
+            <Users className="size-4 text-muted-foreground" />
+          </div>
+          <div className="grid gap-1.5 sm:grid-cols-2">
+            {bench.slice(0, 12).map((player) => (
+              <button key={player.id} onClick={() => openPlayerProfile(player.id)} className="flex items-center justify-between rounded-lg border bg-muted/20 px-2.5 py-2 text-left hover:bg-muted/40">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold">{playerName(player)}</div>
+                  <div className="text-[10px] text-muted-foreground">{player.position} · {ageOf(player, state.season)} yrs</div>
+                </div>
+                <div className="text-sm font-bold">{Math.round(player.currentAbility)}</div>
+              </button>
+            ))}
+          </div>
         </section>
       </div>
     </div>
   );
 }
 
-function chooseXi(players: FootballPlayer[], preset: Preset, season: number, formation: ManagerFormation): FootballPlayer[] {
-  const used = new Set<string>();
-  const score = (player: FootballPlayer, position: TacticalPosition) => {
-    const familiarity = positionFamiliarity(player, position);
-    const familiarityBonus = familiarity === "Natural" ? 12 : familiarity === "Accomplished" ? 7 : familiarity === "Comfortable" ? 2 : -20;
-    const presetScore = preset === "youth"
-      ? Math.max(0, 25 - ageOf(player, season)) * 2.4 + player.potentialAbility * 0.12
-      : preset === "rested"
-        ? (player.availability === "available" ? 8 : -30) + (ageOf(player, season) <= 24 ? 4 : 0)
-        : 0;
-    return player.currentAbility + familiarityBonus + presetScore;
-  };
-
-  return FORMATION_SLOTS[formation].map((position) => {
-    const broadUnit = positionUnit(position);
-    const available = players.filter((player) => !used.has(player.id));
-    const specialists = available
-      .filter((player) => position === "GK" ? player.primaryPosition === "GK" : player.primaryPosition !== "GK" && positionFamiliarity(player, position) !== "Unfamiliar")
-      .sort((a, b) => score(b, position) - score(a, position));
-    const sameUnitFallback = available
-      .filter((player) => position === "GK" ? player.primaryPosition === "GK" : player.primaryPosition !== "GK" && player.primaryPosition === broadUnit)
-      .sort((a, b) => score(b, position) - score(a, position));
-    const outfieldFallback = available
-      .filter((player) => position !== "GK" && player.primaryPosition !== "GK")
-      .sort((a, b) => score(b, position) - score(a, position));
-    const chosen = specialists[0] ?? sameUnitFallback[0] ?? outfieldFallback[0];
-    if (chosen) used.add(chosen.id);
-    return chosen;
-  }).filter((player): player is FootballPlayer => Boolean(player));
-}
-
-function Pitch({ xi, formation }: { xi: FootballPlayer[]; formation: ManagerFormation }) {
-  const slots = FORMATION_SLOTS[formation];
-  const rows = FORMATION_ROWS[formation]
-    .map((indices) => indices.map((index) => ({ player: xi[index], slot: slots[index] })))
-    .map((row) => row.filter((entry): entry is { player: FootballPlayer; slot: TacticalPosition } => Boolean(entry.player)));
-
+function Pitch({ xi, formation, managerName }: { xi: FootballPlayer[]; formation: ManagerFormation; managerName: string }) {
   return (
-    <div className="relative touch-pan-y overflow-hidden rounded-xl border border-white/20 bg-emerald-800/70 px-3 py-3">
-      <div className="pointer-events-none absolute inset-x-4 top-1/2 border-t border-white/25" />
-      <div className="pointer-events-none absolute left-1/2 top-1/2 size-20 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/25" />
-      <div className="relative space-y-3 xl:space-y-4">
-        {rows.map((row, rowIndex) => (
-          <div key={rowIndex} className="flex justify-center gap-2 sm:gap-4">
-            {row.map(({ player, slot }) => (
-              <button key={player.id} type="button" onClick={() => openPlayerProfile(player.id)} className="w-20 rounded-lg text-center transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:w-24" aria-label={`Open ${playerName(player)} profile`}>
-                <div className={cn("mx-auto grid size-10 place-items-center rounded-full border font-display text-sm", POSITION_PITCH_CLASS[positionUnit(slot)])}>{player.currentAbility}</div>
-                <div className="mt-1 truncate text-[11px] font-semibold">{player.lastName}</div>
-                <div className="text-[9px] font-semibold text-white/70">{slot}</div>
-              </button>
-            ))}
+    <div className="flex h-full min-h-[34rem] flex-col">
+      <div className="border-b px-4 py-3">
+        <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Manager's XI · {formation}</div>
+        <div className="font-display text-xl">{managerName}</div>
+      </div>
+      <div className="relative flex min-h-0 flex-1 flex-col justify-evenly overflow-hidden bg-emerald-950/90 px-3 py-5 text-white">
+        <div className="pointer-events-none absolute inset-4 rounded-[2rem] border border-white/35" />
+        <div className="pointer-events-none absolute left-1/2 top-4 bottom-4 w-px bg-white/25" />
+        <div className="pointer-events-none absolute left-1/2 top-1/2 size-24 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/30" />
+        {FORMATION_ROWS[formation].map((row, rowIndex) => (
+          <div key={rowIndex} className="relative z-10 flex items-center justify-evenly gap-2">
+            {row.map((index) => {
+              const player = xi[index];
+              if (!player) return <div key={index} className="w-20" />;
+              return (
+                <button key={player.id} onClick={() => openPlayerProfile(player.id)} className="group flex w-20 flex-col items-center text-center">
+                  <div className="mb-1 flex size-10 items-center justify-center rounded-full border border-white/40 bg-black/35 text-xs font-bold shadow">{Math.round(player.currentAbility)}</div>
+                  <div className="w-full truncate rounded bg-black/45 px-1.5 py-1 text-[10px] font-semibold shadow-sm">{playerName(player)}</div>
+                  <div className={cn("mt-1 rounded px-1.5 py-0.5 text-[9px] font-bold", POSITION_PITCH_CLASS[FORMATION_SLOTS[formation][index]])}>{FORMATION_SLOTS[formation][index]}</div>
+                </button>
+              );
+            })}
           </div>
         ))}
       </div>
@@ -279,34 +265,64 @@ function Pitch({ xi, formation }: { xi: FootballPlayer[]; formation: ManagerForm
   );
 }
 
-function CompactPlayerRow({ state, player, inXi }: { state: GameState; player: FootballPlayer; inXi: boolean }) {
-  const contract = activeContract(state, player.id);
-  const loan = activeLoanForPlayer(state, player.id);
-  const employment = contract ? employmentLabel(contractEmploymentType(state, contract)) : null;
-  const wage = contract ? loan ? Math.round((contract.weeklyWage * loan.loanClubWageContributionPct) / 100) : contract.weeklyWage : null;
-  const weeks = loan ? Math.max(0, loan.endAbsoluteWeek - absoluteWeek(state.season, state.week)) : contract ? weeksLeftOnContract(state, contract) : null;
-  const tactical = tacticalPositionProfile(player);
-  return <button type="button" onClick={() => openPlayerProfile(player.id)} className="grid w-full grid-cols-[minmax(0,1.3fr)_repeat(4,auto)] items-center gap-2 px-3 py-2 text-left text-xs transition-colors hover:bg-muted/40"><div className="min-w-0"><div className="flex items-center gap-1.5"><span className="truncate font-semibold">{playerName(player)}</span>{inXi && <span className="text-[9px] font-bold text-primary">XI</span>}<span className={cn("rounded border px-1.5 py-0.5 text-[9px] font-bold", POSITION_BADGE_CLASS[positionUnit(tactical.primary)])}>{tactical.primary}</span>{loan && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">LOAN</span>}</div><div className="truncate text-[10px] text-muted-foreground">{ageOf(player, state.season)}y · {loan ? `On loan from ${clubDisplayName(state, loan.parentClubId)}` : contract?.squadRole ?? "No role"}{!loan && employment ? ` · ${employment}` : ""}</div></div><div className="text-right"><div className="font-display text-base">{player.currentAbility}</div><div className="text-[9px] text-muted-foreground">OVR</div></div><div className="text-right"><div>{player.potentialAbility}</div><div className="text-[9px] text-muted-foreground">POT</div></div><div className="text-right"><div>{wage !== null ? fmtMoney(wage) : "—"}</div><div className="text-[9px] text-muted-foreground">{loan ? "our /wk" : "/wk"}</div></div><div className="text-right"><div>{weeks !== null ? `${weeks}w` : "—"}</div><div className="text-[9px] text-muted-foreground">{loan ? "loan" : "contract"}</div></div></button>;
+function SquadDetails({ squad, selected, season }: { squad: FootballPlayer[]; selected: Set<string>; season: number }) {
+  return (
+    <div className="contained-scroll h-full overflow-y-auto p-3">
+      <div className="space-y-1.5">
+        {squad.map((player) => {
+          const contract = activeContract(player);
+          const loan = activeLoanForPlayer(player.id);
+          const mood = playerMood(player);
+          return (
+            <button key={player.id} onClick={() => openPlayerProfile(player.id)} className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 rounded-lg border bg-muted/15 px-2.5 py-2 text-left hover:bg-muted/35">
+              <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-bold", POSITION_BADGE_CLASS[player.position])}>{player.position}</span>
+              <span className="min-w-0"><span className="block truncate text-sm font-semibold">{playerName(player)}</span><span className="block truncate text-[10px] text-muted-foreground">{selected.has(player.id) ? "XI" : "Squad"} · {mood.label}{loan ? ` · Loan: ${clubDisplayName(loan.parentClubId)}` : ""}</span></span>
+              <span className="text-right"><span className="block text-sm font-bold">{Math.round(player.currentAbility)}</span><span className={cn("block text-[10px]", MOOD_TONE_CLASS[mood.tone])}>{contract ? `${weeksLeftOnContract(contract, season)}w` : "No deal"}</span></span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
-function PlayerRow({ state, player }: { state: GameState; player: FootballPlayer }) {
-  const contract = activeContract(state, player.id);
-  const loan = activeLoanForPlayer(state, player.id);
-  const employment = contract ? employmentLabel(contractEmploymentType(state, contract)) : null;
-  const mood = playerMood(state, player);
-  const loanWeeks = loan ? Math.max(0, loan.endAbsoluteWeek - absoluteWeek(state.season, state.week)) : null;
-  const tactical = tacticalPositionProfile(player);
-  return <button type="button" onClick={() => openPlayerProfile(player.id)} className="grid w-full grid-cols-[1fr_auto] gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"><div className="min-w-0"><div className="flex items-center gap-2"><span className="truncate font-semibold">{playerName(player)}</span><span className={cn("rounded border px-1.5 py-0.5 text-[10px] font-bold", POSITION_BADGE_CLASS[positionUnit(tactical.primary)])}>{tactical.primary}</span>{loan && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">LOAN</span>}</div><div className="mt-0.5 text-xs text-muted-foreground">{ageOf(player, state.season)}y · {player.nationality} · Ability {player.currentAbility} · Potential {player.potentialAbility}</div><div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground"><span className="truncate">{loan ? `On loan from ${clubDisplayName(state, loan.parentClubId)} · ${loanWeeks} weeks left · ${loan.loanClubWageContributionPct}% wages` : contract ? `${contract.squadRole} · ${employment} · ${weeksLeftOnContract(state, contract)} weeks left` : "No active contract"}</span><span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${MOOD_TONE_CLASS[mood.tone]}`}>{mood.label}</span></div></div><div className="text-right"><div className="font-display text-xl">{player.currentAbility}</div><div className="text-[10px] uppercase text-muted-foreground">OVR</div></div></button>;
-}
-
-function PresetButton({ active, onClick, title, sub }: { active: boolean; onClick: () => void; title: string; sub: string }) {
-  return <button onClick={onClick} className={cn("rounded-xl border p-3 text-left transition-colors", active ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-muted")}><div className="font-semibold">{title}</div><div className={cn("text-xs", active ? "text-primary-foreground/70" : "text-muted-foreground")}>{sub}</div></button>;
+function PresetButton({ active, onClick, title, detail }: { active: boolean; onClick: () => void; title: string; detail: string }) {
+  return <button onClick={onClick} className={cn("rounded-lg border px-2 py-2 text-left", active ? "border-primary bg-primary/10" : "bg-muted/15 hover:bg-muted/35")}><div className="text-xs font-semibold">{title}</div><div className="text-[10px] text-muted-foreground">{detail}</div></button>;
 }
 
 function Summary({ label, value }: { label: string; value: string }) {
-  return <div className="p-3"><div className="font-display text-2xl">{value}</div><div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div></div>;
+  return <div className="px-2 py-2.5"><div className="text-lg font-bold">{value}</div><div className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground">{label}</div></div>;
 }
 
 function averageAbility(players: FootballPlayer[]): number {
   return players.length ? players.reduce((sum, player) => sum + player.currentAbility, 0) / players.length : 0;
+}
+
+function chooseXi(
+  players: FootballPlayer[],
+  preset: Preset,
+  season: number,
+  formation: ManagerFormation,
+): FootballPlayer[] {
+  const available = [...players];
+  const selected: FootballPlayer[] = [];
+  for (const position of FORMATION_SLOTS[formation]) {
+    let bestIndex = -1;
+    let bestScore = Number.NEGATIVE_INFINITY;
+    available.forEach((player, index) => {
+      const familiarity = positionFamiliarity(player.position, position);
+      const profile = tacticalPositionProfile(player.position);
+      const targetUnit = positionUnit(position);
+      const unitPenalty = profile.unit === targetUnit ? 0 : -22;
+      const age = ageOf(player, season);
+      const presetAdjustment = preset === "youth" ? Math.max(0, 25 - age) * 0.9 : preset === "rested" ? (player.condition ?? 100) * 0.08 : 0;
+      const score = player.currentAbility + familiarity * 18 + unitPenalty + presetAdjustment;
+      if (score > bestScore) {
+        bestScore = score;
+        bestIndex = index;
+      }
+    });
+    if (bestIndex >= 0) selected.push(available.splice(bestIndex, 1)[0]);
+  }
+  return selected;
 }
