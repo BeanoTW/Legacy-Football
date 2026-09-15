@@ -1,7 +1,11 @@
 import { useMemo, useState } from "react";
 import { ArrowLeft, List, Shield, Sparkles, Users } from "lucide-react";
-import type { FootballPlayer, GameState, TacticalPosition } from "@/lib/game/types";
+import type { FootballPlayer, GameState } from "@/lib/game/types";
 import type { ManagerFormation } from "@/lib/game/managerIdentity";
+import {
+  MANAGER_FORMATION_ROWS,
+  MANAGER_FORMATION_SLOTS,
+} from "@/lib/game/managerFormationLayout";
 import { managerMatchPrep } from "@/lib/game/managerMatchPrep";
 import {
   activeContract,
@@ -32,22 +36,6 @@ import {
   PLAYER_MORALE_DEFAULT,
   playerManagerQuality,
 } from "@/lib/game/playerClubPerformance";
-
-const FORMATION_SLOTS: Record<ManagerFormation, TacticalPosition[]> = {
-  "4-4-2": ["GK", "LB", "CB", "CB", "RB", "LM", "CM", "CM", "RM", "ST", "ST"],
-  "4-3-3": ["GK", "LB", "CB", "CB", "RB", "CM", "CM", "CM", "LW", "ST", "RW"],
-  "4-2-3-1": ["GK", "LB", "CB", "CB", "RB", "CDM", "CDM", "LW", "CAM", "RW", "ST"],
-  "3-5-2": ["GK", "CB", "CB", "CB", "LWB", "CM", "CM", "CM", "RWB", "ST", "ST"],
-  "5-3-2": ["GK", "LWB", "CB", "CB", "CB", "RWB", "CM", "CM", "CM", "ST", "ST"],
-};
-
-const FORMATION_ROWS: Record<ManagerFormation, number[][]> = {
-  "4-4-2": [[9, 10], [5, 6, 7, 8], [1, 2, 3, 4], [0]],
-  "4-3-3": [[8, 9, 10], [5, 6, 7], [1, 2, 3, 4], [0]],
-  "4-2-3-1": [[10], [7, 8, 9], [5, 6], [1, 2, 3, 4], [0]],
-  "3-5-2": [[9, 10], [4, 5, 6, 7, 8], [1, 2, 3], [0]],
-  "5-3-2": [[9, 10], [6, 7, 8], [1, 2, 3, 4, 5], [0]],
-};
 
 type Preset = "strongest" | "rested" | "youth";
 type SquadView = "pitch" | "details";
@@ -235,6 +223,7 @@ export function SquadSelectionTab({
 }
 
 function Pitch({ xi, formation, managerName }: { xi: FootballPlayer[]; formation: ManagerFormation; managerName: string }) {
+  const slots = MANAGER_FORMATION_SLOTS[formation];
   return (
     <div className="flex h-full min-h-[34rem] flex-col">
       <div className="border-b px-4 py-3">
@@ -245,16 +234,17 @@ function Pitch({ xi, formation, managerName }: { xi: FootballPlayer[]; formation
         <div className="pointer-events-none absolute inset-4 rounded-[2rem] border border-white/35" />
         <div className="pointer-events-none absolute left-1/2 top-4 bottom-4 w-px bg-white/25" />
         <div className="pointer-events-none absolute left-1/2 top-1/2 size-24 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/30" />
-        {FORMATION_ROWS[formation].map((row, rowIndex) => (
+        {MANAGER_FORMATION_ROWS[formation].map((row, rowIndex) => (
           <div key={rowIndex} className="relative z-10 flex items-center justify-evenly gap-2">
             {row.map((index) => {
               const player = xi[index];
               if (!player) return <div key={index} className="w-20" />;
+              const position = slots[index];
               return (
                 <button key={player.id} onClick={() => openPlayerProfile(player.id)} className="group flex w-20 flex-col items-center text-center">
                   <div className="mb-1 flex size-10 items-center justify-center rounded-full border border-white/40 bg-black/35 text-xs font-bold shadow">{Math.round(player.currentAbility)}</div>
                   <div className="w-full truncate rounded bg-black/45 px-1.5 py-1 text-[10px] font-semibold shadow-sm">{playerName(player)}</div>
-                  <div className={cn("mt-1 rounded px-1.5 py-0.5 text-[9px] font-bold", POSITION_PITCH_CLASS[FORMATION_SLOTS[formation][index]])}>{FORMATION_SLOTS[formation][index]}</div>
+                  <div className={cn("mt-1 rounded px-1.5 py-0.5 text-[9px] font-bold", POSITION_PITCH_CLASS[position])}>{position}</div>
                 </button>
               );
             })}
@@ -306,7 +296,7 @@ function chooseXi(
 ): FootballPlayer[] {
   const available = [...players];
   const selected: FootballPlayer[] = [];
-  for (const position of FORMATION_SLOTS[formation]) {
+  for (const position of MANAGER_FORMATION_SLOTS[formation]) {
     let bestIndex = -1;
     let bestScore = Number.NEGATIVE_INFINITY;
     available.forEach((player, index) => {
