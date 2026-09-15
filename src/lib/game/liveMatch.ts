@@ -70,7 +70,7 @@ export function kickoff(s: GameState): GameState {
   const seedBase = seedOf(lm);
   const style = managerMatchStyle(ns);
   const { usGoals, themGoals } = halfGoals(seedBase, 1, lm.ourStrength, lm.oppStrength, style.attackModifier, style.defenseModifier);
-  lm.events = halfPresentation(seedBase, 1, 0, 45, usGoals, themGoals, clubDisplayName(ns, lm.fixture.opponent));
+  lm.events = halfPresentation(seedBase, 1, 0, 45, usGoals, themGoals, clubDisplayName(ns, lm.fixture.opponent), style);
   lm.ourGoals += usGoals;
   lm.theirGoals += themGoals;
   lm.status = "halfTime";
@@ -97,7 +97,7 @@ export function applyHalfTimeChoice(s: GameState, choiceId: string): GameState {
   const seedBase = seedOf(lm);
   const style = managerMatchStyle(ns);
   const { usGoals, themGoals } = halfGoals(seedBase, 2, lm.ourStrength, lm.oppStrength, style.attackModifier, style.defenseModifier);
-  lm.events = [...lm.events, ...halfPresentation(seedBase, 2, 45, 90, usGoals, themGoals, clubDisplayName(ns, lm.fixture.opponent))];
+  lm.events = [...lm.events, ...halfPresentation(seedBase, 2, 45, 90, usGoals, themGoals, clubDisplayName(ns, lm.fixture.opponent), style)];
   lm.ourGoals += usGoals;
   lm.theirGoals += themGoals;
   lm.attendance = lm.fixture.home ? lm.projectedAttendance : 0;
