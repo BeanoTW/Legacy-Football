@@ -24,6 +24,7 @@
 ========================================================================= */
 
 import type { GameState, LiveMatch, MatchEvent } from "./types";
+import type { ManagerMatchStyle } from "./managerMatchStyle";
 import { isUserClubReference, sameClubReference, userClubReference } from "./clubReference";
 import { clubSimulationSeedKey } from "./clubIdentity";
 import { seededRng } from "./rng";
@@ -147,58 +148,12 @@ const rInt = (rng: () => number, min: number, max: number) =>
 const rPick = <T>(rng: () => number, arr: readonly T[]) => arr[rInt(rng, 0, arr.length - 1)];
 
 const FIRST = [
-  "J",
-  "A",
-  "M",
-  "R",
-  "T",
-  "S",
-  "D",
-  "C",
-  "L",
-  "N",
-  "P",
-  "K",
-  "B",
-  "H",
-  "O",
-  "E",
-  "G",
-  "F",
-  "W",
-  "V",
+  "J", "A", "M", "R", "T", "S", "D", "C", "L", "N", "P", "K", "B", "H", "O", "E", "G", "F", "W", "V",
 ] as const;
 const LAST = [
-  "Cahill",
-  "Potter",
-  "Hughes",
-  "Morris",
-  "Ellis",
-  "Brooks",
-  "Reid",
-  "Walsh",
-  "Ward",
-  "Kane",
-  "Bailey",
-  "Fraser",
-  "Ainsley",
-  "Palmer",
-  "Foden",
-  "Rice",
-  "Saka",
-  "Gordon",
-  "Watkins",
-  "Bowen",
-  "Clarke",
-  "Owen",
-  "Sterling",
-  "Grealish",
-  "Maddison",
-  "Toney",
-  "Isak",
-  "Nunes",
-  "Fabian",
-  "Onana",
+  "Cahill", "Potter", "Hughes", "Morris", "Ellis", "Brooks", "Reid", "Walsh", "Ward", "Kane", "Bailey", "Fraser",
+  "Ainsley", "Palmer", "Foden", "Rice", "Saka", "Gordon", "Watkins", "Bowen", "Clarke", "Owen", "Sterling", "Grealish",
+  "Maddison", "Toney", "Isak", "Nunes", "Fabian", "Onana",
 ] as const;
 const CHANCE_TEXT = [
   "Half chance goes begging.",
@@ -207,6 +162,51 @@ const CHANCE_TEXT = [
   "Penalty shouts waved away.",
   "Free-kick curled just over.",
 ] as const;
+const POSSESSION_CHANCE_TEXT = [
+  "Patient passing opens a pocket between the lines, but the finish is blocked.",
+  "A long spell of possession ends with a low effort pushed wide.",
+  "The ball is worked from side to side before the final pass is cut out.",
+  "A neat combination around the box creates an opening, but the shot lacks power.",
+] as const;
+const DIRECT_CHANCE_TEXT = [
+  "An early ball forward turns the defence and creates a shooting chance.",
+  "A direct pass releases the runner in behind, but the finish flashes wide.",
+  "The second ball drops kindly after a long delivery, but the effort is blocked.",
+  "A quick ball into the channel stretches the back line and forces a hurried save.",
+] as const;
+const PRESSING_CHANCE_TEXT = [
+  "The press wins the ball high and an immediate shot is smothered.",
+  "Pressure forces a loose pass near the box, but the chance is dragged wide.",
+  "A turnover in the attacking third creates a sudden opening before the defence recovers.",
+] as const;
+const FRONT_FOOT_CHANCE_TEXT = [
+  "Numbers flood forward and a dangerous cut-back is turned behind.",
+  "Another aggressive attack pins the defence back, but the final effort flies over.",
+  "A fast move commits defenders and opens a shooting lane at the edge of the area.",
+] as const;
+const DEFENSIVE_CHANCE_TEXT = [
+  "A compact shape absorbs the pressure before a counter breaks quickly upfield.",
+  "The side springs from deep and gets a shot away before the defence can reset.",
+  "A disciplined defensive spell turns into a sharp break, but the final ball is overhit.",
+] as const;
+
+function chanceTextForStyle(rng: () => number, style?: ManagerMatchStyle): string {
+  if (!style) return rPick(rng, CHANCE_TEXT);
+
+  const pools: readonly (readonly string[])[] = [CHANCE_TEXT];
+  const weighted: (readonly string[])[] = [...pools];
+  if (style.philosophy === "Possession") weighted.push(POSSESSION_CHANCE_TEXT, POSSESSION_CHANCE_TEXT);
+  if (style.philosophy === "Direct") weighted.push(DIRECT_CHANCE_TEXT, DIRECT_CHANCE_TEXT);
+  if (style.philosophy === "Front-foot") weighted.push(FRONT_FOOT_CHANCE_TEXT, FRONT_FOOT_CHANCE_TEXT);
+  if (style.philosophy === "Defensive") weighted.push(DEFENSIVE_CHANCE_TEXT, DEFENSIVE_CHANCE_TEXT);
+  if (style.pressing === "High") weighted.push(PRESSING_CHANCE_TEXT);
+  if (style.directness === "High") weighted.push(DIRECT_CHANCE_TEXT);
+  if (style.directness === "Low") weighted.push(POSSESSION_CHANCE_TEXT);
+  if (style.tempo === "High") weighted.push(FRONT_FOOT_CHANCE_TEXT);
+  if (style.tempo === "Low" && style.philosophy !== "Defensive") weighted.push(POSSESSION_CHANCE_TEXT);
+
+  return rPick(rng, rPick(rng, weighted));
+}
 
 export const WEATHERS = ["Clear", "Overcast", "Wet", "Windy"] as const;
 
@@ -234,7 +234,8 @@ export function halfGoals(
 
 /**
  * PRESENTATION: the ticker for a half. Derived from the already-decided goal
- * counts; its own draws cannot feed back into the simulation.
+ * counts; its own draws cannot feed back into the simulation. Manager style
+ * changes only the wording of OUR chance events; scoreline RNG is untouched.
  */
 export function halfPresentation(
   seedBase: string,
@@ -244,6 +245,7 @@ export function halfPresentation(
   usGoals: number,
   themGoals: number,
   opponent: string,
+  style?: ManagerMatchStyle,
 ): MatchEvent[] {
   const ev = matchStream(seedBase, half === 1 ? "h1.events" : "h2.events");
   const cd = matchStream(seedBase, half === 1 ? "h1.cards" : "h2.cards");
@@ -251,11 +253,12 @@ export function halfPresentation(
 
   const chances = rInt(ev, 2, 4);
   for (let i = 0; i < chances; i++) {
+    const side = ev() < 0.5 ? "us" : "them";
     events.push({
       minute: rInt(ev, fromMin + 1, toMin),
       type: "chance",
-      side: ev() < 0.5 ? "us" : "them",
-      text: rPick(ev, CHANCE_TEXT),
+      side,
+      text: side === "us" ? chanceTextForStyle(ev, style) : rPick(ev, CHANCE_TEXT),
     });
   }
   if (cd() < 0.55) {
