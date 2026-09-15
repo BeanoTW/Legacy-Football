@@ -1,9 +1,9 @@
 import type { GameState } from "./types";
-import { managerFootballIdentity } from "./managerIdentity";
+import { managerFootballIdentity, type ManagerFormation } from "./managerIdentity";
 import { managerMatchPrep } from "./managerMatchPrep";
 
 export interface ManagerMatchStyle {
-  formation: string;
+  formation: ManagerFormation;
   philosophy: string;
   possessionBias: number;
   chanceBias: number;
