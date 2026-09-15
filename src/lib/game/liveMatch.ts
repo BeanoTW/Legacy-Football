@@ -27,12 +27,10 @@ import {
 import { avgTicketPrice, simAttendance } from "./sim";
 import { clubMatchStrength } from "./matchStrength";
 import { advancePlayerClubPerformanceWeekInPlace } from "./playerClubPerformance";
+import { managerMatchStyle } from "./managerMatchStyle";
 
 function formGuide(s: GameState): string {
-  const last5 = s.results
-    .slice(-5)
-    .map((r) => r.result)
-    .join("");
+  const last5 = s.results.slice(-5).map((r) => r.result).join("");
   return last5 || "—";
 }
 
@@ -41,58 +39,25 @@ export function startMatchDay(s: GameState): GameState {
   if (!fx) return s;
   const ident = matchIdentity(s);
   const ns: GameState = structuredClone(s);
-  // Interactive and auto-resolved matches cross the same weekly performance
-  // boundary. When commit later enters advanceWeek this is an idempotent no-op,
-  // so starting the live match cannot double-build cohesion or mean-revert morale.
   advancePlayerClubPerformanceWeekInPlace(ns);
   const realisedOurStrength = clubMatchStrength(ns, userClubReference(ns));
   const realisedOpponentStrength = clubMatchStrength(ns, fx.opponent);
   const ourStrength = realisedOurStrength + (fx.home ? 3 : 0);
-  const pmKey = preMatchKey({
-    squadRating: realisedOurStrength,
-    opponentStrength: realisedOpponentStrength,
-  });
+  const pmKey = preMatchKey({ squadRating: realisedOurStrength, opponentStrength: realisedOpponentStrength });
   const seedBase = ident
     ? matchSeedBase(ns.saveSeed, ident, pmKey)
     : `${ns.saveSeed}|live-match|s${ns.season}|w${ns.week}|${fx.opponent}|${pmKey}`;
   const oppStrength = liveOpponentStrength(seedBase);
-  const projectedAttendance = simAttendance(
-    ns,
-    fx.home,
-    oppStrength,
-    matchStream(seedBase, "attendance"),
-  );
+  const projectedAttendance = simAttendance(ns, fx.home, oppStrength, matchStream(seedBase, "attendance"));
   const weather = weatherFor(seedBase);
   const boardExpectation: LiveMatch["boardExpectation"] =
-    ourStrength > oppStrength + 5
-      ? "Win"
-      : ourStrength > oppStrength - 3
-        ? "Avoid defeat"
-        : "Any result";
+    ourStrength > oppStrength + 5 ? "Win" : ourStrength > oppStrength - 3 ? "Avoid defeat" : "Any result";
   ns.liveMatch = {
-    fixture: fx,
-    weather,
-    projectedAttendance,
-    boardExpectation,
-    ourStrength,
-    oppStrength,
-    formGuide: formGuide(ns),
-    events: [],
-    ourGoals: 0,
-    theirGoals: 0,
-    status: "brief",
-    attendance: 0,
-    gateReceipts: 0,
-    tvIncome: 0,
-    matchdayOps: 0,
-    winBonus: 0,
-    matchSeed: seedBase,
-    fixtureId: ident?.fixtureId,
-    leagueId: ident?.leagueId,
-    season: ns.season,
-    round: ident?.round,
-    homeClub: ident?.homeClub,
-    awayClub: ident?.awayClub,
+    fixture: fx, weather, projectedAttendance, boardExpectation, ourStrength, oppStrength,
+    formGuide: formGuide(ns), events: [], ourGoals: 0, theirGoals: 0, status: "brief",
+    attendance: 0, gateReceipts: 0, tvIncome: 0, matchdayOps: 0, winBonus: 0,
+    matchSeed: seedBase, fixtureId: ident?.fixtureId, leagueId: ident?.leagueId,
+    season: ns.season, round: ident?.round, homeClub: ident?.homeClub, awayClub: ident?.awayClub,
     committed: false,
   };
   return ns;
@@ -103,31 +68,26 @@ export function kickoff(s: GameState): GameState {
   const ns: GameState = structuredClone(s);
   const lm = ns.liveMatch!;
   const seedBase = seedOf(lm);
-  const { usGoals, themGoals } = halfGoals(seedBase, 1, lm.ourStrength, lm.oppStrength, 1, 1);
-  lm.events = halfPresentation(
-    seedBase,
-    1,
-    0,
-    45,
-    usGoals,
-    themGoals,
-    clubDisplayName(ns, lm.fixture.opponent),
-  );
+  const style = managerMatchStyle(ns);
+  const { usGoals, themGoals } = halfGoals(seedBase, 1, lm.ourStrength, lm.oppStrength, style.attackModifier, style.defenseModifier);
+  lm.events = halfPresentation(seedBase, 1, 0, 45, usGoals, themGoals, clubDisplayName(ns, lm.fixture.opponent));
   lm.ourGoals += usGoals;
   lm.theirGoals += themGoals;
   lm.status = "halfTime";
-  const trailing = lm.ourGoals < lm.theirGoals;
+
+  // Keep the established IDs for save/check compatibility, but these are now
+  // chairman-facing messages rather than tactical instructions. All three
+  // leave the manager's football modifiers untouched.
   lm.halfTimeOptions = [
-    { id: "steady", label: "Stick with the plan", desc: "Trust the group, no changes.", attackMod: 1, defenseMod: 1, fanMod: 0, winBonusCost: 0 },
-    { id: "attack", label: trailing ? "Demand a response" : "Turn the screw", desc: trailing ? "Send the team out on the front foot. The crowd will respond, but space opens behind." : "Insist on a statement second half. More threat, more exposure, no cheque-book shortcut.", attackMod: 1.3, defenseMod: 0.85, fanMod: 2, winBonusCost: 0 },
-    { id: "shutup", label: "Shut up shop", desc: "Sit deeper, protect the result. Fans may grumble.", attackMod: 0.7, defenseMod: 1.3, fanMod: -3, winBonusCost: 0 },
+    { id: "steady", label: "Back the manager's plan", desc: `Let ${style.formation} ${style.philosophy.toLowerCase()} football play out without boardroom interference.`, attackMod: 1, defenseMod: 1, fanMod: 0, winBonusCost: 0 },
+    { id: "attack", label: "Show confidence", desc: "Publicly back the manager and the side. The manager still decides how to approach the second half.", attackMod: 1, defenseMod: 1, fanMod: 1, winBonusCost: 0 },
+    { id: "shutup", label: "Keep it in-house", desc: "Say nothing publicly at half-time and leave the football entirely with the manager.", attackMod: 1, defenseMod: 1, fanMod: -1, winBonusCost: 0 },
   ];
   return ns;
 }
 
 export function applyHalfTimeChoice(s: GameState, choiceId: string): GameState {
-  if (!s.liveMatch || s.liveMatch.status !== "halfTime") return s;
-  if (!s.liveMatch.halfTimeOptions) return s;
+  if (!s.liveMatch || s.liveMatch.status !== "halfTime" || !s.liveMatch.halfTimeOptions) return s;
   const opt0 = s.liveMatch.halfTimeOptions.find((o) => o.id === choiceId);
   if (!opt0) return s;
   const ns: GameState = structuredClone(s);
@@ -135,19 +95,9 @@ export function applyHalfTimeChoice(s: GameState, choiceId: string): GameState {
   const opt = lm.halfTimeOptions!.find((o) => o.id === choiceId)!;
   lm.chosenNudgeId = choiceId;
   const seedBase = seedOf(lm);
-  const { usGoals, themGoals } = halfGoals(seedBase, 2, lm.ourStrength, lm.oppStrength, opt.attackMod, opt.defenseMod);
-  lm.events = [
-    ...lm.events,
-    ...halfPresentation(
-      seedBase,
-      2,
-      45,
-      90,
-      usGoals,
-      themGoals,
-      clubDisplayName(ns, lm.fixture.opponent),
-    ),
-  ];
+  const style = managerMatchStyle(ns);
+  const { usGoals, themGoals } = halfGoals(seedBase, 2, lm.ourStrength, lm.oppStrength, style.attackModifier, style.defenseModifier);
+  lm.events = [...lm.events, ...halfPresentation(seedBase, 2, 45, 90, usGoals, themGoals, clubDisplayName(ns, lm.fixture.opponent))];
   lm.ourGoals += usGoals;
   lm.theirGoals += themGoals;
   lm.attendance = lm.fixture.home ? lm.projectedAttendance : 0;
