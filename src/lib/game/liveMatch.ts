@@ -30,10 +30,7 @@ import { advancePlayerClubPerformanceWeekInPlace } from "./playerClubPerformance
 import { managerMatchStyle } from "./managerMatchStyle";
 
 function formGuide(s: GameState): string {
-  const last5 = s.results
-    .slice(-5)
-    .map((r) => r.result)
-    .join("");
+  const last5 = s.results.slice(-5).map((r) => r.result).join("");
   return last5 || "—";
 }
 
@@ -77,13 +74,15 @@ export function kickoff(s: GameState): GameState {
   lm.ourGoals += usGoals;
   lm.theirGoals += themGoals;
   lm.status = "halfTime";
-  const trailing = lm.ourGoals < lm.theirGoals;
+
+  // Keep the established IDs for save/check compatibility, but these are now
+  // chairman-facing messages rather than tactical instructions. All three
+  // leave the manager's football modifiers untouched.
   lm.halfTimeOptions = [
     { id: "steady", label: "Back the manager's plan", desc: `Let ${style.formation} ${style.philosophy.toLowerCase()} football play out without boardroom interference.`, attackMod: 1, defenseMod: 1, fanMod: 0, winBonusCost: 0 },
+    { id: "attack", label: "Show confidence", desc: "Publicly back the manager and the side. The manager still decides how to approach the second half.", attackMod: 1, defenseMod: 1, fanMod: 1, winBonusCost: 0 },
+    { id: "shutup", label: "Keep it in-house", desc: "Say nothing publicly at half-time and leave the football entirely with the manager.", attackMod: 1, defenseMod: 1, fanMod: -1, winBonusCost: 0 },
   ];
-  if (trailing) {
-    lm.halfTimeOptions.push({ id: "belief", label: "Back the manager publicly", desc: "No tactical instruction — make it clear the manager has your confidence to chase the game his way.", attackMod: 1, defenseMod: 1, fanMod: 1, winBonusCost: 0 });
-  }
   return ns;
 }
 
@@ -97,7 +96,7 @@ export function applyHalfTimeChoice(s: GameState, choiceId: string): GameState {
   lm.chosenNudgeId = choiceId;
   const seedBase = seedOf(lm);
   const style = managerMatchStyle(ns);
-  const { usGoals, themGoals } = halfGoals(seedBase, 2, lm.ourStrength, lm.oppStrength, style.attackModifier * opt.attackMod, style.defenseModifier * opt.defenseMod);
+  const { usGoals, themGoals } = halfGoals(seedBase, 2, lm.ourStrength, lm.oppStrength, style.attackModifier, style.defenseModifier);
   lm.events = [...lm.events, ...halfPresentation(seedBase, 2, 45, 90, usGoals, themGoals, clubDisplayName(ns, lm.fixture.opponent))];
   lm.ourGoals += usGoals;
   lm.theirGoals += themGoals;
