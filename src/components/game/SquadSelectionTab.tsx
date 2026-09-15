@@ -3,6 +3,7 @@ import { ArrowLeft, List, Shield, Sparkles, Users } from "lucide-react";
 import type { FootballPlayer, GameState, TacticalPosition } from "@/lib/game/types";
 import type { ManagerFormation } from "@/lib/game/managerIdentity";
 import { managerMatchPrep } from "@/lib/game/managerMatchPrep";
+import { MANAGER_FORMATION_ROWS, MANAGER_FORMATION_SLOTS } from "@/lib/game/managerFormationLayout";
 import {
   activeContract,
   ageOf,
@@ -33,22 +34,6 @@ import {
   playerManagerQuality,
 } from "@/lib/game/playerClubPerformance";
 
-const FORMATION_SLOTS: Record<ManagerFormation, TacticalPosition[]> = {
-  "4-4-2": ["GK", "LB", "CB", "CB", "RB", "LM", "CM", "CM", "RM", "ST", "ST"],
-  "4-3-3": ["GK", "LB", "CB", "CB", "RB", "CM", "CM", "CM", "LW", "ST", "RW"],
-  "4-2-3-1": ["GK", "LB", "CB", "CB", "RB", "CDM", "CDM", "LW", "CAM", "RW", "ST"],
-  "3-5-2": ["GK", "CB", "CB", "CB", "LWB", "CM", "CM", "CM", "RWB", "ST", "ST"],
-  "5-3-2": ["GK", "LWB", "CB", "CB", "CB", "RWB", "CM", "CM", "CM", "ST", "ST"],
-};
-
-const FORMATION_ROWS: Record<ManagerFormation, number[][]> = {
-  "4-4-2": [[9, 10], [5, 6, 7, 8], [1, 2, 3, 4], [0]],
-  "4-3-3": [[8, 9, 10], [5, 6, 7], [1, 2, 3, 4], [0]],
-  "4-2-3-1": [[10], [7, 8, 9], [5, 6], [1, 2, 3, 4], [0]],
-  "3-5-2": [[9, 10], [4, 5, 6, 7, 8], [1, 2, 3], [0]],
-  "5-3-2": [[9, 10], [6, 7, 8], [1, 2, 3, 4, 5], [0]],
-};
-
 type Preset = "strongest" | "rested" | "youth";
 type SquadView = "pitch" | "details";
 
@@ -57,7 +42,7 @@ const employmentLabel = (value: "PartTime" | "FullTime") =>
 
 const managerFormation = (state: GameState): ManagerFormation => {
   const selected = managerMatchPrep(state).selectedFormation;
-  return selected in FORMATION_SLOTS ? selected as ManagerFormation : "4-4-2";
+  return selected in MANAGER_FORMATION_SLOTS ? selected as ManagerFormation : "4-4-2";
 };
 
 export function SquadSelectionTab({
@@ -126,7 +111,7 @@ function chooseXi(players: FootballPlayer[], preset: Preset, season: number, for
     const presetScore = preset === "youth" ? Math.max(0, 25 - ageOf(player, season)) * 2.4 + player.potentialAbility * 0.12 : preset === "rested" ? (player.availability === "available" ? 8 : -30) + (ageOf(player, season) <= 24 ? 4 : 0) : 0;
     return player.currentAbility + familiarityBonus + presetScore;
   };
-  return FORMATION_SLOTS[formation].map((position) => {
+  return MANAGER_FORMATION_SLOTS[formation].map((position) => {
     const broadUnit = positionUnit(position);
     const available = players.filter((player) => !used.has(player.id));
     const specialists = available.filter((player) => position === "GK" ? player.primaryPosition === "GK" : player.primaryPosition !== "GK" && positionFamiliarity(player, position) !== "Unfamiliar").sort((a, b) => score(b, position) - score(a, position));
@@ -139,8 +124,8 @@ function chooseXi(players: FootballPlayer[], preset: Preset, season: number, for
 }
 
 function Pitch({ xi, formation }: { xi: FootballPlayer[]; formation: ManagerFormation }) {
-  const slots = FORMATION_SLOTS[formation];
-  const rows = FORMATION_ROWS[formation].map((indices) => indices.map((index) => ({ player: xi[index], slot: slots[index] }))).map((row) => row.filter((entry): entry is { player: FootballPlayer; slot: TacticalPosition } => Boolean(entry.player)));
+  const slots = MANAGER_FORMATION_SLOTS[formation];
+  const rows = MANAGER_FORMATION_ROWS[formation].map((indices) => indices.map((index) => ({ player: xi[index], slot: slots[index] }))).map((row) => row.filter((entry): entry is { player: FootballPlayer; slot: TacticalPosition } => Boolean(entry.player)));
   return <div className="relative touch-pan-y overflow-hidden rounded-xl border border-white/20 bg-emerald-800/70 px-3 py-3"><div className="pointer-events-none absolute inset-x-4 top-1/2 border-t border-white/25" /><div className="pointer-events-none absolute left-1/2 top-1/2 size-20 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/25" /><div className="relative space-y-3 xl:space-y-4">{rows.map((row, rowIndex) => <div key={rowIndex} className="flex justify-center gap-2 sm:gap-4">{row.map(({ player, slot }) => <button key={player.id} type="button" onClick={() => openPlayerProfile(player.id)} className="w-20 rounded-lg text-center transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:w-24" aria-label={`Open ${playerName(player)} profile`}><div className={cn("mx-auto grid size-10 place-items-center rounded-full border font-display text-sm", POSITION_PITCH_CLASS[positionUnit(slot)])}>{player.currentAbility}</div><div className="mt-1 truncate text-[11px] font-semibold">{player.lastName}</div><div className="text-[9px] font-semibold text-white/70">{slot}</div></button>)}</div>)}</div></div>;
 }
 
