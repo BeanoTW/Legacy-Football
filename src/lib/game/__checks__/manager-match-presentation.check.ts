@@ -8,6 +8,8 @@ const opponent = "Test United";
 const possession: ManagerMatchStyle = {
   formation: "4-3-3",
   philosophy: "Possession",
+  possessionBias: 0.08,
+  chanceBias: -0.01,
   pressing: "Medium",
   tempo: "Low",
   directness: "Low",
@@ -18,6 +20,8 @@ const possession: ManagerMatchStyle = {
 const direct: ManagerMatchStyle = {
   formation: "4-4-2",
   philosophy: "Direct",
+  possessionBias: -0.05,
+  chanceBias: 0.04,
   pressing: "High",
   tempo: "High",
   directness: "High",
