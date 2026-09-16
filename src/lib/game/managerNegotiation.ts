@@ -1,5 +1,6 @@
 import type { GameState, Staff } from "./types";
-import type { JoinTerms, ManagerOffer } from "./staff";
+import type { JoinTerms, ManagerOffer, SpendResult } from "./staff";
+import { postEntry } from "./finance";
 import { counterPosition, negotiationProfile, statedAsk } from "./negotiationProfile";
 
 export interface ManagerNegotiationPosition extends ManagerOffer {
@@ -25,10 +26,7 @@ export function managerReservationPackage(terms: JoinTerms): ManagerOffer {
   };
 }
 
-/**
- * Public opening position. Agents deliberately ask above their hidden minimum;
- * temperament controls how much negotiating room they leave themselves.
- */
+/** Public opening position. The agent asks above the hidden minimum. */
 export function managerOpeningPosition(s: GameState, staff: Staff, terms: JoinTerms): ManagerOffer {
   const profile = negotiationProfile(s.saveSeed, `manager-agent:${staff.id}`);
   const floor = managerReservationPackage(terms);
@@ -39,10 +37,7 @@ export function managerOpeningPosition(s: GameState, staff: Staff, terms: JoinTe
   };
 }
 
-/**
- * Agent counter after a viable offer. The counter remains above the hidden
- * reservation package but concedes toward it as talks progress.
- */
+/** Counter stays above the hidden reservation package and concedes by round. */
 export function managerCounterPosition(
   s: GameState,
   staff: Staff,
@@ -66,12 +61,7 @@ export function meetsManagerPosition(offer: ManagerOffer, position: ManagerOffer
     && offer.contractWeeks >= position.contractWeeks;
 }
 
-/**
- * Packages below the stated counter can still be accepted when their combined
- * value reaches the hidden reservation point. This creates genuine bargaining
- * room and lets chairmen trade wage against bonus/security rather than solving
- * three independent thresholds.
- */
+/** Weighted package value allows wage, bonus and security to trade off. */
 export function managerPackageValue(offer: ManagerOffer, reservation: ManagerOffer): number {
   const wage = offer.wage / Math.max(1, reservation.wage);
   const bonus = offer.signingBonus / Math.max(1, reservation.signingBonus);
@@ -86,10 +76,7 @@ export function managerOfferMeetsReservation(offer: ManagerOffer, terms: JoinTer
     && managerPackageValue(offer, reservation) >= 1;
 }
 
-/**
- * Stateless engine evaluation with explicit UI negotiation context. The UI owns
- * the current stated position and round, so no save migration is required.
- */
+/** Stateless engine evaluation; the modal owns current position and round. */
 export function evaluateManagerBargainingOffer(
   s: GameState,
   staff: Staff,
@@ -101,12 +88,9 @@ export function evaluateManagerBargainingOffer(
   if (!terms.willing || staff.role !== "Manager") {
     return { outcome: "unavailable", message: terms.note };
   }
-
-  // The central contract: accepting the agent's explicit position always works.
   if (meetsManagerPosition(offer, currentPosition)) {
     return { outcome: "accepted", message: "Terms accepted. The manager is ready to sign." };
   }
-
   if (managerOfferMeetsReservation(offer, terms)) {
     return { outcome: "accepted", message: "The agent accepts the compromise. The manager is ready to sign." };
   }
@@ -115,7 +99,6 @@ export function evaluateManagerBargainingOffer(
   const value = managerPackageValue(offer, reservation);
   const wageRatio = offer.wage / Math.max(1, reservation.wage);
   const profile = negotiationProfile(s.saveSeed, `manager-agent:${staff.id}`);
-
   if (value < 0.78 || wageRatio < 0.68) {
     return {
       outcome: "rejected",
@@ -125,12 +108,44 @@ export function evaluateManagerBargainingOffer(
     };
   }
 
-  const counterOffer = managerCounterPosition(s, staff, terms, currentPosition, Math.max(1, round));
   return {
     outcome: "counter",
     message: "The manager is interested. His agent has moved, but is still pushing for a stronger package.",
-    counterOffer,
+    counterOffer: managerCounterPosition(s, staff, terms, currentPosition, Math.max(1, round)),
   };
+}
+
+/**
+ * Complete a deal already accepted by the bargaining evaluator. Keeping this
+ * separate avoids re-running the legacy threshold evaluator at signature time.
+ */
+export function completeAcceptedManagerDeal(s: GameState, id: string, offer: ManagerOffer): SpendResult {
+  const candidate = s.staffCandidates.find((item) => item.id === id);
+  if (!candidate) return { state: s, ok: false, reason: "Candidate no longer available" };
+  if (candidate.role !== "Manager") return { state: s, ok: false, reason: "This negotiation is for managers only." };
+  if (s.hiredStaff.some((item) => item.role === "Manager")) {
+    return { state: s, ok: false, reason: "You already employ a Manager. Sack them first." };
+  }
+  if (s.cash < offer.signingBonus) return { state: s, ok: false, reason: "Not enough cash for the signing bonus." };
+
+  const next: GameState = structuredClone(s);
+  next.hiredStaff = [...next.hiredStaff, {
+    ...candidate,
+    wage: roundWage(offer.wage),
+    contractWeeks: Math.max(52, Math.round(offer.contractWeeks / 52) * 52),
+  }];
+  next.staffCandidates = next.staffCandidates.filter((item) => item.id !== id);
+  postEntry(next, {
+    category: "Staff",
+    subcategory: "Signing bonus",
+    description: `Signing bonus — ${candidate.name} (Manager)`,
+    amount: roundBonus(offer.signingBonus),
+    direction: "expense",
+    sourceSystem: "staff",
+    linkedEntityId: candidate.id,
+    dedupeKey: `staff-hire:${candidate.id}`,
+  });
+  return { state: next, ok: true };
 }
 
 export function managerNegotiatorPatience(s: GameState, staff: Staff): number {
