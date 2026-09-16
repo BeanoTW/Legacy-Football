@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { createElement, type ComponentType, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /* Shared responsive screen primitives.
@@ -38,18 +38,30 @@ export function OverviewScreen({
   title,
   subtitle,
   actions,
+  metrics,
   className,
   children,
 }: {
   title: string;
   subtitle?: string;
   actions?: ReactNode;
+  metrics?: readonly { label: string; value: string }[];
   className?: string;
   children: ReactNode;
 }) {
   return (
     <div className="flex h-full min-h-0 flex-col gap-2 md:gap-3">
       <ScreenHeader title={title} subtitle={subtitle} actions={actions} />
+      {metrics && metrics.length > 0 && (
+        <div className="grid shrink-0 grid-cols-2 gap-1.5 md:grid-cols-4">
+          {metrics.map((metric) => (
+            <div key={metric.label} className="rounded-lg border bg-card px-2.5 py-2">
+              <div className="truncate text-[10px] uppercase tracking-wide text-muted-foreground">{metric.label}</div>
+              <div className="truncate font-display text-sm md:text-base">{metric.value}</div>
+            </div>
+          ))}
+        </div>
+      )}
       <div className={cn("min-h-0 flex-1", className)}>{children}</div>
     </div>
   );
@@ -85,16 +97,26 @@ export function WorkflowTile({
   title,
   value,
   sub,
+  description,
+  meta,
   urgent = false,
   onClick,
 }: {
-  icon: ReactNode;
+  icon: ReactNode | ComponentType<{ className?: string }>;
   title: string;
   value?: string;
   sub?: string;
+  description?: string;
+  meta?: string;
   urgent?: boolean;
   onClick: () => void;
 }) {
+  const iconNode = typeof icon === "function" || (typeof icon === "object" && icon !== null && "$$typeof" in icon)
+    ? createElement(icon as ComponentType<{ className?: string }>, { className: "size-4 md:size-5" })
+    : icon;
+  const detail = value ?? meta;
+  const supporting = sub ?? description;
+
   return (
     <button
       onClick={onClick}
@@ -110,18 +132,18 @@ export function WorkflowTile({
             urgent ? "bg-amber-500 text-white" : "bg-primary/10 text-primary",
           )}
         >
-          {icon}
+          {iconNode}
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate font-display text-sm leading-tight md:text-base xl:text-lg">
             {title}
           </span>
-          {value && (
-            <span className="block truncate text-xs text-muted-foreground md:text-sm">{value}</span>
+          {detail && (
+            <span className="block truncate text-xs text-muted-foreground md:text-sm">{detail}</span>
           )}
         </span>
       </div>
-      {sub && <span className="hidden truncate text-xs text-muted-foreground xl:block">{sub}</span>}
+      {supporting && <span className="hidden truncate text-xs text-muted-foreground xl:block">{supporting}</span>}
     </button>
   );
 }
