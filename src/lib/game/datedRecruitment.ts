@@ -9,7 +9,6 @@ import {
 import {
   counterClubOfferInPlace as legacyCounterClubOfferInPlace,
   evaluateClubResponseInPlace as legacyEvaluateClubResponseInPlace,
-  evaluatePlayerResponseInPlace as legacyEvaluatePlayerResponseInPlace,
   improvePlayerTermsInPlace as legacyImprovePlayerTermsInPlace,
   openTransferEnquiryInPlace as legacyOpenTransferEnquiryInPlace,
   openTransferNegotiationInPlace as legacyOpenTransferNegotiationInPlace,
@@ -18,6 +17,7 @@ import {
   withdrawNegotiationInPlace as legacyWithdrawNegotiationInPlace,
   type NegotiationResult,
 } from "./recruitmentLegacy";
+import { evaluatePlayerBargainInPlace } from "./playerNegotiation";
 import {
   syncTransferTargetNegotiationInPlace,
   transferTargetPlayer,
@@ -318,7 +318,7 @@ function resolvePlayerReplyInPlace(s: GameState, n: TransferNegotiation, dueDay:
     return;
   }
   clearTransferResponseInPlace(n);
-  legacyEvaluatePlayerResponseInPlace(s, n);
+  evaluatePlayerBargainInPlace(s, n);
   const resolvedStage = (n as TransferNegotiation).stage;
 
   if (resolvedStage === "agreed") {
@@ -358,7 +358,7 @@ function resolvePlayerReplyInPlace(s: GameState, n: TransferNegotiation, dueDay:
       n,
       dueDay,
       `Agent response: ${playerName(p)}`,
-      `${playerName(p)} is asking for £${(n.playerCounterWage ?? n.proposedWeeklyWage).toLocaleString()}/wk to continue talks.`,
+      `${playerName(p)}'s agent is asking for £${(n.playerCounterWage ?? n.proposedWeeklyWage).toLocaleString()}/wk to continue talks.`,
     ),
   );
 }
