@@ -12,6 +12,7 @@ import {
 import { Info2, initials } from "./shared/primitives";
 import { clubDisplayName } from "@/lib/game/clubReference";
 import { footballLevelOfLeague } from "@/lib/game/footballLevel";
+import { managerMatchPrep } from "@/lib/game/managerMatchPrep";
 
 export function MatchDayOverlay({
   state,
@@ -21,6 +22,7 @@ export function MatchDayOverlay({
   update: (fn: (s: GameState) => GameState) => void;
 }) {
   const lm = state.liveMatch!;
+  const matchPrep = managerMatchPrep(state);
   const usName = state.clubName;
   const themName = clubDisplayName(state, lm.fixture.opponent);
   const matchLeague = state.leagues.find((league) => league.id === lm.leagueId);
@@ -125,6 +127,17 @@ export function MatchDayOverlay({
               <div className="grid grid-cols-2 gap-3">
                 <StrengthCard label="Your team" value={Math.round(lm.ourStrength)} />
                 <StrengthCard label="Opposition" value={Math.round(lm.oppStrength)} />
+              </div>
+              <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-left">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-2 font-semibold"><Users className="size-4 text-emerald-600" /> {matchPrep.managerName}'s match plan</div>
+                  <span className="rounded-full border border-emerald-500/20 bg-background/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">{matchPrep.selectedFormation}</span>
+                  <span className="rounded-full border bg-background/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{matchPrep.style}</span>
+                </div>
+                <p className="mt-1.5 text-sm text-muted-foreground">{matchPrep.summary}</p>
+                {matchPrep.managerId && matchPrep.selectedFormation !== matchPrep.preferredFormation && (
+                  <p className="mt-2 text-xs font-medium text-foreground">Squad-driven adjustment: preferred {matchPrep.preferredFormation} → selected {matchPrep.selectedFormation}.</p>
+                )}
               </div>
               <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-left">
                 <div className="flex items-center gap-2 font-semibold"><Landmark className="size-4 text-primary" /> Boardroom pressure</div>
@@ -264,30 +277,53 @@ function TeamBadge({ name, label, active }: { name: string; label: string; activ
       <div className="font-display text-base sm:text-lg leading-tight truncate max-w-full text-white">
         {name}
       </div>
-      <div className="text-[10px] uppercase tracking-wider text-white/50">{label}</div>
+      <div className="text-[10px] uppercase tracking-[0.2em] text-white/50">{label}</div>
     </div>
   );
 }
 
 function MatchPulse({ icon: Icon, label, value }: { icon: typeof Activity; label: string; value: string }) {
-  return <div className="flex items-center justify-center gap-2 border-r border-white/10 px-2 py-3 last:border-r-0"><Icon className="size-4 text-emerald-300" /><div className="text-left"><div className="text-sm font-bold tabular-nums">{value}</div><div className="text-[8px] uppercase tracking-wider text-white/45">{label}</div></div></div>;
-}
-
-function ReactionCard({ icon: Icon, label, text, tone }: { icon: typeof Flame; label: string; text: string; tone: "good" | "bad" | "neutral" }) {
-  return <div className={cn("rounded-2xl border p-3", tone === "good" ? "border-emerald-500/20 bg-emerald-500/5" : tone === "bad" ? "border-rose-500/20 bg-rose-500/5" : "bg-muted/40")}><div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider"><Icon className={cn("size-4", tone === "good" ? "text-emerald-600" : tone === "bad" ? "text-rose-600" : "text-primary")} />{label}</div><p className="mt-2 text-xs leading-relaxed text-muted-foreground">{text}</p></div>;
+  return (
+    <div className="flex items-center justify-center gap-2 border-r border-white/10 px-2 py-2 last:border-r-0 sm:gap-3 sm:px-4 sm:py-3">
+      <Icon className="size-4 text-emerald-300" />
+      <div>
+        <div className="text-[9px] uppercase tracking-wide text-white/50 sm:text-[10px]">{label}</div>
+        <div className="font-display text-sm tnum sm:text-base">{value}</div>
+      </div>
+    </div>
+  );
 }
 
 function StrengthCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-2xl bg-muted/50 p-4">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="font-display text-2xl mt-1">{value}</div>
-      <div className="h-1.5 rounded-full bg-background mt-3 overflow-hidden">
-        <div
-          className="h-full rounded-full bg-primary"
-          style={{ width: `${Math.max(8, Math.min(100, value))}%` }}
-        />
-      </div>
+    <div className="rounded-2xl border bg-card p-4 text-center shadow-sm">
+      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="font-display text-3xl mt-1 tnum">{value}</div>
     </div>
   );
+}
+
+function ReactionCard({
+  icon: Icon,
+  label,
+  text,
+  tone,
+}: {
+  icon: typeof Users;
+  label: string;
+  text: string;
+  tone: "good" | "bad" | "neutral";
+}) {
+  return (
+    <div className={cn("rounded-2xl border p-3", tone === "good" ? "border-emerald-500/20 bg-emerald-500/5" : tone === "bad" ? "border-rose-500/20 bg-rose-500/5" : "bg-muted/30")}>
+      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground"><Icon className="size-4" /> {label}</div>
+      <div className="mt-1 text-sm">{text}</div>
+    </div>
+  );
+}
+
+function EventIcon({ type }: { type: "goal" | "chance" | "card" }) {
+  if (type === "goal") return <Flame className="size-4" />;
+  if (type === "chance") return <Target className="size-4" />;
+  return <span className="block size-3 rounded-sm bg-yellow-400" />;
 }
