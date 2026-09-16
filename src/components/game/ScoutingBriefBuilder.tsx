@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { ArrowLeft, Binoculars, ClipboardList } from "lucide-react";
-import type { GameState, Position } from "@/lib/game/types";
+import type { GameState, Position, TacticalPosition } from "@/lib/game/types";
 import { scoutingSearchPlan } from "@/lib/game/scoutingDiscovery";
 import { managerSquadFit } from "@/lib/game/managerSquadFit";
 import { managerRecruitmentBrief } from "@/lib/game/managerRecruitmentBrief";
+import { DETAILED_POSITIONS, positionUnit } from "@/lib/game/positions";
 import {
   createChairmanScoutingBrief,
   SCOUTING_PLAYER_LEVELS,
@@ -20,6 +21,23 @@ const POSITIONS: Array<{ value: "" | Position; label: string }> = [
   { value: "FWD", label: "Forward" },
 ];
 
+const TACTICAL_POSITION_LABEL: Record<TacticalPosition, string> = {
+  GK: "Goalkeeper",
+  RB: "Right-back",
+  CB: "Centre-back",
+  LB: "Left-back",
+  RWB: "Right wing-back",
+  LWB: "Left wing-back",
+  CDM: "Defensive midfielder",
+  CM: "Central midfielder",
+  CAM: "Attacking midfielder",
+  RM: "Right midfielder",
+  LM: "Left midfielder",
+  RW: "Right winger",
+  LW: "Left winger",
+  ST: "Striker",
+};
+
 export function ScoutingBriefBuilder({
   state,
   update,
@@ -30,6 +48,7 @@ export function ScoutingBriefBuilder({
   onBack: () => void;
 }) {
   const [position, setPosition] = useState<"" | Position>("");
+  const [tacticalPosition, setTacticalPosition] = useState<"" | TacticalPosition>("");
   const [playerLevel, setPlayerLevel] = useState<ScoutingPlayerLevel>("firstTeam");
   const [minAge, setMinAge] = useState(18);
   const [maxAge, setMaxAge] = useState(32);
@@ -42,11 +61,18 @@ export function ScoutingBriefBuilder({
   const managerFit = manager ? managerSquadFit(state, manager) : null;
   const recruitmentBrief = manager ? managerRecruitmentBrief(state, manager) : null;
   const managerPriority = recruitmentBrief?.priorities[0] ?? null;
+  const tacticalOptions = DETAILED_POSITIONS.filter((item) => !position || positionUnit(item) === position);
 
   const useManagerRecommendation = () => {
     if (!managerPriority) return;
     setPosition(managerPriority.position);
+    setTacticalPosition(managerPriority.tacticalPosition ?? "");
     setPlayerLevel(managerPriority.playerLevel);
+  };
+
+  const changePosition = (next: "" | Position) => {
+    setPosition(next);
+    if (tacticalPosition && next && positionUnit(tacticalPosition) !== next) setTacticalPosition("");
   };
 
   const dispatch = () => {
@@ -55,6 +81,7 @@ export function ScoutingBriefBuilder({
       createChairmanScoutingBrief(s, {
         id: `chairman-brief:s${s.season}:w${s.week}:r${sequence + 1}`,
         position: position || undefined,
+        tacticalPosition: tacticalPosition || undefined,
         playerLevel,
         minAge,
         maxAge,
@@ -117,7 +144,7 @@ export function ScoutingBriefBuilder({
                 {managerPriority ? (
                   <div className="mt-2 text-sm">
                     <span className="font-semibold">Priority:</span>{" "}
-                    {POSITIONS.find((item) => item.value === managerPriority.position)?.label} ·{" "}
+                    {managerPriority.tacticalPosition ? TACTICAL_POSITION_LABEL[managerPriority.tacticalPosition] : POSITIONS.find((item) => item.value === managerPriority.position)?.label} ·{" "}
                     {SCOUTING_PLAYER_LEVELS.find((item) => item.value === managerPriority.playerLevel)?.label}.{" "}
                     <span className="text-muted-foreground">{managerPriority.rationale}</span>
                   </div>
@@ -130,8 +157,8 @@ export function ScoutingBriefBuilder({
                 {recruitmentBrief.priorities.length > 1 && (
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {recruitmentBrief.priorities.slice(1).map((priority) => (
-                      <span key={priority.position} className="rounded-full border bg-background/70 px-2 py-1 text-[10px]">
-                        Also: {POSITIONS.find((item) => item.value === priority.position)?.label}
+                      <span key={`${priority.position}:${priority.tacticalPosition ?? "unit"}`} className="rounded-full border bg-background/70 px-2 py-1 text-[10px]">
+                        Also: {priority.tacticalPosition ? TACTICAL_POSITION_LABEL[priority.tacticalPosition] : POSITIONS.find((item) => item.value === priority.position)?.label}
                       </span>
                     ))}
                   </div>
@@ -143,16 +170,33 @@ export function ScoutingBriefBuilder({
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <label className="grid gap-1 text-xs font-semibold">
-            Position
+            Position group
             <select
               className="h-10 rounded-md border bg-background px-3 text-sm font-normal"
               value={position}
-              onChange={(e) => setPosition(e.target.value as "" | Position)}
+              onChange={(e) => changePosition(e.target.value as "" | Position)}
             >
               {POSITIONS.map((item) => (
                 <option key={item.value || "any"} value={item.value}>
                   {item.label}
                 </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs font-semibold">
+            Tactical role <span className="font-normal text-muted-foreground">Optional</span>
+            <select
+              className="h-10 rounded-md border bg-background px-3 text-sm font-normal"
+              value={tacticalPosition}
+              onChange={(e) => {
+                const next = e.target.value as "" | TacticalPosition;
+                setTacticalPosition(next);
+                if (next) setPosition(positionUnit(next));
+              }}
+            >
+              <option value="">Any role</option>
+              {tacticalOptions.map((item) => (
+                <option key={item} value={item}>{TACTICAL_POSITION_LABEL[item]}</option>
               ))}
             </select>
           </label>
@@ -203,7 +247,7 @@ export function ScoutingBriefBuilder({
 
         <div className="mt-4 rounded-lg border bg-muted/30 px-3 py-2 text-xs">
           <span className="font-semibold">Brief:</span>{" "}
-          {position ? POSITIONS.find((item) => item.value === position)?.label : "Any position"} ·{" "}
+          {tacticalPosition ? TACTICAL_POSITION_LABEL[tacticalPosition] : position ? POSITIONS.find((item) => item.value === position)?.label : "Any position"} ·{" "}
           {selectedLevel.label} · age {minAge}–{maxAge}
         </div>
 
