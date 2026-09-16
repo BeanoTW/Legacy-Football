@@ -1,4 +1,4 @@
-import { createElement, type ComponentType, type ReactNode } from "react";
+import { isValidElement, type ComponentType, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /* Shared responsive screen primitives.
@@ -111,9 +111,18 @@ export function WorkflowTile({
   urgent?: boolean;
   onClick: () => void;
 }) {
-  const iconNode = typeof icon === "function" || (typeof icon === "object" && icon !== null && "$$typeof" in icon)
-    ? createElement(icon as ComponentType<{ className?: string }>, { className: "size-4 md:size-5" })
-    : icon;
+  // React elements (for example <Binoculars />) must be rendered directly.
+  // Component references (for example Binoculars) are instantiated here.
+  // The previous $$typeof heuristic mistook JSX elements for component types,
+  // which produced "Element type is invalid ... got: <Binoculars />" at runtime.
+  const iconNode = isValidElement(icon)
+    ? icon
+    : typeof icon === "function"
+      ? (() => {
+          const Icon = icon as ComponentType<{ className?: string }>;
+          return <Icon className="size-4 md:size-5" />;
+        })()
+      : icon;
   const detail = value ?? meta;
   const supporting = sub ?? description;
 
