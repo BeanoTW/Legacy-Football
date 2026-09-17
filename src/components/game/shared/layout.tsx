@@ -1,4 +1,4 @@
-import { isValidElement, type ComponentType, type ReactNode } from "react";
+import { createElement, isValidElement, type ElementType, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /* Shared responsive screen primitives.
@@ -102,7 +102,7 @@ export function WorkflowTile({
   urgent = false,
   onClick,
 }: {
-  icon: ReactNode | ComponentType<{ className?: string }>;
+  icon: ReactNode | ElementType<{ className?: string }>;
   title: string;
   value?: string;
   sub?: string;
@@ -111,17 +111,18 @@ export function WorkflowTile({
   urgent?: boolean;
   onClick: () => void;
 }) {
-  // React elements (for example <Binoculars />) must be rendered directly.
-  // Component references (for example Binoculars) are instantiated here.
-  // The previous $$typeof heuristic mistook JSX elements for component types,
-  // which produced "Element type is invalid ... got: <Binoculars />" at runtime.
+  // JSX elements are already renderable. Icon libraries may expose component
+  // references either as functions or as React forwardRef/memo objects; those
+  // objects cannot be rendered directly as children and must be instantiated.
+  const componentReference =
+    typeof icon === "function" ||
+    (typeof icon === "object" && icon !== null && "$$typeof" in icon);
   const iconNode = isValidElement(icon)
     ? icon
-    : typeof icon === "function"
-      ? (() => {
-          const Icon = icon as ComponentType<{ className?: string }>;
-          return <Icon className="size-4 md:size-5" />;
-        })()
+    : componentReference
+      ? createElement(icon as ElementType<{ className?: string }>, {
+          className: "size-4 md:size-5",
+        })
       : icon;
   const detail = value ?? meta;
   const supporting = sub ?? description;
