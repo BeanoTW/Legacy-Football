@@ -3,39 +3,24 @@ import { ArrowLeft, ChevronRight } from "lucide-react";
 import type { GameState } from "@/lib/game/types";
 import { Button } from "@/components/ui/button";
 import { fmtMoney, fmtMoneyExact } from "@/lib/game/engine";
-import { playerAttributes, scoutingReport } from "@/lib/game/scouting";
+import { playerAttributes } from "@/lib/game/scouting";
 import {
   activeContract,
   ageOf,
-  beginTransferRegistration,
-  completeTransfer,
-  improvePersonalTerms,
-  improveTransferOffer,
   openNegotiations,
   playerById,
   playerName,
-  respondToIncomingOffer,
-  submitEnquiryOffer,
-  transferRegistrationReadiness,
   userWageBill,
   userSquad,
   weeksLeftOnContract,
-  withdrawFromTalks,
 } from "@/lib/game/recruitment";
 import { MOOD_TONE_CLASS, playerMood } from "@/lib/game/character";
-import { transferTargetPlayer } from "@/lib/game/recruitmentTargetBridge";
-import { chairmanRecruitmentEstimate } from "@/lib/game/recruitmentKnowledge";
 import { clubDisplayName, userClubReference } from "@/lib/game/clubReference";
 import { activeLoanForPlayer } from "@/lib/game/loans";
 import { absoluteWeek } from "@/lib/game/time";
 import { clubOperatingModel, contractEmploymentType } from "@/lib/game/employment";
 import { tacticalPositionProfile } from "@/lib/game/positions";
-import { openPlayerProfile } from "./shared/PlayerProfileSheet";
-import {
-  recruitmentTransferFeePolicyForClub,
-  recruitmentTransferFeePolicyForUser,
-  recruitmentUserNegotiationWageStep,
-} from "@/lib/game/recruitmentEconomy";
+import { TransferNegotiationDesk } from "./TransferNegotiationDesk";
 
 const employmentLabel = (value: "PartTime" | "FullTime") =>
   value === "PartTime" ? "Part-time" : "Full-time";
@@ -50,8 +35,6 @@ export function RecruitmentOperations({
   const [view, setView] = useState<"squad" | "deals">("squad");
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [squadLens, setSquadLens] = useState<"position" | "contracts" | "wages">("position");
-  const [wageOffers, setWageOffers] = useState<Record<string, string>>({});
-  const [feeOffers, setFeeOffers] = useState<Record<string, string>>({});
   const [actionNote, setActionNote] = useState<string | null>(null);
   const act = (
     fn: (s: GameState) => { state: GameState; result: { ok: boolean; reason: string } },
