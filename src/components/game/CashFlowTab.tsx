@@ -15,6 +15,7 @@ import { weeklyNetRecurring } from "@/lib/game/selectors/club";
 import { financialHealth, recommendedReserve } from "@/lib/game/sustainability";
 import { Button } from "@/components/ui/button";
 import { Section } from "./shared/primitives";
+import { DetailScreen, OverviewScreen, WorkflowTile } from "./shared/layout";
 import { FinancialHealthPanel } from "./DashboardTab";
 
 type FinanceView = "home" | "health" | "income" | "expenses";
