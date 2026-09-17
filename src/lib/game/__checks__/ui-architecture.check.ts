@@ -219,6 +219,7 @@ console.log("\n[U6] Recruitment knowledge boundary");
     /submitTransferEnquiry\(/.test(browser) && /submitTransferEnquiry\(/.test(reports),
   );
   const operations = read("src/components/game/RecruitmentOperations.tsx");
+  const negotiations = read("src/components/game/TransferNegotiationDesk.tsx");
   check(
     "recruitment squad views use canonical employment selectors",
     /clubOperatingModel\(/.test(operations) &&
@@ -227,20 +228,20 @@ console.log("\n[U6] Recruitment knowledge boundary");
   );
   check(
     "the live negotiations screen exposes the enquiry-to-bid action",
-    /submitEnquiryOffer\(/.test(operations),
+    /TransferNegotiationDesk/.test(operations) && /submitEnquiryOffer\(/.test(negotiations),
   );
   check(
     "negotiation controls use canonical level-aware fee and wage steps",
-    /recruitmentTransferFeePolicyForClub\(/.test(operations) &&
-      /recruitmentTransferFeePolicyForUser\(/.test(operations) &&
-      /recruitmentUserNegotiationWageStep\(/.test(operations) &&
-      !/n\.fee \+ 5000|step=\{5000\}|proposedWeeklyWage \+ 25|step=\{25\}/.test(operations),
+    /recruitmentTransferFeePolicyForClub\(/.test(negotiations) &&
+      /recruitmentTransferFeePolicyForUser\(/.test(negotiations) &&
+      /recruitmentUserNegotiationWageStep\(/.test(negotiations) &&
+      !/n\.fee \+ 5000|step=\{5000\}|proposedWeeklyWage \+ 25|step=\{25\}/.test(negotiations),
   );
   check(
     "incoming agreements expose persisted registration before completion",
-    /beginTransferRegistration\(/.test(operations) &&
-      /n\.stage === "registration"/.test(operations) &&
-      /Complete registration/.test(operations),
+    /beginTransferRegistration\(/.test(negotiations) &&
+      /n\.stage === "registration"/.test(negotiations) &&
+      /Complete registration/.test(negotiations),
   );
 }
 
