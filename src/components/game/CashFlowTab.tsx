@@ -56,52 +56,64 @@ export function CashFlowTab({ state }: { state: GameState }) {
 
   if (view !== "home") {
     return (
-      <div className="space-y-4">
-        <Button variant="ghost" onClick={() => setView("home")}>
-          <ArrowLeft className="size-4 mr-2" /> Back to finances
-        </Button>
+      <DetailScreen
+        title={
+          view === "health" ? "Financial health" : view === "income" ? "Season income" : "Season expenses"
+        }
+        subtitle="Detail behind the headline numbers"
+        actions={
+          <Button variant="ghost" size="sm" onClick={() => setView("home")}>
+            <ArrowLeft className="mr-2 size-4" /> Back
+          </Button>
+        }
+      >
         {view === "health" && <FinancialHealthPanel state={state} />}
         {view === "income" && (
-          <Section title="Season income">
-            <PieBlock data={pieData(totals.inc)} colors={CHART_COLORS} />
-            <BreakdownTable totals={totals.inc} tone="income" />
-          </Section>
+          <div className="grid gap-3 xl:grid-cols-2">
+            <Section title="Where the money came from">
+              <PieBlock data={pieData(totals.inc)} colors={CHART_COLORS} />
+            </Section>
+            <Section title="Income by category">
+              <BreakdownTable totals={totals.inc} tone="income" />
+            </Section>
+          </div>
         )}
         {view === "expenses" && (
-          <Section title="Season expenses">
-            <PieBlock data={pieData(totals.exp)} colors={CHART_COLORS} />
-            <BreakdownTable totals={totals.exp} tone="expense" />
-          </Section>
+          <div className="grid gap-3 xl:grid-cols-2">
+            <Section title="Where the money went">
+              <PieBlock data={pieData(totals.exp)} colors={CHART_COLORS} />
+            </Section>
+            <Section title="Expenses by category">
+              <BreakdownTable totals={totals.exp} tone="expense" />
+            </Section>
+          </div>
         )}
-      </div>
+      </DetailScreen>
     );
   }
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="font-display text-3xl">Finances</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          See the answer first. Open the detail only when you need it.
-        </p>
-      </div>
-
-      <section className="rounded-2xl border bg-card p-5 shadow-sm">
-        <div className="text-sm text-muted-foreground">Cash in the bank</div>
+    <OverviewScreen
+      title="Finances"
+      subtitle="See the answer first. Open the detail only when you need it."
+      className="grid content-start gap-2 md:gap-3 xl:grid-cols-[minmax(300px,.9fr)_minmax(0,1.6fr)] xl:content-stretch"
+    >
+      <section className="flex flex-col justify-center rounded-xl border bg-card p-3 shadow-sm md:p-4">
+        <div className="text-xs text-muted-foreground">Cash in the bank</div>
         <div
           className={cn(
-            "font-display text-4xl mt-1",
+            "font-display text-2xl leading-tight md:text-3xl xl:text-4xl",
             state.cash < 0 && "text-[color:var(--color-expense)]",
           )}
         >
           {fmtMoneyExact(state.cash)}
         </div>
-        <div className="grid grid-cols-2 gap-3 mt-5">
-          <div className="rounded-xl bg-muted/50 p-3">
-            <div className="text-xs text-muted-foreground">Weekly fixed net</div>
+        <div className="mt-2 grid grid-cols-2 gap-1.5 md:mt-3 md:gap-2">
+          <div className="rounded-lg bg-muted/50 p-2">
+            <div className="text-[10px] text-muted-foreground md:text-xs">Weekly fixed net</div>
             <div
               className={cn(
-                "font-display text-xl",
+                "font-display text-base md:text-lg",
                 recurringNet >= 0
                   ? "text-[color:var(--color-income)]"
                   : "text-[color:var(--color-expense)]",
@@ -111,52 +123,44 @@ export function CashFlowTab({ state }: { state: GameState }) {
               {fmtMoney(recurringNet)}
             </div>
           </div>
-          <div className="rounded-xl bg-muted/50 p-3">
-            <div className="text-xs text-muted-foreground">Recommended reserve</div>
-            <div className="font-display text-xl">{fmtMoney(reserve)}</div>
+          <div className="rounded-lg bg-muted/50 p-2">
+            <div className="text-[10px] text-muted-foreground md:text-xs">Recommended reserve</div>
+            <div className="font-display text-base md:text-lg">{fmtMoney(reserve)}</div>
           </div>
         </div>
       </section>
 
-      <div className="grid grid-cols-2 gap-3">
-        <FinanceAction
-          icon={<Landmark className="size-7" />}
+      <div className="grid grid-cols-2 gap-2 md:gap-3">
+        <WorkflowTile
+          icon={<Landmark className="size-5 md:size-6" />}
           title="Financial health"
           value={health.label}
           sub={`${health.coverMonths.toFixed(1)} months cover`}
           onClick={() => setView("health")}
         />
-        <FinanceAction
-          icon={<ArrowUpRight className="size-7" />}
+        <WorkflowTile
+          icon={<ArrowUpRight className="size-5 md:size-6" />}
           title="Income"
-          value={fmtMoney(incomeTotal)}
-          sub="This season"
+          value={`${fmtMoney(incomeTotal)} this season`}
+          sub="Gate, TV, sponsors and player sales"
           onClick={() => setView("income")}
         />
-        <FinanceAction
-          icon={<ReceiptText className="size-7" />}
+        <WorkflowTile
+          icon={<ReceiptText className="size-5 md:size-6" />}
           title="Expenses"
-          value={fmtMoney(expenseTotal)}
-          sub="This season"
+          value={`${fmtMoney(expenseTotal)} this season`}
+          sub="Wages, upkeep and matchday costs"
           onClick={() => setView("expenses")}
         />
-        <FinanceAction
-          icon={<CircleDollarSign className="size-7" />}
+        <WorkflowTile
+          icon={<CircleDollarSign className="size-5 md:size-6" />}
           title="Season result"
           value={`${incomeTotal - expenseTotal >= 0 ? "+" : ""}${fmtMoney(incomeTotal - expenseTotal)}`}
           sub="Income minus expenses"
           onClick={() => setView(incomeTotal >= expenseTotal ? "income" : "expenses")}
         />
       </div>
-
-      <div className="rounded-2xl border bg-card p-4 text-sm text-muted-foreground flex items-start gap-3">
-        <PieChartIcon className="size-5 shrink-0 mt-0.5" />
-        <span>
-          Charts and category breakdowns are still here, but they now sit behind Income and Expenses
-          rather than dominating the first screen.
-        </span>
-      </div>
-    </div>
+    </OverviewScreen>
   );
 }
 
