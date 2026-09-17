@@ -155,7 +155,13 @@ export function RecruitmentOperations({
           {actionNote}
         </div>
       )}
-      <div className="contained-scroll touch-pan-y min-h-0 flex-1 pr-0.5">
+      <div
+        className={
+          view === "deals"
+            ? "min-h-0 flex-1 overflow-hidden"
+            : "contained-scroll touch-pan-y min-h-0 flex-1 pr-0.5"
+        }
+      >
         {view === "squad" && selectedPlayer ? (
           <PlayerProfile
             state={state}
