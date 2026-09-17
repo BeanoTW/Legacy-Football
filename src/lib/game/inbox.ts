@@ -103,6 +103,7 @@ import {
 import { hashString, seededRng } from "./rng";
 import { postEntry } from "./finance";
 import { archivedInboxGuardKeys } from "./archive";
+import { postMatchReaction } from "./matchReaction";
 
 /* ---------- Helpers ---------- */
 const money = (n: number) => {
@@ -1016,29 +1017,20 @@ const G_MEDIA_MATCH: Generator = {
     if (prevAbs < 1) return [];
     const prev = fromAbsoluteWeek(prevAbs);
     // FixtureResult carries no season field. Cross-season leakage is prevented
-    // by the engine clearing `s.results` at the season rollover, NOT by any
-    // lookup-side check here. If results ever become season-persistent, this
-    // find() must be given an explicit season filter.
-
+    // by the engine clearing `s.results` at the season rollover.
     const r = s.results.find((x) => x.week === prev.week);
     if (!r) return [];
-    const eventKey = `media-post-match:s${prev.season}:w${prev.week}`;
-    const label = r.result === "W" ? "Ecstatic" : r.result === "D" ? "Measured" : "Damning";
-    const body =
-      r.result === "W"
-        ? `Comfortable ${r.goalsFor}-${r.goalsAgainst} ${r.home ? "home" : "away"} win vs ${r.opponent}. Back-page splash: "Chairman's model working".`
-        : r.result === "D"
-          ? `${r.goalsFor}-${r.goalsAgainst} draw with ${r.opponent}. Pundits split — solid point or two dropped?`
-          : `Poor ${r.goalsFor}-${r.goalsAgainst} defeat to ${r.opponent}. Local paper calls for "clarity from the boardroom".`;
+
+    const reaction = postMatchReaction(s, r);
     return [
       mk(s, "media-post-match", {
-        eventKey,
+        eventKey: `media-post-match:s${prev.season}:w${prev.week}`,
         sender: "Chronicle sport desk",
         department: "Media",
         category: "media",
-        priority: "low",
-        subject: `${label} press after ${r.opponent} (${r.result})`,
-        body,
+        priority: reaction.stakes === "major" ? "normal" : "low",
+        subject: reaction.subject,
+        body: reaction.body,
       }),
     ];
   },
