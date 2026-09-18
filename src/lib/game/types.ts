@@ -293,8 +293,12 @@ export interface WeekLedger {
   inboxNotes?: { note: string; amount: number; sourceItemId?: string; sourceEventKey?: string }[];
 }
 
+export type FixtureCompetition = "league" | "preseason" | "domesticCup";
+
 export interface FixtureResult {
   week: number;
+  /** Explicit competition identity; absent only on legacy saves. */
+  competition?: FixtureCompetition;
   opponent: string;
   home: boolean;
   goalsFor: number;
@@ -325,6 +329,8 @@ export interface MatchRecord {
 
 /** One scheduled league fixture (all clubs, all divisions). */
 export interface ScheduledFixture {
+  /** Explicit competition identity. League schedules default to league for legacy compatibility. */
+  competition?: FixtureCompetition;
   /** Owning league id. Absent on pre-v4 saves = tier-1 division. */
   league?: string;
   round: number;
@@ -1530,7 +1536,7 @@ export interface GameState {
   squad: Player[];
   sponsors: Sponsor[];
 
-  fixtures: { week: number; opponent: string; home: boolean }[];
+  fixtures: { week: number; opponent: string; home: boolean; competition?: FixtureCompetition }[];
   results: FixtureResult[];
 
   /** All divisions in the pyramid. */
