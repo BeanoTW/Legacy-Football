@@ -23,6 +23,27 @@ export const WINDOW_MIDSEASON = CALENDAR.midSeasonStart;
 export const FRIENDLY_WEEKS = new Set<number>([1, 2, 3, 4]);
 export const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 export const MATCHDAY_INDEX = 5;
+
+/** Calendar identity used by dated fixtures while legacy week accounting remains intact. */
+export interface SeasonDate {
+  month: number;
+  day: number;
+}
+
+/**
+ * Season 1 is presented as a real August-May football calendar. Weeks remain
+ * the accounting/simulation backbone, but fixtures can now carry a day slot.
+ * Week 1 opens in July; competitive league football begins in August.
+ */
+export function seasonDateForSlot(week: number, dayOfWeek: number): SeasonDate {
+  const start = Date.UTC(2000, 6, 3); // Monday 3 July, presentation epoch only.
+  const d = new Date(start + ((Math.max(1, week) - 1) * 7 + Math.max(0, Math.min(6, dayOfWeek))) * 86400000);
+  return { month: d.getUTCMonth() + 1, day: d.getUTCDate() };
+}
+
+export function seasonMonthName(month: number): string {
+  return ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][month - 1] ?? "";
+}
 const DAY_FLAG = "calendar.dayOfWeek";
 const DEADLINE_HOUR_FLAG = "calendar.transferDeadlineHour";
 
