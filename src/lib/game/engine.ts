@@ -141,10 +141,23 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   advancePlayerClubPerformanceWeekInPlace(s);
   progressScoutingWeekInPlace(s);
 
-  // Keep weekly settlement resilient while calendar/cup projections evolve.
-  // tickMatchday's contract is non-optional, but legacy/hot-reloaded clients may
-  // transiently execute an older implementation that returns undefined.
-  const matchdayOutcome = tickMatchday(s, override) ?? { fxResult: null };
+  // Dated daily play may already have committed this week's user fixture.
+  // Keep the weekly selector only for legacy/fast-forward callers that reached
+  // Sunday without traversing the visible fixture day.
+  const weeklyFixture = s.fixtures.find((f) => f.week === s.week);
+  const weeklyFixtureAlreadyPlayed = weeklyFixture
+    ? s.results.some(
+        (r) =>
+          r.week === s.week &&
+          r.opponent === weeklyFixture.opponent &&
+          r.home === weeklyFixture.home &&
+          (r.dayOfWeek ?? 5) === (weeklyFixture.dayOfWeek ?? 5) &&
+          (r.competition ?? "league") === (weeklyFixture.competition ?? "league"),
+      )
+    : false;
+  const matchdayOutcome = weeklyFixtureAlreadyPlayed
+    ? { fxResult: null as FixtureResult | null }
+    : tickMatchday(s, override) ?? { fxResult: null };
   const { fxResult, matchdayNote }: { fxResult: FixtureResult | null; matchdayNote?: string } =
     matchdayOutcome;
 
