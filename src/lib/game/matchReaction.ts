@@ -41,7 +41,7 @@ function leaguePosition(s: GameState, club: string): number | undefined {
   const row = s.league?.find((x) => sameClubReference(s, x.team, club));
   if (!row) return undefined;
   const sorted = [...s.league].sort(
-    (a, b) => b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga) || b.gf - a.gf,
+    (a, b) => b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga),
   );
   const index = sorted.findIndex((x) => sameClubReference(s, x.team, club));
   return index >= 0 ? index + 1 : undefined;
