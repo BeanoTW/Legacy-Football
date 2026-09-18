@@ -34,6 +34,7 @@ import { FRIENDLY_WEEKS } from "../calendar";
 import { advanceDomesticCup, resolveDomesticCupTie } from "../domesticCupState";
 import { resolveKnockoutDraw } from "../knockout";
 import { resolveAllAiDomesticCups } from "../aiDomesticCups";
+import { syncUserCupFixtures } from "../cupFixtures";
 
 export interface MatchOverride {
   gf: number;
@@ -272,6 +273,7 @@ export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOu
 
   // Keep the rest of each active knockout draw moving alongside the player.
   resolveAllAiDomesticCups(s);
+  syncUserCupFixtures(s);
 
   return { fxResult, matchdayNote };
 }
