@@ -1,5 +1,6 @@
 import type { DomesticCupState, FixtureCompetition } from "./types";
 import { startCupRound } from "./cupSchedule";
+import { faCupEntryRound } from "./domesticCups";
 
 export function initialiseDomesticCup(
   competition: Extract<FixtureCompetition, "leagueCup" | "faCup">,
@@ -39,12 +40,17 @@ export function domesticCupRoundComplete(cup: DomesticCupState): boolean {
   return cup.ties.length > 0 && cup.ties.every((tie) => Boolean(tie.winner));
 }
 
-export function advanceDomesticCup(cup: DomesticCupState, seed: string): DomesticCupState {
+export function advanceDomesticCup(cup: DomesticCupState, seed: string, state?: { leagues: { tier: number; clubIds: string[] }[] }): DomesticCupState {
   if (!domesticCupRoundComplete(cup)) return cup;
   const winners = cup.ties.flatMap((tie) => (tie.winner ? [tie.winner] : []));
   if (winners.length === 1) return { ...cup, champion: winners[0] };
 
-  const next = startCupRound(cup.competition, cup.round + 1, winners, seed);
+  const nextRound = cup.round + 1;
+  const entering = cup.competition === "faCup" && state
+    ? state.leagues.filter((league) => faCupEntryRound(league.tier) === nextRound).flatMap((league) => league.clubIds)
+    : [];
+  const entrants = [...winners, ...entering.filter((club) => !winners.includes(club) && !cup.eliminated.includes(club))];
+  const next = startCupRound(cup.competition, nextRound, entrants, seed);
   return {
     ...cup,
     round: next.round,
