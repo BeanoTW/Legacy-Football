@@ -26,6 +26,7 @@ import {
 import { rollInfrastructureToNewSeason } from "../infrastructure";
 import { SEASON_END_WEEK } from "../calendar";
 import { ordinal } from "../format";
+import { initialiseSeasonCups } from "../cupEntry";
 import {
   fixturesForClub,
   makeFixtures,
@@ -94,6 +95,12 @@ export function tickSeasonRollover(s: GameState): void {
     s.leagueSchedule = [];
     s.league = makeLeagueRows(leagueTeams(s.clubName));
   }
+  // The league world is now in its new-season shape. Rebuild domestic cups
+  // from that world so promoted/relegated clubs enter the correct competition
+  // and National Cup entry round for this season.
+  s.domesticCups = undefined;
+  initialiseSeasonCups(s);
+
   // matchRecords and seasonHistory are permanent — never cleared.
   s.results = [];
   // Season-outcome mail (announcement only — no financial effects yet).
