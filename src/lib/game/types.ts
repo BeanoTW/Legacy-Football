@@ -300,6 +300,8 @@ export interface FixtureResult {
   /** Explicit competition identity; absent only on legacy saves. */
   competition?: FixtureCompetition;
   opponent: string;
+  /** Day index within the week; absent only on legacy saves. */
+  dayOfWeek?: number;
   home: boolean;
   goalsFor: number;
   goalsAgainst: number;
