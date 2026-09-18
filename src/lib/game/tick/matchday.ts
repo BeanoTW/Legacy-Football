@@ -270,5 +270,8 @@ export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOu
     matchdayNote = `Friendly vs ${opp} — ${gf}-${ga} ${result}`;
   }
 
-  // Keep the rest of each active knockout draw moving alongside the player.\n  resolveAllAiDomesticCups(s);\n\n  return { fxResult, matchdayNote };
+  // Keep the rest of each active knockout draw moving alongside the player.
+  resolveAllAiDomesticCups(s);
+
+  return { fxResult, matchdayNote };
 }
