@@ -32,6 +32,7 @@ import {
 import { avgTicketPrice, simAttendance, simGoals, usableCapacity } from "../sim";
 import { FRIENDLY_WEEKS } from "../calendar";
 import { advanceDomesticCup, resolveDomesticCupTie } from "../domesticCupState";
+import { resolveKnockoutDraw } from "../knockout";
 
 export interface MatchOverride {
   gf: number;
@@ -139,11 +140,23 @@ export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOu
     // Knockout ties feed directly back into the persistent cup lifecycle.
     // Drawn ties are deliberately left unresolved until a dedicated cup
     // decider (extra time/penalties) supplies a winner.
-    if ((fixture.competition === "leagueCup" || fixture.competition === "faCup") && result !== "D") {
+    if (fixture.competition === "leagueCup" || fixture.competition === "faCup") {
       const cupIndex = s.domesticCups?.findIndex((cup) => cup.competition === fixture.competition) ?? -1;
       if (cupIndex >= 0 && s.domesticCups) {
         const cup = s.domesticCups[cupIndex];
-        const winner = result === "W" ? userRef : fixture.opponent;
+        let winner = result === "W" ? userRef : result === "L" ? fixture.opponent : undefined;
+        if (!winner) {
+          const decider = resolveKnockoutDraw(
+            fixture.home ? gf : ga,
+            fixture.home ? ga : gf,
+            `${s.saveSeed}|${s.season}|${fixture.competition}|${s.week}|${homeClub}|${awayClub}`,
+          );
+          winner = decider.winner === "home" ? homeClub : awayClub;
+          const suffix = decider.penalties
+            ? ` (pens ${decider.penalties.home}-${decider.penalties.away})`
+            : " (a.e.t.)";
+          matchdayNote = `${fixture.home ? "H" : "A"} vs ${clubDisplayName(s, fixture.opponent)} — ${gf}-${ga}${suffix}`;
+        }
         const resolved = resolveDomesticCupTie(cup, homeClub, awayClub, winner);
         s.domesticCups[cupIndex] = advanceDomesticCup(resolved, `${s.saveSeed}|${s.season}`);
       }
