@@ -51,9 +51,13 @@ export interface MatchdayOutcome {
   matchdayNote?: string;
 }
 
-/** The user's fixture for this week (league match or scheduled friendly). */
-export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOutcome {
-  const fixture = s.fixtures.find((f) => f.week === s.week);
+/** Resolve one selected user fixture. Callers own calendar timing. */
+export function tickSelectedMatchday(
+  s: GameState,
+  selectedFixture: GameState["fixtures"][number] | undefined,
+  override?: MatchOverride,
+): MatchdayOutcome {
+  const fixture = selectedFixture;
   let matchdayNote: string | undefined;
   let fxResult: FixtureResult | null = null;
 
@@ -280,4 +284,9 @@ export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOu
   }
 
   return { fxResult, matchdayNote };
+}
+
+/** Backwards-compatible weekly selector while daily execution is introduced. */
+export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOutcome {
+  return tickSelectedMatchday(s, s.fixtures.find((f) => f.week === s.week), override);
 }
