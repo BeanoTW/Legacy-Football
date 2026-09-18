@@ -94,8 +94,6 @@ export function scheduleForLeague(league: League, seed: string): ScheduledFixtur
       league: league.id,
       round: idx + 1,
       week: weekForLeagueRound(idx + 1),
-      dayOfWeek: 5,
-      competition: "league" as const,
       home: m.home,
       away: m.away,
     })),
