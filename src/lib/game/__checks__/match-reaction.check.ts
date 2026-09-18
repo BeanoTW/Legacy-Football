@@ -30,8 +30,8 @@ const state = (leagueFixture: boolean): GameState =>
       : [],
     results: [],
     league: [
-      { team: "Legacy FC", p: 3, w: 2, d: 0, l: 1, gf: 5, ga: 3, gd: 2, pts: 6 },
-      { team: "Rovers", p: 3, w: 1, d: 0, l: 2, gf: 3, ga: 5, gd: -2, pts: 3 },
+      { team: "Legacy FC", p: 3, w: 2, d: 0, l: 1, gf: 5, ga: 3, pts: 6 },
+      { team: "Rovers", p: 3, w: 1, d: 0, l: 2, gf: 3, ga: 5, pts: 3 },
     ],
   }) as GameState;
 
