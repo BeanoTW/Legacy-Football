@@ -58,6 +58,17 @@ export function tickSelectedMatchday(
   override?: MatchOverride,
 ): MatchdayOutcome {
   const fixture = selectedFixture;
+  const fixtureAlreadyPlayed = fixture
+    ? s.results.some(
+        (r) =>
+          r.week === s.week &&
+          r.opponent === fixture.opponent &&
+          r.home === fixture.home &&
+          (r.dayOfWeek ?? 5) === (fixture.dayOfWeek ?? 5) &&
+          (r.competition ?? "league") === (fixture.competition ?? "league"),
+      )
+    : false;
+  if (fixtureAlreadyPlayed) return { fxResult: null };
   let matchdayNote: string | undefined;
   let fxResult: FixtureResult | null = null;
 
