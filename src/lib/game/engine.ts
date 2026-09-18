@@ -141,8 +141,13 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   advancePlayerClubPerformanceWeekInPlace(s);
   progressScoutingWeekInPlace(s);
 
-  const { fxResult, matchdayNote }: { fxResult: FixtureResult | null; matchdayNote?: string } =
-    tickMatchday(s, override);
+  // Keep week advancement resilient for saves that were already running while
+  // the previously malformed matchday module was hot-reloaded. The tick now
+  // always returns an outcome, but an old in-memory function can still yield
+  // undefined until the preview reloads.
+  const matchdayOutcome = tickMatchday(s, override);
+  const fxResult: FixtureResult | null = matchdayOutcome?.fxResult ?? null;
+  const matchdayNote = matchdayOutcome?.matchdayNote;
 
   tickLegacyAiResults(s);
   tickContractsAndMarkets(s);
