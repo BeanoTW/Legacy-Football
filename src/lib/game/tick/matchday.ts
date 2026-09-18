@@ -211,7 +211,7 @@ export function tickSelectedMatchday(
             });
         resolveWeek(s, s.week, userRecord);
       }
-    } else {
+    } else if (isLeagueFixture) {
       // Legacy (pre-v3) in-progress season: no full schedule, keep the old
       // incremental two-club update so existing saves stay consistent.
       const my = s.league.find((r) => isUserClubReference(s, r.team))!;
