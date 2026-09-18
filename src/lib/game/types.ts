@@ -1511,6 +1511,21 @@ export interface FringeClubState {
 
 export type FringeWorldState = Record<string, FringeClubState>;
 
+export interface CupTieState {
+  home: string;
+  away: string;
+  winner?: string;
+}
+
+export interface DomesticCupState {
+  competition: Extract<FixtureCompetition, "leagueCup" | "faCup">;
+  round: number;
+  entrants: string[];
+  ties: CupTieState[];
+  eliminated: string[];
+  champion?: string;
+}
+
 export interface GameState {
   /** Save schema version. Bump + add a migration in loadGame when persisted shape changes. */
   version: number;
@@ -1540,6 +1555,9 @@ export interface GameState {
 
   fixtures: { week: number; opponent: string; home: boolean; competition?: FixtureCompetition; dayOfWeek?: number }[];
   results: FixtureResult[];
+
+  /** Persistent domestic knockout competitions. Optional for legacy saves. */
+  domesticCups?: DomesticCupState[];
 
   /** All divisions in the pyramid. */
   leagues: League[];
