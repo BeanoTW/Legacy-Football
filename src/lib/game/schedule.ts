@@ -35,7 +35,7 @@ export function makeFixtures(clubName: string, seed: string) {
 export function fixturesForClub(
   schedule: ScheduledFixture[],
   club: string,
-): { week: number; opponent: string; home: boolean; competition?: ScheduledFixture["competition"] }[] {
+): { week: number; opponent: string; home: boolean; competition?: ScheduledFixture["competition"]; dayOfWeek?: number }[] {
   return schedule
     .filter((f) => f.home === club || f.away === club)
     .map((f) => ({
@@ -43,8 +43,9 @@ export function fixturesForClub(
       opponent: f.home === club ? f.away : f.home,
       home: f.home === club,
       competition: f.competition ?? "league",
+      dayOfWeek: f.dayOfWeek ?? 5,
     }))
-    .sort((a, b) => a.week - b.week);
+    .sort((a, b) => a.week - b.week || (a.dayOfWeek ?? 5) - (b.dayOfWeek ?? 5));
 }
 
 /** Empty table rows for a set of clubs. */
