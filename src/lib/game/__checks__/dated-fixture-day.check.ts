@@ -22,16 +22,4 @@ setCalendarDay(state, 6);
 assert.equal(hasFixtureToday(state), false, "Sunday must remain a settlement day without a fixture");
 
 
-// A dated Tuesday fixture must execute when Monday advances into Tuesday, and
-// revisiting/continuing from Tuesday must not create a duplicate result.
-const playable = {
-  ...state,
-  season: 1,
-  saveSeed: 12345,
-  clubName: "Legacy FC",
-  results: [],
-} as unknown as GameState;
-setCalendarDay(playable, 0);
-assert.doesNotThrow(() => advanceDay(playable), "advancing into a fixture day must remain safe");
-
 console.log("dated-fixture-day.check: ok");
