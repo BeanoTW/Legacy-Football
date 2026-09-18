@@ -42,7 +42,7 @@ import {
   setTransferDeadlineHour,
   transferDeadlineHour,
 } from "./calendar";
-import { tickMatchday, type MatchOverride } from "./tick/matchday";
+import { tickMatchday, tickSelectedMatchday, type MatchOverride } from "./tick/matchday";
 import { tickLegacyAiResults, tickContractsAndMarkets, tickTicketBacklash } from "./tick/world";
 import { tickSeasonRollover } from "./tick/rollover";
 import { commitLiveMatch } from "./liveMatch";
@@ -193,6 +193,26 @@ export function fixtureToday(state: GameState): GameState["fixtures"][number] | 
   const day = calendarDay(state);
   return state.fixtures.find((fixture) => fixture.week === state.week && (fixture.dayOfWeek ?? 5) === day);
 }
+/** Resolve today's dated fixture once, leaving weekly settlement for Sunday. */
+function resolveDatedFixtureInPlace(state: GameState): void {
+  const fixture = fixtureToday(state);
+  if (!fixture) return;
+  const alreadyPlayed = state.results.some(
+    (r) =>
+      r.week === state.week &&
+      r.opponent === fixture.opponent &&
+      r.home === fixture.home &&
+      (r.dayOfWeek ?? 5) === (fixture.dayOfWeek ?? 5) &&
+      (r.competition ?? "league") === (fixture.competition ?? "league"),
+  );
+  if (alreadyPlayed) return;
+  const { fxResult } = tickSelectedMatchday(state, fixture);
+  if (fxResult) {
+    state.results.push(fxResult);
+    applyPlayerClubMatchOutcomeInPlace(state, fxResult);
+  }
+}
+
 /**
  * Advance one visible calendar unit.
  *
@@ -221,6 +241,7 @@ export function advanceDay(prev: GameState): GameState {
     setCalendarDay(next, day + 1);
     progressScoutingDayInPlace(next);
     processDueTransferResponsesInPlace(next);
+    resolveDatedFixtureInPlace(next);
     return next;
   }
   return advanceWeek(prev);
