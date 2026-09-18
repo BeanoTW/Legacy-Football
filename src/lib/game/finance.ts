@@ -579,6 +579,8 @@ export interface MatchdayFinanceInput {
   week: number;
   /** Day index within the week; absent only on legacy saves. */
   dayOfWeek?: number;
+  /** Competition this fixture belongs to; absent only on legacy saves. */
+  competition?: FixtureCompetition;
   opponent: string;
   home: boolean;
   attendance: number;
