@@ -135,7 +135,7 @@ export function tickSelectedMatchday(
         sched?.round ?? s.week,
         homeClub,
         awayClub,
-        sched ? leagueOf(sched) : playerLeagueId(s),
+        sched ? leagueOf(sched) : `${fixture.competition ?? "league"}:${fixture.dayOfWeek ?? 5}`,
       ),
       modifiers: facilityModifiers(s),
     });
