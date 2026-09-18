@@ -5,6 +5,7 @@ import { resolveKnockoutDraw } from "./knockout";
 import { advanceDomesticCup, resolveDomesticCupTie } from "./domesticCupState";
 import { userClubReference, sameClubReference } from "./clubReference";
 import { cupSlot } from "./cupSchedule";
+import { calendarDay } from "./calendar";
 
 function aiCupScore(state: GameState, home: string, away: string, competition: string, round: number) {
   const hs = clubMatchStrength(state, home, state.season);
@@ -29,7 +30,11 @@ export function resolveAiDomesticCupRound(state: GameState, cup: DomesticCupStat
   const slot = cupSlot(cup.competition, cup.round);
   // A round only exists on its calendar slot. Weekly ticks before that date
   // must not silently play AI ties or advance the competition early.
-  if (!slot || state.week < slot.week) return cup;
+  if (
+    !slot ||
+    state.week < slot.week ||
+    (state.week === slot.week && calendarDay(state) < slot.dayOfWeek)
+  ) return cup;
 
   const user = userClubReference(state);
   let next = cup;
