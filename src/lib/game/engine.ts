@@ -187,6 +187,12 @@ export function hasFixtureToday(state: GameState): boolean {
   const day = calendarDay(state);
   return state.fixtures.some((fixture) => fixture.week === state.week && (fixture.dayOfWeek ?? 5) === day);
 }
+
+/** Return the user's fixture due on the visible day without changing simulation state. */
+export function fixtureToday(state: GameState): GameState["fixtures"][number] | undefined {
+  const day = calendarDay(state);
+  return state.fixtures.find((fixture) => fixture.week === state.week && (fixture.dayOfWeek ?? 5) === day);
+}
 /**
  * Advance one visible calendar unit.
  *
