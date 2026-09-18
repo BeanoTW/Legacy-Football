@@ -19,6 +19,7 @@ export interface MatchReaction {
 }
 
 function isLeagueFixture(s: GameState, r: FixtureResult): boolean {
+  if (r.competition) return r.competition === "league";
   const user = userClubReference(s);
   return (s.leagueSchedule ?? []).some(
     (f) =>
@@ -31,9 +32,13 @@ function isLeagueFixture(s: GameState, r: FixtureResult): boolean {
 
 function recentFormBefore(s: GameState, r: FixtureResult): FixtureResult[] {
   return s.results
-    .filter((x) => x.week < r.week)
+    .filter(
+      (x) =>
+        x.week < r.week ||
+        (x.week === r.week && (x.dayOfWeek ?? 5) < (r.dayOfWeek ?? 5)),
+    )
     .slice()
-    .sort((a, b) => b.week - a.week)
+    .sort((a, b) => b.week - a.week || (b.dayOfWeek ?? 5) - (a.dayOfWeek ?? 5))
     .slice(0, 5);
 }
 
