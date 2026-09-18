@@ -4,6 +4,7 @@ import { hashString, mulberry32 } from "./rng";
 import { resolveKnockoutDraw } from "./knockout";
 import { advanceDomesticCup, resolveDomesticCupTie } from "./domesticCupState";
 import { userClubReference, sameClubReference } from "./clubReference";
+import { cupSlot } from "./cupSchedule";
 
 function aiCupScore(state: GameState, home: string, away: string, competition: string, round: number) {
   const hs = clubMatchStrength(state, home, state.season);
@@ -25,6 +26,11 @@ function aiCupScore(state: GameState, home: string, away: string, competition: s
  * competition advances as one coherent tournament.
  */
 export function resolveAiDomesticCupRound(state: GameState, cup: DomesticCupState): DomesticCupState {
+  const slot = cupSlot(cup.competition, cup.round);
+  // A round only exists on its calendar slot. Weekly ticks before that date
+  // must not silently play AI ties or advance the competition early.
+  if (!slot || state.week < slot.week) return cup;
+
   const user = userClubReference(state);
   let next = cup;
   for (const tie of cup.ties) {
@@ -40,7 +46,7 @@ export function resolveAiDomesticCupRound(state: GameState, cup: DomesticCupStat
     const winner = decider.winner === "home" ? tie.home : tie.away;
     next = resolveDomesticCupTie(next, tie.home, tie.away, winner);
   }
-  return advanceDomesticCup(next, `${state.saveSeed}|${state.season}`);
+  return advanceDomesticCup(next, `${state.saveSeed}|${state.season}`, state);
 }
 
 export function resolveAllAiDomesticCups(state: GameState): void {
