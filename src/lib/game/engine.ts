@@ -141,8 +141,12 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   advancePlayerClubPerformanceWeekInPlace(s);
   progressScoutingWeekInPlace(s);
 
+  // Keep weekly settlement resilient while calendar/cup projections evolve.
+  // tickMatchday's contract is non-optional, but legacy/hot-reloaded clients may
+  // transiently execute an older implementation that returns undefined.
+  const matchdayOutcome = tickMatchday(s, override) ?? { fxResult: null };
   const { fxResult, matchdayNote }: { fxResult: FixtureResult | null; matchdayNote?: string } =
-    tickMatchday(s, override);
+    matchdayOutcome;
 
   tickLegacyAiResults(s);
   tickContractsAndMarkets(s);
