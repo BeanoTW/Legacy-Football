@@ -124,6 +124,8 @@ export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOu
     const result: "W" | "D" | "L" = gf > ga ? "W" : gf === ga ? "D" : "L";
     fxResult = {
       week: s.week,
+      dayOfWeek: fixture.dayOfWeek,
+      competition: fixture.competition ?? "league",
       opponent: fixture.opponent,
       home: fixture.home,
       goalsFor: gf,
