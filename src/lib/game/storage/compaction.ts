@@ -46,7 +46,7 @@ export const RETAIN_INBOX_WEEKS = 1;
 /** Prior identity seasons needed by the three-season reputation streak reader. */
 export const RETAIN_SNAPSHOT_SEASONS = 3;
 /** Recent scouting searches retained in the hot core. Full older briefs move to history. */
-export const RETAIN_SCOUTING_BRIEFS = 30;
+export const RETAIN_SCOUTING_BRIEFS = 20;
 
 export type ChunkKind =
   | "history:matches"
