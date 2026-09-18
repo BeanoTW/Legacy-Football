@@ -12,6 +12,21 @@ const startingWeek = state.week;
 
 assert(calendarDay(state) === 0, "new games must start on Monday");
 
+// The daily engine must support two different competitions in one week without
+// replaying either result during Sunday settlement.
+const leagueFixture = state.fixtures.find((fixture) => fixture.week === startingWeek);
+assert(leagueFixture, "fresh game must expose a league fixture for the opening week");
+leagueFixture.dayOfWeek = 5;
+leagueFixture.competition = "league";
+state.fixtures.push({
+  week: startingWeek,
+  opponent: leagueFixture.opponent,
+  home: !leagueFixture.home,
+  dayOfWeek: 1,
+  competition: "leagueCup",
+});
+const resultsBeforeDoubleWeek = state.results.length;
+
 const target = state.football.players.find(
   (player) => player.currentClubId !== null && !isUserClubReference(state, player.currentClubId),
 );
@@ -33,6 +48,10 @@ for (let day = 1; day <= MATCHDAY_INDEX; day++) {
   }
 }
 
+const doubleWeekResults = state.results.slice(resultsBeforeDoubleWeek);
+assert(doubleWeekResults.filter((r) => r.week === startingWeek && (r.dayOfWeek ?? 5) === 1 && r.competition === "leagueCup").length === 1, "Tuesday cup fixture must resolve exactly once");
+assert(doubleWeekResults.filter((r) => r.week === startingWeek && (r.dayOfWeek ?? 5) === 5 && (r.competition ?? "league") === "league").length === 1, "Saturday league fixture must resolve exactly once");
+
 state = advanceDay(state);
 assert(state.week === startingWeek, "Saturday to Sunday must remain inside the same week");
 assert(calendarDay(state) === 6, "Saturday to Sunday must advance the visible calendar");
@@ -42,6 +61,8 @@ assert(state.inbox.some((item) => item.eventKey?.includes(`scouting:${target.id}
 
 state = advanceDay(state);
 assert(state.week === startingWeek + 1, "crossing Sunday must settle exactly one week");
+assert(state.results.filter((r) => r.week === startingWeek && (r.dayOfWeek ?? 5) === 1 && r.competition === "leagueCup").length === 1, "Sunday settlement must not replay Tuesday cup fixture");
+assert(state.results.filter((r) => r.week === startingWeek && (r.dayOfWeek ?? 5) === 5 && (r.competition ?? "league") === "league").length === 1, "Sunday settlement must not replay Saturday league fixture");
 assert(calendarDay(state) === 0, "a newly settled week must restart on Monday");
 assert(scoutingAssignment(state, target.id)?.weeksObserved === 6, "weekly settlement must not double-progress completed scouting");
 
