@@ -19,7 +19,8 @@ export const SEASON_END_WEEK = CALENDAR.seasonEnd;
 export const WINDOW_PRESEASON_END = CALENDAR.preSeasonEnd;
 export const WINDOW_MIDSEASON = CALENDAR.midSeasonStart;
 
-export const FRIENDLY_WEEKS = new Set<number>([2, 4, 25, 27]);
+/** Pre-season preparation is confined to weeks 1-4. Competitive league football starts week 5. */
+export const FRIENDLY_WEEKS = new Set<number>([1, 2, 3, 4]);
 export const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 export const MATCHDAY_INDEX = 5;
 const DAY_FLAG = "calendar.dayOfWeek";
@@ -103,7 +104,7 @@ export function windowStatus(s: GameState): {
     return {
       open: true,
       label: "Pre-season window OPEN",
-      detail: `Closes end of week ${CALENDAR.preSeasonEnd} · ${CALENDAR.preSeasonEnd - s.week + 1}w left · friendlies in progress`,
+      detail: `Closes end of week ${CALENDAR.preSeasonEnd} · ${CALENDAR.preSeasonEnd - s.week + 1}w left · pre-season tournament in progress`,
     };
   }
   if (p === "midseason") {
