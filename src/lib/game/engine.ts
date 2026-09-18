@@ -181,7 +181,13 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   return runWeeklyGenerators(s);
 }
 
-/**
+
+/** True when the user's schedule has a fixture on the visible calendar day. */
+export function hasFixtureToday(state: GameState): boolean {
+  const day = calendarDay(state);
+  return state.fixtures.some((fixture) => fixture.week === state.week && (fixture.dayOfWeek ?? 5) === day);
+}
+\n/**
  * Advance one visible calendar unit.
  *
  * Normal weeks advance one day at a time. On the final Sunday of either
