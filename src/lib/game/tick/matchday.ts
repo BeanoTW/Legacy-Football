@@ -30,7 +30,7 @@ import {
   playerLeagueId,
 } from "../league";
 import { avgTicketPrice, simAttendance, simGoals, usableCapacity } from "../sim";
-import { FRIENDLY_WEEKS, calendarDay } from "../calendar";
+import { FRIENDLY_WEEKS } from "../calendar";
 import { advanceDomesticCup, resolveDomesticCupTie } from "../domesticCupState";
 import { resolveKnockoutDraw } from "../knockout";
 import { resolveAllAiDomesticCups } from "../aiDomesticCups";
@@ -53,8 +53,7 @@ export interface MatchdayOutcome {
 
 /** The user's fixture for this week (league match or scheduled friendly). */
 export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOutcome {
-  const day = calendarDay(s);
-  const fixture = s.fixtures.find((f) => f.week === s.week && (f.dayOfWeek ?? 5) === day);
+  const fixture = s.fixtures.find((f) => f.week === s.week);
   let matchdayNote: string | undefined;
   let fxResult: FixtureResult | null = null;
 
