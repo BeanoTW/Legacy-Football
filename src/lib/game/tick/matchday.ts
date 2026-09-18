@@ -160,7 +160,7 @@ export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOu
           matchdayNote = `${fixture.home ? "H" : "A"} vs ${clubDisplayName(s, fixture.opponent)} — ${gf}-${ga}${suffix}`;
         }
         const resolved = resolveDomesticCupTie(cup, homeClub, awayClub, winner);
-        s.domesticCups[cupIndex] = advanceDomesticCup(resolved, `${s.saveSeed}|${s.season}`);
+        s.domesticCups[cupIndex] = advanceDomesticCup(resolved, `${s.saveSeed}|${s.season}`, s);
       }
     }
 
