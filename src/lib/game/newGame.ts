@@ -23,6 +23,7 @@ import { migrateClubReferencesToIdsInPlace } from "./clubReferenceMigration";
 import { ensureEmploymentStateInPlace } from "./employment";
 import { ensurePlayerRegistrationStateInPlace } from "./playerRegistration";
 import { ensureLoanStateInPlace } from "./loans";
+import { initialiseSeasonCups } from "./cupEntry";
 
 /**
  * Canonical save schema version. Single source of truth: `newGame` stamps it,
@@ -75,6 +76,11 @@ export function newGame(clubName: string, managerName: string, seed?: string): G
   // Schema v20: loans are explicit agreements layered over the sparse
   // ownership/registration model. Fresh careers begin with none.
   ensureLoanStateInPlace(base);
+
+  // Seed the dated domestic competitions only after club references are
+  // canonical, so cup entrants and future user ties share the same identities
+  // as the league world from day one.
+  initialiseSeasonCups(base);
 
   // The broad opening world market is generated independently of the user's
   // club. Reconcile it once the full club state exists so a Level 7 career
