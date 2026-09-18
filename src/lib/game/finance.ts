@@ -17,6 +17,7 @@
 ========================================================================= */
 
 import type {
+  FixtureCompetition,
   AffordabilityResult,
   AffordabilityVerdict,
   BoardSpendingPolicy,
