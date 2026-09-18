@@ -76,7 +76,8 @@ export function tickSelectedMatchday(
     const userRef = userClubReference(s);
     let gf: number, ga: number, attendance: number, gate: number, tv: number, matchdayOps: number;
     // The scheduled fixture this result belongs to (schedule-backed saves).
-    const sched = hasFullSchedule(s)
+    const isLeagueFixture = (fixture.competition ?? "league") === "league";
+    const sched = hasFullSchedule(s) && isLeagueFixture
       ? s.leagueSchedule.find(
           (f) =>
             f.week === s.week &&
@@ -186,7 +187,7 @@ export function tickSelectedMatchday(
       Math.min(95, s.reputation + (result === "W" ? 0.4 : result === "L" ? -0.3 : 0)),
     );
 
-    if (hasFullSchedule(s)) {
+    if (hasFullSchedule(s) && isLeagueFixture) {
       // Record-driven league: store the user's fixture, resolve every AI
       // fixture in the same round, then project the table from records.
       if (sched) {
