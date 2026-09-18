@@ -35,13 +35,14 @@ export function makeFixtures(clubName: string, seed: string) {
 export function fixturesForClub(
   schedule: ScheduledFixture[],
   club: string,
-): { week: number; opponent: string; home: boolean }[] {
+): { week: number; opponent: string; home: boolean; competition?: ScheduledFixture["competition"] }[] {
   return schedule
     .filter((f) => f.home === club || f.away === club)
     .map((f) => ({
       week: f.week,
       opponent: f.home === club ? f.away : f.home,
       home: f.home === club,
+      competition: f.competition ?? "league",
     }))
     .sort((a, b) => a.week - b.week);
 }
