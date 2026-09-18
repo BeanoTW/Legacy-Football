@@ -335,6 +335,8 @@ export interface ScheduledFixture {
   league?: string;
   round: number;
   week: number;
+  /** 0=Mon ... 6=Sun. League defaults to Saturday (5) on legacy schedules. */
+  dayOfWeek?: number;
   home: string;
   away: string;
 }
@@ -1536,7 +1538,7 @@ export interface GameState {
   squad: Player[];
   sponsors: Sponsor[];
 
-  fixtures: { week: number; opponent: string; home: boolean; competition?: FixtureCompetition }[];
+  fixtures: { week: number; opponent: string; home: boolean; competition?: FixtureCompetition; dayOfWeek?: number }[];
   results: FixtureResult[];
 
   /** All divisions in the pyramid. */
