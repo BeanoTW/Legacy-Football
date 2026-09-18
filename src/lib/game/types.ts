@@ -293,7 +293,7 @@ export interface WeekLedger {
   inboxNotes?: { note: string; amount: number; sourceItemId?: string; sourceEventKey?: string }[];
 }
 
-export type FixtureCompetition = "league" | "preseason" | "domesticCup";
+export type FixtureCompetition = "league" | "preseason" | "leagueCup" | "faCup";
 
 export interface FixtureResult {
   week: number;
