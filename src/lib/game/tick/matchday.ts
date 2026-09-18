@@ -271,9 +271,13 @@ export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOu
     matchdayNote = `Friendly vs ${opp} — ${gf}-${ga} ${result}`;
   }
 
-  // Keep the rest of each active knockout draw moving alongside the player.
-  resolveAllAiDomesticCups(s);
-  syncUserCupFixtures(s);
+  // Cup simulation starts only once a save actually owns cup state. Legacy and
+  // freshly-created saves without initialised cups keep the established weekly
+  // path untouched.
+  if (s.domesticCups?.length) {
+    resolveAllAiDomesticCups(s);
+    syncUserCupFixtures(s);
+  }
 
   return { fxResult, matchdayNote };
 }
