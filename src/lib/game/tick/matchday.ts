@@ -31,6 +31,7 @@ import {
 } from "../league";
 import { avgTicketPrice, simAttendance, simGoals, usableCapacity } from "../sim";
 import { FRIENDLY_WEEKS } from "../calendar";
+import { advanceDomesticCup, resolveDomesticCupTie } from "../domesticCupState";
 
 export interface MatchOverride {
   gf: number;
@@ -101,6 +102,8 @@ export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOu
     postMatchdayFinance(s, {
       season: s.season,
       week: s.week,
+      dayOfWeek: fixture.dayOfWeek,
+      competition: fixture.competition ?? "league",
       opponent: fixture.opponent,
       home: fixture.home,
       attendance,
@@ -130,6 +133,19 @@ export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOu
       tvIncome: tv,
       result,
     };
+
+    // Knockout ties feed directly back into the persistent cup lifecycle.
+    // Drawn ties are deliberately left unresolved until a dedicated cup
+    // decider (extra time/penalties) supplies a winner.
+    if ((fixture.competition === "leagueCup" || fixture.competition === "faCup") && result !== "D") {
+      const cupIndex = s.domesticCups?.findIndex((cup) => cup.competition === fixture.competition) ?? -1;
+      if (cupIndex >= 0 && s.domesticCups) {
+        const cup = s.domesticCups[cupIndex];
+        const winner = result === "W" ? userRef : fixture.opponent;
+        const resolved = resolveDomesticCupTie(cup, homeClub, awayClub, winner);
+        s.domesticCups[cupIndex] = advanceDomesticCup(resolved, `${s.saveSeed}|${s.season}`);
+      }
+    }
 
     const swing = result === "W" ? 4 : result === "D" ? 0 : -5;
     s.fanHappiness = Math.max(5, Math.min(100, s.fanHappiness + swing));
