@@ -577,6 +577,8 @@ export function postRecurringWeek(s: GameState): void {
 export interface MatchdayFinanceInput {
   season: number;
   week: number;
+  /** Day index within the week; absent only on legacy saves. */
+  dayOfWeek?: number;
   opponent: string;
   home: boolean;
   attendance: number;

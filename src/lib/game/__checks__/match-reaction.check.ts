@@ -33,7 +33,7 @@ const state = (leagueFixture: boolean): GameState =>
       { team: "Legacy FC", p: 3, w: 2, d: 0, l: 1, gf: 5, ga: 3, pts: 6 },
       { team: "Rovers", p: 3, w: 1, d: 0, l: 2, gf: 3, ga: 5, pts: 3 },
     ],
-  }) as GameState;
+  }) as unknown as GameState;
 
 const friendlyWin = postMatchReaction(state(false), result());
 assert(friendlyWin.stakes === "friendly", "non-league fixtures should be treated as friendlies");
