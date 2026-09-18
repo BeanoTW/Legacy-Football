@@ -33,6 +33,7 @@ import { avgTicketPrice, simAttendance, simGoals, usableCapacity } from "../sim"
 import { FRIENDLY_WEEKS } from "../calendar";
 import { advanceDomesticCup, resolveDomesticCupTie } from "../domesticCupState";
 import { resolveKnockoutDraw } from "../knockout";
+import { resolveAllAiDomesticCups } from "../aiDomesticCups";
 
 export interface MatchOverride {
   gf: number;
@@ -269,5 +270,5 @@ export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOu
     matchdayNote = `Friendly vs ${opp} — ${gf}-${ga} ${result}`;
   }
 
-  return { fxResult, matchdayNote };
+  // Keep the rest of each active knockout draw moving alongside the player.\n  resolveAllAiDomesticCups(s);\n\n  return { fxResult, matchdayNote };
 }
