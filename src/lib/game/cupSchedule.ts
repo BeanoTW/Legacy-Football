@@ -53,3 +53,55 @@ export function cupSlot(
 ): CupRoundSlot | undefined {
   return DOMESTIC_CUP_SLOTS.find((slot) => slot.competition === competition && slot.round === round);
 }
+
+
+export interface CupRoundState {
+  competition: CupRoundSlot["competition"];
+  round: number;
+  entrants: string[];
+  ties: CupTie[];
+  winners: string[];
+}
+
+export function startCupRound(
+  competition: CupRoundState["competition"],
+  round: number,
+  entrants: readonly string[],
+  seed: string,
+): CupRoundState {
+  return {
+    competition,
+    round,
+    entrants: [...entrants],
+    ties: seededCupDraw(entrants, `${seed}|${competition}|r${round}`),
+    winners: [],
+  };
+}
+
+export function recordCupWinner(state: CupRoundState, winner: string): CupRoundState {
+  if (!state.entrants.includes(winner)) return state;
+  if (state.winners.includes(winner)) return state;
+  return { ...state, winners: [...state.winners, winner] };
+}
+
+export function nextCupRound(state: CupRoundState, seed: string): CupRoundState | null {
+  if (state.ties.length === 0 || state.winners.length !== state.ties.length) return null;
+  if (state.winners.length < 2) return null;
+  return startCupRound(state.competition, state.round + 1, state.winners, seed);
+}
+
+export function userCupFixture(
+  state: CupRoundState,
+  club: string,
+): { opponent: string; home: boolean; competition: CupRoundState["competition"]; week: number; dayOfWeek: number } | null {
+  const tie = state.ties.find((t) => t.home === club || t.away === club);
+  const slot = cupSlot(state.competition, state.round);
+  if (!tie || !slot) return null;
+  return {
+    opponent: tie.home === club ? tie.away : tie.home,
+    home: tie.home === club,
+    competition: state.competition,
+    week: slot.week,
+    dayOfWeek: slot.dayOfWeek,
+  };
+}
