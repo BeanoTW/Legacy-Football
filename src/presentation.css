@@ -992,7 +992,7 @@
 
 .lf-week-cards {
   display: grid;
-  grid-template-columns: repeat(6, minmax(5.6rem, 1fr)) minmax(6.4rem, .9fr);
+  grid-template-columns: repeat(6, minmax(8.4rem, 1fr)) minmax(6.4rem, .7fr);
   gap: 0.4rem;
   overflow-x: auto;
   padding-bottom: 0.1rem;
@@ -1005,8 +1005,8 @@
 
 .lf-week-card,
 .lf-full-schedule {
-  min-height: 4.35rem;
-  border-radius: 0.8rem;
+  min-height: 5.25rem;
+  border-radius: 0.45rem;
   border: 1px solid var(--lf-line);
   background: color-mix(in oklab, var(--color-card) 92%, var(--color-primary) 8%);
   padding: 0.55rem 0.6rem;
@@ -1033,6 +1033,45 @@
   font-size: 0.84rem;
 }
 
+.lf-week-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .35rem;
+}
+
+.lf-week-head > span {
+  color: var(--color-banner);
+  font-size: .5rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.lf-week-fixtures {
+  display: grid;
+  gap: .22rem;
+  margin-top: .3rem;
+}
+
+.lf-week-fixture {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .28rem;
+  min-width: 0;
+  border-left: 3px solid var(--color-competition-league);
+  padding-left: .3rem;
+  font-size: .52rem;
+  line-height: 1.15;
+}
+
+.lf-week-fixture.is-leagueCup { border-left-color: var(--color-competition-league-cup); }
+.lf-week-fixture.is-faCup { border-left-color: var(--color-competition-national-cup); }
+.lf-week-fixture.is-preseason { border-left-color: var(--color-competition-preseason); }
+.lf-week-fixture-day { font-weight: 800; text-transform: uppercase; }
+.lf-week-fixture-opponent { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.lf-week-fixture-status { font-weight: 800; opacity: .72; }
+
 .lf-week-type {
   margin-top: 0.16rem;
   font-size: 0.62rem;
@@ -1058,6 +1097,126 @@
   font-weight: 800;
   color: var(--color-foreground);
 }
+
+/* Fixtures calendar — compact match programme cards. */
+.lf-fixture-calendar {
+  max-height: min(34rem, calc(100dvh - 17rem));
+}
+
+.lf-fixture-week + .lf-fixture-week {
+  margin-top: .75rem;
+}
+
+.lf-fixture-week-heading {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px solid var(--color-foreground);
+  background: var(--color-card);
+  padding: .3rem .15rem;
+  font-family: var(--font-display, inherit);
+  font-size: .75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.lf-fixture-week-heading span:last-child {
+  color: var(--color-muted-foreground);
+  font-family: var(--font-sans, inherit);
+  font-size: .55rem;
+}
+
+.lf-fixture-grid {
+  display: grid;
+  gap: .35rem;
+  padding-top: .35rem;
+}
+
+.lf-fixture-card {
+  display: grid;
+  grid-template-columns: .32rem 3.2rem minmax(0, 1fr) auto;
+  align-items: stretch;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--lf-line);
+  border-radius: .35rem;
+  background: color-mix(in oklab, var(--color-card) 93%, var(--color-primary) 7%);
+}
+
+.lf-fixture-card.is-next {
+  border-color: color-mix(in oklab, var(--color-primary) 60%, var(--color-border));
+  box-shadow: 0 5px 14px color-mix(in oklab, var(--color-primary) 12%, transparent);
+}
+
+.lf-fixture-accent { background: var(--color-competition-league); }
+.lf-fixture-card.is-leagueCup .lf-fixture-accent { background: var(--color-competition-league-cup); }
+.lf-fixture-card.is-faCup .lf-fixture-accent { background: var(--color-competition-national-cup); }
+.lf-fixture-card.is-preseason .lf-fixture-accent { background: var(--color-competition-preseason); }
+
+.lf-fixture-date {
+  display: grid;
+  place-content: center;
+  border-right: 1px solid var(--lf-line);
+  padding: .5rem .35rem;
+  text-align: center;
+}
+
+.lf-fixture-date strong {
+  font-family: var(--font-display, inherit);
+  font-size: 1.35rem;
+  line-height: .9;
+}
+
+.lf-fixture-date span,
+.lf-fixture-copy > span:last-child,
+.lf-fixture-outcome span {
+  color: var(--color-muted-foreground);
+  font-size: .55rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.lf-fixture-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: .55rem .65rem;
+}
+
+.lf-fixture-copy strong {
+  font-family: var(--font-display, inherit);
+  font-size: 1rem;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.lf-competition-label {
+  color: var(--color-competition-league) !important;
+}
+.is-leagueCup .lf-competition-label { color: var(--color-competition-league-cup) !important; }
+.is-faCup .lf-competition-label { color: var(--color-competition-national-cup) !important; }
+.is-preseason .lf-competition-label { color: var(--color-competition-preseason) !important; }
+
+.lf-fixture-outcome {
+  display: flex;
+  min-width: 4.7rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-left: 1px solid var(--lf-line);
+  padding: .45rem .55rem;
+}
+
+.lf-fixture-outcome strong {
+  font-family: var(--font-display, inherit);
+  font-size: 1.25rem;
+  line-height: 1;
+}
+.lf-fixture-outcome .is-w { color: var(--color-income); }
+.lf-fixture-outcome .is-l { color: var(--color-expense); }
 
 .lf-home-panel,
 .lf-news-card,
@@ -1330,7 +1489,7 @@
   }
 
   .lf-week-cards {
-    grid-template-columns: repeat(6, 4.8rem) 5.4rem;
+    grid-template-columns: repeat(6, 8.2rem) 5.4rem;
   }
 
   .lf-overview-grid {

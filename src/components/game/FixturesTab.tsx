@@ -4,6 +4,14 @@ import { cn } from "@/lib/utils";
 import { startMatchDay } from "@/lib/game/engine";
 import { Section } from "./shared/primitives";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
+import { Button } from "@/components/ui/button";
+import {
+  competitionLabel,
+  fixtureCompetition,
+  fixtureDate,
+  fixtureKey,
+  resultForFixture,
+} from "./fixturePresentation";
 
 export function FixturesTab({
   state,
@@ -12,56 +20,65 @@ export function FixturesTab({
   state: GameState;
   update: (fn: (s: GameState) => GameState) => void;
 }) {
+  const fixturesByWeek = state.fixtures.reduce((weeks, fixture) => {
+    const group = weeks.get(fixture.week) ?? [];
+    group.push(fixture);
+    group.sort((a, b) => (a.dayOfWeek ?? 5) - (b.dayOfWeek ?? 5));
+    weeks.set(fixture.week, group);
+    return weeks;
+  }, new Map<number, GameState["fixtures"]>());
+
   return (
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid h-full min-h-0 gap-4 md:grid-cols-[minmax(0,1.06fr)_minmax(0,.94fr)]">
       <Section title="Fixtures">
-        <div className="max-h-[520px] overflow-y-auto divide-y text-sm">
-          {state.fixtures.map((f) => {
-            const result = state.results.find((r) => r.week === f.week);
-            const isNext = f.week === state.week;
-            return (
-              <div
-                key={f.week}
-                className={cn(
-                  "flex items-center justify-between py-2",
-                  isNext && "bg-accent/20 -mx-4 px-4 border-y border-accent",
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-xs w-10 text-muted-foreground tnum">W{f.week}</span>
-                  <span
-                    className={cn(
-                      "text-[10px] font-bold px-1.5 py-0.5 rounded",
-                      f.home ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground",
-                    )}
-                  >
-                    {f.home ? "H" : "A"}
-                  </span>
-                  <span>{clubDisplayName(state, f.opponent)}</span>
-                </div>
-                {result ? (
-                  <span
-                    className={cn(
-                      "text-xs font-bold tnum",
-                      result.result === "W" && "text-[color:var(--color-income)]",
-                      result.result === "L" && "text-[color:var(--color-expense)]",
-                    )}
-                  >
-                    {result.goalsFor}-{result.goalsAgainst}
-                  </span>
-                ) : isNext ? (
-                  <button
-                    onClick={() => update((s) => startMatchDay(s))}
-                    className="text-xs font-semibold text-accent-foreground bg-accent hover:brightness-95 px-2 py-0.5 rounded"
-                  >
-                    Play →
-                  </button>
-                ) : (
-                  <span className="text-xs text-muted-foreground">—</span>
-                )}
+        <div className="lf-fixture-calendar contained-scroll pr-1">
+          {[...fixturesByWeek.entries()].map(([week, fixtures]) => (
+            <section key={week} className={cn("lf-fixture-week", week === state.week && "is-current")}>
+              <div className="lf-fixture-week-heading">
+                <span>Week {week}</span>
+                <span>{fixtures.length > 1 ? `${fixtures.length} fixtures` : "Matchday"}</span>
               </div>
-            );
-          })}
+              <div className="lf-fixture-grid">
+                {fixtures.map((fixture) => {
+                  const result = resultForFixture(state, fixture);
+                  const competition = fixtureCompetition(fixture);
+                  const date = fixtureDate(fixture);
+                  const isNext = fixture.week === state.week && !result;
+                  return (
+                    <article key={fixtureKey(fixture)} className={cn("lf-fixture-card", `is-${competition}`, isNext && "is-next")}>
+                      <div className="lf-fixture-accent" />
+                      <div className="lf-fixture-date tnum">
+                        <strong>{date.day}</strong>
+                        <span>{date.dayName} · {date.month}</span>
+                      </div>
+                      <div className="lf-fixture-copy min-w-0">
+                        <span className="lf-competition-label">{competitionLabel(competition)}</span>
+                        <strong className="truncate">{clubDisplayName(state, fixture.opponent)}</strong>
+                        <span>{fixture.home ? "Home" : "Away"}</span>
+                      </div>
+                      <div className="lf-fixture-outcome tnum">
+                        {result ? (
+                          <>
+                            <strong>{result.goalsFor}–{result.goalsAgainst}</strong>
+                            <span className={cn(`is-${result.result.toLowerCase()}`)}>{result.result === "W" ? "Win" : result.result === "D" ? "Draw" : "Loss"}</span>
+                          </>
+                        ) : isNext ? (
+                          <Button size="sm" onClick={() => update((s) => startMatchDay(s))}>
+                            <Play /> Play
+                          </Button>
+                        ) : (
+                          <>
+                            <strong>—</strong>
+                            <span>Upcoming</span>
+                          </>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
         </div>
       </Section>
 
