@@ -8,7 +8,6 @@ function assert(condition: unknown, message: string): asserts condition {
 }
 
 let state = newGame("Calendar City", "Ada Calendar", "CALENDAR|LOOP|FIXED");
-const startingWeek = state.week;
 
 assert(calendarDay(state) === 0, "new games must start on Monday");
 
