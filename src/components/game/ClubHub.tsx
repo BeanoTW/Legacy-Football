@@ -10,6 +10,7 @@ import {
   Handshake,
   Play,
   Target,
+  Trophy,
   Users,
 } from "lucide-react";
 
