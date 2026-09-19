@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { newGame } from "../newGame";
-import { PRESEASON_MATCH_SLOTS } from "../preseason";
+import { PRESEASON_COMPETITION_NAME, PRESEASON_MATCH_SLOTS, preseasonTable } from "../preseason";
 
 const state = newGame("Dalton Town", "Chairman", "preseason-fixtures-check");
 const fixtures = state.leagueSchedule
@@ -15,5 +15,10 @@ assert.deepEqual(
 );
 assert.ok(fixtures.every((fixture) => fixture.week < 5), "friendlies must finish before competitive league football");
 assert.ok(fixtures.every((fixture) => fixture.competition === "preseason"), "friendlies need explicit competition identity");
+
+assert.equal(PRESEASON_COMPETITION_NAME, "Summer Invitational");
+const table = preseasonTable(state);
+assert.equal(table.length, 4, "invitational table should contain the user and three opponents");
+assert.ok(table.every((row) => row.p === 0 && row.pts === 0), "fresh invitational table starts unplayed");
 
 console.log("preseason-fixtures.check: ok");
