@@ -27,11 +27,6 @@ import { recomputeConfidence } from "@/lib/game/board";\nimport { playerManagerQ
 import { Button } from "@/components/ui/button";
 import { competitionLabel, fixtureCompetition, fixtureDate, resultForFixture } from "./fixturePresentation";
 
-function fanbaseEstimate(state: GameState): number {
-  const cap = totalCapacity(state);
-  return Math.round(cap * (0.35 + state.fanHappiness / 220 + state.reputation / 260));
-}
-
 export function ClubHub({ state, update, setTab, isContinuing }: { state: GameState; update: (fn: (s: GameState) => GameState) => void; setTab: (t: Tab) => void; isContinuing: boolean }) {
   const today = calendarDay(state);
   const nextFixture = [...state.fixtures]
@@ -43,7 +38,6 @@ export function ClubHub({ state, update, setTab, isContinuing }: { state: GameSt
   const manager = state.hiredStaff.find((staff) => staff.role === "Manager");
   const staffCount = state.hiredStaff.length;
   const squadSize = userSquad(state).length;
-  const fanbase = fanbaseEstimate(state);
   const suggestedSteps = [
     !manager ? { label: "Hire a manager", detail: "No manager is currently appointed.", tab: "staff" as Tab } : null,
     staffCount < 3 ? { label: "Build the backroom team", detail: `${staffCount} staff currently employed.`, tab: "staff" as Tab } : null,
@@ -97,7 +91,7 @@ export function ClubHub({ state, update, setTab, isContinuing }: { state: GameSt
       <section className="lf-vital-grid">
         <VitalCard label="Financial health" value={strategic.health.label} detail={`${fmtMoney(state.cash)} cash · ${strategic.health.coverMonths.toFixed(1)} months cover`} tone={HEALTH_TONE[strategic.health.state]} meter={Math.min(100, strategic.health.coverMonths * 12)} onClick={() => setTab("cashflow")} />
         <VitalCard label="Board confidence" value={`${boardConf}%`} detail={strategic.pressure.headline} tone={boardConf >= 65 ? "text-emerald-600" : "text-amber-600"} meter={boardConf} onClick={() => setTab("board")} />
-        <VitalCard label="Supporter mood" value={`${state.fanHappiness}%`} detail={`${fanbase.toLocaleString()} supporters`} tone={state.fanHappiness >= 60 ? "text-emerald-600" : "text-amber-600"} meter={state.fanHappiness} onClick={() => setTab("tickets")} />
+        <VitalCard label="Supporter mood" value={`${state.fanHappiness}%`} detail="Current supporter sentiment" tone={state.fanHappiness >= 60 ? "text-emerald-600" : "text-amber-600"} meter={state.fanHappiness} onClick={() => setTab("tickets")} />
       </section>
       {suggestedSteps.length > 0 && (
         <section className="lf-suggested-next rounded-2xl border bg-card shadow-sm">
@@ -123,7 +117,7 @@ export function ClubHub({ state, update, setTab, isContinuing }: { state: GameSt
         <ActionTile onClick={() => setTab("recruitment")} icon={<TransfersIcon className="size-5" />} title="Transfers" value={activeNegotiations > 0 ? `${activeNegotiations} active` : "Market"} sub="Scouting · shortlist · deals" />
         <ActionTile onClick={() => setTab("staff")} icon={<StaffIcon className="size-5" />} title="Staff" value={manager ? manager.name : "No manager"} sub={staffCount ? `${staffCount} employed` : "Build your team"} />
         <ActionTile onClick={() => setTab("stadium")} icon={<FacilitiesIcon className="size-5" />} title="Facilities" value={`${totalCapacity(state).toLocaleString()} seats`} sub="Stadium · training" />
-        <ActionTile onClick={() => setTab("tickets")} icon={<Heart className="size-5" />} title="Supporters" value={`${state.fanHappiness}% happy`} sub={`${fanbase.toLocaleString()} fans`} />
+        <ActionTile onClick={() => setTab("tickets")} icon={<Heart className="size-5" />} title="Supporters" value={`${state.fanHappiness}% happy`} sub="Mood · engagement" />
         <ActionTile onClick={() => setTab("board")} icon={<Target className="size-5" />} title="Club vision" value="Build for the future" sub="Direction · expectations" />
       </section>
       <div className="hidden xl:block"><LeaguePanel state={state} miniLeague={miniLeague} leagueSorted={leagueSorted} setTab={setTab} /></div>
