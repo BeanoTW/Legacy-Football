@@ -1323,3 +1323,30 @@
     font-size: 1.2rem;
   }
 }
+
+
+.lf-home-dashboard .lf-heading-label {
+  display: inline-flex;
+  align-items: center;
+  gap: .38rem;
+}
+
+.lf-home-dashboard .lf-heading-label svg {
+  color: color-mix(in oklab, var(--color-primary) 42%, white);
+  filter: drop-shadow(0 0 5px color-mix(in oklab, var(--color-primary) 32%, transparent));
+}
+
+.lf-home-dashboard .lf-count-badge {
+  box-shadow: 0 3px 9px rgb(0 0 0 / 20%);
+}
+
+@media (max-width: 767px) {
+  .lf-home-dashboard .lf-heading-label {
+    gap: .25rem;
+  }
+
+  .lf-home-dashboard .lf-heading-label svg {
+    width: .72rem;
+    height: .72rem;
+  }
+}
