@@ -773,3 +773,82 @@
     padding-block: .42rem;
   }
 }
+
+
+@media (max-width: 767px) {
+  /* The fixture is the main football event, but it should not consume half of
+     the chairman dashboard. Keep the essentials and give tasks/news room. */
+  .lf-home-dashboard .lf-match-card,
+  .lf-home-dashboard .lf-match-inner {
+    min-height: 9.7rem;
+  }
+
+  .lf-home-dashboard .lf-match-inner {
+    grid-template-columns: minmax(0, 1.45fr) minmax(6.8rem, .55fr);
+    gap: .45rem;
+    padding: .62rem .72rem;
+  }
+
+  .lf-home-dashboard .lf-match-kicker {
+    font-size: .6rem;
+  }
+
+  .lf-home-dashboard .lf-match-copy h2 {
+    font-size: 1.28rem;
+    line-height: .95;
+  }
+
+  .lf-home-dashboard .lf-match-copy p {
+    margin-top: .22rem;
+    font-size: .66rem;
+  }
+
+  .lf-match-brief {
+    margin-top: .3rem;
+    padding-top: .3rem;
+  }
+
+  .lf-match-brief span,
+  .lf-match-fit small {
+    font-size: .56rem;
+  }
+
+  .lf-match-brief strong,
+  .lf-match-fit {
+    font-size: .68rem;
+  }
+
+  .lf-home-dashboard .lf-match-actions {
+    gap: .35rem;
+    margin-top: .4rem;
+  }
+
+  .lf-home-dashboard .lf-match-primary,
+  .lf-home-dashboard .lf-match-secondary {
+    min-height: 2rem;
+    padding: .4rem .52rem;
+    font-size: .58rem;
+  }
+
+  .lf-home-dashboard .lf-team-mark {
+    width: 2.25rem;
+    height: 2.55rem;
+    border-radius: .7rem .7rem .9rem .9rem;
+    font-size: .72rem;
+  }
+
+  .lf-home-dashboard .lf-match-team .font-display {
+    max-width: 4.3rem;
+    font-size: .68rem;
+  }
+
+  .lf-home-dashboard .lf-match-team > span {
+    font-size: .56rem;
+  }
+
+  .lf-home-dashboard .lf-vs {
+    width: 1.8rem;
+    height: 1.8rem;
+    font-size: .55rem;
+  }
+}
