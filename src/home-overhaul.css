@@ -1049,3 +1049,75 @@
     height: .78rem;
   }
 }
+
+
+@media (max-width: 767px) {
+  /* Keep detailed chairman content readable, but remove decorative bulk. */
+  .lf-home-desk {
+    gap: .5rem;
+  }
+
+  .lf-home-panel,
+  .lf-news-card,
+  .lf-suggested-next {
+    border-radius: .75rem;
+  }
+
+  .lf-home-panel-heading {
+    min-height: 1.7rem;
+    padding: .32rem .55rem;
+    font-size: .62rem;
+  }
+
+  .lf-task-list {
+    padding: .18rem;
+  }
+
+  .lf-task-row {
+    gap: .45rem;
+    padding: .48rem .45rem;
+    border-radius: .55rem;
+  }
+
+  .lf-task-row.is-clear {
+    min-height: 3.1rem;
+  }
+
+  .lf-task-row strong {
+    font-size: .72rem;
+  }
+
+  .lf-task-row small {
+    font-size: .6rem;
+  }
+
+  .lf-task-row .lf-task-icon {
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: .5rem;
+  }
+
+  .lf-task-row .lf-task-icon svg {
+    width: .8rem;
+    height: .8rem;
+  }
+
+  .lf-news-card {
+    min-height: 6.5rem;
+    grid-template-rows: auto 2.6rem auto;
+  }
+
+  .lf-news-card .p-3 {
+    padding: .48rem .58rem;
+  }
+
+  .lf-news-card .text-sm {
+    font-size: .72rem;
+    line-height: 1.1;
+  }
+
+  .lf-news-card .text-xs {
+    font-size: .6rem;
+    line-height: 1.1;
+  }
+}
