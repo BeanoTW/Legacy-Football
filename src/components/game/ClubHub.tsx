@@ -99,7 +99,7 @@ export function ClubHub({ state, update, setTab, isContinuing }: { state: GameSt
       </section>
       {suggestedSteps.length > 0 && (
         <section className="lf-suggested-next rounded-2xl border bg-card shadow-sm">
-          <div className="lf-home-panel-heading"><span>Suggested next steps</span><small>Optional</small></div>
+          <div className="lf-home-panel-heading"><span className="lf-heading-label"><Target className="size-3.5" />Suggested next steps</span><small>Optional</small></div>
           <div className="lf-suggested-list">{suggestedSteps.slice(0, 3).map((item) => (
             <button key={item.label} onClick={() => setTab(item.tab)} className="lf-suggested-row"><span className="lf-task-icon"><Target className="size-4" /></span><span className="min-w-0 flex-1"><strong>{item.label}</strong><small>{item.detail}</small></span><ArrowRight className="size-4 shrink-0 opacity-55" /></button>
           ))}</div>
@@ -107,13 +107,13 @@ export function ClubHub({ state, update, setTab, isContinuing }: { state: GameSt
       )}
       <section className="lf-home-desk grid gap-2 md:grid-cols-[1.15fr_.85fr] md:gap-3">
         <div className="lf-home-panel overflow-hidden rounded-2xl border bg-card shadow-sm">
-          <div className="lf-home-panel-heading"><div className="flex items-center gap-2"><span>Chairman tasks</span>{decisionItems.length > 0 && <span className="lf-count-badge">{decisionItems.length}</span>}</div><button onClick={() => setTab("inbox")}>View all <ArrowRight className="size-3.5" /></button></div>
+          <div className="lf-home-panel-heading"><div className="flex items-center gap-2"><span className="lf-heading-label"><Briefcase className="size-3.5" />Chairman tasks</span>{decisionItems.length > 0 && <span className="lf-count-badge">{decisionItems.length}</span>}</div><button onClick={() => setTab("inbox")}>View all <ArrowRight className="size-3.5" /></button></div>
           <div className="lf-task-list">{topDecisions.length > 0 ? topDecisions.map((item) => (
             <button key={item.id} onClick={() => setTab("inbox")} className="lf-task-row"><span className="lf-task-icon"><Mail className="size-4" /></span><span className="min-w-0 flex-1"><strong className="block truncate">{item.subject}</strong><small className="block truncate">{item.department}</small></span><ArrowRight className="size-4 shrink-0 opacity-55" /></button>
           )) : <div className="lf-task-row is-clear"><span className="lf-task-icon"><Mail className="size-4" /></span><span><strong className="block">No decisions waiting</strong><small className="block">Nothing needs your attention</small></span></div>}</div>
         </div>
         <button onClick={() => setTab("inbox")} className="lf-news-card overflow-hidden rounded-2xl border bg-card text-left shadow-sm">
-          <div className="lf-home-panel-heading"><span>Club news</span><span>View all <ArrowRight className="inline size-3.5" /></span></div><div className="lf-news-art" aria-hidden="true" /><div className="p-3"><strong className="block line-clamp-2 text-sm">{latestNews?.subject ?? "No club news yet"}</strong><p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{latestNews ? `${latestNews.department} · Week ${latestNews.week}` : "Updates from the club will appear here."}</p></div>
+          <div className="lf-home-panel-heading"><span className="lf-heading-label"><Mail className="size-3.5" />Club news</span><span>View all <ArrowRight className="inline size-3.5" /></span></div><div className="lf-news-art" aria-hidden="true" /><div className="p-3"><strong className="block line-clamp-2 text-sm">{latestNews?.subject ?? "No club news yet"}</strong><p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{latestNews ? `${latestNews.department} · Week ${latestNews.week}` : "Updates from the club will appear here."}</p></div>
         </button>
       </section>
       <section className="lf-management-grid grid grid-cols-2 gap-2 md:grid-cols-3">
