@@ -23,6 +23,8 @@ import { userSquad } from "@/lib/game/recruitment";
 import { ContinueCalendar } from "./ContinueCalendar";
 import { clubPresentationName } from "@/lib/game/clubPresentation";
 import { managerMatchPrep } from "@/lib/game/managerMatchPrep";
+import { Button } from "@/components/ui/button";
+import { competitionLabel, fixtureCompetition, fixtureDate } from "./fixturePresentation";
 
 function fanbaseEstimate(state: GameState): number {
   const cap = totalCapacity(state);
@@ -51,11 +53,37 @@ export function ClubHub({ state, update, setTab, isContinuing }: { state: GameSt
   const leagueSorted = [...state.league].sort((a, b) => b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga) || b.gf - a.gf);
   const myIndex = leagueSorted.findIndex((row) => isUserClubReference(state, row.team));
   const miniLeague = leagueSorted.slice(Math.max(0, myIndex - 2), Math.min(leagueSorted.length, myIndex + 3));
+  const recentResults = state.results.slice(-5);
+  const leaguePosition = myIndex >= 0 ? myIndex + 1 : null;
 
   return (
     <div className="lf-home-dashboard flex min-h-0 flex-col gap-3">
-      <section className="lf-match-card overflow-hidden rounded-2xl border bg-card shadow-sm"><MatchStrip state={state} nextFixture={nextFixture} update={update} onOpenSchedule={() => setTab("fixtures")} onOpenStaff={() => setTab("staff")} /></section>
+      <section className="lf-command-grid">
+        <div className="lf-match-card overflow-hidden rounded-2xl border bg-card shadow-sm"><MatchStrip state={state} nextFixture={nextFixture} update={update} onOpenSchedule={() => setTab("fixtures")} onOpenStaff={() => setTab("staff")} /></div>
+        <aside className="lf-club-pulse">
+          <div className="lf-pulse-block">
+            <span className="lf-pulse-label">League standing</span>
+            <div className="lf-standing-value">{leaguePosition ? ordinal(leaguePosition) : "—"}</div>
+            <div className="lf-form-strip" aria-label="Recent form">
+              {recentResults.length ? recentResults.map((result, index) => <span key={`${result.week}-${index}`} className={`is-${result.result.toLowerCase()}`}>{result.result}</span>) : <small>Season yet to begin</small>}
+            </div>
+          </div>
+          <button className="lf-pulse-manager" onClick={() => setTab("staff")}>
+            <span className="lf-pulse-label">Manager status</span>
+            <strong>{manager?.name ?? "Vacant"}</strong>
+            <small>{manager ? `${managerConf}% confidence` : "Appointment required"}</small>
+          </button>
+          <button className="lf-pulse-table" onClick={() => setTab("world")}>
+            {miniLeague.slice(0, 3).map((row) => <span key={row.team} className={cn(isUserClubReference(state, row.team) && "is-club")}><b>{leagueSorted.indexOf(row) + 1}</b><em>{clubPresentationName(clubDisplayName(state, row.team))}</em><strong>{row.pts}</strong></span>)}
+          </button>
+        </aside>
+      </section>
       <div className="lf-home-calendar"><ContinueCalendar state={state} isContinuing={isContinuing} onOpenSchedule={() => setTab("fixtures")} /></div>
+      <section className="lf-vital-grid">
+        <VitalCard label="Financial health" value={strategic.health.label} detail={`${fmtMoney(state.cash)} cash · ${strategic.health.coverMonths.toFixed(1)} months cover`} tone={HEALTH_TONE[strategic.health.state]} meter={Math.min(100, strategic.health.coverMonths * 12)} onClick={() => setTab("cashflow")} />
+        <VitalCard label="Board confidence" value={`${boardConf}%`} detail={strategic.pressure.headline} tone={boardConf >= 65 ? "text-emerald-600" : "text-amber-600"} meter={boardConf} onClick={() => setTab("board")} />
+        <VitalCard label="Supporter mood" value={`${state.fanHappiness}%`} detail={`${fanbase.toLocaleString()} supporters`} tone={state.fanHappiness >= 60 ? "text-emerald-600" : "text-amber-600"} meter={state.fanHappiness} onClick={() => setTab("tickets")} />
+      </section>
       {suggestedSteps.length > 0 && (
         <section className="lf-suggested-next rounded-2xl border bg-card shadow-sm">
           <div className="lf-home-panel-heading"><span>Suggested next steps</span><small>Optional</small></div>
@@ -83,16 +111,6 @@ export function ClubHub({ state, update, setTab, isContinuing }: { state: GameSt
         <ActionTile onClick={() => setTab("tickets")} icon={<Heart className="size-5" />} title="Supporters" value={`${state.fanHappiness}% happy`} sub={`${fanbase.toLocaleString()} fans`} />
         <ActionTile onClick={() => setTab("board")} icon={<Target className="size-5" />} title="Club vision" value="Build for the future" sub="Direction · expectations" />
       </section>
-      <section className="lf-club-overview overflow-hidden rounded-2xl border bg-card shadow-sm">
-        <div className="lf-home-panel-heading"><span>Club overview</span><button onClick={() => setTab("dashboard")}>View more <ArrowRight className="size-3.5" /></button></div>
-        <div className="lf-overview-grid">
-          <OverviewMetric label="Finances" value={strategic.health.label} detail={`${strategic.health.coverMonths.toFixed(1)} months`} className={HEALTH_TONE[strategic.health.state]} onClick={() => setTab("cashflow")} />
-          <OverviewMetric label="Reserve" value={fmtMoney(strategic.reserve.recommended)} detail={strategic.reserve.excess > 0 ? `${fmtMoney(strategic.reserve.excess)} spare` : `${fmtMoney(strategic.reserve.deficit)} short`} onClick={() => setTab("cashflow")} />
-          <OverviewMetric label="Pressure" value={`${strategic.pressure.score}/100`} detail={strategic.pressure.headline} onClick={() => setTab("board")} />
-          <OverviewMetric label="Board confidence" value={`${boardConf}%`} meter={boardConf} className="text-emerald-600" onClick={() => setTab("board")} />
-          <OverviewMetric label="Manager confidence" value={`${managerConf}%`} meter={managerConf} className={managerConf >= 55 ? "text-amber-600" : "text-rose-600"} onClick={() => setTab("staff")} />
-        </div>
-      </section>
       <div className="hidden xl:block"><LeaguePanel state={state} miniLeague={miniLeague} leagueSorted={leagueSorted} setTab={setTab} /></div>
     </div>
   );
@@ -105,11 +123,18 @@ function MatchStrip({ state, nextFixture, update, onOpenSchedule, onOpenStaff }:
   const homeName = nextFixture ? nextFixture.home ? state.clubName : clubPresentationName(clubDisplayName(state, nextFixture.opponent)) : state.clubName;
   const awayName = nextFixture ? nextFixture.home ? clubPresentationName(clubDisplayName(state, nextFixture.opponent)) : state.clubName : "Opposition TBC";
   const fitTone = prep.squadFitBand === "Excellent" ? "text-emerald-600" : prep.squadFitBand === "Good" ? "text-green-600" : prep.squadFitBand === "Workable" ? "text-amber-600" : prep.squadFitBand === "Poor" ? "text-rose-600" : "text-muted-foreground";
-  return <div className="lf-match-inner"><div className="lf-match-copy"><div className="lf-match-kicker">Next match · Week {state.week}</div><h2>{nextFixture ? "Matchday" : isPreseason ? "Pre-season preparation" : "No fixture this week"}</h2><p>{nextFixture ? `${nextFixture.home ? "Home" : "Away"} · Saturday · ${state.week <= 6 ? "Friendly" : "League"}` : isPreseason ? "Friendly · Date TBC · Home" : "Use the schedule to review upcoming fixtures."}</p>{nextFixture && <div className="mt-3 rounded-xl border border-white/15 bg-black/20 p-3 backdrop-blur-sm"><div className="flex items-center justify-between gap-3"><div><div className="text-[10px] font-semibold uppercase tracking-[0.16em] opacity-70">Manager's match plan</div><div className="mt-1 text-sm font-semibold">{prep.managerName} · {prep.selectedFormation} · {prep.style}</div></div><div className={cn("shrink-0 text-right text-xs font-semibold", fitTone)}>{prep.squadFitBand}<div className="font-normal opacity-70">{prep.squadFitScore}/100 fit</div></div></div><p className="mt-2 text-xs leading-relaxed opacity-80">{prep.summary}</p>{prep.selectedFormation !== prep.preferredFormation && <div className="mt-2 text-[11px] font-medium text-amber-500">Adapted from preferred {prep.preferredFormation} to suit the current squad.</div>}</div>}<div className="lf-match-actions">{matchReady ? <button onClick={() => update((current) => startMatchDay(current))} className="lf-match-primary"><Play className="size-4" /> View match</button> : <button onClick={onOpenSchedule} className="lf-match-primary"><Play className="size-4" /> View schedule</button>}<button onClick={onOpenStaff} className="lf-match-secondary">Manager profile</button></div></div><div className="lf-match-versus"><div className="lf-match-team"><div className="lf-team-mark">{initials(homeName)}</div><div className="truncate font-display">{homeName}</div></div><div className="lf-vs">VS</div><div className="lf-match-team"><div className={cn("lf-team-mark", !nextFixture && "is-tbc")}>{nextFixture ? initials(awayName) : "?"}</div><div className="truncate font-display">{awayName}</div></div></div></div>;
+  const date = nextFixture ? fixtureDate(nextFixture) : null;
+  const competition = nextFixture ? competitionLabel(fixtureCompetition(nextFixture)) : isPreseason ? "Preseason" : "Schedule";
+  return <div className="lf-match-inner"><div className="lf-match-copy"><div className="lf-match-kicker">Next fixture · Week {state.week}</div><h2>{nextFixture ? clubPresentationName(clubDisplayName(state, nextFixture.opponent)) : isPreseason ? "Pre-season preparation" : "No fixture this week"}</h2><p>{nextFixture && date ? `${date.dayName} ${date.day} ${date.month} · ${nextFixture.home ? "Home" : "Away"} · ${competition}` : isPreseason ? "Friendly schedule to be confirmed" : "Use the schedule to review upcoming fixtures."}</p>{nextFixture && <div className="lf-match-brief"><div><span>Manager's brief</span><strong>{prep.managerName} · {prep.selectedFormation} · {prep.style}</strong></div><div className={cn("lf-match-fit", fitTone)}>{prep.squadFitBand}<small>{prep.squadFitScore}/100 fit</small></div></div>}<div className="lf-match-actions">{matchReady ? <Button onClick={() => update((current) => startMatchDay(current))} className="lf-match-primary"><Play /> View match</Button> : <Button onClick={onOpenSchedule} className="lf-match-primary"><Play /> View schedule</Button>}<Button variant="outline" onClick={onOpenStaff} className="lf-match-secondary">Manager profile</Button></div></div><div className="lf-match-versus"><div className="lf-match-team"><div className="lf-team-mark">{initials(homeName)}</div><div className="truncate font-display">{homeName}</div><span>{nextFixture?.home ? "Home" : "Away"}</span></div><div className="lf-vs">VS</div><div className="lf-match-team"><div className={cn("lf-team-mark", !nextFixture && "is-tbc")}>{nextFixture ? initials(awayName) : "?"}</div><div className="truncate font-display">{awayName}</div><span>{nextFixture?.home ? "Away" : "Home"}</span></div></div></div>;
 }
 
-function OverviewMetric({ label, value, detail, meter, className, onClick }: { label: string; value: string; detail?: string; meter?: number; className?: string; onClick: () => void }) {
-  return <button onClick={onClick} className="lf-overview-metric"><span>{label}</span><strong className={className}>{value}</strong>{detail && <small>{detail}</small>}{meter !== undefined && <span className="lf-overview-meter"><span style={{ width: `${Math.max(0, Math.min(100, meter))}%` }} /></span>}</button>;
+function ordinal(value: number): string {
+  const suffix = value % 10 === 1 && value % 100 !== 11 ? "st" : value % 10 === 2 && value % 100 !== 12 ? "nd" : value % 10 === 3 && value % 100 !== 13 ? "rd" : "th";
+  return `${value}${suffix}`;
+}
+
+function VitalCard({ label, value, detail, meter, tone, onClick }: { label: string; value: string; detail: string; meter: number; tone?: string; onClick: () => void }) {
+  return <button onClick={onClick} className="lf-vital-card"><span>{label}</span><strong className={tone}>{value}</strong><small>{detail}</small><i><b style={{ width: `${Math.max(0, Math.min(100, meter))}%` }} /></i></button>;
 }
 
 function LeaguePanel({ state, miniLeague, leagueSorted, setTab }: { state: GameState; miniLeague: GameState["league"]; leagueSorted: GameState["league"]; setTab: (t: Tab) => void }) {
