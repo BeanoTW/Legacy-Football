@@ -1590,3 +1590,28 @@
     border-radius: .58rem;
   }
 }
+
+
+/* Touch feedback: keep the dashboard feeling tactile on mobile */
+@media (max-width: 767px) {
+  .lf-home-dashboard .lf-vital-card:active,
+  .lf-home-dashboard .lf-task-row:active,
+  .lf-home-dashboard .lf-suggested-row:active,
+  .lf-home-dashboard .lf-news-card:active,
+  .lf-home-dashboard .lf-pulse-manager:active {
+    transform: translateY(1px) scale(.995);
+    box-shadow: 0 3px 9px rgb(4 23 28 / 12%), inset 0 1px rgb(255 255 255 / 7%);
+  }
+
+  .lf-home-dashboard .lf-match-primary:active,
+  .lf-home-dashboard .lf-match-secondary:active {
+    transform: translateY(1px);
+  }
+
+  .lf-home-dashboard .lf-task-row,
+  .lf-home-dashboard .lf-suggested-row,
+  .lf-home-dashboard .lf-vital-card,
+  .lf-home-dashboard .lf-pulse-manager {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
