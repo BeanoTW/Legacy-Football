@@ -324,3 +324,53 @@
     box-shadow: 0 0 8px rgb(255 255 255 / 45%);
   }
 }
+
+
+/* Club masthead finishing pass */
+.lf-club-masthead {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.lf-club-masthead::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 82% 12%, rgb(255 255 255 / 12%), transparent 28%),
+    linear-gradient(180deg, transparent 42%, rgb(2 18 23 / 20%));
+}
+
+.lf-club-masthead .lf-club-crest {
+  filter: drop-shadow(0 5px 8px rgb(0 0 0 / 28%));
+}
+
+.lf-club-masthead h1 {
+  text-shadow: 0 2px 8px rgb(0 0 0 / 32%);
+}
+
+.lf-club-masthead .lf-chairman-badge {
+  border-color: rgb(255 255 255 / 18%);
+  background: linear-gradient(145deg, rgb(255 255 255 / 13%), rgb(255 255 255 / 5%));
+  box-shadow: 0 5px 13px rgb(0 0 0 / 17%), inset 0 1px rgb(255 255 255 / 14%);
+  backdrop-filter: blur(5px);
+}
+
+@media (max-width: 767px) {
+  .lf-club-masthead::after {
+    background:
+      radial-gradient(circle at 80% 5%, rgb(255 255 255 / 11%), transparent 26%),
+      linear-gradient(180deg, transparent 32%, rgb(2 18 23 / 24%));
+  }
+
+  .lf-club-masthead .lf-club-crest {
+    filter: drop-shadow(0 3px 5px rgb(0 0 0 / 28%));
+  }
+
+  .lf-club-masthead .lf-chairman-badge {
+    box-shadow: 0 3px 9px rgb(0 0 0 / 18%), inset 0 1px rgb(255 255 255 / 12%);
+  }
+}
