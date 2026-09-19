@@ -23,7 +23,8 @@ import { userSquad } from "@/lib/game/recruitment";
 import { ContinueCalendar } from "./ContinueCalendar";
 import { clubPresentationName } from "@/lib/game/clubPresentation";
 import { managerMatchPrep } from "@/lib/game/managerMatchPrep";
-import { recomputeConfidence } from "@/lib/game/board";\nimport { playerManagerQuality } from "@/lib/game/playerClubPerformance";
+import { recomputeConfidence } from "@/lib/game/board";
+import { playerManagerQuality } from "@/lib/game/playerClubPerformance";
 import { Button } from "@/components/ui/button";
 import { competitionLabel, fixtureCompetition, fixtureDate, resultForFixture } from "./fixturePresentation";
 
