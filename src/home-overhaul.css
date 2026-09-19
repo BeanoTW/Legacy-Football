@@ -1832,3 +1832,30 @@
     z-index: 1;
   }
 }
+
+
+/* Final screenshot cleanup before closing the Home visual pass */
+@media (max-width: 767px) {
+  .lf-home-dashboard .lf-vital-heading {
+    min-width: 0;
+  }
+
+  .lf-home-dashboard .lf-vital-heading > span {
+    font-size: clamp(.56rem, 2.15vw, .66rem);
+    letter-spacing: -.01em;
+  }
+
+  .lf-home-dashboard .lf-match-fit {
+    color: rgb(255 255 255 / 82%);
+    background: rgb(255 255 255 / 9%);
+    border: 1px solid rgb(255 255 255 / 10%);
+  }
+
+  .lf-home-dashboard .lf-match-fit strong {
+    color: rgb(255 255 255 / 94%);
+  }
+
+  .lf-home-dashboard .lf-news-card {
+    min-height: 5.8rem;
+  }
+}
