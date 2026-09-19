@@ -5,6 +5,7 @@ import { calendarDay, startMatchDay } from "@/lib/game/engine";
 import { Section } from "./shared/primitives";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { Button } from "@/components/ui/button";
+import { PRESEASON_COMPETITION_NAME, preseasonTable } from "@/lib/game/preseason";
 import {
   competitionLabel,
   fixtureCompetition,
@@ -20,6 +21,9 @@ export function FixturesTab({
   state: GameState;
   update: (fn: (s: GameState) => GameState) => void;
 }) {
+  const preseasonRows = preseasonTable(state);
+  const showPreseason = state.fixtures.some((fixture) => fixture.competition === "preseason");
+
   const fixturesByWeek = state.fixtures.reduce((weeks, fixture) => {
     const group = weeks.get(fixture.week) ?? [];
     group.push(fixture);
@@ -82,7 +86,40 @@ export function FixturesTab({
         </div>
       </Section>
 
-      <Section title="League table">
+      <div className="grid min-h-0 gap-4">
+        {showPreseason && (
+          <Section title={PRESEASON_COMPETITION_NAME}>
+            <div className="px-1 pb-2 text-xs text-muted-foreground">
+              Three-match July invitational · preparation before the competitive season
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm tnum">
+                <thead className="text-xs uppercase text-muted-foreground">
+                  <tr className="border-b">
+                    <th className="text-left py-2 pr-2">#</th>
+                    <th className="text-left py-2 pr-2">Club</th>
+                    <th className="text-right py-2 pr-2">P</th>
+                    <th className="text-right py-2 pr-2">GD</th>
+                    <th className="text-right py-2">Pts</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {preseasonRows.map((r, i) => (
+                    <tr key={r.club} className={cn("border-b last:border-b-0", isUserClubReference(state, r.club) && "bg-accent/20 font-semibold")}>
+                      <td className="py-1.5 pr-2 text-muted-foreground">{i + 1}</td>
+                      <td className="py-1.5 pr-2">{clubDisplayName(state, r.club)}</td>
+                      <td className="text-right py-1.5 pr-2">{r.p}</td>
+                      <td className="text-right py-1.5 pr-2">{r.gf - r.ga}</td>
+                      <td className="text-right py-1.5 font-semibold">{r.pts}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Section>
+        )}
+
+        <Section title="League table">
         <div className="overflow-x-auto">
           <table className="w-full text-sm tnum">
             <thead className="text-xs uppercase text-muted-foreground">
@@ -122,6 +159,7 @@ export function FixturesTab({
           </table>
         </div>
       </Section>
+      </div>
     </div>
   );
 }
