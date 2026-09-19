@@ -1696,3 +1696,55 @@
     border-color: color-mix(in oklab, var(--color-primary) 48%, white 8%);
   }
 }
+
+
+/* Screenshot-tuned fixture readability */
+@media (max-width: 767px) {
+  .lf-home-dashboard .lf-match-brief {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: .45rem;
+  }
+
+  .lf-home-dashboard .lf-match-brief > div:first-child {
+    min-width: 0;
+  }
+
+  .lf-home-dashboard .lf-match-brief > div:first-child strong {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .lf-home-dashboard .lf-match-fit {
+    min-width: 4.55rem;
+    align-self: center;
+    text-align: center;
+  }
+
+  .lf-home-dashboard .lf-match-versus {
+    gap: .24rem;
+  }
+
+  .lf-home-dashboard .lf-match-team {
+    width: 3.15rem;
+  }
+
+  .lf-home-dashboard .lf-team-mark {
+    margin-inline: auto;
+  }
+
+  .lf-home-dashboard .lf-match-team .font-display {
+    margin-top: .18rem;
+    font-size: .6rem;
+  }
+
+  .lf-home-dashboard .lf-match-team span {
+    margin-top: .08rem;
+    font-size: .5rem;
+  }
+
+  .lf-home-dashboard .lf-vs {
+    flex: 0 0 auto;
+    font-size: .56rem;
+  }
+}
