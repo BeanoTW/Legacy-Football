@@ -1,5 +1,6 @@
 import type { FixtureCompetition, FixtureResult, GameState } from "@/lib/game/types";
 import { DAY_NAMES, seasonDateForSlot, seasonMonthName } from "@/lib/game/calendar";
+import { sameClubReference } from "@/lib/game/clubReference";
 
 export type DisplayFixture = GameState["fixtures"][number];
 
@@ -32,14 +33,14 @@ export function resultForFixture(state: GameState, fixture: DisplayFixture): Fix
     result.week === fixture.week &&
     (result.competition ?? "league") === competition &&
     (result.dayOfWeek ?? 5) === (fixture.dayOfWeek ?? 5) &&
-    result.opponent === fixture.opponent,
+    sameClubReference(state, result.opponent, fixture.opponent),
   );
   if (exact) return exact;
 
   return state.results.find((result) =>
     result.week === fixture.week &&
     (result.competition ?? "league") === competition &&
-    result.opponent === fixture.opponent,
+    sameClubReference(state, result.opponent, fixture.opponent),
   );
 }
 
