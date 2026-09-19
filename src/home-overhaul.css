@@ -891,3 +891,40 @@
     display: block;
   }
 }
+
+
+@media (max-width: 767px) {
+  /* Keep the next fixture prominent, but closer to a banner than a hero. */
+  .lf-home-dashboard .lf-match-card,
+  .lf-home-dashboard .lf-match-inner {
+    min-height: 8rem;
+  }
+
+  .lf-home-dashboard .lf-match-inner {
+    padding: .48rem .62rem;
+  }
+
+  .lf-home-dashboard .lf-match-copy h2 {
+    font-size: 1.12rem;
+  }
+
+  .lf-match-brief {
+    margin-top: .22rem;
+    padding-top: .22rem;
+  }
+
+  .lf-home-dashboard .lf-match-actions {
+    margin-top: .28rem;
+  }
+
+  .lf-home-dashboard .lf-match-primary,
+  .lf-home-dashboard .lf-match-secondary {
+    min-height: 1.85rem;
+    padding-block: .3rem;
+  }
+
+  .lf-home-dashboard .lf-team-mark {
+    width: 2rem;
+    height: 2.25rem;
+  }
+}
