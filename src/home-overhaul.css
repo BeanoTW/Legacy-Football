@@ -4,6 +4,12 @@
   padding-bottom: 1rem;
 }
 
+.lf-command-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(17rem, .72fr);
+  gap: .75rem;
+}
+
 /* Match centrepiece */
 .lf-home-dashboard .lf-match-card {
   min-height: 17rem;
@@ -34,6 +40,61 @@
   gap: 1.5rem;
   padding: 1.5rem 1.75rem;
 }
+
+.lf-match-brief {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: .8rem;
+  border-top: 1px solid rgb(255 255 255 / 14%);
+}
+
+.lf-match-brief span,
+.lf-match-brief strong,
+.lf-match-fit small { display: block; }
+.lf-match-brief span { font-size: .6rem; font-weight: 800; text-transform: uppercase; color: rgb(255 255 255 / 52%); }
+.lf-match-brief strong { margin-top: .2rem; font-size: .75rem; }
+.lf-match-fit { flex: 0 0 auto; text-align: right; font-size: .72rem; font-weight: 800; }
+.lf-match-fit small { margin-top: .1rem; color: rgb(255 255 255 / 48%); font-weight: 500; }
+
+.lf-club-pulse {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--color-primary) 16%, var(--color-border));
+  border-radius: .65rem;
+  background: var(--color-card);
+  box-shadow: 0 10px 28px rgb(8 18 28 / 8%);
+}
+
+.lf-pulse-block,
+.lf-pulse-manager { padding: 1rem; text-align: left; }
+.lf-pulse-block { border-bottom: 1px solid var(--lf-line); }
+.lf-pulse-manager { border-bottom: 1px solid var(--lf-line); }
+.lf-pulse-label { display: block; font-size: .62rem; font-weight: 800; text-transform: uppercase; color: var(--color-muted-foreground); }
+.lf-standing-value { margin-top: .2rem; font-family: var(--font-display); font-size: 2.8rem; font-weight: 800; line-height: 1; }
+.lf-form-strip { display: flex; min-height: 1.7rem; align-items: center; gap: .3rem; margin-top: .7rem; }
+.lf-form-strip span { display: grid; width: 1.65rem; height: 1.65rem; place-items: center; border-radius: .3rem; background: var(--color-muted); font-size: .64rem; font-weight: 900; }
+.lf-form-strip .is-w { background: color-mix(in oklab, var(--color-income) 18%, var(--color-card)); color: var(--color-income); }
+.lf-form-strip .is-l { background: color-mix(in oklab, var(--color-expense) 16%, var(--color-card)); color: var(--color-expense); }
+.lf-form-strip small { font-size: .68rem; color: var(--color-muted-foreground); }
+.lf-pulse-manager strong { display: block; margin-top: .4rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .9rem; }
+.lf-pulse-manager small { display: block; margin-top: .15rem; font-size: .67rem; color: var(--color-muted-foreground); }
+.lf-pulse-table { display: flex; flex-direction: column; justify-content: center; padding: .55rem .75rem; text-align: left; }
+.lf-pulse-table > span { display: grid; grid-template-columns: 1.35rem minmax(0, 1fr) auto; gap: .4rem; padding: .32rem .35rem; font-size: .66rem; }
+.lf-pulse-table > span.is-club { background: color-mix(in oklab, var(--color-primary) 11%, transparent); color: var(--color-primary); }
+.lf-pulse-table b { color: var(--color-muted-foreground); }
+.lf-pulse-table em { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-style: normal; }
+
+.lf-vital-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .65rem; }
+.lf-vital-card { min-width: 0; padding: .9rem 1rem; border: 1px solid color-mix(in oklab, var(--color-primary) 10%, var(--color-border)); border-radius: .55rem; background: var(--color-card); text-align: left; box-shadow: 0 8px 20px rgb(8 18 28 / 6%); }
+.lf-vital-card > span { display: block; font-size: .62rem; font-weight: 800; text-transform: uppercase; color: var(--color-muted-foreground); }
+.lf-vital-card > strong { display: block; margin-top: .32rem; font-family: var(--font-display); font-size: 1.5rem; line-height: 1; }
+.lf-vital-card > small { display: block; margin-top: .32rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .66rem; color: var(--color-muted-foreground); }
+.lf-vital-card > i { display: block; height: .22rem; margin-top: .65rem; overflow: hidden; border-radius: 999px; background: var(--color-muted); }
+.lf-vital-card > i > b { display: block; height: 100%; background: currentColor; }
 
 .lf-home-dashboard .lf-match-kicker {
   color: rgb(255 255 255 / 56%);
@@ -435,6 +496,22 @@
     gap: 0.9rem;
     padding: 1rem;
   }
+
+  .lf-command-grid { display: flex; flex-direction: column; gap: .55rem; }
+  .lf-club-pulse { grid-template-columns: 1fr 1fr; grid-template-rows: auto; }
+  .lf-pulse-block,
+  .lf-pulse-manager { padding: .75rem; border-bottom: 0; }
+  .lf-pulse-block { border-right: 1px solid var(--lf-line); }
+  .lf-pulse-table { display: none; }
+  .lf-standing-value { font-size: 2rem; }
+  .lf-form-strip { margin-top: .4rem; }
+  .lf-form-strip span { width: 1.35rem; height: 1.35rem; }
+  .lf-vital-grid { grid-template-columns: repeat(3, minmax(8.5rem, 1fr)); overflow-x: auto; scrollbar-width: none; }
+  .lf-vital-grid::-webkit-scrollbar { display: none; }
+  .lf-vital-card { padding: .72rem; }
+  .lf-vital-card > strong { font-size: 1.15rem; }
+  .lf-vital-card > small { font-size: .6rem; }
+  .lf-match-brief { margin-top: .65rem; padding-top: .55rem; }
 
   .lf-home-dashboard .lf-match-copy {
     width: 100%;
