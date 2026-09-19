@@ -1793,3 +1793,42 @@
     white-space: nowrap;
   }
 }
+
+
+/* Screenshot-tuned lower-panel finish */
+@media (max-width: 767px) {
+  .lf-home-dashboard .lf-suggested-next,
+  .lf-home-dashboard .lf-home-panel {
+    overflow: hidden;
+  }
+
+  .lf-home-dashboard .lf-home-panel-heading {
+    min-height: 1.85rem;
+    padding-inline: .72rem;
+  }
+
+  .lf-home-dashboard .lf-task-row,
+  .lf-home-dashboard .lf-suggested-row {
+    margin-inline: .28rem;
+  }
+
+  .lf-home-dashboard .lf-task-row:last-child,
+  .lf-home-dashboard .lf-suggested-row:last-child {
+    margin-bottom: .28rem;
+  }
+
+  .lf-home-dashboard .lf-task-icon {
+    box-shadow: inset 0 1px rgb(255 255 255 / 10%);
+  }
+
+  .lf-home-dashboard .lf-news-card {
+    position: relative;
+    overflow: hidden;
+    min-height: 7rem;
+  }
+
+  .lf-home-dashboard .lf-news-card > * {
+    position: relative;
+    z-index: 1;
+  }
+}
