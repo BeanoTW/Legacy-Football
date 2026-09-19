@@ -698,3 +698,78 @@
     padding-block: .52rem;
   }
 }
+
+
+@media (max-width: 767px) {
+  /* Fit the command centre inside the phone viewport without making the
+     primary fixture unreadably small. */
+  .lf-home-dashboard .lf-match-card,
+  .lf-home-dashboard .lf-match-inner {
+    min-height: 12.25rem;
+  }
+
+  .lf-home-dashboard .lf-match-inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(8rem, .65fr);
+    align-items: center;
+    gap: .65rem;
+    padding: .8rem;
+  }
+
+  .lf-home-dashboard .lf-match-copy h2 {
+    font-size: 1.5rem;
+  }
+
+  .lf-home-dashboard .lf-match-copy p {
+    margin-top: .35rem;
+  }
+
+  .lf-home-dashboard .lf-match-actions {
+    margin-top: .55rem;
+  }
+
+  .lf-home-dashboard .lf-match-versus {
+    align-self: stretch;
+  }
+
+  .lf-home-dashboard .lf-team-mark {
+    width: 2.75rem;
+    height: 3.1rem;
+  }
+
+  .lf-home-dashboard .lf-match-team .font-display {
+    font-size: .82rem;
+  }
+
+  .lf-match-brief {
+    margin-top: .45rem;
+    padding-top: .4rem;
+  }
+
+  .lf-club-pulse {
+    min-height: 4.7rem;
+  }
+
+  .lf-pulse-block,
+  .lf-pulse-manager {
+    padding: .58rem .7rem;
+  }
+
+  .lf-standing-value {
+    font-size: 1.7rem;
+  }
+
+  .lf-vital-card {
+    min-height: 4.5rem;
+    padding: .58rem;
+  }
+
+  .lf-vital-card > i {
+    margin-top: .4rem;
+  }
+
+  .lf-home-panel-heading {
+    min-height: 2rem;
+    padding-block: .42rem;
+  }
+}
