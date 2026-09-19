@@ -7,6 +7,8 @@ import { hashString, mulberry32 } from "./rng";
  * pre-season weeks. The 4/5-day rhythm leaves genuine club-working time
  * between matches and keeps week 4 clear before league football begins.
  */
+export const PRESEASON_COMPETITION_NAME = "Summer Invitational";
+
 export const PRESEASON_MATCH_SLOTS = [
   { week: 1, dayOfWeek: 3 }, // Thu 6 Jul
   { week: 2, dayOfWeek: 1 }, // Tue 11 Jul (5 days)
@@ -47,4 +49,56 @@ export function initialisePreseasonFixtures(state: GameState): void {
 
   const fixtures = buildUserPreseasonFixtures(state);
   state.leagueSchedule = [...(state.leagueSchedule ?? []), ...fixtures];
+}
+
+
+export interface PreseasonTableRow {
+  club: string;
+  p: number;
+  w: number;
+  d: number;
+  l: number;
+  gf: number;
+  ga: number;
+  pts: number;
+}
+
+/**
+ * Lightweight invitational table derived entirely from played user fixtures.
+ * This deliberately does not pollute the canonical league table or MatchRecord
+ * store; the tournament is context for pre-season, not a parallel league.
+ */
+export function preseasonTable(state: GameState): PreseasonTableRow[] {
+  const fixtures = (state.fixtures ?? []).filter((fixture) => fixture.competition === "preseason");
+  const clubs = [userClubReference(state), ...fixtures.map((fixture) => fixture.opponent)]
+    .map((club) => canonicalClubReference(state, club))
+    .filter((club, index, all) => all.indexOf(club) === index);
+  const rows = new Map(clubs.map((club) => [club, { club, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 }]));
+  const user = canonicalClubReference(state, userClubReference(state));
+
+  for (const result of (state.results ?? []).filter((item) => item.competition === "preseason")) {
+    const opponent = canonicalClubReference(state, result.opponent);
+    const mine = rows.get(user);
+    const theirs = rows.get(opponent);
+    if (!mine || !theirs) continue;
+
+    mine.p += 1;
+    theirs.p += 1;
+    mine.gf += result.goalsFor;
+    mine.ga += result.goalsAgainst;
+    theirs.gf += result.goalsAgainst;
+    theirs.ga += result.goalsFor;
+
+    if (result.result === "W") {
+      mine.w += 1; mine.pts += 3; theirs.l += 1;
+    } else if (result.result === "L") {
+      mine.l += 1; theirs.w += 1; theirs.pts += 3;
+    } else {
+      mine.d += 1; mine.pts += 1; theirs.d += 1; theirs.pts += 1;
+    }
+  }
+
+  return [...rows.values()].sort((a, b) =>
+    b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga) || b.gf - a.gf || a.club.localeCompare(b.club),
+  );
 }
