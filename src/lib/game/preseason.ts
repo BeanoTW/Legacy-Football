@@ -1,6 +1,7 @@
 import type { GameState, ScheduledFixture } from "./types";
 import { canonicalClubReference, userClubReference } from "./clubReference";
 import { hashString, mulberry32 } from "./rng";
+import { postEntry } from "./finance";
 
 /**
  * Opening invitational: three low-stakes friendlies across the first three
@@ -101,4 +102,47 @@ export function preseasonTable(state: GameState): PreseasonTableRow[] {
   return [...rows.values()].sort((a, b) =>
     b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga) || b.gf - a.gf || a.club.localeCompare(b.club),
   );
+}
+
+
+const PRESEASON_REWARD_KEY = (season: number) => `preseason:reward:s${season}`;
+
+export function preseasonComplete(state: GameState): boolean {
+  const scheduled = (state.fixtures ?? []).filter((fixture) => fixture.competition === "preseason");
+  if (!scheduled.length) return false;
+  const played = (state.results ?? []).filter((result) => result.competition === "preseason");
+  return played.length >= scheduled.length;
+}
+
+/** Keep the invitational deliberately low stakes: useful at Level 7, trivial at the top. */
+export function preseasonWinnerPrize(state: GameState): number {
+  const tier = (state.leagues ?? []).find((league) =>
+    league.clubIds.some((club) => canonicalClubReference(state, club) === canonicalClubReference(state, userClubReference(state))),
+  )?.tier ?? 7;
+  return Math.max(2_000, Math.round(14_000 / Math.max(1, tier)));
+}
+
+/**
+ * Close the user's invitational exactly once. The reward is intentionally
+ * modest and only paid if the user tops the table after all three matches.
+ */
+export function settlePreseasonInvitational(state: GameState): boolean {
+  if (!preseasonComplete(state)) return false;
+  const table = preseasonTable(state);
+  const user = canonicalClubReference(state, userClubReference(state));
+  if (table[0]?.club !== user) return false;
+
+  const key = PRESEASON_REWARD_KEY(state.season);
+  const entry = postEntry(state, {
+    direction: "income",
+    amount: preseasonWinnerPrize(state),
+    category: "Prize Money",
+    subcategory: "Pre-season",
+    description: `${PRESEASON_COMPETITION_NAME} winner's prize`,
+    sourceSystem: "preseason",
+    dedupeKey: key,
+    season: state.season,
+    week: state.week,
+  });
+  return entry !== null;
 }
