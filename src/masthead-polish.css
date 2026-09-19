@@ -188,3 +188,63 @@
     font-size: 1.35rem;
   }
 }
+
+
+@media (max-width: 767px) {
+  /* Phone masthead: identity strip, not a second hero. */
+  .lf-masthead,
+  .lf-masthead .panel-strip {
+    min-height: 4.25rem;
+  }
+
+  .lf-masthead .panel-strip > div {
+    gap: .42rem;
+    padding: .38rem .72rem;
+  }
+
+  .lf-masthead .panel-strip > div > svg {
+    width: 2.15rem;
+    height: 2.15rem;
+    padding: .42rem;
+    border-radius: .65rem;
+  }
+
+  .lf-masthead .lf-brand-kicker {
+    display: none;
+  }
+
+  .lf-masthead h1 {
+    font-size: 1.16rem;
+    line-height: 1;
+  }
+
+  .lf-masthead .lf-club-subtitle {
+    margin-top: .08rem;
+    font-size: .67rem;
+  }
+
+  .lf-masthead .lf-club-detail {
+    margin-top: .08rem;
+    font-size: .54rem;
+    white-space: nowrap;
+  }
+
+  .lf-masthead .lf-chairman-badge {
+    min-width: 4rem;
+    padding: .28rem .38rem;
+    border-radius: .65rem;
+  }
+
+  .lf-masthead .lf-chairman-badge span {
+    display: none;
+  }
+
+  .lf-masthead .lf-chairman-badge strong {
+    font-size: 1.05rem;
+    line-height: 1;
+  }
+
+  .lf-masthead .lf-chairman-badge small {
+    font-size: .5rem;
+  }
+}
