@@ -118,7 +118,7 @@ export function ClubHub({ state, update, setTab, isContinuing }: { state: GameSt
         <ActionTile onClick={() => setTab("staff")} icon={<StaffIcon className="size-5" />} title="Staff" value={manager ? manager.name : "No manager"} sub={staffCount ? `${staffCount} employed` : "Build your team"} />
         <ActionTile onClick={() => setTab("stadium")} icon={<FacilitiesIcon className="size-5" />} title="Facilities" value={`${totalCapacity(state).toLocaleString()} seats`} sub="Stadium · training" />
         <ActionTile onClick={() => setTab("tickets")} icon={<Heart className="size-5" />} title="Supporters" value={`${state.fanHappiness}% happy`} sub="Mood · engagement" />
-        <ActionTile onClick={() => setTab("board")} icon={<Target className="size-5" />} title="Club vision" value="Build for the future" sub="Direction · expectations" />
+        <ActionTile onClick={() => setTab("board")} icon={<Target className="size-5" />} title="Club vision" value={`${boardConf}% confidence`} sub={strategic.pressure.headline} />
       </section>
       <div className="hidden xl:block"><LeaguePanel state={state} miniLeague={miniLeague} leagueSorted={leagueSorted} setTab={setTab} /></div>
     </div>
