@@ -1615,3 +1615,40 @@
     -webkit-tap-highlight-color: transparent;
   }
 }
+
+
+/* Final contrast pass for the rich mobile theme */
+@media (max-width: 767px) {
+  .lf-home-dashboard .lf-home-panel,
+  .lf-home-dashboard .lf-suggested-next,
+  .lf-home-dashboard .lf-club-pulse {
+    --muted-foreground: rgb(255 255 255 / 64%);
+  }
+
+  .lf-home-dashboard .lf-home-panel strong,
+  .lf-home-dashboard .lf-suggested-next strong,
+  .lf-home-dashboard .lf-club-pulse strong {
+    color: rgb(255 255 255 / 94%);
+  }
+
+  .lf-home-dashboard .lf-home-panel p,
+  .lf-home-dashboard .lf-suggested-next p,
+  .lf-home-dashboard .lf-club-pulse p {
+    color: rgb(255 255 255 / 72%);
+  }
+
+  .lf-home-dashboard .lf-home-panel-heading small,
+  .lf-home-dashboard .lf-home-panel-heading button,
+  .lf-home-dashboard .lf-home-panel-heading a {
+    color: rgb(255 255 255 / 58%);
+  }
+
+  .lf-home-dashboard .lf-news-card {
+    color: var(--color-foreground);
+  }
+
+  .lf-home-dashboard .lf-news-card small,
+  .lf-home-dashboard .lf-news-card p {
+    color: var(--color-muted-foreground);
+  }
+}
