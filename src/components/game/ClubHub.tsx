@@ -23,7 +23,7 @@ import { userSquad } from "@/lib/game/recruitment";
 import { ContinueCalendar } from "./ContinueCalendar";
 import { clubPresentationName } from "@/lib/game/clubPresentation";
 import { managerMatchPrep } from "@/lib/game/managerMatchPrep";
-import { recomputeConfidence } from "@/lib/game/board";
+import { recomputeConfidence } from "@/lib/game/board";\nimport { playerManagerQuality } from "@/lib/game/playerClubPerformance";
 import { Button } from "@/components/ui/button";
 import { competitionLabel, fixtureCompetition, fixtureDate } from "./fixturePresentation";
 
@@ -61,7 +61,7 @@ export function ClubHub({ state, update, setTab, isContinuing }: { state: GameSt
   const latestNews = state.inbox.filter((item) => !decisionItems.some((decision) => decision.id === item.id)).slice().sort((a, b) => b.season - a.season || b.week - a.week || b.id.localeCompare(a.id))[0];
   const activeNegotiations = state.football?.negotiations?.filter((negotiation) => negotiation.stage !== "completed" && negotiation.stage !== "withdrawn" && negotiation.stage !== "rejected").length ?? 0;
   const boardConf = state.board ? recomputeConfidence(state.board) : 50;
-  const managerConf = manager ? Math.max(20, Math.min(99, Math.round(60 + (manager.rating - 60) + state.fanHappiness / 8))) : Math.max(20, Math.min(99, Math.round(50 + state.fanHappiness / 5)));
+  const managerQuality = playerManagerQuality(state);
   const strategic = useMemo(() => sustainabilitySnapshot(state), [state]);
   const leagueSorted = [...state.league].sort((a, b) => b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga) || b.gf - a.gf);
   const myIndex = leagueSorted.findIndex((row) => isUserClubReference(state, row.team));
@@ -92,7 +92,7 @@ export function ClubHub({ state, update, setTab, isContinuing }: { state: GameSt
           <button className="lf-pulse-manager" onClick={() => setTab("staff")}>
             <span className="lf-pulse-label">Manager status</span>
             <strong>{manager?.name ?? "Vacant"}</strong>
-            <small>{manager ? `${managerConf}% confidence` : "Appointment required"}</small>
+            <small>{manager ? `${Math.round(managerQuality)}/100 quality` : "Appointment required"}</small>
           </button>
           <button className="lf-pulse-table" onClick={() => setTab("world")}>
             {miniLeague.slice(0, 3).map((row) => <span key={row.team} className={cn(isUserClubReference(state, row.team) && "is-club")}><b>{leagueSorted.indexOf(row) + 1}</b><em>{clubPresentationName(clubDisplayName(state, row.team))}</em><strong>{row.pts}</strong></span>)}
