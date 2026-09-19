@@ -56,6 +56,7 @@ export function ClubHub({ state, update, setTab, isContinuing }: { state: GameSt
   const myIndex = leagueSorted.findIndex((row) => isUserClubReference(state, row.team));
   const miniLeague = leagueSorted.slice(Math.max(0, myIndex - 2), Math.min(leagueSorted.length, myIndex + 3));
   const recentResults = [...state.results]
+    .filter((result) => (result.competition ?? "league") === "league")
     .sort((a, b) => b.week - a.week || (b.dayOfWeek ?? 5) - (a.dayOfWeek ?? 5))
     .slice(0, 5)
     .reverse();
