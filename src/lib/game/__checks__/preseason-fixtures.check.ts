@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { newGame } from "../newGame";
-import { PRESEASON_COMPETITION_NAME, PRESEASON_MATCH_SLOTS, preseasonTable } from "../preseason";
+import { PRESEASON_COMPETITION_NAME, PRESEASON_MATCH_SLOTS, initialisePreseasonFixtures, preseasonTable } from "../preseason";
 
 const state = newGame("Dalton Town", "Chairman", "preseason-fixtures-check");
 const fixtures = state.leagueSchedule
@@ -20,5 +20,9 @@ assert.equal(PRESEASON_COMPETITION_NAME, "Summer Invitational");
 const table = preseasonTable(state);
 assert.equal(table.length, 4, "invitational table should contain the user and three opponents");
 assert.ok(table.every((row) => row.p === 0 && row.pts === 0), "fresh invitational table starts unplayed");
+
+const before = state.leagueSchedule.length;
+initialisePreseasonFixtures(state);
+assert.equal(state.leagueSchedule.length, before, "pre-season seeding must be idempotent");
 
 console.log("preseason-fixtures.check: ok");
