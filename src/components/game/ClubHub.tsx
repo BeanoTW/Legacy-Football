@@ -109,7 +109,7 @@ export function ClubHub({ state, update, setTab, isContinuing }: { state: GameSt
           )) : <div className="lf-task-row is-clear"><span className="lf-task-icon"><Mail className="size-4" /></span><span><strong className="block">No decisions waiting</strong><small className="block">Nothing needs your attention</small></span></div>}</div>
         </div>
         <button onClick={() => setTab("inbox")} className="lf-news-card overflow-hidden rounded-2xl border bg-card text-left shadow-sm">
-          <div className="lf-home-panel-heading"><span>Club news</span><span>View all <ArrowRight className="inline size-3.5" /></span></div><div className="lf-news-art" aria-hidden="true" /><div className="p-3"><strong className="block line-clamp-2 text-sm">{latestNews?.subject ?? "Pre-season gets underway"}</strong><p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{latestNews ? `${latestNews.department} · Week ${latestNews.week}` : `${state.clubName} begin preparations for the new season.`}</p></div>
+          <div className="lf-home-panel-heading"><span>Club news</span><span>View all <ArrowRight className="inline size-3.5" /></span></div><div className="lf-news-art" aria-hidden="true" /><div className="p-3"><strong className="block line-clamp-2 text-sm">{latestNews?.subject ?? "No club news yet"}</strong><p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{latestNews ? `${latestNews.department} · Week ${latestNews.week}` : "Updates from the club will appear here."}</p></div>
         </button>
       </section>
       <section className="lf-management-grid grid grid-cols-2 gap-2 md:grid-cols-3">
