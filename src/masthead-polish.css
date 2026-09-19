@@ -470,3 +470,17 @@
     box-shadow: 0 3px 9px color-mix(in oklab, var(--color-primary) 16%, transparent), inset 0 1px rgb(255 255 255 / 18%);
   }
 }
+
+
+/* Active mobile destination: orange icon, otherwise preserve the toolbar palette. */
+@media (max-width: 767px) {
+  .lf-mobile-nav-item.is-active svg {
+    color: #f59a2a;
+    filter: drop-shadow(0 1px 4px rgb(245 154 42 / 28%));
+  }
+
+  .lf-mobile-nav-item.is-active::after {
+    background: #f59a2a;
+    box-shadow: 0 0 8px rgb(245 154 42 / 42%);
+  }
+}
