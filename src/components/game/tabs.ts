@@ -11,10 +11,10 @@ import {
   MoreHorizontal,
   History,
   Settings,
-  Shield,
+  Shirt,
   Ticket,
   Trophy,
-  Users,
+  ArrowLeftRight,
 } from "lucide-react";
 
 export type Tab =
@@ -40,8 +40,8 @@ export type TabDef = [Tab, string, typeof LineIcon];
 export const ALL_TABS: TabDef[] = [
   ["hub", "Home", Home],
   ["inbox", "Inbox", Mail],
-  ["squad", "Squad", Shield],
-  ["recruitment", "Transfers", Users],
+  ["squad", "Squad", Shirt],
+  ["recruitment", "Transfers", ArrowLeftRight],
   ["staff", "Staff", Briefcase],
   ["cashflow", "Finances", CircleDollarSign],
   ["stadium", "Facilities", Building2],
