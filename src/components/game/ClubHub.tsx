@@ -6,6 +6,8 @@ import {
   Building2,
   Heart,
   Mail,
+  Coins,
+  Handshake,
   Play,
   Target,
   Users,
@@ -91,9 +93,9 @@ export function ClubHub({ state, update, setTab, isContinuing }: { state: GameSt
       </section>
       <div className="lf-home-calendar"><ContinueCalendar state={state} isContinuing={isContinuing} onOpenSchedule={() => setTab("fixtures")} /></div>
       <section className="lf-vital-grid">
-        <VitalCard label="Financial health" value={strategic.health.label} detail={`${fmtMoney(state.cash)} cash · ${strategic.health.coverMonths.toFixed(1)} months cover`} tone={HEALTH_TONE[strategic.health.state]} meter={Math.min(100, strategic.health.coverMonths * 12)} onClick={() => setTab("cashflow")} />
-        <VitalCard label="Board confidence" value={`${boardConf}%`} detail={strategic.pressure.headline} tone={boardConf >= 65 ? "text-emerald-600" : "text-amber-600"} meter={boardConf} onClick={() => setTab("board")} />
-        <VitalCard label="Supporter mood" value={`${state.fanHappiness}%`} detail="Current supporter sentiment" tone={state.fanHappiness >= 60 ? "text-emerald-600" : "text-amber-600"} meter={state.fanHappiness} onClick={() => setTab("tickets")} />
+        <VitalCard icon={<Coins className="size-4" />} label="Financial health" value={strategic.health.label} detail={`${fmtMoney(state.cash)} cash · ${strategic.health.coverMonths.toFixed(1)} months cover`} tone={HEALTH_TONE[strategic.health.state]} meter={Math.min(100, strategic.health.coverMonths * 12)} onClick={() => setTab("cashflow")} />
+        <VitalCard icon={<Handshake className="size-4" />} label="Board confidence" value={`${boardConf}%`} detail={strategic.pressure.headline} tone={boardConf >= 65 ? "text-emerald-600" : "text-amber-600"} meter={boardConf} onClick={() => setTab("board")} />
+        <VitalCard icon={<Users className="size-4" />} label="Supporter mood" value={`${state.fanHappiness}%`} detail="Current supporter sentiment" tone={state.fanHappiness >= 60 ? "text-emerald-600" : "text-amber-600"} meter={state.fanHappiness} onClick={() => setTab("tickets")} />
       </section>
       {suggestedSteps.length > 0 && (
         <section className="lf-suggested-next rounded-2xl border bg-card shadow-sm">
@@ -145,8 +147,8 @@ function ordinal(value: number): string {
   return `${value}${suffix}`;
 }
 
-function VitalCard({ label, value, detail, meter, tone, onClick }: { label: string; value: string; detail: string; meter: number; tone?: string; onClick: () => void }) {
-  return <button onClick={onClick} className="lf-vital-card"><span>{label}</span><strong className={tone}>{value}</strong><small>{detail}</small><i><b style={{ width: `${Math.max(0, Math.min(100, meter))}%` }} /></i></button>;
+function VitalCard({ icon, label, value, detail, meter, tone, onClick }: { icon: React.ReactNode; label: string; value: string; detail: string; meter: number; tone?: string; onClick: () => void }) {
+  return <button onClick={onClick} className="lf-vital-card"><span className="lf-vital-heading"><b>{icon}</b><span>{label}</span></span><strong className={tone}>{value}</strong><small>{detail}</small><i><b style={{ width: `${Math.max(0, Math.min(100, meter))}%` }} /></i></button>;
 }
 
 function LeaguePanel({ state, miniLeague, leagueSorted, setTab }: { state: GameState; miniLeague: GameState["league"]; leagueSorted: GameState["league"]; setTab: (t: Tab) => void }) {
