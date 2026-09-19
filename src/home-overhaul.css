@@ -852,3 +852,42 @@
     font-size: .55rem;
   }
 }
+
+
+@media (max-width: 767px) {
+  /* Do not force every Home section into one viewport. The fixed Continue bar
+     already owns the bottom action; let dashboard content breathe and scroll. */
+  .game-screen:has(.lf-home-dashboard) {
+    overflow-y: auto;
+    scrollbar-gutter: auto;
+  }
+
+  .lf-home-dashboard {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+    grid-template-rows: none;
+  }
+
+  .lf-vital-grid {
+    overflow: visible;
+  }
+
+  .lf-suggested-next {
+    min-height: auto;
+  }
+
+  .lf-home-desk {
+    min-height: auto;
+    grid-template-columns: 1fr;
+  }
+
+  .lf-home-panel,
+  .lf-news-card {
+    min-height: auto;
+  }
+
+  .lf-news-art {
+    display: block;
+  }
+}
