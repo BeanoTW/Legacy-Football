@@ -1748,3 +1748,48 @@
     font-size: .56rem;
   }
 }
+
+
+/* Screenshot-tuned fixture readability */
+@media (max-width: 767px) {
+  .lf-home-dashboard .lf-match-inner {
+    grid-template-columns: minmax(0, 1fr) 9.2rem;
+  }
+
+  .lf-home-dashboard .lf-match-copy {
+    min-width: 0;
+  }
+
+  .lf-home-dashboard .lf-match-brief {
+    gap: .35rem;
+  }
+
+  .lf-home-dashboard .lf-match-brief > div:first-child {
+    min-width: 0;
+  }
+
+  .lf-home-dashboard .lf-match-brief > div:first-child strong {
+    display: block;
+    line-height: 1.25;
+  }
+
+  .lf-home-dashboard .lf-match-fit {
+    min-width: 4.4rem;
+    text-align: center;
+  }
+
+  .lf-home-dashboard .lf-match-team .font-display {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .lf-home-dashboard .lf-match-actions {
+    gap: .35rem;
+  }
+
+  .lf-home-dashboard .lf-match-primary,
+  .lf-home-dashboard .lf-match-secondary {
+    white-space: nowrap;
+  }
+}
