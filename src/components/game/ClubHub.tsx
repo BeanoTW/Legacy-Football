@@ -75,14 +75,14 @@ export function ClubHub({ state, update, setTab, isContinuing }: { state: GameSt
         <div className="lf-match-card overflow-hidden rounded-2xl border bg-card shadow-sm"><MatchStrip state={state} nextFixture={nextFixture} manager={manager} update={update} onOpenSchedule={() => setTab("fixtures")} onOpenStaff={() => setTab("staff")} /></div>
         <aside className="lf-club-pulse">
           <div className="lf-pulse-block">
-            <span className="lf-pulse-label">League standing</span>
+            <span className="lf-pulse-label"><Trophy className="size-3.5" />League standing</span>
             <div className="lf-standing-value">{leaguePosition ? ordinal(leaguePosition) : "—"}</div>
             <div className="lf-form-strip" aria-label="Recent form">
               {recentResults.length ? recentResults.map((result, index) => <span key={`${result.week}-${index}`} className={`is-${result.result.toLowerCase()}`}>{result.result}</span>) : <small>Season yet to begin</small>}
             </div>
           </div>
           <button className="lf-pulse-manager" onClick={() => setTab("staff")}>
-            <span className="lf-pulse-label">Manager status</span>
+            <span className="lf-pulse-label"><Users className="size-3.5" />Manager status</span>
             <strong>{manager?.name ?? "Vacant"}</strong>
             <small>{manager ? `${Math.round(managerQuality)}/100 quality` : "Appointment required"}</small>
           </button>
