@@ -248,3 +248,53 @@
     font-size: .5rem;
   }
 }
+
+
+@media (max-width: 767px) {
+  /* Mobile primary nav: compact app toolbar rather than six oversized columns. */
+  .lf-mobile-nav {
+    padding: .18rem .38rem .28rem;
+    border-bottom: 1px solid color-mix(in oklab, var(--color-primary) 18%, var(--color-border));
+    box-shadow: 0 5px 14px rgb(8 18 28 / 7%);
+  }
+
+  .lf-mobile-nav-grid {
+    gap: .18rem;
+  }
+
+  .lf-mobile-nav-item {
+    position: relative;
+    min-height: 3rem;
+    gap: .16rem;
+    border-radius: .65rem;
+    padding: .3rem .12rem;
+    font-size: .62rem;
+    line-height: 1;
+    letter-spacing: .01em;
+  }
+
+  .lf-mobile-nav-item svg {
+    width: 1.18rem;
+    height: 1.18rem;
+    stroke-width: 1.9;
+  }
+
+  .lf-mobile-nav-item.is-active {
+    background: color-mix(in oklab, var(--color-primary) 10%, transparent);
+  }
+
+  .lf-mobile-nav-item.is-active::after {
+    content: "";
+    position: absolute;
+    right: 24%;
+    bottom: -.28rem;
+    left: 24%;
+    height: .16rem;
+    border-radius: 999px;
+    background: var(--color-primary);
+  }
+
+  .lf-mobile-nav-item:not(.is-active) {
+    opacity: .78;
+  }
+}
