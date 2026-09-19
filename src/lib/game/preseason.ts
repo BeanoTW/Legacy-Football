@@ -139,7 +139,7 @@ export function settlePreseasonInvitational(state: GameState): boolean {
     category: "Prize Money",
     subcategory: "Pre-season",
     description: `${PRESEASON_COMPETITION_NAME} winner's prize`,
-    sourceSystem: "preseason",
+    sourceSystem: "engine.prize",
     dedupeKey: key,
     season: state.season,
     week: state.week,
