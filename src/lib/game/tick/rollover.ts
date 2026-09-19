@@ -101,6 +101,7 @@ export function tickSeasonRollover(s: GameState): void {
   // and National Cup entry round for this season.
   s.domesticCups = undefined;
   initialiseSeasonCups(s);
+  // leagueSchedule was rebuilt above, so this seeds the new season only.
   initialisePreseasonFixtures(s);
   s.fixtures = fixturesForClub(s.leagueSchedule, userClubReference(s));
 
