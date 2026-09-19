@@ -1493,3 +1493,48 @@
     transition: none;
   }
 }
+
+
+/* Mobile home surface cohesion */
+@media (max-width: 767px) {
+  .lf-home-dashboard {
+    position: relative;
+    padding-bottom: .35rem;
+  }
+
+  .lf-home-dashboard::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    inset: -.35rem -.45rem 0;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 14% 8%, color-mix(in oklab, var(--color-primary) 8%, transparent), transparent 24rem),
+      linear-gradient(180deg, color-mix(in oklab, var(--color-background) 96%, var(--color-primary)), var(--color-background) 28rem);
+  }
+
+  .lf-home-dashboard .lf-match-card,
+  .lf-home-dashboard .lf-club-pulse,
+  .lf-home-dashboard .lf-vital-card,
+  .lf-home-dashboard .lf-suggested-next,
+  .lf-home-dashboard .lf-home-panel,
+  .lf-home-dashboard .lf-news-card {
+    transform: translateZ(0);
+  }
+
+  .lf-home-dashboard .lf-vitals {
+    gap: .38rem;
+  }
+
+  .lf-home-dashboard .lf-vital-card strong {
+    letter-spacing: -.02em;
+  }
+
+  .lf-home-dashboard .lf-vital-card small {
+    opacity: .78;
+  }
+
+  .lf-home-dashboard .lf-home-panel-heading {
+    background: linear-gradient(90deg, rgb(255 255 255 / 4%), transparent);
+  }
+}
