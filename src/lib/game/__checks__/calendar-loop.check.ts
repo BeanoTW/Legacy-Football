@@ -14,18 +14,21 @@ assert(calendarDay(state) === 0, "new games must start on Monday");
 
 // The daily engine must support two different competitions in one week without
 // replaying either result during Sunday settlement.
-const leagueFixture = state.fixtures.find((fixture) => fixture.week === startingWeek);
-assert(leagueFixture, "fresh game must expose a league fixture for the opening week");
+const leagueFixture = state.fixtures.find((fixture) => (fixture.competition ?? "league") === "league");
+assert(leagueFixture, "fresh game must expose a league fixture");
+state.week = leagueFixture.week;
+const doubleWeek = leagueFixture.week;
 leagueFixture.dayOfWeek = 5;
 leagueFixture.competition = "league";
 state.fixtures.push({
-  week: startingWeek,
+  week: doubleWeek,
   opponent: leagueFixture.opponent,
   home: !leagueFixture.home,
   dayOfWeek: 1,
   competition: "leagueCup",
 });
 const resultsBeforeDoubleWeek = state.results.length;
+const startingWeek = state.week;
 
 const target = state.football.players.find(
   (player) => player.currentClubId !== null && !isUserClubReference(state, player.currentClubId),
