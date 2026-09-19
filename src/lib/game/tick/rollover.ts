@@ -27,6 +27,7 @@ import { rollInfrastructureToNewSeason } from "../infrastructure";
 import { SEASON_END_WEEK } from "../calendar";
 import { ordinal } from "../format";
 import { initialiseSeasonCups } from "../cupEntry";
+import { initialisePreseasonFixtures } from "../preseason";
 import {
   fixturesForClub,
   makeFixtures,
@@ -100,6 +101,8 @@ export function tickSeasonRollover(s: GameState): void {
   // and National Cup entry round for this season.
   s.domesticCups = undefined;
   initialiseSeasonCups(s);
+  initialisePreseasonFixtures(s);
+  s.fixtures = fixturesForClub(s.leagueSchedule, userClubReference(s));
 
   // matchRecords and seasonHistory are permanent — never cleared.
   s.results = [];
