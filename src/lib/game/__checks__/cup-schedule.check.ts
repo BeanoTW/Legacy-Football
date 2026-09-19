@@ -23,7 +23,8 @@ const r2 = nextCupRound(settled, "save1");
 assert.ok(r2 && r2.round === 2, "round winners must progress into the next draw");
 assert.deepEqual(new Set(r2!.entrants), new Set(settled.winners));
 
-const datedRound = startCupRound("leagueCup", 1, ["A", "B", "C", "D"], "dated-cup");\nconst datedCup: DomesticCupState = { ...datedRound, eliminated: [] };
+const datedRound = startCupRound("leagueCup", 1, ["A", "B", "C", "D"], "dated-cup");
+const datedCup: DomesticCupState = { ...datedRound, eliminated: [] };
 const datedState = {
   week: cupSlot("leagueCup", 1)!.week,
   season: 1,
