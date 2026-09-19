@@ -1652,3 +1652,47 @@
     color: var(--color-muted-foreground);
   }
 }
+
+
+/* Screenshot-tuned mobile cleanup */
+@media (max-width: 767px) {
+  /* Vitals stay light for maximum legibility; remove decorative glare. */
+  .lf-home-dashboard .lf-vital-card {
+    background: linear-gradient(180deg, color-mix(in oklab, var(--color-card) 97%, white), color-mix(in oklab, var(--color-card) 94%, var(--color-primary)));
+    box-shadow: 0 5px 12px rgb(4 23 28 / 9%), inset 0 1px white;
+  }
+
+  .lf-home-dashboard .lf-vital-card::after {
+    display: none;
+  }
+
+  .lf-home-dashboard .lf-vital-heading {
+    color: var(--color-muted-foreground);
+  }
+
+  .lf-home-dashboard .lf-vital-heading > b {
+    color: color-mix(in oklab, var(--color-primary) 70%, #173a3f);
+    background: color-mix(in oklab, var(--color-primary) 8%, white);
+  }
+
+  /* The news card is intentionally the light counterpoint to the dark panels. */
+  .lf-home-dashboard .lf-news-card {
+    background: linear-gradient(135deg, white, color-mix(in oklab, white 90%, var(--color-primary)));
+    border-color: color-mix(in oklab, var(--color-primary) 18%, var(--color-border));
+  }
+
+  .lf-home-dashboard .lf-news-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: .32;
+    background: linear-gradient(110deg, transparent 48%, color-mix(in oklab, var(--color-primary) 8%, transparent));
+  }
+
+  /* Give the lower dark sections a little more separation from each other. */
+  .lf-home-dashboard .lf-suggested-next,
+  .lf-home-dashboard .lf-home-panel {
+    border-color: color-mix(in oklab, var(--color-primary) 48%, white 8%);
+  }
+}
