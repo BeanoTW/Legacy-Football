@@ -153,7 +153,7 @@ console.log("\n[U4] Import direction");
   check(
     "extracted screens all export a component",
     screens
-      .filter((f) => !/shared\/|__checks__\/|tabs\.ts$|playerPosition\.ts$/.test(f))
+      .filter((f) => !/shared\/|__checks__\/|tabs\.ts$|playerPosition\.ts$|fixturePresentation\.ts$/.test(f))
       .every((f) => /export (function|class|const) [A-Z]/.test(read(f))),
   );
 }
@@ -322,7 +322,7 @@ console.log("\n[U8] Opaque club identity presentation boundary");
     "core club screens render stored opponent and table refs through display-name gateway",
     /clubDisplayName\(state, nextFixture\.opponent\)/.test(clubHub) &&
       /clubDisplayName\(state, row\.team\)/.test(clubHub) &&
-      /clubDisplayName\(state, f\.opponent\)/.test(fixtures) &&
+      /clubDisplayName\(state, (?:f|fixture)\.opponent\)/.test(fixtures) &&
       /clubDisplayName\(state, r\.team\)/.test(fixtures) &&
       /clubDisplayName\(state, lastResult\.opponent\)/.test(dashboard) &&
       /clubDisplayName\(state, row\.team\)/.test(world),
