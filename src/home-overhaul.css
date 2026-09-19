@@ -1350,3 +1350,88 @@
     height: .72rem;
   }
 }
+
+
+/* Fixture hero finishing pass */
+.lf-home-dashboard .lf-match-kicker {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  border: 1px solid rgb(255 255 255 / 13%);
+  border-radius: 999px;
+  padding: .22rem .48rem;
+  background: rgb(255 255 255 / 7%);
+  letter-spacing: .07em;
+  backdrop-filter: blur(4px);
+}
+
+.lf-home-dashboard .lf-match-copy > p {
+  color: rgb(255 255 255 / 68%);
+}
+
+.lf-home-dashboard .lf-match-brief {
+  border-top-color: rgb(255 255 255 / 13%);
+}
+
+.lf-home-dashboard .lf-team-mark {
+  border: 1px solid rgb(255 255 255 / 24%);
+  background:
+    radial-gradient(circle at 35% 25%, rgb(255 255 255 / 18%), transparent 42%),
+    linear-gradient(145deg, color-mix(in oklab, var(--color-primary) 75%, #123d43), #0a2830);
+  box-shadow: 0 6px 14px rgb(0 0 0 / 24%), inset 0 1px rgb(255 255 255 / 18%);
+  color: white;
+  text-shadow: 0 1px 3px rgb(0 0 0 / 35%);
+}
+
+.lf-home-dashboard .lf-match-team span {
+  color: rgb(255 255 255 / 48%);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.lf-home-dashboard .lf-vs {
+  color: rgb(255 255 255 / 62%);
+  text-shadow: 0 2px 8px rgb(0 0 0 / 35%);
+}
+
+.lf-home-dashboard .lf-match-primary {
+  box-shadow: 0 5px 12px rgb(0 0 0 / 20%), inset 0 1px rgb(255 255 255 / 18%);
+}
+
+.lf-home-dashboard .lf-match-secondary {
+  border-color: rgb(255 255 255 / 22%);
+  background: rgb(255 255 255 / 7%);
+  color: white;
+}
+
+.lf-home-dashboard .lf-match-secondary:hover {
+  background: rgb(255 255 255 / 12%);
+}
+
+@media (max-width: 767px) {
+  .lf-home-dashboard .lf-match-kicker {
+    padding: .16rem .36rem;
+  }
+
+  .lf-home-dashboard .lf-match-versus {
+    position: relative;
+  }
+
+  .lf-home-dashboard .lf-match-versus::before {
+    content: "";
+    position: absolute;
+    top: 18%;
+    bottom: 18%;
+    left: 50%;
+    width: 1px;
+    background: linear-gradient(transparent, rgb(255 255 255 / 13%), transparent);
+  }
+
+  .lf-home-dashboard .lf-vs {
+    position: relative;
+    z-index: 1;
+    padding: .2rem;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--color-primary) 30%, #09252c);
+  }
+}
