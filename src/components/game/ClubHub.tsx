@@ -57,7 +57,10 @@ export function ClubHub({ state, update, setTab, isContinuing }: { state: GameSt
   const leagueSorted = [...state.league].sort((a, b) => b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga) || b.gf - a.gf);
   const myIndex = leagueSorted.findIndex((row) => isUserClubReference(state, row.team));
   const miniLeague = leagueSorted.slice(Math.max(0, myIndex - 2), Math.min(leagueSorted.length, myIndex + 3));
-  const recentResults = state.results.slice(-5);
+  const recentResults = [...state.results]
+    .sort((a, b) => b.week - a.week || (b.dayOfWeek ?? 5) - (a.dayOfWeek ?? 5))
+    .slice(0, 5)
+    .reverse();
   const leaguePosition = myIndex >= 0 ? myIndex + 1 : null;
 
   return (
@@ -121,7 +124,7 @@ export function ClubHub({ state, update, setTab, isContinuing }: { state: GameSt
 }
 
 function MatchStrip({ state, nextFixture, update, onOpenSchedule, onOpenStaff }: { state: GameState; nextFixture: GameState["fixtures"][number] | undefined; update: (fn: (s: GameState) => GameState) => void; onOpenSchedule: () => void; onOpenStaff: () => void }) {
-  const matchReady = !!nextFixture && isMatchday(state);
+  const matchReady = !!nextFixture && nextFixture.week === state.week && (nextFixture.dayOfWeek ?? 5) === calendarDay(state) && isMatchday(state);
   const isPreseason = phaseOf(state.week) === "preseason";
   const prep = managerMatchPrep(state);
   const homeName = nextFixture ? nextFixture.home ? state.clubName : clubPresentationName(clubDisplayName(state, nextFixture.opponent)) : state.clubName;
