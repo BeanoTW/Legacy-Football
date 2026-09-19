@@ -35,7 +35,16 @@ function fanbaseEstimate(state: GameState): number {
 export function ClubHub({ state, update, setTab, isContinuing }: { state: GameState; update: (fn: (s: GameState) => GameState) => void; setTab: (t: Tab) => void; isContinuing: boolean }) {
   const today = calendarDay(state);
   const nextFixture = [...state.fixtures]
-    .filter((fixture) => fixture.week > state.week || (fixture.week === state.week && (fixture.dayOfWeek ?? 5) >= today))
+    .filter((fixture) => {
+      if (fixture.week < state.week || (fixture.week === state.week && (fixture.dayOfWeek ?? 5) < today)) return false;
+      return !state.results.some((result) =>
+        result.week === fixture.week &&
+        (result.dayOfWeek ?? 5) === (fixture.dayOfWeek ?? 5) &&
+        (result.competition ?? "league") === (fixture.competition ?? "league") &&
+        result.home === fixture.home &&
+        result.opponent === fixture.opponent
+      );
+    })
     .sort((a, b) => a.week - b.week || (a.dayOfWeek ?? 5) - (b.dayOfWeek ?? 5))[0];
   const manager = state.hiredStaff.find((staff) => staff.role === "Manager");
   const staffCount = state.hiredStaff.length;
