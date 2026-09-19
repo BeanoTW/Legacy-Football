@@ -928,3 +928,86 @@
     height: 2.25rem;
   }
 }
+
+
+@media (max-width: 767px) {
+  /* Secondary status should read like a compact score strip, not another hero. */
+  .lf-club-pulse {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto;
+  }
+
+  .lf-pulse-block,
+  .lf-pulse-manager {
+    min-height: 4.1rem;
+    padding: .48rem .62rem;
+    border-bottom: 0;
+  }
+
+  .lf-pulse-block {
+    border-right: 1px solid var(--lf-line);
+  }
+
+  .lf-pulse-label {
+    font-size: .54rem;
+  }
+
+  .lf-standing-value {
+    margin-top: .1rem;
+    font-size: 1.35rem;
+  }
+
+  .lf-form-strip {
+    min-height: 1.2rem;
+    gap: .2rem;
+    margin-top: .3rem;
+  }
+
+  .lf-form-strip span {
+    width: 1.25rem;
+    height: 1.25rem;
+    font-size: .54rem;
+  }
+
+  .lf-form-strip small,
+  .lf-pulse-manager small {
+    font-size: .58rem;
+  }
+
+  .lf-pulse-manager strong {
+    margin-top: .18rem;
+    font-size: .78rem;
+  }
+
+  .lf-pulse-table {
+    display: none;
+  }
+
+  .lf-vital-grid {
+    gap: .38rem;
+  }
+
+  .lf-vital-card {
+    min-height: 3.7rem;
+    padding: .45rem .5rem;
+  }
+
+  .lf-vital-card > span {
+    font-size: .52rem;
+  }
+
+  .lf-vital-card > strong {
+    margin-top: .18rem;
+    font-size: 1.05rem;
+  }
+
+  .lf-vital-card > small {
+    margin-top: .16rem;
+    font-size: .55rem;
+  }
+
+  .lf-vital-card > i {
+    height: .16rem;
+    margin-top: .3rem;
+  }
+}
