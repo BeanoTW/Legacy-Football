@@ -70,7 +70,12 @@ export function ClubHub({ state, update, setTab, isContinuing }: { state: GameSt
     .sort((a, b) => b.week - a.week || (b.dayOfWeek ?? 5) - (a.dayOfWeek ?? 5))
     .slice(0, 5)
     .reverse();
-  const leaguePosition = myIndex >= 0 ? myIndex + 1 : null;\n  const tabIcon = (id: Tab) => ALL_TABS.find(([tabId]) => tabId === id)?.[2];\n  const SquadIcon = tabIcon("squad")!;\n  const TransfersIcon = tabIcon("recruitment")!;\n  const StaffIcon = tabIcon("staff")!;\n  const FacilitiesIcon = tabIcon("stadium")!;
+  const leaguePosition = myIndex >= 0 && leagueSorted[myIndex]?.p > 0 ? myIndex + 1 : null;
+  const tabIcon = (id: Tab) => ALL_TABS.find(([tabId]) => tabId === id)?.[2];
+  const SquadIcon = tabIcon("squad")!;
+  const TransfersIcon = tabIcon("recruitment")!;
+  const StaffIcon = tabIcon("staff")!;
+  const FacilitiesIcon = tabIcon("stadium")!;
 
   return (
     <div className="lf-home-dashboard flex min-h-0 flex-col gap-3">
