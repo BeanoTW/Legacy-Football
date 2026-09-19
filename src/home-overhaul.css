@@ -624,3 +624,77 @@
     border-left: 0;
   }
 }
+
+
+/* Mobile command-centre: Home is a bounded dashboard, not a long page. */
+@media (max-width: 767px) {
+  .game-screen:has(.lf-home-dashboard) {
+    overflow-y: hidden;
+    scrollbar-gutter: auto;
+  }
+
+  .lf-home-dashboard {
+    height: 100%;
+    overflow: hidden;
+    grid-template-rows: auto auto auto 1fr;
+  }
+
+  /* The full seven-day strip is useful on the schedule screen; on Home the
+     fixture hero already carries the next dated event. */
+  .lf-home-calendar {
+    display: none;
+  }
+
+  /* Keep the three club vitals visible together instead of creating a
+     sideways-scrolling carousel. */
+  .lf-vital-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: hidden;
+  }
+
+  /* On phones these are navigation duplicates of the permanent top bar /
+     More sheet. Home should spend the space on live club information. */
+  .lf-management-grid {
+    display: none;
+  }
+
+  .lf-suggested-next {
+    min-height: 0;
+  }
+
+  .lf-suggested-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .lf-suggested-row {
+    min-width: 0;
+    padding-block: .55rem;
+  }
+
+  .lf-suggested-row:nth-child(n+3) {
+    display: none;
+  }
+
+  .lf-home-desk {
+    min-height: 0;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr);
+  }
+
+  .lf-home-panel,
+  .lf-news-card {
+    min-height: 0;
+  }
+
+  .lf-news-card {
+    grid-template-rows: auto 1fr;
+  }
+
+  .lf-news-art {
+    display: none;
+  }
+
+  .lf-task-row {
+    padding-block: .52rem;
+  }
+}
