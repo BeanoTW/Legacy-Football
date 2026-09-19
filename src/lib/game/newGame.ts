@@ -24,6 +24,7 @@ import { ensureEmploymentStateInPlace } from "./employment";
 import { ensurePlayerRegistrationStateInPlace } from "./playerRegistration";
 import { ensureLoanStateInPlace } from "./loans";
 import { initialiseSeasonCups } from "./cupEntry";
+import { initialisePreseasonFixtures } from "./preseason";
 
 /**
  * Canonical save schema version. Single source of truth: `newGame` stamps it,
@@ -81,6 +82,8 @@ export function newGame(clubName: string, managerName: string, seed?: string): G
   // canonical, so cup entrants and future user ties share the same identities
   // as the league world from day one.
   initialiseSeasonCups(base);
+  initialisePreseasonFixtures(base);
+  base.fixtures = fixturesForClub(base.leagueSchedule, base.clubIdentity?.userClubId ?? base.clubName);
 
   // The broad opening world market is generated independently of the user's
   // club. Reconcile it once the full club state exists so a Level 7 career
