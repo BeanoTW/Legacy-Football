@@ -1538,3 +1538,55 @@
     background: linear-gradient(90deg, rgb(255 255 255 / 4%), transparent);
   }
 }
+
+
+/* Mobile density and legibility finishing pass */
+@media (max-width: 767px) {
+  .lf-home-dashboard .lf-match-copy h2,
+  .lf-home-dashboard .lf-standing-value,
+  .lf-home-dashboard .lf-vital-card strong {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .lf-home-dashboard .lf-match-copy h2 {
+    letter-spacing: -.025em;
+  }
+
+  .lf-home-dashboard .lf-match-team {
+    min-width: 0;
+  }
+
+  .lf-home-dashboard .lf-match-team .font-display {
+    width: 100%;
+    text-align: center;
+    font-size: .64rem;
+  }
+
+  .lf-home-dashboard .lf-match-fit {
+    border-radius: .45rem;
+    padding: .18rem .32rem;
+    background: rgb(255 255 255 / 6%);
+    box-shadow: inset 0 1px rgb(255 255 255 / 8%);
+  }
+
+  .lf-home-dashboard .lf-match-fit small {
+    opacity: .72;
+  }
+
+  .lf-home-dashboard .lf-vital-card {
+    min-width: 0;
+  }
+
+  .lf-home-dashboard .lf-vital-card strong,
+  .lf-home-dashboard .lf-vital-card small {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .lf-home-dashboard .lf-task-row,
+  .lf-home-dashboard .lf-suggested-row {
+    border-radius: .58rem;
+  }
+}
