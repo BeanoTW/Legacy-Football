@@ -25,7 +25,7 @@ import { clubPresentationName } from "@/lib/game/clubPresentation";
 import { managerMatchPrep } from "@/lib/game/managerMatchPrep";
 import { recomputeConfidence } from "@/lib/game/board";\nimport { playerManagerQuality } from "@/lib/game/playerClubPerformance";
 import { Button } from "@/components/ui/button";
-import { competitionLabel, fixtureCompetition, fixtureDate } from "./fixturePresentation";
+import { competitionLabel, fixtureCompetition, fixtureDate, resultForFixture } from "./fixturePresentation";
 
 function fanbaseEstimate(state: GameState): number {
   const cap = totalCapacity(state);
@@ -37,13 +37,7 @@ export function ClubHub({ state, update, setTab, isContinuing }: { state: GameSt
   const nextFixture = [...state.fixtures]
     .filter((fixture) => {
       if (fixture.week < state.week || (fixture.week === state.week && (fixture.dayOfWeek ?? 5) < today)) return false;
-      return !state.results.some((result) =>
-        result.week === fixture.week &&
-        (result.dayOfWeek ?? 5) === (fixture.dayOfWeek ?? 5) &&
-        (result.competition ?? "league") === (fixture.competition ?? "league") &&
-        result.home === fixture.home &&
-        result.opponent === fixture.opponent
-      );
+      return !resultForFixture(state, fixture);
     })
     .sort((a, b) => a.week - b.week || (a.dayOfWeek ?? 5) - (b.dayOfWeek ?? 5))[0];
   const manager = state.hiredStaff.find((staff) => staff.role === "Manager");
