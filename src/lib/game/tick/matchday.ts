@@ -8,7 +8,6 @@
  * `advanceWeek`, never here.
  */
 import type { GameState, FixtureResult, MatchRecord } from "../types";
-import { CLUBS } from "../clubs";
 import {
   clubDisplayName,
   isUserClubReference,
@@ -29,8 +28,7 @@ import {
   leagueOf,
   playerLeagueId,
 } from "../league";
-import { avgTicketPrice, simAttendance, simGoals, usableCapacity } from "../sim";
-import { FRIENDLY_WEEKS } from "../calendar";
+import { avgTicketPrice, simAttendance } from "../sim";
 import { advanceDomesticCup, resolveDomesticCupTie } from "../domesticCupState";
 import { resolveKnockoutDraw } from "../knockout";
 import { resolveAllAiDomesticCups } from "../aiDomesticCups";
@@ -242,51 +240,6 @@ export function tickSelectedMatchday(
     }
     matchdayNote = `${fixture.home ? "H" : "A"} vs ${clubDisplayName(s, fixture.opponent)} — ${gf}-${ga} ${result}`;
     if (fixture.competition === "preseason") settlePreseasonInvitational(s);
-  } else if (!override && FRIENDLY_WEEKS.has(s.week)) {
-    // ---- Friendly (pre-season / mid-season windows) ----
-    // Seeded from the save + calendar slot so replaying the same pre-week
-    // state reproduces the same friendly, exactly like a league fixture.
-    const rng = mulberry32(hashString(`friendly|${s.saveSeed}|${s.season}|${s.week}`));
-    const others = CLUBS.filter((c) => c !== s.clubName);
-    const opp = others[Math.floor(rng() * others.length)];
-    const oppStrength = 50 + rng() * 25;
-    const myStrength = clubMatchStrength(s, userClubReference(s), s.season);
-    const gf = simGoals(myStrength + 2, oppStrength, rng);
-    const ga = simGoals(oppStrength, myStrength + 2, rng);
-    // Friendly attendance is a fraction of a league day
-    const cap = usableCapacity(s);
-    const attendance = Math.round(cap * (0.28 + rng() * 0.18) * (0.6 + s.fanHappiness / 200));
-    const gate = Math.round(attendance * avgTicketPrice(s) * 0.7);
-    const matchdayOps = Math.round(4_200 + attendance * 0.3);
-    postMatchdayFinance(s, {
-      season: s.season,
-      week: s.week,
-      opponent: `${opp} (friendly)`,
-      home: true,
-      attendance,
-      gate,
-      tv: 0,
-      matchdayOps,
-      modifiers: facilityModifiers(s),
-    });
-    const result: "W" | "D" | "L" = gf > ga ? "W" : gf === ga ? "D" : "L";
-    // Friendlies don't touch the league table; tiny happiness swing only
-    s.fanHappiness = Math.max(
-      5,
-      Math.min(100, s.fanHappiness + (result === "W" ? 1 : result === "L" ? -1 : 0)),
-    );
-    fxResult = {
-      week: s.week,
-      opponent: `${opp} (friendly)`,
-      home: true,
-      goalsFor: gf,
-      goalsAgainst: ga,
-      attendance,
-      gateReceipts: gate,
-      tvIncome: 0,
-      result,
-    };
-    matchdayNote = `Friendly vs ${opp} — ${gf}-${ga} ${result}`;
   }
 
   // Cup simulation starts only once a save actually owns cup state. Legacy and
