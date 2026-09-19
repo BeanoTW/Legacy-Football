@@ -1435,3 +1435,61 @@
     background: color-mix(in oklab, var(--color-primary) 30%, #09252c);
   }
 }
+
+
+/* Home interaction and progress polish */
+.lf-home-dashboard .lf-vital-card,
+.lf-home-dashboard .lf-task-row,
+.lf-home-dashboard .lf-suggested-row,
+.lf-home-dashboard .lf-news-card,
+.lf-home-dashboard .lf-pulse-manager {
+  transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease, background 150ms ease;
+}
+
+@media (hover: hover) {
+  .lf-home-dashboard .lf-vital-card:hover,
+  .lf-home-dashboard .lf-task-row:hover,
+  .lf-home-dashboard .lf-suggested-row:hover,
+  .lf-home-dashboard .lf-news-card:hover,
+  .lf-home-dashboard .lf-pulse-manager:hover {
+    transform: translateY(-1px);
+    border-color: color-mix(in oklab, var(--color-primary) 50%, white 10%);
+    box-shadow: 0 11px 24px rgb(4 23 28 / 18%), inset 0 1px rgb(255 255 255 / 9%);
+  }
+}
+
+.lf-home-dashboard .lf-vital-card > i {
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, currentColor 10%, transparent);
+  background: rgb(4 23 28 / 10%);
+  box-shadow: inset 0 1px 3px rgb(0 0 0 / 10%);
+}
+
+.lf-home-dashboard .lf-vital-card > i > b {
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 9px color-mix(in oklab, currentColor 25%, transparent);
+}
+
+.lf-home-dashboard .lf-vital-card > i > b::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 32%), transparent);
+  transform: translateX(-65%);
+}
+
+.lf-home-dashboard button:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--color-primary) 62%, white);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lf-home-dashboard .lf-vital-card,
+  .lf-home-dashboard .lf-task-row,
+  .lf-home-dashboard .lf-suggested-row,
+  .lf-home-dashboard .lf-news-card,
+  .lf-home-dashboard .lf-pulse-manager {
+    transition: none;
+  }
+}
