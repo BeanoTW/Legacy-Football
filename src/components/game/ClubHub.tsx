@@ -17,7 +17,7 @@ import { calendarDay, fmtMoney, isMatchday, phaseOf, startMatchDay, totalCapacit
 import { actionableInbox } from "@/lib/game/attention";
 import { sustainabilitySnapshot } from "@/lib/game/sustainability";
 import { HEALTH_TONE, initials } from "./shared/primitives";
-import type { Tab } from "./tabs";
+import { ALL_TABS, type Tab } from "./tabs";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { userSquad } from "@/lib/game/recruitment";
 import { ContinueCalendar } from "./ContinueCalendar";
@@ -61,7 +61,7 @@ export function ClubHub({ state, update, setTab, isContinuing }: { state: GameSt
     .sort((a, b) => b.week - a.week || (b.dayOfWeek ?? 5) - (a.dayOfWeek ?? 5))
     .slice(0, 5)
     .reverse();
-  const leaguePosition = myIndex >= 0 ? myIndex + 1 : null;
+  const leaguePosition = myIndex >= 0 ? myIndex + 1 : null;\n  const tabIcon = (id: Tab) => ALL_TABS.find(([tabId]) => tabId === id)?.[2];\n  const SquadIcon = tabIcon("squad")!;\n  const TransfersIcon = tabIcon("recruitment")!;\n  const StaffIcon = tabIcon("staff")!;\n  const FacilitiesIcon = tabIcon("stadium")!;
 
   return (
     <div className="lf-home-dashboard flex min-h-0 flex-col gap-3">
@@ -111,10 +111,10 @@ export function ClubHub({ state, update, setTab, isContinuing }: { state: GameSt
         </button>
       </section>
       <section className="lf-management-grid grid grid-cols-2 gap-2 md:grid-cols-3">
-        <ActionTile onClick={() => setTab("squad")} icon={<Users className="size-5" />} title="Squad" value={`${squadSize} players`} sub="Selection · contracts" />
-        <ActionTile onClick={() => setTab("recruitment")} icon={<ArrowLeftRight className="size-5" />} title="Transfers" value={activeNegotiations > 0 ? `${activeNegotiations} active` : "Market"} sub="Scouting · shortlist · deals" />
-        <ActionTile onClick={() => setTab("staff")} icon={<Briefcase className="size-5" />} title="Staff" value={manager ? manager.name : "No manager"} sub={staffCount ? `${staffCount} employed` : "Build your team"} />
-        <ActionTile onClick={() => setTab("stadium")} icon={<Building2 className="size-5" />} title="Facilities" value={`${totalCapacity(state).toLocaleString()} seats`} sub="Stadium · training" />
+        <ActionTile onClick={() => setTab("squad")} icon={<SquadIcon className="size-5" />} title="Squad" value={`${squadSize} players`} sub="Selection · contracts" />
+        <ActionTile onClick={() => setTab("recruitment")} icon={<TransfersIcon className="size-5" />} title="Transfers" value={activeNegotiations > 0 ? `${activeNegotiations} active` : "Market"} sub="Scouting · shortlist · deals" />
+        <ActionTile onClick={() => setTab("staff")} icon={<StaffIcon className="size-5" />} title="Staff" value={manager ? manager.name : "No manager"} sub={staffCount ? `${staffCount} employed` : "Build your team"} />
+        <ActionTile onClick={() => setTab("stadium")} icon={<FacilitiesIcon className="size-5" />} title="Facilities" value={`${totalCapacity(state).toLocaleString()} seats`} sub="Stadium · training" />
         <ActionTile onClick={() => setTab("tickets")} icon={<Heart className="size-5" />} title="Supporters" value={`${state.fanHappiness}% happy`} sub={`${fanbase.toLocaleString()} fans`} />
         <ActionTile onClick={() => setTab("board")} icon={<Target className="size-5" />} title="Club vision" value="Build for the future" sub="Direction · expectations" />
       </section>
