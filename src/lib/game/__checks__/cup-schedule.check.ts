@@ -2,7 +2,7 @@ import { strict as assert } from "node:assert";
 import { cupSlot, DOMESTIC_CUP_SLOTS, seededCupDraw, startCupRound, recordCupWinner, nextCupRound, userCupFixture } from "../cupSchedule";
 import { resolveAiDomesticCupRound } from "../aiDomesticCups";
 import { setCalendarDay } from "../calendar";
-import type { GameState } from "../types";
+import type { DomesticCupState, GameState } from "../types";
 
 const drawA = seededCupDraw(["A", "B", "C", "D", "E", "F", "G", "H"], "season1|fa|r1");
 const drawB = seededCupDraw(["A", "B", "C", "D", "E", "F", "G", "H"], "season1|fa|r1");
@@ -23,7 +23,7 @@ const r2 = nextCupRound(settled, "save1");
 assert.ok(r2 && r2.round === 2, "round winners must progress into the next draw");
 assert.deepEqual(new Set(r2!.entrants), new Set(settled.winners));
 
-const datedCup = startCupRound("leagueCup", 1, ["A", "B", "C", "D"], "dated-cup");
+const datedRound = startCupRound("leagueCup", 1, ["A", "B", "C", "D"], "dated-cup");\nconst datedCup: DomesticCupState = { ...datedRound, eliminated: [] };
 const datedState = {
   week: cupSlot("leagueCup", 1)!.week,
   season: 1,
