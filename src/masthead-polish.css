@@ -133,3 +133,58 @@
     padding: 0.58rem 0.62rem;
   }
 }
+
+/* Mobile: reserve the viewport for the command centre rather than artwork. */
+@media (max-width: 767px) {
+  .lf-masthead,
+  .lf-masthead .panel-strip {
+    min-height: 7rem;
+  }
+
+  .lf-masthead .panel-strip > div {
+    gap: .55rem;
+    padding: .7rem .85rem .65rem;
+    align-items: center;
+  }
+
+  .lf-masthead .panel-strip > div > svg {
+    width: 2.65rem;
+    height: 2.65rem;
+    padding: .55rem;
+    border-radius: .8rem;
+  }
+
+  .lf-masthead .lf-brand-kicker {
+    margin-bottom: .18rem;
+    font-size: .55rem;
+  }
+
+  .lf-masthead h1 {
+    font-size: 1.45rem;
+  }
+
+  .lf-masthead .lf-club-subtitle {
+    margin-top: .16rem;
+    font-size: .78rem;
+  }
+
+  .lf-masthead .lf-club-detail {
+    margin-top: .18rem;
+    font-size: .6rem;
+  }
+
+  .lf-masthead .lf-chairman-badge {
+    min-width: 4.8rem;
+    padding: .42rem .5rem;
+    border-radius: .8rem;
+  }
+
+  .lf-masthead .lf-chairman-badge span,
+  .lf-masthead .lf-chairman-badge small {
+    font-size: .58rem;
+  }
+
+  .lf-masthead .lf-chairman-badge strong {
+    font-size: 1.35rem;
+  }
+}
