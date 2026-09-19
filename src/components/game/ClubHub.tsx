@@ -139,7 +139,8 @@ export function ClubHub({ state, update, setTab, isContinuing }: { state: GameSt
 
 function MatchStrip({ state, nextFixture, manager, update, onOpenSchedule, onOpenStaff }: { state: GameState; nextFixture: GameState["fixtures"][number] | undefined; manager: GameState["hiredStaff"][number] | undefined; update: (fn: (s: GameState) => GameState) => void; onOpenSchedule: () => void; onOpenStaff: () => void }) {
   const matchReady = !!nextFixture && nextFixture.week === state.week && (nextFixture.dayOfWeek ?? 5) === calendarDay(state) && isMatchday(state);
-  const currentCompetition = nextFixture ? fixtureCompetition(nextFixture) : undefined;\n  const isPreseason = currentCompetition === "preseason";
+  const currentCompetition = nextFixture ? fixtureCompetition(nextFixture) : undefined;
+  const isPreseason = currentCompetition === "preseason";
   const prep = managerMatchPrep(state);
   const homeName = nextFixture ? nextFixture.home ? state.clubName : clubPresentationName(clubDisplayName(state, nextFixture.opponent)) : state.clubName;
   const awayName = nextFixture ? nextFixture.home ? clubPresentationName(clubDisplayName(state, nextFixture.opponent)) : state.clubName : "Opposition TBC";
