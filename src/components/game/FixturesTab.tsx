@@ -1,7 +1,7 @@
 import { Play } from "lucide-react";
 import type { GameState } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
-import { startMatchDay } from "@/lib/game/engine";
+import { calendarDay, startMatchDay } from "@/lib/game/engine";
 import { Section } from "./shared/primitives";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { Button } from "@/components/ui/button";
@@ -43,9 +43,9 @@ export function FixturesTab({
                   const result = resultForFixture(state, fixture);
                   const competition = fixtureCompetition(fixture);
                   const date = fixtureDate(fixture);
-                  const isNext = fixture.week === state.week && !result;
+                  const isToday = fixture.week === state.week && (fixture.dayOfWeek ?? 5) === calendarDay(state) && !result;
                   return (
-                    <article key={fixtureKey(fixture)} className={cn("lf-fixture-card", `is-${competition}`, isNext && "is-next")}>
+                    <article key={fixtureKey(fixture)} className={cn("lf-fixture-card", `is-${competition}`, isToday && "is-next")}>
                       <div className="lf-fixture-accent" />
                       <div className="lf-fixture-date tnum">
                         <strong>{date.day}</strong>
@@ -62,7 +62,7 @@ export function FixturesTab({
                             <strong>{result.goalsFor}–{result.goalsAgainst}</strong>
                             <span className={cn(`is-${result.result.toLowerCase()}`)}>{result.result === "W" ? "Win" : result.result === "D" ? "Draw" : "Loss"}</span>
                           </>
-                        ) : isNext ? (
+                        ) : isToday ? (
                           <Button size="sm" onClick={() => update((s) => startMatchDay(s))}>
                             <Play /> Play
                           </Button>
