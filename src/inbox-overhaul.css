@@ -173,3 +173,28 @@
 .lf-finance-row.is-total { grid-column: 1 / -1; border-bottom-color: color-mix(in oklab, var(--source-accent) 30%, transparent); color: var(--source-accent); }
 .lf-finance-row.is-total span, .lf-finance-row.is-total strong { color: inherit; font-weight: 700; }
 @media (max-width: 360px) { .lf-finance-summary { grid-template-columns: 1fr; } .lf-finance-row.is-total { grid-column: auto; } }
+
+
+/* Open briefings use the same premium club surface as the inbox instead of a separate paper modal. */
+.lf-briefing-sheet { background: linear-gradient(180deg, color-mix(in oklab, var(--source-accent) 12%, var(--inbox-ink)) 0%, var(--inbox-ink) 38%); color: var(--inbox-paper); border: 1px solid color-mix(in oklab, var(--source-accent) 45%, transparent); box-shadow: 0 -1rem 3rem rgb(0 0 0 / 0.28); }
+.lf-briefing-header { border-bottom-color: color-mix(in oklab, var(--inbox-paper) 11%, transparent); }
+.lf-briefing-handle { background: color-mix(in oklab, var(--inbox-paper) 28%, transparent); }
+.lf-briefing-close { border-color: color-mix(in oklab, var(--inbox-paper) 18%, transparent); color: var(--inbox-paper); }
+.lf-briefing-statusline, .lf-briefing-sender { color: color-mix(in oklab, var(--inbox-paper) 62%, transparent); }
+.lf-briefing-title, .lf-briefing-sender strong { color: var(--inbox-paper); }
+.lf-briefing-copy > p { color: color-mix(in oklab, var(--inbox-paper) 84%, transparent); }
+.lf-briefing-fact, .lf-finance-summary, .lf-objective-card { border-color: color-mix(in oklab, var(--inbox-paper) 11%, transparent); background: color-mix(in oklab, var(--inbox-paper) 5%, transparent); }
+.lf-briefing-fact strong, .lf-finance-row strong, .lf-objective-card strong { color: var(--inbox-paper); }
+.lf-briefing-fact p, .lf-finance-row span, .lf-objective-card p { color: color-mix(in oklab, var(--inbox-paper) 62%, transparent); }
+.lf-finance-row { border-bottom-color: color-mix(in oklab, var(--inbox-paper) 9%, transparent); }
+.lf-finance-row.is-total span, .lf-finance-row.is-total strong { color: var(--source-accent); }
+
+.lf-objective-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
+.lf-objective-card { display: grid; min-width: 0; grid-template-columns: auto minmax(0, 1fr); gap: 0.5rem; border: 1px solid; border-radius: 0.75rem; padding: 0.65rem; }
+.lf-objective-card > svg { width: 0.9rem; height: 0.9rem; margin-top: 0.05rem; color: var(--source-accent); }
+.lf-objective-card strong { display: block; font-size: 0.75rem; line-height: 1.25; }
+.lf-objective-card p { margin: 0.2rem 0 0; font-size: 0.62rem; line-height: 1.35; }
+.lf-decision-section { border-top-color: color-mix(in oklab, var(--inbox-paper) 12%, transparent); }
+.lf-decision-heading h2 { color: var(--inbox-paper); }
+.lf-briefing-secondary-actions button { color: color-mix(in oklab, var(--inbox-paper) 72%, transparent); }
+@media (max-width: 360px) { .lf-objective-grid { grid-template-columns: 1fr; } }
