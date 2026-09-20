@@ -109,8 +109,28 @@ function financeRows(body: string) {
   return rows.length >= 6 ? rows : null;
 }
 
+function boardObjectiveRows(body: string) {
+  const sections = bodySections(body);
+  const rows: { title: string; detail?: string }[] = [];
+  for (const section of sections) {
+    const lines = section.split("\n").map((line) => line.trim()).filter(Boolean);
+    for (let i = 0; i < lines.length; i++) {
+      const cleaned = lines[i].replace(/^[-•]\s*/, "");
+      if (!/^[-•]/.test(lines[i])) continue;
+      const next = lines[i + 1]?.replace(/^[-•]\s*/, "");
+      rows.push({ title: cleaned, detail: next && !/^[-•]/.test(lines[i + 1]) ? next : undefined });
+      if (next && !/^[-•]/.test(lines[i + 1])) i++;
+    }
+  }
+  return rows.length >= 3 ? rows : null;
+}
+
 function BriefingBody({ body, department }: { body: string; department?: InboxDepartment }) {
   const financial = department === "Finance" ? financeRows(body) : null;
+  const objectives = department === "Board" ? boardObjectiveRows(body) : null;
+  if (objectives) {
+    return <div className="lf-objective-grid">{objectives.map((row) => <div className="lf-objective-card" key={row.title}><CircleCheck /><div><strong>{row.title}</strong>{row.detail && <p>{row.detail}</p>}</div></div>)}</div>;
+  }
   if (financial) {
     return (
       <div className="lf-finance-summary">
