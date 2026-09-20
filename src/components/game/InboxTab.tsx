@@ -1,5 +1,31 @@
-import { useEffect, useMemo, useState } from "react";
-import { Archive, ChevronRight, Filter, MailOpen, MessagesSquare, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState, type ComponentType } from "react";
+import {
+  Archive,
+  BadgePoundSterling,
+  BriefcaseBusiness,
+  Building2,
+  CalendarClock,
+  ChevronRight,
+  CircleCheck,
+  ClipboardList,
+  Filter,
+  HeartPulse,
+  Landmark,
+  MailOpen,
+  Megaphone,
+  MessageSquareMore,
+  MessagesSquare,
+  Newspaper,
+  ShieldCheck,
+  Stethoscope,
+  Trash2,
+  TriangleAlert,
+  Trophy,
+  UserRoundCog,
+  UsersRound,
+  WalletCards,
+  X,
+} from "lucide-react";
 import type { GameState, InboxItem, InboxCategory, InboxDepartment } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -16,12 +42,94 @@ import {
   requiresInboxDecision,
   unreadCount,
 } from "@/lib/game/inbox";
-import {
-  inboxConversationCount,
-  inboxConversationItems,
-} from "@/lib/game/inboxCommunication";
+import { absoluteWeek, fromAbsoluteWeek } from "@/lib/game/time";
+import { inboxConversationCount, inboxConversationItems } from "@/lib/game/inboxCommunication";
 
 export type InboxFilter = "all" | "unread" | "decisions" | "archive";
+
+type DepartmentPresentation = {
+  short: string;
+  tone: string;
+  icon: ComponentType<{ className?: string }>;
+};
+
+const DEPARTMENT_PRESENTATION: Record<InboxDepartment, DepartmentPresentation> = {
+  "Board of Directors": { short: "Board", tone: "board", icon: Landmark },
+  Manager: { short: "Manager", tone: "manager", icon: UserRoundCog },
+  "Director of Football": { short: "Recruitment", tone: "recruitment", icon: BriefcaseBusiness },
+  Finance: { short: "Finance", tone: "finance", icon: WalletCards },
+  Commercial: { short: "Commercial", tone: "commercial", icon: BadgePoundSterling },
+  "Head Scout": { short: "Scouting", tone: "recruitment", icon: ClipboardList },
+  Medical: { short: "Medical", tone: "medical", icon: Stethoscope },
+  Groundskeeper: { short: "Facilities", tone: "facilities", icon: Building2 },
+  "Fan Liaison": { short: "Supporters", tone: "supporters", icon: UsersRound },
+  Sponsors: { short: "Sponsors", tone: "commercial", icon: ShieldCheck },
+  League: { short: "Competition", tone: "league", icon: Trophy },
+  Media: { short: "Media", tone: "media", icon: Newspaper },
+  Club: { short: "Club", tone: "club", icon: Building2 },
+};
+
+function departmentPresentation(department: InboxDepartment) {
+  return DEPARTMENT_PRESENTATION[department];
+}
+
+function itemStatus(item: InboxItem, decision: boolean) {
+  if (item.status === "expired") return { label: "Expired", tone: "expired" };
+  if (item.status === "completed") return { label: "Completed", tone: "completed" };
+  if (decision) return { label: "Decision required", tone: "decision" };
+  if (item.priority === "urgent") return { label: "Urgent", tone: "urgent" };
+  if (item.priority === "high") return { label: "Priority", tone: "priority" };
+  if (item.status === "unread") return { label: "New briefing", tone: "unread" };
+  return { label: "Read", tone: "read" };
+}
+
+function deadlineCopy(item: InboxItem, state: GameState) {
+  if (item.expiresAtAbsoluteWeek == null) return null;
+  const remaining = item.expiresAtAbsoluteWeek - absoluteWeek(state.season, state.week);
+  if (remaining < 0) return "Deadline passed";
+  if (remaining === 0) return "Due this week";
+  if (remaining === 1) return "1 week remaining";
+  return `${remaining} weeks remaining`;
+}
+
+function bodySections(body: string) {
+  return body
+    .split(/\n\s*\n/)
+    .map((section) => section.trim())
+    .filter(Boolean);
+}
+
+function BriefingBody({ body }: { body: string }) {
+  const sections = bodySections(body);
+  return (
+    <div className="lf-briefing-copy">
+      {sections.map((section, index) => {
+        const lines = section.split("\n").map((line) => line.trim()).filter(Boolean);
+        const looksStructured = lines.length > 1 || /^[-•]/.test(section);
+        if (looksStructured) {
+          return (
+            <div className="lf-briefing-facts" key={`${index}-${section.slice(0, 12)}`}>
+              {lines.map((line) => {
+                const cleaned = line.replace(/^[-•]\s*/, "");
+                const [headline, ...detailParts] = cleaned.split(/(?<=\.|:)(?:\s+)/);
+                return (
+                  <div className="lf-briefing-fact" key={line}>
+                    <span className="lf-briefing-fact-mark" aria-hidden="true" />
+                    <div>
+                      <strong>{headline}</strong>
+                      {detailParts.length > 0 && <p>{detailParts.join(" ")}</p>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        }
+        return <p key={`${index}-${section.slice(0, 12)}`}>{section}</p>;
+      })}
+    </div>
+  );
+}
 
 export function InboxTab({
   state,
@@ -57,9 +165,7 @@ export function InboxTab({
 
   useEffect(() => {
     if (!decisionQueue) return;
-    if (openId && state.inbox.some((item) => item.id === openId && requiresInboxDecision(item))) {
-      return;
-    }
+    if (openId && state.inbox.some((item) => item.id === openId && requiresInboxDecision(item))) return;
     const next = awaiting[0];
     if (next) {
       setFilter("decisions");
@@ -74,155 +180,165 @@ export function InboxTab({
     const all = [...state.inbox].sort(
       (a, b) => b.season - a.season || b.week - a.week || b.id.localeCompare(a.id),
     );
-    return all.filter((i) => {
-      if (filter === "unread" && i.status !== "unread" && i.status !== "awaitingDecision") return false;
-      if (filter === "decisions" && !requiresInboxDecision(i)) return false;
-      if (filter === "archive" && !["completed", "expired", "read"].includes(i.status)) return false;
-      if (category !== "any" && i.category !== category) return false;
-      if (department !== "any" && i.department !== department) return false;
+    return all.filter((item) => {
+      if (filter === "unread" && item.status !== "unread" && item.status !== "awaitingDecision") return false;
+      if (filter === "decisions" && !requiresInboxDecision(item)) return false;
+      if (filter === "archive" && !["completed", "expired", "read"].includes(item.status)) return false;
+      if (category !== "any" && item.category !== category) return false;
+      if (department !== "any" && item.department !== department) return false;
       return true;
     });
   }, [state.inbox, filter, category, department]);
 
-  const open = openId ? (state.inbox.find((i) => i.id === openId) ?? null) : null;
+  const open = openId ? (state.inbox.find((item) => item.id === openId) ?? null) : null;
   const unread = unreadCount(state);
-  const decisions = awaiting.length;
+  const urgent = state.inbox.filter(
+    (item) => item.status !== "completed" && item.status !== "expired" && (item.priority === "urgent" || item.priority === "high"),
+  ).length;
+  const decisionItems = items.filter(requiresInboxDecision);
+  const updateItems = items.filter((item) => !requiresInboxDecision(item));
 
   const openItem = (item: InboxItem) => {
     setOpenId(item.id);
     if (item.status === "unread" || (item.status === "awaitingDecision" && !requiresInboxDecision(item))) {
-      update((s) => markInboxRead(s, item.id));
+      update((current) => markInboxRead(current, item.id));
     }
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2 overflow-hidden md:gap-3">
-      <div className="flex shrink-0 items-end justify-between gap-3">
-        <div>
-          <h1 className="font-display text-2xl md:text-3xl">Inbox</h1>
-          <p className="text-xs md:text-sm text-muted-foreground mt-0.5 md:mt-1">
-            Deal with decisions first. Everything else can wait.
-          </p>
+    <div className="lf-inbox-shell">
+      <header className="lf-inbox-header">
+        <div className="min-w-0">
+          <p className="lf-inbox-kicker">Club communications</p>
+          <h1>Inbox</h1>
+          <p>Decisions, reports and opportunities from across the club.</p>
         </div>
-        {decisionQueue && decisions > 0 && (
-          <div className="rounded-full bg-amber-500/15 px-2.5 py-1 text-[10px] font-bold text-amber-700 dark:text-amber-300">
-            {decisions} blocking
-          </div>
-        )}
+        {decisionQueue && awaiting.length > 0 && <span className="lf-inbox-blocking">{awaiting.length} blocking</span>}
+      </header>
+
+      <div className="lf-attention-rail" aria-label="Inbox summary">
+        <Button variant="ghost" className={cn("lf-attention-stat", filter === "decisions" && "is-active")} onClick={() => setFilter("decisions")}>
+          <span className="lf-attention-icon"><TriangleAlert /></span>
+          <span><strong>{awaiting.length}</strong><small>Decisions</small></span>
+        </Button>
+        <Button variant="ghost" className={cn("lf-attention-stat", filter === "unread" && "is-active")} onClick={() => setFilter("unread")}>
+          <span className="lf-attention-icon"><MessageSquareMore /></span>
+          <span><strong>{unread}</strong><small>Unread</small></span>
+        </Button>
+        <div className="lf-attention-stat is-static">
+          <span className="lf-attention-icon"><CalendarClock /></span>
+          <span><strong>{urgent}</strong><small>Priority</small></span>
+        </div>
       </div>
 
-      <div className="grid shrink-0 grid-cols-2 gap-2 md:gap-3">
-        <button
-          onClick={() => setFilter("decisions")}
-          className={cn(
-            "min-h-12 rounded-xl border p-2.5 text-left flex items-center justify-between transition-colors md:min-h-28 md:rounded-2xl md:p-4 md:flex-col md:items-start",
-            filter === "decisions" ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:border-primary/40",
-          )}
-        >
-          <span className="text-xs md:text-sm font-semibold">Needs decision</span>
-          <span className="font-display text-2xl md:text-3xl">{decisions}</span>
-        </button>
-        <button
-          onClick={() => setFilter("unread")}
-          className={cn(
-            "min-h-12 rounded-xl border p-2.5 text-left flex items-center justify-between transition-colors md:min-h-28 md:rounded-2xl md:p-4 md:flex-col md:items-start",
-            filter === "unread" ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:border-primary/40",
-          )}
-        >
-          <span className="text-xs md:text-sm font-semibold">Unread</span>
-          <span className="font-display text-2xl md:text-3xl">{unread}</span>
-        </button>
-      </div>
-
-      <div className="flex shrink-0 items-center gap-2">
-        <Button size="sm" variant={filter === "all" ? "default" : "outline"} onClick={() => setFilter("all")}>All messages</Button>
+      <div className="lf-inbox-tools">
+        <div className="lf-filter-tabs" role="group" aria-label="Message view">
+          {(["all", "decisions", "unread", "archive"] as InboxFilter[]).map((value) => (
+            <Button key={value} size="sm" variant="ghost" className={cn("lf-filter-tab", filter === value && "is-active")} onClick={() => setFilter(value)}>
+              {value === "all" ? "All" : value === "decisions" ? "Actions" : value === "unread" ? "New" : "Archive"}
+            </Button>
+          ))}
+        </div>
         <Sheet>
-          <SheetTrigger asChild><Button size="sm" variant="outline"><Filter className="size-4 mr-1.5" /> Filters</Button></SheetTrigger>
-          <SheetContent side="bottom" className="rounded-t-3xl">
-            <SheetHeader><SheetTitle>Filter inbox</SheetTitle></SheetHeader>
-            <div className="space-y-4 mt-5">
+          <SheetTrigger asChild>
+            <Button size="icon" variant="outline" className="lf-filter-button" aria-label="Filter inbox"><Filter /></Button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="lf-filter-sheet">
+            <SheetHeader><SheetTitle>Filter communications</SheetTitle></SheetHeader>
+            <div className="mt-5 space-y-4">
               <label className="block space-y-1.5">
                 <span className="text-sm font-medium">Category</span>
-                <select value={category} onChange={(e) => setCategory(e.target.value as InboxCategory | "any")} className="w-full h-12 px-3 rounded-xl border bg-card">
+                <select value={category} onChange={(event) => setCategory(event.target.value as InboxCategory | "any")} className="h-12 w-full rounded-md border bg-card px-3">
                   <option value="any">All categories</option>
-                  {(Object.keys(CATEGORY_META) as InboxCategory[]).map((c) => <option key={c} value={c}>{CATEGORY_META[c].label}</option>)}
+                  {(Object.keys(CATEGORY_META) as InboxCategory[]).map((value) => <option key={value} value={value}>{CATEGORY_META[value].label}</option>)}
                 </select>
               </label>
               <label className="block space-y-1.5">
                 <span className="text-sm font-medium">Department</span>
-                <select value={department} onChange={(e) => setDepartment(e.target.value as InboxDepartment | "any")} className="w-full h-12 px-3 rounded-xl border bg-card">
+                <select value={department} onChange={(event) => setDepartment(event.target.value as InboxDepartment | "any")} className="h-12 w-full rounded-md border bg-card px-3">
                   <option value="any">All departments</option>
-                  {DEPARTMENTS_ALL.map((d) => <option key={d} value={d}>{d}</option>)}
+                  {DEPARTMENTS_ALL.map((value) => <option key={value} value={value}>{value}</option>)}
                 </select>
               </label>
-              <Button variant="outline" className="w-full h-12" onClick={() => setFilter("archive")}><Archive className="size-4 mr-2" /> View archive</Button>
+              <Button variant="outline" className="h-12 w-full" onClick={() => setFilter("archive")}><Archive /> View archive</Button>
             </div>
           </SheetContent>
         </Sheet>
-        {items.some((i) => ["read", "completed", "expired"].includes(i.status)) && <Button size="sm" variant="ghost" className="ml-auto" onClick={() => update((s) => clearReadInbox(s))}>Clear read</Button>}
+        {items.some((item) => ["read", "completed", "expired"].includes(item.status)) && (
+          <Button size="sm" variant="ghost" className="lf-clear-read" onClick={() => update((current) => clearReadInbox(current))}>Clear read</Button>
+        )}
       </div>
 
-      {items.length === 0 ? (
-        <div className="rounded-2xl border bg-card py-10 md:py-14 text-center">
-          <MailOpen className="size-8 mx-auto text-muted-foreground mb-3" />
-          <div className="font-display text-xl">Nothing waiting here</div>
-          <div className="text-sm text-muted-foreground mt-1">You can get back to running the club.</div>
-        </div>
-      ) : (
-        <div className="contained-scroll touch-pan-y min-h-0 flex-1 space-y-1.5 pr-0.5 md:space-y-3">
-          {items.map((it) => {
-            const decision = requiresInboxDecision(it);
-            const conversationCount = inboxConversationCount(state.inbox, it);
-            return (
-            <button
-              key={it.id}
-              onClick={() => openItem(it)}
-              className={cn(
-                "flex min-h-12 w-full items-center gap-2 rounded-xl border bg-card px-2.5 py-1.5 text-left transition-colors hover:border-primary/40 md:min-h-24 md:gap-4 md:rounded-2xl md:p-4",
-                decision && "border-amber-500/60 bg-amber-500/5",
-              )}
-            >
-              <div className={cn("size-2 md:size-3 rounded-full shrink-0", decision ? "bg-amber-500" : (it.status === "unread" || it.status === "awaitingDecision") ? "bg-primary" : "bg-muted-foreground/30")} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 text-[10px] md:text-xs text-muted-foreground">
-                  <span>{it.department}</span>
-                  {decision && <span className="font-semibold text-amber-600">Decision</span>}
-                  {conversationCount > 1 && (
-                    <span className="inline-flex items-center gap-1 font-medium text-foreground/70">
-                      <MessagesSquare className="size-3" /> {conversationCount}
-                    </span>
-                  )}
-                  <span className="ml-auto">W{it.week}</span>
-                </div>
-                <div className={cn("truncate text-sm leading-tight md:mt-1 md:text-base", (it.status === "unread" || it.status === "awaitingDecision") && "font-semibold")}>{it.subject}</div>
-                <div className="hidden truncate text-xs text-muted-foreground sm:block md:text-sm">{it.sender}</div>
-              </div>
-              <ChevronRight className="size-4 md:size-5 text-muted-foreground shrink-0" />
-            </button>
-          );})}
-        </div>
-      )}
+      <div className="lf-inbox-feed contained-scroll touch-pan-y">
+        {items.length === 0 ? (
+          <div className="lf-inbox-empty">
+            <MailOpen />
+            <h2>Nothing waiting here</h2>
+            <p>You can get back to running the club.</p>
+          </div>
+        ) : (
+          <>
+            {decisionItems.length > 0 && (
+              <InboxLane title="Needs your decision" count={decisionItems.length} urgent>
+                {decisionItems.map((item) => <InboxRow key={item.id} item={item} state={state} onOpen={openItem} conversationCount={inboxConversationCount(state.inbox, item)} />)}
+              </InboxLane>
+            )}
+            {updateItems.length > 0 && (
+              <InboxLane title={decisionItems.length > 0 ? "Club briefings" : filter === "archive" ? "Filed briefings" : "Latest briefings"} count={updateItems.length}>
+                {updateItems.map((item) => <InboxRow key={item.id} item={item} state={state} onOpen={openItem} conversationCount={inboxConversationCount(state.inbox, item)} />)}
+              </InboxLane>
+            )}
+          </>
+        )}
+      </div>
 
       {open && (
         <InboxDetail
           item={open}
           state={state}
           onClose={() => !decisionQueue && setOpenId(null)}
-          onChoose={(choiceId) => {
-            update((s) => handleInboxChoice(s, open.id, choiceId));
-            setOpenId(null);
-          }}
-          onDismiss={() => {
-            update((s) => dismissInboxItem(s, open.id));
-            setOpenId(null);
-          }}
-          onDelete={() => {
-            update((s) => deleteInboxItem(s, open.id));
-            setOpenId(null);
-          }}
+          onChoose={(choiceId) => { update((current) => handleInboxChoice(current, open.id, choiceId)); setOpenId(null); }}
+          onDismiss={() => { update((current) => dismissInboxItem(current, open.id)); setOpenId(null); }}
+          onDelete={() => { update((current) => deleteInboxItem(current, open.id)); setOpenId(null); }}
         />
       )}
     </div>
+  );
+}
+
+function InboxLane({ title, count, urgent = false, children }: { title: string; count: number; urgent?: boolean; children: React.ReactNode }) {
+  return (
+    <section className={cn("lf-inbox-lane", urgent && "is-urgent")}>
+      <div className="lf-inbox-lane-heading"><h2>{title}</h2><span>{count}</span></div>
+      <div className="lf-inbox-lane-list">{children}</div>
+    </section>
+  );
+}
+
+function InboxRow({ item, state, onOpen, conversationCount }: { item: InboxItem; state: GameState; onOpen: (item: InboxItem) => void; conversationCount: number }) {
+  const decision = requiresInboxDecision(item);
+  const department = departmentPresentation(item.department);
+  const status = itemStatus(item, decision);
+  const deadline = deadlineCopy(item, state);
+  const Icon = department.icon;
+  return (
+    <Button variant="ghost" className={cn("lf-message-row", `tone-${department.tone}`, `status-${status.tone}`)} onClick={() => onOpen(item)}>
+      <span className="lf-message-source"><Icon /></span>
+      <span className="lf-message-main">
+        <span className="lf-message-meta">
+          <span>{department.short}</span>
+          <span className={cn("lf-message-status", `status-${status.tone}`)}>{status.label}</span>
+          <span className="lf-message-week">S{item.season} W{item.week}</span>
+        </span>
+        <strong>{item.subject}</strong>
+        <span className="lf-message-subline">
+          <span>{item.sender}</span>
+          {deadline && <span className="lf-message-deadline"><CalendarClock /> {deadline}</span>}
+          {conversationCount > 1 && <span><MessagesSquare /> {conversationCount}</span>}
+        </span>
+      </span>
+      <ChevronRight className="lf-message-chevron" />
+    </Button>
   );
 }
 
@@ -230,73 +346,82 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
   const decision = requiresInboxDecision(item);
   const conversation = inboxConversationItems(state.inbox, item);
   const hasConversation = conversation.length > 1;
+  const department = departmentPresentation(item.department);
+  const status = itemStatus(item, decision);
+  const deadline = deadlineCopy(item, state);
+  const DepartmentIcon = department.icon;
+
   return (
-    <Sheet open onOpenChange={(v) => !v && onClose()}>
-      <SheetContent side="bottom" className="rounded-t-3xl max-h-[90vh] overflow-y-auto">
-        <SheetHeader className="text-left">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1"><span>{item.department}</span><span>·</span><span>S{item.season} W{item.week}</span></div>
-          <SheetTitle className="text-xl leading-tight">{item.subject}</SheetTitle>
-          <div className="text-sm text-muted-foreground">From {item.sender}</div>
-        </SheetHeader>
-        {hasConversation ? (
-          <div className="mt-5 space-y-3">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <MessagesSquare className="size-4" /> Conversation · {conversation.length} messages
-            </div>
-            {conversation.map((message) => {
-              const current = message.id === item.id;
-              return (
-                <div
-                  key={message.id}
-                  className={cn(
-                    "rounded-2xl border p-4",
-                    current ? "border-primary/40 bg-primary/5" : "bg-muted/25",
-                  )}
-                >
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="font-semibold text-foreground">{message.sender}</span>
-                    <span>·</span>
-                    <span>S{message.season} W{message.week}</span>
-                    {current && <span className="ml-auto font-semibold text-primary">Latest</span>}
+    <Sheet open onOpenChange={(value) => !value && onClose()}>
+      <SheetContent side="bottom" className={cn("lf-briefing-sheet", `tone-${department.tone}`)}>
+        <div className="lf-briefing-handle" aria-hidden="true" />
+        <header className="lf-briefing-header">
+          <div className="lf-briefing-department"><DepartmentIcon /><span>{department.short}</span></div>
+          <Button variant="ghost" size="icon" className="lf-briefing-close" onClick={onClose} aria-label="Close briefing"><X /></Button>
+          <div className="lf-briefing-statusline">
+            <span className={cn("lf-message-status", `status-${status.tone}`)}>{status.label}</span>
+            <span>S{item.season} W{item.week}</span>
+            {deadline && <span><CalendarClock /> {deadline}</span>}
+          </div>
+          <SheetHeader className="text-left">
+            <SheetTitle className="lf-briefing-title">{item.subject}</SheetTitle>
+            <p className="lf-briefing-sender">Briefing from <strong>{item.sender}</strong></p>
+          </SheetHeader>
+        </header>
+
+        <div className="lf-briefing-scroll">
+          {hasConversation ? (
+            <section className="lf-conversation">
+              <div className="lf-briefing-section-title"><MessagesSquare /> Conversation · {conversation.length}</div>
+              {conversation.map((message) => (
+                <article key={message.id} className={cn("lf-conversation-entry", message.id === item.id && "is-current")}>
+                  <div><strong>{message.sender}</strong><span>S{message.season} W{message.week}</span></div>
+                  <h3>{message.subject}</h3>
+                  <BriefingBody body={message.body} />
+                </article>
+              ))}
+            </section>
+          ) : (
+            <article className="lf-briefing-document">
+              <div className="lf-briefing-section-title"><Megaphone /> Club briefing</div>
+              <BriefingBody body={item.body} />
+            </article>
+          )}
+
+          {item.reward && (
+            <aside className="lf-briefing-note"><CircleCheck /><div><strong>Potential outcome</strong><p>{item.reward}</p></div></aside>
+          )}
+
+          {decision && item.choices && item.choices.length > 0 && (
+            <section className="lf-decision-section">
+              {item.status === "completed" && item.chosenChoiceId ? (
+                <div className="lf-resolution"><CircleCheck /><div><strong>Decision recorded</strong><p>{item.choices.find((choice) => choice.id === item.chosenChoiceId)?.label}</p></div></div>
+              ) : item.status === "expired" ? (
+                <div className="lf-resolution is-expired"><TriangleAlert /><div><strong>Deadline passed</strong><p>This decision expired before you responded.</p></div></div>
+              ) : (
+                <>
+                  <div className="lf-decision-heading"><div><span>Chairman action</span><h2>Choose your response</h2></div>{deadline && <small>{deadline}</small>}</div>
+                  <div className="lf-decision-grid">
+                    {item.choices.map((choice) => {
+                      const availability = evaluateChoice(state, choice);
+                      return (
+                        <Button key={choice.id} variant="ghost" onClick={() => availability.available && onChoose(choice.id)} disabled={!availability.available} className="lf-decision-card">
+                          <span><strong>{choice.label}</strong>{choice.hint && <small>{choice.hint}</small>}{!availability.available && <em>{availability.reasons.join(" ")}</em>}</span>
+                          <ChevronRight />
+                        </Button>
+                      );
+                    })}
                   </div>
-                  <div className="mt-1 font-semibold">{message.subject}</div>
-                  <div className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{message.body}</div>
-                </div>
-              );
-            })}
+                </>
+              )}
+            </section>
+          )}
+
+          <div className="lf-briefing-secondary-actions">
+            {!decision && item.status !== "completed" && <Button variant="ghost" onClick={onDelete}><Trash2 /> Delete briefing</Button>}
+            {item.status === "completed" && <Button variant="outline" onClick={onDismiss}>Close briefing</Button>}
           </div>
-        ) : (
-          <div className="mt-5 text-base whitespace-pre-wrap leading-relaxed">{item.body}</div>
-        )}
-        {decision && item.choices && item.choices.length > 0 && (
-          <div className="mt-6 space-y-3">
-            {item.status === "completed" && item.chosenChoiceId ? (
-              <div className="rounded-xl border bg-muted/40 p-4 text-sm">Decided: {item.choices.find((c) => c.id === item.chosenChoiceId)?.label}</div>
-            ) : item.status === "expired" ? (
-              <div className="rounded-xl border border-rose-300 bg-rose-50 p-4 text-sm text-rose-700">This decision expired before you responded.</div>
-            ) : (
-              <>
-                <div className="font-display text-lg">Choose your response</div>
-                {item.choices.map((c) => {
-                  const avail = evaluateChoice(state, c);
-                  return (
-                    <button key={c.id} onClick={() => avail.available && onChoose(c.id)} disabled={!avail.available} className={cn("w-full min-h-16 md:min-h-20 text-left rounded-2xl border p-3 md:p-4 transition-colors", avail.available ? "hover:border-primary hover:bg-muted/50" : "opacity-60 cursor-not-allowed bg-muted/30")}>
-                      <div className="text-sm md:text-base font-semibold">{c.label}</div>
-                      {c.hint && <div className="text-xs md:text-sm text-muted-foreground mt-1">{c.hint}</div>}
-                      {!avail.available && <div className="text-xs md:text-sm text-rose-600 mt-2">{avail.reasons.join(" ")}</div>}
-                    </button>
-                  );
-                })}
-              </>
-            )}
-          </div>
-        )}
-        {!decision && item.status !== "completed" && (
-          <Button variant="outline" className="w-full h-12 mt-6 text-destructive hover:text-destructive" onClick={onDelete}>
-            <Trash2 className="mr-2 size-4" /> Delete message
-          </Button>
-        )}
-        {item.status === "completed" && <Button variant="outline" className="w-full h-12 mt-6" onClick={onDismiss}>Close</Button>}
+        </div>
       </SheetContent>
     </Sheet>
   );
