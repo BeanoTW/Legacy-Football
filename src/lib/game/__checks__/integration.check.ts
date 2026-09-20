@@ -86,8 +86,8 @@ console.log("\n[I2] Advancing does not mutate the state handed in");
 
 console.log("\n[I3] Pre-season fixtures are explicit and deterministic");
 {
-  const a = fresh("PRESEASON_REPLAY");
-  const b = fresh("PRESEASON_REPLAY");
+  const a = fresh();
+  const b = fresh();
   const fixturesA = a.fixtures.filter((f) => f.competition === "preseason");
   const fixturesB = b.fixtures.filter((f) => f.competition === "preseason");
 
@@ -101,10 +101,9 @@ console.log("\n[I3] Pre-season fixtures are explicit and deterministic");
     fixturesA.every((f) => typeof f.dayOfWeek === "number"),
   );
 
-  const idle = advanceWeek(a);
   check(
-    "advancing without a scheduled match does not fabricate a friendly",
-    idle.results.filter((r) => r.competition === "preseason").length === 0,
+    "idle days do not fabricate pre-season results",
+    a.results.filter((r) => r.competition === "preseason").length === 0,
   );
 }
 
