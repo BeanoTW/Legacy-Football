@@ -101,9 +101,13 @@ export function tickSeasonRollover(s: GameState): void {
   // and National Cup entry round for this season.
   s.domesticCups = undefined;
   initialiseSeasonCups(s);
-  // leagueSchedule was rebuilt above, so this seeds the new season only.
-  initialisePreseasonFixtures(s);
-  s.fixtures = fixturesForClub(s.leagueSchedule, userClubReference(s));
+  // Full pyramid saves own the explicit dated pre-season schedule. Legacy
+  // saves must keep the makeFixtures projection above; replacing it from an
+  // empty leagueSchedule would erase their new-season league fixtures.
+  if (s.leagues?.length) {
+    initialisePreseasonFixtures(s);
+    s.fixtures = fixturesForClub(s.leagueSchedule, userClubReference(s));
+  }
 
   // matchRecords and seasonHistory are permanent — never cleared.
   s.results = [];
