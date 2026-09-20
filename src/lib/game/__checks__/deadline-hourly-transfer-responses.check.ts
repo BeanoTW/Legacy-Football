@@ -1,6 +1,6 @@
 import type { TransferNegotiation } from "../types";
 import { newGame } from "../newGame";
-import { setCalendarDay, setTransferDeadlineHour } from "../calendar";
+import { setCalendarDay, setTransferDeadlineHour, WINDOW_PRESEASON_END } from "../calendar";
 import {
   clearTransferResponseInPlace,
   scheduleTransferResponseInPlace,
@@ -37,7 +37,7 @@ function negotiation(id: string): TransferNegotiation {
 }
 
 const deadline = newGame("Hourly Town", "Chairman", "deadline-hourly-response-check");
-deadline.week = 4;
+deadline.week = WINDOW_PRESEASON_END;
 setCalendarDay(deadline, 6);
 setTransferDeadlineHour(deadline, 11);
 const hourly = negotiation("hourly");
