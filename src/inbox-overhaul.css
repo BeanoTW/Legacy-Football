@@ -229,3 +229,13 @@
 .lf-briefing-close { border-color: rgb(105 224 218 / 0.42); background: rgb(3 33 34 / 0.25); }
 .lf-decision-option { border-color: rgb(71 216 209 / 0.24); background: rgb(8 65 66 / 0.72); color: #f2fbfa; }
 .lf-decision-option:hover { border-color: rgb(71 216 209 / 0.55); background: rgb(10 82 82 / 0.78); }
+
+.lf-objectives-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin: 0 0 0.55rem; padding: 0 0.15rem; }
+.lf-objectives-heading span { color: #50e0da; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.11em; text-transform: uppercase; }
+.lf-objectives-heading small { color: #a8c1be; font-size: 0.62rem; }
+.lf-objective-card { min-height: 5.6rem; }
+.lf-objective-card > svg { width: 1.1rem; height: 1.1rem; }
+@media (max-width: 640px) {
+  .lf-objective-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lf-objective-card { min-height: 5.35rem; }
+}
