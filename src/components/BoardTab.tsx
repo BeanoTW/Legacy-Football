@@ -13,7 +13,7 @@ import {
   recomputeConfidence,
 } from "@/lib/game/board";
 import { fmtMoneyExact } from "@/lib/game/engine";
-import { BadgePoundSterling, Building2, ClipboardList, Trophy, UsersRound, WalletCards } from "lucide-react";
+import { SeasonObjectivesDashboard } from "./game/SeasonObjectivesDashboard";
 
 type View = "overview" | "directors" | "objectives" | "reviews";
 
@@ -210,28 +210,23 @@ function DirectorCard({ state, d }: { state: GameState; d: Director }) {
 function Objectives({ state }: { state: GameState }) {
   const objectives = state.board.objectives ?? [];
   if (!objectives.length) return <div className="rounded-xl border bg-card p-4 text-sm text-muted-foreground">No objectives set.</div>;
-  const icons = [Trophy, WalletCards, BadgePoundSterling, UsersRound, Building2, ClipboardList];
   return (
-    <section className="lf-board-objectives">
-      <div className="lf-objectives-heading"><span>Season objectives</span><small>{objectives.length} objectives</small></div>
-      <div className="lf-objective-grid">
-        {objectives.map((o, index) => {
-          const Icon = icons[index % icons.length];
-          const p = evaluateObjective(state, o);
-          return (
-            <div className="lf-objective-card" key={o.id}>
-              <Icon />
-              <div>
-                <strong>{o.label}</strong>
-                <p>{o.description}</p>
-                <span className={cn("lf-objective-progress", p.onTrack ? "is-track" : "is-behind")}>{o.status === "active" ? (p.onTrack ? "On track" : "Behind") : o.status === "met" ? "Met" : "Missed"} · {p.detail}</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <div className="lf-objectives-review">Progress is reviewed at mid-season and again at the end of the campaign.</div>
-    </section>
+    <SeasonObjectivesDashboard
+      objectives={objectives.map((objective) => {
+        const progress = evaluateObjective(state, objective);
+        const status = objective.status === "active"
+          ? (progress.onTrack ? "On track" : "Behind")
+          : objective.status === "met" ? "Met" : "Missed";
+        return {
+          id: objective.id,
+          title: objective.label,
+          detail: objective.description,
+          progress: `${status} · ${progress.detail}`,
+          progressTone: progress.onTrack ? "track" as const : "behind" as const,
+        };
+      })}
+      footer="Progress is reviewed at mid-season and again at the end of the campaign."
+    />
   );
 }
 
