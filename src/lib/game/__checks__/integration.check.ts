@@ -86,8 +86,8 @@ console.log("\n[I2] Advancing does not mutate the state handed in");
 
 console.log("\n[I3] Pre-season fixtures are explicit and deterministic");
 {
-  const a = fresh();
-  const b = fresh();
+  const a = newGame("Test FC", "Test Chair", "PRESEASON_REPLAY");
+  const b = newGame("Test FC", "Test Chair", "PRESEASON_REPLAY");
   const fixturesA = a.fixtures.filter((f) => f.competition === "preseason");
   const fixturesB = b.fixtures.filter((f) => f.competition === "preseason");
 
@@ -204,7 +204,14 @@ console.log("\n[I7] Infrastructure does not move football reputation on its own"
 console.log("\n[I8] Season rollover is an atomic, once-only transaction");
 {
   let s = fresh("ROLLOVER_SEED");
-  for (let i = 0; i < 46; i++) s = advanceWeek(s);
+  for (let i = 0; i < 46; i++) {
+    const leagueFixture = s.fixtures.find(
+      (fixture) => fixture.week === s.week && (fixture.competition ?? "league") === "league",
+    );
+    s = leagueFixture
+      ? advanceWeek(s, { gf: 1, ga: 0, attendance: 9000, gate: 1, tv: 1, matchdayOps: 1, winBonus: 0 })
+      : advanceWeek(s);
+  }
   check("clock rolled into season 2", s.season === 2 && s.week === 1, `S${s.season} W${s.week}`);
 
   const hist1 = s.seasonHistory.filter((h) => h.season === 1);
