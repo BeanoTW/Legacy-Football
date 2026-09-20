@@ -115,11 +115,11 @@ function boardObjectiveRows(body: string) {
   for (const section of sections) {
     const lines = section.split("\n").map((line) => line.trim()).filter(Boolean);
     for (let i = 0; i < lines.length; i++) {
-      const cleaned = lines[i].replace(/^[-•]\s*/, "");
       if (!/^[-•]/.test(lines[i])) continue;
-      const next = lines[i + 1]?.replace(/^[-•]\s*/, "");
-      rows.push({ title: cleaned, detail: next && !/^[-•]/.test(lines[i + 1]) ? next : undefined });
-      if (next && !/^[-•]/.test(lines[i + 1])) i++;
+      const title = lines[i].replace(/^[-•]\s*/, "");
+      const details: string[] = [];
+      while (i + 1 < lines.length && !/^[-•]/.test(lines[i + 1])) details.push(lines[++i]);
+      rows.push({ title, detail: details.join(" ") || undefined });
     }
   }
   return rows.length >= 3 ? rows : null;
