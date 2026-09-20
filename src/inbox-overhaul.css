@@ -213,3 +213,19 @@
   .lf-objective-card p { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; font-size: 0.59rem; line-height: 1.3; }
 }
 @media (max-width: 330px) { .lf-objective-grid { grid-template-columns: 1fr; } }
+
+/* Teal club-UI palette: opened briefings should feel native to Legacy Football, not brown/black editorial paper. */
+.lf-inbox-shell { --inbox-ink: #071f20; --inbox-charcoal: #0b2c2d; --inbox-paper: #e9f5f2; --inbox-muted: #9fb9b6; }
+.lf-briefing-sheet { background: linear-gradient(160deg, #0b4b4c 0%, #073536 32%, #062627 72%, #041d1e 100%); border-color: rgb(50 214 207 / 0.34); color: #f1fbf9; }
+.lf-briefing-sheet[data-tone="board"] { --source-accent: #49ddd6; }
+.lf-briefing-header { background: radial-gradient(circle at 80% 0%, rgb(53 218 210 / 0.13), transparent 38%); }
+.lf-briefing-section-title { color: #52e1db; }
+.lf-briefing-fact-mark { background: #49ddd6; }
+.lf-objective-card { border-color: rgb(71 216 209 / 0.28); background: rgb(8 65 66 / 0.66); box-shadow: inset 0 1px rgb(255 255 255 / 0.025); }
+.lf-objective-card > svg { color: #4ce0da; }
+.lf-objective-card strong { color: #f2fbfa; }
+.lf-objective-card p { color: #abc4c1; }
+.lf-finance-summary { border-color: rgb(71 216 209 / 0.28); background: rgb(8 65 66 / 0.58); }
+.lf-briefing-close { border-color: rgb(105 224 218 / 0.42); background: rgb(3 33 34 / 0.25); }
+.lf-decision-option { border-color: rgb(71 216 209 / 0.24); background: rgb(8 65 66 / 0.72); color: #f2fbfa; }
+.lf-decision-option:hover { border-color: rgb(71 216 209 / 0.55); background: rgb(10 82 82 / 0.78); }
