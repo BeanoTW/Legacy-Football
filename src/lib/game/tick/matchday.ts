@@ -33,7 +33,6 @@ import { advanceDomesticCup, resolveDomesticCupTie } from "../domesticCupState";
 import { resolveKnockoutDraw } from "../knockout";
 import { resolveAllAiDomesticCups } from "../aiDomesticCups";
 import { syncUserCupFixtures } from "../cupFixtures";
-import { settlePreseasonInvitational } from "../preseason";
 
 export interface MatchOverride {
   gf: number;
@@ -239,7 +238,6 @@ export function tickSelectedMatchday(
       }
     }
     matchdayNote = `${fixture.home ? "H" : "A"} vs ${clubDisplayName(s, fixture.opponent)} — ${gf}-${ga} ${result}`;
-    if (fixture.competition === "preseason") settlePreseasonInvitational(s);
   }
 
   // Cup simulation starts only once a save actually owns cup state. Legacy and

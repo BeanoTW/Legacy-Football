@@ -46,6 +46,7 @@ import { tickMatchday, tickSelectedMatchday, type MatchOverride } from "./tick/m
 import { tickLegacyAiResults, tickContractsAndMarkets, tickTicketBacklash } from "./tick/world";
 import { tickSeasonRollover } from "./tick/rollover";
 import { commitLiveMatch } from "./liveMatch";
+import { settlePreseasonInvitational } from "./preseason";
 
 export { weekForLeagueRound } from "./pyramid";
 export { newGame, SAVE_VERSION } from "./newGame";
@@ -173,6 +174,7 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   }
   if (fxResult) {
     s.results.push(fxResult);
+    if (fxResult.competition === "preseason") settlePreseasonInvitational(s);
     // The completed result changes morale for subsequent fixtures; it never
     // feeds back into the score that has already been decided.
     applyPlayerClubMatchOutcomeInPlace(s, fxResult);
@@ -222,6 +224,7 @@ function resolveDatedFixtureInPlace(state: GameState): void {
   const { fxResult } = tickSelectedMatchday(state, fixture);
   if (fxResult) {
     state.results.push(fxResult);
+    if (fxResult.competition === "preseason") settlePreseasonInvitational(state);
     applyPlayerClubMatchOutcomeInPlace(state, fxResult);
   }
 }

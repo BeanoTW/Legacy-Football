@@ -130,19 +130,49 @@ export function settlePreseasonInvitational(state: GameState): boolean {
   if (!preseasonComplete(state)) return false;
   const table = preseasonTable(state);
   const user = canonicalClubReference(state, userClubReference(state));
-  if (table[0]?.club !== user) return false;
+  const position = table.findIndex((row) => row.club === user) + 1;
+  if (position < 1) return false;
 
   const key = PRESEASON_REWARD_KEY(state.season);
-  const entry = postEntry(state, {
-    direction: "income",
-    amount: preseasonWinnerPrize(state),
-    category: "Prize Money",
-    subcategory: "Pre-season",
-    description: `${PRESEASON_COMPETITION_NAME} winner's prize`,
-    sourceSystem: "engine.prize",
-    dedupeKey: key,
-    season: state.season,
+  const winner = position === 1;
+  const prize = winner ? preseasonWinnerPrize(state) : 0;
+  const entry = winner
+    ? postEntry(state, {
+        direction: "income",
+        amount: prize,
+        category: "Prize Money",
+        subcategory: "Pre-season",
+        description: `${PRESEASON_COMPETITION_NAME} winner's prize`,
+        sourceSystem: "engine.prize",
+        dedupeKey: key,
+        season: state.season,
+        week: state.week,
+      })
+    : null;
+
+  const eventKey = `preseason:conclusion:s${state.season}`;
+  if (state.inbox.some((item) => item.eventKey === eventKey)) return entry !== null;
+
+  const ordinal =
+    position === 1 ? "1st" : position === 2 ? "2nd" : position === 3 ? "3rd" : `${position}th`;
+  state.inbox.push({
+    id: `inbox-${hashString(eventKey).toString(36)}`,
+    generatorId: "preseason-conclusion",
+    eventKey,
+    sender: PRESEASON_COMPETITION_NAME,
+    department: "League",
+    category: "league",
+    subject: winner
+      ? `${PRESEASON_COMPETITION_NAME} winners`
+      : `${PRESEASON_COMPETITION_NAME} complete`,
+    body: winner
+      ? `A strong pre-season ends with ${state.clubName} top of the ${PRESEASON_COMPETITION_NAME}. The £${prize.toLocaleString("en-GB")} winner's prize has been added to the club account.`
+      : `${state.clubName} finish ${ordinal} in the ${PRESEASON_COMPETITION_NAME}. The competition is complete and attention now turns to the league season.`,
+    priority: winner ? "normal" : "low",
     week: state.week,
+    season: state.season,
+    status: "unread",
+    reward: winner ? `£${prize.toLocaleString("en-GB")} prize money` : undefined,
   });
-  return entry !== null;
+  return true;
 }
