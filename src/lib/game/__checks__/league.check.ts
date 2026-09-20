@@ -270,11 +270,12 @@ console.log("\n[6] Fixture identity + historical records");
   check(
     "new season gets a fresh schedule",
     t.leagueSchedule.every((f) => f.round >= 1) &&
-      t.leagueSchedule.length ===
+      t.leagueSchedule.filter((f) => (f.competition ?? "league") === "league").length ===
         t.leagues.reduce(
           (total, league) => total + league.clubIds.length * (league.clubIds.length - 1),
           0,
-        ),
+        ) &&
+      t.leagueSchedule.filter((f) => f.competition === "preseason").length === 3,
   );
   check(
     "new season table reset to zero",
