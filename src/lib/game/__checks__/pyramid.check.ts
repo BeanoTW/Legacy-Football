@@ -48,7 +48,7 @@ function fresh(seed = "PYRAMID_SEED_1"): GameState {
 function playSeason(g0: GameState): GameState {
   let s = g0;
   for (let i = 0; i < 46; i++) {
-    const fx = s.fixtures.find((f) => f.week === s.week);
+    const fx = s.fixtures.find((f) => f.week === s.week && (f.competition ?? "league") === "league");
     s = fx
       ? advanceWeek(s, {
           gf: 0,
