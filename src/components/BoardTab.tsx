@@ -13,6 +13,7 @@ import {
   recomputeConfidence,
 } from "@/lib/game/board";
 import { fmtMoneyExact } from "@/lib/game/engine";
+import { BadgePoundSterling, Building2, ClipboardList, Trophy, UsersRound, WalletCards } from "lucide-react";
 
 type View = "overview" | "directors" | "objectives" | "reviews";
 
@@ -208,71 +209,29 @@ function DirectorCard({ state, d }: { state: GameState; d: Director }) {
 
 function Objectives({ state }: { state: GameState }) {
   const objectives = state.board.objectives ?? [];
-  if (!objectives.length) {
-    return (
-      <div className="rounded-xl border bg-card p-4 text-sm text-muted-foreground">
-        No objectives set.
-      </div>
-    );
-  }
+  if (!objectives.length) return <div className="rounded-xl border bg-card p-4 text-sm text-muted-foreground">No objectives set.</div>;
+  const icons = [Trophy, WalletCards, BadgePoundSterling, UsersRound, Building2, ClipboardList];
   return (
-    <div className="space-y-3">
-      {objectives.map((o) => (
-        <ObjectiveRow key={o.id} state={state} o={o} />
-      ))}
-    </div>
-  );
-}
-
-function ObjectiveRow({ state, o }: { state: GameState; o: BoardObjective }) {
-  const p = evaluateObjective(state, o);
-  const owner = state.board.directors.find((d) => d.role === o.ownerRole);
-  const pct = Math.round(p.progress * 100);
-  return (
-    <div className="rounded-xl border bg-card p-4 space-y-2">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="text-sm font-semibold">{o.label}</div>
-          <div className="text-xs text-muted-foreground">{o.description}</div>
-        </div>
-        <span
-          className={cn(
-            "shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium border",
-            o.status === "met"
-              ? "text-emerald-600 border-emerald-300"
-              : o.status === "missed"
-                ? "text-rose-600 border-rose-300"
-                : p.onTrack
-                  ? "text-teal-600 border-teal-300"
-                  : "text-amber-600 border-amber-300",
-          )}
-        >
-          {o.status === "active"
-            ? p.onTrack
-              ? "On track"
-              : "Behind"
-            : o.status === "met"
-              ? "Met"
-              : "Missed"}
-        </span>
+    <section className="lf-board-objectives">
+      <div className="lf-objectives-heading"><span>Season objectives</span><small>{objectives.length} objectives</small></div>
+      <div className="lf-objective-grid">
+        {objectives.map((o, index) => {
+          const Icon = icons[index % icons.length];
+          const p = evaluateObjective(state, o);
+          return (
+            <div className="lf-objective-card" key={o.id}>
+              <Icon />
+              <div>
+                <strong>{o.label}</strong>
+                <p>{o.description}</p>
+                <span className={cn("lf-objective-progress", p.onTrack ? "is-track" : "is-behind")}>{o.status === "active" ? (p.onTrack ? "On track" : "Behind") : o.status === "met" ? "Met" : "Missed"} · {p.detail}</span>
+              </div>
+            </div>
+          );
+        })}
       </div>
-
-      <div className="h-2 rounded-full bg-muted overflow-hidden">
-        <div
-          className={cn("h-full rounded-full", barClass(pct))}
-          style={{ width: `${Math.max(2, pct)}%` }}
-        />
-      </div>
-
-      <div className="flex flex-wrap justify-between gap-2 text-[11px] text-muted-foreground">
-        <span>{p.detail}</span>
-        <span>
-          Target {o.kind === "cashReserve" ? fmtMoneyExact(o.target) : o.target}
-          {o.kind === "wageControl" ? "%" : ""} · {PRIORITY_LABEL[o.priority]} · weight {o.weight}
-          {owner ? ` · owned by ${owner.name}` : ""}
-        </span>
-      </div>
-    </div>
+      <div className="lf-objectives-review">Progress is reviewed at mid-season and again at the end of the campaign.</div>
+    </section>
   );
 }
 
