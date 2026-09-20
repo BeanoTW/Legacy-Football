@@ -84,92 +84,30 @@ console.log("\n[I2] Advancing does not mutate the state handed in");
   check("caller state is still at week 1", s.week === 1, String(s.week));
 }
 
-console.log("\n[I3] Pre-season friendlies are seeded, not random");
+console.log("\n[I3] Pre-season fixtures are explicit and deterministic");
 {
-  // Friendlies used to draw from Math.random, which made pre-season weeks
-  // unreplayable. They must now derive from saveSeed + season + week.
-  //
-  // Week 2 of season 1 is a guaranteed friendly slot (FRIENDLY_WEEKS), so we
-  // park every candidate state on the eve of that fixture and advance once.
-  // A run that produces no friendly at all is a hard failure — there is no
-  // "no friendly, so nothing to compare" escape hatch here.
-  const eve = advanceWeek(fresh("FRIENDLY_SEED")); // now sitting on season 1, week 2
+  const a = fresh("PRESEASON_REPLAY");
+  const b = fresh("PRESEASON_REPLAY");
+  const fixturesA = a.fixtures.filter((f) => f.competition === "preseason");
+  const fixturesB = b.fixtures.filter((f) => f.competition === "preseason");
+
+  check("fresh career has exactly three pre-season fixtures", fixturesA.length === 3, String(fixturesA.length));
   check(
-    "test fixture is parked on the guaranteed friendly week",
-    eve.season === 1 && eve.week === 2,
-    `S${eve.season} W${eve.week}`,
+    "pre-season fixture identity replays deterministically",
+    JSON.stringify(fixturesA) === JSON.stringify(fixturesB),
+  );
+  check(
+    "pre-season fixtures carry exact calendar days",
+    fixturesA.every((f) => typeof f.dayOfWeek === "number"),
   );
 
-  /** Advance one week under a given seed and return the friendly it produced. */
-  function friendlyUnder(seed: string) {
-    const s = advanceWeek({ ...clone(eve), saveSeed: seed } as GameState);
-    const played = s.results.filter((r) => r.week === 2 && /\(friendly\)$/.test(r.opponent));
-    return { state: s, played };
-  }
-
-  const seeds = ["SEED_A", "SEED_B", "SEED_C", "SEED_D", "SEED_E", "SEED_F"];
-  const runs = seeds.map(friendlyUnder);
-
+  const idle = advanceWeek(a);
   check(
-    "every seed produced exactly one friendly result",
-    runs.every((r) => r.played.length === 1),
-    runs.map((r) => r.played.length).join(","),
+    "advancing without a scheduled match does not fabricate a friendly",
+    idle.results.filter((r) => r.competition === "preseason").length === 0,
   );
-  check(
-    "every friendly belongs to season 1, week 2",
-    runs.every((r) => r.state.season === 1 && r.played[0]?.week === 2),
-  );
-  check(
-    "every friendly booked matchday finance",
-    runs.every((r) => r.state.financeLedger.length > eve.financeLedger.length),
-  );
-
-  // Distinct seeds must not all collapse to the same outcome. Individual
-  // collisions are legitimate, so we only require that the sample as a whole
-  // yields more than one distinct friendly across opponent/score/attendance.
-  const outcomes = new Set(
-    runs.map((r) => {
-      const f = r.played[0]!;
-      return `${f.opponent}|${f.goalsFor}-${f.goalsAgainst}|${f.attendance}`;
-    }),
-  );
-  check(
-    "different save seeds yield more than one distinct friendly outcome",
-    outcomes.size > 1,
-    `${outcomes.size} distinct across ${seeds.length} seeds`,
-  );
-
-  // Same pre-week state + same seed ⇒ byte-identical everything.
-  const a = friendlyUnder("REPLAY_SEED");
-  const b = friendlyUnder("REPLAY_SEED");
-  const f1 = a.played[0]!,
-    f2 = b.played[0]!;
-  check("same seed ⇒ same friendly opponent", f1.opponent === f2.opponent);
-  check(
-    "same seed ⇒ same score",
-    f1.goalsFor === f2.goalsFor && f1.goalsAgainst === f2.goalsAgainst,
-  );
-  check(
-    "same seed ⇒ same attendance and gate",
-    f1.attendance === f2.attendance && f1.gateReceipts === f2.gateReceipts,
-  );
-  check(
-    "same seed ⇒ identical finance ledger",
-    JSON.stringify(a.state.financeLedger) === JSON.stringify(b.state.financeLedger),
-  );
-  check(
-    "same seed ⇒ identical inbox state",
-    JSON.stringify(a.state.inbox) === JSON.stringify(b.state.inbox) &&
-      JSON.stringify(a.state.inboxFlags) === JSON.stringify(b.state.inboxFlags),
-  );
-  check(
-    "same seed ⇒ identical result history",
-    JSON.stringify(a.state.results) === JSON.stringify(b.state.results),
-  );
-  check("same seed ⇒ byte-identical GameState", sig(a.state) === sig(b.state));
 }
 
-/* ------------------------------------------------------------------ */
 console.log("\n[I4] Selectors are read-only projections");
 {
   const s = fresh();
