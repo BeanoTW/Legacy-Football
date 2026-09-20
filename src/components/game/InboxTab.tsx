@@ -127,7 +127,7 @@ function boardObjectiveRows(body: string) {
 
 function BriefingBody({ body, department }: { body: string; department?: InboxDepartment }) {
   const financial = department === "Finance" ? financeRows(body) : null;
-  const objectives = department === "Board" ? boardObjectiveRows(body) : null;
+  const objectives = department === "Board of Directors" ? boardObjectiveRows(body) : null;
   if (objectives) {
     return <div className="lf-objective-grid">{objectives.map((row) => <div className="lf-objective-card" key={row.title}><CircleCheck /><div><strong>{row.title}</strong>{row.detail && <p>{row.detail}</p>}</div></div>)}</div>;
   }
