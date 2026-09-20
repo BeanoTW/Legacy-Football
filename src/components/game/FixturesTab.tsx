@@ -1,11 +1,16 @@
 import { Play } from "lucide-react";
 import type { GameState } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
-import { calendarDay, startMatchDay } from "@/lib/game/engine";
+import { calendarDay, fmtMoney, startMatchDay } from "@/lib/game/engine";
 import { Section } from "./shared/primitives";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { Button } from "@/components/ui/button";
-import { PRESEASON_COMPETITION_NAME, preseasonTable } from "@/lib/game/preseason";
+import {
+  PRESEASON_COMPETITION_NAME,
+  preseasonComplete,
+  preseasonTable,
+  preseasonWinnerPrize,
+} from "@/lib/game/preseason";
 import {
   competitionLabel,
   fixtureCompetition,
@@ -23,6 +28,9 @@ export function FixturesTab({
 }) {
   const preseasonRows = preseasonTable(state);
   const showPreseason = state.fixtures.some((fixture) => fixture.competition === "preseason");
+  const preseasonFinished = preseasonComplete(state);
+  const preseasonPosition =
+    preseasonRows.findIndex((row) => isUserClubReference(state, row.club)) + 1;
 
   const fixturesByWeek = state.fixtures.reduce((weeks, fixture) => {
     const group = weeks.get(fixture.week) ?? [];
@@ -89,8 +97,28 @@ export function FixturesTab({
       <div className="grid min-h-0 gap-4">
         {showPreseason && (
           <Section title={PRESEASON_COMPETITION_NAME}>
-            <div className="px-1 pb-2 text-xs text-muted-foreground">
-              Three-match July invitational · preparation before the competitive season
+            <div className="flex flex-wrap items-center justify-between gap-2 px-1 pb-2 text-xs text-muted-foreground">
+              <span>Three-match July invitational · preparation before the competitive season</span>
+              {preseasonFinished && preseasonPosition > 0 && (
+                <strong
+                  className={cn(
+                    "rounded-full px-2 py-1",
+                    preseasonPosition === 1
+                      ? "bg-emerald-500/15 text-emerald-700"
+                      : "bg-muted text-foreground",
+                  )}
+                >
+                  {preseasonPosition === 1
+                    ? `Champions · ${fmtMoney(preseasonWinnerPrize(state))}`
+                    : `Finished ${
+                        preseasonPosition === 2
+                          ? "2nd"
+                          : preseasonPosition === 3
+                            ? "3rd"
+                            : `${preseasonPosition}th`
+                      }`}
+                </strong>
+              )}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm tnum">
