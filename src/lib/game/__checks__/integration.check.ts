@@ -45,6 +45,15 @@ function fresh(seed = "INTEGRATION_SEED"): GameState {
   return g;
 }
 
+function advanceCareerWeek(s: GameState): GameState {
+  const leagueFixture = s.fixtures.find(
+    (fixture) => fixture.week === s.week && (fixture.competition ?? "league") === "league",
+  );
+  return leagueFixture
+    ? advanceWeek(s, { gf: 1, ga: 0, attendance: 9000, gate: 1, tv: 1, matchdayOps: 1, winBonus: 0 })
+    : advanceWeek(s);
+}
+
 const clone = (s: GameState) => structuredClone(s);
 const sig = (s: GameState) => JSON.stringify(s);
 
