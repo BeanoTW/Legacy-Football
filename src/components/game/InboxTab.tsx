@@ -392,7 +392,7 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
 
   return (
     <Sheet open onOpenChange={(value) => !value && onClose()}>
-      <SheetContent side="bottom" className={cn("lf-briefing-sheet", `tone-${department.tone}`)}>
+      <SheetContent side="bottom" hideClose className={cn("lf-briefing-sheet", `tone-${department.tone}`)}>
         <div className="lf-briefing-handle" aria-hidden="true" />
         <header className="lf-briefing-header">
           <div className="lf-briefing-department"><DepartmentIcon /><span>{department.short}</span></div>
@@ -458,7 +458,7 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
 
           <div className="lf-briefing-secondary-actions">
             {!decision && item.status !== "completed" && <Button variant="ghost" onClick={onDelete}><Trash2 /> Delete briefing</Button>}
-            {item.status === "completed" && <Button variant="outline" onClick={onDismiss}>Close briefing</Button>}
+            {item.status === "completed" && <Button className="lf-completed-close" onClick={onDismiss}>Close briefing</Button>}
           </div>
         </div>
       </SheetContent>
