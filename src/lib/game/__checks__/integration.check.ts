@@ -256,7 +256,7 @@ console.log("\n[I9] Rollover replays identically");
   // Take the state one week before the rollover and run the transaction twice
   // from the same snapshot: the entire multi-system close must be reproducible.
   let s = fresh("ROLLOVER_SEED");
-  for (let i = 0; i < 45; i++) s = advanceWeek(s);
+  for (let i = 0; i < 45; i++) s = advanceCareerWeek(s);
   const eve = clone(s);
   const a = advanceWeek(clone(eve));
   const b = advanceWeek(clone(eve));
@@ -267,7 +267,7 @@ console.log("\n[I9] Rollover replays identically");
 console.log("\n[I10] Infrastructure survives the rollover without double-charging");
 {
   let s = fresh("INFRA_ROLL_SEED");
-  for (let i = 0; i < 46; i++) s = advanceWeek(s);
+  for (let i = 0; i < 46; i++) s = advanceCareerWeek(s);
   const keys = s.financeLedger.map((e) => e.dedupeKey).filter(Boolean) as string[];
   check(
     "no finance entry was posted twice",
