@@ -255,5 +255,10 @@ export function tickSelectedMatchday(
 
 /** Backwards-compatible weekly selector while daily execution is introduced. */
 export function tickMatchday(s: GameState, override?: MatchOverride): MatchdayOutcome {
-  return tickSelectedMatchday(s, s.fixtures.find((f) => f.week === s.week), override);
+  return tickSelectedMatchday(
+    s,
+    s.fixtures.find((f) => f.week === s.week && (f.competition ?? "league") === "league")
+      ?? s.fixtures.find((f) => f.week === s.week),
+    override,
+  );
 }
