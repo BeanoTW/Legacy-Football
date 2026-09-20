@@ -129,7 +129,7 @@ function BriefingBody({ body, department }: { body: string; department?: InboxDe
   const financial = department === "Finance" ? financeRows(body) : null;
   const objectives = department === "Board of Directors" ? boardObjectiveRows(body) : null;
   if (objectives) {
-    return <div className="lf-objective-grid">{objectives.map((row) => <div className="lf-objective-card" key={row.title}><CircleCheck /><div><strong>{row.title}</strong>{row.detail && <p>{row.detail}</p>}</div></div>)}</div>;
+    return <section className="lf-objectives"><div className="lf-objectives-heading"><span>Season objectives</span><small>{objectives.length} objectives</small></div><div className="lf-objective-grid">{objectives.map((row, index) => { const Icon = [Trophy, WalletCards, BadgePoundSterling, UsersRound, Building2, ClipboardList][index % 6]; return <div className="lf-objective-card" key={row.title}><Icon /><div><strong>{row.title}</strong>{row.detail && <p>{row.detail}</p>}</div></div>; })}</div></section>;
   }
   if (financial) {
     return (
