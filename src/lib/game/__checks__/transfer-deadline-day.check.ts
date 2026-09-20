@@ -15,22 +15,22 @@ function check(condition: unknown, message: string): void {
 }
 
 let state = newGame("Deadline Town", "Chairman", "deadline-day-check");
-state.week = 4;
+state.week = 9;
 setCalendarDay(state, 6);
 
-check(isTransferDeadlineDay(state), "pre-season closing Sunday is deadline day");
+check(isTransferDeadlineDay(state), "summer-window closing Sunday is deadline day");
 check(transferDeadlineHour(state) === 0, "deadline day starts at hour zero");
 check(transferDeadlineHoursRemaining(state) === 24, "deadline day starts with 24 hours remaining");
 
 for (let hour = 1; hour <= 23; hour += 1) {
   state = advanceDay(state);
-  check(state.week === 4, `hour ${hour} must not settle the week early`);
+  check(state.week === 9, `hour ${hour} must not settle the week early`);
   check(calendarDay(state) === 6, `hour ${hour} must remain on Sunday`);
   check(transferDeadlineHour(state) === hour, `hour ${hour} must persist on the deadline clock`);
 }
 
 state = advanceDay(state);
-check(state.week === 5, "the 24th hourly tick settles the closing week");
+check(state.week === 10, "the 24th hourly tick settles the closing week");
 check(calendarDay(state) === 0, "deadline completion opens the next week on Monday");
 check(!isTransferDeadlineDay(state), "deadline mode clears after the window closes");
 check(transferDeadlineHoursRemaining(state) === 0, "no deadline hours remain after settlement");

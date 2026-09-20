@@ -689,7 +689,7 @@ console.log("\n[R7] Transfer completion");
       !completeTransferInPlace(clone(s), n.id).ok,
     );
     const closedWindow = clone(s);
-    closedWindow.week = 5;
+    closedWindow.week = 10;
     check(
       "52fa. agreed incoming deal cannot register outside a transfer window",
       !isTransferWindowOpen(closedWindow) &&

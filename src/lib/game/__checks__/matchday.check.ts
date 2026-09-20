@@ -69,7 +69,9 @@ function fixtureState(seed = "MATCHDAY_AUDIT"): GameState {
 /** Wind the save forward to the club's first league fixture week. */
 function atFixture(seed = "MATCHDAY_AUDIT"): GameState {
   let s = fixtureState(seed);
-  const target = Math.min(...s.fixtures.map((f) => f.week));
+  const target = Math.min(
+    ...s.fixtures.filter((f) => (f.competition ?? "league") === "league").map((f) => f.week),
+  );
   while (s.week < target) s = advanceWeek(s);
   return s;
 }
@@ -77,7 +79,11 @@ function atFixture(seed = "MATCHDAY_AUDIT"): GameState {
 /** Wind forward to the club's first HOME fixture (gate/hospitality income). */
 function atHomeFixture(seed = "MATCHDAY_AUDIT"): GameState {
   let s = fixtureState(seed);
-  const target = Math.min(...s.fixtures.filter((f) => f.home).map((f) => f.week));
+  const target = Math.min(
+    ...s.fixtures
+      .filter((f) => f.home && (f.competition ?? "league") === "league")
+      .map((f) => f.week),
+  );
   while (s.week < target) s = advanceWeek(s);
   return s;
 }
