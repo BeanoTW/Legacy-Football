@@ -16,7 +16,8 @@ export const CALENDAR = {
 } as const;
 
 export const SEASON_END_WEEK = CALENDAR.seasonEnd;
-export const WINDOW_PRESEASON_END = CALENDAR.preSeasonEnd;
+/** Summer business remains open into the opening league month, FIFA-style. */
+export const WINDOW_PRESEASON_END = 9;
 export const WINDOW_MIDSEASON = CALENDAR.midSeasonStart;
 
 /** Pre-season preparation is confined to weeks 1-4. Competitive league football starts week 5. */
@@ -76,12 +77,11 @@ export function isMatchday(state: GameState): boolean {
 }
 
 export function isTransferWindowOpen(s: GameState): boolean {
-  const p = phaseOf(s.week);
-  return p === "preseason" || p === "midseason";
+  return s.week <= WINDOW_PRESEASON_END || phaseOf(s.week) === "midseason";
 }
 
 export function isTransferDeadlineWeek(state: GameState): boolean {
-  return state.week === CALENDAR.preSeasonEnd || state.week === CALENDAR.midSeasonEnd;
+  return state.week === WINDOW_PRESEASON_END || state.week === CALENDAR.midSeasonEnd;
 }
 
 export function isTransferDeadlineDay(state: GameState): boolean {
@@ -121,11 +121,11 @@ export function windowStatus(s: GameState): {
   detail: string;
 } {
   const p = phaseOf(s.week);
-  if (p === "preseason") {
+  if (s.week <= WINDOW_PRESEASON_END) {
     return {
       open: true,
       label: "Pre-season window OPEN",
-      detail: `Closes end of week ${CALENDAR.preSeasonEnd} · ${CALENDAR.preSeasonEnd - s.week + 1}w left · pre-season tournament in progress`,
+      detail: `Closes end of week ${WINDOW_PRESEASON_END} · ${WINDOW_PRESEASON_END - s.week + 1}w left${p === "preseason" ? " · pre-season tournament in progress" : " · league season underway"}`,
     };
   }
   if (p === "midseason") {
