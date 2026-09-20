@@ -22,6 +22,7 @@ import {
 
 export const LEAGUE_ID = "league-1";
 export const leagueOf = (f: { league?: string }) => f.league ?? LEAGUE_ID;
+const isLeagueFixture = (f: { competition?: string }) => (f.competition ?? "league") === "league";
 
 export function fixtureId(
   season: number,
@@ -215,12 +216,15 @@ export function sortTable(rows: LeagueRow[]): LeagueRow[] {
 }
 
 export function hasFullSchedule(s: GameState): boolean {
-  return Array.isArray(s.leagueSchedule) && s.leagueSchedule.length > 0;
+  return Array.isArray(s.leagueSchedule) && s.leagueSchedule.some(isLeagueFixture);
 }
 
 export function scheduleForWeek(s: GameState, week: number, leagueId?: string): ScheduledFixture[] {
   return (s.leagueSchedule ?? []).filter(
-    (f) => f.week === week && (leagueId === undefined || leagueOf(f) === leagueId),
+    (f) =>
+      isLeagueFixture(f) &&
+      f.week === week &&
+      (leagueId === undefined || leagueOf(f) === leagueId),
   );
 }
 
@@ -282,23 +286,29 @@ export function resolveWeek(s: GameState, week: number, userRecord?: MatchRecord
 
 export function resolveRemainingSeason(s: GameState): void {
   if (!hasFullSchedule(s)) return;
-  const weeks = [...new Set(s.leagueSchedule.map((f) => f.week))].sort((a, b) => a - b);
+  const weeks = [...new Set(s.leagueSchedule.filter(isLeagueFixture).map((f) => f.week))].sort(
+    (a, b) => a - b,
+  );
   for (const w of weeks) resolveWeek(s, w);
 }
 
 export function seasonFixtureCount(s: GameState): number {
-  return (s.leagueSchedule ?? []).length;
+  return (s.leagueSchedule ?? []).filter(isLeagueFixture).length;
 }
 
 export function seasonCompletedCount(s: GameState): number {
   const ids = new Set(
-    (s.leagueSchedule ?? []).map((f) => fixtureId(s.season, f.round, f.home, f.away, leagueOf(f))),
+    (s.leagueSchedule ?? [])
+      .filter(isLeagueFixture)
+      .map((f) => fixtureId(s.season, f.round, f.home, f.away, leagueOf(f))),
   );
   return (s.matchRecords ?? []).filter((r) => r.season === s.season && ids.has(r.id)).length;
 }
 
 export function isLeagueSeasonComplete(s: GameState, leagueId: string): boolean {
-  const fixtures = (s.leagueSchedule ?? []).filter((f) => leagueOf(f) === leagueId);
+  const fixtures = (s.leagueSchedule ?? []).filter(
+    (f) => isLeagueFixture(f) && leagueOf(f) === leagueId,
+  );
   if (fixtures.length === 0) return false;
   const done = new Set(
     (s.matchRecords ?? [])
@@ -354,7 +364,7 @@ export function leagueFixtures(s: GameState, leagueId: string, season = s.season
   }
   const byId = new Map(records.map((r) => [r.id, r]));
   return (s.leagueSchedule ?? [])
-    .filter((f) => leagueOf(f) === leagueId)
+    .filter((f) => isLeagueFixture(f) && leagueOf(f) === leagueId)
     .map((f) => ({
       league: leagueId,
       round: f.round,

@@ -2,6 +2,7 @@ import { strict as assert } from "node:assert";
 import { advanceDay } from "../engine";
 import { newGame } from "../newGame";
 import { setCalendarDay } from "../calendar";
+import { isLeagueSeasonComplete, seasonFixtureCount } from "../league";
 import {
   PRESEASON_COMPETITION_NAME,
   PRESEASON_MATCH_SLOTS,
@@ -34,6 +35,16 @@ assert.ok(table.every((row) => row.p === 0 && row.pts === 0), "fresh invitationa
 const before = state.leagueSchedule.length;
 initialisePreseasonFixtures(state);
 assert.equal(state.leagueSchedule.length, before, "pre-season seeding must be idempotent");
+assert.equal(
+  seasonFixtureCount(state),
+  state.leagueSchedule.filter((fixture) => (fixture.competition ?? "league") === "league").length,
+  "pre-season fixtures must not count toward league completion",
+);
+assert.equal(
+  isLeagueSeasonComplete(state, state.playerLeagueId),
+  false,
+  "an unplayed league season remains incomplete independently of the invitational",
+);
 
 const winner = structuredClone(state);
 winner.results = winner.fixtures
