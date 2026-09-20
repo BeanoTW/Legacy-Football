@@ -52,7 +52,14 @@ type Raw = Record<string, unknown>;
 
 function richSave(weeks: number, seed: string): Raw {
   let s = newGame("Parity Rovers", "P. Arity", seed);
-  for (let i = 0; i < weeks; i++) s = advanceWeek(s);
+  for (let i = 0; i < weeks; i++) {
+    const leagueFixture = s.fixtures.find(
+      (fixture) => fixture.week === s.week && (fixture.competition ?? "league") === "league",
+    );
+    s = leagueFixture
+      ? advanceWeek(s, { gf: 1, ga: 0, attendance: 9000, gate: 1, tv: 1, matchdayOps: 1, winBonus: 0 })
+      : advanceWeek(s);
+  }
   return clone(s) as unknown as Raw;
 }
 
