@@ -242,3 +242,11 @@
 
 .lf-completed-close { background: #0b8f8b; border: 1px solid rgb(82 225 219 / 0.45); color: #f4fffd; font-weight: 700; }
 .lf-completed-close:hover { background: #0ca29d; color: #fff; }
+
+/* The Board tab reuses the Inbox objective language as the permanent season-contract view. */
+.lf-board-objectives { --source-accent: #49ddd6; border: 1px solid rgb(50 214 207 / 0.28); border-radius: 1rem; background: linear-gradient(160deg, #0b4b4c 0%, #073536 34%, #062627 100%); padding: 0.85rem; box-shadow: 0 0.8rem 2rem rgb(0 0 0 / 0.16); }
+.lf-board-objectives .lf-objectives-heading { margin-bottom: 0.7rem; }
+.lf-board-objectives .lf-objective-card { color: #f2fbfa; }
+.lf-objective-progress { display: block; margin-top: 0.4rem; color: #55ded8; font-size: 0.57rem; font-weight: 700; line-height: 1.25; }
+.lf-objective-progress.is-behind { color: #ffad73; }
+.lf-objectives-review { margin-top: 0.7rem; border-top: 1px solid rgb(105 224 218 / 0.16); padding: 0.65rem 0.15rem 0; color: #9fb9b6; font-size: 0.65rem; }
