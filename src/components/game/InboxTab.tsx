@@ -99,7 +99,29 @@ function bodySections(body: string) {
     .filter(Boolean);
 }
 
-function BriefingBody({ body }: { body: string }) {
+function financeRows(body: string) {
+  const lines = body.split("\n").map((line) => line.trim()).filter(Boolean);
+  const parsed = lines.map((line) => {
+    const match = line.match(/^[-•]?\s*([^:]+):\s*(£?-?[£\\d,.]+[kKmM]?)\.?$/);
+    return match ? { label: match[1].trim(), value: match[2].replace(/\.$/, "") } : null;
+  });
+  const rows = parsed.filter((row): row is { label: string; value: string } => row !== null);
+  return rows.length >= 6 ? rows : null;
+}
+
+function BriefingBody({ body, department }: { body: string; department?: InboxDepartment }) {
+  const financial = department === "Finance" ? financeRows(body) : null;
+  if (financial) {
+    return (
+      <div className="lf-finance-summary">
+        {financial.map((row) => (
+          <div className={cn("lf-finance-row", /^(income|outgoings|closing balance)$/i.test(row.label) && "is-total")} key={row.label}>
+            <span>{row.label}</span><strong>{row.value}</strong>
+          </div>
+        ))}
+      </div>
+    );
+  }
   const sections = bodySections(body);
   return (
     <div className="lf-briefing-copy">
@@ -115,10 +137,7 @@ function BriefingBody({ body }: { body: string }) {
                 return (
                   <div className="lf-briefing-fact" key={line}>
                     <span className="lf-briefing-fact-mark" aria-hidden="true" />
-                    <div>
-                      <strong>{headline}</strong>
-                      {detailParts.length > 0 && <p>{detailParts.join(" ")}</p>}
-                    </div>
+                    <div><strong>{headline}</strong>{detailParts.length > 0 && <p>{detailParts.join(" ")}</p>}</div>
                   </div>
                 );
               })}
@@ -377,14 +396,14 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
                 <article key={message.id} className={cn("lf-conversation-entry", message.id === item.id && "is-current")}>
                   <div><strong>{message.sender}</strong><span>S{message.season} W{message.week}</span></div>
                   <h3>{message.subject}</h3>
-                  <BriefingBody body={message.body} />
+                  <BriefingBody body={message.body} department={message.department} />
                 </article>
               ))}
             </section>
           ) : (
             <article className="lf-briefing-document">
               <div className="lf-briefing-section-title"><Megaphone /> Club briefing</div>
-              <BriefingBody body={item.body} />
+              <BriefingBody body={item.body} department={item.department} />
             </article>
           )}
 
