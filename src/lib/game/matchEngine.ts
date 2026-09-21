@@ -239,6 +239,7 @@ function playerStats(
     return {
       ...player,
       minutes: playedMinutes,
+      started: lineup.some((starter) => starter.playerId === player.playerId),
       goals,
       assists,
       chances,
