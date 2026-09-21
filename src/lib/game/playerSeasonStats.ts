@@ -50,3 +50,38 @@ export function playerSeasonStats(state: GameState, season = state.season) {
       (a, b) => b.goals - a.goals || b.assists - a.assists || a.playerId.localeCompare(b.playerId),
     );
 }
+
+
+export interface PlayerSeasonLeaders {
+  topScorer: ReturnType<typeof playerSeasonStats>[number] | null;
+  topAssister: ReturnType<typeof playerSeasonStats>[number] | null;
+  topRated: ReturnType<typeof playerSeasonStats>[number] | null;
+  mostUsed: ReturnType<typeof playerSeasonStats>[number] | null;
+}
+
+export function playerSeasonLeaders(
+  state: GameState,
+  season = state.season,
+): PlayerSeasonLeaders {
+  const rows = playerSeasonStats(state, season);
+  const by = (
+    compare: (a: (typeof rows)[number], b: (typeof rows)[number]) => number,
+  ) => rows.slice().sort(compare)[0] ?? null;
+  return {
+    topScorer: by(
+      (a, b) => b.goals - a.goals || b.assists - a.assists || b.minutes - a.minutes,
+    ),
+    topAssister: by(
+      (a, b) => b.assists - a.assists || b.goals - a.goals || b.minutes - a.minutes,
+    ),
+    topRated: by(
+      (a, b) =>
+        b.averageRating - a.averageRating ||
+        b.appearances - a.appearances ||
+        a.playerId.localeCompare(b.playerId),
+    ),
+    mostUsed: by(
+      (a, b) => b.minutes - a.minutes || b.starts - a.starts || a.playerId.localeCompare(b.playerId),
+    ),
+  };
+}
