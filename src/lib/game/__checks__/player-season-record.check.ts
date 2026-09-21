@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { newGame, commitLiveMatchAndAdvance } from "../engine";
 import { startMatchDay, kickoff, applyHalfTimeChoice } from "../liveMatch";
-import { playerSeasonStats } from "../playerSeasonStats";
+import { playerSeasonLeaders, playerSeasonStats } from "../playerSeasonStats";
 import { setCalendarDay } from "../calendar";
 import { tickSelectedMatchday } from "../tick/matchday";
 
@@ -83,4 +83,18 @@ assert.deepEqual(
   playerSeasonStats(autoReplay),
   autoStats,
   "auto-resolved player performances must be deterministic",
+);
+
+
+const leaders = playerSeasonLeaders(saved);
+const savedRows = playerSeasonStats(saved);
+assert.equal(
+  leaders.topScorer?.goals,
+  Math.max(...savedRows.map((row) => row.goals)),
+  "top scorer leader must reflect the canonical season rows",
+);
+assert.equal(
+  leaders.mostUsed?.minutes,
+  Math.max(...savedRows.map((row) => row.minutes)),
+  "most-used leader must reflect recorded minutes",
 );
