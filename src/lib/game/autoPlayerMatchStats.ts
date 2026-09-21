@@ -1,5 +1,6 @@
 import type { GameState, MatchInjury, MatchPlayerStats } from "./types";
 import { managerMatchStyle } from "./managerMatchStyle";
+import { managerFootballIdentity } from "./managerIdentity";
 import { userMatchBench, userMatchLineup } from "./matchLineup";
 import { applyMatchLoadInPlace, injuryWeeks, playerInjuryRiskMultiplier } from "./playerHealth";
 import { hashString, mulberry32 } from "./rng";
@@ -66,7 +67,18 @@ export function recordAutoResolvedPlayerMatch(
     }
   }
 
-  const usedSubs = bench.slice(0, Math.min(3, bench.length, 1 + (rng() < 0.7 ? 1 : 0) + (rng() < 0.3 ? 1 : 0)));
+  const manager = (state.hiredStaff ?? []).find((staff) => staff.role === "Manager");
+  const rotation = manager ? managerFootballIdentity(manager).rotation : "Medium";
+  const secondSubChance = rotation === "High" ? 0.9 : rotation === "Low" ? 0.5 : 0.7;
+  const thirdSubChance = rotation === "High" ? 0.58 : rotation === "Low" ? 0.18 : 0.3;
+  const usedSubs = bench.slice(
+    0,
+    Math.min(
+      3,
+      bench.length,
+      1 + (rng() < secondSubChance ? 1 : 0) + (rng() < thirdSubChance ? 1 : 0),
+    ),
+  );
   const offCandidates = outfield
     .slice()
     .sort(
