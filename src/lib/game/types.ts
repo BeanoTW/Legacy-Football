@@ -1664,8 +1664,26 @@ export interface PlayerSeasonRecord {
   minutes: number;
   goals: number;
   assists: number;
-  yellowCards: number;
   averageRating: number;
+}
+
+/** Compact persisted row: id, name, apps, starts, minutes, goals, assists, avg rating x100. */
+export type StoredPlayerSeasonRow = [
+  string,
+  string,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+];
+
+export interface StoredPlayerSeasonSummary {
+  season: number;
+  players: StoredPlayerSeasonRow[];
+  /** scorer, assister, rated, most-used player ids */
+  leaders: [string | null, string | null, string | null, string | null];
 }
 
 export interface PlayerSeasonSummary {
@@ -1679,7 +1697,7 @@ export interface PlayerSeasonSummary {
 
 export interface GameState {
   /** Lightweight immutable player-season summaries kept after match rows compact. */
-  playerSeasonHistory?: PlayerSeasonSummary[];
+  playerSeasonHistory?: StoredPlayerSeasonSummary[];
   /** Real recorded performances, keyed by season and fixture. No historical backfill. */
   playerMatchHistory?: Record<
     string,
