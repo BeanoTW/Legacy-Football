@@ -31,6 +31,16 @@ assert(
     (row) => row.appearances === 1 && row.minutes > 0 && row.minutes <= 90,
   ),
 );
+assert.equal(
+  playerSeasonStats(saved).reduce((sum, row) => sum + row.starts, 0),
+  11,
+  "exactly eleven players must receive starts",
+);
+assert.equal(
+  playerSeasonStats(saved).reduce((sum, row) => sum + row.substituteAppearances, 0),
+  full.liveMatch?.engine?.substitutions?.filter((sub) => sub.side === "us").length ?? 0,
+  "used substitutes must reconcile with the season record",
+);
 assert.deepEqual(playerSeasonStats(JSON.parse(JSON.stringify(saved))), playerSeasonStats(saved));
 assert.deepEqual(commitLiveMatchAndAdvance(saved), saved, "repeat commit is a no-op");
 assert.equal(playerSeasonStats(saved, saved.season + 1).length, 0);
