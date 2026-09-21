@@ -5,10 +5,11 @@ import { positionFamiliarity, positionUnit } from "./positions";
 import { isUserClubReference, sameClubReference } from "./clubReference";
 import { playerRegisteredClubId } from "./playerRegistration";
 import { playerFitness, playerIsAvailable } from "./playerHealth";
+import { playerRecentForm } from "./playerForm";
 
 const playerName = (player: FootballPlayer) => `${player.firstName} ${player.lastName}`;
 
-function roleScore(player: FootballPlayer, role: TacticalPosition, fitnessWeight = 0.12): number {
+function roleScore(state: GameState, player: FootballPlayer, role: TacticalPosition, fitnessWeight = 0.12): number {
   const familiarity = positionFamiliarity(player, role);
   const familiarityBonus =
     familiarity === "Natural"
@@ -18,7 +19,8 @@ function roleScore(player: FootballPlayer, role: TacticalPosition, fitnessWeight
         : familiarity === "Comfortable"
           ? 2
           : -20;
-  return player.currentAbility + familiarityBonus + (playerFitness(player) - 75) * fitnessWeight;
+  const form = playerRecentForm(state, player.id);
+  return player.currentAbility + familiarityBonus + (playerFitness(player) - 75) * fitnessWeight + form.selectionAdjustment;
 }
 
 function selectForRoles(
@@ -35,7 +37,7 @@ function selectForRoles(
       (player) => playerIsAvailable(player, state) && !used.has(player.id),
     );
     const score = (player: FootballPlayer) =>
-      roleScore(player, role, fitnessWeight) + (preference.get(player.id) ?? 0) * 1.5;
+      roleScore(state, player, role, fitnessWeight) + (preference.get(player.id) ?? 0) * 1.5;
     const specialists = available
       .filter((player) =>
         role === "GK"
