@@ -47,6 +47,7 @@ import { tickLegacyAiResults, tickContractsAndMarkets, tickTicketBacklash } from
 import { tickSeasonRollover } from "./tick/rollover";
 import { commitLiveMatch } from "./liveMatch";
 import { settlePreseasonInvitational } from "./preseason";
+import { recoverPlayerHealthWeekInPlace } from "./playerHealth";
 
 export { weekForLeagueRound } from "./pyramid";
 export { newGame, SAVE_VERSION } from "./newGame";
@@ -184,6 +185,9 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
 
   s.week += 1;
   if (s.week > SEASON_END_WEEK) tickSeasonRollover(s);
+  // New-week recovery happens after the calendar rolls so injury return dates
+  // and fitness restoration are evaluated against the week the player enters.
+  recoverPlayerHealthWeekInPlace(s);
 
   ensureBoard(s);
   maybeRunMidSeasonReview(s);
