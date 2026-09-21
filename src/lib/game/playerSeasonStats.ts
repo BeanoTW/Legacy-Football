@@ -5,6 +5,7 @@ import type {
   StoredPlayerSeasonRow,
   StoredPlayerSeasonSummary,
 } from "./types";
+import { hashString } from "./rng";
 
 export interface LivePlayerSeasonStat extends PlayerSeasonRecord {
   yellowCards: number;
@@ -293,4 +294,40 @@ export function clubPlayerRecords(state: GameState): ClubPlayerRecords {
         a.playerId.localeCompare(b.playerId),
     ),
   };
+}
+
+
+export function pushPlayerSeasonAwardsInboxInPlace(
+  state: GameState,
+  summary: PlayerSeasonSummary,
+): void {
+  const eventKey = `player-awards:s${summary.season}`;
+  if (state.inbox.some((item) => item.eventKey === eventKey)) return;
+  const find = (id: string | null) => summary.players.find((player) => player.playerId === id);
+  const scorer = find(summary.topScorerId);
+  const assister = find(summary.topAssisterId);
+  const rated = find(summary.topRatedId);
+  const used = find(summary.mostUsedId);
+  const lines = [
+    scorer ? `Top scorer: ${scorer.name} — ${scorer.goals} goals.` : null,
+    assister ? `Most assists: ${assister.name} — ${assister.assists} assists.` : null,
+    rated ? `Highest rated: ${rated.name} — ${rated.averageRating.toFixed(2)}.` : null,
+    used ? `Most used: ${used.name} — ${used.minutes.toLocaleString()} minutes.` : null,
+  ].filter((line): line is string => Boolean(line));
+  if (!lines.length) return;
+
+  state.inbox.push({
+    id: `inbox-${hashString(eventKey).toString(36)}`,
+    generatorId: "club-player-awards",
+    eventKey,
+    sender: "Club Secretary",
+    department: "Club",
+    category: "information",
+    subject: `Season ${summary.season} player awards`,
+    body: `The football department has closed the season records. ${lines.join(" ")}`,
+    priority: "normal",
+    week: state.week,
+    season: state.season,
+    status: "unread",
+  });
 }
