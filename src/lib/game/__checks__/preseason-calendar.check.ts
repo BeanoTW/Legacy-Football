@@ -1,5 +1,7 @@
 import { strict as assert } from "node:assert";
-import { FRIENDLY_WEEKS, WINDOW_PRESEASON_END, isTransferDeadlineWeek, isTransferWindowOpen } from "../calendar";
+import { FRIENDLY_WEEKS, WINDOW_PRESEASON_END, calendarDay, isTransferDeadlineWeek, isTransferWindowOpen, setCalendarDay } from "../calendar";
+import { continuationInterrupt } from "../attention";
+import { simulateFixtureToday, startMatchDay } from "../engine";
 import { newGame } from "../newGame";
 import { weekForLeagueRound } from "../pyramid";
 
@@ -22,3 +24,33 @@ state.week = WINDOW_PRESEASON_END + 1;
 assert.equal(isTransferWindowOpen(state), false, "summer window closes after deadline week");
 
 console.log("preseason-calendar.check: ok");
+
+
+const friendlyState = newGame("Friendly Flow FC", "Chairman", "friendly-flow-check");
+const friendly = friendlyState.fixtures.find((fixture) => fixture.competition === "preseason");
+assert(friendly, "fresh game must expose a dated preseason friendly");
+friendlyState.week = friendly.week;
+setCalendarDay(friendlyState, friendly.dayOfWeek ?? 5);
+assert.equal(
+  continuationInterrupt(friendlyState),
+  "Matchday",
+  "Continue must pause on a preseason friendly's actual date",
+);
+assert(startMatchDay(friendlyState).liveMatch, "preseason friendly must be watchable");
+const simulatedFriendly = simulateFixtureToday(friendlyState);
+assert.equal(
+  simulatedFriendly.results.filter(
+    (result) =>
+      result.week === friendly.week &&
+      result.opponent === friendly.opponent &&
+      result.competition === "preseason",
+  ).length,
+  1,
+  "preseason friendly must be explicitly simulatable",
+);
+assert.equal(
+  continuationInterrupt(simulatedFriendly),
+  null,
+  "a simulated friendly must not leave Continue stuck on Matchday",
+);
+assert.equal(calendarDay(simulatedFriendly), friendly.dayOfWeek ?? 5);
