@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import type { GameState } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
 import { fmtMoney, fmtMoneyExact } from "@/lib/game/engine";
@@ -5,11 +6,20 @@ import { clubLegacyRecord } from "@/lib/game/clubLegacy";
 import { isUserClubReference, userClubReference } from "@/lib/game/clubReference";
 import { legacyTierToFootballLevel } from "@/lib/game/footballLevel";
 import { Section, sum } from "./shared/primitives";
-import { playerSeasonStats } from "@/lib/game/playerSeasonStats";
+import { playerSeasonSummary } from "@/lib/game/playerSeasonStats";
 
 export function HistoryTab({ state }: { state: GameState }) {
   const rows = [...state.ledger].reverse();
-  const playerRows = playerSeasonStats(state);
+  const playerSeasons = useMemo(
+    () =>
+      [...new Set([...(state.playerSeasonHistory ?? []).map((summary) => summary.season), state.season])]
+        .sort((a, b) => b - a),
+    [state.playerSeasonHistory, state.season],
+  );
+  const [playerSeason, setPlayerSeason] = useState(state.season);
+  const effectivePlayerSeason = playerSeasons.includes(playerSeason) ? playerSeason : state.season;
+  const playerSummary = playerSeasonSummary(state, effectivePlayerSeason);
+  const playerRows = playerSummary?.players ?? [];
   const userId = userClubReference(state);
   const legacy = clubLegacyRecord(state, userId);
   const clubRecord = state.clubRecords?.[userId];
@@ -18,37 +28,80 @@ export function HistoryTab({ state }: { state: GameState }) {
   return (
     <div className="space-y-4">
       <Section title="Player season record">
-        <p className="mb-3 text-xs text-muted-foreground">
-          Recorded watched matches only. Earlier and auto-resolved appearances are not estimated.
-        </p>
-        {playerRows.length ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr>
-                  <th className="text-left">Player</th>
-                  <th>Apps</th>
-                  <th>Goals</th>
-                  <th>Assists</th>
-                  <th>Rating</th>
-                </tr>
-              </thead>
-              <tbody>
-                {playerRows.map((player) => (
-                  <tr key={player.playerId} className="border-t">
-                    <td className="py-2">{player.name}</td>
-                    <td className="text-center">{player.appearances}</td>
-                    <td className="text-center">{player.goals}</td>
-                    <td className="text-center">{player.assists}</td>
-                    <td className="text-center">{player.averageRating.toFixed(1)}</td>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <p className="max-w-xl text-xs text-muted-foreground">
+            Watched and auto-resolved matches feed the same canonical player record. Completed seasons keep a compact permanent summary.
+          </p>
+          <select
+            value={effectivePlayerSeason}
+            onChange={(event) => setPlayerSeason(Number(event.target.value))}
+            className="h-9 rounded-lg border bg-background px-2 text-xs"
+          >
+            {playerSeasons.map((season) => (
+              <option key={season} value={season}>
+                Season {season}{season === state.season ? " · current" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+        {playerSummary && playerRows.length ? (
+          <>
+            <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <PlayerLeader
+                label="Top scorer"
+                player={playerRows.find((row) => row.playerId === playerSummary.topScorerId)}
+                value={(row) => `${row.goals} goals`}
+              />
+              <PlayerLeader
+                label="Top assists"
+                player={playerRows.find((row) => row.playerId === playerSummary.topAssisterId)}
+                value={(row) => `${row.assists} assists`}
+              />
+              <PlayerLeader
+                label="Top rated"
+                player={playerRows.find((row) => row.playerId === playerSummary.topRatedId)}
+                value={(row) => row.averageRating.toFixed(2)}
+              />
+              <PlayerLeader
+                label="Most used"
+                player={playerRows.find((row) => row.playerId === playerSummary.mostUsedId)}
+                value={(row) => `${row.minutes} min`}
+              />
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr>
+                    <th className="text-left">Player</th>
+                    <th>Apps</th>
+                    <th>Starts</th>
+                    <th>Sub</th>
+                    <th>Min</th>
+                    <th>Goals</th>
+                    <th>Assists</th>
+                    <th>Rating</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {playerRows.map((player) => (
+                    <tr key={player.playerId} className="border-t">
+                      <td className="py-2">{player.name}</td>
+                      <td className="text-center">{player.appearances}</td>
+                      <td className="text-center">{player.starts}</td>
+                      <td className="text-center">{player.substituteAppearances}</td>
+                      <td className="text-center">{player.minutes}</td>
+                      <td className="text-center">{player.goals}</td>
+                      <td className="text-center">{player.assists}</td>
+                      <td className="text-center">{player.averageRating.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         ) : (
           <p className="text-sm text-muted-foreground">
-            Complete a watched match to start recording player performances.
+            No recorded player performances for this season yet.
           </p>
         )}
       </Section>
@@ -198,6 +251,37 @@ function LegacyStat({ label, value }: { label: string; value: string }) {
     <div className="rounded-lg border bg-background/50 p-2">
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="mt-0.5 font-display text-lg tnum">{value}</div>
+    </div>
+  );
+}
+
+
+function PlayerLeader({
+  label,
+  player,
+  value,
+}: {
+  label: string;
+  player?: {
+    name: string;
+    goals: number;
+    assists: number;
+    minutes: number;
+    averageRating: number;
+  };
+  value: (player: {
+    name: string;
+    goals: number;
+    assists: number;
+    minutes: number;
+    averageRating: number;
+  }) => string;
+}) {
+  return (
+    <div className="rounded-xl border bg-background/50 p-2">
+      <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-1 truncate text-xs font-semibold">{player?.name ?? "—"}</div>
+      <div className="font-display text-lg">{player ? value(player) : "—"}</div>
     </div>
   );
 }
