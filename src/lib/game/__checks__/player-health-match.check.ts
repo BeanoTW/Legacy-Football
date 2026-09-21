@@ -4,6 +4,7 @@ import { applyHalfTimeChoice, kickoff, startMatchDay } from "../liveMatch";
 import { setCalendarDay } from "../calendar";
 import { absoluteWeek } from "../time";
 import { applyMatchLoadInPlace } from "../playerHealth";
+import { isUserClubReference } from "../clubReference";
 
 function matchState(seed: string) {
   const game = newGame("Health FC", "Chair", seed);
@@ -19,7 +20,7 @@ function matchState(seed: string) {
   ];
   setCalendarDay(game, 5);
   const userPlayers = game.football.players.filter(
-    (player) => player.currentClubId === game.clubName || player.currentClubId === game.clubIdentity?.id,
+    (player) => isUserClubReference(game, player.currentClubId),
   );
   for (const player of userPlayers.slice(0, 4)) player.fitness = 68;
   return game;
@@ -70,7 +71,7 @@ assert(
 
 let injuryState = newGame("Recovery FC", "Chair", "injury-recovery-regression");
 const injured = injuryState.football.players.find(
-  (player) => player.currentClubId === injuryState.clubName || player.currentClubId === injuryState.clubIdentity?.id,
+  (player) => isUserClubReference(injuryState, player.currentClubId),
 )!;
 applyMatchLoadInPlace(
   injuryState,
@@ -80,7 +81,6 @@ applyMatchLoadInPlace(
       name: `${injured.firstName} ${injured.lastName}`,
       shirtNumber: 4,
       role: "CB",
-      ability: injured.currentAbility,
       minutes: 90,
       goals: 0,
       assists: 0,
