@@ -6,7 +6,7 @@ import { userMatchLineup } from "../matchLineup";
 import { userSelectionStrengthPenalty } from "../matchStrength";
 import { applyMatchLoadInPlace, recoverPlayerHealthWeekInPlace } from "../playerHealth";
 import { fromAbsoluteWeek } from "../time";
-import { closePlayerSeasonInPlace, pushPlayerSeasonAwardsInboxInPlace } from "../playerSeasonStats";
+import { closePlayerSeasonInPlace, pushPlayerMatchMilestonesInPlace, pushPlayerSeasonAwardsInboxInPlace } from "../playerSeasonStats";
 import { tickSelectedMatchday } from "../tick/matchday";
 
 const formState = newGame("Form FC", "Chair", "player-form-regression");
@@ -149,3 +149,54 @@ assert.equal(awardsMail.length, 1);
 assert.match(awardsMail[0].subject, /player awards/i);
 
 console.log("player-form-narrative: passed");
+
+
+const milestoneState = newGame("Milestone FC", "Chair", "player-milestone-regression");
+const milestonePlayer = milestoneState.football.players.find((player) =>
+  isUserClubReference(milestoneState, player.currentClubId),
+)!;
+let lastMilestoneRow: {
+  playerId: string;
+  name: string;
+  shirtNumber: number;
+  role: "ST";
+  minutes: number;
+  started: boolean;
+  goals: number;
+  assists: number;
+  chances: number;
+  shots: number;
+  shotsOnTarget: number;
+  yellowCards: number;
+  rating: number;
+} | null = null;
+milestoneState.playerMatchHistory = {};
+for (let i = 1; i <= 25; i++) {
+  const row = {
+    playerId: milestonePlayer.id,
+    name: `${milestonePlayer.firstName} ${milestonePlayer.lastName}`,
+    shirtNumber: 9,
+    role: "ST" as const,
+    minutes: 90,
+    started: true,
+    goals: i <= 10 ? 1 : 0,
+    assists: 0,
+    chances: 1,
+    shots: 1,
+    shotsOnTarget: i <= 10 ? 1 : 0,
+    yellowCards: 0,
+    rating: 7,
+  };
+  lastMilestoneRow = row;
+  milestoneState.playerMatchHistory[`1|${i}|5|league|M${i}|true`] = {
+    season: 1,
+    week: i,
+    opponent: `M${i}`,
+    players: [row],
+  };
+}
+pushPlayerMatchMilestonesInPlace(milestoneState, [lastMilestoneRow!]);
+pushPlayerMatchMilestonesInPlace(milestoneState, [lastMilestoneRow!]);
+const milestones = milestoneState.inbox.filter((item) => item.generatorId === "club-player-milestone");
+assert.equal(milestones.length, 1);
+assert.match(milestones[0].body, /25 appearances/);
