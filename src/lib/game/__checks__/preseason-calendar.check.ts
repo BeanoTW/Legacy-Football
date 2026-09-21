@@ -30,6 +30,7 @@ const friendlyState = newGame("Friendly Flow FC", "Chairman", "friendly-flow-che
 const friendly = friendlyState.fixtures.find((fixture) => fixture.competition === "preseason");
 assert(friendly, "fresh game must expose a dated preseason friendly");
 friendlyState.week = friendly.week;
+friendlyState.inbox = [];
 setCalendarDay(friendlyState, friendly.dayOfWeek ?? 5);
 assert.equal(
   continuationInterrupt(friendlyState),
