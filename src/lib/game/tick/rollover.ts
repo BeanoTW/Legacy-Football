@@ -28,6 +28,7 @@ import { SEASON_END_WEEK } from "../calendar";
 import { ordinal } from "../format";
 import { initialiseSeasonCups } from "../cupEntry";
 import { initialisePreseasonFixtures } from "../preseason";
+import { closePlayerSeasonInPlace } from "../playerSeasonStats";
 import {
   fixturesForClub,
   makeFixtures,
@@ -78,6 +79,9 @@ export function tickSeasonRollover(s: GameState): void {
   closeCommercialSeason(s, closingSeason);
   // Immutable recruitment record of the season just closed.
   closeRecruitmentSeason(s, closingSeason);
+  // Preserve a compact player-season record before detailed match rows are
+  // eligible for persistence compaction. This keeps long-career history cheap.
+  closePlayerSeasonInPlace(s, closingSeason);
 
   // reset
   s.season += 1;
