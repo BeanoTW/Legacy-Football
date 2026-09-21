@@ -1,5 +1,5 @@
 import type { GameState, InboxItem } from "./types";
-import { isMatchday } from "./calendar";
+import { calendarDay } from "./calendar";
 import { requiresInboxDecision } from "./inbox";
 
 export function actionableInbox(state: GameState): InboxItem[] {
@@ -21,7 +21,19 @@ export function importantUnread(state: GameState): InboxItem[] {
 }
 
 export function hasCurrentFixture(state: GameState): boolean {
-  return state.fixtures.some((fixture) => fixture.week === state.week);
+  const day = calendarDay(state);
+  const fixture = state.fixtures.find(
+    (item) => item.week === state.week && (item.dayOfWeek ?? 5) === day,
+  );
+  if (!fixture) return false;
+  return !state.results.some(
+    (result) =>
+      result.week === state.week &&
+      result.opponent === fixture.opponent &&
+      result.home === fixture.home &&
+      (result.dayOfWeek ?? 5) === (fixture.dayOfWeek ?? 5) &&
+      (result.competition ?? "league") === (fixture.competition ?? "league"),
+  );
 }
 
 export function continuationInterrupt(state: GameState): string | null {
@@ -29,7 +41,7 @@ export function continuationInterrupt(state: GameState): string | null {
   if (decisions.length) return decisions[0].subject;
   const important = importantUnread(state);
   if (important.length) return important[0].subject;
-  if (hasCurrentFixture(state) && isMatchday(state)) return "Matchday";
+  if (hasCurrentFixture(state)) return "Matchday";
   if (state.liveMatch) return "Matchday in progress";
   return null;
 }
