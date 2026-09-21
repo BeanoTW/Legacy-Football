@@ -23,7 +23,7 @@ import {
   liveOpponentStrength,
 } from "./matchday";
 import { avgTicketPrice, simAttendance } from "./sim";
-import { clubMatchStrength } from "./matchStrength";
+import { clubMatchStrength, userMatchStrength } from "./matchStrength";
 import { advancePlayerClubPerformanceWeekInPlace } from "./playerClubPerformance";
 import { managerMatchStyle } from "./managerMatchStyle";
 import { calendarDay } from "./calendar";
@@ -55,7 +55,7 @@ export function startMatchDay(s: GameState): GameState {
   const ident = matchIdentity(s, fx);
   const ns: GameState = structuredClone(s);
   advancePlayerClubPerformanceWeekInPlace(ns);
-  const realisedOurStrength = clubMatchStrength(ns, userClubReference(ns));
+  const realisedOurStrength = userMatchStrength(ns);
   const realisedOpponentStrength = clubMatchStrength(ns, fx.opponent);
   const ourStrength = realisedOurStrength + (fx.home ? 3 : 0);
   const pmKey = preMatchKey({
