@@ -6,7 +6,7 @@ import { clubLegacyRecord } from "@/lib/game/clubLegacy";
 import { isUserClubReference, userClubReference } from "@/lib/game/clubReference";
 import { legacyTierToFootballLevel } from "@/lib/game/footballLevel";
 import { Section, sum } from "./shared/primitives";
-import { playerSeasonSummary } from "@/lib/game/playerSeasonStats";
+import { clubPlayerRecords, playerSeasonSummary } from "@/lib/game/playerSeasonStats";
 
 export function HistoryTab({ state }: { state: GameState }) {
   const rows = [...state.ledger].reverse();
@@ -21,6 +21,7 @@ export function HistoryTab({ state }: { state: GameState }) {
   const playerSummary = playerSeasonSummary(state, effectivePlayerSeason);
   const playerRows = playerSummary?.players ?? [];
   const userId = userClubReference(state);
+  const playerRecords = clubPlayerRecords(state);
   const legacy = clubLegacyRecord(state, userId);
   const clubRecord = state.clubRecords?.[userId];
   const seasonRows = [...(clubRecord?.leagueHistory ?? [])].sort((a, b) => b.season - a.season);
@@ -104,6 +105,14 @@ export function HistoryTab({ state }: { state: GameState }) {
             No recorded player performances for this season yet.
           </p>
         )}
+      </Section>
+      <Section title="Club player records">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <RecordHolder label="Most appearances" player={playerRecords.appearances?.name} value={playerRecords.appearances ? String(playerRecords.appearances.appearances) : "—"} />
+          <RecordHolder label="Most goals" player={playerRecords.goals?.name} value={playerRecords.goals ? String(playerRecords.goals.goals) : "—"} />
+          <RecordHolder label="Most assists" player={playerRecords.assists?.name} value={playerRecords.assists ? String(playerRecords.assists.assists) : "—"} />
+          <RecordHolder label="Most minutes" player={playerRecords.minutes?.name} value={playerRecords.minutes ? playerRecords.minutes.minutes.toLocaleString() : "—"} />
+        </div>
       </Section>
       <Section title="Club legacy">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
@@ -282,6 +291,25 @@ function PlayerLeader({
       <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</div>
       <div className="mt-1 truncate text-xs font-semibold">{player?.name ?? "—"}</div>
       <div className="font-display text-lg">{player ? value(player) : "—"}</div>
+    </div>
+  );
+}
+
+
+function RecordHolder({
+  label,
+  player,
+  value,
+}: {
+  label: string;
+  player?: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-xl border bg-background/50 p-3">
+      <div className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-1 truncate text-xs font-semibold">{player ?? "No record yet"}</div>
+      <div className="font-display text-xl">{value}</div>
     </div>
   );
 }
