@@ -8,6 +8,8 @@ export function playerSeasonStats(state: GameState, season = state.season) {
       playerId: string;
       name: string;
       appearances: number;
+      starts: number;
+      substituteAppearances: number;
       minutes: number;
       goals: number;
       assists: number;
@@ -23,6 +25,8 @@ export function playerSeasonStats(state: GameState, season = state.season) {
         playerId: player.playerId,
         name: player.name,
         appearances: 0,
+        starts: 0,
+        substituteAppearances: 0,
         minutes: 0,
         goals: 0,
         assists: 0,
@@ -30,6 +34,8 @@ export function playerSeasonStats(state: GameState, season = state.season) {
         ratingTotal: 0,
       };
       row.appearances++;
+      if (player.started === false) row.substituteAppearances++;
+      else row.starts++;
       row.minutes += player.minutes;
       row.goals += player.goals;
       row.assists += player.assists;
