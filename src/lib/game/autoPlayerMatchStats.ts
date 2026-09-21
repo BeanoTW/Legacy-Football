@@ -110,6 +110,7 @@ export function recordAutoResolvedPlayerMatch(
     return {
       ...player,
       minutes,
+      started: lineup.some((starter) => starter.playerId === player.playerId),
       goals,
       assists: playerAssists,
       chances,
