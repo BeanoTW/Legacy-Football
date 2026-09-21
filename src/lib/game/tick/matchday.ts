@@ -18,7 +18,7 @@ import { mulberry32, hashString } from "../rng";
 import { profileForTier, tierOfUser } from "../economy";
 import { facilityModifiers } from "../infrastructure";
 import { postMatchdayFinance } from "../finance";
-import { clubMatchStrength } from "../matchStrength";
+import { clubMatchStrength, userMatchStrength } from "../matchStrength";
 import {
   makeRecord,
   resolveWeek,
@@ -92,7 +92,7 @@ export function tickSelectedMatchday(
       // Both sides now cross the same final match-strength gateway. Underlying
       // squad quality remains canonical; only the small asymmetric performance
       // layer differs between the player club and AI clubs.
-      const myStrength = clubMatchStrength(s, userRef, s.season);
+      const myStrength = userMatchStrength(s, s.season);
       const oppStrength = clubMatchStrength(s, fixture.opponent, s.season);
       const round = sched?.round ?? s.week;
       const lid = sched ? leagueOf(sched) : playerLeagueId(s);
