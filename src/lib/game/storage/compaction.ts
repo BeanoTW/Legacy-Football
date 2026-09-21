@@ -50,6 +50,7 @@ export const RETAIN_SCOUTING_BRIEFS = 30;
 
 export type ChunkKind =
   | "history:matches"
+  | "history:player-matches"
   | "history:finance"
   | "history:transfers"
   | "history:contracts"
@@ -61,6 +62,7 @@ export type ChunkKind =
 
 export const CHUNK_KINDS: ChunkKind[] = [
   "history:matches",
+  "history:player-matches",
   "history:finance",
   "history:transfers",
   "history:contracts",
@@ -196,6 +198,19 @@ export function compactState(state: GameState): CompactionResult {
     }
   }
   core.matchRecords = hotMatches;
+
+  /* ---- 1b. Player match performances ----
+   * Match-by-match player rows are one of the largest long-career feeds.
+   * Current-season rows stay hot for squad/stat screens; completed seasons
+   * move to history alongside the corresponding MatchRecords. */
+  if (core.playerMatchHistory) {
+    const hotPlayerMatches: NonNullable<GameState["playerMatchHistory"]> = {};
+    for (const [key, match] of Object.entries(core.playerMatchHistory)) {
+      if (match.season >= season) hotPlayerMatches[key] = match;
+      else pushChunk(chunks, "history:player-matches", match.season, { key, ...match });
+    }
+    core.playerMatchHistory = hotPlayerMatches;
+  }
 
   /* ---- 2. Finance ledger ---- */
   const allEntries = core.financeLedger ?? [];
