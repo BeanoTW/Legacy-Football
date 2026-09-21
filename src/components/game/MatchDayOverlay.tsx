@@ -91,6 +91,7 @@ export function MatchDayOverlay({
     Math.max(34, Math.min(66, Math.round(50 + (lm.ourStrength - lm.oppStrength) * 0.7)));
   const result =
     lm.ourGoals > lm.theirGoals ? "Victory" : lm.ourGoals < lm.theirGoals ? "Defeat" : "Draw";
+  const playerOfMatch = lm.engine?.playerStats?.length ? [...lm.engine.playerStats].sort((a, b) => b.rating - a.rating || b.goals - a.goals || b.assists - a.assists)[0] : undefined;
   const expectationMet =
     lm.boardExpectation === "Any result" ||
     (lm.boardExpectation === "Win" ? result === "Victory" : result !== "Defeat");
@@ -343,6 +344,20 @@ export function MatchDayOverlay({
                     <Info2 label="TV" value={fmtMoney(lm.tvIncome)} />
                     <Info2 label="Matchday ops" value={`-${fmtMoney(lm.matchdayOps)}`} tone="bad" />
                   </div>
+                  {playerOfMatch && (
+                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Player of the match</div>
+                      <div className="mt-1 flex items-end justify-between gap-3">
+                        <div>
+                          <div className="font-display text-2xl">{playerOfMatch.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {playerOfMatch.minutes} min{playerOfMatch.goals ? ` · ${playerOfMatch.goals}G` : ""}{playerOfMatch.assists ? ` · ${playerOfMatch.assists}A` : ""}
+                          </div>
+                        </div>
+                        <div className="font-display text-3xl tnum">{playerOfMatch.rating.toFixed(1)}</div>
+                      </div>
+                    </div>
+                  )}
                   {stats && (
                     <div className="grid grid-cols-3 gap-3 text-sm tnum">
                       <Info2
