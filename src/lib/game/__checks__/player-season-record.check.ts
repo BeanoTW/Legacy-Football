@@ -3,6 +3,7 @@ import { newGame, commitLiveMatchAndAdvance } from "../engine";
 import { startMatchDay, kickoff, applyHalfTimeChoice } from "../liveMatch";
 import { playerSeasonStats } from "../playerSeasonStats";
 import { setCalendarDay } from "../calendar";
+import { tickSelectedMatchday } from "../tick/matchday";
 
 const game = newGame("Record FC", "Chair", "record-regression");
 const opponent = game.fixtures[0].opponent;
@@ -27,3 +28,40 @@ assert.deepEqual(playerSeasonStats(JSON.parse(JSON.stringify(saved))), playerSea
 assert.deepEqual(commitLiveMatchAndAdvance(saved), saved, "repeat commit is a no-op");
 assert.equal(playerSeasonStats(saved, saved.season + 1).length, 0);
 console.log("player-season-record: passed");
+
+
+const auto = newGame("Auto Record FC", "Chair", "auto-record-regression");
+const autoOpponent = auto.fixtures[0].opponent;
+auto.fixtures = [
+  {
+    week: auto.week,
+    dayOfWeek: 3,
+    competition: "preseason",
+    opponent: autoOpponent,
+    home: true,
+  },
+];
+const autoOutcome = tickSelectedMatchday(auto, auto.fixtures[0]);
+assert(autoOutcome.fxResult, "auto-resolved fixture must produce a result");
+assert.equal(
+  Object.keys(auto.playerMatchHistory ?? {}).length,
+  1,
+  "auto-resolved user fixture must persist player performances",
+);
+const autoStats = playerSeasonStats(auto);
+assert.equal(autoStats.length, 11);
+assert(autoStats.every((row) => row.appearances === 1 && row.minutes === 90));
+assert.equal(
+  autoStats.reduce((sum, row) => sum + row.goals, 0),
+  autoOutcome.fxResult!.goalsFor,
+  "recorded player goals must reconcile to the settled team score",
+);
+const autoReplay = newGame("Auto Record FC", "Chair", "auto-record-regression");
+autoReplay.fixtures = structuredClone(auto.fixtures);
+const replayOutcome = tickSelectedMatchday(autoReplay, autoReplay.fixtures[0]);
+assert.deepEqual(replayOutcome.fxResult, autoOutcome.fxResult);
+assert.deepEqual(
+  playerSeasonStats(autoReplay),
+  autoStats,
+  "auto-resolved player performances must be deterministic",
+);
