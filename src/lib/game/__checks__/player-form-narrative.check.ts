@@ -3,6 +3,7 @@ import { newGame } from "../engine";
 import { isUserClubReference } from "../clubReference";
 import { playerRecentForm } from "../playerForm";
 import { userMatchLineup } from "../matchLineup";
+import { userSelectionStrengthPenalty } from "../matchStrength";
 import { applyMatchLoadInPlace, recoverPlayerHealthWeekInPlace } from "../playerHealth";
 import { fromAbsoluteWeek } from "../time";
 import { closePlayerSeasonInPlace, pushPlayerSeasonAwardsInboxInPlace } from "../playerSeasonStats";
@@ -68,6 +69,12 @@ assert.equal(coldForm.band, "Poor");
 assert(hotForm.selectionAdjustment > 0);
 assert(coldForm.selectionAdjustment < 0);
 assert.deepEqual(playerRecentForm(structuredClone(formState), hot.id), hotForm);
+assert(userSelectionStrengthPenalty(formState) <= 0);
+assert.equal(
+  userSelectionStrengthPenalty(structuredClone(formState)),
+  userSelectionStrengthPenalty(formState),
+  "selected-XI strength adjustment must be deterministic",
+);
 
 const xi = userMatchLineup(formState, "4-4-2");
 assert(
