@@ -152,3 +152,77 @@ export function playerSeasonSummary(
   }
   return (state.playerSeasonHistory ?? []).find((summary) => summary.season === season) ?? null;
 }
+
+
+export interface PlayerCareerTotals {
+  playerId: string;
+  name: string;
+  seasons: number;
+  appearances: number;
+  starts: number;
+  substituteAppearances: number;
+  minutes: number;
+  goals: number;
+  assists: number;
+  yellowCards: number;
+  averageRating: number;
+}
+
+export function playerCareerTotals(
+  state: GameState,
+  playerId: string,
+): PlayerCareerTotals | null {
+  const summaries = [
+    ...(state.playerSeasonHistory ?? []),
+    ...(playerSeasonSummary(state, state.season)
+      ? [playerSeasonSummary(state, state.season)!]
+      : []),
+  ];
+  const rows = summaries
+    .map((summary) => summary.players.find((player) => player.playerId === playerId))
+    .filter((row): row is NonNullable<typeof row> => Boolean(row));
+  if (!rows.length) return null;
+  const appearances = rows.reduce((sum, row) => sum + row.appearances, 0);
+  const weightedRating = rows.reduce(
+    (sum, row) => sum + row.averageRating * row.appearances,
+    0,
+  );
+  return {
+    playerId,
+    name: rows[rows.length - 1].name,
+    seasons: rows.length,
+    appearances,
+    starts: rows.reduce((sum, row) => sum + row.starts, 0),
+    substituteAppearances: rows.reduce((sum, row) => sum + row.substituteAppearances, 0),
+    minutes: rows.reduce((sum, row) => sum + row.minutes, 0),
+    goals: rows.reduce((sum, row) => sum + row.goals, 0),
+    assists: rows.reduce((sum, row) => sum + row.assists, 0),
+    yellowCards: rows.reduce((sum, row) => sum + row.yellowCards, 0),
+    averageRating: appearances > 0 ? weightedRating / appearances : 0,
+  };
+}
+
+export function playerSeasonByPlayer(
+  state: GameState,
+  playerId: string,
+): Array<{
+  season: number;
+  record: PlayerSeasonSummary["players"][number];
+}> {
+  const summaries = [
+    ...(state.playerSeasonHistory ?? []),
+    ...(playerSeasonSummary(state, state.season)
+      ? [playerSeasonSummary(state, state.season)!]
+      : []),
+  ];
+  return summaries
+    .map((summary) => ({
+      season: summary.season,
+      record: summary.players.find((player) => player.playerId === playerId),
+    }))
+    .filter(
+      (row): row is { season: number; record: PlayerSeasonSummary["players"][number] } =>
+        Boolean(row.record),
+    )
+    .sort((a, b) => b.season - a.season);
+}
