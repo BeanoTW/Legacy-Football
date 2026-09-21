@@ -1,9 +1,39 @@
 import type { FootballPlayer, GameState, InjurySeverity, MatchInjury, MatchPlayerStats, Staff } from "./types";
-import { absoluteWeek } from "./time";
+import { absoluteWeek, fromAbsoluteWeek } from "./time";
+import { hashString } from "./rng";
 import { isUserClubReference } from "./clubReference";
 import { playerRegisteredClubId } from "./playerRegistration";
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+
+function pushMedicalInbox(
+  state: GameState,
+  eventKey: string,
+  subject: string,
+  body: string,
+  priority: "low" | "normal" | "high" = "normal",
+): void {
+  if (state.inbox.some((item) => item.eventKey === eventKey)) return;
+  state.inbox.push({
+    id: `inbox-${hashString(eventKey).toString(36)}`,
+    generatorId: "medical-player-health",
+    eventKey,
+    sender: "Medical Department",
+    department: "Medical",
+    category: priority === "high" ? "warning" : "information",
+    subject,
+    body,
+    priority,
+    week: state.week,
+    season: state.season,
+    status: "unread",
+  });
+}
+
+function playerDisplayName(player: FootballPlayer): string {
+  return `${player.firstName} ${player.lastName}`;
+}
+
 
 
 export interface MedicalSupport {
@@ -69,8 +99,19 @@ export function recoverPlayerHealthWeekInPlace(state: GameState): void {
     if (player.fitness === undefined && !player.injury) continue;
     player.fitness = clamp(playerFitness(player) + recovery, 0, 100);
     if (player.injury && player.injury.returnAbsoluteWeek <= now) {
+      const recoveredFrom = player.injury;
       player.injury = null;
       player.availability = "available";
+      if (isUserClubReference(state, playerRegisteredClubId(player))) {
+        const eventKey = `medical:return:${player.id}:${recoveredFrom.returnAbsoluteWeek}`;
+        pushMedicalInbox(
+          state,
+          eventKey,
+          `${playerDisplayName(player)} available again`,
+          `${playerDisplayName(player)} has completed rehabilitation from ${recoveredFrom.type.toLowerCase()} and is available for selection again. Current fitness is ${playerFitness(player)}%.`,
+          "normal",
+        );
+      }
     }
   }
 }
@@ -108,6 +149,15 @@ export function applyMatchLoadInPlace(
     };
     player.availability = "unavailable";
     player.fitness = Math.min(playerFitness(player), injury.severity === "serious" ? 45 : 65);
+    const returnAt = fromAbsoluteWeek(player.injury.returnAbsoluteWeek);
+    const eventKey = `medical:injury:${player.id}:${now}:${injury.type}`;
+    pushMedicalInbox(
+      state,
+      eventKey,
+      `${playerDisplayName(player)} injured`,
+      `${playerDisplayName(player)} has suffered ${injury.type.toLowerCase()} (${injury.severity}). The medical team currently expects him back around season ${returnAt.season}, week ${returnAt.week}.`,
+      injury.severity === "serious" || injury.severity === "moderate" ? "high" : "normal",
+    );
   }
 }
 
