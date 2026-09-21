@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { POSITION_BADGE_CLASS } from "../playerPosition";
 import { fitnessLabel, playerFitness } from "@/lib/game/playerHealth";
 import { fromAbsoluteWeek } from "@/lib/game/time";
+import { playerSeasonStats } from "@/lib/game/playerSeasonStats";
 
 const PLAYER_PROFILE_EVENT = "legacy-football:open-player-profile";
 
@@ -99,6 +100,7 @@ export function PlayerProfileSheet({
   const transferWindowOpen = isTransferWindowOpen(state);
   const transferWindow = windowStatus(state);
   const loanUnavailable = freeAgent || owned ? null : loanInAvailabilityReason(state, player.id);
+  const seasonLine = owned ? playerSeasonStats(state).find((row) => row.playerId === player.id) : undefined;
 
   const approach = () => {
     if (!estimate || owned) return;
@@ -279,6 +281,21 @@ export function PlayerProfileSheet({
               </div>
             )}
           </section>
+
+          {owned && seasonLine && (
+            <section className="rounded-xl border bg-card p-3">
+              <div className="font-display text-lg">This season</div>
+              <div className="mt-2 grid grid-cols-4 gap-2 text-center">
+                <Fact label="Apps" value={String(seasonLine.appearances)} />
+                <Fact label="Starts" value={String(seasonLine.starts)} />
+                <Fact label="Goals" value={String(seasonLine.goals)} />
+                <Fact label="Rating" value={seasonLine.averageRating.toFixed(2)} />
+              </div>
+              <div className="mt-2 text-xs text-muted-foreground">
+                {seasonLine.substituteAppearances} substitute appearance{seasonLine.substituteAppearances === 1 ? "" : "s"} · {seasonLine.assists} assist{seasonLine.assists === 1 ? "" : "s"} · {seasonLine.minutes} minutes
+              </div>
+            </section>
+          )}
 
           {owned && (
             <section className="rounded-xl border bg-card p-3">
