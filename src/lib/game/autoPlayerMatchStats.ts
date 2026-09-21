@@ -1,7 +1,7 @@
 import type { GameState, MatchInjury, MatchPlayerStats } from "./types";
 import { managerMatchStyle } from "./managerMatchStyle";
 import { userMatchBench, userMatchLineup } from "./matchLineup";
-import { applyMatchLoadInPlace, injuryWeeks } from "./playerHealth";
+import { applyMatchLoadInPlace, injuryWeeks, playerInjuryRiskMultiplier } from "./playerHealth";
 import { hashString, mulberry32 } from "./rng";
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -122,7 +122,7 @@ export function recordAutoResolvedPlayerMatch(
   });
 
   const injuries: MatchInjury[] = [];
-  if (outfield.length && rng() < 0.08) {
+  if (outfield.length && rng() < 0.08 * playerInjuryRiskMultiplier(state)) {
     const injured = outfield[Math.floor(rng() * outfield.length)];
     const roll = rng();
     const severity = roll < 0.55 ? "knock" : roll < 0.82 ? "minor" : roll < 0.96 ? "moderate" : "serious";
