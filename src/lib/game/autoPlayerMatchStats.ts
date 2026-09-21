@@ -1,6 +1,7 @@
-import type { GameState, MatchPlayerStats } from "./types";
+import type { GameState, MatchInjury, MatchPlayerStats } from "./types";
 import { managerMatchStyle } from "./managerMatchStyle";
-import { userMatchLineup } from "./matchLineup";
+import { userMatchBench, userMatchLineup } from "./matchLineup";
+import { applyMatchLoadInPlace, injuryWeeks } from "./playerHealth";
 import { hashString, mulberry32 } from "./rng";
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -30,6 +31,7 @@ export function recordAutoResolvedPlayerMatch(
   const style = managerMatchStyle(state);
   const lineup = userMatchLineup(state, style.formation);
   if (!lineup.length) return;
+  const bench = userMatchBench(state, lineup);
 
   const seed = [
     state.saveSeed,
@@ -64,11 +66,34 @@ export function recordAutoResolvedPlayerMatch(
     }
   }
 
+  const usedSubs = bench.slice(0, Math.min(3, bench.length, 1 + (rng() < 0.7 ? 1 : 0) + (rng() < 0.3 ? 1 : 0)));
+  const offCandidates = outfield
+    .slice()
+    .sort(
+      (a, b) =>
+        (a.fitness ?? 100) - (b.fitness ?? 100) ||
+        a.ability - b.ability ||
+        a.playerId.localeCompare(b.playerId),
+    );
+  const subMinutes = usedSubs.map((_, index) => 61 + index * 8 + Math.floor(rng() * 5));
+  const offById = new Map<string, number>();
+  const onById = new Map<string, number>();
+  usedSubs.forEach((player, index) => {
+    const off = offCandidates[index];
+    if (!off) return;
+    offById.set(off.playerId, subMinutes[index]);
+    onById.set(player.playerId, subMinutes[index]);
+  });
+
   const resultLift = goalsFor > goalsAgainst ? 0.35 : goalsFor < goalsAgainst ? -0.28 : 0.05;
-  const players: MatchPlayerStats[] = lineup.map((player) => {
+  const participants = [...lineup, ...usedSubs];
+  const players: MatchPlayerStats[] = participants.map((player) => {
     const goals = scorers.get(player.playerId) ?? 0;
     const playerAssists = assists.get(player.playerId) ?? 0;
     const involvementNoise = (rng() - 0.5) * 0.5;
+    const minutes = lineup.some((starter) => starter.playerId === player.playerId)
+      ? offById.get(player.playerId) ?? 90
+      : 90 - (onById.get(player.playerId) ?? 90);
     const rating = round2(
       clamp(
         6.15 +
@@ -84,7 +109,7 @@ export function recordAutoResolvedPlayerMatch(
     const chances = goals + (player.role === "GK" ? 0 : Math.floor(rng() * 3));
     return {
       ...player,
-      minutes: 90,
+      minutes,
       goals,
       assists: playerAssists,
       chances,
@@ -92,8 +117,34 @@ export function recordAutoResolvedPlayerMatch(
       shotsOnTarget: goals,
       yellowCards: rng() < 0.13 ? 1 : 0,
       rating,
+      fitnessAfter: clamp(Math.round((player.fitness ?? 100) - (minutes / 90) * 23), 0, 100),
     };
   });
+
+  const injuries: MatchInjury[] = [];
+  if (outfield.length && rng() < 0.08) {
+    const injured = outfield[Math.floor(rng() * outfield.length)];
+    const roll = rng();
+    const severity = roll < 0.55 ? "knock" : roll < 0.82 ? "minor" : roll < 0.96 ? "moderate" : "serious";
+    const labels = severity === "knock"
+      ? ["Bruised ankle", "Dead leg"]
+      : severity === "minor"
+        ? ["Calf strain", "Groin strain"]
+        : severity === "moderate"
+          ? ["Hamstring strain", "Knee sprain"]
+          : ["Ligament injury", "Serious hamstring tear"];
+    injuries.push({
+      minute: 50 + Math.floor(rng() * 35),
+      side: "us",
+      playerId: injured.playerId,
+      playerName: injured.name,
+      type: labels[Math.floor(rng() * labels.length)],
+      severity,
+      weeksOut: injuryWeeks(severity),
+    });
+  }
+
+  applyMatchLoadInPlace(state, players, injuries);
 
   state.playerMatchHistory = {
     ...state.playerMatchHistory,
