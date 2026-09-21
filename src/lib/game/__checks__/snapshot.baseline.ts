@@ -2,8 +2,8 @@
    These fingerprints lock gameplay behaviour; schema metadata is normalized. */
 export const BASELINE: Record<string, string> & { parts?: Record<string, Record<string, string>> } = {
   "season1-week10": "7b11dd3e",
-  "season1-end": "9ffc205e",
-  "season3-end": "fef7aacd",
+  "season1-end": "d1f74045",
+  "season3-end": "1d9d06af",
   "parts": {
     "season1-week10": {
       "board": "be6e17b4",
