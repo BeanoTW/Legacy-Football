@@ -33,7 +33,7 @@ import {
   refreshPlayerMatchStats,
   simulateMatchHalf,
 } from "./matchEngine";
-import { applyMatchLoadInPlace } from "./playerHealth";
+import { applyMatchLoadInPlace, playerInjuryRiskMultiplier } from "./playerHealth";
 
 function formGuide(s: GameState): string {
   const last5 = s.results
@@ -206,7 +206,7 @@ export function applyHalfTimeChoice(s: GameState, choiceId: string): GameState {
   lm.engine.substitutions ??= [];
   lm.engine.injuries ??= [];
   lm.engine.playerStats ??= preparedEngine.playerStats;
-  const managementEvents = prepareSecondHalfManagement(lm.engine, seedBase);
+  const managementEvents = prepareSecondHalfManagement(lm.engine, seedBase, playerInjuryRiskMultiplier(s));
   const half = simulateMatchHalf({
     seedBase,
     half: 2,
