@@ -4,6 +4,7 @@ import { MANAGER_FORMATION_SLOTS } from "./managerFormationLayout";
 import { positionFamiliarity, positionUnit } from "./positions";
 import { isUserClubReference, sameClubReference } from "./clubReference";
 import { playerRegisteredClubId } from "./playerRegistration";
+import { playerFitness, playerIsAvailable } from "./playerHealth";
 
 const playerName = (player: FootballPlayer) => `${player.firstName} ${player.lastName}`;
 
@@ -17,10 +18,11 @@ function roleScore(player: FootballPlayer, role: TacticalPosition): number {
         : familiarity === "Comfortable"
           ? 2
           : -20;
-  return player.currentAbility + familiarityBonus;
+  return player.currentAbility + familiarityBonus + (playerFitness(player) - 75) * 0.12;
 }
 
 function selectForRoles(
+  state: GameState,
   players: FootballPlayer[],
   roles: readonly TacticalPosition[],
   preferredIds: string[] = [],
@@ -29,7 +31,7 @@ function selectForRoles(
   const preference = new Map(preferredIds.map((id, index) => [id, preferredIds.length - index]));
   return roles.flatMap((role, roleIndex) => {
     const available = players.filter(
-      (player) => player.availability === "available" && !used.has(player.id),
+      (player) => playerIsAvailable(player, state) && !used.has(player.id),
     );
     const score = (player: FootballPlayer) =>
       roleScore(player, role) + (preference.get(player.id) ?? 0) * 1_000;
@@ -60,6 +62,7 @@ function selectForRoles(
         shirtNumber: role === "GK" ? 1 : roleIndex + 1,
         role,
         ability: chosen.currentAbility,
+        fitness: playerFitness(chosen),
       },
     ];
   });
@@ -76,12 +79,59 @@ export function userMatchLineup(
   const preferredIds = (typeof storedSelection === "string" ? storedSelection : "")
     .split(",")
     .filter(Boolean);
-  return selectForRoles(players, MANAGER_FORMATION_SLOTS[formation], preferredIds);
+  return selectForRoles(state, players, MANAGER_FORMATION_SLOTS[formation], preferredIds);
 }
 
 export function opponentMatchLineup(state: GameState, opponent: string): MatchLineupPlayer[] {
   const players = state.football.players.filter((player) =>
     sameClubReference(state, playerRegisteredClubId(player), opponent),
   );
-  return selectForRoles(players, MANAGER_FORMATION_SLOTS["4-4-2"]);
+  return selectForRoles(state, players, MANAGER_FORMATION_SLOTS["4-4-2"]);
+}
+
+
+function benchFromPlayers(
+  state: GameState,
+  players: FootballPlayer[],
+  lineup: MatchLineupPlayer[],
+): MatchLineupPlayer[] {
+  const used = new Set(lineup.map((player) => player.playerId));
+  const eligible = players
+    .filter((player) => playerIsAvailable(player, state) && !used.has(player.id))
+    .sort(
+      (a, b) =>
+        b.currentAbility + playerFitness(b) * 0.08 - (a.currentAbility + playerFitness(a) * 0.08),
+    );
+  const keeper = eligible.find((player) => player.primaryPosition === "GK");
+  const outfield = eligible.filter((player) => player.primaryPosition !== "GK");
+  const picked = [...(keeper ? [keeper] : []), ...outfield].slice(0, 7);
+  return picked.map((player, index) => ({
+    playerId: player.id,
+    name: playerName(player),
+    shirtNumber: 12 + index,
+    role: player.primaryPosition === "GK" ? "GK" : player.primaryPosition === "DEF" ? "CB" : player.primaryPosition === "MID" ? "CM" : "ST",
+    ability: player.currentAbility,
+    fitness: playerFitness(player),
+  }));
+}
+
+export function userMatchBench(
+  state: GameState,
+  lineup: MatchLineupPlayer[],
+): MatchLineupPlayer[] {
+  const players = state.football.players.filter((player) =>
+    isUserClubReference(state, playerRegisteredClubId(player)),
+  );
+  return benchFromPlayers(state, players, lineup);
+}
+
+export function opponentMatchBench(
+  state: GameState,
+  opponent: string,
+  lineup: MatchLineupPlayer[],
+): MatchLineupPlayer[] {
+  const players = state.football.players.filter((player) =>
+    sameClubReference(state, playerRegisteredClubId(player), opponent),
+  );
+  return benchFromPlayers(state, players, lineup);
 }
