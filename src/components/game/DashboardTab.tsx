@@ -21,6 +21,7 @@ import { HEALTH_TONE, Meter, Row, Section, Stat, ord, sum } from "./shared/primi
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { medicalSupport, playerFitness, playerIsAvailable, squadAverageFitness } from "@/lib/game/playerHealth";
 import { userSquad } from "@/lib/game/recruitment";
+import { inFormPlayers } from "@/lib/game/playerForm";
 
 export function DashboardTab({ state }: { state: GameState }) {
   const last12 = state.ledger.slice(-12);
@@ -37,6 +38,7 @@ export function DashboardTab({ state }: { state: GameState }) {
   const medical = medicalSupport(state);
   const avgFitness = squadAverageFitness(state);
   const injured = squad.filter((player) => Boolean(player.injury));
+  const formLeaders = inFormPlayers(state, 3);
   const unavailable = squad.filter((player) => !playerIsAvailable(player, state));
   const tired = squad.filter((player) => playerIsAvailable(player, state) && playerFitness(player) < 72);
   const lastResult = state.results[state.results.length - 1];
@@ -209,6 +211,22 @@ export function DashboardTab({ state }: { state: GameState }) {
                   <span className="shrink-0 text-muted-foreground">{player.injury?.type}</span>
                 </div>
               ))}
+            </div>
+          )}
+          {formLeaders.length > 0 && (
+            <div className="mt-3 rounded-lg border">
+              <div className="border-b px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                In form
+              </div>
+              {formLeaders.map((form) => {
+                const player = squad.find((candidate) => candidate.id === form.playerId);
+                return (
+                  <div key={form.playerId} className="flex items-center justify-between gap-3 border-b px-2.5 py-2 text-xs last:border-b-0">
+                    <span className="truncate font-semibold">{player ? `${player.firstName} ${player.lastName}` : form.playerId}</span>
+                    <span className="shrink-0 text-muted-foreground">{form.band} · {form.averageRating.toFixed(2)}</span>
+                  </div>
+                );
+              })}
             </div>
           )}
           <div className="mt-2 text-[10px] text-muted-foreground">
