@@ -26,6 +26,7 @@ import { footballLevelOfLeague } from "@/lib/game/footballLevel";
 import { managerMatchPrep } from "@/lib/game/managerMatchPrep";
 import { totalMatchStats } from "@/lib/game/matchEngine";
 import { MatchPitchViewer } from "./MatchPitchViewer";
+import { medicalSupport } from "@/lib/game/playerHealth";
 
 export function MatchDayOverlay({
   state,
@@ -43,6 +44,13 @@ export function MatchDayOverlay({
     setReplayComplete(complete);
   }, []);
   const matchPrep = managerMatchPrep(state);
+  const medical = medicalSupport(state);
+  const selectedFitness = lm.engine?.userLineup?.length
+    ? Math.round(
+        lm.engine.userLineup.reduce((sum, player) => sum + (player.fitness ?? 100), 0) /
+          lm.engine.userLineup.length,
+      )
+    : 100;
   const usName = state.clubName;
   const themName = clubDisplayName(state, lm.fixture.opponent);
   const matchLeague = state.leagues.find((league) => league.id === lm.leagueId);
@@ -194,6 +202,8 @@ export function MatchDayOverlay({
                   />
                   <Info2 label="Board expects" value={lm.boardExpectation} />
                   <Info2 label="Form" value={lm.formGuide} />
+                  <Info2 label="Starting XI fitness" value={`${selectedFitness}%`} />
+                  <Info2 label="Medical support" value={`${medical.label} · ${medical.score}`} />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <StrengthCard label="Your team" value={Math.round(lm.ourStrength)} />
@@ -210,6 +220,9 @@ export function MatchDayOverlay({
                     </span>
                     <span className="rounded-full border bg-background/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
                       {matchPrep.style}
+                    </span>
+                    <span className="rounded-full border bg-background/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                      {matchPrep.rotation} rotation
                     </span>
                   </div>
                   <p className="mt-1.5 text-sm text-muted-foreground">{matchPrep.summary}</p>
@@ -319,6 +332,24 @@ export function MatchDayOverlay({
                       />
                     </div>
                   )}
+                  {(lm.engine?.substitutions?.length || lm.engine?.injuries?.length) ? (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <div className="rounded-xl border bg-muted/20 p-3">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Changes used</div>
+                        <div className="mt-1 font-display text-2xl">{lm.engine?.substitutions?.filter((sub) => sub.side === "us").length ?? 0}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {(lm.engine?.substitutions ?? []).filter((sub) => sub.side === "us").map((sub) => `${sub.minute}' ${sub.playerOnName} for ${sub.playerOffName}`).join(" · ") || "No substitutions"}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border bg-muted/20 p-3">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Medical report</div>
+                        <div className="mt-1 font-display text-2xl">{lm.engine?.injuries?.filter((injury) => injury.side === "us").length ?? 0}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {(lm.engine?.injuries ?? []).filter((injury) => injury.side === "us").map((injury) => `${injury.playerName}: ${injury.type}`).join(" · ") || "No new injuries"}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                   {lm.engine?.playerStats?.length ? (
                     <div className="rounded-xl border bg-muted/20 p-3">
                       <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -344,6 +375,9 @@ export function MatchDayOverlay({
                                   {player.goals > 0 && player.assists > 0 ? " · " : ""}
                                   {player.assists > 0 ? `${player.assists}A` : ""}
                                 </span>
+                              )}
+                              {player.fitnessAfter !== undefined && (
+                                <span className="text-[10px] text-muted-foreground">{player.fitnessAfter}% fit</span>
                               )}
                               <strong
                                 className={cn(
