@@ -19,6 +19,8 @@ import { commitmentProgress, sustainabilitySnapshot } from "@/lib/game/sustainab
 import { WEEKS_PER_SEASON } from "@/lib/game/time";
 import { HEALTH_TONE, Meter, Row, Section, Stat, ord, sum } from "./shared/primitives";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
+import { medicalSupport, playerFitness, playerIsAvailable, squadAverageFitness } from "@/lib/game/playerHealth";
+import { userSquad } from "@/lib/game/recruitment";
 
 export function DashboardTab({ state }: { state: GameState }) {
   const last12 = state.ledger.slice(-12);
@@ -31,6 +33,12 @@ export function DashboardTab({ state }: { state: GameState }) {
   }));
 
   const lastLedger = state.ledger[state.ledger.length - 1];
+  const squad = userSquad(state);
+  const medical = medicalSupport(state);
+  const avgFitness = squadAverageFitness(state);
+  const injured = squad.filter((player) => Boolean(player.injury));
+  const unavailable = squad.filter((player) => !playerIsAvailable(player, state));
+  const tired = squad.filter((player) => playerIsAvailable(player, state) && playerFitness(player) < 72);
   const lastResult = state.results[state.results.length - 1];
 
   const seasonTotals = state.ledger.reduce(
@@ -184,6 +192,28 @@ export function DashboardTab({ state }: { state: GameState }) {
               No matches yet. Advance a week to play your opener.
             </div>
           )}
+        </Section>
+
+        <Section title="Squad health">
+          <div className="grid grid-cols-2 gap-2">
+            <Stat label="Average fitness" value={`${avgFitness}%`} tone={avgFitness >= 80 ? "good" : avgFitness >= 68 ? undefined : "bad"} />
+            <Stat label="Medical support" value={medical.label} sub={`${medical.score}/100`} />
+            <Stat label="Unavailable" value={String(unavailable.length)} tone={unavailable.length === 0 ? "good" : "bad"} />
+            <Stat label="Tired players" value={String(tired.length)} tone={tired.length === 0 ? "good" : undefined} />
+          </div>
+          {injured.length > 0 && (
+            <div className="mt-3 divide-y rounded-lg border">
+              {injured.slice(0, 4).map((player) => (
+                <div key={player.id} className="flex items-center justify-between gap-3 px-2.5 py-2 text-xs">
+                  <span className="truncate font-semibold">{player.firstName} {player.lastName}</span>
+                  <span className="shrink-0 text-muted-foreground">{player.injury?.type}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="mt-2 text-[10px] text-muted-foreground">
+            Weekly recovery +{medical.recoveryPerWeek} · injury-risk factor {medical.injuryRiskMultiplier.toFixed(2)}×
+          </div>
         </Section>
 
         <Section title="This week (recurring)">
