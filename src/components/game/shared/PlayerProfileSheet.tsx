@@ -30,6 +30,7 @@ import { POSITION_BADGE_CLASS } from "../playerPosition";
 import { fitnessLabel, playerFitness } from "@/lib/game/playerHealth";
 import { fromAbsoluteWeek } from "@/lib/game/time";
 import { playerCareerTotals, playerSeasonByPlayer, playerSeasonStats } from "@/lib/game/playerSeasonStats";
+import { playerRecentForm } from "@/lib/game/playerForm";
 
 const PLAYER_PROFILE_EVENT = "legacy-football:open-player-profile";
 
@@ -101,6 +102,7 @@ export function PlayerProfileSheet({
   const transferWindow = windowStatus(state);
   const loanUnavailable = freeAgent || owned ? null : loanInAvailabilityReason(state, player.id);
   const seasonLine = owned ? playerSeasonStats(state).find((row) => row.playerId === player.id) : undefined;
+  const recentForm = owned ? playerRecentForm(state, player.id) : null;
   const career = owned ? playerCareerTotals(state, player.id) : null;
   const seasonHistory = owned ? playerSeasonByPlayer(state, player.id) : [];
 
@@ -320,6 +322,21 @@ export function PlayerProfileSheet({
                   {seasonHistory.map(({ season, record }) => <div key={season} className="grid grid-cols-[auto_repeat(5,1fr)] border-t px-2 py-1.5 text-[10px]"><span>S{season}</span><span className="text-right">{record.appearances}</span><span className="text-right">{record.minutes}</span><span className="text-right">{record.goals}</span><span className="text-right">{record.assists}</span><span className="text-right">{record.averageRating.toFixed(2)}</span></div>)}
                 </div>
               )}
+            </section>
+          )}
+
+          {owned && recentForm && recentForm.appearances > 0 && (
+            <section className="rounded-xl border bg-card p-3">
+              <div className="font-display text-lg">Recent form</div>
+              <div className="mt-2 grid grid-cols-4 gap-2 text-center">
+                <Fact label="Form" value={recentForm.band} />
+                <Fact label="Rating" value={recentForm.averageRating.toFixed(2)} />
+                <Fact label="Goals" value={String(recentForm.goals)} />
+                <Fact label="Assists" value={String(recentForm.assists)} />
+              </div>
+              <div className="mt-2 text-xs text-muted-foreground">
+                Last {recentForm.appearances} appearance{recentForm.appearances === 1 ? "" : "s"} · {recentForm.minutes} minutes
+              </div>
             </section>
           )}
 
