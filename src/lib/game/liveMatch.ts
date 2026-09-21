@@ -264,7 +264,8 @@ export function commitLiveMatch(
   if (lm.committed) return { ...prev, liveMatch: null };
   if (lm.fixtureId && (prev.matchRecords ?? []).some((r) => r.id === lm.fixtureId))
     return { ...prev, liveMatch: null };
-  const cleared: GameState = { ...prev, liveMatch: null };
+  const cleared: GameState = structuredClone(prev);
+  cleared.liveMatch = null;
   if (lm.engine?.playerStats?.length) {
     applyMatchLoadInPlace(cleared, lm.engine.playerStats, lm.engine.injuries ?? []);
     const key = `${lm.season ?? prev.season}|${lm.fixture.week}|${lm.fixture.dayOfWeek ?? 5}|${lm.fixture.competition ?? "league"}|${lm.fixture.opponent}|${lm.fixture.home}`;
