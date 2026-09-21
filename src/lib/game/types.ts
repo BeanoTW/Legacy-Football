@@ -614,6 +614,8 @@ export interface MatchLineupPlayer {
   shirtNumber: number;
   role: TacticalPosition;
   ability: number;
+  /** Fitness when this match squad was selected, 0-100. */
+  fitness?: number;
 }
 
 export interface MatchPlayerStats {
@@ -629,6 +631,8 @@ export interface MatchPlayerStats {
   shotsOnTarget: number;
   yellowCards: number;
   rating: number;
+  /** Fitness remaining after this appearance, 0-100. */
+  fitnessAfter?: number;
 }
 
 export interface MatchTeamPlan {
@@ -662,6 +666,26 @@ export interface MatchHalfSnapshot {
   them: MatchTeamStats;
 }
 
+export interface MatchSubstitution {
+  minute: number;
+  side: "us" | "them";
+  playerOffId: string;
+  playerOffName: string;
+  playerOnId: string;
+  playerOnName: string;
+  reason: "fatigue" | "tactical" | "injury";
+}
+
+export interface MatchInjury {
+  minute: number;
+  side: "us" | "them";
+  playerId: string;
+  playerName: string;
+  type: string;
+  severity: InjurySeverity;
+  weeksOut: number;
+}
+
 export interface MatchEngineSnapshot {
   version: 1;
   userPlan: MatchTeamPlan;
@@ -669,6 +693,10 @@ export interface MatchEngineSnapshot {
   halves: MatchHalfSnapshot[];
   userLineup?: MatchLineupPlayer[];
   opponentLineup?: MatchLineupPlayer[];
+  userBench?: MatchLineupPlayer[];
+  opponentBench?: MatchLineupPlayer[];
+  substitutions?: MatchSubstitution[];
+  injuries?: MatchInjury[];
   playerStats?: MatchPlayerStats[];
 }
 
@@ -1071,6 +1099,17 @@ export type PlayerTransferStatus = "unlisted" | "listed" | "wanted" | "agreedTra
 
 export type PlayerAvailability = "available" | "unavailable";
 
+export type InjurySeverity = "knock" | "minor" | "moderate" | "serious";
+
+export interface PlayerInjury {
+  type: string;
+  severity: InjurySeverity;
+  sustainedSeason: number;
+  sustainedWeek: number;
+  /** Player becomes selectable again once the save reaches this absolute week. */
+  returnAbsoluteWeek: number;
+}
+
 export type SquadRole = "Key Player" | "First Team" | "Rotation" | "Prospect";
 
 export type SquadGroup = "firstTeam" | "reserve" | "transferListed" | "contractExpiring";
@@ -1109,6 +1148,10 @@ export interface FootballPlayer {
   contractId: string | null;
   transferStatus: PlayerTransferStatus;
   availability: PlayerAvailability;
+  /** Match sharpness/energy, 0-100. Optional for pre-health-model saves. */
+  fitness?: number;
+  /** Current football injury. Null/undefined means no active injury. */
+  injury?: PlayerInjury | null;
   createdSeason: number;
 }
 
