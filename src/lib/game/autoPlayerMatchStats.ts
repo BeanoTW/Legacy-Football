@@ -3,6 +3,7 @@ import { managerMatchStyle } from "./managerMatchStyle";
 import { managerFootballIdentity } from "./managerIdentity";
 import { userMatchBench, userMatchLineup } from "./matchLineup";
 import { applyMatchLoadInPlace, injuryWeeks, playerInjuryRiskMultiplier } from "./playerHealth";
+import { pushPlayerMatchMilestonesInPlace } from "./playerSeasonStats";
 import { hashString, mulberry32 } from "./rng";
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
@@ -175,4 +176,5 @@ export function recordAutoResolvedPlayerMatch(
       players,
     },
   };
+  pushPlayerMatchMilestonesInPlace(state, players);
 }
