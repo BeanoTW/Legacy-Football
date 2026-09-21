@@ -67,6 +67,9 @@ export function playerSeasonLeaders(
   const by = (
     compare: (a: (typeof rows)[number], b: (typeof rows)[number]) => number,
   ) => rows.slice().sort(compare)[0] ?? null;
+  const maxApps = rows.reduce((max, row) => Math.max(max, row.appearances), 0);
+  const ratingMinimum = Math.max(3, Math.ceil(maxApps * 0.35));
+  const ratingPool = rows.filter((row) => row.appearances >= ratingMinimum);
   return {
     topScorer: by(
       (a, b) => b.goals - a.goals || b.assists - a.assists || b.minutes - a.minutes,
@@ -74,12 +77,15 @@ export function playerSeasonLeaders(
     topAssister: by(
       (a, b) => b.assists - a.assists || b.goals - a.goals || b.minutes - a.minutes,
     ),
-    topRated: by(
-      (a, b) =>
-        b.averageRating - a.averageRating ||
-        b.appearances - a.appearances ||
-        a.playerId.localeCompare(b.playerId),
-    ),
+    topRated:
+      ratingPool
+        .slice()
+        .sort(
+          (a, b) =>
+            b.averageRating - a.averageRating ||
+            b.appearances - a.appearances ||
+            a.playerId.localeCompare(b.playerId),
+        )[0] ?? null,
     mostUsed: by(
       (a, b) => b.minutes - a.minutes || b.starts - a.starts || a.playerId.localeCompare(b.playerId),
     ),
