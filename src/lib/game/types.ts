@@ -1655,7 +1655,31 @@ export interface DomesticCupState {
   champion?: string;
 }
 
+export interface PlayerSeasonRecord {
+  playerId: string;
+  name: string;
+  appearances: number;
+  starts: number;
+  substituteAppearances: number;
+  minutes: number;
+  goals: number;
+  assists: number;
+  yellowCards: number;
+  averageRating: number;
+}
+
+export interface PlayerSeasonSummary {
+  season: number;
+  players: PlayerSeasonRecord[];
+  topScorerId: string | null;
+  topAssisterId: string | null;
+  topRatedId: string | null;
+  mostUsedId: string | null;
+}
+
 export interface GameState {
+  /** Lightweight immutable player-season summaries kept after match rows compact. */
+  playerSeasonHistory?: PlayerSeasonSummary[];
   /** Real recorded performances, keyed by season and fixture. No historical backfill. */
   playerMatchHistory?: Record<
     string,
