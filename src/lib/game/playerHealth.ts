@@ -15,6 +15,9 @@ export function playerIsAvailable(player: FootballPlayer, state: GameState): boo
 export function recoverPlayerHealthWeekInPlace(state: GameState): void {
   const now = absoluteWeek(state.season, state.week);
   for (const player of state.football.players) {
+    // Keep untouched players sparse: legacy/world players imply 100 fitness
+    // until they actually accumulate match load or an injury.
+    if (player.fitness === undefined && !player.injury) continue;
     player.fitness = clamp(playerFitness(player) + 24, 0, 100);
     if (player.injury && player.injury.returnAbsoluteWeek <= now) {
       player.injury = null;
