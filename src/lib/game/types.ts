@@ -597,6 +597,49 @@ export interface MatchEvent {
   type: "goal" | "chance" | "card" | "info" | "sub" | "injury";
   side: "us" | "them" | "neutral";
   text: string;
+  /** Replay-safe spatial context for commentary and the future 2D viewer. */
+  phase?: "buildUp" | "progression" | "transition" | "setPiece" | "finalThird";
+  zone?: "defensiveThird" | "middleThird" | "attackingThird" | "box";
+  xg?: number;
+  sequenceId?: string;
+}
+
+export interface MatchTeamPlan {
+  managerId: string | null;
+  managerName: string;
+  formation: string;
+  philosophy: string;
+  squadFit: number;
+  tempo: "Low" | "Medium" | "High";
+  pressing: "Low" | "Medium" | "High";
+  directness: "Low" | "Medium" | "High";
+}
+
+export interface MatchTeamStats {
+  possession: number;
+  territory: number;
+  chances: number;
+  shots: number;
+  shotsOnTarget: number;
+  xg: number;
+  corners: number;
+  fouls: number;
+  yellowCards: number;
+}
+
+export interface MatchHalfSnapshot {
+  half: 1 | 2;
+  usGoals: number;
+  themGoals: number;
+  us: MatchTeamStats;
+  them: MatchTeamStats;
+}
+
+export interface MatchEngineSnapshot {
+  version: 1;
+  userPlan: MatchTeamPlan;
+  opponentPlan: MatchTeamPlan;
+  halves: MatchHalfSnapshot[];
 }
 
 export interface HalfTimeOption {
@@ -610,7 +653,13 @@ export interface HalfTimeOption {
 }
 
 export interface LiveMatch {
-  fixture: { week: number; opponent: string; home: boolean };
+  fixture: {
+    week: number;
+    opponent: string;
+    home: boolean;
+    competition?: FixtureCompetition;
+    dayOfWeek?: number;
+  };
   weather: "Clear" | "Overcast" | "Wet" | "Windy";
   projectedAttendance: number;
   boardExpectation: "Win" | "Avoid defeat" | "Any result";
@@ -641,6 +690,8 @@ export interface LiveMatch {
   awayClub?: string;
   /** Set once the full-time result has been committed to the world. */
   committed?: boolean;
+  /** Canonical simulation output shared by stats, commentary and replay views. */
+  engine?: MatchEngineSnapshot;
 }
 
 /* =========================================================================
@@ -1555,7 +1606,13 @@ export interface GameState {
   squad: Player[];
   sponsors: Sponsor[];
 
-  fixtures: { week: number; opponent: string; home: boolean; competition?: FixtureCompetition; dayOfWeek?: number }[];
+  fixtures: {
+    week: number;
+    opponent: string;
+    home: boolean;
+    competition?: FixtureCompetition;
+    dayOfWeek?: number;
+  }[];
   results: FixtureResult[];
 
   /** Persistent domestic knockout competitions. Optional for legacy saves. */
