@@ -1,22 +1,19 @@
-import type { GameState, PlayerSeasonSummary } from "./types";
+import type {
+  GameState,
+  PlayerSeasonRecord,
+  PlayerSeasonSummary,
+  StoredPlayerSeasonRow,
+  StoredPlayerSeasonSummary,
+} from "./types";
+
+export interface LivePlayerSeasonStat extends PlayerSeasonRecord {
+  yellowCards: number;
+  ratingTotal: number;
+}
 
 /** Only genuine recorded matches contribute; never fabricate past appearances. */
-export function playerSeasonStats(state: GameState, season = state.season) {
-  const rows = new Map<
-    string,
-    {
-      playerId: string;
-      name: string;
-      appearances: number;
-      starts: number;
-      substituteAppearances: number;
-      minutes: number;
-      goals: number;
-      assists: number;
-      yellowCards: number;
-      ratingTotal: number;
-    }
-  >();
+export function playerSeasonStats(state: GameState, season = state.season): LivePlayerSeasonStat[] {
+  const rows = new Map<string, LivePlayerSeasonStat>();
   for (const match of Object.values(state.playerMatchHistory ?? {})) {
     if (match.season !== season) continue;
     for (const player of match.players) {
@@ -32,6 +29,7 @@ export function playerSeasonStats(state: GameState, season = state.season) {
         assists: 0,
         yellowCards: 0,
         ratingTotal: 0,
+        averageRating: 0,
       };
       row.appearances++;
       if (player.started === false) row.substituteAppearances++;
@@ -41,22 +39,20 @@ export function playerSeasonStats(state: GameState, season = state.season) {
       row.assists += player.assists;
       row.yellowCards += player.yellowCards;
       row.ratingTotal += player.rating;
+      row.averageRating = row.ratingTotal / row.appearances;
       rows.set(player.playerId, row);
     }
   }
-  return [...rows.values()]
-    .map((row) => ({ ...row, averageRating: row.ratingTotal / row.appearances }))
-    .sort(
-      (a, b) => b.goals - a.goals || b.assists - a.assists || a.playerId.localeCompare(b.playerId),
-    );
+  return [...rows.values()].sort(
+    (a, b) => b.goals - a.goals || b.assists - a.assists || a.playerId.localeCompare(b.playerId),
+  );
 }
 
-
 export interface PlayerSeasonLeaders {
-  topScorer: ReturnType<typeof playerSeasonStats>[number] | null;
-  topAssister: ReturnType<typeof playerSeasonStats>[number] | null;
-  topRated: ReturnType<typeof playerSeasonStats>[number] | null;
-  mostUsed: ReturnType<typeof playerSeasonStats>[number] | null;
+  topScorer: LivePlayerSeasonStat | null;
+  topAssister: LivePlayerSeasonStat | null;
+  topRated: LivePlayerSeasonStat | null;
+  mostUsed: LivePlayerSeasonStat | null;
 }
 
 export function playerSeasonLeaders(
@@ -64,9 +60,8 @@ export function playerSeasonLeaders(
   season = state.season,
 ): PlayerSeasonLeaders {
   const rows = playerSeasonStats(state, season);
-  const by = (
-    compare: (a: (typeof rows)[number], b: (typeof rows)[number]) => number,
-  ) => rows.slice().sort(compare)[0] ?? null;
+  const by = (compare: (a: LivePlayerSeasonStat, b: LivePlayerSeasonStat) => number) =>
+    rows.slice().sort(compare)[0] ?? null;
   const maxApps = rows.reduce((max, row) => Math.max(max, row.appearances), 0);
   const ratingMinimum = Math.max(3, Math.ceil(maxApps * 0.35));
   const ratingPool = rows.filter((row) => row.appearances >= ratingMinimum);
@@ -92,15 +87,8 @@ export function playerSeasonLeaders(
   };
 }
 
-
-export function closePlayerSeasonInPlace(
-  state: GameState,
-  season = state.season,
-): PlayerSeasonSummary | null {
-  if ((state.playerSeasonHistory ?? []).some((summary) => summary.season === season)) {
-    return state.playerSeasonHistory!.find((summary) => summary.season === season) ?? null;
-  }
-  const players = playerSeasonStats(state, season).map((row) => ({
+function publicRecord(row: LivePlayerSeasonStat): PlayerSeasonRecord {
+  return {
     playerId: row.playerId,
     name: row.name,
     appearances: row.appearances,
@@ -109,20 +97,83 @@ export function closePlayerSeasonInPlace(
     minutes: row.minutes,
     goals: row.goals,
     assists: row.assists,
-    yellowCards: row.yellowCards,
     averageRating: Math.round(row.averageRating * 100) / 100,
-  }));
-  if (!players.length) return null;
+  };
+}
+
+function storeRecord(row: PlayerSeasonRecord): StoredPlayerSeasonRow {
+  return [
+    row.playerId,
+    row.name,
+    row.appearances,
+    row.starts,
+    row.minutes,
+    row.goals,
+    row.assists,
+    Math.round(row.averageRating * 100),
+  ];
+}
+
+function expandRecord(row: StoredPlayerSeasonRow): PlayerSeasonRecord {
+  const [playerId, name, appearances, starts, minutes, goals, assists, rating100] = row;
+  return {
+    playerId,
+    name,
+    appearances,
+    starts,
+    substituteAppearances: Math.max(0, appearances - starts),
+    minutes,
+    goals,
+    assists,
+    averageRating: rating100 / 100,
+  };
+}
+
+function expandStored(summary: StoredPlayerSeasonSummary): PlayerSeasonSummary {
+  return {
+    season: summary.season,
+    players: summary.players.map(expandRecord),
+    topScorerId: summary.leaders[0],
+    topAssisterId: summary.leaders[1],
+    topRatedId: summary.leaders[2],
+    mostUsedId: summary.leaders[3],
+  };
+}
+
+function currentSummary(state: GameState, season: number): PlayerSeasonSummary | null {
+  const rows = playerSeasonStats(state, season);
+  if (!rows.length) return null;
   const leaders = playerSeasonLeaders(state, season);
-  const summary: PlayerSeasonSummary = {
+  return {
     season,
-    players,
+    players: rows.map(publicRecord),
     topScorerId: leaders.topScorer?.playerId ?? null,
     topAssisterId: leaders.topAssister?.playerId ?? null,
     topRatedId: leaders.topRated?.playerId ?? null,
     mostUsedId: leaders.mostUsed?.playerId ?? null,
   };
-  state.playerSeasonHistory = [...(state.playerSeasonHistory ?? []), summary].sort(
+}
+
+export function closePlayerSeasonInPlace(
+  state: GameState,
+  season = state.season,
+): PlayerSeasonSummary | null {
+  const existing = (state.playerSeasonHistory ?? []).find((summary) => summary.season === season);
+  if (existing) return expandStored(existing);
+
+  const summary = currentSummary(state, season);
+  if (!summary) return null;
+  const stored: StoredPlayerSeasonSummary = {
+    season,
+    players: summary.players.map(storeRecord),
+    leaders: [
+      summary.topScorerId,
+      summary.topAssisterId,
+      summary.topRatedId,
+      summary.mostUsedId,
+    ],
+  };
+  state.playerSeasonHistory = [...(state.playerSeasonHistory ?? []), stored].sort(
     (a, b) => a.season - b.season,
   );
   return summary;
@@ -132,33 +183,10 @@ export function playerSeasonSummary(
   state: GameState,
   season: number,
 ): PlayerSeasonSummary | null {
-  if (season === state.season) {
-    const players = playerSeasonStats(state, season);
-    if (!players.length) return null;
-    const leaders = playerSeasonLeaders(state, season);
-    return {
-      season,
-      players: players.map((row) => ({
-        playerId: row.playerId,
-        name: row.name,
-        appearances: row.appearances,
-        starts: row.starts,
-        substituteAppearances: row.substituteAppearances,
-        minutes: row.minutes,
-        goals: row.goals,
-        assists: row.assists,
-        yellowCards: row.yellowCards,
-        averageRating: Math.round(row.averageRating * 100) / 100,
-      })),
-      topScorerId: leaders.topScorer?.playerId ?? null,
-      topAssisterId: leaders.topAssister?.playerId ?? null,
-      topRatedId: leaders.topRated?.playerId ?? null,
-      mostUsedId: leaders.mostUsed?.playerId ?? null,
-    };
-  }
-  return (state.playerSeasonHistory ?? []).find((summary) => summary.season === season) ?? null;
+  if (season === state.season) return currentSummary(state, season);
+  const stored = (state.playerSeasonHistory ?? []).find((summary) => summary.season === season);
+  return stored ? expandStored(stored) : null;
 }
-
 
 export interface PlayerCareerTotals {
   playerId: string;
@@ -170,23 +198,22 @@ export interface PlayerCareerTotals {
   minutes: number;
   goals: number;
   assists: number;
-  yellowCards: number;
   averageRating: number;
+}
+
+function allPublicSummaries(state: GameState): PlayerSeasonSummary[] {
+  const closed = (state.playerSeasonHistory ?? []).map(expandStored);
+  const current = currentSummary(state, state.season);
+  return current ? [...closed, current] : closed;
 }
 
 export function playerCareerTotals(
   state: GameState,
   playerId: string,
 ): PlayerCareerTotals | null {
-  const summaries = [
-    ...(state.playerSeasonHistory ?? []),
-    ...(playerSeasonSummary(state, state.season)
-      ? [playerSeasonSummary(state, state.season)!]
-      : []),
-  ];
-  const rows = summaries
+  const rows = allPublicSummaries(state)
     .map((summary) => summary.players.find((player) => player.playerId === playerId))
-    .filter((row): row is NonNullable<typeof row> => Boolean(row));
+    .filter((row): row is PlayerSeasonRecord => Boolean(row));
   if (!rows.length) return null;
   const appearances = rows.reduce((sum, row) => sum + row.appearances, 0);
   const weightedRating = rows.reduce(
@@ -203,7 +230,6 @@ export function playerCareerTotals(
     minutes: rows.reduce((sum, row) => sum + row.minutes, 0),
     goals: rows.reduce((sum, row) => sum + row.goals, 0),
     assists: rows.reduce((sum, row) => sum + row.assists, 0),
-    yellowCards: rows.reduce((sum, row) => sum + row.yellowCards, 0),
     averageRating: appearances > 0 ? weightedRating / appearances : 0,
   };
 }
@@ -211,28 +237,17 @@ export function playerCareerTotals(
 export function playerSeasonByPlayer(
   state: GameState,
   playerId: string,
-): Array<{
-  season: number;
-  record: PlayerSeasonSummary["players"][number];
-}> {
-  const summaries = [
-    ...(state.playerSeasonHistory ?? []),
-    ...(playerSeasonSummary(state, state.season)
-      ? [playerSeasonSummary(state, state.season)!]
-      : []),
-  ];
-  return summaries
+): Array<{ season: number; record: PlayerSeasonRecord }> {
+  return allPublicSummaries(state)
     .map((summary) => ({
       season: summary.season,
       record: summary.players.find((player) => player.playerId === playerId),
     }))
     .filter(
-      (row): row is { season: number; record: PlayerSeasonSummary["players"][number] } =>
-        Boolean(row.record),
+      (row): row is { season: number; record: PlayerSeasonRecord } => Boolean(row.record),
     )
     .sort((a, b) => b.season - a.season);
 }
-
 
 export interface ClubPlayerRecords {
   appearances: PlayerCareerTotals | null;
@@ -243,10 +258,9 @@ export interface ClubPlayerRecords {
 
 export function clubPlayerRecords(state: GameState): ClubPlayerRecords {
   const ids = new Set<string>();
-  for (const summary of state.playerSeasonHistory ?? []) {
+  for (const summary of allPublicSummaries(state)) {
     for (const player of summary.players) ids.add(player.playerId);
   }
-  for (const player of playerSeasonStats(state)) ids.add(player.playerId);
   const careers = [...ids]
     .map((id) => playerCareerTotals(state, id))
     .filter((career): career is PlayerCareerTotals => Boolean(career));
