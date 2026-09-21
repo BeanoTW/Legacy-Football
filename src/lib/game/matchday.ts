@@ -91,6 +91,7 @@ export type MatchStream =
   | "h2.style"
   | "h2.cards"
   | "h2.metrics"
+  | "h2.management"
   | "halftime"
   | "finance";
 export function matchStream(seedBase: string, stream: MatchStream): () => number {
