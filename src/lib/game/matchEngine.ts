@@ -293,6 +293,7 @@ function replacementFor(
 export function prepareSecondHalfManagement(
   engine: MatchEngineSnapshot,
   seedBase: string,
+  injuryRiskMultiplier = 1,
 ): MatchEvent[] {
   if ((engine.substitutions?.length ?? 0) > 0 || (engine.injuries?.length ?? 0) > 0) {
     return [];
@@ -320,7 +321,7 @@ export function prepareSecondHalfManagement(
       );
 
     // Match injuries are deliberately uncommon but materially persistent.
-    if (candidates.length && bench.length && rng() < 0.13) {
+    if (candidates.length && bench.length && rng() < 0.13 * injuryRiskMultiplier) {
       const injured = candidates[Math.floor(rng() * Math.min(candidates.length, 6))];
       const replacement = replacementFor(injured, bench, usedBench);
       if (replacement) {
