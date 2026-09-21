@@ -331,3 +331,71 @@ export function pushPlayerSeasonAwardsInboxInPlace(
     status: "unread",
   });
 }
+
+
+const APPEARANCE_MILESTONES = [25, 50, 100, 200, 300];
+const GOAL_MILESTONES = [10, 25, 50, 100, 200];
+const ASSIST_MILESTONES = [10, 25, 50, 100];
+
+function highestCrossedMilestone(
+  before: number,
+  after: number,
+  thresholds: readonly number[],
+): number | null {
+  return thresholds.filter((value) => before < value && after >= value).at(-1) ?? null;
+}
+
+export function pushPlayerMatchMilestonesInPlace(
+  state: GameState,
+  matchPlayers: Array<{
+    playerId: string;
+    name: string;
+    minutes: number;
+    goals: number;
+    assists: number;
+  }>,
+): void {
+  for (const matchPlayer of matchPlayers) {
+    if (matchPlayer.minutes <= 0) continue;
+    const career = playerCareerTotals(state, matchPlayer.playerId);
+    if (!career) continue;
+    const appearance = highestCrossedMilestone(
+      Math.max(0, career.appearances - 1),
+      career.appearances,
+      APPEARANCE_MILESTONES,
+    );
+    const goal = highestCrossedMilestone(
+      Math.max(0, career.goals - matchPlayer.goals),
+      career.goals,
+      GOAL_MILESTONES,
+    );
+    const assist = highestCrossedMilestone(
+      Math.max(0, career.assists - matchPlayer.assists),
+      career.assists,
+      ASSIST_MILESTONES,
+    );
+    if (appearance == null && goal == null && assist == null) continue;
+
+    const parts = [
+      appearance != null ? `${appearance} appearances` : null,
+      goal != null ? `${goal} goals` : null,
+      assist != null ? `${assist} assists` : null,
+    ].filter((part): part is string => Boolean(part));
+    const eventKey = `player-milestone:${matchPlayer.playerId}:${parts.join("+")}`;
+    if (state.inbox.some((item) => item.eventKey === eventKey)) continue;
+    state.inbox.push({
+      id: `inbox-${hashString(eventKey).toString(36)}`,
+      generatorId: "club-player-milestone",
+      eventKey,
+      sender: "Club Secretary",
+      department: "Club",
+      category: "information",
+      subject: `${matchPlayer.name} reaches club milestone`,
+      body: `${matchPlayer.name} has reached ${parts.join(" and ")} in the club's recorded match history.`,
+      priority: appearance != null && appearance >= 100 ? "high" : "normal",
+      week: state.week,
+      season: state.season,
+      status: "unread",
+    });
+  }
+}
