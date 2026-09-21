@@ -1,6 +1,7 @@
 import type { GameState } from "./types";
 import { sameClubReference } from "./clubReference";
 import { clubStrengthFor } from "./reputation";
+import { playerFitness, playerIsAvailable } from "./playerHealth";
 
 export const FOOTBALL_STRENGTH_MIN = 25;
 export const FOOTBALL_STRENGTH_MAX = 95;
@@ -26,8 +27,22 @@ export function compactSquadStrength(abilities: readonly number[]): number | nul
 
 export function clubFootballStrength(state: GameState, clubId: string, season = state.season): number {
   if (sameClubReference(state, clubId, state.clubName)) {
-    const own = detailedSquadStrength(state.squad.map((player) => player.rating));
-    if (own !== null) return own;
+    const ownPlayers = Object.values(state.football?.players ?? {}).filter(
+      (player) =>
+        sameClubReference(state, player.currentClubId, clubId) &&
+        playerIsAvailable(player, state),
+    );
+    const ownDetailed = detailedSquadStrength(
+      ownPlayers.map((player) => {
+        const fitness = playerFitness(player);
+        const fatiguePenalty = Math.max(0, 82 - fitness) * 0.08;
+        return player.currentAbility - fatiguePenalty;
+      }),
+    );
+    if (ownDetailed !== null) return ownDetailed;
+
+    const ownLegacy = detailedSquadStrength(state.squad.map((player) => player.rating));
+    if (ownLegacy !== null) return ownLegacy;
   }
 
   const detailed = Object.values(state.football?.players ?? {})
