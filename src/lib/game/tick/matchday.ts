@@ -33,6 +33,7 @@ import { advanceDomesticCup, resolveDomesticCupTie } from "../domesticCupState";
 import { resolveKnockoutDraw } from "../knockout";
 import { resolveAllAiDomesticCups } from "../aiDomesticCups";
 import { syncUserCupFixtures } from "../cupFixtures";
+import { recordAutoResolvedPlayerMatch } from "../autoPlayerMatchStats";
 
 export interface MatchOverride {
   gf: number;
@@ -139,6 +140,7 @@ export function tickSelectedMatchday(
     });
 
     const result: "W" | "D" | "L" = gf > ga ? "W" : gf === ga ? "D" : "L";
+    if (!override) recordAutoResolvedPlayerMatch(s, fixture, gf, ga);
     fxResult = {
       week: s.week,
       dayOfWeek: fixture.dayOfWeek,
