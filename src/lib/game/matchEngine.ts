@@ -42,6 +42,7 @@ export function createMatchEngineSnapshot(
       tempo: style.tempo,
       pressing: style.pressing,
       directness: style.directness,
+      rotation: prep.rotation,
     },
     opponentPlan: {
       managerId: null,
@@ -52,6 +53,7 @@ export function createMatchEngineSnapshot(
       tempo: "Medium",
       pressing: "Medium",
       directness: "Medium",
+      rotation: "Medium",
     },
     halves: [],
     userLineup,
@@ -380,10 +382,14 @@ export function prepareSecondHalfManagement(
       }
     }
 
+    const rotation =
+      side === "us" ? engine.userPlan.rotation ?? "Medium" : engine.opponentPlan.rotation ?? "Medium";
+    const secondSubChance = rotation === "High" ? 0.9 : rotation === "Low" ? 0.5 : 0.72;
+    const thirdSubChance = rotation === "High" ? 0.58 : rotation === "Low" ? 0.18 : 0.34;
     const desiredSubs = Math.min(
       3 - substitutions.filter((sub) => sub.side === side).length,
       bench.length - usedBench.size,
-      1 + (rng() < 0.72 ? 1 : 0) + (rng() < 0.34 ? 1 : 0),
+      1 + (rng() < secondSubChance ? 1 : 0) + (rng() < thirdSubChance ? 1 : 0),
     );
     for (let i = 0; i < desiredSubs; i++) {
       const off = candidates.find((player) => !alreadyOff.has(player.playerId));
