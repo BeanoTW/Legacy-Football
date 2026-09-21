@@ -29,9 +29,11 @@ import { managerMatchStyle } from "./managerMatchStyle";
 import { calendarDay } from "./calendar";
 import {
   createMatchEngineSnapshot,
+  prepareSecondHalfManagement,
   refreshPlayerMatchStats,
   simulateMatchHalf,
 } from "./matchEngine";
+import { applyMatchLoadInPlace } from "./playerHealth";
 
 function formGuide(s: GameState): string {
   const last5 = s.results
@@ -134,6 +136,9 @@ export function kickoff(s: GameState): GameState {
     style,
     userLineup: lm.engine?.userLineup,
     opponentLineup: lm.engine?.opponentLineup,
+    userBench: lm.engine?.userBench,
+    opponentBench: lm.engine?.opponentBench,
+    substitutions: lm.engine?.substitutions,
   });
   const { usGoals, themGoals } = half.snapshot;
   lm.events = half.events;
@@ -196,7 +201,12 @@ export function applyHalfTimeChoice(s: GameState, choiceId: string): GameState {
   lm.engine ??= preparedEngine;
   lm.engine.userLineup ??= preparedEngine.userLineup;
   lm.engine.opponentLineup ??= preparedEngine.opponentLineup;
+  lm.engine.userBench ??= preparedEngine.userBench;
+  lm.engine.opponentBench ??= preparedEngine.opponentBench;
+  lm.engine.substitutions ??= [];
+  lm.engine.injuries ??= [];
   lm.engine.playerStats ??= preparedEngine.playerStats;
+  const managementEvents = prepareSecondHalfManagement(lm.engine, seedBase);
   const half = simulateMatchHalf({
     seedBase,
     half: 2,
@@ -208,9 +218,14 @@ export function applyHalfTimeChoice(s: GameState, choiceId: string): GameState {
     style,
     userLineup: lm.engine?.userLineup,
     opponentLineup: lm.engine?.opponentLineup,
+    userBench: lm.engine?.userBench,
+    opponentBench: lm.engine?.opponentBench,
+    substitutions: lm.engine?.substitutions,
   });
   const { usGoals, themGoals } = half.snapshot;
-  lm.events = [...lm.events, ...half.events];
+  lm.events = [...lm.events, ...managementEvents, ...half.events].sort(
+    (a, b) => a.minute - b.minute || (a.sequenceId ?? "").localeCompare(b.sequenceId ?? ""),
+  );
   lm.engine.halves = [...lm.engine.halves.filter((item) => item.half !== 2), half.snapshot].sort(
     (a, b) => a.half - b.half,
   );
@@ -251,6 +266,7 @@ export function commitLiveMatch(
     return { ...prev, liveMatch: null };
   const cleared: GameState = { ...prev, liveMatch: null };
   if (lm.engine?.playerStats?.length) {
+    applyMatchLoadInPlace(cleared, lm.engine.playerStats, lm.engine.injuries ?? []);
     const key = `${lm.season ?? prev.season}|${lm.fixture.week}|${lm.fixture.dayOfWeek ?? 5}|${lm.fixture.competition ?? "league"}|${lm.fixture.opponent}|${lm.fixture.home}`;
     cleared.playerMatchHistory = {
       ...prev.playerMatchHistory,
