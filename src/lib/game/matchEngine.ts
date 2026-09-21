@@ -324,7 +324,13 @@ export function prepareSecondHalfManagement(
       );
 
     // Match injuries are deliberately uncommon but materially persistent.
-    if (candidates.length && bench.length && rng() < 0.13 * injuryRiskMultiplier) {
+    // Congested schedules matter indirectly through accumulated fitness: a tired
+    // group carries a modest extra soft-tissue risk rather than a binary penalty.
+    const averageFitness = candidates.length
+      ? candidates.reduce((sum, player) => sum + (player.fitness ?? 100), 0) / candidates.length
+      : 100;
+    const fatigueRisk = 1 + Math.max(0, 78 - averageFitness) * 0.012;
+    if (candidates.length && bench.length && rng() < 0.13 * injuryRiskMultiplier * fatigueRisk) {
       const injured = candidates[Math.floor(rng() * Math.min(candidates.length, 6))];
       const replacement = replacementFor(injured, bench, usedBench);
       if (replacement) {
