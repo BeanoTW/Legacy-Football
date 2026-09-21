@@ -646,6 +646,7 @@ export interface MatchTeamPlan {
   tempo: "Low" | "Medium" | "High";
   pressing: "Low" | "Medium" | "High";
   directness: "Low" | "Medium" | "High";
+  rotation?: "Low" | "Medium" | "High";
 }
 
 export interface MatchTeamStats {
