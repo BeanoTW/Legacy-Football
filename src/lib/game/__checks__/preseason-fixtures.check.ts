@@ -1,5 +1,5 @@
 import { strict as assert } from "node:assert";
-import { advanceDay } from "../engine";
+import { advanceDay, simulateFixtureToday } from "../engine";
 import { newGame } from "../newGame";
 import { setCalendarDay } from "../calendar";
 import { isLeagueSeasonComplete, seasonFixtureCount } from "../league";
@@ -97,15 +97,21 @@ throughCalendar.results = firstTwo.map((fixture) => ({
 const finalFixture = throughCalendar.fixtures.filter((fixture) => fixture.competition === "preseason")[2];
 throughCalendar.week = finalFixture.week;
 setCalendarDay(throughCalendar, (finalFixture.dayOfWeek ?? 5) - 1);
-const afterFinalDay = advanceDay(throughCalendar);
+const onFinalDay = advanceDay(throughCalendar);
+assert.equal(
+  onFinalDay.results.filter((result) => result.competition === "preseason").length,
+  2,
+  "reaching the final friendly should pause before the fixture is resolved",
+);
+const afterFinalDay = simulateFixtureToday(onFinalDay);
 assert.equal(
   afterFinalDay.results.filter((result) => result.competition === "preseason").length,
   3,
-  "the final dated fixture should be committed before settlement",
+  "explicitly simulating the final dated fixture should commit it before settlement",
 );
 assert.ok(
   afterFinalDay.inbox.some((item) => item.eventKey === `preseason:conclusion:s${afterFinalDay.season}`),
-  "playing the final dated fixture should trigger the conclusion",
+  "simulating the final dated fixture should trigger the conclusion",
 );
 
 console.log("preseason-fixtures.check: ok");
