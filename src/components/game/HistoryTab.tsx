@@ -5,9 +5,11 @@ import { clubLegacyRecord } from "@/lib/game/clubLegacy";
 import { isUserClubReference, userClubReference } from "@/lib/game/clubReference";
 import { legacyTierToFootballLevel } from "@/lib/game/footballLevel";
 import { Section, sum } from "./shared/primitives";
+import { playerSeasonStats } from "@/lib/game/playerSeasonStats";
 
 export function HistoryTab({ state }: { state: GameState }) {
   const rows = [...state.ledger].reverse();
+  const playerRows = playerSeasonStats(state);
   const userId = userClubReference(state);
   const legacy = clubLegacyRecord(state, userId);
   const clubRecord = state.clubRecords?.[userId];
@@ -15,11 +17,52 @@ export function HistoryTab({ state }: { state: GameState }) {
 
   return (
     <div className="space-y-4">
+      <Section title="Player season record">
+        <p className="mb-3 text-xs text-muted-foreground">
+          Recorded watched matches only. Earlier and auto-resolved appearances are not estimated.
+        </p>
+        {playerRows.length ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr>
+                  <th className="text-left">Player</th>
+                  <th>Apps</th>
+                  <th>Goals</th>
+                  <th>Assists</th>
+                  <th>Rating</th>
+                </tr>
+              </thead>
+              <tbody>
+                {playerRows.map((player) => (
+                  <tr key={player.playerId} className="border-t">
+                    <td className="py-2">{player.name}</td>
+                    <td className="text-center">{player.appearances}</td>
+                    <td className="text-center">{player.goals}</td>
+                    <td className="text-center">{player.assists}</td>
+                    <td className="text-center">{player.averageRating.toFixed(1)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Complete a watched match to start recording player performances.
+          </p>
+        )}
+      </Section>
       <Section title="Club legacy">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
           <LegacyStat label="League titles" value={String(legacy?.leagueTitles ?? 0)} />
-          <LegacyStat label="Promotions" value={String(legacy?.promotions ?? clubRecord?.promotions ?? 0)} />
-          <LegacyStat label="Relegations" value={String(legacy?.relegations ?? clubRecord?.relegations ?? 0)} />
+          <LegacyStat
+            label="Promotions"
+            value={String(legacy?.promotions ?? clubRecord?.promotions ?? 0)}
+          />
+          <LegacyStat
+            label="Relegations"
+            value={String(legacy?.relegations ?? clubRecord?.relegations ?? 0)}
+          />
           <LegacyStat
             label="Best finish"
             value={
@@ -30,7 +73,9 @@ export function HistoryTab({ state }: { state: GameState }) {
           />
           <LegacyStat
             label="Record crowd"
-            value={legacy?.recordAttendance ? legacy.recordAttendance.attendance.toLocaleString() : "—"}
+            value={
+              legacy?.recordAttendance ? legacy.recordAttendance.attendance.toLocaleString() : "—"
+            }
           />
           <LegacyStat
             label="Record buy"
@@ -38,7 +83,9 @@ export function HistoryTab({ state }: { state: GameState }) {
           />
           <LegacyStat
             label="Record sale"
-            value={legacy?.recordTransferReceived ? fmtMoney(legacy.recordTransferReceived.fee) : "—"}
+            value={
+              legacy?.recordTransferReceived ? fmtMoney(legacy.recordTransferReceived.fee) : "—"
+            }
           />
         </div>
       </Section>
@@ -68,9 +115,15 @@ export function HistoryTab({ state }: { state: GameState }) {
                     </div>
                     <div className="text-xs text-muted-foreground">
                       Finished {season.position}
-                      {archived?.champion && isUserClubReference(state, archived.champion) ? " · Champions" : ""}
-                      {archived?.promoted.some((club) => isUserClubReference(state, club)) ? " · Promoted" : ""}
-                      {archived?.relegated.some((club) => isUserClubReference(state, club)) ? " · Relegated" : ""}
+                      {archived?.champion && isUserClubReference(state, archived.champion)
+                        ? " · Champions"
+                        : ""}
+                      {archived?.promoted.some((club) => isUserClubReference(state, club))
+                        ? " · Promoted"
+                        : ""}
+                      {archived?.relegated.some((club) => isUserClubReference(state, club))
+                        ? " · Relegated"
+                        : ""}
                     </div>
                   </div>
                   <span className="tnum text-muted-foreground">#{season.position}</span>

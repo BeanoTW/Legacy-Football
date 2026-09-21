@@ -31,11 +31,16 @@ export function matchIdentity(
   if (!fx) return null;
   const sched = (s.leagueSchedule ?? []).find(
     (f) =>
+      (fx.competition ?? "league") === "league" &&
       f.week === s.week &&
       ((isUserClubReference(s, f.home) && sameClubReference(s, f.away, fx.opponent)) ||
         (isUserClubReference(s, f.away) && sameClubReference(s, f.home, fx.opponent))),
   );
-  const leagueId = sched ? leagueOf(sched) : playerLeagueId(s);
+  const leagueId = sched
+    ? leagueOf(sched)
+    : (fx.competition ?? "league") === "league"
+      ? playerLeagueId(s)
+      : `${fx.competition}:${fx.dayOfWeek ?? 5}`;
   const round = sched?.round ?? s.week;
   const userRef = userClubReference(s);
   const homeClub = fx.home ? userRef : fx.opponent;

@@ -606,7 +606,7 @@ console.log("\n[I] Weekly integration");
     "I39. inbox generators run once",
     new Set(after.inbox.map((i) => i.eventKey ?? i.id)).size === after.inbox.length,
   );
-  check("I40. week advances once", after.week === ft.week + 1);
+  check("I40. watched fixture settlement preserves the calendar week", after.week === ft.week);
   check(
     "I41. board/reputation/fan effects apply once",
     (() => {

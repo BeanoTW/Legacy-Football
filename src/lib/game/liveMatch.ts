@@ -250,6 +250,18 @@ export function commitLiveMatch(
   if (lm.fixtureId && (prev.matchRecords ?? []).some((r) => r.id === lm.fixtureId))
     return { ...prev, liveMatch: null };
   const cleared: GameState = { ...prev, liveMatch: null };
+  if (lm.engine?.playerStats?.length) {
+    const key = `${lm.season ?? prev.season}|${lm.fixture.week}|${lm.fixture.dayOfWeek ?? 5}|${lm.fixture.competition ?? "league"}|${lm.fixture.opponent}|${lm.fixture.home}`;
+    cleared.playerMatchHistory = {
+      ...prev.playerMatchHistory,
+      [key]: {
+        season: lm.season ?? prev.season,
+        week: lm.fixture.week,
+        opponent: lm.fixture.opponent,
+        players: structuredClone(lm.engine.playerStats),
+      },
+    };
+  }
   return advance(cleared, {
     gf: lm.ourGoals,
     ga: lm.theirGoals,

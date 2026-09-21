@@ -475,8 +475,8 @@ console.log("\n[U15] Match centre identity and competition context");
   );
   check(
     "match centre hides half-time and full-time verdicts until replay completion",
-    /lm\.status === "halfTime" && lm\.halfTimeOptions && replayComplete/.test(matchday) &&
-      /lm\.status === "fullTime" && replayComplete/.test(matchday) &&
+    /lm\.status === "halfTime" && lm\.halfTimeOptions && finishedReplay/.test(matchday) &&
+      /lm\.status === "fullTime" && finishedReplay/.test(matchday) &&
       /onReplayProgress/.test(viewer),
   );
   check(

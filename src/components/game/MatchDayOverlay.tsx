@@ -37,6 +37,7 @@ export function MatchDayOverlay({
   const lm = state.liveMatch!;
   const [revealedEvents, setRevealedEvents] = useState(0);
   const [replayComplete, setReplayComplete] = useState(false);
+  const finishedReplay = replayComplete && revealedEvents >= lm.events.length;
   const onReplayProgress = useCallback((count: number, complete: boolean) => {
     setRevealedEvents(count);
     setReplayComplete(complete);
@@ -57,7 +58,7 @@ export function MatchDayOverlay({
   const statusLabel =
     lm.status === "brief"
       ? "PRE-MATCH"
-      : !replayComplete
+      : !finishedReplay
         ? "LIVE"
         : lm.status === "halfTime"
           ? "HALF TIME"
@@ -99,7 +100,7 @@ export function MatchDayOverlay({
             </div>
             <button
               className="grid size-9 place-items-center rounded-xl bg-black/15 transition-colors hover:bg-black/25 sm:size-10"
-              aria-label={lm.status === "fullTime" ? "Continue to next week" : "Close matchday"}
+              aria-label={lm.status === "fullTime" ? "Return to club" : "Close matchday"}
               onClick={() => {
                 if (lm.status === "fullTime") {
                   update((s) => commitLiveMatchAndAdvance(s));
@@ -149,7 +150,7 @@ export function MatchDayOverlay({
                 icon={Target}
                 label="Shots (on target)"
                 value={
-                  stats && replayComplete
+                  stats && finishedReplay
                     ? `${stats.us.shots} (${stats.us.shotsOnTarget})–${stats.them.shots} (${stats.them.shotsOnTarget})`
                     : `${visibleOurShots.length}–${visibleTheirShots.length}`
                 }
@@ -239,7 +240,7 @@ export function MatchDayOverlay({
               </section>
             )}
 
-            {lm.status === "halfTime" && lm.halfTimeOptions && replayComplete && (
+            {lm.status === "halfTime" && lm.halfTimeOptions && finishedReplay && (
               <section className="min-h-0 overflow-hidden border-t p-2.5 sm:overflow-y-auto sm:p-5 space-y-2 sm:space-y-4">
                 <div>
                   <div className="hidden text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:block">
@@ -276,7 +277,7 @@ export function MatchDayOverlay({
               </section>
             )}
 
-            {lm.status !== "brief" && !replayComplete && (
+            {lm.status !== "brief" && !finishedReplay && (
               <section className="flex min-h-0 flex-col items-center justify-center border-t p-5 text-center">
                 <Activity className="size-8 animate-pulse text-primary" />
                 <div className="mt-3 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
@@ -290,7 +291,7 @@ export function MatchDayOverlay({
               </section>
             )}
 
-            {lm.status === "fullTime" && replayComplete && (
+            {lm.status === "fullTime" && finishedReplay && (
               <section className="flex min-h-0 flex-col overflow-hidden border-t">
                 <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-3 sm:space-y-4 sm:p-5">
                   <div className="text-center py-1">
@@ -401,7 +402,7 @@ export function MatchDayOverlay({
                     className="h-12 w-full text-base font-semibold sm:h-14"
                     onClick={() => update((s) => commitLiveMatchAndAdvance(s))}
                   >
-                    Continue to next week <ChevronsRight className="size-5 ml-1" />
+                    Return to club <ChevronsRight className="size-5 ml-1" />
                   </Button>
                 </div>
               </section>
@@ -430,7 +431,7 @@ export function MatchDayOverlay({
                     </div>
                   ) : (
                     <ul className="text-sm divide-y">
-                      {lm.events.map((e, i) => (
+                  {lm.events.slice(0, revealedEvents).map((e, i) => (
                         <li
                           key={i}
                           className={cn(

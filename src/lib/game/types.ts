@@ -1610,6 +1610,11 @@ export interface DomesticCupState {
 }
 
 export interface GameState {
+  /** Real recorded performances, keyed by season and fixture. No historical backfill. */
+  playerMatchHistory?: Record<
+    string,
+    { season: number; week: number; opponent: string; players: MatchPlayerStats[] }
+  >;
   /** Save schema version. Bump + add a migration in loadGame when persisted shape changes. */
   version: number;
 

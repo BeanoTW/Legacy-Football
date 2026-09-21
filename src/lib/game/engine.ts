@@ -275,7 +275,19 @@ export function skipTransferDeadlineDay(prev: GameState): GameState {
 
 /** Exactly-once full-time commit for an interactive match. */
 export function commitLiveMatchAndAdvance(prev: GameState): GameState {
-  return commitLiveMatch(prev, (s, o) => advanceWeek(s, o));
+  const fixture = prev.liveMatch?.fixture;
+  return commitLiveMatch(prev, (s, override) => {
+    if (!fixture) return s;
+    const next = structuredClone(s);
+    const { fxResult } = tickSelectedMatchday(next, fixture, override);
+    if (fxResult) {
+      next.results.push(fxResult);
+      if (fxResult.competition === "preseason") settlePreseasonInvitational(next);
+      applyPlayerClubMatchOutcomeInPlace(next, fxResult);
+      syncTable(next);
+    }
+    return next;
+  });
 }
 
 const MIGRATION_DEPS: MigrationDeps = { staffPoolFor, squadRating };
