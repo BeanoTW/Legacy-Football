@@ -3,8 +3,10 @@ import { newGame, commitLiveMatchAndAdvance, advanceWeek } from "../engine";
 import { applyHalfTimeChoice, kickoff, startMatchDay } from "../liveMatch";
 import { setCalendarDay } from "../calendar";
 import { absoluteWeek } from "../time";
-import { applyMatchLoadInPlace } from "../playerHealth";
+import { applyMatchLoadInPlace, medicalSupport } from "../playerHealth";
 import { isUserClubReference } from "../clubReference";
+import { makeStaff } from "../staff";
+import { userMatchLineup } from "../matchLineup";
 
 function matchState(seed: string) {
   const game = newGame("Health FC", "Chair", seed);
@@ -112,3 +114,49 @@ assert.equal(recovered.injury, null);
 assert((recovered.fitness ?? 0) > 45, "recovery weeks must restore fitness");
 
 console.log("player-health-match: passed");
+
+
+const basicMedical = newGame("Basic Medical FC", "Chair", "medical-support-basic");
+const eliteMedical = newGame("Elite Medical FC", "Chair", "medical-support-elite");
+const fixed = () => 0.5;
+const physio = makeStaff("Head Physio", 90, fixed);
+const scientist = makeStaff("Sports Scientist", 88, fixed);
+const fitnessCoach = makeStaff("Fitness Coach", 86, fixed);
+physio.stats.medical = 92;
+scientist.stats.medical = 88;
+fitnessCoach.stats.medical = 85;
+eliteMedical.hiredStaff = [physio, scientist, fitnessCoach];
+assert(
+  medicalSupport(eliteMedical).score > medicalSupport(basicMedical).score,
+  "specialist medical staff must improve the club medical score",
+);
+assert(
+  medicalSupport(eliteMedical).recoveryPerWeek > medicalSupport(basicMedical).recoveryPerWeek,
+  "better medical departments must recover fitness faster",
+);
+assert(
+  medicalSupport(eliteMedical).injuryRiskMultiplier < medicalSupport(basicMedical).injuryRiskMultiplier,
+  "better medical departments must reduce injury risk",
+);
+
+const rotationState = newGame("Rotation FC", "Chair", "rotation-fatigue-regression");
+const manager = makeStaff("Manager", 74, fixed);
+manager.stats = {
+  ...manager.stats,
+  development: 90,
+  motivation: 82,
+  tactics: 82,
+};
+rotationState.hiredStaff = [manager];
+const eligible = rotationState.football.players.filter((player) =>
+  isUserClubReference(rotationState, player.currentClubId),
+);
+const strongest = eligible
+  .filter((player) => player.primaryPosition !== "GK")
+  .sort((a, b) => b.currentAbility - a.currentAbility)[0];
+if (strongest) strongest.fitness = 38;
+const rotated = userMatchLineup(rotationState, "4-4-2");
+assert(
+  !strongest || !rotated.some((player) => player.playerId === strongest.id) || rotated.find((player) => player.playerId === strongest.id)!.fitness! >= 38,
+  "high-rotation managers must account for fatigue when selecting a side",
+);
