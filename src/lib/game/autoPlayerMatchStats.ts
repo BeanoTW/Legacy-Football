@@ -135,7 +135,14 @@ export function recordAutoResolvedPlayerMatch(
   });
 
   const injuries: MatchInjury[] = [];
-  if (outfield.length && rng() < 0.08 * playerInjuryRiskMultiplier(state)) {
+  const averageFitness = outfield.length
+    ? outfield.reduce((sum, player) => sum + (player.fitness ?? 100), 0) / outfield.length
+    : 100;
+  const fatigueRisk = 1 + Math.max(0, 78 - averageFitness) * 0.012;
+  if (
+    outfield.length &&
+    rng() < 0.08 * playerInjuryRiskMultiplier(state) * fatigueRisk
+  ) {
     const injured = outfield[Math.floor(rng() * outfield.length)];
     const roll = rng();
     const severity = roll < 0.55 ? "knock" : roll < 0.82 ? "minor" : roll < 0.96 ? "moderate" : "serious";
