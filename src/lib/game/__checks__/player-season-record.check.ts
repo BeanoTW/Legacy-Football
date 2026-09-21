@@ -22,8 +22,15 @@ assert.equal(
 );
 assert.equal(saved.results.at(-1)?.goalsFor, full.liveMatch?.ourGoals);
 assert.equal(Object.keys(saved.playerMatchHistory ?? {}).length, 1);
-assert.equal(playerSeasonStats(saved).length, full.liveMatch?.engine?.userLineup?.length);
-assert(playerSeasonStats(saved).every((row) => row.appearances === 1 && row.minutes === 90));
+assert(
+  playerSeasonStats(saved).length >= (full.liveMatch?.engine?.userLineup?.length ?? 0),
+  "used substitutes should join the season record without dropping starters",
+);
+assert(
+  playerSeasonStats(saved).every(
+    (row) => row.appearances === 1 && row.minutes > 0 && row.minutes <= 90,
+  ),
+);
 assert.deepEqual(playerSeasonStats(JSON.parse(JSON.stringify(saved))), playerSeasonStats(saved));
 assert.deepEqual(commitLiveMatchAndAdvance(saved), saved, "repeat commit is a no-op");
 assert.equal(playerSeasonStats(saved, saved.season + 1).length, 0);
@@ -49,8 +56,10 @@ assert.equal(
   "auto-resolved user fixture must persist player performances",
 );
 const autoStats = playerSeasonStats(auto);
-assert.equal(autoStats.length, 11);
-assert(autoStats.every((row) => row.appearances === 1 && row.minutes === 90));
+assert(autoStats.length >= 11 && autoStats.length <= 14);
+assert(
+  autoStats.every((row) => row.appearances === 1 && row.minutes > 0 && row.minutes <= 90),
+);
 assert.equal(
   autoStats.reduce((sum, row) => sum + row.goals, 0),
   autoOutcome.fxResult!.goalsFor,
