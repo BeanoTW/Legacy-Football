@@ -28,7 +28,7 @@ import { SEASON_END_WEEK } from "../calendar";
 import { ordinal } from "../format";
 import { initialiseSeasonCups } from "../cupEntry";
 import { initialisePreseasonFixtures } from "../preseason";
-import { closePlayerSeasonInPlace } from "../playerSeasonStats";
+import { closePlayerSeasonInPlace, pushPlayerSeasonAwardsInboxInPlace } from "../playerSeasonStats";
 import {
   fixturesForClub,
   makeFixtures,
@@ -81,11 +81,12 @@ export function tickSeasonRollover(s: GameState): void {
   closeRecruitmentSeason(s, closingSeason);
   // Preserve a compact player-season record before detailed match rows are
   // eligible for persistence compaction. This keeps long-career history cheap.
-  closePlayerSeasonInPlace(s, closingSeason);
+  const playerSeasonSummary = closePlayerSeasonInPlace(s, closingSeason);
 
   // reset
   s.season += 1;
   s.week = 1;
+  if (playerSeasonSummary) pushPlayerSeasonAwardsInboxInPlace(s, playerSeasonSummary);
   // Advance compact outer-world identity before recruitment moves the Focus
   // boundary. Clubs returning to Focus therefore hydrate the same people after
   // their cheap statistical age/development/retirement step has run.
