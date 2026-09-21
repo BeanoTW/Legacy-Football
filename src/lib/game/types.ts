@@ -624,6 +624,8 @@ export interface MatchPlayerStats {
   shirtNumber: number;
   role: TacticalPosition;
   minutes: number;
+  /** True when the player was in the starting XI rather than introduced from the bench. */
+  started?: boolean;
   goals: number;
   assists: number;
   chances: number;
