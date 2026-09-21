@@ -18,6 +18,7 @@ import { userSquad } from "../recruitment";
 import { buildWorldSimulationPlan } from "../world";
 import { isUserClubReference } from "../clubReference";
 import type { GameState, FinanceEntry } from "../types";
+import { playerCareerTotals, playerSeasonSummary } from "../playerSeasonStats";
 
 let passed = 0;
 let failed = 0;
@@ -303,6 +304,31 @@ console.log("\n[H5b] Completed loan history survives repository storage");
       archivedLoan.loanClubId === destination &&
       archivedLoan.loanClubWageContributionPct === 50,
   );
+}
+
+/* ---------------------------------------------------------------- */
+console.log("\n[H5c] Player season summaries survive compaction");
+{
+  const { core, chunks } = compactState(twoSeasons);
+  const closedSeason = twoSeasons.season - 1;
+  const liveSummary = playerSeasonSummary(twoSeasons, closedSeason);
+  const compactSummary = playerSeasonSummary(core, closedSeason);
+  check("completed season has a player summary", !!liveSummary);
+  check(
+    "compact core keeps the lightweight player season summary",
+    JSON.stringify(compactSummary) === JSON.stringify(liveSummary),
+  );
+  check(
+    "detailed historical player matches are chunked separately",
+    chunks.some(
+      (chunk) => chunk.kind === "history:player-matches" && chunk.season === closedSeason,
+    ),
+  );
+  const leaderId = compactSummary?.topScorerId;
+  if (leaderId) {
+    const career = playerCareerTotals(core, leaderId);
+    check("career totals remain readable from compact summaries", !!career && career.appearances > 0);
+  }
 }
 
 /* ---------------------------------------------------------------- */
