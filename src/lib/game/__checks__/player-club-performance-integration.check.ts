@@ -10,6 +10,7 @@ import { hasFullSchedule, leagueOf, playerLeagueId, simulateFixture } from "../l
 import { startMatchDay } from "../liveMatch";
 import { isUserClubReference } from "../clubReference";
 import { tickMatchday } from "../tick/matchday";
+import { userMatchStrength } from "../matchStrength";
 
 const state = newGame("Performance Integration FC", "Integration Auditor", "PERFORMANCE_INTEGRATION");
 const fixture = state.fixtures[0];
@@ -24,6 +25,11 @@ advancePlayerClubPerformanceWeekInPlace(state);
 const baseStrength = clubFootballStrength(state, state.clubName, state.season);
 const realisedStrength = realisedPlayerClubStrength(state, baseStrength);
 assert.ok(realisedStrength > baseStrength, "positive club state should realise slightly more squad quality");
+const selectedStrength = userMatchStrength(state);
+assert(
+  selectedStrength <= realisedStrength,
+  "selected XI can only preserve or reduce the realised club strength",
+);
 
 const opponentStrength = clubFootballStrength(state, fixture.opponent, state.season);
 const sched = hasFullSchedule(state)
@@ -39,8 +45,8 @@ const awayClub = fixture.home ? fixture.opponent : state.clubName;
 const round = sched?.round ?? state.week;
 const leagueId = sched ? leagueOf(sched) : playerLeagueId(state);
 const expected = simulateFixture(state, state.season, round, homeClub, awayClub, leagueId, {
-  homeStrength: fixture.home ? realisedStrength : opponentStrength,
-  awayStrength: fixture.home ? opponentStrength : realisedStrength,
+  homeStrength: fixture.home ? selectedStrength : opponentStrength,
+  awayStrength: fixture.home ? opponentStrength : selectedStrength,
 });
 
 const auto = structuredClone(state);
@@ -53,8 +59,8 @@ const live = startMatchDay(state);
 assert.ok(live.liveMatch);
 assert.equal(
   live.liveMatch.ourStrength,
-  realisedStrength + (fixture.home ? 3 : 0),
-  "interactive match must use the same realised player-club strength",
+  selectedStrength + (fixture.home ? 3 : 0),
+  "interactive match must use the same selected-XI player-club strength",
 );
 assert.equal(
   live.liveMatch.oppStrength,
