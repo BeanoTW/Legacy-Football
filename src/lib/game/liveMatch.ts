@@ -34,6 +34,7 @@ import {
   simulateMatchHalf,
 } from "./matchEngine";
 import { applyMatchLoadInPlace, playerInjuryRiskMultiplier } from "./playerHealth";
+import { pushPlayerMatchMilestonesInPlace } from "./playerSeasonStats";
 
 function formGuide(s: GameState): string {
   const last5 = s.results
@@ -278,6 +279,7 @@ export function commitLiveMatch(
         players: structuredClone(lm.engine.playerStats),
       },
     };
+    pushPlayerMatchMilestonesInPlace(cleared, lm.engine.playerStats);
   }
   return advance(cleared, {
     gf: lm.ourGoals,
