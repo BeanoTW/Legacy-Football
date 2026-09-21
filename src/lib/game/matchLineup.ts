@@ -1,5 +1,5 @@
 import type { FootballPlayer, GameState, MatchLineupPlayer, TacticalPosition } from "./types";
-import type { ManagerFormation } from "./managerIdentity";
+import { managerFootballIdentity, type ManagerFormation } from "./managerIdentity";
 import { MANAGER_FORMATION_SLOTS } from "./managerFormationLayout";
 import { positionFamiliarity, positionUnit } from "./positions";
 import { isUserClubReference, sameClubReference } from "./clubReference";
@@ -8,7 +8,7 @@ import { playerFitness, playerIsAvailable } from "./playerHealth";
 
 const playerName = (player: FootballPlayer) => `${player.firstName} ${player.lastName}`;
 
-function roleScore(player: FootballPlayer, role: TacticalPosition): number {
+function roleScore(player: FootballPlayer, role: TacticalPosition, fitnessWeight = 0.12): number {
   const familiarity = positionFamiliarity(player, role);
   const familiarityBonus =
     familiarity === "Natural"
@@ -18,7 +18,7 @@ function roleScore(player: FootballPlayer, role: TacticalPosition): number {
         : familiarity === "Comfortable"
           ? 2
           : -20;
-  return player.currentAbility + familiarityBonus + (playerFitness(player) - 75) * 0.12;
+  return player.currentAbility + familiarityBonus + (playerFitness(player) - 75) * fitnessWeight;
 }
 
 function selectForRoles(
@@ -26,6 +26,7 @@ function selectForRoles(
   players: FootballPlayer[],
   roles: readonly TacticalPosition[],
   preferredIds: string[] = [],
+  fitnessWeight = 0.12,
 ): MatchLineupPlayer[] {
   const used = new Set<string>();
   const preference = new Map(preferredIds.map((id, index) => [id, preferredIds.length - index]));
@@ -34,7 +35,7 @@ function selectForRoles(
       (player) => playerIsAvailable(player, state) && !used.has(player.id),
     );
     const score = (player: FootballPlayer) =>
-      roleScore(player, role) + (preference.get(player.id) ?? 0) * 1_000;
+      roleScore(player, role, fitnessWeight) + (preference.get(player.id) ?? 0) * 1.5;
     const specialists = available
       .filter((player) =>
         role === "GK"
@@ -79,14 +80,23 @@ export function userMatchLineup(
   const preferredIds = (typeof storedSelection === "string" ? storedSelection : "")
     .split(",")
     .filter(Boolean);
-  return selectForRoles(state, players, MANAGER_FORMATION_SLOTS[formation], preferredIds);
+  const manager = (state.hiredStaff ?? []).find((staff) => staff.role === "Manager");
+  const rotation = manager ? managerFootballIdentity(manager).rotation : "Medium";
+  const fitnessWeight = rotation === "High" ? 0.28 : rotation === "Low" ? 0.08 : 0.16;
+  return selectForRoles(
+    state,
+    players,
+    MANAGER_FORMATION_SLOTS[formation],
+    preferredIds,
+    fitnessWeight,
+  );
 }
 
 export function opponentMatchLineup(state: GameState, opponent: string): MatchLineupPlayer[] {
   const players = state.football.players.filter((player) =>
     sameClubReference(state, playerRegisteredClubId(player), opponent),
   );
-  return selectForRoles(state, players, MANAGER_FORMATION_SLOTS["4-4-2"]);
+  return selectForRoles(state, players, MANAGER_FORMATION_SLOTS["4-4-2"], [], 0.16);
 }
 
 
