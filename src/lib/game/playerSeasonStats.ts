@@ -1,4 +1,4 @@
-import type { GameState } from "./types";
+import type { GameState, PlayerSeasonSummary } from "./types";
 
 /** Only genuine recorded matches contribute; never fabricate past appearances. */
 export function playerSeasonStats(state: GameState, season = state.season) {
@@ -84,4 +84,71 @@ export function playerSeasonLeaders(
       (a, b) => b.minutes - a.minutes || b.starts - a.starts || a.playerId.localeCompare(b.playerId),
     ),
   };
+}
+
+
+export function closePlayerSeasonInPlace(
+  state: GameState,
+  season = state.season,
+): PlayerSeasonSummary | null {
+  if ((state.playerSeasonHistory ?? []).some((summary) => summary.season === season)) {
+    return state.playerSeasonHistory!.find((summary) => summary.season === season) ?? null;
+  }
+  const players = playerSeasonStats(state, season).map((row) => ({
+    playerId: row.playerId,
+    name: row.name,
+    appearances: row.appearances,
+    starts: row.starts,
+    substituteAppearances: row.substituteAppearances,
+    minutes: row.minutes,
+    goals: row.goals,
+    assists: row.assists,
+    yellowCards: row.yellowCards,
+    averageRating: Math.round(row.averageRating * 100) / 100,
+  }));
+  if (!players.length) return null;
+  const leaders = playerSeasonLeaders(state, season);
+  const summary: PlayerSeasonSummary = {
+    season,
+    players,
+    topScorerId: leaders.topScorer?.playerId ?? null,
+    topAssisterId: leaders.topAssister?.playerId ?? null,
+    topRatedId: leaders.topRated?.playerId ?? null,
+    mostUsedId: leaders.mostUsed?.playerId ?? null,
+  };
+  state.playerSeasonHistory = [...(state.playerSeasonHistory ?? []), summary].sort(
+    (a, b) => a.season - b.season,
+  );
+  return summary;
+}
+
+export function playerSeasonSummary(
+  state: GameState,
+  season: number,
+): PlayerSeasonSummary | null {
+  if (season === state.season) {
+    const players = playerSeasonStats(state, season);
+    if (!players.length) return null;
+    const leaders = playerSeasonLeaders(state, season);
+    return {
+      season,
+      players: players.map((row) => ({
+        playerId: row.playerId,
+        name: row.name,
+        appearances: row.appearances,
+        starts: row.starts,
+        substituteAppearances: row.substituteAppearances,
+        minutes: row.minutes,
+        goals: row.goals,
+        assists: row.assists,
+        yellowCards: row.yellowCards,
+        averageRating: Math.round(row.averageRating * 100) / 100,
+      })),
+      topScorerId: leaders.topScorer?.playerId ?? null,
+      topAssisterId: leaders.topAssister?.playerId ?? null,
+      topRatedId: leaders.topRated?.playerId ?? null,
+      mostUsedId: leaders.mostUsed?.playerId ?? null,
+    };
+  }
+  return (state.playerSeasonHistory ?? []).find((summary) => summary.season === season) ?? null;
 }
