@@ -7,7 +7,6 @@ import { managerMatchStyle } from "./managerMatchStyle";
 import { userMatchLineup } from "./matchLineup";
 import { playerFitness, playerIsAvailable } from "./playerHealth";
 import { playerRecentForm } from "./playerForm";
-import { isUserClubReference as isOwnPlayerClub } from "./clubReference";
 import { playerRegisteredClubId } from "./playerRegistration";
 
 /**
@@ -40,7 +39,7 @@ export function userSelectionStrengthPenalty(state: GameState): number {
 
   const eligible = state.football.players.filter(
     (player) =>
-      isOwnPlayerClub(state, playerRegisteredClubId(player)) &&
+      isUserClubReference(state, playerRegisteredClubId(player)) &&
       playerIsAvailable(player, state),
   );
   if (eligible.length < 11) return 0;
