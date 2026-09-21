@@ -207,6 +207,19 @@ export function hasFixtureToday(state: GameState): boolean {
   return state.fixtures.some((fixture) => fixture.week === state.week && (fixture.dayOfWeek ?? 5) === day);
 }
 
+export function hasUnplayedFixtureToday(state: GameState): boolean {
+  const fixture = fixtureToday(state);
+  if (!fixture) return false;
+  return !state.results.some(
+    (result) =>
+      result.week === state.week &&
+      result.opponent === fixture.opponent &&
+      result.home === fixture.home &&
+      (result.dayOfWeek ?? 5) === (fixture.dayOfWeek ?? 5) &&
+      (result.competition ?? "league") === (fixture.competition ?? "league"),
+  );
+}
+
 /** Return the user's fixture due on the visible day without changing simulation state. */
 export function fixtureToday(state: GameState): GameState["fixtures"][number] | undefined {
   const day = calendarDay(state);
@@ -261,7 +274,8 @@ export function advanceDay(prev: GameState): GameState {
     setCalendarDay(next, day + 1);
     progressScoutingDayInPlace(next);
     processDueTransferResponsesInPlace(next);
-    resolveDatedFixtureInPlace(next);
+    // Dated fixtures are now explicit chairman moments. Reaching the fixture
+    // day pauses Continue; the user can watch it or simulate it from the Hub.
     return next;
   }
   return advanceWeek(prev);
@@ -275,6 +289,15 @@ export function advanceDay(prev: GameState): GameState {
 export function skipTransferDeadlineDay(prev: GameState): GameState {
   if (!isTransferDeadlineDay(prev)) return prev;
   return advanceWeek(prev);
+}
+
+/** Simulate today's user fixture without opening the interactive match viewer. */
+export function simulateFixtureToday(prev: GameState): GameState {
+  if (!hasUnplayedFixtureToday(prev) || prev.liveMatch) return prev;
+  const next = structuredClone(prev);
+  resolveDatedFixtureInPlace(next);
+  syncTable(next);
+  return next;
 }
 
 /** Exactly-once full-time commit for an interactive match. */
