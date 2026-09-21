@@ -3,12 +3,15 @@ import type {
   MatchEngineSnapshot,
   MatchEvent,
   MatchHalfSnapshot,
+  MatchLineupPlayer,
+  MatchPlayerStats,
   MatchTeamPlan,
   MatchTeamStats,
 } from "./types";
 import type { ManagerMatchStyle } from "./managerMatchStyle";
 import { managerMatchPrep } from "./managerMatchPrep";
 import { halfGoals, halfPresentation, matchStream } from "./matchday";
+import { opponentMatchLineup, userMatchLineup } from "./matchLineup";
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 const round2 = (value: number) => Math.round(value * 100) / 100;
@@ -21,6 +24,8 @@ export function createMatchEngineSnapshot(
   opponent: string,
 ): MatchEngineSnapshot {
   const prep = managerMatchPrep(state);
+  const userLineup = userMatchLineup(state, style.formation);
+  const opponentLineup = opponentMatchLineup(state, opponent);
   return {
     version: 1,
     userPlan: {
@@ -44,6 +49,9 @@ export function createMatchEngineSnapshot(
       directness: "Medium",
     },
     halves: [],
+    userLineup,
+    opponentLineup,
+    playerStats: playerStats(userLineup, [], 0),
   };
 }
 
@@ -89,6 +97,93 @@ function enrichEvents(events: MatchEvent[], half: 1 | 2): MatchEvent[] {
   });
 }
 
+const actorSeed = (event: MatchEvent, salt: string) =>
+  `${event.sequenceId ?? event.minute}|${salt}`
+    .split("")
+    .reduce((total, char) => (total * 31 + char.charCodeAt(0)) >>> 0, 2166136261);
+
+function eventActor(
+  event: MatchEvent,
+  lineup: MatchLineupPlayer[],
+  salt: string,
+): MatchLineupPlayer | undefined {
+  const outfield = lineup.filter((player) => player.role !== "GK");
+  const preferred = outfield
+    .filter((player) => event.type === "card" || /ST|LW|RW|AM|LM|RM|CM/.test(player.role))
+    .sort((a, b) => b.ability - a.ability);
+  const pool = (preferred.length ? preferred : outfield).slice(0, 7);
+  return pool.length ? pool[actorSeed(event, salt) % pool.length] : undefined;
+}
+
+function linkEventActors(
+  events: MatchEvent[],
+  userLineup: MatchLineupPlayer[],
+  opponentLineup: MatchLineupPlayer[],
+): MatchEvent[] {
+  return events.map((event) => {
+    if (event.type !== "chance" && event.type !== "goal" && event.type !== "card") return event;
+    const lineup = event.side === "us" ? userLineup : event.side === "them" ? opponentLineup : [];
+    const actor = eventActor(event, lineup, "actor");
+    if (!actor) return event;
+    const creator =
+      event.type === "goal"
+        ? eventActor(
+            event,
+            lineup.filter((player) => player.playerId !== actor.playerId),
+            "creator",
+          )
+        : undefined;
+    const text =
+      event.type === "goal"
+        ? event.side === "us"
+          ? `GOAL — ${actor.name} finds the net${creator ? ` after ${creator.name}'s pass` : ""}!`
+          : `${actor.name} scores for the opposition.`
+        : event.type === "chance" && event.side === "us"
+          ? `${actor.name}: ${event.text.charAt(0).toLowerCase()}${event.text.slice(1)}`
+          : event.text;
+    return {
+      ...event,
+      text,
+      actorPlayerId: actor.playerId,
+      actorName: actor.name,
+      secondaryPlayerId: creator?.playerId,
+      secondaryName: creator?.name,
+    };
+  });
+}
+
+function playerStats(
+  lineup: MatchLineupPlayer[],
+  events: MatchEvent[],
+  minutes: number,
+): MatchPlayerStats[] {
+  return lineup.map((player) => {
+    const involved = events.filter((event) => event.actorPlayerId === player.playerId);
+    const assists = events.filter((event) => event.secondaryPlayerId === player.playerId).length;
+    const goals = involved.filter((event) => event.type === "goal").length;
+    const chances = involved.filter((event) => event.type === "chance").length;
+    const yellowCards = involved.filter((event) => event.type === "card").length;
+    const rating = round2(
+      clamp(6 + goals * 0.9 + assists * 0.5 + chances * 0.12 - yellowCards * 0.25, 4.5, 10),
+    );
+    return {
+      ...player,
+      minutes,
+      goals,
+      assists,
+      chances,
+      shots: goals + chances,
+      shotsOnTarget: goals,
+      yellowCards,
+      rating,
+    };
+  });
+}
+
+export function refreshPlayerMatchStats(engine: MatchEngineSnapshot, events: MatchEvent[]): void {
+  engine.playerStats = playerStats(engine.userLineup ?? [], events, engine.halves.length * 45);
+}
+
 /**
  * The single deterministic half-match contract. Score RNG stays isolated from
  * metrics and presentation, so richer views can evolve without moving results.
@@ -102,6 +197,8 @@ export function simulateMatchHalf(input: {
   opponentStrength: number;
   opponentName: string;
   style: ManagerMatchStyle;
+  userLineup?: MatchLineupPlayer[];
+  opponentLineup?: MatchLineupPlayer[];
 }): { snapshot: MatchHalfSnapshot; events: MatchEvent[] } {
   const goals = halfGoals(
     input.seedBase,
@@ -121,18 +218,22 @@ export function simulateMatchHalf(input: {
   const us = teamStats(rng, goals.usGoals, possession, strengthEdge, input.style.chanceBias);
   const them = teamStats(rng, goals.themGoals, 100 - possession, -strengthEdge, 0);
   them.possession = 100 - us.possession;
-  const events = enrichEvents(
-    halfPresentation(
-      input.seedBase,
+  const events = linkEventActors(
+    enrichEvents(
+      halfPresentation(
+        input.seedBase,
+        input.half,
+        input.fromMinute,
+        input.toMinute,
+        goals.usGoals,
+        goals.themGoals,
+        input.opponentName,
+        input.style,
+      ),
       input.half,
-      input.fromMinute,
-      input.toMinute,
-      goals.usGoals,
-      goals.themGoals,
-      input.opponentName,
-      input.style,
     ),
-    input.half,
+    input.userLineup ?? [],
+    input.opponentLineup ?? [],
   );
   us.yellowCards = events.filter((event) => event.type === "card" && event.side === "us").length;
   them.yellowCards = events.filter(

@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { calendarDay, setCalendarDay } from "../calendar";
-import { startMatchDay } from "../liveMatch";
+import { kickoff, startMatchDay } from "../liveMatch";
 import { simulateMatchHalf, totalMatchStats } from "../matchEngine";
 import type { ManagerMatchStyle } from "../managerMatchStyle";
 import { newGame } from "../newGame";
@@ -108,6 +108,37 @@ assert.equal(
   started.liveMatch?.engine?.version,
   1,
   "new live matches must persist the canonical engine contract",
+);
+assert.equal(
+  started.liveMatch?.engine?.userLineup?.length,
+  11,
+  "new live matches must persist a real manager-selected XI",
+);
+const played = kickoff(started);
+const userInvolvements =
+  played.liveMatch?.events.filter(
+    (event) =>
+      event.side === "us" &&
+      (event.type === "goal" || event.type === "chance" || event.type === "card"),
+  ) ?? [];
+assert(userInvolvements.length > 0, "the player-linkage fixture must contain a user highlight");
+const selectedPlayerIds = new Set(
+  played.liveMatch?.engine?.userLineup?.map((player) => player.playerId) ?? [],
+);
+assert(
+  userInvolvements.every(
+    (event) => event.actorPlayerId && event.actorName && selectedPlayerIds.has(event.actorPlayerId),
+  ),
+  "every user highlight must link back to a real selected player",
+);
+assert.equal(
+  played.liveMatch?.engine?.playerStats?.length,
+  11,
+  "half-time must carry a rating row for every starter",
+);
+assert(
+  played.liveMatch?.engine?.playerStats?.every((player) => player.minutes === 45),
+  "first-half player statistics must record 45 minutes",
 );
 
 console.log("\nmatch-engine-contract: passed");

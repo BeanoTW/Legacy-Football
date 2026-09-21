@@ -602,6 +602,33 @@ export interface MatchEvent {
   zone?: "defensiveThird" | "middleThird" | "attackingThird" | "box";
   xg?: number;
   sequenceId?: string;
+  actorPlayerId?: string;
+  actorName?: string;
+  secondaryPlayerId?: string;
+  secondaryName?: string;
+}
+
+export interface MatchLineupPlayer {
+  playerId: string;
+  name: string;
+  shirtNumber: number;
+  role: TacticalPosition;
+  ability: number;
+}
+
+export interface MatchPlayerStats {
+  playerId: string;
+  name: string;
+  shirtNumber: number;
+  role: TacticalPosition;
+  minutes: number;
+  goals: number;
+  assists: number;
+  chances: number;
+  shots: number;
+  shotsOnTarget: number;
+  yellowCards: number;
+  rating: number;
 }
 
 export interface MatchTeamPlan {
@@ -640,6 +667,9 @@ export interface MatchEngineSnapshot {
   userPlan: MatchTeamPlan;
   opponentPlan: MatchTeamPlan;
   halves: MatchHalfSnapshot[];
+  userLineup?: MatchLineupPlayer[];
+  opponentLineup?: MatchLineupPlayer[];
+  playerStats?: MatchPlayerStats[];
 }
 
 export interface HalfTimeOption {

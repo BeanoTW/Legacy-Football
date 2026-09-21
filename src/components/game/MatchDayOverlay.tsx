@@ -1,3 +1,4 @@
+import { useCallback, useState } from "react";
 import type { GameState } from "@/lib/game/types";
 import {
   Activity,
@@ -34,23 +35,42 @@ export function MatchDayOverlay({
   update: (fn: (s: GameState) => GameState) => void;
 }) {
   const lm = state.liveMatch!;
+  const [revealedEvents, setRevealedEvents] = useState(0);
+  const [replayComplete, setReplayComplete] = useState(false);
+  const onReplayProgress = useCallback((count: number, complete: boolean) => {
+    setRevealedEvents(count);
+    setReplayComplete(complete);
+  }, []);
   const matchPrep = managerMatchPrep(state);
   const usName = state.clubName;
   const themName = clubDisplayName(state, lm.fixture.opponent);
   const matchLeague = state.leagues.find((league) => league.id === lm.leagueId);
   const homeName = lm.fixture.home ? usName : themName;
   const awayName = lm.fixture.home ? themName : usName;
-  const homeGoals = lm.fixture.home ? lm.ourGoals : lm.theirGoals;
-  const awayGoals = lm.fixture.home ? lm.theirGoals : lm.ourGoals;
+  const visibleGoals = lm.events.slice(0, revealedEvents).filter((event) => event.type === "goal");
+  const visibleOurGoals = visibleGoals.filter((event) => event.side === "us").length;
+  const visibleTheirGoals = visibleGoals.filter((event) => event.side === "them").length;
+  const homeGoals =
+    lm.status === "brief" ? 0 : lm.fixture.home ? visibleOurGoals : visibleTheirGoals;
+  const awayGoals =
+    lm.status === "brief" ? 0 : lm.fixture.home ? visibleTheirGoals : visibleOurGoals;
   const statusLabel =
     lm.status === "brief"
       ? "PRE-MATCH"
-      : lm.status === "halfTime"
-        ? "HALF TIME"
-        : lm.status === "fullTime"
-          ? "FULL TIME"
-          : "LIVE";
+      : !replayComplete
+        ? "LIVE"
+        : lm.status === "halfTime"
+          ? "HALF TIME"
+          : lm.status === "fullTime"
+            ? "FULL TIME"
+            : "LIVE";
   const stats = totalMatchStats(lm.engine);
+  const visibleOurShots = lm.events
+    .slice(0, revealedEvents)
+    .filter((event) => event.side === "us" && (event.type === "chance" || event.type === "goal"));
+  const visibleTheirShots = lm.events
+    .slice(0, revealedEvents)
+    .filter((event) => event.side === "them" && (event.type === "chance" || event.type === "goal"));
   const possession =
     stats?.us.possession ??
     Math.max(34, Math.min(66, Math.round(50 + (lm.ourStrength - lm.oppStrength) * 0.7)));
@@ -129,9 +149,9 @@ export function MatchDayOverlay({
                 icon={Target}
                 label="Shots (on target)"
                 value={
-                  stats
+                  stats && replayComplete
                     ? `${stats.us.shots} (${stats.us.shotsOnTarget})–${stats.them.shots} (${stats.them.shotsOnTarget})`
-                    : "—"
+                    : `${visibleOurShots.length}–${visibleTheirShots.length}`
                 }
               />
               <MatchPulse icon={Users} label="Atmosphere" value={`${atmosphere}%`} />
@@ -219,7 +239,7 @@ export function MatchDayOverlay({
               </section>
             )}
 
-            {lm.status === "halfTime" && lm.halfTimeOptions && (
+            {lm.status === "halfTime" && lm.halfTimeOptions && replayComplete && (
               <section className="min-h-0 overflow-hidden border-t p-2.5 sm:overflow-y-auto sm:p-5 space-y-2 sm:space-y-4">
                 <div>
                   <div className="hidden text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:block">
@@ -256,7 +276,21 @@ export function MatchDayOverlay({
               </section>
             )}
 
-            {lm.status === "fullTime" && (
+            {lm.status !== "brief" && !replayComplete && (
+              <section className="flex min-h-0 flex-col items-center justify-center border-t p-5 text-center">
+                <Activity className="size-8 animate-pulse text-primary" />
+                <div className="mt-3 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                  Match in progress
+                </div>
+                <h2 className="mt-1 font-display text-3xl">Watch the action unfold</h2>
+                <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                  The score, half-time room and final verdict reveal as the replay reaches them.
+                  Pause, scrub or skip from the pitch controls.
+                </p>
+              </section>
+            )}
+
+            {lm.status === "fullTime" && replayComplete && (
               <section className="flex min-h-0 flex-col overflow-hidden border-t">
                 <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-3 sm:space-y-4 sm:p-5">
                   <div className="text-center py-1">
@@ -284,6 +318,47 @@ export function MatchDayOverlay({
                       />
                     </div>
                   )}
+                  {lm.engine?.playerStats?.length ? (
+                    <div className="rounded-xl border bg-muted/20 p-3">
+                      <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Player ratings
+                      </div>
+                      <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+                        {[...lm.engine.playerStats]
+                          .sort((a, b) => b.rating - a.rating)
+                          .map((player) => (
+                            <div
+                              key={player.playerId}
+                              className="flex items-center gap-2 border-b py-1.5 text-xs last:border-0"
+                            >
+                              <span className="w-5 text-center font-bold text-muted-foreground">
+                                {player.shirtNumber}
+                              </span>
+                              <span className="min-w-0 flex-1 truncate font-medium">
+                                {player.name}
+                              </span>
+                              {(player.goals > 0 || player.assists > 0) && (
+                                <span className="text-[10px] text-muted-foreground">
+                                  {player.goals > 0 ? `${player.goals}G` : ""}
+                                  {player.goals > 0 && player.assists > 0 ? " · " : ""}
+                                  {player.assists > 0 ? `${player.assists}A` : ""}
+                                </span>
+                              )}
+                              <strong
+                                className={cn(
+                                  "rounded px-1.5 py-0.5 tnum",
+                                  player.rating >= 7
+                                    ? "bg-emerald-500/15 text-emerald-700"
+                                    : "bg-muted",
+                                )}
+                              >
+                                {player.rating.toFixed(1)}
+                              </strong>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="grid gap-2 sm:grid-cols-3">
                     <ReactionCard
                       icon={Users}
@@ -334,7 +409,14 @@ export function MatchDayOverlay({
 
             {lm.status !== "brief" && (
               <section className="flex min-h-0 flex-col border-t bg-muted/20 lg:border-l lg:border-t-0">
-                <MatchPitchViewer events={lm.events} usName={usName} themName={themName} />
+                <MatchPitchViewer
+                  events={lm.events}
+                  usName={usName}
+                  themName={themName}
+                  userLineup={lm.engine?.userLineup}
+                  opponentLineup={lm.engine?.opponentLineup}
+                  onReplayProgress={onReplayProgress}
+                />
                 <div className="px-4 py-3 flex items-center justify-between">
                   <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     The story of the match

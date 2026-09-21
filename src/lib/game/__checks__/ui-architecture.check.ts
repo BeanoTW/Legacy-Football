@@ -455,7 +455,7 @@ console.log("\n[U15] Match centre identity and competition context");
   );
   check(
     "match centre renders the canonical event stream through the 2D viewer",
-    /<MatchPitchViewer events=\{lm\.events\}/.test(matchday) &&
+    /<MatchPitchViewer[\s\S]*?events=\{lm\.events\}/.test(matchday) &&
       /event\.zone/.test(viewer) &&
       /event\.phase/.test(viewer),
   );
@@ -472,6 +472,18 @@ console.log("\n[U15] Match centre identity and competition context");
       /function playerPosition/.test(viewer) &&
       /<polyline/.test(viewer) &&
       !/Math\.random/.test(viewer),
+  );
+  check(
+    "match centre hides half-time and full-time verdicts until replay completion",
+    /lm\.status === "halfTime" && lm\.halfTimeOptions && replayComplete/.test(matchday) &&
+      /lm\.status === "fullTime" && replayComplete/.test(matchday) &&
+      /onReplayProgress/.test(viewer),
+  );
+  check(
+    "2D viewer identifies persisted lineup players on the pitch",
+    /userLineup\[index\]/.test(viewer) &&
+      /player\?\.shirtNumber/.test(viewer) &&
+      /player\.name/.test(viewer),
   );
 }
 

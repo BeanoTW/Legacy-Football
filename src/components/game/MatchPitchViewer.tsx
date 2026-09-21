@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pause, Play, RotateCcw, SkipForward } from "lucide-react";
-import type { MatchEvent } from "@/lib/game/types";
+import type { MatchEvent, MatchLineupPlayer } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
 
 const HOME_SHAPE = [
@@ -90,10 +90,16 @@ export function MatchPitchViewer({
   events,
   usName,
   themName,
+  userLineup = [],
+  opponentLineup = [],
+  onReplayProgress,
 }: {
   events: MatchEvent[];
   usName: string;
   themName: string;
+  userLineup?: MatchLineupPlayer[];
+  opponentLineup?: MatchLineupPlayer[];
+  onReplayProgress?: (revealedEvents: number, complete: boolean) => void;
 }) {
   const previousLength = useRef(0);
   const [cursor, setCursor] = useState(0);
@@ -142,6 +148,10 @@ export function MatchPitchViewer({
       them: visible.filter((event) => event.side === "them").length,
     };
   }, [cursor, events]);
+
+  useEffect(() => {
+    onReplayProgress?.(cursor + 1, !playing && cursor >= events.length - 1);
+  }, [cursor, events.length, onReplayProgress, playing]);
 
   if (events.length === 0) return null;
 
@@ -204,6 +214,7 @@ export function MatchPitchViewer({
               y={position.y}
               ours
               active={active?.side === "us" && index > 6}
+              player={userLineup[index]}
             />
           );
         })}
@@ -215,6 +226,7 @@ export function MatchPitchViewer({
               x={position.x}
               y={position.y}
               active={active?.side === "them" && index > 6}
+              player={opponentLineup[index]}
             />
           );
         })}
@@ -298,20 +310,25 @@ function PlayerDot({
   y,
   ours = false,
   active = false,
+  player,
 }: {
   x: number;
   y: number;
   ours?: boolean;
   active?: boolean;
+  player?: MatchLineupPlayer;
 }) {
   return (
     <span
       className={cn(
-        "absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border shadow-sm transition-[left,top,transform] duration-500",
+        "absolute grid size-3.5 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border text-[6px] font-black leading-none shadow-sm transition-[left,top,transform] duration-500 sm:size-4 sm:text-[7px]",
         ours ? "border-emerald-950 bg-emerald-300" : "border-rose-950 bg-rose-300",
         active && "scale-125 ring-2 ring-white/35",
       )}
       style={{ left: `${x}%`, top: `${y}%` }}
-    />
+      title={player ? `${player.shirtNumber}. ${player.name} · ${player.role}` : undefined}
+    >
+      {player?.shirtNumber}
+    </span>
   );
 }

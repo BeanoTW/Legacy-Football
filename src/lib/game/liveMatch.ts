@@ -27,7 +27,11 @@ import { clubMatchStrength } from "./matchStrength";
 import { advancePlayerClubPerformanceWeekInPlace } from "./playerClubPerformance";
 import { managerMatchStyle } from "./managerMatchStyle";
 import { calendarDay } from "./calendar";
-import { createMatchEngineSnapshot, simulateMatchHalf } from "./matchEngine";
+import {
+  createMatchEngineSnapshot,
+  refreshPlayerMatchStats,
+  simulateMatchHalf,
+} from "./matchEngine";
 
 function formGuide(s: GameState): string {
   const last5 = s.results
@@ -110,6 +114,15 @@ export function kickoff(s: GameState): GameState {
   const lm = ns.liveMatch!;
   const seedBase = seedOf(lm);
   const style = managerMatchStyle(ns);
+  const preparedEngine = createMatchEngineSnapshot(
+    ns,
+    style,
+    clubDisplayName(ns, lm.fixture.opponent),
+  );
+  lm.engine ??= preparedEngine;
+  lm.engine.userLineup ??= preparedEngine.userLineup;
+  lm.engine.opponentLineup ??= preparedEngine.opponentLineup;
+  lm.engine.playerStats ??= preparedEngine.playerStats;
   const half = simulateMatchHalf({
     seedBase,
     half: 1,
@@ -119,11 +132,13 @@ export function kickoff(s: GameState): GameState {
     opponentStrength: lm.oppStrength,
     opponentName: clubDisplayName(ns, lm.fixture.opponent),
     style,
+    userLineup: lm.engine?.userLineup,
+    opponentLineup: lm.engine?.opponentLineup,
   });
   const { usGoals, themGoals } = half.snapshot;
   lm.events = half.events;
-  lm.engine ??= createMatchEngineSnapshot(ns, style, clubDisplayName(ns, lm.fixture.opponent));
   lm.engine.halves = [half.snapshot];
+  refreshPlayerMatchStats(lm.engine, lm.events);
   lm.ourGoals += usGoals;
   lm.theirGoals += themGoals;
   lm.status = "halfTime";
@@ -173,6 +188,15 @@ export function applyHalfTimeChoice(s: GameState, choiceId: string): GameState {
   lm.chosenNudgeId = choiceId;
   const seedBase = seedOf(lm);
   const style = managerMatchStyle(ns);
+  const preparedEngine = createMatchEngineSnapshot(
+    ns,
+    style,
+    clubDisplayName(ns, lm.fixture.opponent),
+  );
+  lm.engine ??= preparedEngine;
+  lm.engine.userLineup ??= preparedEngine.userLineup;
+  lm.engine.opponentLineup ??= preparedEngine.opponentLineup;
+  lm.engine.playerStats ??= preparedEngine.playerStats;
   const half = simulateMatchHalf({
     seedBase,
     half: 2,
@@ -182,13 +206,15 @@ export function applyHalfTimeChoice(s: GameState, choiceId: string): GameState {
     opponentStrength: lm.oppStrength,
     opponentName: clubDisplayName(ns, lm.fixture.opponent),
     style,
+    userLineup: lm.engine?.userLineup,
+    opponentLineup: lm.engine?.opponentLineup,
   });
   const { usGoals, themGoals } = half.snapshot;
   lm.events = [...lm.events, ...half.events];
-  lm.engine ??= createMatchEngineSnapshot(ns, style, clubDisplayName(ns, lm.fixture.opponent));
   lm.engine.halves = [...lm.engine.halves.filter((item) => item.half !== 2), half.snapshot].sort(
     (a, b) => a.half - b.half,
   );
+  refreshPlayerMatchStats(lm.engine, lm.events);
   lm.ourGoals += usGoals;
   lm.theirGoals += themGoals;
   lm.attendance = lm.fixture.home ? lm.projectedAttendance : 0;
