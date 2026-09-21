@@ -1,5 +1,7 @@
 import type { FootballPlayer, GameState, InjurySeverity, MatchInjury, MatchPlayerStats, Staff } from "./types";
 import { absoluteWeek } from "./time";
+import { isUserClubReference } from "./clubReference";
+import { playerRegisteredClubId } from "./playerRegistration";
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
@@ -44,7 +46,7 @@ export function fixtureLoadThisWeek(state: GameState): number {
 }
 
 export function squadAverageFitness(state: GameState): number {
-  const players = state.football.players.filter((player) => player.currentClubId != null);
+  const players = state.football.players.filter((player) => isUserClubReference(state, playerRegisteredClubId(player)));
   if (!players.length) return 100;
   return Math.round(players.reduce((sum, player) => sum + playerFitness(player), 0) / players.length);
 }
@@ -60,11 +62,12 @@ export function playerIsAvailable(player: FootballPlayer, state: GameState): boo
 
 export function recoverPlayerHealthWeekInPlace(state: GameState): void {
   const now = absoluteWeek(state.season, state.week);
+  const recovery = medicalSupport(state).recoveryPerWeek;
   for (const player of state.football.players) {
     // Keep untouched players sparse: legacy/world players imply 100 fitness
     // until they actually accumulate match load or an injury.
     if (player.fitness === undefined && !player.injury) continue;
-    player.fitness = clamp(playerFitness(player) + medicalSupport(state).recoveryPerWeek, 0, 100);
+    player.fitness = clamp(playerFitness(player) + recovery, 0, 100);
     if (player.injury && player.injury.returnAbsoluteWeek <= now) {
       player.injury = null;
       player.availability = "available";
