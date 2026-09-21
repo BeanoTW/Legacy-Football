@@ -18,7 +18,12 @@ const HOME_SHAPE = [
 ] as const;
 const AWAY_SHAPE = HOME_SHAPE.map(([x, y]) => [100 - x, 100 - y] as const);
 
-function eventPosition(event: MatchEvent | undefined): { x: number; y: number } {
+interface PitchPoint {
+  x: number;
+  y: number;
+}
+
+function eventPosition(event: MatchEvent | undefined): PitchPoint {
   if (!event) return { x: 50, y: 50 };
   const attackingX =
     event.zone === "box"
@@ -42,6 +47,45 @@ function eventPosition(event: MatchEvent | undefined): { x: number; y: number } 
   return { x: Math.max(5, Math.min(95, x)), y: 20 + ((seed * 17) % 61) };
 }
 
+function eventPath(event: MatchEvent | undefined): PitchPoint[] {
+  if (!event) return [{ x: 50, y: 50 }];
+  const target = eventPosition(event);
+  if (event.type === "card" || event.side === "neutral") return [target];
+  const direction = event.side === "them" ? -1 : 1;
+  const seed =
+    event.sequenceId?.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0) ?? event.minute;
+  const width = event.phase === "transition" ? 38 : event.phase === "setPiece" ? 20 : 28;
+  const startY = 18 + ((seed * 11) % 65);
+  const middleY = Math.max(12, Math.min(88, (startY + target.y) / 2 + ((seed % 3) - 1) * 12));
+  const clampX = (x: number) => Math.max(5, Math.min(95, x));
+  return [
+    { x: clampX(target.x - direction * width), y: startY },
+    { x: clampX(target.x - direction * width * 0.48), y: middleY },
+    target,
+  ];
+}
+
+function playerPosition(
+  baseX: number,
+  baseY: number,
+  ours: boolean,
+  index: number,
+  event: MatchEvent | undefined,
+  ball: PitchPoint,
+  frame: number,
+): PitchPoint {
+  if (!event || event.side === "neutral" || index === 0) return { x: baseX, y: baseY };
+  const inPossession = (event.side === "us") === ours;
+  const direction = ours ? 1 : -1;
+  const frameWeight = frame / 2;
+  const lineAdvance = inPossession ? (index > 7 ? 8 : index > 4 ? 5 : 2) * frameWeight : 0;
+  const ballPull = inPossession ? 0.12 : 0.08;
+  return {
+    x: Math.max(4, Math.min(96, baseX + direction * lineAdvance + (ball.x - baseX) * ballPull)),
+    y: Math.max(7, Math.min(93, baseY + (ball.y - baseY) * ballPull)),
+  };
+}
+
 export function MatchPitchViewer({
   events,
   usName,
@@ -54,6 +98,7 @@ export function MatchPitchViewer({
   const previousLength = useRef(0);
   const [cursor, setCursor] = useState(0);
   const [playing, setPlaying] = useState(true);
+  const [frame, setFrame] = useState(0);
 
   useEffect(() => {
     if (events.length > previousLength.current) {
@@ -65,19 +110,31 @@ export function MatchPitchViewer({
 
   useEffect(() => {
     if (!playing || events.length === 0) return;
-    if (cursor >= events.length - 1) {
-      setPlaying(false);
-      return;
-    }
-    const timer = window.setTimeout(
-      () => setCursor((current) => Math.min(events.length - 1, current + 1)),
-      1_250,
-    );
+    const timer = window.setTimeout(() => {
+      if (cursor >= events.length - 1) setPlaying(false);
+      else setCursor((current) => Math.min(events.length - 1, current + 1));
+    }, 1_850);
     return () => window.clearTimeout(timer);
   }, [cursor, events.length, playing]);
 
   const active = events[Math.min(cursor, Math.max(0, events.length - 1))];
-  const ball = eventPosition(active);
+  const path = useMemo(() => eventPath(active), [active]);
+  const ball = path[Math.min(frame, path.length - 1)];
+
+  useEffect(() => {
+    if (!playing) {
+      setFrame(path.length - 1);
+      return;
+    }
+    setFrame(0);
+    if (path.length === 1) return;
+    const middle = window.setTimeout(() => setFrame(1), 450);
+    const finish = window.setTimeout(() => setFrame(path.length - 1), 950);
+    return () => {
+      window.clearTimeout(middle);
+      window.clearTimeout(finish);
+    };
+  }, [active?.sequenceId, active?.minute, path.length, playing]);
   const replayScore = useMemo(() => {
     const visible = events.slice(0, cursor + 1).filter((event) => event.type === "goal");
     return {
@@ -112,29 +169,61 @@ export function MatchPitchViewer({
         <div className="absolute inset-y-[36%] -left-px w-[6%] border border-white/55" />
         <div className="absolute inset-y-[36%] -right-px w-[6%] border border-white/55" />
 
-        {HOME_SHAPE.map(([x, y], index) => (
-          <PlayerDot
-            key={`us-${index}`}
-            x={x}
-            y={y}
-            ours
-            active={active?.side === "us" && index > 6}
+        <svg
+          className="pointer-events-none absolute inset-0 size-full"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <polyline
+            points={path.map((point) => `${point.x},${point.y}`).join(" ")}
+            fill="none"
+            stroke="rgba(255,255,255,.2)"
+            strokeWidth="0.7"
+            strokeDasharray="2 2"
           />
-        ))}
-        {AWAY_SHAPE.map(([x, y], index) => (
-          <PlayerDot
-            key={`them-${index}`}
-            x={x}
-            y={y}
-            active={active?.side === "them" && index > 6}
+          <polyline
+            points={path
+              .slice(0, frame + 1)
+              .map((point) => `${point.x},${point.y}`)
+              .join(" ")}
+            fill="none"
+            stroke={active?.side === "them" ? "#fda4af" : "#6ee7b7"}
+            strokeWidth="1.15"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
-        ))}
+        </svg>
+
+        {HOME_SHAPE.map(([x, y], index) => {
+          const position = playerPosition(x, y, true, index, active, ball, frame);
+          return (
+            <PlayerDot
+              key={`us-${index}`}
+              x={position.x}
+              y={position.y}
+              ours
+              active={active?.side === "us" && index > 6}
+            />
+          );
+        })}
+        {AWAY_SHAPE.map(([x, y], index) => {
+          const position = playerPosition(x, y, false, index, active, ball, frame);
+          return (
+            <PlayerDot
+              key={`them-${index}`}
+              x={position.x}
+              y={position.y}
+              active={active?.side === "them" && index > 6}
+            />
+          );
+        })}
 
         <span
-          className="absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-black/25 bg-white shadow-[0_1px_5px_rgba(0,0,0,.8)] transition-[left,top] duration-700 ease-out"
+          className="absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-black/25 bg-white shadow-[0_1px_5px_rgba(0,0,0,.8)] transition-[left,top] duration-500 ease-out"
           style={{ left: `${ball.x}%`, top: `${ball.y}%` }}
         />
-        {active?.type === "goal" && (
+        {active?.type === "goal" && frame === path.length - 1 && (
           <span
             className="absolute size-10 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full border-2 border-amber-300"
             style={{ left: `${ball.x}%`, top: `${ball.y}%` }}
@@ -218,7 +307,7 @@ function PlayerDot({
   return (
     <span
       className={cn(
-        "absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border shadow-sm transition-transform duration-500",
+        "absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border shadow-sm transition-[left,top,transform] duration-500",
         ours ? "border-emerald-950 bg-emerald-300" : "border-rose-950 bg-rose-300",
         active && "scale-125 ring-2 ring-white/35",
       )}

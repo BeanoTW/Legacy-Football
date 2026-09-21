@@ -466,6 +466,13 @@ console.log("\n[U15] Match centre identity and competition context");
       /Skip replay/.test(viewer) &&
       /type="range"/.test(viewer),
   );
+  check(
+    "2D highlights derive passing paths and player movement without UI randomness",
+    /function eventPath/.test(viewer) &&
+      /function playerPosition/.test(viewer) &&
+      /<polyline/.test(viewer) &&
+      !/Math\.random/.test(viewer),
+  );
 }
 
 console.log("\n[U16] Calendar and advance opponent identity");
