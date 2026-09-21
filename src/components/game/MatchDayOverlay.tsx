@@ -24,6 +24,7 @@ import { clubDisplayName } from "@/lib/game/clubReference";
 import { footballLevelOfLeague } from "@/lib/game/footballLevel";
 import { managerMatchPrep } from "@/lib/game/managerMatchPrep";
 import { totalMatchStats } from "@/lib/game/matchEngine";
+import { MatchPitchViewer } from "./MatchPitchViewer";
 
 export function MatchDayOverlay({
   state,
@@ -144,7 +145,7 @@ export function MatchDayOverlay({
                 ? "block"
                 : "grid lg:grid-cols-[minmax(0,1.15fr)_minmax(20rem,.85fr)] lg:grid-rows-1",
               lm.status === "halfTime"
-                ? "grid-rows-[minmax(0,4fr)_minmax(6rem,1fr)]"
+                ? "grid-rows-[minmax(12rem,1fr)_minmax(14rem,1.1fr)]"
                 : "grid-rows-[minmax(0,3fr)_minmax(8rem,2fr)]",
             )}
           >
@@ -333,6 +334,7 @@ export function MatchDayOverlay({
 
             {lm.status !== "brief" && (
               <section className="flex min-h-0 flex-col border-t bg-muted/20 lg:border-l lg:border-t-0">
+                <MatchPitchViewer events={lm.events} usName={usName} themName={themName} />
                 <div className="px-4 py-3 flex items-center justify-between">
                   <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     The story of the match

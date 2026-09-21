@@ -99,7 +99,9 @@ console.log("\n[U2] Navigation completeness");
   );
   check(
     "primary mobile tabs match the chairman core flow",
-    /PRIMARY_TAB_IDS:\s*Tab\[\]\s*=\s*\["hub",\s*"inbox",\s*"squad",\s*"recruitment",\s*"stadium"\]/.test(tabs),
+    /PRIMARY_TAB_IDS:\s*Tab\[\]\s*=\s*\["hub",\s*"inbox",\s*"squad",\s*"recruitment",\s*"stadium"\]/.test(
+      tabs,
+    ),
   );
 }
 
@@ -153,7 +155,10 @@ console.log("\n[U4] Import direction");
   check(
     "extracted screens all export a component",
     screens
-      .filter((f) => !/shared\/|__checks__\/|tabs\.ts$|playerPosition\.ts$|fixturePresentation\.ts$/.test(f))
+      .filter(
+        (f) =>
+          !/shared\/|__checks__\/|tabs\.ts$|playerPosition\.ts$|fixturePresentation\.ts$/.test(f),
+      )
       .every((f) => /export (function|class|const) [A-Z]/.test(read(f))),
   );
 }
@@ -206,10 +211,7 @@ console.log("\n[U6] Recruitment knowledge boundary");
     "Find Players does not read exact seller asking price before talks",
     !/transferTargetAskingPrice\(/.test(browser) && !/askingPrice\(/.test(browser),
   );
-  check(
-    "Find Players does not read exact wage demand before talks",
-    !/wageDemand\(/.test(browser),
-  );
+  check("Find Players does not read exact wage demand before talks", !/wageDemand\(/.test(browser));
   check(
     "Scouting Reports do not read exact seller asking price before talks",
     !/transferTargetAskingPrice\(/.test(reports) && !/askingPrice\(/.test(reports),
@@ -254,14 +256,8 @@ console.log("\n[U7] Loan chairman boundary");
     "loan UI never calls the low-level registration primitive",
     !/startPlayerLoanInPlace\(/.test(loanUi),
   );
-  check(
-    "loan-out UI uses the chairman market action",
-    /arrangeUserPlayerLoanOut\(/.test(loanDesk),
-  );
-  check(
-    "loan-in UI uses the chairman market action",
-    /arrangeUserPlayerLoanIn\(/.test(browser),
-  );
+  check("loan-out UI uses the chairman market action", /arrangeUserPlayerLoanOut\(/.test(loanDesk));
+  check("loan-in UI uses the chairman market action", /arrangeUserPlayerLoanIn\(/.test(browser));
   check(
     "loan termination UI uses the chairman-authorised action",
     /terminateUserPlayerLoan\(/.test(loanDesk) && !/terminatePlayerLoan\(/.test(loanDesk),
@@ -274,7 +270,6 @@ console.log("\n[U7] Loan chairman boundary");
       /windowStatus\(state\)/.test(browser),
   );
 }
-
 
 console.log("\n[U8] Opaque club identity presentation boundary");
 {
@@ -329,11 +324,9 @@ console.log("\n[U8] Opaque club identity presentation boundary");
   );
   check(
     "club hub squad count uses the canonical registration-aware squad selector",
-    /userSquad\(state\)\.length/.test(clubHub) &&
-      !/football\?\.players\?\.filter/.test(clubHub),
+    /userSquad\(state\)\.length/.test(clubHub) && !/football\?\.players\?\.filter/.test(clubHub),
   );
 }
-
 
 console.log("\n[U9] Chairman club tracking");
 {
@@ -354,7 +347,6 @@ console.log("\n[U9] Chairman club tracking");
   );
 }
 
-
 console.log("\n[U10] Football performance visibility");
 {
   const squad = read("src/components/game/SquadSelectionTab.tsx");
@@ -367,11 +359,9 @@ console.log("\n[U10] Football performance visibility");
   );
   check(
     "squad screen derives manager quality from the canonical performance selector",
-    /playerManagerQuality\(state\)/.test(squad) &&
-      /label="Manager"/.test(squad),
+    /playerManagerQuality\(state\)/.test(squad) && /label="Manager"/.test(squad),
   );
 }
-
 
 console.log("\n[U11] Legacy history surface");
 {
@@ -392,7 +382,6 @@ console.log("\n[U11] Legacy history surface");
   );
 }
 
-
 console.log("\n[U12] Legacy Football product surface");
 {
   const newGame = read("src/components/game/NewGame.tsx");
@@ -403,8 +392,7 @@ console.log("\n[U12] Legacy Football product surface");
   );
   check(
     "history navigation is presented as Legacy rather than the old ledger-only label",
-    /\["history",\s*"Legacy",\s*History\]/.test(tabs) &&
-      !/\["history",\s*"Ledger"/.test(tabs),
+    /\["history",\s*"Legacy",\s*History\]/.test(tabs) && !/\["history",\s*"Ledger"/.test(tabs),
   );
   check(
     "route metadata uses the Legacy Football product identity",
@@ -412,7 +400,6 @@ console.log("\n[U12] Legacy Football product surface");
       !/Chairman FC — Football Finance Sim/.test(route),
   );
 }
-
 
 console.log("\n[U13] Canonical football level terminology");
 {
@@ -439,7 +426,6 @@ console.log("\n[U13] Canonical football level terminology");
   );
 }
 
-
 console.log("\n[U14] New career setup matches the live game");
 {
   const newGame = read("src/components/game/NewGame.tsx");
@@ -453,10 +439,10 @@ console.log("\n[U14] New career setup matches the live game");
   );
 }
 
-
 console.log("\n[U15] Match centre identity and competition context");
 {
   const matchday = read("src/components/game/MatchDayOverlay.tsx");
+  const viewer = read("src/components/game/MatchPitchViewer.tsx");
   check(
     "match centre resolves stored opponent references through the display-name gateway",
     /clubDisplayName\(state, lm\.fixture\.opponent\)/.test(matchday),
@@ -467,8 +453,20 @@ console.log("\n[U15] Match centre identity and competition context");
       /footballLevelOfLeague\(matchLeague\)/.test(matchday) &&
       !/Division Four/.test(matchday),
   );
+  check(
+    "match centre renders the canonical event stream through the 2D viewer",
+    /<MatchPitchViewer events=\{lm\.events\}/.test(matchday) &&
+      /event\.zone/.test(viewer) &&
+      /event\.phase/.test(viewer),
+  );
+  check(
+    "2D replay exposes play, restart, skip and scrub controls",
+    /Pause replay/.test(viewer) &&
+      /Restart replay/.test(viewer) &&
+      /Skip replay/.test(viewer) &&
+      /type="range"/.test(viewer),
+  );
 }
-
 
 console.log("\n[U16] Calendar and advance opponent identity");
 {
