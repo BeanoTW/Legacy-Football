@@ -226,3 +226,51 @@ export function playerSeasonByPlayer(
     )
     .sort((a, b) => b.season - a.season);
 }
+
+
+export interface ClubPlayerRecords {
+  appearances: PlayerCareerTotals | null;
+  goals: PlayerCareerTotals | null;
+  assists: PlayerCareerTotals | null;
+  minutes: PlayerCareerTotals | null;
+}
+
+export function clubPlayerRecords(state: GameState): ClubPlayerRecords {
+  const ids = new Set<string>();
+  for (const summary of state.playerSeasonHistory ?? []) {
+    for (const player of summary.players) ids.add(player.playerId);
+  }
+  for (const player of playerSeasonStats(state)) ids.add(player.playerId);
+  const careers = [...ids]
+    .map((id) => playerCareerTotals(state, id))
+    .filter((career): career is PlayerCareerTotals => Boolean(career));
+  const best = (
+    compare: (a: PlayerCareerTotals, b: PlayerCareerTotals) => number,
+  ): PlayerCareerTotals | null => careers.slice().sort(compare)[0] ?? null;
+  return {
+    appearances: best(
+      (a, b) =>
+        b.appearances - a.appearances ||
+        b.minutes - a.minutes ||
+        a.playerId.localeCompare(b.playerId),
+    ),
+    goals: best(
+      (a, b) =>
+        b.goals - a.goals ||
+        b.appearances - a.appearances ||
+        a.playerId.localeCompare(b.playerId),
+    ),
+    assists: best(
+      (a, b) =>
+        b.assists - a.assists ||
+        b.appearances - a.appearances ||
+        a.playerId.localeCompare(b.playerId),
+    ),
+    minutes: best(
+      (a, b) =>
+        b.minutes - a.minutes ||
+        b.appearances - a.appearances ||
+        a.playerId.localeCompare(b.playerId),
+    ),
+  };
+}
