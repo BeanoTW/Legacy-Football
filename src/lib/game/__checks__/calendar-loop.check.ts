@@ -1,4 +1,4 @@
-import { advanceDay, newGame } from "../engine";
+import { advanceDay, newGame, simulateFixtureToday } from "../engine";
 import { calendarDay, MATCHDAY_INDEX } from "../calendar";
 import { scoutingAssignment, scoutingReport, startScouting } from "../scouting";
 import { isUserClubReference } from "../clubReference";
@@ -42,6 +42,11 @@ for (let day = 1; day <= MATCHDAY_INDEX; day++) {
   assert(calendarDay(state) === day, `calendar must advance visibly to day index ${day}`);
   const assignment = scoutingAssignment(state, target.id);
   assert(assignment?.weeksObserved === day, `scouting must progress to day ${day} with the visible calendar`);
+  if (day === 1 || day === 5) {
+    const before = state.results.length;
+    state = simulateFixtureToday(state);
+    assert(state.results.length === before + 1, `fixture on day ${day} must resolve when explicitly simulated`);
+  }
   if (day === 4) {
     const report = scoutingReport(state, target);
     assert(report.knowledgePct === 67, "four-day report must expose partial scouting knowledge");
@@ -51,8 +56,8 @@ for (let day = 1; day <= MATCHDAY_INDEX; day++) {
 }
 
 const doubleWeekResults = state.results.slice(resultsBeforeDoubleWeek);
-assert(doubleWeekResults.filter((r) => r.week === startingWeek && (r.dayOfWeek ?? 5) === 1 && r.competition === "leagueCup").length === 1, "Tuesday cup fixture must resolve exactly once");
-assert(doubleWeekResults.filter((r) => r.week === startingWeek && (r.dayOfWeek ?? 5) === 5 && (r.competition ?? "league") === "league").length === 1, "Saturday league fixture must resolve exactly once");
+assert(doubleWeekResults.filter((r) => r.week === startingWeek && (r.dayOfWeek ?? 5) === 1 && r.competition === "leagueCup").length === 1, "Tuesday cup fixture must resolve exactly once after explicit simulation");
+assert(doubleWeekResults.filter((r) => r.week === startingWeek && (r.dayOfWeek ?? 5) === 5 && (r.competition ?? "league") === "league").length === 1, "Saturday league fixture must resolve exactly once after explicit simulation");
 
 state = advanceDay(state);
 assert(state.week === startingWeek, "Saturday to Sunday must remain inside the same week");
