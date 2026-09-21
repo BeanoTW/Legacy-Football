@@ -5,6 +5,7 @@ import { calendarDay, fmtMoney, startMatchDay } from "@/lib/game/engine";
 import { Section } from "./shared/primitives";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { Button } from "@/components/ui/button";
+import { medicalSupport, squadAverageFitness } from "@/lib/game/playerHealth";
 import {
   PRESEASON_COMPETITION_NAME,
   preseasonComplete,
@@ -28,6 +29,11 @@ export function FixturesTab({
 }) {
   const preseasonRows = preseasonTable(state);
   const showPreseason = state.fixtures.some((fixture) => fixture.competition === "preseason");
+  const currentWeekFixtures = state.fixtures.filter((fixture) => fixture.week === state.week);
+  const currentWeekPlayed = currentWeekFixtures.filter((fixture) => Boolean(resultForFixture(state, fixture))).length;
+  const currentWeekRemaining = currentWeekFixtures.length - currentWeekPlayed;
+  const averageFitness = squadAverageFitness(state);
+  const medical = medicalSupport(state);
   const preseasonFinished = preseasonComplete(state);
   const preseasonPosition =
     preseasonRows.findIndex((row) => isUserClubReference(state, row.club)) + 1;
@@ -43,6 +49,18 @@ export function FixturesTab({
   return (
     <div className="grid h-full min-h-0 gap-4 md:grid-cols-[minmax(0,1.06fr)_minmax(0,.94fr)]">
       <Section title="Fixtures">
+        {currentWeekFixtures.length > 0 && (
+          <div className="mb-3 grid grid-cols-3 gap-2 rounded-xl border bg-muted/20 p-2 text-center text-xs">
+            <div><strong className="block font-display text-lg">{currentWeekRemaining}</strong><span className="text-[10px] text-muted-foreground">matches left this week</span></div>
+            <div><strong className="block font-display text-lg">{averageFitness}%</strong><span className="text-[10px] text-muted-foreground">squad fitness</span></div>
+            <div><strong className="block font-display text-lg">{medical.label}</strong><span className="text-[10px] text-muted-foreground">medical support</span></div>
+          </div>
+        )}
+        {currentWeekFixtures.length > 1 && currentWeekRemaining > 0 && (
+          <div className="mb-3 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground">
+            Congested week: fatigue now carries into the next match, affects manager rotation and raises injury risk when players are run down.
+          </div>
+        )}
         <div className="lf-fixture-calendar contained-scroll pr-1">
           {[...fixturesByWeek.entries()].map(([week, fixtures]) => (
             <section key={week} className={cn("lf-fixture-week", week === state.week && "is-current")}>
