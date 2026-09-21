@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils";
 import { POSITION_BADGE_CLASS } from "../playerPosition";
 import { fitnessLabel, playerFitness } from "@/lib/game/playerHealth";
 import { fromAbsoluteWeek } from "@/lib/game/time";
-import { playerSeasonStats } from "@/lib/game/playerSeasonStats";
+import { playerCareerTotals, playerSeasonByPlayer, playerSeasonStats } from "@/lib/game/playerSeasonStats";
 
 const PLAYER_PROFILE_EVENT = "legacy-football:open-player-profile";
 
@@ -101,6 +101,8 @@ export function PlayerProfileSheet({
   const transferWindow = windowStatus(state);
   const loanUnavailable = freeAgent || owned ? null : loanInAvailabilityReason(state, player.id);
   const seasonLine = owned ? playerSeasonStats(state).find((row) => row.playerId === player.id) : undefined;
+  const career = owned ? playerCareerTotals(state, player.id) : null;
+  const seasonHistory = owned ? playerSeasonByPlayer(state, player.id) : [];
 
   const approach = () => {
     if (!estimate || owned) return;
@@ -294,6 +296,30 @@ export function PlayerProfileSheet({
               <div className="mt-2 text-xs text-muted-foreground">
                 {seasonLine.substituteAppearances} substitute appearance{seasonLine.substituteAppearances === 1 ? "" : "s"} · {seasonLine.assists} assist{seasonLine.assists === 1 ? "" : "s"} · {seasonLine.minutes} minutes
               </div>
+            </section>
+          )}
+
+          {owned && career && (
+            <section className="rounded-xl border bg-card p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="font-display text-lg">Club career</div>
+                  <div className="text-[10px] text-muted-foreground">{career.seasons} recorded season{career.seasons === 1 ? "" : "s"}</div>
+                </div>
+                <div className="text-right"><div className="font-display text-2xl">{career.averageRating.toFixed(2)}</div><div className="text-[9px] uppercase text-muted-foreground">Avg rating</div></div>
+              </div>
+              <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+                <Fact label="Apps" value={String(career.appearances)} />
+                <Fact label="Starts" value={String(career.starts)} />
+                <Fact label="Goals" value={String(career.goals)} />
+                <Fact label="Assists" value={String(career.assists)} />
+              </div>
+              {seasonHistory.length > 1 && (
+                <div className="mt-3 overflow-hidden rounded-lg border">
+                  <div className="grid grid-cols-[auto_repeat(5,1fr)] bg-muted/30 px-2 py-1.5 text-[9px] uppercase tracking-wider text-muted-foreground"><span>Season</span><span className="text-right">Apps</span><span className="text-right">Min</span><span className="text-right">G</span><span className="text-right">A</span><span className="text-right">Rat</span></div>
+                  {seasonHistory.map(({ season, record }) => <div key={season} className="grid grid-cols-[auto_repeat(5,1fr)] border-t px-2 py-1.5 text-[10px]"><span>S{season}</span><span className="text-right">{record.appearances}</span><span className="text-right">{record.minutes}</span><span className="text-right">{record.goals}</span><span className="text-right">{record.assists}</span><span className="text-right">{record.averageRating.toFixed(2)}</span></div>)}
+                </div>
+              )}
             </section>
           )}
 
