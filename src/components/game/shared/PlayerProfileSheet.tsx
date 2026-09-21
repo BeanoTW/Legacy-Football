@@ -27,6 +27,8 @@ import { scoutedOverallPresentation } from "@/lib/game/scoutingPresentation";
 import { isTransferWindowOpen, windowStatus } from "@/lib/game/calendar";
 import { cn } from "@/lib/utils";
 import { POSITION_BADGE_CLASS } from "../playerPosition";
+import { fitnessLabel, playerFitness } from "@/lib/game/playerHealth";
+import { fromAbsoluteWeek } from "@/lib/game/time";
 
 const PLAYER_PROFILE_EVENT = "legacy-football:open-player-profile";
 
@@ -277,6 +279,31 @@ export function PlayerProfileSheet({
               </div>
             )}
           </section>
+
+          {owned && (
+            <section className="rounded-xl border bg-card p-3">
+              <div className="font-display text-lg">Fitness & availability</div>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <Fact label="Fitness" value={`${playerFitness(player)}% · ${fitnessLabel(playerFitness(player))}`} />
+                <Fact
+                  label="Medical status"
+                  value={
+                    player.injury
+                      ? `${player.injury.type} · ${player.injury.severity}`
+                      : player.availability === "available"
+                        ? "Available"
+                        : "Unavailable"
+                  }
+                />
+              </div>
+              {player.injury && (
+                <div className="mt-2 text-xs text-muted-foreground">
+                  Expected back around season {fromAbsoluteWeek(player.injury.returnAbsoluteWeek).season},
+                  week {fromAbsoluteWeek(player.injury.returnAbsoluteWeek).week}.
+                </div>
+              )}
+            </section>
+          )}
 
           <section className="grid grid-cols-2 gap-2">
             <Fact label="Potential" value={fullKnowledge ? String(player.potentialAbility) : "?"} />
