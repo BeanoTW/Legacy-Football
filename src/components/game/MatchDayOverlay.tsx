@@ -27,6 +27,9 @@ import { managerMatchPrep } from "@/lib/game/managerMatchPrep";
 import { totalMatchStats } from "@/lib/game/matchEngine";
 import { MatchPitchViewer } from "./MatchPitchViewer";
 import { medicalSupport } from "@/lib/game/playerHealth";
+import { userSelectionStrengthPenalty } from "@/lib/game/matchStrength";
+import { inFormPlayers } from "@/lib/game/playerForm";
+import { userSquad } from "@/lib/game/recruitment";
 
 export function MatchDayOverlay({
   state,
@@ -45,6 +48,9 @@ export function MatchDayOverlay({
   }, []);
   const matchPrep = managerMatchPrep(state);
   const medical = medicalSupport(state);
+  const selectionPenalty = userSelectionStrengthPenalty(state);
+  const formLeaders = inFormPlayers(state, 2);
+  const squad = userSquad(state);
   const selectedFitness = lm.engine?.userLineup?.length
     ? Math.round(
         lm.engine.userLineup.reduce((sum, player) => sum + (player.fitness ?? 100), 0) /
@@ -226,6 +232,24 @@ export function MatchDayOverlay({
                     </span>
                   </div>
                   <p className="mt-1.5 text-sm text-muted-foreground">{matchPrep.summary}</p>
+                  <div className="mt-2 flex flex-wrap gap-2 text-[10px]">
+                    <span className="rounded-full border bg-background/60 px-2 py-0.5 text-muted-foreground">
+                      XI fitness {selectedFitness}%
+                    </span>
+                    {selectionPenalty < -0.05 && (
+                      <span className="rounded-full border border-amber-500/30 bg-amber-500/5 px-2 py-0.5 text-amber-700">
+                        Selection cost {selectionPenalty.toFixed(2)}
+                      </span>
+                    )}
+                    {formLeaders.map((form) => {
+                      const player = squad.find((candidate) => candidate.id === form.playerId);
+                      return (
+                        <span key={form.playerId} className="rounded-full border bg-background/60 px-2 py-0.5 text-muted-foreground">
+                          {player ? `${player.firstName} ${player.lastName}` : "In-form player"} · {form.averageRating.toFixed(2)}
+                        </span>
+                      );
+                    })}
+                  </div>
                   {matchPrep.managerId &&
                     matchPrep.selectedFormation !== matchPrep.preferredFormation && (
                       <p className="mt-2 text-xs font-medium text-foreground">
