@@ -10,6 +10,7 @@ export interface ManagerMatchPrep {
   squadFitScore: number;
   squadFitBand: SquadFitBand | "Caretaker";
   style: string;
+  rotation: "Low" | "Medium" | "High";
   strengthAdjustment: number;
   summary: string;
 }
@@ -32,6 +33,7 @@ export function managerMatchPrep(state: GameState): ManagerMatchPrep {
       squadFitScore: 50,
       squadFitBand: "Caretaker",
       style: "Balanced",
+      rotation: "Medium",
       strengthAdjustment: 0,
       summary: "Caretaker staff keep the side in a neutral 4-4-2 without a specialist tactical edge.",
     };
@@ -68,6 +70,7 @@ export function managerMatchPrep(state: GameState): ManagerMatchPrep {
     squadFitScore: fit.bestFormationScore,
     squadFitBand: fit.band,
     style: identity.philosophy,
+    rotation: identity.rotation,
     strengthAdjustment,
     summary: `${shapeLine} ${fit.band} squad fit; ${identity.philosophy.toLowerCase()} approach.`,
   };
