@@ -160,7 +160,7 @@ console.log("\n[6] Player follows their actual club division");
   const mine = t.leagues.find((l) => l.clubIds.some((club) => isUserClubReference(t, club)))!;
   check("playerLeagueId matches actual membership", t.playerLeagueId === mine.id);
   check("user table shows the user's division", t.league.length === 20 && t.league.some((r) => isUserClubReference(t, r.team)));
-  check("user fixtures only involve current-division opponents", t.fixtures.every((f) => mine.clubIds.includes(f.opponent)));
+  check("user league fixtures only involve current-division opponents", t.fixtures.filter((f) => (f.competition ?? "league") === "league").every((f) => mine.clubIds.includes(f.opponent)));
   const h = t.seasonHistory.find((x) => x.season === 1 && x.leagueId === startingLeague.id)!;
   check("player either stays or follows a recorded promotion", mine.id === startingLeague.id || h.promoted.some((club) => isUserClubReference(t, club)));
   check("champion mail exists for every division", t.inbox.filter((i) => i.eventKey.startsWith("league-champion")).length === t.leagues.length);
