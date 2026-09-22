@@ -61,7 +61,7 @@ export function awardUserCupProgressInPlace(
   if (!userTie) return 0;
 
   const opponent = isUserClubReference(state, userTie.home) ? userTie.away : userTie.home;
-  const final = cupBefore.ties.length === 1;
+  const final = cupBefore.entrants.length === 2;
   if (!userWon) {
     pushCupInbox(
       state,
@@ -79,7 +79,7 @@ export function awardUserCupProgressInPlace(
     subcategory: definition.name,
     description: final
       ? `${definition.name} winners prize`
-      : `${definition.name} ${domesticCupRoundLabel(cupBefore.competition, cupBefore.round)} progression prize`,
+      : `${definition.name} ${domesticCupRoundLabel(cupBefore.competition, cupBefore.round, cupBefore.entrants.length)} progression prize`,
     amount,
     direction: "income",
     sourceSystem: "engine.prize",
@@ -98,7 +98,7 @@ export function awardUserCupProgressInPlace(
     final ? `${definition.name} champions` : `Through in the ${definition.name}`,
     final
       ? `The club has won the ${definition.name}. Prize money of £${amount.toLocaleString()} has been added to the club accounts.`
-      : `We have beaten ${clubDisplayName(state, opponent)} and progressed from ${domesticCupRoundLabel(cupBefore.competition, cupBefore.round)}. The run earns £${amount.toLocaleString()} in prize money.`,
+      : `We have beaten ${clubDisplayName(state, opponent)} and progressed from ${domesticCupRoundLabel(cupBefore.competition, cupBefore.round, cupBefore.entrants.length)}. The run earns £${amount.toLocaleString()} in prize money.`,
     final ? "high" : "normal",
   );
 
@@ -133,7 +133,7 @@ export function announceUserCupDrawInPlace(
     state,
     `cup:draw:s${state.season}:${cup.competition}:r${cup.round}`,
     `${domesticCupName(cup.competition)} draw: ${clubDisplayName(state, opponent)}`,
-    `We will face ${clubDisplayName(state, opponent)} ${home ? "at home" : "away"} in ${domesticCupRoundLabel(cup.competition, cup.round)}${slot ? `, scheduled for week ${slot.week}` : ""}.`,
+    `We will face ${clubDisplayName(state, opponent)} ${home ? "at home" : "away"} in ${domesticCupRoundLabel(cup.competition, cup.round, cup.entrants.length)}${slot ? `, scheduled for week ${slot.week}` : ""}.`,
     cup.round >= 5 ? "high" : "normal",
   );
 }
