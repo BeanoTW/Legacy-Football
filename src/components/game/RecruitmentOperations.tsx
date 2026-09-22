@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import type { GameState } from "@/lib/game/types";
 import { Button } from "@/components/ui/button";
 import { fmtMoney, fmtMoneyExact } from "@/lib/game/engine";
@@ -21,6 +21,7 @@ import { absoluteWeek } from "@/lib/game/time";
 import { clubOperatingModel, contractEmploymentType } from "@/lib/game/employment";
 import { tacticalPositionProfile } from "@/lib/game/positions";
 import { TransferNegotiationDesk } from "./TransferNegotiationDesk";
+import { TacticalPlayerCard } from "./shared/TacticalPlayerCard";
 
 const employmentLabel = (value: "PartTime" | "FullTime") =>
   value === "PartTime" ? "Part-time" : "Full-time";
@@ -80,65 +81,16 @@ export function RecruitmentOperations({
     );
   });
 
-  const playerRow = (player: (typeof squad)[number]) => {
-    const contract = activeContract(state, player.id);
-    const loan = activeLoanForPlayer(state, player.id);
-    const weeksLeft = loan
-      ? Math.max(0, loan.endAbsoluteWeek - absoluteWeek(state.season, state.week))
-      : contract
-        ? weeksLeftOnContract(state, contract)
-        : 0;
-    const employment = contract ? employmentLabel(contractEmploymentType(state, contract)) : null;
-    const displayedWage =
-      contract && loan
-        ? Math.round((contract.weeklyWage * loan.loanClubWageContributionPct) / 100)
-        : contract?.weeklyWage ?? 0;
-    const mood = playerMood(state, player);
-    return (
-      <button
-        key={player.id}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
-        onClick={() => setSelectedPlayerId(player.id)}
-      >
-        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-xs font-bold text-primary">
-          {tacticalPositionProfile(player).primary}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-1.5">
-            <span className="block truncate font-semibold">{playerName(player)}</span>
-            {loan && (
-              <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">
-                LOAN
-              </span>
-            )}
-          </span>
-          <span className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
-            <span className="truncate">
-              {loan
-                ? `Age ${ageOf(player, state.season)} · On loan from ${clubDisplayName(state, loan.parentClubId)}`
-                : `Age ${ageOf(player, state.season)} · ${contract?.squadRole ?? "Unregistered"}${employment ? ` · ${employment}` : ""}`}
-            </span>
-            <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${MOOD_TONE_CLASS[mood.tone]}`}>{mood.label}</span>
-          </span>
-        </span>
-        <span className="shrink-0 text-right text-sm">
-          <span className="block">
-            {contract ? `${fmtMoneyExact(displayedWage)}/wk` : "No deal"}
-          </span>
-          <span
-            className={
-              weeksLeft <= 52
-                ? "block text-xs font-semibold text-amber-600"
-                : "block text-xs text-muted-foreground"
-            }
-          >
-            {contract ? `${weeksLeft} ${loan ? "loan" : "contract"} weeks left` : "No contract"}
-          </span>
-        </span>
-        <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-      </button>
-    );
-  };
+  const playerRow = (player: (typeof squad)[number]) => (
+    <TacticalPlayerCard
+      key={player.id}
+      state={state}
+      player={player}
+      mode="compact"
+      className="rounded-none border-x-0 border-t-0 shadow-none last:border-b-0"
+      onOpen={() => setSelectedPlayerId(player.id)}
+    />
+  );
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
