@@ -60,6 +60,7 @@ export interface CupRoundState {
   round: number;
   entrants: string[];
   ties: CupTie[];
+  byes: string[];
   winners: string[];
 }
 
@@ -69,11 +70,19 @@ export function startCupRound(
   entrants: readonly string[],
   seed: string,
 ): CupRoundState {
+  const rng = mulberry32(hashString(`${seed}|${competition}|r${round}|bye`));
+  const shuffled = [...entrants];
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  const byes = shuffled.length % 2 === 1 ? [shuffled.pop()!] : [];
   return {
     competition,
     round,
     entrants: [...entrants],
-    ties: seededCupDraw(entrants, `${seed}|${competition}|r${round}`),
+    ties: seededCupDraw(shuffled, `${seed}|${competition}|r${round}`),
+    byes,
     winners: [],
   };
 }
@@ -85,9 +94,10 @@ export function recordCupWinner(state: CupRoundState, winner: string): CupRoundS
 }
 
 export function nextCupRound(state: CupRoundState, seed: string): CupRoundState | null {
-  if (state.ties.length === 0 || state.winners.length !== state.ties.length) return null;
-  if (state.winners.length < 2) return null;
-  return startCupRound(state.competition, state.round + 1, state.winners, seed);
+  if (state.ties.length > 0 && state.winners.length !== state.ties.length) return null;
+  const advancing = [...state.winners, ...state.byes];
+  if (advancing.length < 2) return null;
+  return startCupRound(state.competition, state.round + 1, advancing, seed);
 }
 
 export function userCupFixture(
