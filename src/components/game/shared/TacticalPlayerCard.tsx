@@ -24,6 +24,7 @@ export function TacticalPlayerCard({
   selected = false,
   actions,
   className,
+  onOpen,
 }: {
   state: GameState;
   player: FootballPlayer;
@@ -31,6 +32,7 @@ export function TacticalPlayerCard({
   selected?: boolean;
   actions?: React.ReactNode;
   className?: string;
+  onOpen?: () => void;
 }) {
   const owned = isUserClubReference(state, player.currentClubId);
   const tactical = tacticalPositionProfile(player);
@@ -63,7 +65,7 @@ export function TacticalPlayerCard({
     >
       <button
         type="button"
-        onClick={() => openPlayerProfile(player.id)}
+        onClick={() => onOpen ? onOpen() : openPlayerProfile(player.id)}
         className={cn(
           "relative z-10 w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-300",
           compact ? "p-2.5" : "p-3.5",
