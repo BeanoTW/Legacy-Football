@@ -11,8 +11,16 @@ export function domesticCupName(competition: DomesticCompetition): string {
   return DOMESTIC_CUPS.find((cup) => cup.id === competition)?.name ?? competition;
 }
 
-export function domesticCupRoundLabel(competition: DomesticCompetition, round: number): string {
-  return cupSlot(competition, round)?.label ?? `Round ${round}`;
+export function domesticCupRoundLabel(
+  competition: DomesticCompetition,
+  round: number,
+  entrants?: number,
+): string {
+  const name = domesticCupName(competition);
+  if (entrants === 2) return `${name} Final`;
+  if (entrants != null && entrants <= 4) return `${name} Semi-final`;
+  if (entrants != null && entrants <= 8) return `${name} Quarter-final`;
+  return cupSlot(competition, round)?.label ?? `${name} Round ${round}`;
 }
 
 function pushCupInbox(
@@ -59,7 +67,7 @@ export function awardUserCupProgressInPlace(
       state,
       `cup:eliminated:s${state.season}:${cupBefore.competition}:r${cupBefore.round}`,
       `Eliminated from the ${definition.name}`,
-      `Our ${definition.name} run has ended against ${clubDisplayName(state, opponent)} in ${domesticCupRoundLabel(cupBefore.competition, cupBefore.round)}.`,
+      `Our ${definition.name} run has ended against ${clubDisplayName(state, opponent)} in ${domesticCupRoundLabel(cupBefore.competition, cupBefore.round, cupBefore.entrants.length)}.`,
       cupBefore.round >= 4 ? "high" : "normal",
     );
     return 0;
@@ -114,7 +122,7 @@ export function announceUserCupDrawInPlace(
       state,
       `cup:draw:s${state.season}:${cup.competition}:r${cup.round}`,
       `${domesticCupName(cup.competition)}: bye into the next round`,
-      `The club has received a bye in ${domesticCupRoundLabel(cup.competition, cup.round)} and will progress without playing a tie.`,
+      `The club has received a bye in ${domesticCupRoundLabel(cup.competition, cup.round, cup.entrants.length)} and will progress without playing a tie.`,
       "normal",
     );
     return;
