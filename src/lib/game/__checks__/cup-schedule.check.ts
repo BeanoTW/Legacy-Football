@@ -42,3 +42,18 @@ const onCupDay = resolveAiDomesticCupRound(datedState, datedCup);
 assert.equal(onCupDay.round, 2, "AI cup round must become eligible on its scheduled Tuesday");
 
 console.log("cup-schedule.check: ok");
+
+
+const odd = startCupRound("leagueCup", 5, ["A", "B", "C", "D", "E"], "odd-round");
+assert.equal(odd.ties.length, 2, "odd cup round must still create every possible tie");
+assert.equal(odd.byes.length, 1, "odd cup round must preserve one deterministic bye");
+assert.equal(
+  new Set([...odd.ties.flatMap((tie) => [tie.home, tie.away]), ...odd.byes]).size,
+  5,
+  "no entrant may disappear when a cup round needs a bye",
+);
+let oddSettled = odd;
+for (const tie of odd.ties) oddSettled = recordCupWinner(oddSettled, tie.home);
+const oddNext = nextCupRound(oddSettled, "odd-round");
+assert.ok(oddNext, "resolved odd round plus bye must progress");
+assert.equal(oddNext!.entrants.length, 3, "bye club must join the tie winners in the next round");
