@@ -49,6 +49,7 @@ import { commitLiveMatch } from "./liveMatch";
 import { settlePreseasonInvitational } from "./preseason";
 import { ensureSeasonCups } from "./cupEntry";
 import { syncUserCupFixtures } from "./cupFixtures";
+import { announceUserCupDrawInPlace } from "./cupNarrative";
 import { recoverPlayerHealthWeekInPlace } from "./playerHealth";
 
 export { weekForLeagueRound } from "./pyramid";
@@ -261,6 +262,7 @@ export function advanceDay(prev: GameState): GameState {
     const bootstrapped = structuredClone(prev);
     ensureSeasonCups(bootstrapped);
     syncUserCupFixtures(bootstrapped);
+    for (const cup of bootstrapped.domesticCups ?? []) announceUserCupDrawInPlace(bootstrapped, cup);
     prev = bootstrapped;
   }
   if (isTransferDeadlineDay(prev)) {
