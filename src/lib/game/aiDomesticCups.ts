@@ -6,6 +6,7 @@ import { advanceDomesticCup, resolveDomesticCupTie } from "./domesticCupState";
 import { userClubReference, sameClubReference } from "./clubReference";
 import { cupSlot } from "./cupSchedule";
 import { calendarDay } from "./calendar";
+import { recordCupChampionInLegacyInPlace } from "./clubLegacy";
 
 function aiCupScore(state: GameState, home: string, away: string, competition: string, round: number) {
   const hs = clubMatchStrength(state, home, state.season);
@@ -51,7 +52,9 @@ export function resolveAiDomesticCupRound(state: GameState, cup: DomesticCupStat
     const winner = decider.winner === "home" ? tie.home : tie.away;
     next = resolveDomesticCupTie(next, tie.home, tie.away, winner);
   }
-  return advanceDomesticCup(next, `${state.saveSeed}|${state.season}`, state);
+  const advanced = advanceDomesticCup(next, `${state.saveSeed}|${state.season}`, state);
+  if (advanced.champion) recordCupChampionInLegacyInPlace(state, advanced.competition, advanced.champion);
+  return advanced;
 }
 
 export function resolveAllAiDomesticCups(state: GameState): void {
