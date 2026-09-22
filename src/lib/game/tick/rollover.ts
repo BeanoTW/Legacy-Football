@@ -28,6 +28,7 @@ import { SEASON_END_WEEK } from "../calendar";
 import { ordinal } from "../format";
 import { initialiseSeasonCups } from "../cupEntry";
 import { syncUserCupFixtures } from "../cupFixtures";
+import { announceUserCupDrawInPlace } from "../cupNarrative";
 import { initialisePreseasonFixtures } from "../preseason";
 import { closePlayerSeasonInPlace, pushPlayerSeasonAwardsInboxInPlace } from "../playerSeasonStats";
 import {
@@ -114,6 +115,7 @@ export function tickSeasonRollover(s: GameState): void {
     initialisePreseasonFixtures(s);
     s.fixtures = fixturesForClub(s.leagueSchedule, userClubReference(s));
     syncUserCupFixtures(s);
+    for (const cup of s.domesticCups ?? []) announceUserCupDrawInPlace(s, cup);
   }
 
   // matchRecords and seasonHistory are permanent — never cleared.
