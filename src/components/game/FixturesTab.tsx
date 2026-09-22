@@ -219,3 +219,88 @@ export function FixturesTab({
     </div>
   );
 }
+
+function CupCompetitionPanel({
+  state,
+  cup,
+}: {
+  state: GameState;
+  cup: NonNullable<GameState["domesticCups"]>[number];
+}) {
+  const userTie = cup.ties.find(
+    (tie) => isUserClubReference(state, tie.home) || isUserClubReference(state, tie.away),
+  );
+  const userEliminated = cup.eliminated.some((club) => isUserClubReference(state, club));
+  const userChampion = Boolean(cup.champion && isUserClubReference(state, cup.champion));
+  const slot = cupSlot(cup.competition, cup.round);
+  const sampleTies = userTie
+    ? [userTie, ...cup.ties.filter((tie) => tie !== userTie).slice(0, 3)]
+    : cup.ties.slice(0, 4);
+  const status = userChampion
+    ? "Champions"
+    : userEliminated
+      ? "Eliminated"
+      : userTie
+        ? (isUserClubReference(state, userTie.home) ? "Home tie" : "Away tie")
+        : "Awaiting entry / next draw";
+
+  return (
+    <Section title={domesticCupName(cup.competition)}>
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <div className="font-display text-lg">
+            {cup.champion ? "Competition complete" : domesticCupRoundLabel(cup.competition, cup.round)}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {slot
+              ? `Week ${slot.week} · ${["Mon","Tue","Wed","Thu","Fri","Sat","Sun"][slot.dayOfWeek]}`
+              : "Finalised"}
+            {" · "}{cup.entrants.length} clubs in current round
+          </div>
+        </div>
+        <span className={cn(
+          "rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-wide",
+          userChampion && "border-emerald-500/30 bg-emerald-500/10 text-emerald-700",
+          userEliminated && "border-rose-500/30 bg-rose-500/10 text-rose-700",
+          !userChampion && !userEliminated && "bg-muted/40 text-muted-foreground",
+        )}>
+          {status}
+        </span>
+      </div>
+
+      {cup.champion ? (
+        <div className="rounded-xl border bg-muted/20 p-3 text-sm">
+          <span className="text-xs text-muted-foreground">Winner</span>
+          <strong className="mt-1 block font-display text-xl">{clubDisplayName(state, cup.champion)}</strong>
+        </div>
+      ) : (
+        <div className="divide-y rounded-xl border">
+          {sampleTies.map((tie) => {
+            const mine = isUserClubReference(state, tie.home) || isUserClubReference(state, tie.away);
+            return (
+              <div key={`${tie.home}-${tie.away}`} className={cn("grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-3 py-2 text-xs", mine && "bg-primary/5")}>
+                <span className={cn("truncate", isUserClubReference(state, tie.home) && "font-bold")}>
+                  {clubDisplayName(state, tie.home)}
+                </span>
+                <span className="text-muted-foreground">v</span>
+                <span className={cn("truncate text-right", isUserClubReference(state, tie.away) && "font-bold")}>
+                  {clubDisplayName(state, tie.away)}
+                </span>
+                {tie.winner && (
+                  <span className="col-span-3 text-[10px] text-muted-foreground">
+                    Winner: {clubDisplayName(state, tie.winner)}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+          {cup.ties.length > sampleTies.length && (
+            <div className="px-3 py-2 text-[10px] text-muted-foreground">
+              + {cup.ties.length - sampleTies.length} other ties
+            </div>
+          )}
+        </div>
+      )}
+    </Section>
+  );
+}
