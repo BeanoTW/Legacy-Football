@@ -186,6 +186,8 @@ export function tickSelectedMatchday(
       }
     }
 
+    if (fxResult) fxResult.result = result;
+
     const swing = result === "W" ? 4 : result === "D" ? 0 : -5;
     s.fanHappiness = Math.max(5, Math.min(100, s.fanHappiness + swing));
     s.reputation = Math.max(
