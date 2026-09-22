@@ -170,7 +170,7 @@ function OwnedPlayerData({
   fitness: number;
   form: ReturnType<typeof playerRecentForm> | null;
   season: ReturnType<typeof playerSeasonStats>[number] | undefined;
-  contract: ReturnType<typeof activeContract>;
+  contract: ReturnType<typeof activeContract> | null;
   compact: boolean;
 }) {
   const injury = player.injury;
@@ -231,7 +231,7 @@ function RecruitmentPlayerData({
   estimate,
   compact,
 }: {
-  report: ReturnType<typeof scoutingReport>;
+  report: ReturnType<typeof scoutingReport> | null;
   estimate: ReturnType<typeof chairmanRecruitmentEstimate>;
   compact: boolean;
 }) {
@@ -242,7 +242,7 @@ function RecruitmentPlayerData({
         <DataCell label="Scouting" value={knowledge > 0 ? `${knowledge}%` : "Unknown"} meter={knowledge} tone={knowledge >= 60 ? "good" : "neutral"} />
         <DataCell
           label="Potential"
-          value={knowledge > 0 && report?.potentialRange ? `${report.potentialRange[0]}–${report.potentialRange[1]}` : "?"}
+          value={report?.complete ? "Assessed" : knowledge > 0 ? "Est." : "?"}
           tone="neutral"
         />
       </div>
