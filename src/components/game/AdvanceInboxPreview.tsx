@@ -48,8 +48,8 @@ export function AdvanceInboxPreview({
 }) {
   const interrupted = !isContinuing && !!reason;
   const isMatchday = interrupted && reason?.toLowerCase().includes("matchday");
-  const fixture = state.fixtures.find((item) => item.week === state.week && (item.dayOfWeek ?? 5) === currentDay && !state.results.some((result) => result.week === item.week && result.opponent === item.opponent && result.home === item.home && (result.dayOfWeek ?? 5) === (item.dayOfWeek ?? 5) && (result.competition ?? "league") === (item.competition ?? "league")));
   const currentDay = calendarDay(state);
+  const fixture = state.fixtures.find((item) => item.week === state.week && (item.dayOfWeek ?? 5) === currentDay && !state.results.some((result) => result.week === item.week && result.opponent === item.opponent && result.home === item.home && (result.dayOfWeek ?? 5) === (item.dayOfWeek ?? 5) && (result.competition ?? "league") === (item.competition ?? "league")));
   const weekEvents = timelineEventsForWeek(state, state.week);
   const transferWindow = windowStatus(state);
   const deadlineWeek = isTransferDeadlineWeek(state);
