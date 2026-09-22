@@ -512,5 +512,19 @@ console.log("\n[U16] Calendar and advance opponent identity");
   );
 }
 
+
+console.log("\n[U17] Mobile fixtures scrolling");
+{
+  const fixtures = read("src/components/game/FixturesTab.tsx");
+  check(
+    "fixtures screen keeps natural document flow on mobile",
+    /min-h-full content-start/.test(fixtures) && /md:h-full md:min-h-0/.test(fixtures),
+  );
+  check(
+    "fixtures screen avoids nested mobile scroll traps",
+    /lf-fixture-calendar md:contained-scroll/.test(fixtures) &&
+      /md:overflow-y-auto/.test(fixtures),
+  );
+}
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
