@@ -256,9 +256,14 @@ export function tickSelectedMatchday(
   // freshly-created saves without initialised cups keep the established weekly
   // path untouched.
   if (s.domesticCups?.length) {
+    const before = new Map(s.domesticCups.map((cup) => [cup.competition, `${cup.round}|${cup.champion ?? ""}`]));
     resolveAllAiDomesticCups(s);
     syncUserCupFixtures(s);
-    for (const cup of s.domesticCups) announceUserCupDrawInPlace(s, cup);
+    for (const cup of s.domesticCups) {
+      if (before.get(cup.competition) !== `${cup.round}|${cup.champion ?? ""}`) {
+        announceUserCupDrawInPlace(s, cup);
+      }
+    }
   }
 
   return { fxResult, matchdayNote };
