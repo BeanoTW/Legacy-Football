@@ -47,6 +47,8 @@ import { tickLegacyAiResults, tickContractsAndMarkets, tickTicketBacklash } from
 import { tickSeasonRollover } from "./tick/rollover";
 import { commitLiveMatch } from "./liveMatch";
 import { settlePreseasonInvitational } from "./preseason";
+import { ensureSeasonCups } from "./cupEntry";
+import { syncUserCupFixtures } from "./cupFixtures";
 import { recoverPlayerHealthWeekInPlace } from "./playerHealth";
 
 export { weekForLeagueRound } from "./pyramid";
