@@ -4,7 +4,6 @@ import { actionableInbox, importantUnread } from "@/lib/game/attention";
 import {
   CALENDAR,
   DAY_NAMES,
-  MATCHDAY_INDEX,
   calendarDay,
   isTransferWindowOpen,
 } from "@/lib/game/engine";
@@ -28,7 +27,7 @@ export function ChairmanContinuePanel({
   const important = importantUnread(state).slice(0, Math.max(0, 2 - actionable.length));
   const cards = [...actionable, ...important];
   const currentDay = calendarDay(state);
-  const hasFixture = state.fixtures.some((fixture) => fixture.week === state.week);
+  const fixtureDays = new Set(state.fixtures.filter((fixture) => fixture.week === state.week).map((fixture) => fixture.dayOfWeek ?? 5));
   const windowOpen = isTransferWindowOpen(state);
   const deadlineWeek = state.week === CALENDAR.preSeasonEnd || state.week === CALENDAR.midSeasonEnd;
   const deadlineDay = deadlineWeek && currentDay === 6;
@@ -63,7 +62,7 @@ export function ChairmanContinuePanel({
           {DAY_NAMES.map((day, index) => {
             const active = index === currentDay;
             const passed = index < currentDay;
-            const matchday = hasFixture && index === MATCHDAY_INDEX;
+            const matchday = fixtureDays.has(index);
             const closesWindow = windowOpen && deadlineWeek && index === 6;
             return (
               <div
