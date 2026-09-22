@@ -255,6 +255,12 @@ function resolveDatedFixtureInPlace(state: GameState): void {
  * and contracts remain on their established deterministic boundaries.
  */
 export function advanceDay(prev: GameState): GameState {
+  if (!prev.domesticCups?.length && prev.week <= 7) {
+    const bootstrapped = structuredClone(prev);
+    ensureSeasonCups(bootstrapped);
+    syncUserCupFixtures(bootstrapped);
+    prev = bootstrapped;
+  }
   if (isTransferDeadlineDay(prev)) {
     const hour = transferDeadlineHour(prev);
     if (hour < 23) {
