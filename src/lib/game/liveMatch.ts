@@ -188,6 +188,10 @@ export function kickoff(s: GameState): GameState {
   return ns;
 }
 
+export function continueSecondHalf(s: GameState): GameState {
+  return applyHalfTimeChoice(s, "steady");
+}
+
 export function applyHalfTimeChoice(s: GameState, choiceId: string): GameState {
   if (!s.liveMatch || s.liveMatch.status !== "halfTime" || !s.liveMatch.halfTimeOptions) return s;
   const opt0 = s.liveMatch.halfTimeOptions.find((o) => o.id === choiceId);
