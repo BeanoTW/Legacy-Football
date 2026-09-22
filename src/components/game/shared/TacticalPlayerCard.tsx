@@ -14,6 +14,7 @@ import { scoutingReport } from "@/lib/game/scouting";
 import { scoutedOverallPresentation } from "@/lib/game/scoutingPresentation";
 import { chairmanRecruitmentEstimate, isChairmanShortlisted } from "@/lib/game/recruitmentKnowledge";
 import { openPlayerProfile } from "./PlayerProfileSheet";
+import { contractEmploymentType } from "@/lib/game/employment";
 
 export type PlayerCardMode = "squad" | "recruitment" | "compact";
 
@@ -217,7 +218,11 @@ function OwnedPlayerData({
       )}
 
       <div className="mt-2 flex items-center justify-between gap-2 text-[9px] text-white/45">
-        <span className="truncate">{contract?.squadRole ?? "No squad role"}</span>
+        <span className="truncate">
+          {contract
+            ? `${contract.squadRole} · ${contractEmploymentType(state, contract) === "FullTime" ? "Full-time" : "Part-time"}`
+            : "No squad role"}
+        </span>
         <span className="shrink-0">
           {contract ? `${fmtMoney(contract.weeklyWage)}/wk · ${weeksLeftOnContract(state, contract)}w` : "No active contract"}
         </span>
