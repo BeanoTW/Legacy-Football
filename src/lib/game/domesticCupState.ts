@@ -14,6 +14,7 @@ export function initialiseDomesticCup(
     round,
     entrants: started.entrants,
     ties: started.ties.map((tie) => ({ ...tie })),
+    byes: started.byes,
     eliminated: [],
   };
 }
@@ -37,13 +38,13 @@ export function resolveDomesticCupTie(
 }
 
 export function domesticCupRoundComplete(cup: DomesticCupState): boolean {
-  return cup.ties.length > 0 && cup.ties.every((tie) => Boolean(tie.winner));
+  return cup.ties.every((tie) => Boolean(tie.winner)) && (cup.ties.length > 0 || (cup.byes?.length ?? 0) > 0);
 }
 
 export function advanceDomesticCup(cup: DomesticCupState, seed: string, state?: { leagues: { tier: number; clubIds: string[] }[] }): DomesticCupState {
   if (!domesticCupRoundComplete(cup)) return cup;
-  const winners = cup.ties.flatMap((tie) => (tie.winner ? [tie.winner] : []));
-  if (winners.length === 1) return { ...cup, champion: winners[0] };
+  const winners = [...cup.ties.flatMap((tie) => (tie.winner ? [tie.winner] : [])), ...(cup.byes ?? [])];
+  if (winners.length === 1) return { ...cup, champion: winners[0], byes: [] };
 
   const nextRound = cup.round + 1;
   const entering = cup.competition === "faCup" && state
@@ -56,5 +57,6 @@ export function advanceDomesticCup(cup: DomesticCupState, seed: string, state?: 
     round: next.round,
     entrants: next.entrants,
     ties: next.ties.map((tie) => ({ ...tie })),
+    byes: next.byes,
   };
 }
