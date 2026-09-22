@@ -475,8 +475,10 @@ console.log("\n[U15] Match centre identity and competition context");
   );
   check(
     "match centre hides half-time and full-time verdicts until replay completion",
-    /lm\.status === "halfTime" && lm\.halfTimeOptions && finishedReplay/.test(matchday) &&
+    /lm\.status === "halfTime" && finishedReplay/.test(matchday) &&
       /lm\.status === "fullTime" && finishedReplay/.test(matchday) &&
+      /continueSecondHalf/.test(matchday) &&
+      !/applyHalfTimeChoice/.test(matchday) &&
       /onReplayProgress/.test(viewer),
   );
   check(
@@ -498,6 +500,15 @@ console.log("\n[U16] Calendar and advance opponent identity");
   check(
     "calendar resolves stored opponent references through the display-name gateway",
     /clubDisplayName\(state, fixture\.opponent\)/.test(calendar),
+  );
+  check(
+    "advance preview binds fixture cards to their actual day and opponent",
+    /\(item\.dayOfWeek \?\? 5\) === currentDay/.test(preview) &&
+      /candidate\.opponent === event\.fixtureOpponent/.test(preview),
+  );
+  check(
+    "timeline projects dated fixtures instead of forcing Saturday",
+    /const fixtureDay = fixture\.dayOfWeek \?\? 5/.test(read("src/lib/game/timeline.ts")),
   );
 }
 
