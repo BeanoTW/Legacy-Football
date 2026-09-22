@@ -1,7 +1,7 @@
 import { Play } from "lucide-react";
 import type { GameState } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
-import { calendarDay, fmtMoney, simulateFixtureToday, startMatchDay } from "@/lib/game/engine";
+import { calendarDay, fmtMoney, simulateFixture, startMatchDay } from "@/lib/game/engine";
 import { Section } from "./shared/primitives";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { domesticCupName, domesticCupRoundLabel } from "@/lib/game/cupNarrative";
@@ -96,10 +96,10 @@ export function FixturesTab({
                           </>
                         ) : isToday ? (
                           <div className="flex flex-col gap-1">
-                            <Button size="sm" onClick={() => update((s) => startMatchDay(s))}>
+                            <Button size="sm" onClick={() => update((s) => startMatchDay(s, fixture))}>
                               <Play /> Play
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => update((s) => simulateFixtureToday(s))}>
+                            <Button size="sm" variant="outline" onClick={() => update((s) => simulateFixture(s, fixture))}>
                               Sim
                             </Button>
                           </div>
