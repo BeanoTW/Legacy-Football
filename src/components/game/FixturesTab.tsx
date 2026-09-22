@@ -49,7 +49,7 @@ export function FixturesTab({
   }, new Map<number, GameState["fixtures"]>());
 
   return (
-    <div className="grid h-full min-h-0 gap-4 md:grid-cols-[minmax(0,1.06fr)_minmax(0,.94fr)]">
+    <div className="grid min-h-full content-start gap-4 pb-4 md:h-full md:min-h-0 md:grid-cols-[minmax(0,1.06fr)_minmax(0,.94fr)] md:pb-0">
       <Section title="Fixtures">
         {currentWeekFixtures.length > 0 && (
           <div className="mb-3 grid grid-cols-3 gap-2 rounded-xl border bg-muted/20 p-2 text-center text-xs">
@@ -63,7 +63,7 @@ export function FixturesTab({
             Congested week: fatigue now carries into the next match, affects manager rotation and raises injury risk when players are run down.
           </div>
         )}
-        <div className="lf-fixture-calendar contained-scroll pr-1">
+        <div className="lf-fixture-calendar md:contained-scroll md:pr-1">
           {[...fixturesByWeek.entries()].map(([week, fixtures]) => (
             <section key={week} className={cn("lf-fixture-week", week === state.week && "is-current")}>
               <div className="lf-fixture-week-heading">
@@ -119,7 +119,7 @@ export function FixturesTab({
         </div>
       </Section>
 
-      <div className="grid min-h-0 gap-4">
+      <div className="grid content-start gap-4 md:min-h-0 md:overflow-y-auto md:overscroll-contain md:pr-1">
         {(state.domesticCups ?? []).map((cup) => (
           <CupCompetitionPanel key={cup.competition} state={state} cup={cup} />
         ))}
