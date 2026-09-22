@@ -7,6 +7,7 @@ import { isUserClubReference, userClubReference } from "@/lib/game/clubReference
 import { legacyTierToFootballLevel } from "@/lib/game/footballLevel";
 import { Section, sum } from "./shared/primitives";
 import { clubPlayerRecords, playerSeasonSummary } from "@/lib/game/playerSeasonStats";
+import { domesticCupName } from "@/lib/game/cupNarrative";
 
 export function HistoryTab({ state }: { state: GameState }) {
   const rows = [...state.ledger].reverse();
@@ -115,7 +116,7 @@ export function HistoryTab({ state }: { state: GameState }) {
         </div>
       </Section>
       <Section title="Club legacy">
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
           <LegacyStat label="League titles" value={String(legacy?.leagueTitles ?? 0)} />
           <LegacyStat
             label="Promotions"
@@ -149,8 +150,25 @@ export function HistoryTab({ state }: { state: GameState }) {
               legacy?.recordTransferReceived ? fmtMoney(legacy.recordTransferReceived.fee) : "—"
             }
           />
+          <LegacyStat label="Cup trophies" value={String(legacy?.cupHonours?.length ?? 0)} />
         </div>
       </Section>
+
+      {(legacy?.cupHonours?.length ?? 0) > 0 && (
+        <Section title="Cup honours">
+          <div className="divide-y">
+            {[...(legacy?.cupHonours ?? [])].sort((a, b) => b.season - a.season).map((honour) => (
+              <div key={`${honour.season}:${honour.competitionId}`} className="flex items-center justify-between gap-3 py-2 text-sm">
+                <div>
+                  <strong>{domesticCupName(honour.competitionId as "leagueCup" | "faCup")}</strong>
+                  <div className="text-xs text-muted-foreground">Season {honour.season}</div>
+                </div>
+                <span className="rounded-full bg-amber-500/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-700">Winners</span>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
 
       <Section title="Season record">
         {seasonRows.length === 0 ? (
