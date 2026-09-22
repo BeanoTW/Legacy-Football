@@ -187,10 +187,11 @@ console.log("\n[U5] Canonical selectors, not UI arithmetic");
     /handleInboxChoice\(/.test(read("src/components/game/InboxTab.tsx")),
   );
   const squad = read("src/components/game/SquadSelectionTab.tsx");
+  const tacticalCard = read("src/components/game/shared/TacticalPlayerCard.tsx");
   check(
     "squad employment display uses canonical club and contract selectors",
     /clubOperatingModel\(/.test(squad) &&
-      /contractEmploymentType\(/.test(squad) &&
+      /contractEmploymentType\(/.test(tacticalCard) &&
       /Club operating model/.test(squad),
   );
   check(
