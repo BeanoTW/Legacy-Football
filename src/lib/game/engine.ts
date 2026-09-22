@@ -230,8 +230,8 @@ export function fixtureToday(state: GameState): GameState["fixtures"][number] | 
   return state.fixtures.find((fixture) => fixture.week === state.week && (fixture.dayOfWeek ?? 5) === day);
 }
 /** Resolve today's dated fixture once, leaving weekly settlement for Sunday. */
-function resolveDatedFixtureInPlace(state: GameState): void {
-  const fixture = fixtureToday(state);
+function resolveDatedFixtureInPlace(state: GameState, requestedFixture?: GameState["fixtures"][number]): void {
+  const fixture = requestedFixture ?? fixtureToday(state);
   if (!fixture) return;
   const alreadyPlayed = state.results.some(
     (r) =>
@@ -308,12 +308,28 @@ export function skipTransferDeadlineDay(prev: GameState): GameState {
 }
 
 /** Simulate today's user fixture without opening the interactive match viewer. */
-export function simulateFixtureToday(prev: GameState): GameState {
-  if (!hasUnplayedFixtureToday(prev) || prev.liveMatch) return prev;
+export function simulateFixture(prev: GameState, fixture: GameState["fixtures"][number]): GameState {
+  const today = calendarDay(prev);
+  const isDue = fixture.week === prev.week && (fixture.dayOfWeek ?? 5) === today;
+  const alreadyPlayed = prev.results.some(
+    (result) =>
+      result.week === fixture.week &&
+      result.opponent === fixture.opponent &&
+      result.home === fixture.home &&
+      (result.dayOfWeek ?? 5) === (fixture.dayOfWeek ?? 5) &&
+      (result.competition ?? "league") === (fixture.competition ?? "league"),
+  );
+  if (!isDue || alreadyPlayed || prev.liveMatch) return prev;
   const next = structuredClone(prev);
-  resolveDatedFixtureInPlace(next);
+  resolveDatedFixtureInPlace(next, fixture);
   syncTable(next);
   return next;
+}
+
+export function simulateFixtureToday(prev: GameState): GameState {
+  if (!hasUnplayedFixtureToday(prev) || prev.liveMatch) return prev;
+  const fixture = fixtureToday(prev);
+  return fixture ? simulateFixture(prev, fixture) : prev;
 }
 
 /** Exactly-once full-time commit for an interactive match. */
