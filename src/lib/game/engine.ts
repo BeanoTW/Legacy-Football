@@ -109,7 +109,7 @@ export {
   type SeasonPhase,
 } from "./calendar";
 export { fmtMoney, fmtMoneyExact } from "./format";
-export { startMatchDay, kickoff, applyHalfTimeChoice, cancelLiveMatch } from "./liveMatch";
+export { startMatchDay, kickoff, applyHalfTimeChoice, continueSecondHalf, cancelLiveMatch } from "./liveMatch";
 export type { MatchOverride } from "./tick/matchday";
 
 /**
