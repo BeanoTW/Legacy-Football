@@ -1,8 +1,7 @@
 import type { DomesticCupState, GameState } from "./types";
-import { faCupEntryRound } from "./domesticCups";
+import { DOMESTIC_CUPS, faCupEntryRound } from "./domesticCups";
 import { initialiseDomesticCup } from "./domesticCupState";
 import { footballLevelOfLeague } from "./footballLevel";
-import { DOMESTIC_CUPS } from "./domesticCups";
 
 function clubsAtOrBelowLevel(state: GameState, maxLevel: number): string[] {
   return state.leagues
