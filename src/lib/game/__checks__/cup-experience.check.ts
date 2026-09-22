@@ -88,7 +88,17 @@ assert(
   ),
   "sim cup action must commit the dated fixture",
 );
-assert.notEqual(continuationInterrupt(afterSim), "Matchday", "resolved cup tie must not trap Continue");
+assert(
+  continuationInterrupt(afterSim) !== "Matchday" || afterSim.fixtures.some((fixture) =>
+    fixture.week === afterSim.week && (fixture.dayOfWeek ?? 5) === calendarDay(afterSim) &&
+    !afterSim.results.some((result) =>
+      result.week === fixture.week && result.opponent === fixture.opponent && result.home === fixture.home &&
+      (result.dayOfWeek ?? 5) === (fixture.dayOfWeek ?? 5) &&
+      (result.competition ?? "league") === (fixture.competition ?? "league")
+    )
+  ),
+  "Continue may remain on Matchday only when another same-day fixture is genuinely unresolved",
+);
 
 const userCup = afterSim.domesticCups!.find((cup) => cup.competition === "faCup")!;
 const stillAlive =
