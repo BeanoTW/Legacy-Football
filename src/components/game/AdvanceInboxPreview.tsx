@@ -16,7 +16,6 @@ import { cn } from "@/lib/utils";
 import { requiresInboxDecision } from "@/lib/game/inbox";
 import {
   calendarDay,
-  FRIENDLY_WEEKS,
   isTransferDeadlineDay,
   isTransferDeadlineWeek,
   transferDeadlineHoursRemaining,
@@ -56,7 +55,6 @@ export function AdvanceInboxPreview({
   const deadlineWeek = isTransferDeadlineWeek(state);
   const deadlineDay = isTransferDeadlineDay(state);
   const deadlineHours = transferDeadlineHoursRemaining(state);
-  const isFriendlyWeek = FRIENDLY_WEEKS.has(state.week);
   const newIds = new Set(items.map((item) => item.id));
   const inboxItems = state.inbox
     .slice()
