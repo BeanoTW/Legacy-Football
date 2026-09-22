@@ -451,7 +451,7 @@ export function MatchDayOverlay({
                   >
                     Return to club <ChevronsRight className="size-5 ml-1" />
                   </Button>
-                </div>}
+                </div>
               </section>
             )}
 
@@ -525,7 +525,7 @@ export function MatchDayOverlay({
                       ))}
                     </ul>
                   )}
-                </div>
+                </div>}
               </section>
             )}
           </div>
