@@ -41,7 +41,7 @@ import { cn } from "@/lib/utils";
 import { DetailScreen } from "./shared/layout";
 import { POSITION_BADGE_CLASS } from "./playerPosition";
 import { isTransferWindowOpen, windowStatus } from "@/lib/game/calendar";
-import { openPlayerProfile } from "./shared/PlayerProfileSheet";
+import { TacticalPlayerCard } from "./shared/TacticalPlayerCard";
 import { positionUnit, tacticalPositionProfile } from "@/lib/game/positions";
 
 function newestBrief(state: GameState) {
@@ -200,38 +200,53 @@ export function ScoutingBrowser({
         const budgetComfortable = feeAuthority.allowed && wageAuthority.allowed;
         const initialReport = !assignment && report.knowledgePct > 0;
         return (
-          <article key={player.id} className="rounded-xl border bg-card p-3 shadow-sm">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <button type="button" onClick={() => openPlayerProfile(player.id)} className="truncate text-left font-display text-lg hover:underline">{playerName(player)}</button>
-                  <span className={cn("rounded border px-1.5 py-0.5 text-[10px] font-bold", POSITION_BADGE_CLASS[positionUnit(tactical.primary)])}>{tactical.primary}</span>
+          <TacticalPlayerCard
+            key={player.id}
+            state={state}
+            player={player}
+            mode="recruitment"
+            actions={
+              <div>
+                <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-white/60">
+                  <span>Interest <strong className="text-white/85" title={interest.reason}>{interest.label}</strong></span>
+                  <span className={budgetComfortable ? "text-emerald-300" : "text-rose-300"}>
+                    {budgetComfortable ? "Within authority" : "Budget risk"}
+                  </span>
+                  <span>{assignment ? report.complete ? "Full report" : "Scout following up" : initialReport ? "Initial staff report" : "Basic knowledge"}</span>
                 </div>
-                <div className="text-[10px] text-muted-foreground">{ageOf(player, state.season)} · {player.nationality} · {player.currentClubId ? clubDisplayName(state, player.currentClubId) : "Free agent"}</div>
+                <div className="flex flex-wrap gap-1.5">
+                  <Button size="sm" variant={watched ? "default" : "outline"} className="h-8 px-2 text-[10px]" onClick={() => update((s) => toggleChairmanShortlist(s, player.id))}>
+                    <Star className={cn("mr-1 size-3", watched && "fill-current")} />{watched ? "Shortlisted" : "Shortlist"}
+                  </Button>
+                  {!assignment ? (
+                    <Button size="sm" className="h-8 px-2 text-[10px]" onClick={() => update((s) => startScouting(s, player.id))}>
+                      <Binoculars className="mr-1 size-3" />{initialReport ? "Scout further" : "Scout"}
+                    </Button>
+                  ) : report.complete ? (
+                    <span className="inline-flex items-center px-1 text-[10px] font-semibold text-emerald-300"><CheckCircle2 className="mr-1 size-3" /> Full report</span>
+                  ) : (
+                    <span className="px-1 text-[10px] text-white/55"><Binoculars className="mr-1 inline size-3" /> Scouting</span>
+                  )}
+                  <Button size="sm" variant="secondary" className="h-8 px-2 text-[10px]" onClick={() => approach(player.id, freeAgent, estimate.openingWeeklyWage)}>
+                    <Handshake className="mr-1 size-3" />{freeAgent ? "Approach player" : "Approach club"}
+                  </Button>
+                  {!freeAgent && (
+                    <Button size="sm" variant="outline" className="h-8 px-2 text-[10px]" disabled={!loanWindowOpen || Boolean(loanUnavailable)} title={!loanWindowOpen ? `${loanWindow.label} · ${loanWindow.detail}` : loanUnavailable ?? "Request a temporary loan"} onClick={() => setLoanTargetId((current) => (current === player.id ? null : player.id))}>
+                      <Repeat2 className="mr-1 size-3" /> Loan
+                    </Button>
+                  )}
+                </div>
+                {loanTargetId === player.id && !freeAgent && (
+                  <div className="mt-2 grid gap-1.5 rounded-md border border-white/10 bg-black/20 p-2 sm:grid-cols-4">
+                    <select value={loanDuration} onChange={(event) => setLoanDuration(Number(event.target.value))} className="h-8 rounded-md border bg-background px-2 text-[10px] text-foreground">{[4, 8, 12, 24].map((weeks) => <option key={weeks} value={weeks}>{weeks} weeks</option>)}</select>
+                    <select value={loanContribution} onChange={(event) => setLoanContribution(Number(event.target.value))} className="h-8 rounded-md border bg-background px-2 text-[10px] text-foreground">{[20, 35, 50, 65, 80, 100].map((pct) => <option key={pct} value={pct}>{pct}% wage share</option>)}</select>
+                    <select value={loanRole} onChange={(event) => setLoanRole(event.target.value as LoanPlayingTimeExpectation)} className="h-8 rounded-md border bg-background px-2 text-[10px] text-foreground">{(["Backup", "Rotation", "Regular", "Important"] as const).map((role) => <option key={role} value={role}>{role}</option>)}</select>
+                    <Button size="sm" className="h-8 text-[10px]" onClick={() => requestLoan(player.id)}>Request loan</Button>
+                  </div>
+                )}
               </div>
-              <div className="shrink-0 text-right"><div className="font-display text-2xl leading-none">{overall.label}</div><div className="text-[8px] uppercase tracking-wider text-muted-foreground">Overall</div></div>
-            </div>
-            <div className="mt-2 grid grid-cols-5 gap-1">
-              {report.attributes.slice(0, 5).map((attr) => <div key={attr.key} className="rounded bg-muted/50 px-1 py-1"><div className="truncate text-[8px] text-muted-foreground">{attr.label}</div><div className="text-[10px] font-semibold tabular-nums">{!attr.known ? "?" : attr.exact !== undefined ? attr.exact : `${attr.min}–${attr.max}`}</div></div>)}
-            </div>
-            <div className="mt-2 grid grid-cols-2 gap-x-3 text-[10px]">
-              <span>Knowledge <strong>{report.knowledgePct}%</strong></span><span>Interest <strong title={interest.reason}>{interest.label}</strong></span>
-              <span>Value <strong>{report.knowledgePct > 0 && report.valueRange ? `${fmtMoney(report.valueRange[0])}–${fmtMoney(report.valueRange[1])}` : "?"}</strong></span><span>Wage <strong>{report.knowledgePct > 0 && report.wageRange ? `${fmtMoney(report.wageRange[0])}–${fmtMoney(report.wageRange[1])}/wk` : "?"}</strong></span>
-            </div>
-            <div className={cn("mt-2 rounded-md border px-2 py-1 text-[10px]", budgetComfortable ? "bg-muted/40" : "border-destructive/40 bg-destructive/5")}><span className="font-semibold">{budgetComfortable ? "Within authority" : "Budget risk"}</span>{" · "}{assignment ? report.complete ? "Full report" : "Scout following up" : initialReport ? "Initial staff report" : "Basic knowledge"}</div>
-            <div className="mt-2 flex flex-wrap gap-1">
-              <Button size="sm" variant={watched ? "default" : "outline"} className="h-8 px-2 text-[10px]" onClick={() => update((s) => toggleChairmanShortlist(s, player.id))}><Star className={cn("mr-1 size-3", watched && "fill-current")} />{watched ? "Shortlisted" : "Shortlist"}</Button>
-              {!assignment ? <Button size="sm" className="h-8 px-2 text-[10px]" onClick={() => update((s) => startScouting(s, player.id))}><Binoculars className="mr-1 size-3" />{initialReport ? "Scout further" : "Scout"}</Button> : report.complete ? <span className="inline-flex items-center px-1 text-[10px] font-semibold text-[color:var(--color-income)]"><CheckCircle2 className="mr-1 size-3" /> Full report</span> : <span className="px-1 text-[10px] text-muted-foreground"><Binoculars className="mr-1 inline size-3" /> Scouting</span>}
-              <Button size="sm" variant="secondary" className="h-8 px-2 text-[10px]" onClick={() => approach(player.id, freeAgent, estimate.openingWeeklyWage)}><Handshake className="mr-1 size-3" />{freeAgent ? "Approach player" : "Approach club"}</Button>
-              {!freeAgent && <Button size="sm" variant="outline" className="h-8 px-2 text-[10px]" disabled={!loanWindowOpen || Boolean(loanUnavailable)} title={!loanWindowOpen ? `${loanWindow.label} · ${loanWindow.detail}` : loanUnavailable ?? "Request a temporary loan"} onClick={() => setLoanTargetId((current) => (current === player.id ? null : player.id))}><Repeat2 className="mr-1 size-3" /> Loan</Button>}
-            </div>
-            {loanTargetId === player.id && !freeAgent && <div className="mt-2 grid gap-1.5 rounded-md border bg-muted/30 p-2 sm:grid-cols-4">
-              <select value={loanDuration} onChange={(event) => setLoanDuration(Number(event.target.value))} className="h-8 rounded-md border bg-background px-2 text-[10px]">{[4, 8, 12, 24].map((weeks) => <option key={weeks} value={weeks}>{weeks} weeks</option>)}</select>
-              <select value={loanContribution} onChange={(event) => setLoanContribution(Number(event.target.value))} className="h-8 rounded-md border bg-background px-2 text-[10px]">{[20, 35, 50, 65, 80, 100].map((pct) => <option key={pct} value={pct}>{pct}% wage share</option>)}</select>
-              <select value={loanRole} onChange={(event) => setLoanRole(event.target.value as LoanPlayingTimeExpectation)} className="h-8 rounded-md border bg-background px-2 text-[10px]">{(["Backup", "Rotation", "Regular", "Important"] as const).map((role) => <option key={role} value={role}>{role}</option>)}</select>
-              <Button size="sm" className="h-8 text-[10px]" onClick={() => requestLoan(player.id)}>Request loan</Button>
-            </div>}
-          </article>
+            }
+          />
         );
       })}
     </DetailScreen>
