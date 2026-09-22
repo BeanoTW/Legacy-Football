@@ -1651,6 +1651,8 @@ export interface DomesticCupState {
   round: number;
   entrants: string[];
   ties: CupTieState[];
+  /** Clubs drawn straight into the next round when entrant count is odd. */
+  byes?: string[];
   eliminated: string[];
   champion?: string;
 }
