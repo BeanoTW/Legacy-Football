@@ -25,6 +25,7 @@ import { ensurePlayerRegistrationStateInPlace } from "./playerRegistration";
 import { ensureLoanStateInPlace } from "./loans";
 import { initialiseSeasonCups } from "./cupEntry";
 import { syncUserCupFixtures } from "./cupFixtures";
+import { announceUserCupDrawInPlace } from "./cupNarrative";
 import { initialisePreseasonFixtures } from "./preseason";
 
 /**
@@ -86,6 +87,7 @@ export function newGame(clubName: string, managerName: string, seed?: string): G
   initialisePreseasonFixtures(base);
   base.fixtures = fixturesForClub(base.leagueSchedule, base.clubIdentity?.userClubId ?? base.clubName);
   syncUserCupFixtures(base);
+  for (const cup of base.domesticCups ?? []) announceUserCupDrawInPlace(base, cup);
 
   // The broad opening world market is generated independently of the user's
   // club. Reconcile it once the full club state exists so a Level 7 career
