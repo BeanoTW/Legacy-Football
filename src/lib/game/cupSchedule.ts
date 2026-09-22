@@ -25,9 +25,11 @@ export const DOMESTIC_CUP_SLOTS: readonly CupRoundSlot[] = [
   { competition: "leagueCup", round: 5, week: 26, dayOfWeek: 1, label: "League Cup SF" },
   { competition: "faCup", round: 5, week: 29, dayOfWeek: 5, label: "National Cup R5" },
   { competition: "leagueCup", round: 6, week: 32, dayOfWeek: 5, label: "League Cup Final" },
-  { competition: "faCup", round: 6, week: 33, dayOfWeek: 5, label: "National Cup QF" },
-  { competition: "faCup", round: 7, week: 38, dayOfWeek: 5, label: "National Cup SF" },
-  { competition: "faCup", round: 8, week: 44, dayOfWeek: 5, label: "National Cup Final" },
+  { competition: "faCup", round: 6, week: 33, dayOfWeek: 5, label: "National Cup R6" },
+  { competition: "faCup", round: 7, week: 38, dayOfWeek: 5, label: "National Cup R7" },
+  { competition: "faCup", round: 8, week: 44, dayOfWeek: 5, label: "National Cup R8" },
+  { competition: "faCup", round: 9, week: 45, dayOfWeek: 1, label: "National Cup R9" },
+  { competition: "faCup", round: 10, week: 46, dayOfWeek: 1, label: "National Cup R10" },
 ] as const;
 
 export interface CupTie {
