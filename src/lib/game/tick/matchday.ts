@@ -34,6 +34,7 @@ import { resolveKnockoutDraw } from "../knockout";
 import { resolveAllAiDomesticCups } from "../aiDomesticCups";
 import { syncUserCupFixtures } from "../cupFixtures";
 import { announceUserCupDrawInPlace, awardUserCupProgressInPlace } from "../cupNarrative";
+import { recordCupChampionInLegacyInPlace } from "../clubLegacy";
 import { recordAutoResolvedPlayerMatch } from "../autoPlayerMatchStats";
 
 export interface MatchOverride {
@@ -182,6 +183,7 @@ export function tickSelectedMatchday(
         const resolved = resolveDomesticCupTie(cup, homeClub, awayClub, winner);
         const advanced = advanceDomesticCup(resolved, `${s.saveSeed}|${s.season}`, s);
         s.domesticCups[cupIndex] = advanced;
+        if (advanced.champion) recordCupChampionInLegacyInPlace(s, advanced.competition, advanced.champion);
         if (advanced.round !== cup.round || advanced.champion) announceUserCupDrawInPlace(s, advanced);
       }
     }
