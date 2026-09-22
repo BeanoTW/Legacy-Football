@@ -252,7 +252,7 @@ function CupCompetitionPanel({
       <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
         <div>
           <div className="font-display text-lg">
-            {cup.champion ? "Competition complete" : domesticCupRoundLabel(cup.competition, cup.round)}
+            {cup.champion ? "Competition complete" : domesticCupRoundLabel(cup.competition, cup.round, cup.entrants.length)}
           </div>
           <div className="text-xs text-muted-foreground">
             {slot
