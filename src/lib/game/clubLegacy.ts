@@ -194,3 +194,21 @@ export function accumulateClubLegacySeasonInPlace(
 export function clubLegacyRecord(state: GameState, clubRef: string): ClubLegacyRecord | undefined {
   return state.clubLegacy?.clubsById[canonicalClubReference(state, clubRef)];
 }
+
+
+export function recordCupChampionInLegacyInPlace(
+  state: GameState,
+  competitionId: string,
+  championRef: string,
+  season = state.season,
+): void {
+  const legacy = state.clubLegacy ?? newLegacyState();
+  const record = recordFor(state, legacy, championRef);
+  const honours = record.cupHonours ?? [];
+  if (!honours.some((honour) => honour.competitionId === competitionId && honour.season === season)) {
+    record.cupHonours = [...honours, { competitionId, season }].sort(
+      (a, b) => a.season - b.season || a.competitionId.localeCompare(b.competitionId),
+    );
+  }
+  state.clubLegacy = legacy;
+}
