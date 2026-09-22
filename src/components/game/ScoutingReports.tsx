@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import { DetailScreen } from "./shared/layout";
 import { POSITION_BADGE_CLASS } from "./playerPosition";
 import { positionUnit, tacticalPositionProfile } from "@/lib/game/positions";
-import { openPlayerProfile } from "./shared/PlayerProfileSheet";
+import { TacticalPlayerCard } from "./shared/TacticalPlayerCard";
 
 export function ScoutingReports({
   state,
@@ -90,86 +90,52 @@ export function ScoutingReports({
         if (!estimate) return null;
 
         return (
-          <article key={player.id} className="rounded-lg border bg-card p-2.5 shadow-sm">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <button type="button" onClick={() => openPlayerProfile(player.id)} className="truncate text-left font-display text-base hover:underline">{playerName(player)}</button>
-                  <span className={cn("rounded border px-1 py-0.5 text-[9px] font-bold", POSITION_BADGE_CLASS[positionUnit(tacticalPositionProfile(player).primary)])}>
-                    {tacticalPositionProfile(player).primary}
-                  </span>
+          <TacticalPlayerCard
+            key={player.id}
+            state={state}
+            player={player}
+            mode="recruitment"
+            actions={
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-white/60">
+                  <span>Interest <strong className="text-white/85">{interest.label}</strong></span>
+                  <span>{report.complete ? "Full report" : `Scouting · ${report.knowledgePct}%`}</span>
+                  {!report.complete && dueEvent && dueInDays !== null && (
+                    <span className="text-emerald-300">{dueEvent.label.replace(" due", "")} · {dueInDays === 0 ? "today" : `${dueInDays}d`}</span>
+                  )}
                 </div>
-                <div className="text-[10px] text-muted-foreground">
-                  {ageOf(player, state.season)}y · {player.currentClubId ? clubDisplayName(state, player.currentClubId) : "Free agent"} · {interest.label}
-                </div>
-              </div>
-              <div className="shrink-0 text-right">
-                <div className="font-display text-base">{report.knowledgePct}%</div>
-                <div className="flex items-center justify-end gap-1 text-[8px] text-muted-foreground">
-                  {report.complete ? <CheckCircle2 className="size-3" /> : <Binoculars className="size-3" />}
-                  {report.complete ? "Full report" : "Scouting"}
-                </div>
-                {!report.complete && dueEvent && dueInDays !== null && (
-                  <div className="mt-0.5 text-[8px] font-semibold text-primary">
-                    {dueEvent.label.replace(" due", "")} · {dueInDays === 0 ? "today" : `${dueInDays}d`}
+                {manager && managerPriority && (
+                  <div className={cn(
+                    "rounded-lg border border-white/10 px-2.5 py-2 text-[10px]",
+                    managerPriorityRank === 0 ? "bg-emerald-400/10 text-emerald-100" : "bg-white/[0.04] text-white/65",
+                  )}>
+                    <span className="font-semibold">{managerPriorityRank === 0 ? `${manager.name}'s priority` : `${manager.name}'s squad need`}</span>
+                    <span> · {managerPriority.headline} · {managerPriority.playerLevel === "startingXI" ? "Starting XI level" : managerPriority.playerLevel === "firstTeam" ? "First-team level" : "Squad depth"}</span>
                   </div>
                 )}
-              </div>
-            </div>
-
-            {manager && managerPriority && (
-              <div className={cn(
-                "mt-1.5 rounded-md border px-2 py-1.5 text-[10px]",
-                managerPriorityRank === 0
-                  ? "border-primary/30 bg-primary/[0.06]"
-                  : "border-muted bg-muted/30",
-              )}>
-                <span className="font-semibold">
-                  {managerPriorityRank === 0 ? `${manager.name}'s priority` : `${manager.name}'s squad need`}
-                </span>
-                <span className="text-muted-foreground"> · {managerPriority.headline} · {managerPriority.playerLevel === "startingXI" ? "Starting XI level" : managerPriority.playerLevel === "firstTeam" ? "First-team level" : "Squad depth"}</span>
-              </div>
-            )}
-
-            <div className="mt-1.5 grid grid-cols-5 gap-1">
-              {report.attributes.map((attribute) => (
-                <div key={attribute.key} className="rounded bg-muted/50 px-1 py-0.5">
-                  <div className="truncate text-[8px] text-muted-foreground">{attribute.label}</div>
-                  <div className="text-[10px] font-semibold tabular-nums">
-                    {!attribute.known ? "?" : attribute.exact !== undefined ? attribute.exact : `${attribute.min}–${attribute.max}`}
-                  </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <Button
+                    size="sm"
+                    variant={watched ? "default" : "outline"}
+                    className="h-8 px-2 text-[10px]"
+                    onClick={() => update((s) => toggleChairmanShortlist(s, player.id))}
+                  >
+                    <Star className={cn("mr-1 size-3", watched && "fill-current")} />
+                    {watched ? "Shortlisted" : "Shortlist"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="h-8 px-2 text-[10px]"
+                    onClick={() => approach(player.id, freeAgent, estimate.openingWeeklyWage)}
+                  >
+                    <Handshake className="mr-1 size-3" />
+                    {freeAgent ? "Approach player" : "Approach club"}
+                  </Button>
                 </div>
-              ))}
-            </div>
-
-            <div className="mt-1.5 grid grid-cols-2 gap-x-3 text-[10px]">
-              <span>Value <strong>{report.valueRange ? `${fmtMoney(report.valueRange[0])}–${fmtMoney(report.valueRange[1])}` : "?"}</strong></span>
-              <span>Wage <strong>{report.wageRange ? `${fmtMoney(report.wageRange[0])}–${fmtMoney(report.wageRange[1])}/wk` : "?"}</strong></span>
-            </div>
-
-            <div className="mt-1.5 flex flex-wrap gap-1">
-              <Button
-                size="sm"
-                variant={watched ? "default" : "outline"}
-                className="h-7 px-2 text-[10px]"
-                onClick={() => update((s) => toggleChairmanShortlist(s, player.id))}
-              >
-                <Star className={cn("mr-1 size-3", watched && "fill-current")} />
-                {watched ? "Shortlisted" : "Shortlist"}
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                className="h-7 px-2 text-[10px]"
-                onClick={() =>
-                  approach(player.id, freeAgent, estimate.openingWeeklyWage)
-                }
-              >
-                <Handshake className="mr-1 size-3" />
-                {freeAgent ? "Approach player" : "Approach club"}
-              </Button>
-            </div>
-          </article>
+              </div>
+            }
+          />
         );
       })}
     </DetailScreen>
