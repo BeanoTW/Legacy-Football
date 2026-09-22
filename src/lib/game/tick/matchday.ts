@@ -258,6 +258,7 @@ export function tickSelectedMatchday(
   if (s.domesticCups?.length) {
     resolveAllAiDomesticCups(s);
     syncUserCupFixtures(s);
+    for (const cup of s.domesticCups) announceUserCupDrawInPlace(s, cup);
   }
 
   return { fxResult, matchdayNote };
