@@ -49,7 +49,7 @@ export function AdvanceInboxPreview({
 }) {
   const interrupted = !isContinuing && !!reason;
   const isMatchday = interrupted && reason?.toLowerCase().includes("matchday");
-  const fixture = state.fixtures.find((item) => item.week === state.week);
+  const fixture = state.fixtures.find((item) => item.week === state.week && (item.dayOfWeek ?? 5) === currentDay && !state.results.some((result) => result.week === item.week && result.opponent === item.opponent && result.home === item.home && (result.dayOfWeek ?? 5) === (item.dayOfWeek ?? 5) && (result.competition ?? "league") === (item.competition ?? "league")));
   const currentDay = calendarDay(state);
   const weekEvents = timelineEventsForWeek(state, state.week);
   const transferWindow = windowStatus(state);
@@ -217,7 +217,7 @@ export function AdvanceInboxPreview({
                       <>
                         <Trophy className={cn("mt-0.5 size-3", active ? "text-current" : "text-emerald-600")} />
                         <span className="mt-0.5 max-w-full truncate text-[7px] font-bold leading-tight">
-                          {isFriendlyWeek ? "FRIENDLY" : "MATCH"}
+                          {event.fixtureCompetition === "preseason" ? "FRIENDLY" : "MATCH"}
                         </span>
                       </>
                     ) : deadlineEvent ? (
@@ -281,8 +281,12 @@ export function AdvanceInboxPreview({
                     const eventFixture =
                       event.kind === "fixture"
                         ? state.fixtures.find(
-                            (candidate) => candidate.week === event.week && candidate.opponent === fixture?.opponent,
-                          ) ?? fixture
+                            (candidate) =>
+                              candidate.week === event.week &&
+                              (candidate.dayOfWeek ?? 5) === event.day &&
+                              candidate.opponent === event.fixtureOpponent &&
+                              (candidate.competition ?? "league") === (event.fixtureCompetition ?? "league"),
+                          )
                         : undefined;
                     return (
                       <div
@@ -305,7 +309,7 @@ export function AdvanceInboxPreview({
                             <span>{DAYS[event.day]}</span>
                             {event.kind === "fixture" && (
                               <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[8px] text-emerald-700">
-                                {isFriendlyWeek ? "Friendly" : "Match"}
+                                {event.fixtureCompetition === "preseason" ? "Friendly" : "Match"}
                               </span>
                             )}
                           </div>
@@ -316,7 +320,7 @@ export function AdvanceInboxPreview({
                           </div>
                           {event.kind === "fixture" && eventFixture ? (
                             <div className="truncate text-xs text-muted-foreground">
-                              {eventFixture.home ? "Home" : "Away"} · {isFriendlyWeek ? "Pre-season friendly" : "Competitive fixture"}
+                              {eventFixture.home ? "Home" : "Away"} · {event.fixtureCompetition === "preseason" ? "Pre-season friendly" : "Competitive fixture"}
                             </div>
                           ) : event.detail ? (
                             <div className="truncate text-xs text-muted-foreground">{event.detail}</div>
