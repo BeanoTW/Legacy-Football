@@ -13,6 +13,8 @@ export interface TimelineEvent {
   day: number;
   label: string;
   detail?: string;
+  fixtureOpponent?: string;
+  fixtureCompetition?: GameState["fixtures"][number]["competition"];
 }
 
 export function currentAbsoluteDay(state: GameState): number {
@@ -92,16 +94,20 @@ export function upcomingTimelineEvents(state: GameState, horizonDays = 42): Time
   const events: TimelineEvent[] = [];
 
   for (const fixture of state.fixtures) {
-    const absoluteDay = absoluteWeek(state.season, fixture.week) * 7 + 5;
+    const fixtureDay = fixture.dayOfWeek ?? 5;
+    const absoluteDay = absoluteWeek(state.season, fixture.week) * 7 + fixtureDay;
     if (absoluteDay < now || absoluteDay > end) continue;
+    const competition = fixture.competition ?? "league";
     events.push({
-      id: `fixture:${fixture.week}:${fixture.opponent}`,
+      id: `fixture:${fixture.week}:${fixtureDay}:${competition}:${fixture.opponent}`,
       kind: "fixture",
       absoluteDay,
       week: fixture.week,
-      day: 5,
+      day: fixtureDay,
       label: "Matchday",
       detail: fixture.home ? "Home fixture" : "Away fixture",
+      fixtureOpponent: fixture.opponent,
+      fixtureCompetition: competition,
     });
   }
 
