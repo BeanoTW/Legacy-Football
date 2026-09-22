@@ -16,7 +16,7 @@ import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { tacticalPositionProfile } from "@/lib/game/positions";
-import { openPlayerProfile } from "./shared/PlayerProfileSheet";
+import { TacticalPlayerCard } from "./shared/TacticalPlayerCard";
 
 export function OutgoingSalesDesk({
   state,
@@ -242,32 +242,7 @@ function SaleRow({
 }
 
 function PlayerSummary({ player, state }: { player: FootballPlayer; state: GameState }) {
-  const contract = activeContract(state, player.id);
-  const loan = activeLoanForPlayer(state, player.id);
-  return (
-    <div className="min-w-0">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <button type="button" onClick={() => openPlayerProfile(player.id)} className="truncate text-left text-sm font-semibold hover:underline">{playerName(player)}</button>
-        <span className="rounded bg-muted px-1.5 py-0.5 text-[9px] font-bold">
-          {tacticalPositionProfile(player).primary}
-        </span>
-        {player.transferStatus === "listed" && (
-          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 dark:text-amber-300">
-            LISTED
-          </span>
-        )}
-        {loan && (
-          <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold text-primary">
-            LOANED OUT
-          </span>
-        )}
-      </div>
-      <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
-        Ability {player.currentAbility} · Value {fmtMoneyExact(player.marketValue)}
-        {contract ? ` · ${fmtMoneyExact(contract.weeklyWage)}/wk` : ""}
-      </div>
-    </div>
-  );
+  return <TacticalPlayerCard state={state} player={player} mode="compact" className="min-w-0 flex-1" />;
 }
 
 function askingPricePreference(state: GameState, player: FootballPlayer): number {
