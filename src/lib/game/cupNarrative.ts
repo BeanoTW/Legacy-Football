@@ -106,10 +106,21 @@ export function announceUserCupDrawInPlace(
     (candidate) =>
       isUserClubReference(state, candidate.home) || isUserClubReference(state, candidate.away),
   );
-  if (!tie) return;
+  const userBye = (cup.byes ?? []).some((club) => isUserClubReference(state, club));
+  const slot = cupSlot(cup.competition, cup.round);
+  if (!tie) {
+    if (!userBye) return;
+    pushCupInbox(
+      state,
+      `cup:draw:s${state.season}:${cup.competition}:r${cup.round}`,
+      `${domesticCupName(cup.competition)}: bye into the next round`,
+      `The club has received a bye in ${domesticCupRoundLabel(cup.competition, cup.round)} and will progress without playing a tie.`,
+      "normal",
+    );
+    return;
+  }
   const opponent = isUserClubReference(state, tie.home) ? tie.away : tie.home;
   const home = isUserClubReference(state, tie.home);
-  const slot = cupSlot(cup.competition, cup.round);
   pushCupInbox(
     state,
     `cup:draw:s${state.season}:${cup.competition}:r${cup.round}`,
