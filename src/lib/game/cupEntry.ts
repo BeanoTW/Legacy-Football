@@ -1,17 +1,20 @@
 import type { DomesticCupState, GameState } from "./types";
 import { faCupEntryRound } from "./domesticCups";
 import { initialiseDomesticCup } from "./domesticCupState";
+import { footballLevelOfLeague } from "./footballLevel";
+import { DOMESTIC_CUPS } from "./domesticCups";
 
-function clubsAtOrBelowTier(state: GameState, maxTier: number): string[] {
+function clubsAtOrBelowLevel(state: GameState, maxLevel: number): string[] {
   return state.leagues
-    .filter((league) => league.tier <= maxTier)
+    .filter((league) => footballLevelOfLeague(league) <= maxLevel)
     .flatMap((league) => league.clubIds);
 }
 
 export function initialiseSeasonCups(state: GameState): DomesticCupState[] {
   const all = [...state.leagues].sort((a, b) => b.tier - a.tier);
-  const lowerFaEntrants = all.filter((l) => faCupEntryRound(l.tier) === 1).flatMap((l) => l.clubIds);
-  const leagueCupEntrants = clubsAtOrBelowTier(state, 4);
+  const lowerFaEntrants = all.filter((l) => faCupEntryRound(footballLevelOfLeague(l)) === 1).flatMap((l) => l.clubIds);
+  const leagueCupMaxLevel = DOMESTIC_CUPS.find((cup) => cup.id === "leagueCup")?.maxTier ?? 4;
+  const leagueCupEntrants = clubsAtOrBelowLevel(state, leagueCupMaxLevel);
   const seed = `${state.saveSeed}|${state.season}`;
   const cups: DomesticCupState[] = [];
   if (leagueCupEntrants.length >= 2) cups.push(initialiseDomesticCup("leagueCup", leagueCupEntrants, seed));
@@ -24,7 +27,7 @@ export function initialiseSeasonCups(state: GameState): DomesticCupState[] {
 export function addFaCupEntrantsForRound(state: GameState, cup: DomesticCupState): DomesticCupState {
   if (cup.competition !== "faCup") return cup;
   const due = state.leagues
-    .filter((league) => faCupEntryRound(league.tier) === cup.round)
+    .filter((league) => faCupEntryRound(footballLevelOfLeague(league)) === cup.round)
     .flatMap((league) => league.clubIds)
     .filter((club) => !cup.entrants.includes(club) && !cup.eliminated.includes(club));
   if (!due.length) return cup;
