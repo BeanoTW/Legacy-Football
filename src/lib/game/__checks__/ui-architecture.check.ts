@@ -526,5 +526,31 @@ console.log("\n[U17] Mobile fixtures scrolling");
       /md:overflow-y-auto/.test(fixtures),
   );
 }
+
+console.log("\n[U18] Shared tactical player-card system");
+{
+  const card = read("src/components/game/shared/TacticalPlayerCard.tsx");
+  const squad = read("src/components/game/SquadSelectionTab.tsx");
+  const browser = read("src/components/game/ScoutingBrowser.tsx");
+  const reports = read("src/components/game/ScoutingReports.tsx");
+  const profile = read("src/components/game/shared/PlayerProfileSheet.tsx");
+  check(
+    "player surfaces share one tactical card system",
+    /export function TacticalPlayerCard/.test(card) &&
+      /<TacticalPlayerCard/.test(squad) &&
+      /<TacticalPlayerCard/.test(browser) &&
+      /<TacticalPlayerCard/.test(reports),
+  );
+  check(
+    "recruitment cards use scouting-safe overall presentation",
+    /scoutedOverallPresentation/.test(card) &&
+      !/player\.potentialAbility/.test(card.split("function RecruitmentPlayerData")[1] ?? ""),
+  );
+  check(
+    "player profile header uses the tactical dark visual language",
+    /bg-\[#071713\]/.test(profile) &&
+      /Scouted \{knowledge\}%/.test(profile),
+  );
+}
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
