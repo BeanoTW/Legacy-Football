@@ -16,6 +16,7 @@ export function initialiseSeasonCups(state: GameState): DomesticCupState[] {
   const cups: DomesticCupState[] = [];
   if (leagueCupEntrants.length >= 2) cups.push(initialiseDomesticCup("leagueCup", leagueCupEntrants, seed));
   if (lowerFaEntrants.length >= 2) cups.push(initialiseDomesticCup("faCup", lowerFaEntrants, seed));
+  state.domesticCups = cups;
   return cups;
 }
 
@@ -32,4 +33,13 @@ export function addFaCupEntrantsForRound(state: GameState, cup: DomesticCupState
   // before the round is played, so no resolved tie may be discarded.
   if (cup.ties.some((tie) => tie.winner)) return cup;
   return initialiseDomesticCup("faCup", [...cup.entrants, ...due], `${state.saveSeed}|${state.season}`, cup.round);
+}
+
+
+/** Backfill cup state for current saves that predate active cup persistence. */
+export function ensureSeasonCups(state: GameState): DomesticCupState[] {
+  if (state.domesticCups?.length) return state.domesticCups;
+  // Do not invent a tournament halfway through a season after its first round.
+  if (state.week > 7) return state.domesticCups ?? [];
+  return initialiseSeasonCups(state);
 }
