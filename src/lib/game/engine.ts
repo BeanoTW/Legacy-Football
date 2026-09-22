@@ -50,6 +50,7 @@ import { settlePreseasonInvitational } from "./preseason";
 import { ensureSeasonCups } from "./cupEntry";
 import { syncUserCupFixtures } from "./cupFixtures";
 import { announceUserCupDrawInPlace } from "./cupNarrative";
+import { resolveAllAiDomesticCups } from "./aiDomesticCups";
 import { recoverPlayerHealthWeekInPlace } from "./playerHealth";
 
 export { weekForLeagueRound } from "./pyramid";
@@ -284,7 +285,12 @@ export function advanceDay(prev: GameState): GameState {
     setCalendarDay(next, day + 1);
     progressScoutingDayInPlace(next);
     processDueTransferResponsesInPlace(next);
-    // Dated fixtures are now explicit chairman moments. Reaching the fixture
+    // AI cup ties resolve on their real calendar date even when the user's
+    // club has a bye. User ties remain untouched for the watch-or-sim choice.
+    resolveAllAiDomesticCups(next);
+    syncUserCupFixtures(next);
+    for (const cup of next.domesticCups ?? []) announceUserCupDrawInPlace(next, cup);
+    // Dated user fixtures are explicit chairman moments. Reaching the fixture
     // day pauses Continue; the user can watch it or simulate it from the Hub.
     return next;
   }
