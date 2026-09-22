@@ -41,8 +41,8 @@ export const RETAIN_LEDGER_WEEKS = 12;
 export const RETAIN_GATE_ENTRIES = 24;
 /** Trailing WeekLedger projection rows kept hot (board income estimate). */
 export const RETAIN_WEEK_ROWS = 8;
-/** Ordinary inbox detail is a weekly feed; after one week it moves to history. */
-export const RETAIN_INBOX_WEEKS = 1;
+/** Keep the current and immediately previous week hot so newly announced draws/news survive the first save/load unchanged. */
+export const RETAIN_INBOX_WEEKS = 2;
 /** Prior identity seasons needed by the three-season reputation streak reader. */
 export const RETAIN_SNAPSHOT_SEASONS = 3;
 /** Recent scouting searches retained in the hot core. Full older briefs move to history. */
