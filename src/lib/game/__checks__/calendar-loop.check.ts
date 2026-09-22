@@ -68,7 +68,7 @@ assert(state.inbox.some((item) => item.eventKey?.includes(`scouting:${target.id}
 
 state = advanceDay(state);
 assert(state.week === startingWeek + 1, "crossing Sunday must settle exactly one week");
-assert(state.results.filter((r) => r.week === startingWeek && (r.dayOfWeek ?? 5) === 1 && r.competition === "leagueCup").length === 1, "Sunday settlement must not replay Tuesday secondary fixture");
+assert(state.results.filter((r) => r.week === startingWeek && (r.dayOfWeek ?? 5) === 1 && r.competition === "preseason").length === 1, "Sunday settlement must not replay Tuesday secondary fixture");
 assert(state.results.filter((r) => r.week === startingWeek && (r.dayOfWeek ?? 5) === 5 && (r.competition ?? "league") === "league").length === 1, "Sunday settlement must not replay Saturday league fixture");
 assert(calendarDay(state) === 0, "a newly settled week must restart on Monday");
 assert(scoutingAssignment(state, target.id)?.weeksObserved === 6, "weekly settlement must not double-progress completed scouting");
