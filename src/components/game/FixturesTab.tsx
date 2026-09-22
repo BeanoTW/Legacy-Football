@@ -231,6 +231,7 @@ function CupCompetitionPanel({
     (tie) => isUserClubReference(state, tie.home) || isUserClubReference(state, tie.away),
   );
   const userEliminated = cup.eliminated.some((club) => isUserClubReference(state, club));
+  const userBye = (cup.byes ?? []).some((club) => isUserClubReference(state, club));
   const userChampion = Boolean(cup.champion && isUserClubReference(state, cup.champion));
   const slot = cupSlot(cup.competition, cup.round);
   const sampleTies = userTie
@@ -240,9 +241,11 @@ function CupCompetitionPanel({
     ? "Champions"
     : userEliminated
       ? "Eliminated"
-      : userTie
-        ? (isUserClubReference(state, userTie.home) ? "Home tie" : "Away tie")
-        : "Awaiting entry / next draw";
+      : userBye
+        ? "Bye"
+        : userTie
+          ? (isUserClubReference(state, userTie.home) ? "Home tie" : "Away tie")
+          : "Awaiting entry / next draw";
 
   return (
     <Section title={domesticCupName(cup.competition)}>
@@ -268,7 +271,12 @@ function CupCompetitionPanel({
         </span>
       </div>
 
-      {cup.champion ? (
+      {userBye ? (
+        <div className="rounded-xl border bg-muted/20 p-3 text-sm">
+          <strong className="block">Bye into the next round</strong>
+          <span className="text-xs text-muted-foreground">No fixture is required for the club in this round.</span>
+        </div>
+      ) : cup.champion ? (
         <div className="rounded-xl border bg-muted/20 p-3 text-sm">
           <span className="text-xs text-muted-foreground">Winner</span>
           <strong className="mt-1 block font-display text-xl">{clubDisplayName(state, cup.champion)}</strong>
