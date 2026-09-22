@@ -1,9 +1,11 @@
 import { Play } from "lucide-react";
 import type { GameState } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
-import { calendarDay, fmtMoney, startMatchDay } from "@/lib/game/engine";
+import { calendarDay, fmtMoney, simulateFixtureToday, startMatchDay } from "@/lib/game/engine";
 import { Section } from "./shared/primitives";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
+import { domesticCupName, domesticCupRoundLabel } from "@/lib/game/cupNarrative";
+import { cupSlot } from "@/lib/game/cupSchedule";
 import { Button } from "@/components/ui/button";
 import { medicalSupport, squadAverageFitness } from "@/lib/game/playerHealth";
 import {
@@ -93,9 +95,14 @@ export function FixturesTab({
                             <span className={cn(`is-${result.result.toLowerCase()}`)}>{result.result === "W" ? "Win" : result.result === "D" ? "Draw" : "Loss"}</span>
                           </>
                         ) : isToday ? (
-                          <Button size="sm" onClick={() => update((s) => startMatchDay(s))}>
-                            <Play /> Play
-                          </Button>
+                          <div className="flex flex-col gap-1">
+                            <Button size="sm" onClick={() => update((s) => startMatchDay(s))}>
+                              <Play /> Play
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => update((s) => simulateFixtureToday(s))}>
+                              Sim
+                            </Button>
+                          </div>
                         ) : (
                           <>
                             <strong>—</strong>
@@ -113,6 +120,9 @@ export function FixturesTab({
       </Section>
 
       <div className="grid min-h-0 gap-4">
+        {(state.domesticCups ?? []).map((cup) => (
+          <CupCompetitionPanel key={cup.competition} state={state} cup={cup} />
+        ))}
         {showPreseason && (
           <Section title={PRESEASON_COMPETITION_NAME}>
             <div className="flex flex-wrap items-center justify-between gap-2 px-1 pb-2 text-xs text-muted-foreground">
