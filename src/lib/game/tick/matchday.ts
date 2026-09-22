@@ -33,6 +33,7 @@ import { advanceDomesticCup, resolveDomesticCupTie } from "../domesticCupState";
 import { resolveKnockoutDraw } from "../knockout";
 import { resolveAllAiDomesticCups } from "../aiDomesticCups";
 import { syncUserCupFixtures } from "../cupFixtures";
+import { announceUserCupDrawInPlace, awardUserCupProgressInPlace } from "../cupNarrative";
 import { recordAutoResolvedPlayerMatch } from "../autoPlayerMatchStats";
 
 export interface MatchOverride {
@@ -139,7 +140,8 @@ export function tickSelectedMatchday(
       modifiers: facilityModifiers(s),
     });
 
-    const result: "W" | "D" | "L" = gf > ga ? "W" : gf === ga ? "D" : "L";
+    let result: "W" | "D" | "L" = gf > ga ? "W" : gf === ga ? "D" : "L";
+    let knockoutSuffix = "";
     if (!override) recordAutoResolvedPlayerMatch(s, fixture, gf, ga);
     fxResult = {
       week: s.week,
@@ -170,13 +172,17 @@ export function tickSelectedMatchday(
             `${s.saveSeed}|${s.season}|${fixture.competition}|${s.week}|${homeClub}|${awayClub}`,
           );
           winner = decider.winner === "home" ? homeClub : awayClub;
-          const suffix = decider.penalties
-            ? ` (pens ${decider.penalties.home}-${decider.penalties.away})`
-            : " (a.e.t.)";
-          matchdayNote = `${fixture.home ? "H" : "A"} vs ${clubDisplayName(s, fixture.opponent)} — ${gf}-${ga}${suffix}`;
+          const userAdvanced = isUserClubReference(s, winner);
+          result = userAdvanced ? "W" : "L";
+          knockoutSuffix = decider.penalties
+            ? ` · pens ${decider.penalties.home}-${decider.penalties.away}`
+            : " · a.e.t.";
         }
+        awardUserCupProgressInPlace(s, cup, winner);
         const resolved = resolveDomesticCupTie(cup, homeClub, awayClub, winner);
-        s.domesticCups[cupIndex] = advanceDomesticCup(resolved, `${s.saveSeed}|${s.season}`, s);
+        const advanced = advanceDomesticCup(resolved, `${s.saveSeed}|${s.season}`, s);
+        s.domesticCups[cupIndex] = advanced;
+        if (advanced.round !== cup.round || advanced.champion) announceUserCupDrawInPlace(s, advanced);
       }
     }
 
@@ -239,7 +245,7 @@ export function tickSelectedMatchday(
         }
       }
     }
-    matchdayNote = `${fixture.home ? "H" : "A"} vs ${clubDisplayName(s, fixture.opponent)} — ${gf}-${ga} ${result}`;
+    matchdayNote = `${fixture.home ? "H" : "A"} vs ${clubDisplayName(s, fixture.opponent)} — ${gf}-${ga}${knockoutSuffix} ${result}`;
   }
 
   // Cup simulation starts only once a save actually owns cup state. Legacy and
