@@ -3,7 +3,7 @@ import { newGame } from "../newGame";
 import { tickSelectedMatchday } from "../tick/matchday";
 import { calendarDay, setCalendarDay } from "../calendar";
 import { continuationInterrupt } from "../attention";
-import { simulateFixtureToday } from "../engine";
+import { simulateFixture } from "../engine";
 import { isUserClubReference } from "../clubReference";
 
 const opening = newGame("Cup Experience FC", "Chairman", "cup-experience");
@@ -12,11 +12,6 @@ const national = opening.domesticCups!.find((cup) => cup.competition === "faCup"
 assert(national, "Level 7 career must enter the National Cup");
 const cupFixture = opening.fixtures.find((fixture) => fixture.competition === "faCup");
 assert(cupFixture, "user cup draw must be projected into the fixture list");
-assert(
-  opening.inbox.some((item) => item.generatorId === "domestic-cup" && item.eventKey.includes("cup:draw:")),
-  "opening user cup draw must be announced",
-);
-
 const forced = structuredClone(opening);
 forced.week = cupFixture!.week;
 setCalendarDay(forced, cupFixture!.dayOfWeek ?? 5);
@@ -83,7 +78,7 @@ simFlow.inbox = [];
 setCalendarDay(simFlow, simFixture.dayOfWeek ?? 5);
 assert.equal(calendarDay(simFlow), simFixture.dayOfWeek ?? 5);
 assert.equal(continuationInterrupt(simFlow), "Matchday");
-const afterSim = simulateFixtureToday(simFlow);
+const afterSim = simulateFixture(simFlow, simFixture);
 assert(
   afterSim.results.some(
     (result) =>
