@@ -215,7 +215,7 @@ export function AdvanceInboxPreview({
                       <>
                         <Trophy className={cn("mt-0.5 size-3", active ? "text-current" : "text-emerald-600")} />
                         <span className="mt-0.5 max-w-full truncate text-[7px] font-bold leading-tight">
-                          {event.fixtureCompetition === "preseason" ? "FRIENDLY" : "MATCH"}
+                          {fixtureEvent.fixtureCompetition === "preseason" ? "FRIENDLY" : "MATCH"}
                         </span>
                       </>
                     ) : deadlineEvent ? (
