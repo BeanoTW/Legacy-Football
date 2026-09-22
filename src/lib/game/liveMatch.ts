@@ -44,13 +44,17 @@ function formGuide(s: GameState): string {
   return last5 || "—";
 }
 
-export function startMatchDay(s: GameState): GameState {
+export function startMatchDay(s: GameState, requestedFixture?: GameState["fixtures"][number]): GameState {
   const today = calendarDay(s);
   const weekFixtures = s.fixtures.filter((f) => f.week === s.week);
-  // Legacy callers and older saves may not have advanced the visible calendar
-  // to their sole weekly fixture. Multi-fixture weeks must still select today.
-  const fx =
-    weekFixtures.find((f) => (f.dayOfWeek ?? 5) === today) ??
+  // Fixture cards may target a specific same-day match. Legacy callers and
+  // older saves can still fall back to the sole/current-day fixture.
+  const fx = requestedFixture ??
+    weekFixtures.find((f) => (f.dayOfWeek ?? 5) === today && !s.results.some((r) =>
+      r.week === f.week && r.opponent === f.opponent && r.home === f.home &&
+      (r.dayOfWeek ?? 5) === (f.dayOfWeek ?? 5) &&
+      (r.competition ?? "league") === (f.competition ?? "league")
+    )) ??
     (weekFixtures.length === 1 ? weekFixtures[0] : undefined);
   if (!fx) return s;
   const ident = matchIdentity(s, fx);
