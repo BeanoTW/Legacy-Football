@@ -890,5 +890,31 @@ console.log("\n[U33] Smooth replay continuity and played-time timeline");
   );
 }
 
+console.log("\n[U34] Fluid match-view handoff");
+{
+  const viewer = read("src/components/game/MatchPitchViewer.tsx");
+  const sequence = read("src/lib/game/matchSequence.ts");
+  const motion = read("src/lib/game/matchMotion.ts");
+  check(
+    "predictive pitch trails are removed from the viewer",
+    !/<svg/.test(viewer) &&
+      !/<line/.test(viewer) &&
+      /motionFrameForSequence/.test(viewer),
+  );
+  check(
+    "open play connects to the exact start of the next canonical highlight",
+    /nextSequence: sequence/.test(viewer) &&
+      /const nextAction = input\.nextSequence\?\.actions\[0\]/.test(sequence) &&
+      /nextAction\.start/.test(sequence),
+  );
+  check(
+    "all-player motion advances through persistent action boundaries",
+    /applyAction/.test(motion) &&
+      /applySequence/.test(motion) &&
+      /sideFrame/.test(motion) &&
+      /lerpPoint/.test(motion),
+  );
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
