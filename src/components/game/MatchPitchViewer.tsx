@@ -483,6 +483,9 @@ export function MatchPitchViewer({
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="min-w-0 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-300">
           Live match simulation
+          {sequence && !inBridge && (
+            <span className="ml-2 text-white/45">· {sequence.styleLabel}</span>
+          )}
         </div>
         <div className="flex items-center gap-2 text-xs font-semibold tnum">
           <span className="max-w-24 truncate">{usName}</span>
@@ -629,7 +632,7 @@ export function MatchPitchViewer({
           {displayMinute}'
         </div>
         <div className="absolute bottom-2 right-2 rounded bg-black/45 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-white/75 backdrop-blur-sm">
-          {inBridge ? "Match flow" : sequence?.styleLabel ?? actionStage(activeAction, active)}
+          {inBridge ? "Match flow" : actionStage(activeAction, active)}
         </div>
       </div>
 
