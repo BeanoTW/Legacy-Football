@@ -263,6 +263,17 @@ assert(
   quietSequence.actions.every((item) => item.playerId === undefined || quietSequence.participantIds.includes(item.playerId)),
   "open-play action actors must belong to the structured possession",
 );
+for (let index = 0; index < quietSequence.actions.length - 1; index += 1) {
+  const current = quietSequence.actions[index];
+  const next = quietSequence.actions[index + 1];
+  if (current.kind === "carry" && current.playerId === next.playerId) {
+    assert.deepEqual(
+      next.start,
+      current.end,
+      "a pass after a carry must start where the carrier finished",
+    );
+  }
+}
 assert(
   quietSequence.actions.filter((item) => ["pass", "recycle", "switch", "throughBall"].includes(item.kind)).length >= 3,
   "a meaningful quiet spell must contain several readable passes",
