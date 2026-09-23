@@ -26,7 +26,7 @@ export function commentaryBridge(
   usName: string,
   themName: string,
 ): MatchCommentaryBridge | null {
-  const fromMinute = previous?.minute ?? (next.minute <= 6 ? 0 : Math.max(0, next.minute - 5));
+  const fromMinute = previous?.minute ?? 0;
   const gap = Math.max(0, next.minute - fromMinute);
   if (gap <= 1) return null;
 
