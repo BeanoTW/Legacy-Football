@@ -97,6 +97,16 @@ Commentary can describe:
 
 Commentary must never reveal a goal before the visual sequence reaches the goal.
 
+## Public engine architecture review
+
+We have inspected public football simulation engines for architecture ideas, without copying their code.
+
+- `GallagherAiden/footballSimulationEngine` keeps a persistent `currentPOS` for every player, separate origin/intent positions, and a ball trajectory that advances across iterations. The useful lesson for Legacy Football is that visual movement should advance from the player's previous physical state rather than recalculating each player from formation on every event.
+- `openfootmanager/openfootmanager` keeps a persistent live-match state with current minute, possession and ball zone, then advances the match in small steps containing several actions. The useful lesson is to separate the persistent match state from the UI snapshot and let playback consume a sequence of state transitions.
+- RoboCup engines such as `rcsoccersim/rcssserver` go further into cycle-level physics and agent commands. That is useful reference material for the eventual continuous mode, but is substantially lower-level than Legacy Football needs at this stage.
+
+The immediate application is `matchMotion.ts`: all 22 player positions now progress through deterministic action-boundary state. The renderer interpolates between those states instead of independently snapping players back to formation targets. Future continuous-match work should extend that same state model rather than reintroducing animation-only movement.
+
 ## Required invariants
 
 - Same seed + same match state = same canonical result.
