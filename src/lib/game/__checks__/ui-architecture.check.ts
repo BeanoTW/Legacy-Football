@@ -792,5 +792,27 @@ console.log("\n[U29] Matchday breathing room");
   );
 }
 
+console.log("\n[U30] Open-play possession changes");
+{
+  const viewer = read("src/components/game/MatchPitchViewer.tsx");
+  const sequence = read("src/lib/game/matchSequence.ts");
+  check(
+    "match actions carry explicit possession independently from the acting side",
+    /possessionSide\?/.test(sequence) &&
+      /possessionSide: event\.side/.test(sequence) &&
+      /activeAction\?\.possessionSide/.test(viewer),
+  );
+  check(
+    "quiet match flow can include a deterministic tackle and continuation by the new team",
+    /includeTurnover/.test(sequence) &&
+      /kind: "tackle"/.test(sequence) &&
+      /Turnover & transition/.test(sequence),
+  );
+  check(
+    "defensive pressure closes the ball without falsely changing possession",
+    /kind: "press"[\s\S]*?possessionSide: event\.side/.test(sequence),
+  );
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
