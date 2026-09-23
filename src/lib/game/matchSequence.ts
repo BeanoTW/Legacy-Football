@@ -36,7 +36,8 @@ export type MatchSequencePattern =
   | "wide"
   | "counter"
   | "highPress"
-  | "setPiece";
+  | "setPiece"
+  | "circulation";
 
 export interface MatchSequenceAction {
   id: string;
@@ -209,6 +210,8 @@ function styleLabel(pattern: MatchSequencePattern): string {
       return "High-press regain";
     case "setPiece":
       return "Set piece";
+    case "circulation":
+      return "Open play";
     default:
       return "Balanced build-up";
   }
@@ -222,6 +225,7 @@ const ROLE_PREFS: Record<MatchSequencePattern, TacticalPosition[]> = {
   counter: ["CM", "CDM", "LM", "RM", "LW", "RW", "CAM", "ST", "LB", "RB", "CB", "GK"],
   highPress: ["CAM", "CM", "LM", "RM", "LW", "RW", "ST", "CDM", "LB", "RB", "CB", "GK"],
   setPiece: ["LW", "RW", "LM", "RM", "CAM", "CM", "LB", "RB", "CB", "ST", "CDM", "GK"],
+  circulation: ["CB", "LB", "RB", "CDM", "CM", "CAM", "LM", "RM", "LW", "RW", "ST", "GK"],
 };
 
 const SUPPORT_COUNT: Record<MatchSequencePattern, number> = {
@@ -232,6 +236,7 @@ const SUPPORT_COUNT: Record<MatchSequencePattern, number> = {
   counter: 2,
   highPress: 2,
   setPiece: 1,
+  circulation: 4,
 };
 
 function orderedSupportPool(
@@ -638,6 +643,187 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
     styleLabel: styleLabel(pattern),
     actions,
     participantIds,
+    totalWeight: actions.reduce((sum, item) => sum + item.weight, 0),
+  };
+}
+
+export interface MatchFlowSequenceInput {
+  nextEvent: MatchEvent;
+  previousEvent?: MatchEvent;
+  userLineup: MatchLineupPlayer[];
+  opponentLineup: MatchLineupPlayer[];
+  userBench?: MatchLineupPlayer[];
+  opponentBench?: MatchLineupPlayer[];
+  substitutions?: MatchSubstitution[];
+  userPlan?: MatchTeamPlan;
+  opponentPlan?: MatchTeamPlan;
+}
+
+function quietPossessionSide(input: MatchFlowSequenceInput): "us" | "them" {
+  const { nextEvent, previousEvent } = input;
+  if (
+    previousEvent?.side !== "neutral" &&
+    nextEvent.side !== "neutral" &&
+    previousEvent?.side === nextEvent.side
+  ) {
+    return nextEvent.side;
+  }
+  if (nextEvent.side !== "neutral" && seedOf(nextEvent, "flow-possession") % 3 !== 0) {
+    return nextEvent.side;
+  }
+  return nextEvent.side === "us" ? "them" : "us";
+}
+
+function circulationPoints(
+  event: MatchEvent,
+  side: "us" | "them",
+  count: number,
+  plan: MatchTeamPlan,
+): MatchPitchPoint[] {
+  const direction = side === "us" ? 1 : -1;
+  const seed = seedOf(event, `circulation:${side}`);
+  const direct = plan.directness === "High";
+  const patient = plan.directness === "Low" || plan.philosophy === "Possession";
+  const start = side === "us" ? 25 : 75;
+  const span = direct ? 34 : patient ? 24 : 29;
+  const firstLane = 26 + (seed % 49);
+
+  return Array.from({ length: count }, (_, index) => {
+    const fraction = count === 1 ? 0 : index / (count - 1);
+    let x = start + direction * span * fraction;
+    let y = firstLane + Math.sin((fraction + (seed % 5) * 0.13) * Math.PI * 2) * (patient ? 22 : 15);
+    if (patient && index === 2 && count >= 4) x -= direction * 7;
+    return { x: clamp(x, 10, 90), y: clamp(y, 12, 88) };
+  });
+}
+
+/**
+ * Lightweight open-play possession shown between canonical highlights.
+ * It never creates a shot or result; its sole job is to keep the match visually
+ * alive while the written commentary and match clock bridge quiet minutes.
+ */
+export function buildMatchFlowSequence(input: MatchFlowSequenceInput): MatchSequence | null {
+  const gap = input.nextEvent.minute - (input.previousEvent?.minute ?? 0);
+  if (gap <= 1) return null;
+
+  const side = quietPossessionSide(input);
+  const starters = side === "us" ? input.userLineup : input.opponentLineup;
+  const bench = side === "us" ? input.userBench ?? [] : input.opponentBench ?? [];
+  const plan = side === "us" ? input.userPlan ?? DEFAULT_PLAN : input.opponentPlan ?? DEFAULT_PLAN;
+  const lineup = activeMatchLineupAtMinute(
+    starters,
+    bench,
+    input.substitutions ?? [],
+    side,
+    Math.max(0, input.nextEvent.minute - 1),
+  );
+  if (lineup.length < 2) return null;
+
+  const flowEvent: MatchEvent = {
+    minute: input.nextEvent.minute,
+    type: "info",
+    side,
+    text: "Open play",
+    phase: "buildUp",
+    zone: "middleThird",
+    sequenceId: `flow:${input.previousEvent?.sequenceId ?? "kickoff"}:${input.nextEvent.sequenceId ?? input.nextEvent.minute}`,
+  };
+  const pattern: MatchSequencePattern =
+    plan.directness === "High"
+      ? "direct"
+      : plan.directness === "Low" || plan.philosophy === "Possession"
+        ? "patient"
+        : seedOf(flowEvent, "flow-pattern") % 3 === 0
+          ? "wide"
+          : "circulation";
+  const supportCount = pattern === "direct" ? 3 : pattern === "patient" ? 5 : 4;
+  const participants = orderedSupportPool(flowEvent, lineup, pattern, new Set()).slice(0, supportCount);
+  if (participants.length < 2) return null;
+
+  const points = circulationPoints(flowEvent, side, participants.length, plan);
+  const actions: MatchSequenceAction[] = [];
+  const sequenceId = flowEvent.sequenceId!;
+  const tempo = tempoScale(plan);
+  let actionIndex = 0;
+
+  actions.push(
+    action(sequenceId, actionIndex++, {
+      kind: "receive",
+      side,
+      playerId: participants[0].playerId,
+      playerName: participants[0].name,
+      start: points[0],
+      end: points[0],
+      weight: 0.34 * tempo,
+      commentary: `${surname(participants[0].name)} has it in open play.`,
+    }),
+  );
+
+  for (let i = 0; i < participants.length - 1; i += 1) {
+    const holder = participants[i];
+    const receiver = participants[i + 1];
+    const start = points[i];
+    const end = points[i + 1];
+    if (
+      (pattern === "direct" && i === 0) ||
+      (pattern !== "patient" && seedOf(flowEvent, `flow-carry:${i}`) % 3 === 0)
+    ) {
+      const carryEnd = {
+        x: clamp(start.x + (side === "us" ? 1 : -1) * 2.5, 8, 92),
+        y: start.y,
+      };
+      actions.push(
+        action(sequenceId, actionIndex++, {
+          kind: "carry",
+          side,
+          playerId: holder.playerId,
+          playerName: holder.name,
+          start,
+          end: carryEnd,
+          weight: 0.35 * tempo,
+          commentary: `${surname(holder.name)} moves into space.`,
+        }),
+      );
+    }
+
+    const direction = side === "us" ? 1 : -1;
+    const forward = (end.x - start.x) * direction;
+    const lateral = Math.abs(end.y - start.y);
+    const kind: FootballActionKind =
+      forward < -2
+        ? "recycle"
+        : lateral > 30
+          ? "switch"
+          : pattern === "direct" && i === participants.length - 2
+            ? "throughBall"
+            : "pass";
+    actions.push(
+      action(sequenceId, actionIndex++, {
+        kind,
+        side,
+        playerId: holder.playerId,
+        playerName: holder.name,
+        targetPlayerId: receiver.playerId,
+        targetPlayerName: receiver.name,
+        start,
+        end,
+        weight: (kind === "switch" ? 0.75 : kind === "throughBall" ? 0.65 : 0.58) * tempo,
+        commentary: passCommentary(kind, holder, receiver),
+      }),
+    );
+  }
+
+  return {
+    id: sequenceId,
+    minute: input.nextEvent.minute,
+    side,
+    phase: "buildUp",
+    sourceType: "info",
+    sourceText: "Open play",
+    pattern,
+    styleLabel: pattern === "circulation" ? "Open play" : styleLabel(pattern),
+    actions,
+    participantIds: participants.map((player) => player.playerId),
     totalWeight: actions.reduce((sum, item) => sum + item.weight, 0),
   };
 }
