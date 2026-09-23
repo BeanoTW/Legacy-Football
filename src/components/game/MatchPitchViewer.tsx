@@ -10,6 +10,7 @@ import type {
 import { bridgeMinute, commentaryBridge } from "@/lib/game/matchFlow";
 import {
   activeMatchLineupAtMinute,
+  buildMatchFlowSequence,
   buildMatchSequence,
   frameForSequence,
   sequenceDurationMs,
@@ -358,6 +359,34 @@ export function MatchPitchViewer({
     () => (active ? commentaryBridge(previousEvent, active, usName, themName) : null),
     [active, previousEvent, themName, usName],
   );
+  const bridgeSequence = useMemo(
+    () =>
+      bridge && active
+        ? buildMatchFlowSequence({
+            nextEvent: active,
+            previousEvent,
+            userLineup,
+            opponentLineup,
+            userBench,
+            opponentBench,
+            substitutions,
+            userPlan,
+            opponentPlan,
+          })
+        : null,
+    [
+      active,
+      bridge,
+      opponentBench,
+      opponentLineup,
+      opponentPlan,
+      previousEvent,
+      substitutions,
+      userBench,
+      userLineup,
+      userPlan,
+    ],
+  );
   const sequenceBaseDuration = eventDurationMs(active, sequence);
   const activeDuration = sequenceBaseDuration + (bridge?.durationMs ?? 0);
   const bridgeFraction = bridge ? bridge.durationMs / Math.max(1, activeDuration) : 0;
@@ -367,10 +396,20 @@ export function MatchPitchViewer({
     bridgeFraction < 1
       ? Math.max(0, Math.min(1, (progress - bridgeFraction) / Math.max(0.0001, 1 - bridgeFraction)))
       : 0;
+  const playbackMinute =
+    inBridge && bridge
+      ? bridgeMinute(bridge, bridgeProgress)
+      : active?.minute ?? 0;
   const frame = useMemo(
-    () => (sequence && !inBridge ? frameForSequence(sequence, contentProgress) : null),
-    [contentProgress, inBridge, sequence],
+    () =>
+      inBridge && bridgeSequence
+        ? frameForSequence(bridgeSequence, bridgeProgress)
+        : sequence && !inBridge
+          ? frameForSequence(sequence, contentProgress)
+          : null,
+    [bridgeProgress, bridgeSequence, contentProgress, inBridge, sequence],
   );
+  const renderSequence = inBridge ? bridgeSequence : sequence;
   const ball = frame?.ball ?? (inBridge ? { x: 50, y: 50 } : fallbackEventPosition(active));
   const activeAction = frame?.action;
 
@@ -443,18 +482,18 @@ export function MatchPitchViewer({
     userBench,
     substitutions,
     "us",
-    active?.minute ?? 0,
+    playbackMinute,
   );
   const activeOpponentLineup = activeMatchLineupAtMinute(
     opponentLineup,
     opponentBench,
     substitutions,
     "them",
-    active?.minute ?? 0,
+    playbackMinute,
   );
   const userShape = formationPositions(activeUserLineup, true);
   const opponentShape = formationPositions(activeOpponentLineup, false);
-  const possessionSide = active?.side;
+  const possessionSide = inBridge ? bridgeSequence?.side : active?.side;
   const passKinds = ["pass", "recycle", "switch", "throughBall", "overlap", "cutback", "cross"];
   const passLabel =
     activeAction?.targetPlayerName &&
@@ -468,10 +507,7 @@ export function MatchPitchViewer({
       : sequence && activeAction
         ? activeAction.commentary
         : active?.text ?? "The match settles into shape.";
-  const displayMinute =
-    inBridge && bridge
-      ? bridgeMinute(bridge, bridgeProgress)
-      : active?.minute ?? 0;
+  const displayMinute = playbackMinute;
 
   return (
     <div
@@ -483,8 +519,8 @@ export function MatchPitchViewer({
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="min-w-0 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-300">
           Live match simulation
-          {sequence && !inBridge && (
-            <span className="ml-2 text-white/45">· {sequence.styleLabel}</span>
+          {renderSequence && (
+            <span className="ml-2 text-white/45">· {renderSequence.styleLabel}</span>
           )}
         </div>
         <div className="flex items-center gap-2 text-xs font-semibold tnum">
@@ -514,14 +550,14 @@ export function MatchPitchViewer({
         <div className="absolute left-0 top-[42%] h-[16%] w-[1.8%] border-y border-r border-white/70 bg-white/10" />
         <div className="absolute right-0 top-[42%] h-[16%] w-[1.8%] border-y border-l border-white/70 bg-white/10" />
 
-        {sequence && (
+        {renderSequence && (
           <svg
             className="pointer-events-none absolute inset-0 size-full"
             viewBox="0 0 100 100"
             preserveAspectRatio="none"
             aria-hidden="true"
           >
-            {sequence.actions
+            {renderSequence.actions
               .filter((item) => item.start.x !== item.end.x || item.start.y !== item.end.y)
               .map((item, index) => (
                 <line
