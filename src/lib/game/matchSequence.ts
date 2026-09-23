@@ -737,8 +737,18 @@ export function buildMatchFlowSequence(input: MatchFlowSequenceInput): MatchSequ
           ? "wide"
           : "circulation";
   const supportCount = pattern === "direct" ? 3 : pattern === "patient" ? 5 : 4;
-  const participants = orderedSupportPool(flowEvent, lineup, pattern, new Set()).slice(0, supportCount);
-  if (participants.length < 2) return null;
+  const baseParticipants = orderedSupportPool(flowEvent, lineup, pattern, new Set()).slice(0, supportCount);
+  if (baseParticipants.length < 2) return null;
+
+  const cycleCount = clamp(Math.ceil(gap / 8), 1, 3);
+  const participants = [...baseParticipants];
+  for (let cycle = 1; cycle < cycleCount; cycle += 1) {
+    const extension =
+      cycle % 2 === 1
+        ? baseParticipants.slice(0, -1).reverse()
+        : baseParticipants.slice(1);
+    participants.push(...extension);
+  }
 
   const points = circulationPoints(flowEvent, side, participants.length, plan);
   const actions: MatchSequenceAction[] = [];
@@ -823,9 +833,18 @@ export function buildMatchFlowSequence(input: MatchFlowSequenceInput): MatchSequ
     pattern,
     styleLabel: pattern === "circulation" ? "Open play" : styleLabel(pattern),
     actions,
-    participantIds: participants.map((player) => player.playerId),
+    participantIds: [...new Set(participants.map((player) => player.playerId))],
     totalWeight: actions.reduce((sum, item) => sum + item.weight, 0),
   };
+}
+
+export function flowSequenceDurationMs(sequence: MatchSequence, gapMinutes: number): number {
+  const gap = Math.max(0, gapMinutes);
+  return clamp(
+    Math.round(sequence.totalWeight * 1_650 + Math.max(0, gap - 4) * 220),
+    5_500,
+    22_000,
+  );
 }
 
 function curvedPoint(
