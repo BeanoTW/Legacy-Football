@@ -127,6 +127,8 @@ function actionStage(action: MatchSequenceAction | undefined, event: MatchEvent 
       return "Cross";
     case "interception":
       return "Regain";
+    case "challenge":
+      return "Challenge";
     case "tackle":
       return "Turnover";
     case "clearance":
@@ -180,8 +182,13 @@ function playerPosition(
     if (passActions.includes(action.kind)) {
       return { x: action.start.x, y: action.start.y };
     }
-    if (action.kind === "press" || action.kind === "tackle") {
-      const close = action.kind === "tackle" ? 0.5 + localProgress * 0.48 : 0.35 + localProgress * 0.55;
+    if (action.kind === "press" || action.kind === "challenge" || action.kind === "tackle") {
+      const close =
+        action.kind === "tackle"
+          ? 0.5 + localProgress * 0.48
+          : action.kind === "challenge"
+            ? 0.44 + localProgress * 0.45
+            : 0.35 + localProgress * 0.55;
       return {
         x: clampX(base.x + (ball.x - base.x) * close),
         y: clampY(base.y + (ball.y - base.y) * close),
@@ -226,6 +233,38 @@ function playerPosition(
   }
 
   if (player.role === "GK") return base;
+
+  const ourSide = ours ? "us" : "them";
+  const defensiveRole = ["CB", "LB", "RB", "LWB", "RWB", "CDM"].includes(player.role);
+  const trackingAction =
+    action &&
+    action.possessionSide !== ourSide &&
+    ["throughBall", "overlap", "cutback", "cross", "shot"].includes(action.kind);
+  if (!inPossession && defensiveRole && trackingAction && action) {
+    const ownGoalX = ours ? 6 : 94;
+    const retreat =
+      action.kind === "shot"
+        ? 0.32
+        : action.kind === "cross" || action.kind === "cutback"
+          ? 0.24
+          : 0.18;
+    const markPull =
+      player.role === "CB" || player.role === "CDM"
+        ? 0.3
+        : 0.4;
+    return {
+      x: clampX(
+        base.x +
+          (ownGoalX - base.x) * retreat +
+          (ball.x - base.x) * 0.05,
+      ),
+      y: clampY(
+        base.y +
+          (action.end.y - base.y) * markPull +
+          (ball.y - base.y) * 0.05,
+      ),
+    };
+  }
 
   const directness = plan?.directness ?? "Medium";
   const pressing = plan?.pressing ?? "Medium";
