@@ -136,3 +136,5 @@ Tune repetition, realism, pacing, camera behaviour, commentary density, stats an
 The first Stage A implementation lives in `src/lib/game/matchSequence.ts`.
 
 It translates canonical chance/goal events into deterministic football actions using the players who were actually active at that minute, including substitutions. `MatchPitchViewer` consumes that domain rather than inventing arbitrary waypoint football.
+
+`src/lib/game/matchFlow.ts` now provides deterministic written commentary bridges across quieter gaps between canonical events. The on-screen clock advances through those gaps before the 2D sequence begins, so 1× matchday has room to breathe without changing the underlying result.
