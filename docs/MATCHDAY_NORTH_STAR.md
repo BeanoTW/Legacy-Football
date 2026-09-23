@@ -139,6 +139,10 @@ It translates canonical chance/goal events into deterministic football actions u
 
 `src/lib/game/matchFlow.ts` now provides deterministic written commentary bridges across quieter gaps between canonical events. The on-screen clock advances through those gaps before the 2D sequence begins, so 1× matchday has room to breathe without changing the underlying result.
 
-Stage B/C work has also begun. Sequence construction now understands patient possession, balanced build-up, direct attacks, wide overloads, counters, high-press regains and set pieces. Manager tempo, pressing and directness alter the presentation pattern without touching score RNG. The vocabulary now includes recycling, switches, overlaps, cutbacks, pressure and interceptions.
+Stage B/C work has also begun. Sequence construction now understands patient possession, balanced build-up, direct attacks, wide overloads, counters, high-press regains and set pieces. Manager tempo, pressing and directness alter the presentation pattern without touching score RNG. The vocabulary now includes recycling, switches, overlaps, cutbacks, pressure, interceptions, failed challenges, clearances, blocked passes and second-ball recoveries.
 
-Quiet gaps are no longer visually static: `buildMatchFlowSequence` creates structured open-play possessions using real active players. Longer gaps contain more circulation and receive more real-time playback at 1×, while 2× and 4× still scale the same underlying match flow.
+Canonical attacks can now contain defensive resistance before the real chance: a defender may challenge without winning it, clear a developing move before the attacking side regains the second ball, or get a foot to a pass and force a loose-ball recovery. The canonical scorer, assist and final outcome remain untouched.
+
+Quiet gaps are no longer visually static: `buildMatchFlowSequence` creates structured open-play possessions using real active players. Longer gaps contain more circulation and receive more real-time playback at 1×, while 2× and 4× still scale the same underlying match flow. Open play can now break down through a tackle or clearance, with possession changing and the next side building from the recovery rather than every passage drifting toward a shot.
+
+The 2D defensive shape also reacts to dangerous actions: defenders retreat toward their own goal and track the target lane on through balls, overlaps, cutbacks, crosses and shots instead of remaining anchored to static formation dots.
