@@ -814,5 +814,16 @@ console.log("\n[U30] Open-play possession changes");
   );
 }
 
+console.log("\n[U31] Live match commentary follows the ball");
+{
+  const viewer = read("src/components/game/MatchPitchViewer.tsx");
+  check(
+    "quiet periods narrate the current structured football action",
+    /activeAction\?\.commentary/.test(viewer) &&
+      /contextCommentary/.test(viewer) &&
+      /bridge\.text/.test(viewer),
+  );
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
