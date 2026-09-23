@@ -574,5 +574,17 @@ console.log("\n[U19] Dense squad planning");
       /fmtMoneyExact\(contract\.weeklyWage\)/.test(profile),
   );
 }
+
+console.log("\n[U20] Squad planning views");
+{
+  const squad = read("src/components/game/SquadSelectionTab.tsx");
+  check(
+    "redundant squad details tab is removed",
+    !/setView\("details"\)/.test(squad) &&
+      !/Squad details & contracts/.test(squad) &&
+      /setView\("pitch"\)/.test(squad) &&
+      /setView\("stats"\)/.test(squad),
+  );
+}
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
