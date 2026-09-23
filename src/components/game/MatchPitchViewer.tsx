@@ -415,7 +415,7 @@ function PlayerDot({
   return (
     <span
       className={cn(
-        "absolute grid -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border font-black leading-none shadow-sm transition-[left,top] duration-150 will-change-[left,top,transform]",
+        "absolute grid -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border font-black leading-none shadow-sm transition-[left,top] duration-300 will-change-[left,top,transform]",
         expanded ? "size-5 text-[8px] sm:size-6 sm:text-[9px]" : "size-3.5 text-[6px] sm:size-4 sm:text-[7px]",
         ours ? "border-emerald-950 bg-emerald-300" : "border-rose-950 bg-rose-300",
         active && "z-20 scale-125 ring-2 ring-white/55",
