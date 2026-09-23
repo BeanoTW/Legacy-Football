@@ -457,4 +457,33 @@ assert.equal(
   "a mere deflection must not falsely award settled possession to the defender",
 );
 
+
+const defensiveInterventionCount = (pressing: "Low" | "High") =>
+  Array.from({ length: 36 }, (_, index) =>
+    buildMatchSequence({
+      ...input,
+      event: {
+        ...chance,
+        minute: 76,
+        sequenceId: `defensive-style-${index}`,
+      },
+      substitutions: [],
+      userPlan: patientPlan,
+      opponentPlan: {
+        ...directPlan,
+        pressing,
+        philosophy: pressing === "High" ? "Front-foot" : "Defensive",
+      },
+    }),
+  ).filter((sequence) =>
+    sequence?.actions.some((item) =>
+      ["challenge", "clearance", "blockPass"].includes(item.kind),
+    ),
+  ).length;
+
+assert(
+  defensiveInterventionCount("High") > defensiveInterventionCount("Low"),
+  "high pressing must create more visible defensive interventions than a low press",
+);
+
 console.log("\nmatch-sequence: passed");
