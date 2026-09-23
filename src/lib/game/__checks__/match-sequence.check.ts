@@ -486,4 +486,32 @@ assert(
   "high pressing must create more visible defensive interventions than a low press",
 );
 
+
+const roleAlignedSequence = buildMatchSequence({
+  ...input,
+  event: {
+    ...chance,
+    minute: 79,
+    phase: "buildUp",
+    sequenceId: "role-aligned-receivers",
+  },
+  substitutions: [],
+  userPlan: patientPlan,
+  opponentPlan: directPlan,
+});
+assert(roleAlignedSequence, "role-aware sequence must be generated");
+const roleLookup = new Map([...lineup, ...bench].map((player) => [player.playerId, player.role]));
+for (const action of roleAlignedSequence.actions) {
+  if (!action.targetPlayerId || !["pass", "recycle", "switch", "throughBall", "overlap", "cutback", "cross"].includes(action.kind)) {
+    continue;
+  }
+  const role = roleLookup.get(action.targetPlayerId);
+  if (role && ["LB", "LWB", "LM", "LW"].includes(role)) {
+    assert(action.end.y < 45, `${role} receiver must occupy the left channel rather than teleport across the pitch`);
+  }
+  if (role && ["RB", "RWB", "RM", "RW"].includes(role)) {
+    assert(action.end.y > 55, `${role} receiver must occupy the right channel rather than teleport across the pitch`);
+  }
+}
+
 console.log("\nmatch-sequence: passed");
