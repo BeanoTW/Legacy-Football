@@ -283,6 +283,29 @@ assert(
   flowSequenceDurationMs(quietSequence, 13) > 5_500,
   "longer quiet spells must receive meaningful real-time playback",
 );
+const connectedQuietSequence = buildMatchFlowSequence({
+  nextEvent: directEvent,
+  previousEvent: { ...chance, minute: 38, sequenceId: "connected-quiet-previous" },
+  nextSequence: directSequence,
+  userLineup: lineup,
+  opponentLineup: lineup.map((player) => ({
+    ...player,
+    playerId: `connected-opp-${player.playerId}`,
+  })),
+  userBench: [],
+  opponentBench: [],
+  substitutions: [],
+  userPlan: directPlan,
+  opponentPlan: highPressPlan,
+});
+assert(connectedQuietSequence, "connected quiet play must create a sequence");
+assert(directSequence, "direct canonical sequence must exist for continuity check");
+assert.deepEqual(
+  connectedQuietSequence.actions.at(-1)?.end,
+  directSequence.actions[0]?.start,
+  "open play must land on the exact first touch of the next canonical highlight",
+);
+
 
 
 const turnoverSequence = Array.from({ length: 24 }, (_, index) =>
