@@ -279,7 +279,20 @@ function participantOrder(
   const actor = lineup.find((player) => player.playerId === event.actorPlayerId);
   const creator = lineup.find((player) => player.playerId === event.secondaryPlayerId);
   const excluded = new Set([actor?.playerId, creator?.playerId].filter(Boolean) as string[]);
-  const support = orderedSupportPool(event, lineup, pattern, excluded).slice(0, SUPPORT_COUNT[pattern]);
+  let supportPool = orderedSupportPool(event, lineup, pattern, excluded);
+
+  if (pattern === "wide") {
+    const attackLeft = seedOf(event, "wide-side") % 2 === 0;
+    const oppositeWideRoles = new Set<TacticalPosition>(
+      attackLeft ? ["RB", "RWB", "RM", "RW"] : ["LB", "LWB", "LM", "LW"],
+    );
+    supportPool = [
+      ...supportPool.filter((player) => !oppositeWideRoles.has(player.role)),
+      ...supportPool.filter((player) => oppositeWideRoles.has(player.role)),
+    ];
+  }
+
+  const support = supportPool.slice(0, SUPPORT_COUNT[pattern]);
   const result = [...support];
   if (creator && !result.some((player) => player.playerId === creator.playerId)) result.push(creator);
   if (actor && !result.some((player) => player.playerId === actor.playerId)) result.push(actor);
@@ -311,45 +324,100 @@ function startXForPattern(
   return direction === 1 ? attackingX : 100 - attackingX;
 }
 
-function touchPoints(
+const ROLE_DEPTH: Record<TacticalPosition, number> = {
+  GK: 9,
+  LB: 28,
+  CB: 24,
+  RB: 28,
+  LWB: 38,
+  RWB: 38,
+  CDM: 40,
+  CM: 49,
+  CAM: 61,
+  LM: 55,
+  RM: 55,
+  LW: 69,
+  RW: 69,
+  ST: 78,
+};
+
+function roleLane(
+  role: TacticalPosition,
   event: MatchEvent,
-  count: number,
+  playerId: string,
+): number {
+  if (["LB", "LWB", "LM", "LW"].includes(role)) return 18;
+  if (["RB", "RWB", "RM", "RW"].includes(role)) return 82;
+  if (role === "GK") return 50;
+  const seed = seedOf(event, `role-lane:${playerId}`);
+  if (role === "CB") return seed % 2 === 0 ? 39 : 61;
+  if (role === "ST") return 44 + (seed % 13);
+  return 42 + (seed % 17);
+}
+
+function rolePitchPoint(
+  event: MatchEvent,
+  player: MatchLineupPlayer,
+  fraction: number,
   pattern: MatchSequencePattern,
-): MatchPitchPoint[] {
-  if (count <= 0) return [];
+  index: number,
+  count: number,
+): MatchPitchPoint {
   const direction = event.side === "us" ? 1 : -1;
   const startX = startXForPattern(event, pattern);
   const shotX = direction === 1 ? 84 : 16;
-  const seed = seedOf(event, "touches");
-  const flank = seed % 2 === 0 ? 20 : 80;
-  const oppositeFlank = 100 - flank;
-  const startY = pattern === "wide" || pattern === "setPiece" ? flank : 24 + (seed % 53);
+  const roleDepth = ROLE_DEPTH[player.role];
+  const roleX = direction === 1 ? roleDepth : 100 - roleDepth;
+  const progressionX = startX + (shotX - startX) * fraction;
+  let x = roleX * 0.58 + progressionX * 0.42;
+  let y = roleLane(player.role, event, player.playerId);
 
-  return Array.from({ length: count }, (_, index) => {
-    const fraction = count === 1 ? 1 : index / (count - 1);
-    let x = startX + (shotX - startX) * fraction;
-    let y =
-      startY * (1 - fraction * 0.58) +
-      50 * fraction * 0.58 +
-      Math.sin((fraction + (seed % 7) / 10) * Math.PI * 2) * 10;
+  if (event.phase === "finalThird" && index < count - 1) x += direction * 7;
+  if (pattern === "counter" || pattern === "highPress") x += direction * fraction * 8;
+  if (pattern === "direct") x += direction * fraction * 5;
 
-    if (pattern === "patient" && index === 2 && count >= 4) {
-      x -= direction * 9;
-      y = oppositeFlank;
-    } else if (pattern === "wide") {
-      y = index < count - 1 ? flank + Math.sin(fraction * Math.PI) * (flank < 50 ? -4 : 4) : 50;
-    } else if (pattern === "direct") {
-      x += direction * fraction * 7;
-      y = startY + (50 - startY) * fraction * 0.72;
-    } else if (pattern === "counter" || pattern === "highPress") {
-      x += direction * Math.sin(fraction * Math.PI) * 7;
-      y = startY + (50 - startY) * fraction * 0.82;
-    } else if (pattern === "setPiece") {
-      y = index === count - 1 ? 50 : flank;
+  if (pattern === "wide") {
+    const attackLeft = seedOf(event, "wide-side") % 2 === 0;
+    const flankY = attackLeft ? 18 : 82;
+    if (index < count - 1 && player.role !== "ST") {
+      y = y * 0.35 + flankY * 0.65;
     }
+  }
 
-    return { x: clamp(x, 6, 94), y: clamp(y, 9, 91) };
-  });
+  if (pattern === "patient" && index > 0 && index < count - 1) {
+    x -= direction * (index % 3 === 2 ? 5 : 0);
+  }
+
+  if (index === count - 1) {
+    x = shotX;
+    y = player.role === "ST" ? roleLane(player.role, event, player.playerId) : 50;
+  } else if (index === count - 2) {
+    x = direction === 1 ? Math.max(x, 68) : Math.min(x, 32);
+  }
+
+  return {
+    x: clamp(x, 6, 94),
+    y: clamp(y, 9, 91),
+  };
+}
+
+function touchPoints(
+  event: MatchEvent,
+  participants: MatchLineupPlayer[],
+  pattern: MatchSequencePattern,
+): MatchPitchPoint[] {
+  const count = participants.length;
+  if (count <= 0) return [];
+  return participants.map((player, index) =>
+    rolePitchPoint(
+      event,
+      player,
+      count === 1 ? 1 : index / (count - 1),
+      pattern,
+      index,
+      count,
+    ),
+  );
 }
 
 function tempoScale(plan: MatchTeamPlan): number {
@@ -552,7 +620,7 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
   if (!participants.length) return null;
 
   const sequenceId = event.sequenceId ?? `match-sequence:${event.minute}:${event.side}:${event.type}`;
-  const points = touchPoints(event, participants.length, pattern);
+  const points = touchPoints(event, participants, pattern);
   const actions: MatchSequenceAction[] = [];
   const tempo = tempoScale(attackingPlan);
   let actionIndex = 0;
@@ -870,23 +938,33 @@ function quietPossessionSide(input: MatchFlowSequenceInput): "us" | "them" {
 function circulationPoints(
   event: MatchEvent,
   side: "us" | "them",
-  count: number,
+  route: MatchLineupPlayer[],
   plan: MatchTeamPlan,
 ): MatchPitchPoint[] {
   const direction = side === "us" ? 1 : -1;
-  const seed = seedOf(event, `circulation:${side}`);
   const direct = plan.directness === "High";
   const patient = plan.directness === "Low" || plan.philosophy === "Possession";
   const start = side === "us" ? 25 : 75;
   const span = direct ? 34 : patient ? 24 : 29;
-  const firstLane = 26 + (seed % 49);
+  const count = route.length;
 
-  return Array.from({ length: count }, (_, index) => {
+  return route.map((player, index) => {
     const fraction = count === 1 ? 0 : index / (count - 1);
-    let x = start + direction * span * fraction;
-    let y = firstLane + Math.sin((fraction + (seed % 5) * 0.13) * Math.PI * 2) * (patient ? 22 : 15);
-    if (patient && index === 2 && count >= 4) x -= direction * 7;
-    return { x: clamp(x, 10, 90), y: clamp(y, 12, 88) };
+    const roleDepth = ROLE_DEPTH[player.role];
+    const roleX = direction === 1 ? roleDepth : 100 - roleDepth;
+    const progressionX = start + direction * span * fraction;
+    let x = roleX * 0.62 + progressionX * 0.38;
+    let y = roleLane(player.role, event, player.playerId);
+
+    if (patient && index > 0 && index < count - 1 && index % 3 === 2) {
+      x -= direction * 6;
+    }
+    if (direct) x += direction * fraction * 5;
+
+    return {
+      x: clamp(x, 10, 90),
+      y: clamp(y, 12, 88),
+    };
   });
 }
 
@@ -1058,7 +1136,7 @@ export function buildMatchFlowSequence(input: MatchFlowSequenceInput): MatchSequ
   const initialPoints = circulationPoints(
     initialEvent,
     initialSide,
-    initialRoute.length,
+    initialRoute,
     initialPlan,
   );
   appendRoute(initialSide, initialRoute, initialPoints, initialPlan, initialEvent, true);
@@ -1106,7 +1184,7 @@ export function buildMatchFlowSequence(input: MatchFlowSequenceInput): MatchSequ
         const followPoints = circulationPoints(
           turnoverEvent,
           nextSide,
-          followRoute.length,
+          followRoute,
           turnoverPlan,
         );
         followPoints[0] = turnoverPoint;
@@ -1219,7 +1297,7 @@ export function buildMatchFlowSequence(input: MatchFlowSequenceInput): MatchSequ
             const followPoints = circulationPoints(
               recoveryEvent,
               recoverySide,
-              followRoute.length,
+              followRoute,
               recoveryPlan,
             );
             followPoints[0] = clearedTo;
