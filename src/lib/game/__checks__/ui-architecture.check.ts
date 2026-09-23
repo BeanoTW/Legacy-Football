@@ -622,8 +622,9 @@ console.log("\n[U22] Match replay event fidelity");
   );
   check(
     "defending keeper reacts to the sequence shot",
-    /defendingKeeper/.test(viewer) &&
-      /action\.kind === "shot"/.test(viewer),
+    /player\.role === "GK"/.test(read("src/lib/game/matchMotion.ts")) &&
+      /action\.kind === "shot"/.test(read("src/lib/game/matchMotion.ts")) &&
+      /keeperX/.test(read("src/lib/game/matchMotion.ts")),
   );
   check(
     "pausing replay does not force the current event to completion",
@@ -751,9 +752,9 @@ console.log("\n[U27] Manager identity in matchday");
   );
   check(
     "off-ball team shape responds to manager plan rather than only fixed role coordinates",
-    /plan\?\.directness/.test(viewer) &&
-      /plan\?\.pressing/.test(viewer) &&
-      /plan\?\.tempo/.test(viewer),
+    /side\.plan\?\.directness/.test(read("src/lib/game/matchMotion.ts")) &&
+      /side\.plan\?\.pressing/.test(read("src/lib/game/matchMotion.ts")) &&
+      /side\.plan\?\.tempo/.test(read("src/lib/game/matchMotion.ts")),
   );
 }
 
@@ -801,7 +802,7 @@ console.log("\n[U30] Open-play possession changes");
     "match actions carry explicit possession independently from the acting side",
     /possessionSide\?/.test(sequence) &&
       /possessionSide: event\.side/.test(sequence) &&
-      /activeAction\?\.possessionSide/.test(viewer),
+      /action\.possessionSide/.test(read("src/lib/game/matchMotion.ts")),
   );
   check(
     "quiet match flow can include a deterministic tackle and continuation by the new team",
@@ -847,11 +848,11 @@ console.log("\n[U32] Defensive phases and second balls");
       /flow-second-ball-side/.test(sequence),
   );
   check(
-    "defensive lines retreat and track dangerous runners in the 2D renderer",
-    /defensiveRole/.test(viewer) &&
-      /trackingAction/.test(viewer) &&
-      /ownGoalX/.test(viewer) &&
-      /markPull/.test(viewer),
+    "defensive lines retreat and track dangerous runners in persistent motion state",
+    /defensiveRole/.test(read("src/lib/game/matchMotion.ts")) &&
+      /dangerous/.test(read("src/lib/game/matchMotion.ts")) &&
+      /ownGoalX/.test(read("src/lib/game/matchMotion.ts")) &&
+      /retreat/.test(read("src/lib/game/matchMotion.ts")),
   );
 }
 
