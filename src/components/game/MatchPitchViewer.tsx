@@ -275,6 +275,7 @@ export function MatchPitchViewer({
 }) {
   const previousLength = useRef(0);
   const animationFrame = useRef<number | null>(null);
+  const progressRef = useRef(0);
   const [cursor, setCursor] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [progress, setProgress] = useState(0);
@@ -282,6 +283,7 @@ export function MatchPitchViewer({
   useEffect(() => {
     if (events.length > previousLength.current) {
       setCursor(previousLength.current);
+      progressRef.current = 0;
       setProgress(0);
       setPlaying(true);
       previousLength.current = events.length;
@@ -294,6 +296,7 @@ export function MatchPitchViewer({
       if (cursor >= events.length - 1) setPlaying(false);
       else {
         setCursor((current) => Math.min(events.length - 1, current + 1));
+        progressRef.current = 0;
         setProgress(0);
       }
     }, EVENT_MS);
@@ -303,11 +306,14 @@ export function MatchPitchViewer({
   useEffect(() => {
     if (!playing || events.length === 0) return;
     let started: number | null = null;
+    const startProgress = progressRef.current;
     const animate = (timestamp: number) => {
       started ??= timestamp;
       const elapsed = timestamp - started;
-      setProgress(Math.min(1, elapsed / (EVENT_MS * 0.78)));
-      if (elapsed < EVENT_MS * 0.78) {
+      const next = Math.min(1, startProgress + elapsed / (EVENT_MS * 0.78));
+      progressRef.current = next;
+      setProgress(next);
+      if (next < 1) {
         animationFrame.current = window.requestAnimationFrame(animate);
       }
     };
@@ -466,6 +472,7 @@ export function MatchPitchViewer({
           className="grid size-9 shrink-0 place-items-center rounded-lg bg-white/10 hover:bg-white/20"
           onClick={() => {
             setCursor(0);
+            progressRef.current = 0;
             setProgress(0);
             setPlaying(true);
           }}
@@ -488,6 +495,7 @@ export function MatchPitchViewer({
           value={cursor}
           onChange={(event) => {
             setCursor(Number(event.target.value));
+            progressRef.current = 1;
             setProgress(1);
             setPlaying(false);
           }}
@@ -497,6 +505,7 @@ export function MatchPitchViewer({
           className="grid size-9 shrink-0 place-items-center rounded-lg bg-white/10 hover:bg-white/20"
           onClick={() => {
             setCursor(events.length - 1);
+            progressRef.current = 1;
             setProgress(1);
             setPlaying(false);
           }}
