@@ -911,6 +911,8 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
 export interface MatchFlowSequenceInput {
   nextEvent: MatchEvent;
   previousEvent?: MatchEvent;
+  /** Canonical next highlight sequence. Used only to land open play on its first touch smoothly. */
+  nextSequence?: MatchSequence;
   userLineup: MatchLineupPlayer[];
   opponentLineup: MatchLineupPlayer[];
   userBench?: MatchLineupPlayer[];
@@ -1312,6 +1314,99 @@ export function buildMatchFlowSequence(input: MatchFlowSequenceInput): MatchSequ
           }
         }
       }
+    }
+  }
+
+  const nextAction = input.nextSequence?.actions[0];
+  if (
+    nextAction?.playerId &&
+    nextAction.side !== "neutral" &&
+    actions.length > 0
+  ) {
+    const finalAction = actions[actions.length - 1];
+    const currentPoint = finalAction.end;
+    const desiredSide = nextAction.side;
+    const desiredLineup = lineupFor(desiredSide);
+    const receiver = desiredLineup.find(
+      (player) => player.playerId === nextAction.playerId,
+    );
+
+    if (receiver) {
+      const passKinds: FootballActionKind[] = [
+        "pass",
+        "recycle",
+        "switch",
+        "throughBall",
+        "overlap",
+        "cutback",
+        "cross",
+      ];
+      const currentHolderId = passKinds.includes(finalAction.kind)
+        ? finalAction.targetPlayerId
+        : ["receive", "carry", "interception", "recovery", "tackle"].includes(finalAction.kind)
+          ? finalAction.playerId
+          : undefined;
+      const currentHolderSide = finalAction.possessionSide ?? finalAction.side;
+      const holder =
+        currentHolderSide === desiredSide
+          ? desiredLineup.find((player) => player.playerId === currentHolderId)
+          : undefined;
+
+      if (!holder) {
+        actions.push(
+          action(sequenceId, actionIndex++, {
+            kind: "recovery",
+            side: desiredSide,
+            possessionSide: desiredSide,
+            playerId: receiver.playerId,
+            playerName: receiver.name,
+            start: currentPoint,
+            end: currentPoint,
+            weight: 0.45,
+            commentary: `${surname(receiver.name)} gathers the loose ball.`,
+          }),
+        );
+      } else if (holder.playerId !== receiver.playerId) {
+        actions.push(
+          action(sequenceId, actionIndex++, {
+            kind: "pass",
+            side: desiredSide,
+            possessionSide: desiredSide,
+            playerId: holder.playerId,
+            playerName: holder.name,
+            targetPlayerId: receiver.playerId,
+            targetPlayerName: receiver.name,
+            start: currentPoint,
+            end: nextAction.start,
+            weight: 0.68 * tempoScale(planFor(desiredSide)),
+            commentary: `${surname(holder.name)} works it on to ${surname(receiver.name)}.`,
+          }),
+        );
+      }
+
+      const landingStart =
+        holder?.playerId === receiver.playerId
+          ? currentPoint
+          : nextAction.start;
+      const landingDistance =
+        Math.abs(nextAction.start.x - landingStart.x) +
+        Math.abs(nextAction.start.y - landingStart.y);
+      if (landingDistance > 1.5) {
+        actions.push(
+          action(sequenceId, actionIndex++, {
+            kind: "carry",
+            side: desiredSide,
+            possessionSide: desiredSide,
+            playerId: receiver.playerId,
+            playerName: receiver.name,
+            start: landingStart,
+            end: nextAction.start,
+            weight: 0.42 * tempoScale(planFor(desiredSide)),
+            commentary: `${surname(receiver.name)} carries into the next phase.`,
+          }),
+        );
+      }
+      participants.add(receiver.playerId);
     }
   }
 
