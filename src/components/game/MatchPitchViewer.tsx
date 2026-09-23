@@ -17,7 +17,8 @@ const HOME_SHAPE = [
   [65, 82],
 ] as const;
 const AWAY_SHAPE = HOME_SHAPE.map(([x, y]) => [100 - x, 100 - y] as const);
-const EVENT_MS = 2_450;
+const BASE_EVENT_MS = 4_800;
+const PLAYBACK_SPEEDS = [1, 2, 4] as const;
 
 interface PitchPoint {
   x: number;
@@ -128,16 +129,29 @@ function eventPath(event: MatchEvent | undefined): PitchPoint[] {
     y: clampY(38 + ((seed * 7) % 25)),
   };
 
+  const distance = Math.abs(target.x - startX);
+  const pass1 = {
+    x: clampX(startX + direction * distance * 0.16),
+    y: clampY(startY + laneA),
+  };
+  const pass2 = {
+    x: clampX(startX + direction * distance * 0.34),
+    y: clampY(startY * 0.72 + shotOrigin.y * 0.28 - laneB),
+  };
+  const pass3 = {
+    x: clampX(startX + direction * distance * 0.52),
+    y: clampY(startY * 0.48 + shotOrigin.y * 0.52 + laneB),
+  };
+  const pass4 = {
+    x: clampX(startX + direction * distance * 0.69),
+    y: clampY(startY * 0.25 + shotOrigin.y * 0.75 - laneA * 0.4),
+  };
   const buildUp: PitchPoint[] = [
     { x: clampX(startX), y: clampY(startY) },
-    {
-      x: clampX(startX + direction * Math.abs(target.x - startX) * 0.22),
-      y: clampY(startY + laneA),
-    },
-    {
-      x: clampX(startX + direction * Math.abs(target.x - startX) * 0.5),
-      y: clampY((startY * 0.55 + shotOrigin.y * 0.45) + laneB),
-    },
+    pass1,
+    pass2,
+    pass3,
+    pass4,
   ];
 
   if (!shotEvent) return [...buildUp, target];
@@ -146,8 +160,8 @@ function eventPath(event: MatchEvent | undefined): PitchPoint[] {
     ...buildUp,
     shotOrigin,
     {
-      x: shotOrigin.x + (end.x - shotOrigin.x) * 0.52,
-      y: shotOrigin.y + (end.y - shotOrigin.y) * 0.52,
+      x: shotOrigin.x + (end.x - shotOrigin.x) * 0.44,
+      y: shotOrigin.y + (end.y - shotOrigin.y) * 0.44,
     },
     end,
   ];
@@ -177,6 +191,27 @@ function pointOnPath(path: PitchPoint[], progress: number): PitchPoint {
     y: catmullRom(p0.y, p1.y, p2.y, p3.y, t),
   };
 }
+function eventDurationMs(event: MatchEvent | undefined): number {
+  if (!event) return BASE_EVENT_MS;
+  if (event.type === "goal") return 6_200;
+  if (event.type === "chance") return 5_400;
+  if (event.type === "sub" || event.type === "injury" || event.type === "card") return 2_600;
+  return BASE_EVENT_MS;
+}
+
+function replayStage(event: MatchEvent | undefined, progress: number): string {
+  if (!event) return "Match phase";
+  if (event.type === "goal" || event.type === "chance") {
+    if (progress < 0.2) return "Build-up";
+    if (progress < 0.42) return "Passing move";
+    if (progress < 0.62) return event.phase === "transition" ? "Break" : "Progression";
+    if (progress < 0.78) return "Final ball";
+    if (progress < 0.9) return "Shot";
+    return event.type === "goal" ? "Goal" : chanceOutcome(event);
+  }
+  return event.phase?.replace(/([A-Z])/g, " $1") ?? event.type;
+}
+
 
 function playerPosition(
   baseX: number,
@@ -279,6 +314,7 @@ export function MatchPitchViewer({
   const [cursor, setCursor] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [progress, setProgress] = useState(0);
+  const [playbackSpeed, setPlaybackSpeed] = useState<(typeof PLAYBACK_SPEEDS)[number]>(1);
 
   useEffect(() => {
     if (events.length > previousLength.current) {
@@ -292,6 +328,8 @@ export function MatchPitchViewer({
 
   useEffect(() => {
     if (!playing || events.length === 0) return;
+    const remaining = Math.max(0.08, 1 - progressRef.current);
+    const duration = (eventDurationMs(events[cursor]) * remaining) / playbackSpeed;
     const timer = window.setTimeout(() => {
       if (cursor >= events.length - 1) setPlaying(false);
       else {
@@ -299,9 +337,9 @@ export function MatchPitchViewer({
         progressRef.current = 0;
         setProgress(0);
       }
-    }, EVENT_MS);
+    }, duration);
     return () => window.clearTimeout(timer);
-  }, [cursor, events.length, playing]);
+  }, [cursor, events, events.length, playbackSpeed, playing]);
 
   useEffect(() => {
     if (!playing || events.length === 0) return;
@@ -310,7 +348,8 @@ export function MatchPitchViewer({
     const animate = (timestamp: number) => {
       started ??= timestamp;
       const elapsed = timestamp - started;
-      const next = Math.min(1, startProgress + elapsed / (EVENT_MS * 0.78));
+      const duration = eventDurationMs(events[cursor]) / playbackSpeed;
+      const next = Math.min(1, startProgress + elapsed / (duration * 0.88));
       progressRef.current = next;
       setProgress(next);
       if (next < 1) {
@@ -321,7 +360,7 @@ export function MatchPitchViewer({
     return () => {
       if (animationFrame.current !== null) window.cancelAnimationFrame(animationFrame.current);
     };
-  }, [cursor, playing, events.length]);
+  }, [cursor, events, events.length, playbackSpeed, playing]);
 
   const active = events[Math.min(cursor, Math.max(0, events.length - 1))];
   const path = useMemo(() => eventPath(active), [active]);
@@ -463,7 +502,7 @@ export function MatchPitchViewer({
           {active?.minute ?? 0}'
         </div>
         <div className="absolute bottom-2 right-2 rounded bg-black/45 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-white/75 backdrop-blur-sm">
-          {active?.phase?.replace(/([A-Z])/g, " $1") ?? "match phase"}
+          {replayStage(active, progress)}
         </div>
       </div>
 
@@ -501,6 +540,22 @@ export function MatchPitchViewer({
           }}
           aria-label="Replay event"
         />
+        <div className="flex shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white/5">
+          {PLAYBACK_SPEEDS.map((speed) => (
+            <button
+              key={speed}
+              type="button"
+              onClick={() => setPlaybackSpeed(speed)}
+              className={cn(
+                "min-w-8 px-1.5 py-2 text-[9px] font-bold",
+                playbackSpeed === speed ? "bg-white text-[#07130f]" : "text-white/65 hover:bg-white/10",
+              )}
+              aria-label={`Replay speed ${speed} times`}
+            >
+              {speed}×
+            </button>
+          ))}
+        </div>
         <button
           className="grid size-9 shrink-0 place-items-center rounded-lg bg-white/10 hover:bg-white/20"
           onClick={() => {
