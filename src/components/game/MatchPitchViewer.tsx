@@ -294,6 +294,7 @@ export function MatchPitchViewer({
       opponentLineup,
       opponentPlan,
       previousEvent,
+      sequence,
       substitutions,
       userBench,
       userLineup,
@@ -310,6 +311,7 @@ export function MatchPitchViewer({
         ? buildMatchFlowSequence({
             nextEvent: active,
             previousEvent,
+            nextSequence: sequence ?? undefined,
             userLineup,
             opponentLineup,
             userBench,
