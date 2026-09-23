@@ -464,7 +464,7 @@ console.log("\n[U15] Match centre identity and competition context");
     "2D replay exposes play, rewind, return-to-live and scrub controls",
     /Pause match/.test(viewer) &&
       /Rewind to the start and pause/.test(viewer) &&
-      /Return to the latest played moment/.test(viewer) &&
+      /Return to the latest played moment and resume/.test(viewer) &&
       /type="range"/.test(viewer),
   );
   check(
@@ -881,7 +881,7 @@ console.log("\n[U33] Smooth replay continuity and played-time timeline");
   check(
     "rewinding pauses and return-to-live never skips unseen football",
     /setCursor\(0\)[\s\S]*?setPlaying\(false\)/.test(viewer) &&
-      /setPlaying\(false\)[\s\S]*?aria-label="Return to the latest played moment"/.test(viewer) &&
+      /setPlaying\(true\)[\s\S]*?aria-label="Return to the latest played moment and resume"/.test(viewer) &&
       !/setCursor\(events\.length - 1\)/.test(viewer),
   );
 }
