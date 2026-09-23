@@ -12,6 +12,7 @@ import {
   activeMatchLineupAtMinute,
   buildMatchFlowSequence,
   buildMatchSequence,
+  flowSequenceDurationMs,
   frameForSequence,
   sequenceDurationMs,
   sequenceResultVisible,
@@ -388,8 +389,13 @@ export function MatchPitchViewer({
     ],
   );
   const sequenceBaseDuration = eventDurationMs(active, sequence);
-  const activeDuration = sequenceBaseDuration + (bridge?.durationMs ?? 0);
-  const bridgeFraction = bridge ? bridge.durationMs / Math.max(1, activeDuration) : 0;
+  const bridgeGap = bridge ? Math.max(0, bridge.toMinute - bridge.fromMinute) : 0;
+  const bridgeDuration =
+    bridge && bridgeSequence
+      ? Math.max(bridge.durationMs, flowSequenceDurationMs(bridgeSequence, bridgeGap))
+      : bridge?.durationMs ?? 0;
+  const activeDuration = sequenceBaseDuration + bridgeDuration;
+  const bridgeFraction = bridgeDuration > 0 ? bridgeDuration / Math.max(1, activeDuration) : 0;
   const inBridge = Boolean(bridge && progress < bridgeFraction);
   const bridgeProgress = bridgeFraction > 0 ? Math.min(1, progress / bridgeFraction) : 1;
   const contentProgress =
