@@ -156,6 +156,70 @@ function isTerminalAction(action: MatchSequenceAction | undefined): boolean {
   return Boolean(action && ["goal", "save", "block", "miss"].includes(action.kind));
 }
 
+const RECEIVING_ACTIONS = new Set<MatchSequenceAction["kind"]>([
+  "pass",
+  "recycle",
+  "switch",
+  "throughBall",
+  "overlap",
+  "cutback",
+  "cross",
+]);
+
+function settledPositionAfterAction(
+  position: MatchPitchPoint,
+  playerId: string,
+  action: MatchSequenceAction,
+): MatchPitchPoint {
+  let next = position;
+
+  if (action.playerId === playerId) {
+    if (action.kind === "carry" || action.kind === "receive" || action.kind === "interception" || action.kind === "recovery") {
+      next = action.end;
+    } else if (
+      RECEIVING_ACTIONS.has(action.kind) ||
+      action.kind === "shot" ||
+      action.kind === "clearance" ||
+      action.kind === "blockPass" ||
+      action.kind === "press" ||
+      action.kind === "challenge" ||
+      action.kind === "tackle"
+    ) {
+      next = action.start;
+    }
+  }
+
+  if (action.targetPlayerId === playerId) {
+    if (RECEIVING_ACTIONS.has(action.kind)) {
+      next = action.end;
+    } else if (
+      action.kind === "press" ||
+      action.kind === "challenge" ||
+      action.kind === "tackle" ||
+      action.kind === "blockPass" ||
+      action.kind === "clearance"
+    ) {
+      next = action.start;
+    }
+  }
+
+  return next;
+}
+
+function settledPlayerPosition(
+  base: MatchPitchPoint,
+  playerId: string,
+  sequence: MatchSequence | null,
+  actionIndex: number,
+): MatchPitchPoint {
+  if (!sequence || actionIndex <= 0) return base;
+  let position = base;
+  for (let index = 0; index < actionIndex; index += 1) {
+    position = settledPositionAfterAction(position, playerId, sequence.actions[index]);
+  }
+  return position;
+}
+
 function playerPosition(
   base: MatchPitchPoint,
   ours: boolean,
@@ -166,10 +230,17 @@ function playerPosition(
   inPossession: boolean,
   sourceType: MatchEvent["type"] | undefined,
   plan: MatchTeamPlan | undefined,
+  sequence: MatchSequence | null,
+  actionIndex: number,
 ): MatchPitchPoint {
   const clampX = (value: number) => Math.max(3, Math.min(97, value));
   const clampY = (value: number) => Math.max(5, Math.min(95, value));
   const direction = ours ? 1 : -1;
+  const settledBase = settledPlayerPosition(base, player.playerId, sequence, actionIndex);
+  const anchor = {
+    x: settledBase.x + (base.x - settledBase.x) * 0.06,
+    y: settledBase.y + (base.y - settledBase.y) * 0.06,
+  };
 
   const sameSideAsAction = action ? (action.side === "us") === ours : false;
   const passActions = ["pass", "recycle", "switch", "throughBall", "overlap", "cutback", "cross", "clearance"];
@@ -199,14 +270,14 @@ function playerPosition(
               ? 0.44 + localProgress * 0.45
               : 0.35 + localProgress * 0.55;
       return {
-        x: clampX(base.x + (ball.x - base.x) * close),
-        y: clampY(base.y + (ball.y - base.y) * close),
+        x: clampX(settledBase.x + (ball.x - settledBase.x) * close),
+        y: clampY(settledBase.y + (ball.y - settledBase.y) * close),
       };
     }
     if (action.kind === "interception" || action.kind === "recovery") {
       return {
-        x: clampX(base.x + (action.end.x - base.x) * (0.55 + localProgress * 0.35)),
-        y: clampY(base.y + (action.end.y - base.y) * (0.55 + localProgress * 0.35)),
+        x: clampX(settledBase.x + (action.end.x - settledBase.x) * (0.55 + localProgress * 0.35)),
+        y: clampY(settledBase.y + (action.end.y - settledBase.y) * (0.55 + localProgress * 0.35)),
       };
     }
     if (action.kind === "shot") {
@@ -220,8 +291,8 @@ function playerPosition(
   if (sameSideAsAction && action?.targetPlayerId === player.playerId && action.kind !== "press") {
     const settle = Math.max(0.2, localProgress);
     return {
-      x: clampX(base.x + (action.end.x - base.x) * settle),
-      y: clampY(base.y + (action.end.y - base.y) * settle),
+      x: clampX(settledBase.x + (action.end.x - settledBase.x) * settle),
+      y: clampY(settledBase.y + (action.end.y - settledBase.y) * settle),
     };
   }
 
@@ -241,7 +312,7 @@ function playerPosition(
     };
   }
 
-  if (player.role === "GK") return base;
+  if (player.role === "GK") return settledBase;
 
   const ourSide = ours ? "us" : "them";
   const defensiveRole = ["CB", "LB", "RB", "LWB", "RWB", "CDM"].includes(player.role);
@@ -263,14 +334,14 @@ function playerPosition(
         : 0.4;
     return {
       x: clampX(
-        base.x +
-          (ownGoalX - base.x) * retreat +
-          (ball.x - base.x) * 0.05,
+        anchor.x +
+          (ownGoalX - anchor.x) * retreat +
+          (ball.x - anchor.x) * 0.05,
       ),
       y: clampY(
-        base.y +
-          (action.end.y - base.y) * markPull +
-          (ball.y - base.y) * 0.05,
+        anchor.y +
+          (action.end.y - anchor.y) * markPull +
+          (ball.y - anchor.y) * 0.05,
       ),
     };
   }
@@ -303,12 +374,12 @@ function playerPosition(
   const wideRole = ["LB", "RB", "LWB", "RWB", "LM", "RM", "LW", "RW"].includes(player.role);
   const widthPush = inPossession && wideRole && directness !== "High" ? (base.y < 50 ? -3 : 3) : 0;
   return {
-    x: clampX(base.x + direction * attackShift + (ball.x - base.x) * ballPull),
+    x: clampX(anchor.x + direction * attackShift + (ball.x - anchor.x) * ballPull),
     y: clampY(
-      base.y +
+      anchor.y +
         widthPush +
-        (ball.y - base.y) * ballPull +
-        (50 - base.y) * (inPossession ? 0.03 : pressing === "High" ? 0.12 : 0.08),
+        (ball.y - anchor.y) * ballPull +
+        (50 - anchor.y) * (inPossession ? 0.03 : pressing === "High" ? 0.12 : 0.08),
     ),
   };
 }
@@ -377,16 +448,22 @@ export function MatchPitchViewer({
   const previousLength = useRef(0);
   const animationFrame = useRef<number | null>(null);
   const progressRef = useRef(0);
+  const frontierPositionRef = useRef(0);
   const [cursor, setCursor] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [progress, setProgress] = useState(0);
+  const [frontierPosition, setFrontierPosition] = useState(0);
+  const [playedToMinute, setPlayedToMinute] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState<(typeof PLAYBACK_SPEEDS)[number]>(1);
 
   useEffect(() => {
     if (events.length > previousLength.current) {
-      setCursor(previousLength.current);
+      const nextStart = previousLength.current;
+      setCursor(nextStart);
       progressRef.current = 0;
       setProgress(0);
+      frontierPositionRef.current = Math.max(frontierPositionRef.current, nextStart);
+      setFrontierPosition(frontierPositionRef.current);
       setPlaying(true);
       previousLength.current = events.length;
     }
@@ -472,6 +549,18 @@ export function MatchPitchViewer({
   const renderSequence = inBridge ? bridgeSequence : sequence;
   const ball = frame?.ball ?? (inBridge ? { x: 50, y: 50 } : fallbackEventPosition(active));
   const activeAction = frame?.action;
+
+  useEffect(() => {
+    if (!playing || events.length === 0) return;
+    const currentPosition = cursor + progress;
+    if (currentPosition > frontierPositionRef.current) {
+      frontierPositionRef.current = currentPosition;
+      setFrontierPosition(currentPosition);
+    }
+    if (currentPosition >= frontierPositionRef.current - 0.002) {
+      setPlayedToMinute((current) => Math.max(current, playbackMinute));
+    }
+  }, [cursor, events.length, playbackMinute, playing, progress]);
 
   useEffect(() => {
     if (!playing || events.length === 0) return;
@@ -658,6 +747,8 @@ export function MatchPitchViewer({
             possessionSide === "us",
             active?.type,
             userPlan,
+            renderSequence,
+            frame?.actionIndex ?? 0,
           );
           return (
             <PlayerDot
@@ -684,6 +775,8 @@ export function MatchPitchViewer({
             possessionSide === "them",
             active?.type,
             opponentPlan,
+            renderSequence,
+            frame?.actionIndex ?? 0,
           );
           return (
             <PlayerDot
@@ -737,68 +830,99 @@ export function MatchPitchViewer({
         </div>
       </div>
 
-      <div className="mt-2 flex items-center gap-2">
-        <button
-          className="grid size-9 shrink-0 place-items-center rounded-lg bg-white/10 hover:bg-white/20"
-          onClick={() => {
-            setCursor(0);
-            progressRef.current = 0;
-            setProgress(0);
-            setPlaying(true);
-          }}
-          aria-label="Restart replay"
-        >
-          <RotateCcw className="size-4" />
-        </button>
-        <button
-          className="grid size-9 shrink-0 place-items-center rounded-lg bg-emerald-400 text-[#07130f] hover:bg-emerald-300"
-          onClick={() => setPlaying((value) => !value)}
-          aria-label={playing ? "Pause replay" : "Play replay"}
-        >
-          {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
-        </button>
-        <input
-          className="h-1.5 min-w-0 flex-1 cursor-pointer accent-emerald-400"
-          type="range"
-          min={0}
-          max={events.length - 1}
-          value={cursor}
-          onChange={(event) => {
-            setCursor(Number(event.target.value));
-            progressRef.current = 1;
-            setProgress(1);
-            setPlaying(false);
-          }}
-          aria-label="Replay event"
-        />
-        <div className="flex shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white/5">
-          {PLAYBACK_SPEEDS.map((speed) => (
-            <button
-              key={speed}
-              type="button"
-              onClick={() => setPlaybackSpeed(speed)}
-              className={cn(
-                "min-w-8 px-1.5 py-2 text-[9px] font-bold",
-                playbackSpeed === speed ? "bg-white text-[#07130f]" : "text-white/65 hover:bg-white/10",
-              )}
-              aria-label={`Replay speed ${speed} times`}
-            >
-              {speed}×
-            </button>
-          ))}
+      <div className="mt-2 rounded-xl border border-white/10 bg-black/15 px-2.5 py-2">
+        <div className="mb-1.5 flex items-center justify-between gap-2 text-[9px] font-bold uppercase tracking-wide text-white/45">
+          <span>Played match history</span>
+          <span>
+            {playing && cursor + progress >= frontierPosition - 0.02
+              ? `LIVE · ${displayMinute}'`
+              : `PAUSED · ${displayMinute}' · played to ${Math.round(playedToMinute)}'`}
+          </span>
         </div>
-        <button
-          className="grid size-9 shrink-0 place-items-center rounded-lg bg-white/10 hover:bg-white/20"
-          onClick={() => {
-            setCursor(events.length - 1);
-            progressRef.current = 1;
-            setProgress(1);
-            setPlaying(false);
-          }}
-          aria-label="Skip replay"
-        >
-          <SkipForward className="size-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            className="grid size-9 shrink-0 place-items-center rounded-lg bg-white/10 hover:bg-white/20"
+            onClick={() => {
+              setCursor(0);
+              progressRef.current = 0;
+              setProgress(0);
+              setPlaying(false);
+            }}
+            aria-label="Rewind to the start and pause"
+          >
+            <RotateCcw className="size-4" />
+          </button>
+          <button
+            className="grid size-9 shrink-0 place-items-center rounded-lg bg-emerald-400 text-[#07130f] hover:bg-emerald-300"
+            onClick={() => setPlaying((value) => !value)}
+            aria-label={playing ? "Pause match" : "Play match"}
+          >
+            {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
+          </button>
+          <input
+            className="h-1.5 min-w-0 flex-1 cursor-pointer accent-emerald-400"
+            type="range"
+            min={0}
+            max={Math.max(0.001, frontierPosition)}
+            step={0.01}
+            value={Math.min(cursor + progress, Math.max(0.001, frontierPosition))}
+            onChange={(event) => {
+              const requested = Math.min(Number(event.target.value), frontierPositionRef.current);
+              const bounded = Math.max(0, Math.min(requested, events.length));
+              const nextCursor = Math.min(
+                events.length - 1,
+                Math.floor(Math.min(bounded, Math.max(0, events.length - 0.000001))),
+              );
+              const nextProgress =
+                bounded >= events.length
+                  ? 1
+                  : Math.max(0, Math.min(1, bounded - nextCursor));
+              setCursor(nextCursor);
+              progressRef.current = nextProgress;
+              setProgress(nextProgress);
+              setPlaying(false);
+            }}
+            aria-label="Rewind through the portion of the match already played"
+          />
+          <div className="flex shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white/5">
+            {PLAYBACK_SPEEDS.map((speed) => (
+              <button
+                key={speed}
+                type="button"
+                onClick={() => setPlaybackSpeed(speed)}
+                className={cn(
+                  "min-w-8 px-1.5 py-2 text-[9px] font-bold",
+                  playbackSpeed === speed ? "bg-white text-[#07130f]" : "text-white/65 hover:bg-white/10",
+                )}
+                aria-label={`Playback speed ${speed} times`}
+              >
+                {speed}×
+              </button>
+            ))}
+          </div>
+          <button
+            className="grid size-9 shrink-0 place-items-center rounded-lg bg-white/10 hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30"
+            disabled={cursor + progress >= frontierPosition - 0.01}
+            onClick={() => {
+              const latest = frontierPositionRef.current;
+              const nextCursor = Math.min(
+                events.length - 1,
+                Math.floor(Math.min(latest, Math.max(0, events.length - 0.000001))),
+              );
+              const nextProgress =
+                latest >= events.length
+                  ? 1
+                  : Math.max(0, Math.min(1, latest - nextCursor));
+              setCursor(nextCursor);
+              progressRef.current = nextProgress;
+              setProgress(nextProgress);
+              setPlaying(false);
+            }}
+            aria-label="Return to the latest played moment"
+          >
+            <SkipForward className="size-4" />
+          </button>
+        </div>
       </div>
 
       <div
