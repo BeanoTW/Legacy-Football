@@ -117,4 +117,117 @@ assert(
   "saved chance must not visually cross the goal line",
 );
 
+
+const directPlan = {
+  managerId: "direct",
+  managerName: "Direct Manager",
+  formation: "4-4-2",
+  philosophy: "Direct",
+  squadFit: 70,
+  tempo: "Medium" as const,
+  pressing: "Medium" as const,
+  directness: "High" as const,
+};
+const patientPlan = {
+  ...directPlan,
+  managerId: "patient",
+  managerName: "Patient Manager",
+  philosophy: "Possession",
+  tempo: "Low" as const,
+  directness: "Low" as const,
+};
+const highPressPlan = {
+  ...directPlan,
+  managerId: "press",
+  managerName: "Press Manager",
+  philosophy: "Front-foot",
+  tempo: "High" as const,
+  pressing: "High" as const,
+  directness: "Medium" as const,
+};
+
+const directEvent: MatchEvent = {
+  ...chance,
+  minute: 51,
+  phase: "progression",
+  sequenceId: "direct-style-sequence",
+};
+const directSequence = buildMatchSequence({
+  ...input,
+  event: directEvent,
+  substitutions: [],
+  userPlan: directPlan,
+  opponentPlan: patientPlan,
+});
+assert(directSequence, "direct manager event must create a sequence");
+assert.equal(directSequence.pattern, "direct", "high directness must produce a direct attacking pattern");
+assert(
+  directSequence.actions.some((item) => item.kind === "throughBall" || item.kind === "cross"),
+  "direct pattern must contain a vertical final action",
+);
+assert(
+  directSequence.actions.some((item) => item.kind === "press"),
+  "a high-press opponent must visibly close the ball in the sequence",
+);
+
+const transitionEvent: MatchEvent = {
+  ...chance,
+  minute: 63,
+  phase: "transition",
+  sequenceId: "high-press-transition-sequence",
+};
+const pressSequence = buildMatchSequence({
+  ...input,
+  event: transitionEvent,
+  substitutions: [],
+  userPlan: highPressPlan,
+  opponentPlan: directPlan,
+});
+assert(pressSequence, "high-press transition must create a sequence");
+assert.equal(pressSequence.pattern, "highPress", "high pressing manager must show a high-press regain");
+assert.equal(
+  pressSequence.actions[0]?.kind,
+  "interception",
+  "high-press transition must visibly begin with a regain",
+);
+
+const lowTempoSequence = buildMatchSequence({
+  ...input,
+  event: directEvent,
+  substitutions: [],
+  userPlan: { ...directPlan, tempo: "Low" as const },
+  opponentPlan: directPlan,
+});
+const highTempoSequence = buildMatchSequence({
+  ...input,
+  event: directEvent,
+  substitutions: [],
+  userPlan: { ...directPlan, tempo: "High" as const },
+  opponentPlan: directPlan,
+});
+assert(lowTempoSequence && highTempoSequence, "tempo comparison must produce sequences");
+assert(
+  lowTempoSequence.totalWeight > highTempoSequence.totalWeight,
+  "manager tempo must change how quickly the same football pattern unfolds",
+);
+
+const possessionSequence = buildMatchSequence({
+  ...input,
+  event: { ...directEvent, sequenceId: "possession-style-sequence" },
+  substitutions: [],
+  userPlan: patientPlan,
+  opponentPlan: directPlan,
+});
+assert(possessionSequence, "possession manager event must create a sequence");
+assert(
+  possessionSequence.pattern === "patient" || possessionSequence.pattern === "wide",
+  "possession football must use patient or wide build-up rather than direct play",
+);
+assert(
+  possessionSequence.actions.some((item) =>
+    ["recycle", "switch", "overlap", "cutback", "cross"].includes(item.kind),
+  ),
+  "possession build-up must expose richer ball circulation",
+);
+
 console.log("\nmatch-sequence: passed");
