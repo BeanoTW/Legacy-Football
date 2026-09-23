@@ -714,8 +714,9 @@ console.log("\n[U26] Match commentary flow");
   );
   check(
     "quiet match time is additive and does not replace the football sequence",
-    /sequenceBaseDuration \+ \(bridge\?\.durationMs \?\? 0\)/.test(viewer) &&
-      /contentProgress/.test(viewer),
+    /sequenceBaseDuration \+ bridgeDuration/.test(viewer) &&
+      /contentProgress/.test(viewer) &&
+      /bridgeSequence/.test(viewer),
   );
 }
 
