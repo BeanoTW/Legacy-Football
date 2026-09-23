@@ -17,6 +17,7 @@ export type FootballActionKind =
   | "challenge"
   | "tackle"
   | "clearance"
+  | "blockPass"
   | "recovery"
   | "carry"
   | "pass"
@@ -466,7 +467,11 @@ function defensiveInterventionPlayer(
     )[0]?.player;
 }
 
-type DefensiveSecondPhase = "none" | "challenge" | "clearanceRecovery";
+type DefensiveSecondPhase =
+  | "none"
+  | "challenge"
+  | "clearanceRecovery"
+  | "blockRecovery";
 
 function defensiveSecondPhase(
   event: MatchEvent,
@@ -478,10 +483,12 @@ function defensiveSecondPhase(
   if (event.type === "goal") {
     if (roll < 2) return "clearanceRecovery";
     if (roll < 4) return "challenge";
+    if (roll === 4) return "blockRecovery";
     return "none";
   }
   if (roll < 3) return "clearanceRecovery";
-  if (roll < 6) return "challenge";
+  if (roll < 5) return "challenge";
+  if (roll < 7) return "blockRecovery";
   return "none";
 }
 
@@ -714,6 +721,40 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
           }),
         );
         points[i + 1] = clearedTo;
+      } else if (secondPhase === "blockRecovery" && !finalLink) {
+        const deflectedTo = {
+          x: clamp(next.x + (event.side === "us" ? -1 : 1) * (4 + (seedOf(event, `block:${i}`) % 5)), 8, 92),
+          y: clamp(next.y + (seedOf(event, `block-y:${i}`) % 2 === 0 ? -1 : 1) * 7, 9, 91),
+        };
+        actions.push(
+          action(sequenceId, actionIndex++, {
+            kind: "blockPass",
+            side: otherSide(event.side),
+            possessionSide: event.side,
+            playerId: interventionPlayer.playerId,
+            playerName: interventionPlayer.name,
+            targetPlayerId: receiver.playerId,
+            targetPlayerName: receiver.name,
+            start: next,
+            end: deflectedTo,
+            weight: 0.5,
+            commentary: `${surname(interventionPlayer.name)} gets a foot to the pass.`,
+          }),
+        );
+        actions.push(
+          action(sequenceId, actionIndex++, {
+            kind: "recovery",
+            side: event.side,
+            possessionSide: event.side,
+            playerId: receiver.playerId,
+            playerName: receiver.name,
+            start: deflectedTo,
+            end: deflectedTo,
+            weight: 0.42,
+            commentary: `${surname(receiver.name)} reacts first to the loose ball.`,
+          }),
+        );
+        points[i + 1] = deflectedTo;
       }
     }
   }
@@ -1231,6 +1272,7 @@ function curvedPoint(
 const MOVING_BALL_ACTIONS = new Set<FootballActionKind>([
   "carry",
   "clearance",
+  "blockPass",
   "pass",
   "recycle",
   "switch",
