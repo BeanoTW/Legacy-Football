@@ -14,6 +14,7 @@ export interface MatchPitchPoint {
 export type FootballActionKind =
   | "receive"
   | "interception"
+  | "challenge"
   | "tackle"
   | "clearance"
   | "recovery"
@@ -430,6 +431,74 @@ function pressurePlayer(
     .sort((a, b) => a.roleRank - b.roleRank || b.player.ability - a.player.ability || a.jitter - b.jitter)[0]?.player;
 }
 
+function defensiveInterventionPlayer(
+  event: MatchEvent,
+  defendingLineup: MatchLineupPlayer[],
+  salt: string,
+): MatchLineupPlayer | undefined {
+  const preference: TacticalPosition[] = [
+    "CB",
+    "CDM",
+    "LB",
+    "RB",
+    "LWB",
+    "RWB",
+    "CM",
+    "GK",
+    "LM",
+    "RM",
+    "CAM",
+    "LW",
+    "RW",
+    "ST",
+  ];
+  return [...defendingLineup]
+    .map((player) => ({
+      player,
+      roleRank: Math.max(0, preference.indexOf(player.role)),
+      jitter: seedOf(event, `${salt}:${player.playerId}`) % 997,
+    }))
+    .sort(
+      (a, b) =>
+        a.roleRank - b.roleRank ||
+        b.player.ability - a.player.ability ||
+        a.jitter - b.jitter,
+    )[0]?.player;
+}
+
+type DefensiveSecondPhase = "none" | "challenge" | "clearanceRecovery";
+
+function defensiveSecondPhase(
+  event: MatchEvent,
+  participantCount: number,
+): DefensiveSecondPhase {
+  if (participantCount < 2) return "none";
+  const roll = seedOf(event, "defensive-second-phase") % 10;
+  if (participantCount < 3) return roll < 4 ? "challenge" : "none";
+  if (event.type === "goal") {
+    if (roll < 2) return "clearanceRecovery";
+    if (roll < 4) return "challenge";
+    return "none";
+  }
+  if (roll < 3) return "clearanceRecovery";
+  if (roll < 6) return "challenge";
+  return "none";
+}
+
+function clearanceDestination(
+  point: MatchPitchPoint,
+  defendingSide: "us" | "them",
+  event: MatchEvent,
+  salt: string,
+): MatchPitchPoint {
+  const direction = defendingSide === "us" ? 1 : -1;
+  const seed = seedOf(event, salt);
+  return {
+    x: clamp(point.x + direction * (9 + (seed % 7)), 8, 92),
+    y: clamp(point.y + (seed % 2 === 0 ? -1 : 1) * (8 + (seed % 11)), 9, 91),
+  };
+}
+
 function shouldShowPressure(event: MatchEvent, defendingPlan: MatchTeamPlan): boolean {
   if (defendingPlan.pressing === "High") return true;
   if (defendingPlan.pressing === "Low") return seedOf(event, "pressure") % 5 === 0;
@@ -495,6 +564,12 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
     ? pressurePlayer(event, defendingLineup)
     : undefined;
   const pressureAt = participants.length > 3 ? 1 : 0;
+  const secondPhase = defensiveSecondPhase(event, participants.length);
+  const interventionAt = Math.max(0, participants.length - 3);
+  const interventionPlayer =
+    secondPhase !== "none"
+      ? defensiveInterventionPlayer(event, defendingLineup, "second-phase")
+      : undefined;
 
   for (let i = 0; i < participants.length - 1; i += 1) {
     const holder = participants[i];
@@ -584,6 +659,63 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
         commentary: passCommentary(kind, holder, receiver),
       }),
     );
+
+    if (interventionPlayer && i === interventionAt) {
+      if (secondPhase === "challenge") {
+        actions.push(
+          action(sequenceId, actionIndex++, {
+            kind: "challenge",
+            side: otherSide(event.side),
+            possessionSide: event.side,
+            playerId: interventionPlayer.playerId,
+            playerName: interventionPlayer.name,
+            targetPlayerId: receiver.playerId,
+            targetPlayerName: receiver.name,
+            start: next,
+            end: next,
+            weight: 0.45,
+            commentary: `${surname(interventionPlayer.name)} challenges, but ${surname(receiver.name)} keeps the move alive.`,
+          }),
+        );
+      } else if (secondPhase === "clearanceRecovery" && !finalLink) {
+        const defendingSide = otherSide(event.side);
+        const clearedTo = clearanceDestination(
+          next,
+          defendingSide,
+          event,
+          `clearance:${i}`,
+        );
+        actions.push(
+          action(sequenceId, actionIndex++, {
+            kind: "clearance",
+            side: defendingSide,
+            possessionSide: defendingSide,
+            playerId: interventionPlayer.playerId,
+            playerName: interventionPlayer.name,
+            targetPlayerId: receiver.playerId,
+            targetPlayerName: receiver.name,
+            start: next,
+            end: clearedTo,
+            weight: 0.72,
+            commentary: `${surname(interventionPlayer.name)} gets there and clears the danger.`,
+          }),
+        );
+        actions.push(
+          action(sequenceId, actionIndex++, {
+            kind: "recovery",
+            side: event.side,
+            possessionSide: event.side,
+            playerId: receiver.playerId,
+            playerName: receiver.name,
+            start: clearedTo,
+            end: clearedTo,
+            weight: 0.48,
+            commentary: `${surname(receiver.name)} gathers the second ball and the attack starts again.`,
+          }),
+        );
+        points[i + 1] = clearedTo;
+      }
+    }
   }
 
   const shooter = participants[participants.length - 1];
