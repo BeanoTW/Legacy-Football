@@ -603,5 +603,30 @@ console.log("\n[U21] First XI pitch polish");
       /Tap a player for profile/.test(squad),
   );
 }
+
+console.log("\n[U22] Match replay event fidelity");
+{
+  const viewer = read("src/components/game/MatchPitchViewer.tsx");
+  check(
+    "goal replay crosses the goal line while chances terminate by outcome",
+    /event\.type === "goal"/.test(viewer) &&
+      /x: direction === 1 \? 99\.3 : 0\.7/.test(viewer) &&
+      /chanceOutcome\(event\)/.test(viewer),
+  );
+  check(
+    "replay score changes only when the goal animation reaches the net",
+    /active\?\.type === "goal" && progress >= 0\.9/.test(viewer),
+  );
+  check(
+    "replay actor and defending keeper react to the canonical event",
+    /event\.actorPlayerId === player\.playerId/.test(viewer) &&
+      /defendingKeeper/.test(viewer),
+  );
+  check(
+    "pausing replay does not force the current event to completion",
+    !/if \(!playing\) setProgress\(1\)/.test(viewer) &&
+      /progressRef/.test(viewer),
+  );
+}
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
