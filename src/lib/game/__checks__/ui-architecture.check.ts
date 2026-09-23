@@ -701,5 +701,23 @@ console.log("\n[U25] Matchday sequence architecture");
   );
 }
 
+console.log("\n[U26] Match commentary flow");
+{
+  const viewer = read("src/components/game/MatchPitchViewer.tsx");
+  const flow = read("src/lib/game/matchFlow.ts");
+  check(
+    "viewer inserts deterministic written commentary between separated highlights",
+    /commentaryBridge/.test(viewer) &&
+      /bridgeMinute/.test(viewer) &&
+      /Match flow/.test(viewer) &&
+      !/Math\.random/.test(flow),
+  );
+  check(
+    "quiet match time is additive and does not replace the football sequence",
+    /sequenceBaseDuration \+ \(bridge\?\.durationMs \?\? 0\)/.test(viewer) &&
+      /contentProgress/.test(viewer),
+  );
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
