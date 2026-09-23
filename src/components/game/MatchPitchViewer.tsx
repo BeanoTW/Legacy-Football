@@ -183,11 +183,50 @@ function playerPosition(
   baseY: number,
   ours: boolean,
   index: number,
+  player: MatchLineupPlayer | undefined,
   event: MatchEvent | undefined,
   ball: PitchPoint,
   progress: number,
 ): PitchPoint {
-  if (!event || event.side === "neutral" || index === 0) return { x: baseX, y: baseY };
+  if (!event || event.side === "neutral") return { x: baseX, y: baseY };
+
+  const inPossession = (event.side === "us") === ours;
+  const actor = Boolean(player && event.actorPlayerId === player.playerId);
+  const creator = Boolean(player && event.secondaryPlayerId === player.playerId);
+  const defendingKeeper = index === 0 && !inPossession && (event.type === "goal" || event.type === "chance");
+
+  if (actor) {
+    const direction = ours ? 1 : -1;
+    return {
+      x: Math.max(3, Math.min(97, ball.x - direction * 2.2)),
+      y: Math.max(5, Math.min(95, ball.y + Math.sin(progress * Math.PI) * 1.8)),
+    };
+  }
+
+  if (creator && progress < 0.72) {
+    const direction = ours ? 1 : -1;
+    return {
+      x: Math.max(3, Math.min(97, ball.x - direction * 8)),
+      y: Math.max(5, Math.min(95, ball.y + (eventSeed(event) % 2 === 0 ? -7 : 7))),
+    };
+  }
+
+  if (defendingKeeper) {
+    const destination = shotEnd(event);
+    const outcome = event.type === "chance" ? chanceOutcome(event) : "goal";
+    const saveProgress = Math.max(0, Math.min(1, (progress - 0.58) / 0.4));
+    const keeperTargetY =
+      outcome === "saved"
+        ? destination.y
+        : Math.max(40, Math.min(60, destination.y + (eventSeed(event) % 2 === 0 ? -8 : 8)));
+    const keeperTargetX = ours ? 5.5 : 94.5;
+    return {
+      x: baseX + (keeperTargetX - baseX) * saveProgress,
+      y: baseY + (keeperTargetY - baseY) * saveProgress,
+    };
+  }
+
+  if (index === 0) return { x: baseX, y: baseY };
 
   const inPossession = (event.side === "us") === ours;
   const direction = ours ? 1 : -1;
@@ -368,27 +407,27 @@ export function MatchPitchViewer({
         </svg>
 
         {HOME_SHAPE.map(([x, y], index) => {
-          const position = playerPosition(x, y, true, index, active, ball, progress);
+          const position = playerPosition(x, y, true, index, userLineup[index], active, ball, progress);
           return (
             <PlayerDot
               key={`us-${index}`}
               x={position.x}
               y={position.y}
               ours
-              active={active?.side === "us" && Math.abs(position.x - ball.x) < 18 && Math.abs(position.y - ball.y) < 22}
+              active={active?.actorPlayerId === userLineup[index]?.playerId || (active?.side === "us" && Math.abs(position.x - ball.x) < 9 && Math.abs(position.y - ball.y) < 12)}
               player={userLineup[index]}
               expanded={expanded}
             />
           );
         })}
         {AWAY_SHAPE.map(([x, y], index) => {
-          const position = playerPosition(x, y, false, index, active, ball, progress);
+          const position = playerPosition(x, y, false, index, opponentLineup[index], active, ball, progress);
           return (
             <PlayerDot
               key={`them-${index}`}
               x={position.x}
               y={position.y}
-              active={active?.side === "them" && Math.abs(position.x - ball.x) < 18 && Math.abs(position.y - ball.y) < 22}
+              active={active?.actorPlayerId === opponentLineup[index]?.playerId || (active?.side === "them" && Math.abs(position.x - ball.x) < 9 && Math.abs(position.y - ball.y) < 12)}
               player={opponentLineup[index]}
               expanded={expanded}
             />
@@ -402,6 +441,11 @@ export function MatchPitchViewer({
           )}
           style={{ left: `${ball.x}%`, top: `${ball.y}%` }}
         />
+        {active?.type === "chance" && progress > 0.9 && (
+          <div className="absolute left-1/2 top-3 z-30 -translate-x-1/2 rounded-full border border-white/20 bg-black/70 px-3 py-1 font-display text-sm uppercase tracking-wide text-white shadow-lg">
+            {chanceOutcome(active)}
+          </div>
+        )}
         {active?.type === "goal" && progress > 0.9 && (
           <>
             <span
