@@ -213,6 +213,63 @@ function replayStage(event: MatchEvent | undefined, progress: number): string {
 }
 
 
+function possessionPlayerIds(event: MatchEvent | undefined, lineup: MatchLineupPlayer[]): string[] {
+  if (!event || event.side === "neutral" || (event.type !== "goal" && event.type !== "chance")) return [];
+  const outfield = lineup.filter((player) => player.role !== "GK");
+  if (!outfield.length) return [];
+
+  const actorId = event.actorPlayerId;
+  const creatorId = event.secondaryPlayerId;
+  const excluded = new Set([actorId, creatorId].filter(Boolean) as string[]);
+  const pool = outfield.filter((player) => !excluded.has(player.playerId));
+  const seed = eventSeed(event);
+  const rotated = pool.length
+    ? [...pool.slice(seed % pool.length), ...pool.slice(0, seed % pool.length)]
+    : [];
+
+  const buildUpCount = event.phase === "transition" ? 2 : 3;
+  const ids = rotated.slice(0, buildUpCount).map((player) => player.playerId);
+  if (creatorId && !ids.includes(creatorId)) ids.push(creatorId);
+  if (actorId && !ids.includes(actorId)) ids.push(actorId);
+
+  if (!actorId && outfield.length) {
+    const fallback = outfield[seed % outfield.length]?.playerId;
+    if (fallback && !ids.includes(fallback)) ids.push(fallback);
+  }
+  return ids;
+}
+
+function touchPointForPlayer(
+  playerId: string | undefined,
+  possessionIds: string[],
+  path: PitchPoint[],
+): PitchPoint | undefined {
+  if (!playerId || possessionIds.length === 0 || path.length < 2) return undefined;
+  const index = possessionIds.indexOf(playerId);
+  if (index < 0) return undefined;
+  const buildUpEnd = Math.max(1, path.length - 3);
+  const fraction = possessionIds.length === 1 ? 1 : index / (possessionIds.length - 1);
+  const pointIndex = Math.min(buildUpEnd, Math.round(fraction * buildUpEnd));
+  return path[pointIndex];
+}
+
+function passLabel(
+  event: MatchEvent | undefined,
+  progress: number,
+  possessionIds: string[],
+  lineup: MatchLineupPlayer[],
+): string | null {
+  if (!event || possessionIds.length < 2 || progress >= 0.82) return null;
+  const passProgress = Math.max(0, Math.min(0.999, progress / 0.82));
+  const segment = Math.min(possessionIds.length - 2, Math.floor(passProgress * (possessionIds.length - 1)));
+  const from = lineup.find((player) => player.playerId === possessionIds[segment]);
+  const to = lineup.find((player) => player.playerId === possessionIds[segment + 1]);
+  if (!from || !to) return null;
+  const surname = (name: string) => name.trim().split(/\s+/).pop() ?? name;
+  return `${surname(from.name)} → ${surname(to.name)}`;
+}
+
+
 function playerPosition(
   baseX: number,
   baseY: number,
@@ -222,6 +279,7 @@ function playerPosition(
   event: MatchEvent | undefined,
   ball: PitchPoint,
   progress: number,
+  touchPoint?: PitchPoint,
 ): PitchPoint {
   if (!event || event.side === "neutral") return { x: baseX, y: baseY };
 
@@ -230,11 +288,25 @@ function playerPosition(
   const creator = Boolean(player && event.secondaryPlayerId === player.playerId);
   const defendingKeeper = index === 0 && !inPossession && (event.type === "goal" || event.type === "chance");
 
-  if (actor) {
+  if (touchPoint && inPossession) {
+    const settle = Math.sin(Math.min(1, progress * 2.4) * Math.PI / 2);
+    const actorShotRun = actor && progress > 0.72
+      ? Math.min(1, (progress - 0.72) / 0.18)
+      : 0;
+    const direction = ours ? 1 : -1;
+    const targetX = actorShotRun > 0 ? ball.x - direction * 2.2 : touchPoint.x;
+    const targetY = actorShotRun > 0 ? ball.y : touchPoint.y;
+    return {
+      x: Math.max(3, Math.min(97, baseX + (targetX - baseX) * Math.max(settle * 0.72, actorShotRun))),
+      y: Math.max(5, Math.min(95, baseY + (targetY - baseY) * Math.max(settle * 0.72, actorShotRun))),
+    };
+  }
+
+  if (actor && progress > 0.72) {
     const direction = ours ? 1 : -1;
     return {
       x: Math.max(3, Math.min(97, ball.x - direction * 2.2)),
-      y: Math.max(5, Math.min(95, ball.y + Math.sin(progress * Math.PI) * 1.8)),
+      y: Math.max(5, Math.min(95, ball.y)),
     };
   }
 
@@ -365,6 +437,15 @@ export function MatchPitchViewer({
   const active = events[Math.min(cursor, Math.max(0, events.length - 1))];
   const path = useMemo(() => eventPath(active), [active]);
   const ball = useMemo(() => pointOnPath(path, progress), [path, progress]);
+  const attackingLineup = active?.side === "them" ? opponentLineup : userLineup;
+  const possessionIds = useMemo(
+    () => possessionPlayerIds(active, attackingLineup),
+    [active, attackingLineup],
+  );
+  const activePassLabel = useMemo(
+    () => passLabel(active, progress, possessionIds, attackingLineup),
+    [active, attackingLineup, possessionIds, progress],
+  );
 
   const replayScore = useMemo(() => {
     const committed = events.slice(0, cursor).filter((event) => event.type === "goal");
@@ -447,7 +528,8 @@ export function MatchPitchViewer({
         </svg>
 
         {HOME_SHAPE.map(([x, y], index) => {
-          const position = playerPosition(x, y, true, index, userLineup[index], active, ball, progress);
+          const touchPoint = active?.side === "us" ? touchPointForPlayer(userLineup[index]?.playerId, possessionIds, path) : undefined;
+          const position = playerPosition(x, y, true, index, userLineup[index], active, ball, progress, touchPoint);
           return (
             <PlayerDot
               key={`us-${index}`}
@@ -461,7 +543,8 @@ export function MatchPitchViewer({
           );
         })}
         {AWAY_SHAPE.map(([x, y], index) => {
-          const position = playerPosition(x, y, false, index, opponentLineup[index], active, ball, progress);
+          const touchPoint = active?.side === "them" ? touchPointForPlayer(opponentLineup[index]?.playerId, possessionIds, path) : undefined;
+          const position = playerPosition(x, y, false, index, opponentLineup[index], active, ball, progress, touchPoint);
           return (
             <PlayerDot
               key={`them-${index}`}
@@ -481,6 +564,11 @@ export function MatchPitchViewer({
           )}
           style={{ left: `${ball.x}%`, top: `${ball.y}%` }}
         />
+        {activePassLabel && (
+          <div className="absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full border border-white/15 bg-black/55 px-3 py-1 text-[10px] font-bold text-white/85 shadow-sm backdrop-blur-sm">
+            {activePassLabel}
+          </div>
+        )}
         {active?.type === "chance" && progress > 0.9 && (
           <div className="absolute left-1/2 top-3 z-30 -translate-x-1/2 rounded-full border border-white/20 bg-black/70 px-3 py-1 font-display text-sm uppercase tracking-wide text-white shadow-lg">
             {chanceOutcome(active)}
