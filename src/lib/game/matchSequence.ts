@@ -1385,7 +1385,7 @@ export function buildMatchFlowSequence(input: MatchFlowSequenceInput): MatchSequ
       }
 
       const landingStart =
-        holder?.playerId === receiver.playerId
+        !holder || holder.playerId === receiver.playerId
           ? currentPoint
           : nextAction.start;
       const landingDistance =
