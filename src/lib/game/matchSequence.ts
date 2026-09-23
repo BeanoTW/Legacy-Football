@@ -2,6 +2,8 @@ import type {
   MatchEvent,
   MatchLineupPlayer,
   MatchSubstitution,
+  MatchTeamPlan,
+  TacticalPosition,
 } from "./types";
 
 export interface MatchPitchPoint {
@@ -11,15 +13,30 @@ export interface MatchPitchPoint {
 
 export type FootballActionKind =
   | "receive"
+  | "interception"
   | "carry"
   | "pass"
+  | "recycle"
+  | "switch"
   | "throughBall"
+  | "overlap"
+  | "cutback"
   | "cross"
+  | "press"
   | "shot"
   | "save"
   | "block"
   | "miss"
   | "goal";
+
+export type MatchSequencePattern =
+  | "patient"
+  | "balanced"
+  | "direct"
+  | "wide"
+  | "counter"
+  | "highPress"
+  | "setPiece";
 
 export interface MatchSequenceAction {
   id: string;
@@ -43,6 +60,8 @@ export interface MatchSequence {
   phase: MatchEvent["phase"];
   sourceType: MatchEvent["type"];
   sourceText: string;
+  pattern: MatchSequencePattern;
+  styleLabel: string;
   actions: MatchSequenceAction[];
   participantIds: string[];
   totalWeight: number;
@@ -55,6 +74,8 @@ export interface MatchSequenceInput {
   userBench?: MatchLineupPlayer[];
   opponentBench?: MatchLineupPlayer[];
   substitutions?: MatchSubstitution[];
+  userPlan?: MatchTeamPlan;
+  opponentPlan?: MatchTeamPlan;
 }
 
 export interface MatchSequenceFrame {
@@ -79,6 +100,25 @@ function seedOf(event: MatchEvent, salt = ""): number {
 
 function surname(name: string): string {
   return name.trim().split(/\s+/).pop() ?? name;
+}
+
+const DEFAULT_PLAN: MatchTeamPlan = {
+  managerId: null,
+  managerName: "Caretaker",
+  formation: "4-4-2",
+  philosophy: "Balanced",
+  squadFit: 50,
+  tempo: "Medium",
+  pressing: "Medium",
+  directness: "Medium",
+};
+
+function planForSide(input: MatchSequenceInput, side: "us" | "them"): MatchTeamPlan {
+  return side === "us" ? input.userPlan ?? DEFAULT_PLAN : input.opponentPlan ?? DEFAULT_PLAN;
+}
+
+function otherSide(side: "us" | "them"): "us" | "them" {
+  return side === "us" ? "them" : "us";
 }
 
 export function activeMatchLineupAtMinute(
@@ -138,73 +178,170 @@ function shotDestination(event: MatchEvent): MatchPitchPoint {
   };
 }
 
-function phaseStartX(event: MatchEvent): number {
-  const direction = event.side === "us" ? 1 : -1;
-  const attackingX =
-    event.phase === "transition"
-      ? 28
-      : event.phase === "buildUp"
-        ? 30
-        : event.phase === "setPiece"
-          ? 57
-          : event.phase === "finalThird"
-            ? 61
-            : 39;
-  return direction === 1 ? attackingX : 100 - attackingX;
+function sequencePattern(event: MatchEvent, plan: MatchTeamPlan): MatchSequencePattern {
+  if (event.phase === "setPiece") return "setPiece";
+  if (event.phase === "transition") {
+    if (plan.pressing === "High") return "highPress";
+    return "counter";
+  }
+  if (plan.philosophy === "Direct" || plan.directness === "High") return "direct";
+  if (plan.philosophy === "Possession" || plan.directness === "Low") {
+    return seedOf(event, "patient-or-wide") % 3 === 0 ? "wide" : "patient";
+  }
+  if (plan.philosophy === "Front-foot") {
+    return seedOf(event, "front-foot") % 2 === 0 ? "wide" : "balanced";
+  }
+  if (plan.philosophy === "Defensive" && event.phase !== "finalThird") return "counter";
+  return seedOf(event, "balanced-pattern") % 4 === 0 ? "wide" : "balanced";
+}
+
+function styleLabel(pattern: MatchSequencePattern): string {
+  switch (pattern) {
+    case "patient":
+      return "Patient possession";
+    case "direct":
+      return "Direct attack";
+    case "wide":
+      return "Wide overload";
+    case "counter":
+      return "Counter attack";
+    case "highPress":
+      return "High-press regain";
+    case "setPiece":
+      return "Set piece";
+    default:
+      return "Balanced build-up";
+  }
+}
+
+const ROLE_PREFS: Record<MatchSequencePattern, TacticalPosition[]> = {
+  patient: ["GK", "CB", "LB", "RB", "CDM", "CM", "CAM", "LM", "RM", "LW", "RW", "ST"],
+  balanced: ["CB", "LB", "RB", "CDM", "CM", "CAM", "LM", "RM", "LW", "RW", "ST", "GK"],
+  direct: ["CB", "CDM", "CM", "CAM", "LM", "RM", "LW", "RW", "ST", "LB", "RB", "GK"],
+  wide: ["CM", "CDM", "LB", "RB", "LWB", "RWB", "LM", "RM", "LW", "RW", "CAM", "ST", "CB", "GK"],
+  counter: ["CM", "CDM", "LM", "RM", "LW", "RW", "CAM", "ST", "LB", "RB", "CB", "GK"],
+  highPress: ["CAM", "CM", "LM", "RM", "LW", "RW", "ST", "CDM", "LB", "RB", "CB", "GK"],
+  setPiece: ["LW", "RW", "LM", "RM", "CAM", "CM", "LB", "RB", "CB", "ST", "CDM", "GK"],
+};
+
+const SUPPORT_COUNT: Record<MatchSequencePattern, number> = {
+  patient: 4,
+  balanced: 3,
+  direct: 2,
+  wide: 3,
+  counter: 2,
+  highPress: 2,
+  setPiece: 1,
+};
+
+function orderedSupportPool(
+  event: MatchEvent,
+  lineup: MatchLineupPlayer[],
+  pattern: MatchSequencePattern,
+  excluded: Set<string>,
+): MatchLineupPlayer[] {
+  const prefs = ROLE_PREFS[pattern];
+  return lineup
+    .filter((player) => !excluded.has(player.playerId))
+    .map((player) => ({
+      player,
+      roleRank: Math.max(0, prefs.indexOf(player.role)),
+      jitter: seedOf(event, `support:${pattern}:${player.playerId}`) % 997,
+    }))
+    .sort(
+      (a, b) =>
+        a.roleRank - b.roleRank ||
+        b.player.ability - a.player.ability ||
+        a.jitter - b.jitter ||
+        a.player.playerId.localeCompare(b.player.playerId),
+    )
+    .map(({ player }) => player);
 }
 
 function participantOrder(
   event: MatchEvent,
   lineup: MatchLineupPlayer[],
+  pattern: MatchSequencePattern,
 ): MatchLineupPlayer[] {
-  const outfield = lineup.filter((player) => player.role !== "GK");
-  if (!outfield.length) return [];
-  const actor = outfield.find((player) => player.playerId === event.actorPlayerId);
-  const creator = outfield.find((player) => player.playerId === event.secondaryPlayerId);
+  if (!lineup.length) return [];
+  const actor = lineup.find((player) => player.playerId === event.actorPlayerId);
+  const creator = lineup.find((player) => player.playerId === event.secondaryPlayerId);
   const excluded = new Set([actor?.playerId, creator?.playerId].filter(Boolean) as string[]);
-  const pool = outfield.filter((player) => !excluded.has(player.playerId));
-  const seed = seedOf(event, "participants");
-  const rotated = pool.length
-    ? [...pool.slice(seed % pool.length), ...pool.slice(0, seed % pool.length)]
-    : [];
-  const supportCount = event.phase === "transition" ? 2 : event.phase === "finalThird" ? 2 : 3;
-  const result = rotated.slice(0, supportCount);
+  const support = orderedSupportPool(event, lineup, pattern, excluded).slice(0, SUPPORT_COUNT[pattern]);
+  const result = [...support];
   if (creator && !result.some((player) => player.playerId === creator.playerId)) result.push(creator);
   if (actor && !result.some((player) => player.playerId === actor.playerId)) result.push(actor);
-  if (!actor && result.length === 0) result.push(outfield[seed % outfield.length]);
+  if (!actor && result.length === 0) {
+    result.push(lineup[seedOf(event, "fallback-participant") % lineup.length]);
+  }
   return result;
 }
 
-function touchPoints(event: MatchEvent, count: number): MatchPitchPoint[] {
+function startXForPattern(
+  event: MatchEvent,
+  pattern: MatchSequencePattern,
+): number {
+  const direction = event.side === "us" ? 1 : -1;
+  const attackingX =
+    pattern === "highPress"
+      ? 61
+      : pattern === "setPiece"
+        ? 66
+        : pattern === "counter"
+          ? 28
+          : pattern === "direct"
+            ? 34
+            : event.phase === "finalThird"
+              ? 55
+              : event.phase === "buildUp"
+                ? 22
+                : 31;
+  return direction === 1 ? attackingX : 100 - attackingX;
+}
+
+function touchPoints(
+  event: MatchEvent,
+  count: number,
+  pattern: MatchSequencePattern,
+): MatchPitchPoint[] {
   if (count <= 0) return [];
   const direction = event.side === "us" ? 1 : -1;
-  const startX = phaseStartX(event);
+  const startX = startXForPattern(event, pattern);
   const shotX = direction === 1 ? 84 : 16;
   const seed = seedOf(event, "touches");
-  const startY = 20 + (seed % 61);
+  const flank = seed % 2 === 0 ? 20 : 80;
+  const oppositeFlank = 100 - flank;
+  const startY = pattern === "wide" || pattern === "setPiece" ? flank : 24 + (seed % 53);
+
   return Array.from({ length: count }, (_, index) => {
     const fraction = count === 1 ? 1 : index / (count - 1);
-    const x = startX + (shotX - startX) * fraction;
-    const wave = Math.sin((fraction + (seed % 7) / 10) * Math.PI * 2) * 14;
-    const lane = ((seed >> (index % 8)) % 9) - 4;
-    return {
-      x: clamp(x, 7, 93),
-      y: clamp(startY * (1 - fraction * 0.55) + 50 * fraction * 0.55 + wave + lane, 10, 90),
-    };
+    let x = startX + (shotX - startX) * fraction;
+    let y =
+      startY * (1 - fraction * 0.58) +
+      50 * fraction * 0.58 +
+      Math.sin((fraction + (seed % 7) / 10) * Math.PI * 2) * 10;
+
+    if (pattern === "patient" && index === 2 && count >= 4) {
+      x -= direction * 9;
+      y = oppositeFlank;
+    } else if (pattern === "wide") {
+      y = index < count - 1 ? flank + Math.sin(fraction * Math.PI) * (flank < 50 ? -4 : 4) : 50;
+    } else if (pattern === "direct") {
+      x += direction * fraction * 7;
+      y = startY + (50 - startY) * fraction * 0.72;
+    } else if (pattern === "counter" || pattern === "highPress") {
+      x += direction * Math.sin(fraction * Math.PI) * 7;
+      y = startY + (50 - startY) * fraction * 0.82;
+    } else if (pattern === "setPiece") {
+      y = index === count - 1 ? 50 : flank;
+    }
+
+    return { x: clamp(x, 6, 94), y: clamp(y, 9, 91) };
   });
 }
 
-function passKind(
-  from: MatchPitchPoint,
-  to: MatchPitchPoint,
-  finalPass: boolean,
-  event: MatchEvent,
-): "pass" | "throughBall" | "cross" {
-  const dx = Math.abs(to.x - from.x);
-  const dy = Math.abs(to.y - from.y);
-  if (finalPass && (from.y < 30 || from.y > 70) && dy > 12) return "cross";
-  if (finalPass && dx > 13) return "throughBall";
-  return "pass";
+function tempoScale(plan: MatchTeamPlan): number {
+  return plan.tempo === "High" ? 0.84 : plan.tempo === "Low" ? 1.16 : 1;
 }
 
 function action(
@@ -215,45 +352,135 @@ function action(
   return { id: `${sequenceId}:a${index}`, ...values };
 }
 
+function linkKind(
+  event: MatchEvent,
+  pattern: MatchSequencePattern,
+  from: MatchPitchPoint,
+  to: MatchPitchPoint,
+  linkIndex: number,
+  finalLink: boolean,
+): FootballActionKind {
+  const direction = event.side === "us" ? 1 : -1;
+  const forward = (to.x - from.x) * direction;
+  const lateral = Math.abs(to.y - from.y);
+
+  if (pattern === "patient" && forward < -2) return "recycle";
+  if (pattern === "patient" && lateral > 32) return "switch";
+  if (pattern === "wide" && !finalLink && linkIndex >= 1) return "overlap";
+  if (pattern === "wide" && finalLink) return seedOf(event, "wide-finish") % 2 === 0 ? "cutback" : "cross";
+  if (pattern === "setPiece") return "cross";
+  if ((pattern === "direct" || pattern === "counter" || pattern === "highPress") && finalLink) {
+    return lateral > 24 ? "cross" : "throughBall";
+  }
+  if (finalLink && (from.y < 28 || from.y > 72) && lateral > 12) return "cross";
+  if (finalLink && forward > 13) return "throughBall";
+  return "pass";
+}
+
+function passCommentary(
+  kind: FootballActionKind,
+  holder: MatchLineupPlayer,
+  receiver: MatchLineupPlayer,
+): string {
+  const from = surname(holder.name);
+  const to = surname(receiver.name);
+  switch (kind) {
+    case "recycle":
+      return `${from} recycles possession to ${to}.`;
+    case "switch":
+      return `${from} switches play towards ${to}.`;
+    case "throughBall":
+      return `${from} slips ${to} through.`;
+    case "overlap":
+      return `${from} releases ${to} on the overlap.`;
+    case "cutback":
+      return `${from} cuts it back for ${to}.`;
+    case "cross":
+      return `${from} delivers towards ${to}.`;
+    default:
+      return `${from} finds ${to}.`;
+  }
+}
+
+function pressurePlayer(
+  event: MatchEvent,
+  defendingLineup: MatchLineupPlayer[],
+): MatchLineupPlayer | undefined {
+  const preference: TacticalPosition[] = ["CDM", "CM", "CB", "LB", "RB", "LWB", "RWB", "CAM", "LM", "RM", "LW", "RW", "ST", "GK"];
+  return [...defendingLineup]
+    .map((player) => ({
+      player,
+      roleRank: Math.max(0, preference.indexOf(player.role)),
+      jitter: seedOf(event, `pressure:${player.playerId}`) % 499,
+    }))
+    .sort((a, b) => a.roleRank - b.roleRank || b.player.ability - a.player.ability || a.jitter - b.jitter)[0]?.player;
+}
+
+function shouldShowPressure(event: MatchEvent, defendingPlan: MatchTeamPlan): boolean {
+  if (defendingPlan.pressing === "High") return true;
+  if (defendingPlan.pressing === "Low") return seedOf(event, "pressure") % 5 === 0;
+  return seedOf(event, "pressure") % 2 === 0;
+}
+
 export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | null {
   const { event } = input;
-  if (
-    event.side === "neutral" ||
-    (event.type !== "goal" && event.type !== "chance")
-  ) {
-    return null;
-  }
+  if (event.side === "neutral" || (event.type !== "goal" && event.type !== "chance")) return null;
 
-  const starters = event.side === "us" ? input.userLineup : input.opponentLineup;
-  const bench = event.side === "us" ? input.userBench ?? [] : input.opponentBench ?? [];
-  const lineup = activeMatchLineupAtMinute(
-    starters,
-    bench,
+  const attackingStarters = event.side === "us" ? input.userLineup : input.opponentLineup;
+  const attackingBench = event.side === "us" ? input.userBench ?? [] : input.opponentBench ?? [];
+  const defendingStarters = event.side === "us" ? input.opponentLineup : input.userLineup;
+  const defendingBench = event.side === "us" ? input.opponentBench ?? [] : input.userBench ?? [];
+  const attackingPlan = planForSide(input, event.side);
+  const defendingPlan = planForSide(input, otherSide(event.side));
+  const pattern = sequencePattern(event, attackingPlan);
+
+  const attackingLineup = activeMatchLineupAtMinute(
+    attackingStarters,
+    attackingBench,
     input.substitutions ?? [],
     event.side,
     event.minute,
   );
-  const participants = participantOrder(event, lineup);
+  const defendingLineup = activeMatchLineupAtMinute(
+    defendingStarters,
+    defendingBench,
+    input.substitutions ?? [],
+    otherSide(event.side),
+    event.minute,
+  );
+  const participants = participantOrder(event, attackingLineup, pattern);
   if (!participants.length) return null;
 
   const sequenceId = event.sequenceId ?? `match-sequence:${event.minute}:${event.side}:${event.type}`;
-  const points = touchPoints(event, participants.length);
+  const points = touchPoints(event, participants.length, pattern);
   const actions: MatchSequenceAction[] = [];
+  const tempo = tempoScale(attackingPlan);
   let actionIndex = 0;
 
   const first = participants[0];
+  const regain = pattern === "counter" || pattern === "highPress";
   actions.push(
     action(sequenceId, actionIndex++, {
-      kind: "receive",
+      kind: regain ? "interception" : "receive",
       side: event.side,
       playerId: first.playerId,
       playerName: first.name,
       start: points[0],
       end: points[0],
-      weight: 0.45,
-      commentary: `${surname(first.name)} takes possession.`,
+      weight: (regain ? 0.55 : 0.45) * tempo,
+      commentary:
+        pattern === "highPress"
+          ? `${surname(first.name)} wins it high up the pitch.`
+          : pattern === "counter"
+            ? `${surname(first.name)} wins possession and looks forward immediately.`
+            : `${surname(first.name)} takes possession.`,
     }),
   );
+
+  const pressPlayer = shouldShowPressure(event, defendingPlan)
+    ? pressurePlayer(event, defendingLineup)
+    : undefined;
+  const pressureAt = participants.length > 3 ? 1 : 0;
 
   for (let i = 0; i < participants.length - 1; i += 1) {
     const holder = participants[i];
@@ -261,25 +488,62 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
     const start = points[i];
     const next = points[i + 1];
     const direction = event.side === "us" ? 1 : -1;
-    const carryDistance = event.phase === "transition" ? 5.5 : 2.8;
+    const carryDistance =
+      pattern === "counter" || pattern === "highPress"
+        ? 6.5
+        : pattern === "direct"
+          ? 4.2
+          : pattern === "patient"
+            ? 1.6
+            : 2.8;
     const carried = {
       x: clamp(start.x + direction * carryDistance, 6, 94),
-      y: clamp(start.y + (((seedOf(event, `carry:${i}`) % 7) - 3) * 0.8), 9, 91),
+      y: clamp(start.y + (((seedOf(event, `carry:${i}`) % 7) - 3) * 0.7), 9, 91),
     };
-    actions.push(
-      action(sequenceId, actionIndex++, {
-        kind: "carry",
-        side: event.side,
-        playerId: holder.playerId,
-        playerName: holder.name,
-        start,
-        end: carried,
-        weight: event.phase === "transition" ? 0.75 : 0.55,
-        commentary: `${surname(holder.name)} carries it forward.`,
-      }),
-    );
-    const finalPass = i === participants.length - 2;
-    const kind = passKind(carried, next, finalPass, event);
+
+    const carryNeeded =
+      pattern === "counter" ||
+      pattern === "highPress" ||
+      pattern === "direct" ||
+      i === 0 ||
+      seedOf(event, `carry-show:${i}`) % 3 === 0;
+    if (carryNeeded) {
+      actions.push(
+        action(sequenceId, actionIndex++, {
+          kind: "carry",
+          side: event.side,
+          playerId: holder.playerId,
+          playerName: holder.name,
+          start,
+          end: carried,
+          weight: (pattern === "counter" || pattern === "highPress" ? 0.7 : 0.48) * tempo,
+          commentary:
+            pattern === "counter" || pattern === "highPress"
+              ? `${surname(holder.name)} drives into the space.`
+              : `${surname(holder.name)} carries it forward.`,
+        }),
+      );
+    }
+
+    if (pressPlayer && i === pressureAt) {
+      actions.push(
+        action(sequenceId, actionIndex++, {
+          kind: "press",
+          side: otherSide(event.side),
+          playerId: pressPlayer.playerId,
+          playerName: pressPlayer.name,
+          targetPlayerId: holder.playerId,
+          targetPlayerName: holder.name,
+          start: carried,
+          end: carried,
+          weight: 0.42,
+          commentary: `${surname(pressPlayer.name)} closes down ${surname(holder.name)}.`,
+        }),
+      );
+    }
+
+    const finalLink = i === participants.length - 2;
+    const kind = linkKind(event, pattern, carryNeeded ? carried : start, next, i, finalLink);
     actions.push(
       action(sequenceId, actionIndex++, {
         kind,
@@ -288,15 +552,21 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
         playerName: holder.name,
         targetPlayerId: receiver.playerId,
         targetPlayerName: receiver.name,
-        start: carried,
+        start: carryNeeded ? carried : start,
         end: next,
-        weight: kind === "cross" ? 1.05 : kind === "throughBall" ? 0.95 : 0.8,
-        commentary:
-          kind === "cross"
-            ? `${surname(holder.name)} delivers for ${surname(receiver.name)}.`
-            : kind === "throughBall"
-              ? `${surname(holder.name)} slips ${surname(receiver.name)} through.`
-              : `${surname(holder.name)} finds ${surname(receiver.name)}.`,
+        weight:
+          (kind === "cross"
+            ? 1.0
+            : kind === "switch"
+              ? 0.95
+              : kind === "throughBall" || kind === "cutback"
+                ? 0.82
+                : kind === "overlap"
+                  ? 0.88
+                  : kind === "recycle"
+                    ? 0.72
+                    : 0.7) * tempo,
+        commentary: passCommentary(kind, holder, receiver),
       }),
     );
   }
@@ -304,10 +574,6 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
   const shooter = participants[participants.length - 1];
   const shotStart = points[points.length - 1];
   const destination = shotDestination(event);
-  const shotCommentary =
-    event.type === "goal"
-      ? `${surname(shooter.name)} shoots…`
-      : `${surname(shooter.name)} gets the shot away…`;
   actions.push(
     action(sequenceId, actionIndex++, {
       kind: "shot",
@@ -316,8 +582,11 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
       playerName: shooter.name,
       start: shotStart,
       end: destination,
-      weight: 0.95,
-      commentary: shotCommentary,
+      weight: 0.9 * tempo,
+      commentary:
+        event.type === "goal"
+          ? `${surname(shooter.name)} shoots…`
+          : `${surname(shooter.name)} gets the shot away…`,
     }),
   );
 
@@ -338,12 +607,7 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
     const outcome = chanceOutcome(event);
     actions.push(
       action(sequenceId, actionIndex++, {
-        kind:
-          outcome === "save"
-            ? "save"
-            : outcome === "blocked"
-              ? "block"
-              : "miss",
+        kind: outcome === "save" ? "save" : outcome === "blocked" ? "block" : "miss",
         side: event.side,
         playerId: shooter.playerId,
         playerName: shooter.name,
@@ -362,6 +626,7 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
     );
   }
 
+  const participantIds = [...new Set(actions.flatMap((item) => [item.playerId, item.targetPlayerId]).filter(Boolean) as string[])];
   return {
     id: sequenceId,
     minute: event.minute,
@@ -369,8 +634,10 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
     phase: event.phase,
     sourceType: event.type,
     sourceText: event.text,
+    pattern,
+    styleLabel: styleLabel(pattern),
     actions,
-    participantIds: participants.map((player) => player.playerId),
+    participantIds,
     totalWeight: actions.reduce((sum, item) => sum + item.weight, 0),
   };
 }
@@ -384,8 +651,20 @@ function curvedPoint(
   const t = clamp(progress, 0, 1);
   const x = start.x + (end.x - start.x) * t;
   const y = start.y + (end.y - start.y) * t - Math.sin(t * Math.PI) * curve;
-  return { x, y };
+  return { x: clamp(x, 0.5, 99.5), y: clamp(y, 2, 98) };
 }
+
+const MOVING_BALL_ACTIONS = new Set<FootballActionKind>([
+  "carry",
+  "pass",
+  "recycle",
+  "switch",
+  "throughBall",
+  "overlap",
+  "cutback",
+  "cross",
+  "shot",
+]);
 
 export function frameForSequence(
   sequence: MatchSequence,
@@ -399,20 +678,23 @@ export function frameForSequence(
     const next = cursor + current.weight;
     if (target <= next || i === sequence.actions.length - 1) {
       const localProgress = clamp((target - cursor) / Math.max(0.0001, current.weight), 0, 1);
-      const movingBall = ["pass", "throughBall", "cross", "shot", "carry"].includes(current.kind);
       const curve =
         current.kind === "cross"
           ? 5
-          : current.kind === "throughBall"
-            ? 2.2
-            : current.kind === "pass"
-              ? 1.2
-              : 0;
+          : current.kind === "switch"
+            ? 2.8
+            : current.kind === "throughBall"
+              ? 2.1
+              : current.kind === "cutback"
+                ? 1.4
+                : current.kind === "pass" || current.kind === "overlap"
+                  ? 1
+                  : 0;
       return {
         action: current,
         actionIndex: i,
         localProgress,
-        ball: movingBall
+        ball: MOVING_BALL_ACTIONS.has(current.kind)
           ? curvedPoint(current.start, current.end, localProgress, curve)
           : current.end,
       };
@@ -424,9 +706,9 @@ export function frameForSequence(
 }
 
 export function sequenceDurationMs(sequence: MatchSequence): number {
-  // Roughly 8–13 seconds for a normal highlight at 1×. This is intentionally
-  // slower than the prototype so a move can be read as football rather than a blur.
-  return clamp(Math.round(sequence.totalWeight * 1_450), 7_500, 13_500);
+  // Richer sequences are deliberately readable at 1×. Tempo already changes
+  // action weights, while the playback control scales the final duration.
+  return clamp(Math.round(sequence.totalWeight * 1_420), 7_800, 15_500);
 }
 
 export function sequenceResultVisible(sequence: MatchSequence, progress: number): boolean {
