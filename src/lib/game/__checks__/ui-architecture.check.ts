@@ -457,8 +457,8 @@ console.log("\n[U15] Match centre identity and competition context");
   check(
     "match centre renders the canonical event stream through the 2D viewer",
     /<MatchPitchViewer[\s\S]*?events=\{lm\.events\}/.test(matchday) &&
-      /event\.zone/.test(viewer) &&
-      /event\.phase/.test(viewer),
+      /buildMatchSequence/.test(viewer) &&
+      /MatchSequence/.test(viewer),
   );
   check(
     "2D replay exposes play, restart, skip and scrub controls",
@@ -468,10 +468,10 @@ console.log("\n[U15] Match centre identity and competition context");
       /type="range"/.test(viewer),
   );
   check(
-    "2D highlights derive passing paths and player movement without UI randomness",
-    /function eventPath/.test(viewer) &&
+    "2D highlights derive structured football actions and player movement without UI randomness",
+    /buildMatchSequence/.test(viewer) &&
       /function playerPosition/.test(viewer) &&
-      /<polyline/.test(viewer) &&
+      /<line/.test(viewer) &&
       !/Math\.random/.test(viewer),
   );
   check(
@@ -483,9 +483,9 @@ console.log("\n[U15] Match centre identity and competition context");
       /onReplayProgress/.test(viewer),
   );
   check(
-    "2D viewer identifies persisted lineup players on the pitch",
-    /userLineup\[index\]/.test(viewer) &&
-      /player\?\.shirtNumber/.test(viewer) &&
+    "2D viewer identifies persisted active lineup players on the pitch",
+    /activeUserLineup\.map/.test(viewer) &&
+      /player\.shirtNumber/.test(viewer) &&
       /player\.name/.test(viewer),
   );
 }
@@ -616,7 +616,7 @@ console.log("\n[U22] Match replay event fidelity");
   );
   check(
     "replay score waits for the canonical sequence result",
-    /sequenceResultVisible\(sequence, progress\)/.test(viewer) &&
+    /sequenceResultVisible\(sequence, contentProgress\)/.test(viewer) &&
       /activeGoal/.test(viewer),
   );
   check(
