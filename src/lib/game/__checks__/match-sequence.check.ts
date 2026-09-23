@@ -159,7 +159,7 @@ const directSequence = buildMatchSequence({
   event: directEvent,
   substitutions: [],
   userPlan: directPlan,
-  opponentPlan: patientPlan,
+  opponentPlan: highPressPlan,
 });
 assert(directSequence, "direct manager event must create a sequence");
 assert.equal(directSequence.pattern, "direct", "high directness must produce a direct attacking pattern");
