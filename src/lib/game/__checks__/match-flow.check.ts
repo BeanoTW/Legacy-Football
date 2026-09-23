@@ -35,6 +35,10 @@ assert(
   "bridge clock must progress through quiet match time",
 );
 
+const opening = commentaryBridge(undefined, next, "Legacy FC", "Rovers");
+assert(opening, "the opening event must be bridged from kickoff");
+assert.equal(opening.fromMinute, 0, "opening match flow must begin at 0'");
+
 const adjacent: MatchEvent = { ...next, minute: 13, sequenceId: "flow-adjacent" };
 assert.equal(
   commentaryBridge(previous, adjacent, "Legacy FC", "Rovers"),
