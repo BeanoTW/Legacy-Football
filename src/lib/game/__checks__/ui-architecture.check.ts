@@ -647,5 +647,21 @@ console.log("\n[U23] Match replay build-up and pace");
       /eventDurationMs/.test(viewer),
   );
 }
+
+console.log("\n[U24] Visible player-to-player passing");
+{
+  const viewer = read("src/components/game/MatchPitchViewer.tsx");
+  check(
+    "replay build-up assigns deterministic possession players",
+    /possessionPlayerIds/.test(viewer) &&
+      /touchPointForPlayer/.test(viewer) &&
+      /passLabel/.test(viewer),
+  );
+  check(
+    "scorer only follows the ball for the final shot phase",
+    /actor && progress > 0\.72/.test(viewer) &&
+      /actorShotRun/.test(viewer),
+  );
+}
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
