@@ -328,6 +328,7 @@ export function MatchPitchViewer({
       opponentLineup,
       opponentPlan,
       previousEvent,
+      sequence,
       substitutions,
       userBench,
       userLineup,
