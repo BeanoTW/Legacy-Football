@@ -568,7 +568,7 @@ export function MatchPitchViewer({
                   y2={item.end.y}
                   stroke={
                     index < (frame?.actionIndex ?? 0)
-                      ? active?.side === "them"
+                      ? renderSequence.side === "them"
                         ? "#fda4af"
                         : "#6ee7b7"
                       : "rgba(255,255,255,.12)"
