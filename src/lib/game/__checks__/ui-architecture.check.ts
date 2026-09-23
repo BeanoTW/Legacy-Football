@@ -468,10 +468,11 @@ console.log("\n[U15] Match centre identity and competition context");
       /type="range"/.test(viewer),
   );
   check(
-    "2D highlights derive structured football actions and player movement without UI randomness",
+    "2D highlights derive structured football actions and persistent player motion without UI randomness",
     /buildMatchSequence/.test(viewer) &&
-      /function playerPosition/.test(viewer) &&
-      /<line/.test(viewer) &&
+      /motionFrameForSequence/.test(viewer) &&
+      !/<svg/.test(viewer) &&
+      !/<line/.test(viewer) &&
       !/Math\.random/.test(viewer),
   );
   check(
@@ -858,12 +859,14 @@ console.log("\n[U33] Smooth replay continuity and played-time timeline");
 {
   const viewer = read("src/components/game/MatchPitchViewer.tsx");
   const sequence = read("src/lib/game/matchSequence.ts");
+  const motion = read("src/lib/game/matchMotion.ts");
   check(
-    "player positions carry forward from completed football actions instead of snapping to formation",
-    /settledPositionAfterAction/.test(viewer) &&
-      /settledPlayerPosition/.test(viewer) &&
-      /settledBase/.test(viewer) &&
-      /duration-300/.test(viewer),
+    "player positions carry forward through deterministic action-boundary motion state",
+    /motionFrameForSequence/.test(viewer) &&
+      /applyAction/.test(motion) &&
+      /applySequence/.test(motion) &&
+      /entrySequences/.test(motion) &&
+      !/Math\.random/.test(motion),
   );
   check(
     "canonical receiving positions are derived from tactical roles",
