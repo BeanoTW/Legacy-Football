@@ -825,5 +825,31 @@ console.log("\n[U31] Live match commentary follows the ball");
   );
 }
 
+console.log("\n[U32] Defensive phases and second balls");
+{
+  const viewer = read("src/components/game/MatchPitchViewer.tsx");
+  const sequence = read("src/lib/game/matchSequence.ts");
+  check(
+    "canonical attacks can survive a failed challenge or clearance before the real shot",
+    /DefensiveSecondPhase/.test(sequence) &&
+      /"challenge"/.test(sequence) &&
+      /"clearanceRecovery"/.test(sequence) &&
+      /kind: "recovery"/.test(sequence),
+  );
+  check(
+    "quiet open play can end in a clearance and second-ball contest without inventing a chance",
+    /includeClearance/.test(sequence) &&
+      /Clearance & second ball/.test(sequence) &&
+      /flow-second-ball-side/.test(sequence),
+  );
+  check(
+    "defensive lines retreat and track dangerous runners in the 2D renderer",
+    /defensiveRole/.test(viewer) &&
+      /trackingAction/.test(viewer) &&
+      /ownGoalX/.test(viewer) &&
+      /markPull/.test(viewer),
+  );
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
