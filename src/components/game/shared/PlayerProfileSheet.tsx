@@ -185,7 +185,7 @@ export function PlayerProfileSheet({
           </SheetHeader>
         </div>
 
-        <div className="space-y-3 p-4">
+        <div className="space-y-2 p-3">
           {!owned && (
             <section className="rounded-xl border bg-card p-3 shadow-sm">
               <div className="mb-2">
@@ -284,10 +284,10 @@ export function PlayerProfileSheet({
             </section>
           )}
 
-          <section className="rounded-xl border bg-card p-3">
+          <section className="overflow-hidden rounded-xl border border-emerald-950/10 bg-[#0b211d] p-3 text-white shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Position</div>
+                <div className="text-[9px] uppercase tracking-wider text-white/45">Position</div>
                 <span className={cn(
                   "mt-1 inline-flex rounded-md border px-3 py-1.5 text-base font-bold",
                   POSITION_BADGE_CLASS[positionUnit(tactical.primary)],
@@ -297,7 +297,7 @@ export function PlayerProfileSheet({
               </div>
               <div className="text-right text-xs">
                 <div className="font-semibold">{club}</div>
-                <div className="mt-1 text-muted-foreground">
+                <div className="mt-1 text-white/45">
                   {player.currentClubId ? "Under contract" : "Available on a free"}
                 </div>
               </div>
@@ -305,7 +305,7 @@ export function PlayerProfileSheet({
 
             {tactical.secondary.length > 0 && (
               <div className="mt-3">
-                <div className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                <div className="mb-1.5 text-[9px] uppercase tracking-wider text-white/45">
                   Other positions
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -372,41 +372,40 @@ export function PlayerProfileSheet({
           )}
 
           {owned && (
-            <section className="rounded-xl border bg-card p-3">
-              <div className="font-display text-lg">Fitness & availability</div>
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <Fact label="Fitness" value={`${playerFitness(player)}% · ${fitnessLabel(playerFitness(player))}`} />
-                <Fact
-                  label="Medical status"
-                  value={
-                    player.injury
-                      ? `${player.injury.type} · ${player.injury.severity}`
-                      : player.availability === "available"
-                        ? "Available"
-                        : "Unavailable"
-                  }
-                />
-              </div>
-              {player.injury && (
-                <div className="mt-2 text-xs text-muted-foreground">
-                  Expected back around season {fromAbsoluteWeek(player.injury.returnAbsoluteWeek).season},
-                  week {fromAbsoluteWeek(player.injury.returnAbsoluteWeek).week}.
+            <section className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-xl border bg-card px-3 py-2.5">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-display text-lg">{playerFitness(player)}%</span>
+                  <span className="text-xs text-muted-foreground">{fitnessLabel(playerFitness(player))}</span>
+                  <span className="text-muted-foreground">·</span>
+                  <span className={cn("truncate text-xs font-semibold", player.injury && "text-rose-600 dark:text-rose-300")}>
+                    {player.injury ? `${player.injury.type} · ${player.injury.severity}` : player.availability === "available" ? "Available" : "Unavailable"}
+                  </span>
                 </div>
-              )}
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
+                  <div className="h-full rounded-full bg-emerald-500" style={{ width: `${playerFitness(player)}%` }} />
+                </div>
+                {player.injury && (
+                  <div className="mt-1 text-[9px] text-muted-foreground">
+                    Expected back S{fromAbsoluteWeek(player.injury.returnAbsoluteWeek).season} W{fromAbsoluteWeek(player.injury.returnAbsoluteWeek).week}
+                  </div>
+                )}
+              </div>
+              <div className="text-right text-[8px] font-bold uppercase tracking-wider text-muted-foreground">Fitness & status</div>
             </section>
           )}
 
           <section className="grid grid-cols-2 gap-2">
             <Fact label="Potential" value={fullKnowledge ? String(player.potentialAbility) : "?"} />
-            <Fact label="Value" value={hasScouting || owned ? moneyRange(report?.valueRange) : "?"} />
-            <Fact label="Expected wage" value={hasScouting || owned ? `${moneyRange(report?.wageRange)}/wk` : "?"} />
-            <Fact label="Knowledge" value={owned ? "Club player" : `${knowledge}%`} />
+            <Fact label="Value" value={owned ? fmtMoneyExact(player.marketValue) : hasScouting ? moneyRange(report?.valueRange) : "?"} />
+            <Fact label={owned ? "Wage" : "Expected wage"} value={owned ? contract ? `${fmtMoneyExact(contract.weeklyWage)}/wk` : "—" : hasScouting ? `${moneyRange(report?.wageRange)}/wk` : "?"} />
+            <Fact label="Knowledge" value={owned ? "Full club" : `${knowledge}%`} />
           </section>
 
           <section className="rounded-xl border bg-card p-3">
             <div className="mb-3 flex items-center justify-between">
               <div>
-                <div className="font-display text-lg">Scouting profile</div>
+                <div className="font-display text-lg">{owned ? "Player attributes" : "Scouting profile"}</div>
                 <div className="text-[10px] text-muted-foreground">
                   {owned
                     ? "Full club knowledge"
@@ -422,7 +421,7 @@ export function PlayerProfileSheet({
               <div className="font-display text-xl">{knowledge}%</div>
             </div>
 
-            <div className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-2">
               {(report?.attributes ?? []).map((attribute) => {
                 const value =
                   !attribute.known
@@ -441,7 +440,7 @@ export function PlayerProfileSheet({
                       <span className="text-xs font-semibold">{attribute.label}</span>
                       <span className="font-display text-base tabular-nums">{value}</span>
                     </div>
-                    <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+                    <div className="mt-1 h-1 overflow-hidden rounded-full bg-muted">
                       {attribute.known && (
                         <div className="h-full rounded-full bg-foreground" style={{ width: `${Math.max(3, Math.min(100, midpoint))}%` }} />
                       )}
@@ -518,9 +517,9 @@ function PositionChip({
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-h-20 rounded-xl border bg-card p-3">
-      <div className="font-display text-xl leading-tight">{value}</div>
-      <div className="mt-1 text-[9px] uppercase tracking-wider text-muted-foreground">{label}</div>
+    <div className="rounded-xl border bg-card px-3 py-2.5">
+      <div className="font-display text-lg leading-tight">{value}</div>
+      <div className="mt-0.5 text-[8px] uppercase tracking-wider text-muted-foreground">{label}</div>
     </div>
   );
 }
