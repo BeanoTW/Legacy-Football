@@ -461,10 +461,10 @@ console.log("\n[U15] Match centre identity and competition context");
       /MatchSequence/.test(viewer),
   );
   check(
-    "2D replay exposes play, restart, skip and scrub controls",
-    /Pause replay/.test(viewer) &&
-      /Restart replay/.test(viewer) &&
-      /Skip replay/.test(viewer) &&
+    "2D replay exposes play, rewind, return-to-live and scrub controls",
+    /Pause match/.test(viewer) &&
+      /Rewind to the start and pause/.test(viewer) &&
+      /Return to the latest played moment/.test(viewer) &&
       /type="range"/.test(viewer),
   );
   check(
@@ -851,6 +851,38 @@ console.log("\n[U32] Defensive phases and second balls");
       /trackingAction/.test(viewer) &&
       /ownGoalX/.test(viewer) &&
       /markPull/.test(viewer),
+  );
+}
+
+console.log("\n[U33] Smooth replay continuity and played-time timeline");
+{
+  const viewer = read("src/components/game/MatchPitchViewer.tsx");
+  const sequence = read("src/lib/game/matchSequence.ts");
+  check(
+    "player positions carry forward from completed football actions instead of snapping to formation",
+    /settledPositionAfterAction/.test(viewer) &&
+      /settledPlayerPosition/.test(viewer) &&
+      /settledBase/.test(viewer) &&
+      /duration-300/.test(viewer),
+  );
+  check(
+    "canonical receiving positions are derived from tactical roles",
+    /ROLE_DEPTH/.test(sequence) &&
+      /roleLane/.test(sequence) &&
+      /rolePitchPoint/.test(sequence) &&
+      /touchPoints\(event, participants, pattern\)/.test(sequence),
+  );
+  check(
+    "timeline exposes only the furthest match position actually played",
+    /frontierPositionRef/.test(viewer) &&
+      /max=\{Math\.max\(0\.001, frontierPosition\)\}/.test(viewer) &&
+      /Math\.min\(Number\(event\.target\.value\), frontierPositionRef\.current\)/.test(viewer),
+  );
+  check(
+    "rewinding pauses and return-to-live never skips unseen football",
+    /setCursor\(0\)[\s\S]*?setPlaying\(false\)/.test(viewer) &&
+      /setPlaying\(false\)[\s\S]*?aria-label="Return to the latest played moment"/.test(viewer) &&
+      !/setCursor\(events\.length - 1\)/.test(viewer),
   );
 }
 
