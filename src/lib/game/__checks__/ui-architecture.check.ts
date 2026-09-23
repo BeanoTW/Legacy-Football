@@ -719,5 +719,41 @@ console.log("\n[U26] Match commentary flow");
   );
 }
 
+console.log("\n[U27] Manager identity in matchday");
+{
+  const viewer = read("src/components/game/MatchPitchViewer.tsx");
+  const overlay = read("src/components/game/MatchDayOverlay.tsx");
+  const sequence = read("src/lib/game/matchSequence.ts");
+  check(
+    "matchday passes canonical manager plans into the sequence generator",
+    /userPlan=\{lm\.engine\?\.userPlan\}/.test(overlay) &&
+      /opponentPlan=\{lm\.engine\?\.opponentPlan\}/.test(overlay) &&
+      /userPlan/.test(viewer) &&
+      /opponentPlan/.test(viewer),
+  );
+  check(
+    "sequence patterns visibly encode manager directness pressing and tempo",
+    /sequencePattern/.test(sequence) &&
+      /directness/.test(sequence) &&
+      /pressing/.test(sequence) &&
+      /tempoScale/.test(sequence) &&
+      /highPress/.test(sequence),
+  );
+  check(
+    "richer possession vocabulary includes circulation width and pressure",
+    /"recycle"/.test(sequence) &&
+      /"switch"/.test(sequence) &&
+      /"overlap"/.test(sequence) &&
+      /"cutback"/.test(sequence) &&
+      /"press"/.test(sequence),
+  );
+  check(
+    "off-ball team shape responds to manager plan rather than only fixed role coordinates",
+    /plan\?\.directness/.test(viewer) &&
+      /plan\?\.pressing/.test(viewer) &&
+      /plan\?\.tempo/.test(viewer),
+  );
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
