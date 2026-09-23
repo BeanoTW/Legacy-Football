@@ -476,20 +476,30 @@ type DefensiveSecondPhase =
 function defensiveSecondPhase(
   event: MatchEvent,
   participantCount: number,
+  defendingPlan: MatchTeamPlan,
 ): DefensiveSecondPhase {
   if (participantCount < 2) return "none";
-  const roll = seedOf(event, "defensive-second-phase") % 10;
-  if (participantCount < 3) return roll < 4 ? "challenge" : "none";
-  if (event.type === "goal") {
-    if (roll < 2) return "clearanceRecovery";
-    if (roll < 4) return "challenge";
-    if (roll === 4) return "blockRecovery";
-    return "none";
-  }
-  if (roll < 3) return "clearanceRecovery";
-  if (roll < 5) return "challenge";
-  if (roll < 7) return "blockRecovery";
-  return "none";
+
+  const pressureThreshold =
+    defendingPlan.pressing === "High"
+      ? 8
+      : defendingPlan.pressing === "Low"
+        ? 4
+        : 6;
+  const eventThreshold = Math.max(
+    2,
+    pressureThreshold -
+      (event.type === "goal" ? 2 : 0) +
+      (defendingPlan.philosophy === "Defensive" ? 1 : 0),
+  );
+  const interventionRoll = seedOf(event, "defensive-second-phase") % 10;
+  if (interventionRoll >= eventThreshold) return "none";
+  if (participantCount < 3) return "challenge";
+
+  const modeRoll = seedOf(event, "defensive-second-phase-mode") % 3;
+  if (modeRoll === 0) return "clearanceRecovery";
+  if (modeRoll === 1) return "challenge";
+  return "blockRecovery";
 }
 
 function clearanceDestination(
@@ -571,7 +581,7 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
     ? pressurePlayer(event, defendingLineup)
     : undefined;
   const pressureAt = participants.length > 3 ? 1 : 0;
-  const secondPhase = defensiveSecondPhase(event, participants.length);
+  const secondPhase = defensiveSecondPhase(event, participants.length, defendingPlan);
   const interventionAt = Math.max(0, participants.length - 3);
   const interventionPlayer =
     secondPhase !== "none"
