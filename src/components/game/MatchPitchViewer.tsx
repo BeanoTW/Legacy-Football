@@ -1,48 +1,85 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pause, Play, RotateCcw, SkipForward } from "lucide-react";
-import type { MatchEvent, MatchLineupPlayer } from "@/lib/game/types";
+import type {
+  MatchEvent,
+  MatchLineupPlayer,
+  MatchSubstitution,
+  TacticalPosition,
+} from "@/lib/game/types";
+import {
+  activeMatchLineupAtMinute,
+  buildMatchSequence,
+  frameForSequence,
+  sequenceDurationMs,
+  sequenceResultVisible,
+  type MatchPitchPoint,
+  type MatchSequence,
+  type MatchSequenceAction,
+} from "@/lib/game/matchSequence";
 import { cn } from "@/lib/utils";
 
-const HOME_SHAPE = [
-  [8, 50],
-  [24, 15],
-  [22, 38],
-  [22, 62],
-  [24, 85],
-  [43, 24],
-  [40, 50],
-  [43, 76],
-  [65, 18],
-  [69, 50],
-  [65, 82],
-] as const;
-const AWAY_SHAPE = HOME_SHAPE.map(([x, y]) => [100 - x, 100 - y] as const);
-const BASE_EVENT_MS = 4_800;
 const PLAYBACK_SPEEDS = [1, 2, 4] as const;
+const BASE_EVENT_MS = 4_800;
 
-interface PitchPoint {
-  x: number;
-  y: number;
+const ROLE_X: Record<TacticalPosition, number> = {
+  GK: 8,
+  LB: 24,
+  CB: 22,
+  RB: 24,
+  LWB: 35,
+  RWB: 35,
+  CDM: 40,
+  CM: 48,
+  CAM: 59,
+  LM: 52,
+  RM: 52,
+  LW: 68,
+  RW: 68,
+  ST: 74,
+};
+
+function roleY(role: TacticalPosition, occurrence: number, count: number): number {
+  if (role === "LB" || role === "LWB" || role === "LM" || role === "LW") return 16;
+  if (role === "RB" || role === "RWB" || role === "RM" || role === "RW") return 84;
+  if (role === "GK" || role === "CAM") return 50;
+  if (count <= 1) return 50;
+  const low = role === "CB" ? 32 : role === "ST" ? 37 : 28;
+  const high = 100 - low;
+  return low + ((high - low) * occurrence) / Math.max(1, count - 1);
+}
+
+function formationPositions(
+  lineup: MatchLineupPlayer[],
+  ours: boolean,
+): Map<string, MatchPitchPoint> {
+  const totals = new Map<TacticalPosition, number>();
+  for (const player of lineup) totals.set(player.role, (totals.get(player.role) ?? 0) + 1);
+  const seen = new Map<TacticalPosition, number>();
+  const result = new Map<string, MatchPitchPoint>();
+  for (const player of lineup) {
+    const occurrence = seen.get(player.role) ?? 0;
+    seen.set(player.role, occurrence + 1);
+    const x = ROLE_X[player.role];
+    result.set(player.playerId, {
+      x: ours ? x : 100 - x,
+      y: roleY(player.role, occurrence, totals.get(player.role) ?? 1),
+    });
+  }
+  return result;
 }
 
 function eventSeed(event: MatchEvent | undefined): number {
   if (!event) return 0;
-  return (
-    event.sequenceId?.split("").reduce((sum, char) => sum + char.charCodeAt(0), 0) ??
-    event.minute * 31
-  );
+  const input = event.sequenceId ?? `${event.minute}:${event.type}:${event.side}`;
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
 }
 
-function chanceOutcome(event: MatchEvent): "saved" | "wide" | "blocked" | "over" {
-  const text = event.text.toLowerCase();
-  if (text.includes("save") || text.includes("smother")) return "saved";
-  if (text.includes("block") || text.includes("turned behind")) return "blocked";
-  if (text.includes("over")) return "over";
-  if (text.includes("wide") || text.includes("dragged")) return "wide";
-  return ["saved", "wide", "blocked", "over"][eventSeed(event) % 4] as "saved" | "wide" | "blocked" | "over";
-}
-
-function eventPosition(event: MatchEvent | undefined): PitchPoint {
+function fallbackEventPosition(event: MatchEvent | undefined): MatchPitchPoint {
   if (!event) return { x: 50, y: 50 };
   const attackingX =
     event.zone === "box"
@@ -52,315 +89,145 @@ function eventPosition(event: MatchEvent | undefined): PitchPoint {
         : event.zone === "middleThird"
           ? 55
           : 29;
-  const phaseNudge =
-    event.phase === "transition"
-      ? 4
-      : event.phase === "setPiece"
-        ? 1
-        : event.phase === "finalThird"
-          ? 5
-          : 0;
-  const x = event.side === "them" ? 100 - attackingX - phaseNudge : attackingX + phaseNudge;
-  const seed = eventSeed(event);
-  return { x: Math.max(4, Math.min(96, x)), y: 16 + ((seed * 17) % 69) };
+  const x = event.side === "them" ? 100 - attackingX : attackingX;
+  return { x: Math.max(4, Math.min(96, x)), y: 18 + ((eventSeed(event) * 17) % 65) };
 }
 
-function attackingDirection(event: MatchEvent): 1 | -1 {
-  return event.side === "them" ? -1 : 1;
-}
-
-function shotEnd(event: MatchEvent): PitchPoint {
-  const direction = attackingDirection(event);
-  const seed = eventSeed(event);
-  if (event.type === "goal") {
-    return {
-      x: direction === 1 ? 99.3 : 0.7,
-      y: 44 + (seed % 13),
-    };
-  }
-
-  const outcome = chanceOutcome(event);
-  if (outcome === "saved") {
-    return {
-      x: direction === 1 ? 94.5 : 5.5,
-      y: 43 + (seed % 15),
-    };
-  }
-  if (outcome === "blocked") {
-    return {
-      x: direction === 1 ? 86 : 14,
-      y: 34 + (seed % 33),
-    };
-  }
-  if (outcome === "over") {
-    return {
-      x: direction === 1 ? 98 : 2,
-      y: seed % 2 === 0 ? 34 : 66,
-    };
-  }
-  return {
-    x: direction === 1 ? 98 : 2,
-    y: seed % 2 === 0 ? 27 : 73,
-  };
-}
-
-function eventPath(event: MatchEvent | undefined): PitchPoint[] {
-  if (!event) return [{ x: 50, y: 50 }];
-  const target = eventPosition(event);
-  if (event.type === "card" || event.side === "neutral") return [target];
-
-  const direction = attackingDirection(event);
-  const seed = eventSeed(event);
-  const shotEvent = event.type === "goal" || event.type === "chance";
-  const end = shotEvent ? shotEnd(event) : target;
-  const startX =
-    event.phase === "transition"
-      ? target.x - direction * 48
-      : event.phase === "setPiece"
-        ? target.x - direction * 24
-        : target.x - direction * 36;
-  const startY = 14 + ((seed * 11) % 73);
-  const laneA = ((seed % 5) - 2) * 6;
-  const laneB = (((seed >> 2) % 5) - 2) * 5;
-  const clampX = (x: number) => Math.max(1, Math.min(99, x));
-  const clampY = (y: number) => Math.max(7, Math.min(93, y));
-  const shotOrigin = {
-    x: direction === 1 ? Math.min(88, target.x - 4) : Math.max(12, target.x + 4),
-    y: clampY(38 + ((seed * 7) % 25)),
-  };
-
-  const distance = Math.abs(target.x - startX);
-  const pass1 = {
-    x: clampX(startX + direction * distance * 0.16),
-    y: clampY(startY + laneA),
-  };
-  const pass2 = {
-    x: clampX(startX + direction * distance * 0.34),
-    y: clampY(startY * 0.72 + shotOrigin.y * 0.28 - laneB),
-  };
-  const pass3 = {
-    x: clampX(startX + direction * distance * 0.52),
-    y: clampY(startY * 0.48 + shotOrigin.y * 0.52 + laneB),
-  };
-  const pass4 = {
-    x: clampX(startX + direction * distance * 0.69),
-    y: clampY(startY * 0.25 + shotOrigin.y * 0.75 - laneA * 0.4),
-  };
-  const buildUp: PitchPoint[] = [
-    { x: clampX(startX), y: clampY(startY) },
-    pass1,
-    pass2,
-    pass3,
-    pass4,
-  ];
-
-  if (!shotEvent) return [...buildUp, target];
-
-  return [
-    ...buildUp,
-    shotOrigin,
-    {
-      x: shotOrigin.x + (end.x - shotOrigin.x) * 0.44,
-      y: shotOrigin.y + (end.y - shotOrigin.y) * 0.44,
-    },
-    end,
-  ];
-}
-function catmullRom(a: number, b: number, c: number, d: number, t: number): number {
-  const t2 = t * t;
-  const t3 = t2 * t;
-  return 0.5 * (
-    2 * b +
-    (-a + c) * t +
-    (2 * a - 5 * b + 4 * c - d) * t2 +
-    (-a + 3 * b - 3 * c + d) * t3
-  );
-}
-
-function pointOnPath(path: PitchPoint[], progress: number): PitchPoint {
-  if (path.length === 1) return path[0];
-  const scaled = Math.max(0, Math.min(0.9999, progress)) * (path.length - 1);
-  const index = Math.floor(scaled);
-  const t = scaled - index;
-  const p0 = path[Math.max(0, index - 1)];
-  const p1 = path[index];
-  const p2 = path[Math.min(path.length - 1, index + 1)];
-  const p3 = path[Math.min(path.length - 1, index + 2)];
-  return {
-    x: catmullRom(p0.x, p1.x, p2.x, p3.x, t),
-    y: catmullRom(p0.y, p1.y, p2.y, p3.y, t),
-  };
-}
-function eventDurationMs(event: MatchEvent | undefined): number {
+function eventDurationMs(event: MatchEvent | undefined, sequence: MatchSequence | null): number {
+  if (sequence) return sequenceDurationMs(sequence);
   if (!event) return BASE_EVENT_MS;
-  if (event.type === "goal") return 6_200;
-  if (event.type === "chance") return 5_400;
-  if (event.type === "sub" || event.type === "injury" || event.type === "card") return 2_600;
+  if (event.type === "sub" || event.type === "injury" || event.type === "card") return 3_200;
   return BASE_EVENT_MS;
 }
 
-function replayStage(event: MatchEvent | undefined, progress: number): string {
-  if (!event) return "Match phase";
-  if (event.type === "goal" || event.type === "chance") {
-    if (progress < 0.2) return "Build-up";
-    if (progress < 0.42) return "Passing move";
-    if (progress < 0.62) return event.phase === "transition" ? "Break" : "Progression";
-    if (progress < 0.78) return "Final ball";
-    if (progress < 0.9) return "Shot";
-    return event.type === "goal" ? "Goal" : chanceOutcome(event);
+function actionStage(action: MatchSequenceAction | undefined, event: MatchEvent | undefined): string {
+  if (!action) return event?.phase?.replace(/([A-Z])/g, " $1") ?? event?.type ?? "Match phase";
+  switch (action.kind) {
+    case "receive":
+      return "Possession";
+    case "carry":
+      return "Carry";
+    case "pass":
+      return "Passing move";
+    case "throughBall":
+      return "Through ball";
+    case "cross":
+      return "Cross";
+    case "shot":
+      return "Shot";
+    case "save":
+      return "Saved";
+    case "block":
+      return "Blocked";
+    case "miss":
+      return "Missed";
+    case "goal":
+      return "Goal";
   }
-  return event.phase?.replace(/([A-Z])/g, " $1") ?? event.type;
 }
 
-
-function possessionPlayerIds(event: MatchEvent | undefined, lineup: MatchLineupPlayer[]): string[] {
-  if (!event || event.side === "neutral" || (event.type !== "goal" && event.type !== "chance")) return [];
-  const outfield = lineup.filter((player) => player.role !== "GK");
-  if (!outfield.length) return [];
-
-  const actorId = event.actorPlayerId;
-  const creatorId = event.secondaryPlayerId;
-  const excluded = new Set([actorId, creatorId].filter(Boolean) as string[]);
-  const pool = outfield.filter((player) => !excluded.has(player.playerId));
-  const seed = eventSeed(event);
-  const rotated = pool.length
-    ? [...pool.slice(seed % pool.length), ...pool.slice(0, seed % pool.length)]
-    : [];
-
-  const buildUpCount = event.phase === "transition" ? 2 : 3;
-  const ids = rotated.slice(0, buildUpCount).map((player) => player.playerId);
-  if (creatorId && !ids.includes(creatorId)) ids.push(creatorId);
-  if (actorId && !ids.includes(actorId)) ids.push(actorId);
-
-  if (!actorId && outfield.length) {
-    const fallback = outfield[seed % outfield.length]?.playerId;
-    if (fallback && !ids.includes(fallback)) ids.push(fallback);
-  }
-  return ids;
+function isTerminalAction(action: MatchSequenceAction | undefined): boolean {
+  return Boolean(action && ["goal", "save", "block", "miss"].includes(action.kind));
 }
-
-function touchPointForPlayer(
-  playerId: string | undefined,
-  possessionIds: string[],
-  path: PitchPoint[],
-): PitchPoint | undefined {
-  if (!playerId || possessionIds.length === 0 || path.length < 2) return undefined;
-  const index = possessionIds.indexOf(playerId);
-  if (index < 0) return undefined;
-  const buildUpEnd = Math.max(1, path.length - 3);
-  const fraction = possessionIds.length === 1 ? 1 : index / (possessionIds.length - 1);
-  const pointIndex = Math.min(buildUpEnd, Math.round(fraction * buildUpEnd));
-  return path[pointIndex];
-}
-
-function passLabel(
-  event: MatchEvent | undefined,
-  progress: number,
-  possessionIds: string[],
-  lineup: MatchLineupPlayer[],
-): string | null {
-  if (!event || possessionIds.length < 2 || progress >= 0.82) return null;
-  const passProgress = Math.max(0, Math.min(0.999, progress / 0.82));
-  const segment = Math.min(possessionIds.length - 2, Math.floor(passProgress * (possessionIds.length - 1)));
-  const from = lineup.find((player) => player.playerId === possessionIds[segment]);
-  const to = lineup.find((player) => player.playerId === possessionIds[segment + 1]);
-  if (!from || !to) return null;
-  const surname = (name: string) => name.trim().split(/\s+/).pop() ?? name;
-  return `${surname(from.name)} → ${surname(to.name)}`;
-}
-
 
 function playerPosition(
-  baseX: number,
-  baseY: number,
+  base: MatchPitchPoint,
   ours: boolean,
-  index: number,
-  player: MatchLineupPlayer | undefined,
-  event: MatchEvent | undefined,
-  ball: PitchPoint,
-  progress: number,
-  touchPoint?: PitchPoint,
-): PitchPoint {
-  if (!event || event.side === "neutral") return { x: baseX, y: baseY };
-
-  const inPossession = (event.side === "us") === ours;
-  const actor = Boolean(player && event.actorPlayerId === player.playerId);
-  const creator = Boolean(player && event.secondaryPlayerId === player.playerId);
-  const defendingKeeper = index === 0 && !inPossession && (event.type === "goal" || event.type === "chance");
-
-  if (touchPoint && inPossession) {
-    const settle = Math.sin(Math.min(1, progress * 2.4) * Math.PI / 2);
-    const actorShotRun = actor && progress > 0.72
-      ? Math.min(1, (progress - 0.72) / 0.18)
-      : 0;
-    const direction = ours ? 1 : -1;
-    const targetX = actorShotRun > 0 ? ball.x - direction * 2.2 : touchPoint.x;
-    const targetY = actorShotRun > 0 ? ball.y : touchPoint.y;
-    return {
-      x: Math.max(3, Math.min(97, baseX + (targetX - baseX) * Math.max(settle * 0.72, actorShotRun))),
-      y: Math.max(5, Math.min(95, baseY + (targetY - baseY) * Math.max(settle * 0.72, actorShotRun))),
-    };
-  }
-
-  if (actor && progress > 0.72) {
-    const direction = ours ? 1 : -1;
-    return {
-      x: Math.max(3, Math.min(97, ball.x - direction * 2.2)),
-      y: Math.max(5, Math.min(95, ball.y)),
-    };
-  }
-
-  if (creator && progress < 0.72) {
-    const direction = ours ? 1 : -1;
-    return {
-      x: Math.max(3, Math.min(97, ball.x - direction * 8)),
-      y: Math.max(5, Math.min(95, ball.y + (eventSeed(event) % 2 === 0 ? -7 : 7))),
-    };
-  }
-
-  if (defendingKeeper) {
-    const destination = shotEnd(event);
-    const outcome = event.type === "chance" ? chanceOutcome(event) : "goal";
-    const saveProgress = Math.max(0, Math.min(1, (progress - 0.58) / 0.4));
-    const keeperTargetY =
-      outcome === "saved"
-        ? destination.y
-        : Math.max(40, Math.min(60, destination.y + (eventSeed(event) % 2 === 0 ? -8 : 8)));
-    const keeperTargetX = ours ? 5.5 : 94.5;
-    return {
-      x: baseX + (keeperTargetX - baseX) * saveProgress,
-      y: baseY + (keeperTargetY - baseY) * saveProgress,
-    };
-  }
-
-  if (index === 0) return { x: baseX, y: baseY };
-
+  player: MatchLineupPlayer,
+  action: MatchSequenceAction | undefined,
+  ball: MatchPitchPoint,
+  localProgress: number,
+  inPossession: boolean,
+  sourceType: MatchEvent["type"] | undefined,
+): MatchPitchPoint {
+  const clampX = (value: number) => Math.max(3, Math.min(97, value));
+  const clampY = (value: number) => Math.max(5, Math.min(95, value));
   const direction = ours ? 1 : -1;
-  const seed = eventSeed(event) + index * 23 + (ours ? 11 : 37);
-  const attackLine = index > 7 ? 10 : index > 4 ? 6 : 2.5;
-  const retreatLine = index > 7 ? -5 : index > 4 ? -3 : -1;
-  const phasePulse = Math.sin(progress * Math.PI);
-  const lineShift = (inPossession ? attackLine : retreatLine) * phasePulse;
-  const ballPull = (inPossession ? 0.18 : 0.11) * (0.55 + phasePulse * 0.45);
-  const compactY = inPossession ? 0.08 : 0.15;
-  const laneMotion = Math.sin(progress * Math.PI * 2 + (seed % 7)) * (index === 0 ? 0 : 1.8);
 
+  if (inPossession && action?.playerId === player.playerId) {
+    if (action.kind === "carry") {
+      return {
+        x: clampX(ball.x - direction * 1.8),
+        y: clampY(ball.y + Math.sin(localProgress * Math.PI) * 1.2),
+      };
+    }
+    if (["pass", "throughBall", "cross"].includes(action.kind)) {
+      return { x: action.start.x, y: action.start.y };
+    }
+    if (action.kind === "shot") {
+      return {
+        x: clampX(action.start.x + direction * localProgress * 1.8),
+        y: action.start.y,
+      };
+    }
+  }
+
+  if (inPossession && action?.targetPlayerId === player.playerId) {
+    const settle = Math.max(0.2, localProgress);
+    return {
+      x: clampX(base.x + (action.end.x - base.x) * settle),
+      y: clampY(base.y + (action.end.y - base.y) * settle),
+    };
+  }
+
+  const defendingKeeper =
+    player.role === "GK" &&
+    !inPossession &&
+    (sourceType === "goal" || sourceType === "chance") &&
+    action &&
+    (action.kind === "shot" || isTerminalAction(action));
+  if (defendingKeeper && action) {
+    const react = action.kind === "shot" ? localProgress : 1;
+    const keeperX = ours ? 5.5 : 94.5;
+    const goalY = Math.max(40, Math.min(60, action.end.y));
+    return {
+      x: base.x + (keeperX - base.x) * react,
+      y: base.y + (goalY - base.y) * react,
+    };
+  }
+
+  if (player.role === "GK") return base;
+
+  const attackShift = inPossession ? 7 : -3;
+  const ballPull = inPossession ? 0.1 : 0.07;
   return {
-    x: Math.max(
-      3,
-      Math.min(97, baseX + direction * lineShift + (ball.x - baseX) * ballPull),
-    ),
-    y: Math.max(
-      5,
-      Math.min(
-        95,
-        baseY +
-          (ball.y - baseY) * ballPull +
-          (50 - baseY) * compactY * phasePulse +
-          laneMotion,
-      ),
-    ),
+    x: clampX(base.x + direction * attackShift + (ball.x - base.x) * ballPull),
+    y: clampY(base.y + (ball.y - base.y) * ballPull + (50 - base.y) * (inPossession ? 0.04 : 0.09)),
   };
+}
+
+function PlayerDot({
+  x,
+  y,
+  ours = false,
+  active = false,
+  receiver = false,
+  player,
+  expanded = false,
+}: {
+  x: number;
+  y: number;
+  ours?: boolean;
+  active?: boolean;
+  receiver?: boolean;
+  player: MatchLineupPlayer;
+  expanded?: boolean;
+}) {
+  return (
+    <span
+      className={cn(
+        "absolute grid -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border font-black leading-none shadow-sm transition-[left,top] duration-150 will-change-[left,top,transform]",
+        expanded ? "size-5 text-[8px] sm:size-6 sm:text-[9px]" : "size-3.5 text-[6px] sm:size-4 sm:text-[7px]",
+        ours ? "border-emerald-950 bg-emerald-300" : "border-rose-950 bg-rose-300",
+        active && "z-20 scale-125 ring-2 ring-white/55",
+        receiver && !active && "z-10 ring-2 ring-white/25",
+      )}
+      style={{ left: `${x}%`, top: `${y}%` }}
+      title={`${player.shirtNumber}. ${player.name} · ${player.role}`}
+    >
+      {player.shirtNumber}
+    </span>
+  );
 }
 
 export function MatchPitchViewer({
@@ -369,6 +236,9 @@ export function MatchPitchViewer({
   themName,
   userLineup = [],
   opponentLineup = [],
+  userBench = [],
+  opponentBench = [],
+  substitutions = [],
   onReplayProgress,
   expanded = false,
 }: {
@@ -377,6 +247,9 @@ export function MatchPitchViewer({
   themName: string;
   userLineup?: MatchLineupPlayer[];
   opponentLineup?: MatchLineupPlayer[];
+  userBench?: MatchLineupPlayer[];
+  opponentBench?: MatchLineupPlayer[];
+  substitutions?: MatchSubstitution[];
   onReplayProgress?: (revealedEvents: number, complete: boolean) => void;
   expanded?: boolean;
 }) {
@@ -398,20 +271,46 @@ export function MatchPitchViewer({
     }
   }, [events.length]);
 
+  const active = events[Math.min(cursor, Math.max(0, events.length - 1))];
+  const sequence = useMemo(
+    () =>
+      active
+        ? buildMatchSequence({
+            event: active,
+            userLineup,
+            opponentLineup,
+            userBench,
+            opponentBench,
+            substitutions,
+          })
+        : null,
+    [active, opponentBench, opponentLineup, substitutions, userBench, userLineup],
+  );
+  const frame = useMemo(
+    () => (sequence ? frameForSequence(sequence, progress) : null),
+    [progress, sequence],
+  );
+  const ball = frame?.ball ?? fallbackEventPosition(active);
+  const activeAction = frame?.action;
+  const activeDuration = eventDurationMs(active, sequence);
+
   useEffect(() => {
     if (!playing || events.length === 0) return;
-    const remaining = Math.max(0.08, 1 - progressRef.current);
-    const duration = (eventDurationMs(events[cursor]) * remaining) / playbackSpeed;
+    const remaining = Math.max(0.06, 1 - progressRef.current);
+    const duration = (activeDuration * remaining) / playbackSpeed;
     const timer = window.setTimeout(() => {
-      if (cursor >= events.length - 1) setPlaying(false);
-      else {
+      if (cursor >= events.length - 1) {
+        progressRef.current = 1;
+        setProgress(1);
+        setPlaying(false);
+      } else {
         setCursor((current) => Math.min(events.length - 1, current + 1));
         progressRef.current = 0;
         setProgress(0);
       }
     }, duration);
     return () => window.clearTimeout(timer);
-  }, [cursor, events, events.length, playbackSpeed, playing]);
+  }, [activeDuration, cursor, events.length, playbackSpeed, playing]);
 
   useEffect(() => {
     if (!playing || events.length === 0) return;
@@ -420,50 +319,70 @@ export function MatchPitchViewer({
     const animate = (timestamp: number) => {
       started ??= timestamp;
       const elapsed = timestamp - started;
-      const duration = eventDurationMs(events[cursor]) / playbackSpeed;
-      const next = Math.min(1, startProgress + elapsed / (duration * 0.88));
+      const duration = activeDuration / playbackSpeed;
+      const next = Math.min(1, startProgress + elapsed / (duration * 0.92));
       progressRef.current = next;
       setProgress(next);
-      if (next < 1) {
-        animationFrame.current = window.requestAnimationFrame(animate);
-      }
+      if (next < 1) animationFrame.current = window.requestAnimationFrame(animate);
     };
     animationFrame.current = window.requestAnimationFrame(animate);
     return () => {
       if (animationFrame.current !== null) window.cancelAnimationFrame(animationFrame.current);
     };
-  }, [cursor, events, events.length, playbackSpeed, playing]);
+  }, [activeDuration, cursor, events.length, playbackSpeed, playing]);
 
-  const active = events[Math.min(cursor, Math.max(0, events.length - 1))];
-  const path = useMemo(() => eventPath(active), [active]);
-  const ball = useMemo(() => pointOnPath(path, progress), [path, progress]);
-  const attackingLineup = active?.side === "them" ? opponentLineup : userLineup;
-  const possessionIds = useMemo(
-    () => possessionPlayerIds(active, attackingLineup),
-    [active, attackingLineup],
-  );
-  const activePassLabel = useMemo(
-    () => passLabel(active, progress, possessionIds, attackingLineup),
-    [active, attackingLineup, possessionIds, progress],
-  );
-
+  const activeResultVisible =
+    sequence
+      ? sequenceResultVisible(sequence, progress)
+      : progress >= 0.88;
   const replayScore = useMemo(() => {
     const committed = events.slice(0, cursor).filter((event) => event.type === "goal");
-    const activeGoalVisible = active?.type === "goal" && progress >= 0.9 ? [active] : [];
-    const visible = [...committed, ...activeGoalVisible];
+    const activeGoal =
+      active?.type === "goal" && activeResultVisible ? [active] : [];
+    const visible = [...committed, ...activeGoal];
     return {
       us: visible.filter((event) => event.side === "us").length,
       them: visible.filter((event) => event.side === "them").length,
     };
-  }, [active, cursor, events, progress]);
+  }, [active, activeResultVisible, cursor, events]);
 
   useEffect(() => {
-    onReplayProgress?.(cursor + 1, !playing && cursor >= events.length - 1);
-  }, [cursor, events.length, onReplayProgress, playing]);
+    const revealed = Math.min(events.length, cursor + (activeResultVisible ? 1 : 0));
+    const complete =
+      events.length > 0 &&
+      !playing &&
+      cursor >= events.length - 1 &&
+      progressRef.current >= 0.99;
+    onReplayProgress?.(revealed, complete);
+  }, [activeResultVisible, cursor, events.length, onReplayProgress, playing, progress]);
 
   if (events.length === 0) return null;
 
-  const completedPoints = Math.max(1, Math.ceil(progress * path.length));
+  const activeUserLineup = activeMatchLineupAtMinute(
+    userLineup,
+    userBench,
+    substitutions,
+    "us",
+    active?.minute ?? 0,
+  );
+  const activeOpponentLineup = activeMatchLineupAtMinute(
+    opponentLineup,
+    opponentBench,
+    substitutions,
+    "them",
+    active?.minute ?? 0,
+  );
+  const userShape = formationPositions(activeUserLineup, true);
+  const opponentShape = formationPositions(activeOpponentLineup, false);
+  const possessionSide = active?.side;
+  const passLabel =
+    activeAction?.targetPlayerName && activeAction.playerName
+      ? `${activeAction.playerName.split(" ").pop()} → ${activeAction.targetPlayerName.split(" ").pop()}`
+      : null;
+  const actionCommentary =
+    sequence && activeAction
+      ? activeAction.commentary
+      : active?.text ?? "The match settles into shape.";
 
   return (
     <div
@@ -474,7 +393,7 @@ export function MatchPitchViewer({
     >
       <div className="mb-2 flex items-center justify-between gap-2">
         <div className="min-w-0 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-300">
-          2D match replay
+          Live match simulation
         </div>
         <div className="flex items-center gap-2 text-xs font-semibold tnum">
           <span className="max-w-24 truncate">{usName}</span>
@@ -503,55 +422,82 @@ export function MatchPitchViewer({
         <div className="absolute left-0 top-[42%] h-[16%] w-[1.8%] border-y border-r border-white/70 bg-white/10" />
         <div className="absolute right-0 top-[42%] h-[16%] w-[1.8%] border-y border-l border-white/70 bg-white/10" />
 
-        <svg
-          className="pointer-events-none absolute inset-0 size-full"
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
-          <polyline
-            points={path.map((point) => `${point.x},${point.y}`).join(" ")}
-            fill="none"
-            stroke="rgba(255,255,255,.13)"
-            strokeWidth="0.55"
-            strokeDasharray="1.5 2"
-          />
-          <polyline
-            points={path.slice(0, completedPoints).map((point) => `${point.x},${point.y}`).join(" ")}
-            fill="none"
-            stroke={active?.side === "them" ? "#fda4af" : "#6ee7b7"}
-            strokeWidth="0.9"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            opacity="0.75"
-          />
-        </svg>
+        {sequence && (
+          <svg
+            className="pointer-events-none absolute inset-0 size-full"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            {sequence.actions
+              .filter((item) => item.start.x !== item.end.x || item.start.y !== item.end.y)
+              .map((item, index) => (
+                <line
+                  key={item.id}
+                  x1={item.start.x}
+                  y1={item.start.y}
+                  x2={item.end.x}
+                  y2={item.end.y}
+                  stroke={
+                    index < (frame?.actionIndex ?? 0)
+                      ? active?.side === "them"
+                        ? "#fda4af"
+                        : "#6ee7b7"
+                      : "rgba(255,255,255,.12)"
+                  }
+                  strokeWidth={index <= (frame?.actionIndex ?? -1) ? 0.75 : 0.45}
+                  strokeDasharray={item.kind === "carry" ? "1 1.5" : undefined}
+                  opacity={index <= (frame?.actionIndex ?? -1) ? 0.7 : 0.5}
+                />
+              ))}
+          </svg>
+        )}
 
-        {HOME_SHAPE.map(([x, y], index) => {
-          const touchPoint = active?.side === "us" ? touchPointForPlayer(userLineup[index]?.playerId, possessionIds, path) : undefined;
-          const position = playerPosition(x, y, true, index, userLineup[index], active, ball, progress, touchPoint);
+        {activeUserLineup.map((player) => {
+          const base = userShape.get(player.playerId) ?? { x: 45, y: 50 };
+          const position = playerPosition(
+            base,
+            true,
+            player,
+            activeAction,
+            ball,
+            frame?.localProgress ?? progress,
+            possessionSide === "us",
+            active?.type,
+          );
           return (
             <PlayerDot
-              key={`us-${index}`}
+              key={`us-${player.playerId}`}
               x={position.x}
               y={position.y}
               ours
-              active={active?.actorPlayerId === userLineup[index]?.playerId || (active?.side === "us" && Math.abs(position.x - ball.x) < 9 && Math.abs(position.y - ball.y) < 12)}
-              player={userLineup[index]}
+              active={activeAction?.playerId === player.playerId}
+              receiver={activeAction?.targetPlayerId === player.playerId}
+              player={player}
               expanded={expanded}
             />
           );
         })}
-        {AWAY_SHAPE.map(([x, y], index) => {
-          const touchPoint = active?.side === "them" ? touchPointForPlayer(opponentLineup[index]?.playerId, possessionIds, path) : undefined;
-          const position = playerPosition(x, y, false, index, opponentLineup[index], active, ball, progress, touchPoint);
+        {activeOpponentLineup.map((player) => {
+          const base = opponentShape.get(player.playerId) ?? { x: 55, y: 50 };
+          const position = playerPosition(
+            base,
+            false,
+            player,
+            activeAction,
+            ball,
+            frame?.localProgress ?? progress,
+            possessionSide === "them",
+            active?.type,
+          );
           return (
             <PlayerDot
-              key={`them-${index}`}
+              key={`them-${player.playerId}`}
               x={position.x}
               y={position.y}
-              active={active?.actorPlayerId === opponentLineup[index]?.playerId || (active?.side === "them" && Math.abs(position.x - ball.x) < 9 && Math.abs(position.y - ball.y) < 12)}
-              player={opponentLineup[index]}
+              active={activeAction?.playerId === player.playerId}
+              receiver={activeAction?.targetPlayerId === player.playerId}
+              player={player}
               expanded={expanded}
             />
           );
@@ -559,38 +505,40 @@ export function MatchPitchViewer({
 
         <span
           className={cn(
-            "absolute -translate-x-1/2 -translate-y-1/2 rounded-full border border-black/25 bg-white shadow-[0_1px_7px_rgba(0,0,0,.85)]",
+            "absolute z-30 -translate-x-1/2 -translate-y-1/2 rounded-full border border-black/25 bg-white shadow-[0_1px_7px_rgba(0,0,0,.85)]",
             expanded ? "size-3" : "size-2.5",
           )}
           style={{ left: `${ball.x}%`, top: `${ball.y}%` }}
         />
-        {activePassLabel && (
-          <div className="absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full border border-white/15 bg-black/55 px-3 py-1 text-[10px] font-bold text-white/85 shadow-sm backdrop-blur-sm">
-            {activePassLabel}
+
+        {passLabel && activeAction && ["pass", "throughBall", "cross"].includes(activeAction.kind) && (
+          <div className="absolute left-1/2 top-3 z-30 -translate-x-1/2 rounded-full border border-white/15 bg-black/60 px-3 py-1 text-[10px] font-bold text-white/85 shadow-sm backdrop-blur-sm">
+            {passLabel}
           </div>
         )}
-        {active?.type === "chance" && progress > 0.9 && (
-          <div className="absolute left-1/2 top-3 z-30 -translate-x-1/2 rounded-full border border-white/20 bg-black/70 px-3 py-1 font-display text-sm uppercase tracking-wide text-white shadow-lg">
-            {chanceOutcome(active)}
-          </div>
-        )}
-        {active?.type === "goal" && progress > 0.9 && (
+
+        {activeAction?.kind === "goal" && frame && frame.localProgress >= 0.2 && (
           <>
             <span
-              className="absolute size-10 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full border-2 border-amber-300"
+              className="absolute z-30 size-10 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full border-2 border-amber-300"
               style={{ left: `${ball.x}%`, top: `${ball.y}%` }}
             />
-            <div className="absolute left-1/2 top-3 z-30 -translate-x-1/2 rounded-full border border-amber-200/50 bg-amber-300 px-4 py-1.5 font-display text-lg text-amber-950 shadow-lg">
+            <div className="absolute left-1/2 top-3 z-40 -translate-x-1/2 rounded-full border border-amber-200/50 bg-amber-300 px-4 py-1.5 font-display text-lg text-amber-950 shadow-lg">
               GOAL
             </div>
           </>
+        )}
+        {activeAction && ["save", "block", "miss"].includes(activeAction.kind) && frame && frame.localProgress >= 0.2 && (
+          <div className="absolute left-1/2 top-3 z-40 -translate-x-1/2 rounded-full border border-white/20 bg-black/70 px-3 py-1 font-display text-sm uppercase tracking-wide text-white shadow-lg">
+            {activeAction.kind === "save" ? "SAVED" : activeAction.kind === "block" ? "BLOCKED" : "MISSED"}
+          </div>
         )}
 
         <div className="absolute bottom-2 left-2 rounded bg-black/45 px-2 py-1 text-[10px] font-bold tnum backdrop-blur-sm">
           {active?.minute ?? 0}'
         </div>
         <div className="absolute bottom-2 right-2 rounded bg-black/45 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-white/75 backdrop-blur-sm">
-          {replayStage(active, progress)}
+          {actionStage(activeAction, active)}
         </div>
       </div>
 
@@ -657,49 +605,19 @@ export function MatchPitchViewer({
           <SkipForward className="size-4" />
         </button>
       </div>
+
       <div
         className={cn(
-          "mt-2 min-h-11 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs leading-snug",
-          active?.type === "goal" && progress >= 0.9 && "border-amber-300/40 bg-amber-300/10",
+          "mt-2 min-h-12 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs leading-snug",
+          activeAction?.kind === "goal" && "border-amber-300/40 bg-amber-300/10",
         )}
         aria-live="polite"
       >
-        <span className="mr-2 font-bold text-emerald-300 tnum">{active?.minute}'</span>
-        {active?.type === "goal" && progress < 0.9
-          ? `${active.actorName ?? (active.side === "us" ? usName : themName)} attacks the box…`
-          : active?.text}
+        <div className="flex items-start gap-2">
+          <span className="shrink-0 font-bold text-emerald-300 tnum">{active?.minute}'</span>
+          <span>{actionCommentary}</span>
+        </div>
       </div>
     </div>
-  );
-}
-
-function PlayerDot({
-  x,
-  y,
-  ours = false,
-  active = false,
-  player,
-  expanded = false,
-}: {
-  x: number;
-  y: number;
-  ours?: boolean;
-  active?: boolean;
-  player?: MatchLineupPlayer;
-  expanded?: boolean;
-}) {
-  return (
-    <span
-      className={cn(
-        "absolute grid -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border font-black leading-none shadow-sm will-change-[left,top,transform]",
-        expanded ? "size-5 text-[8px] sm:size-6 sm:text-[9px]" : "size-3.5 text-[6px] sm:size-4 sm:text-[7px]",
-        ours ? "border-emerald-950 bg-emerald-300" : "border-rose-950 bg-rose-300",
-        active && "scale-125 ring-2 ring-white/35",
-      )}
-      style={{ left: `${x}%`, top: `${y}%` }}
-      title={player ? `${player.shirtNumber}. ${player.name} · ${player.role}` : undefined}
-    >
-      {player?.shirtNumber}
-    </span>
   );
 }
