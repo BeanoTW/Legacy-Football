@@ -54,6 +54,65 @@ export function TacticalPlayerCard({
     ? clubDisplayName(state, player.currentClubId)
     : "Free agent";
 
+  if (owned && mode !== "recruitment") {
+    const contractWeeks = contract ? weeksLeftOnContract(state, contract) : null;
+    const injury = player.injury;
+    return (
+      <button
+        type="button"
+        onClick={() => onOpen ? onOpen() : openPlayerProfile(player.id)}
+        className={cn(
+          "group grid w-full grid-cols-[2.65rem_minmax(0,1fr)_auto_auto] items-center gap-2.5 border-b border-border/60 bg-card px-3 text-left transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary",
+          mode === "compact" ? "min-h-[3.75rem] py-2" : "min-h-[4.45rem] py-2.5",
+          selected && "bg-primary/[0.05]",
+          className,
+        )}
+        aria-label={`Open ${playerName(player)} profile`}
+      >
+        <span className="relative grid size-10 place-items-center rounded-lg border bg-muted/45">
+          <span className="font-display text-sm">{tactical.primary}</span>
+          {selected && <span className="absolute -right-1 -top-1 rounded bg-primary px-1 text-[7px] font-black text-primary-foreground">XI</span>}
+        </span>
+
+        <span className="min-w-0">
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate font-display text-base leading-none">{playerName(player)}</span>
+            {injury && <AlertTriangle className="size-3.5 shrink-0 text-rose-500" />}
+            {loan && <span className="shrink-0 rounded bg-sky-500/10 px-1 py-0.5 text-[8px] font-bold text-sky-700 dark:text-sky-300">LOAN</span>}
+          </span>
+          <span className="mt-1 flex min-w-0 items-center gap-1.5 text-[9px] text-muted-foreground">
+            <span>{ageOf(player, state.season)}y</span>
+            <span>·</span>
+            <span className="truncate">{player.nationality}</span>
+            <span>·</span>
+            <span className={cn(
+              "font-semibold",
+              injury ? "text-rose-600 dark:text-rose-300" : fitness !== null && fitness < 75 ? "text-amber-600 dark:text-amber-300" : ""
+            )}>
+              {injury ? injury.type : `${fitness ?? 100}% fit`}
+            </span>
+          </span>
+          {mode !== "compact" && (
+            <span className="mt-1 block truncate text-[9px] text-muted-foreground/80">
+              {form?.appearances ? `${form.band} · ${form.averageRating.toFixed(2)}` : "No form"}
+              {contract ? ` · ${contract.squadRole} · ${contractWeeks}w` : ""}
+            </span>
+          )}
+        </span>
+
+        <span className="hidden min-w-[3.8rem] text-right sm:block">
+          <span className="block font-display text-sm">{form?.appearances ? form.band : "—"}</span>
+          <span className="block text-[7px] uppercase tracking-wide text-muted-foreground">Form</span>
+        </span>
+
+        <span className="min-w-[2.8rem] text-right">
+          <span className="block font-display text-2xl leading-none">{player.currentAbility}</span>
+          <span className="mt-0.5 block text-[7px] font-bold uppercase tracking-[0.12em] text-muted-foreground">OVR</span>
+        </span>
+      </button>
+    );
+  }
+
   return (
     <article
       className={cn(
