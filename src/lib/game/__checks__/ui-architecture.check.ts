@@ -618,7 +618,7 @@ console.log("\n[U22] Match replay event fidelity");
   check(
     "replay score waits for the canonical sequence result",
     /sequenceResultVisible\(sequence, contentProgress\)/.test(viewer) &&
-      /activeGoal/.test(viewer),
+      /current\?\.type === "goal" && resultVisible/.test(viewer),
   );
   check(
     "defending keeper reacts to the sequence shot",
@@ -628,8 +628,9 @@ console.log("\n[U22] Match replay event fidelity");
   );
   check(
     "pausing replay does not force the current event to completion",
-    !/if \(!playing\) setProgress\(1\)/.test(viewer) &&
-      /progressRef/.test(viewer),
+    /function setPlaying\(playing: boolean\)/.test(viewer) &&
+      /deps\.playback\.current\.playing = playing/.test(viewer) &&
+      !/if \(!playing\)[\s\S]{0,120}progress = 1/.test(viewer),
   );
 }
 
@@ -649,7 +650,8 @@ console.log("\n[U23] Match replay build-up and pace");
   check(
     "viewer offers steady fast and rapid replay speeds",
     /PLAYBACK_SPEEDS = \[1, 2, 4\]/.test(viewer) &&
-      /setPlaybackSpeed/.test(viewer) &&
+      /engine\.setSpeed\(option\)/.test(viewer) &&
+      /pb\.speed/.test(viewer) &&
       /sequenceDurationMs/.test(viewer),
   );
 }
@@ -698,8 +700,9 @@ console.log("\n[U25] Matchday sequence architecture");
   );
   check(
     "parent score reveal is synchronised to the visible sequence result",
-    /activeResultVisible/.test(viewer) &&
-      /cursor \+ \(activeResultVisible \? 1 : 0\)/.test(viewer),
+    /sample\.resultVisible/.test(viewer) &&
+      /pb\.cursor \+ \(sample\.resultVisible \? 1 : 0\)/.test(viewer) &&
+      /onReplayProgress\?\.\(revealed, complete\)/.test(viewer),
   );
 }
 
@@ -789,7 +792,7 @@ console.log("\n[U29] Matchday breathing room");
   );
   check(
     "playback speed still scales one canonical match flow rather than resimulating it",
-    /activeDuration \/ playbackSpeed/.test(viewer) &&
+    /pb\.progress \+= \(dt \* pb\.speed\) \/ Math\.max\(1, plan\.duration\)/.test(viewer) &&
       /PLAYBACK_SPEEDS = \[1, 2, 4\]/.test(viewer),
   );
 }
@@ -878,15 +881,16 @@ console.log("\n[U33] Smooth replay continuity and played-time timeline");
   );
   check(
     "timeline exposes only the furthest match position actually played",
-    /frontierPositionRef/.test(viewer) &&
-      /max=\{Math\.max\(0\.001, frontierPosition\)\}/.test(viewer) &&
-      /Math\.min\(Number\(event\.target\.value\), frontierPositionRef\.current\)/.test(viewer),
+    /frontier: number/.test(viewer) &&
+      /max=\{Math\.max\(0\.001, timeline\.frontier\)\}/.test(viewer) &&
+      /Math\.min\(Number\(event\.target\.value\), frontier\)/.test(viewer),
   );
   check(
     "rewinding pauses and return-to-live never skips unseen football",
-    /setCursor\(0\)[\s\S]*?setPlaying\(false\)/.test(viewer) &&
-      /setPlaying\(true\)[\s\S]*?aria-label="Return to the latest played moment and resume"/.test(viewer) &&
-      !/setCursor\(events\.length - 1\)/.test(viewer),
+    /engine\.seek\(0, 0, \{ snap: true, play: false \}\)/.test(viewer) &&
+      /Math\.min\(Number\(event\.target\.value\), frontier\)/.test(viewer) &&
+      /engine\.seek\(nextCursor, nextProgress, \{ snap: false, play: true \}\)/.test(viewer) &&
+      /aria-label="Return to the latest played moment and resume"/.test(viewer),
   );
 }
 
