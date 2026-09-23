@@ -133,6 +133,8 @@ function actionStage(action: MatchSequenceAction | undefined, event: MatchEvent 
       return "Turnover";
     case "clearance":
       return "Clearance";
+    case "blockPass":
+      return "Pass blocked";
     case "recovery":
       return "Second ball";
     case "press":
@@ -182,13 +184,20 @@ function playerPosition(
     if (passActions.includes(action.kind)) {
       return { x: action.start.x, y: action.start.y };
     }
-    if (action.kind === "press" || action.kind === "challenge" || action.kind === "tackle") {
+    if (
+      action.kind === "press" ||
+      action.kind === "challenge" ||
+      action.kind === "tackle" ||
+      action.kind === "blockPass"
+    ) {
       const close =
         action.kind === "tackle"
           ? 0.5 + localProgress * 0.48
-          : action.kind === "challenge"
-            ? 0.44 + localProgress * 0.45
-            : 0.35 + localProgress * 0.55;
+          : action.kind === "blockPass"
+            ? 0.62 + localProgress * 0.32
+            : action.kind === "challenge"
+              ? 0.44 + localProgress * 0.45
+              : 0.35 + localProgress * 0.55;
       return {
         x: clampX(base.x + (ball.x - base.x) * close),
         y: clampY(base.y + (ball.y - base.y) * close),
