@@ -881,6 +881,11 @@ export function MatchPitchViewer({
               : `PAUSED · ${displayMinute}' · played to ${Math.round(playedToMinute)}'`}
           </span>
         </div>
+        <div className="mb-1 flex items-center justify-between px-0.5 text-[9px] text-white/35">
+          <span>0'</span>
+          <span>Drag left to replay · rewinding pauses the match</span>
+          <span>{Math.round(playedToMinute)}'</span>
+        </div>
         <div className="flex items-center gap-2">
           <button
             className="grid size-9 shrink-0 place-items-center rounded-lg bg-white/10 hover:bg-white/20"
