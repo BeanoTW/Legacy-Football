@@ -153,9 +153,6 @@ function actionStage(action: MatchSequenceAction | undefined, event: MatchEvent 
   }
 }
 
-function isTerminalAction(action: MatchSequenceAction | undefined): boolean {
-  return Boolean(action && ["goal", "save", "block", "miss"].includes(action.kind));
-}
 
 function playerSurname(name: string): string {
   return name.trim().split(/\s+/).pop() ?? name;
