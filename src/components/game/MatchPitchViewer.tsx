@@ -516,11 +516,14 @@ export function MatchPitchViewer({
       ? `${activeAction.playerName.split(" ").pop()} → ${activeAction.targetPlayerName.split(" ").pop()}`
       : null;
   const actionCommentary =
-    inBridge && bridge
+    activeAction?.commentary ??
+    (inBridge && bridge
       ? bridge.text
-      : sequence && activeAction
-        ? activeAction.commentary
-        : active?.text ?? "The match settles into shape.";
+      : active?.text ?? "The match settles into shape.");
+  const contextCommentary =
+    inBridge && bridge && activeAction
+      ? bridge.text
+      : null;
   const displayMinute = playbackMinute;
 
   return (
@@ -759,7 +762,14 @@ export function MatchPitchViewer({
       >
         <div className="flex items-start gap-2">
           <span className="shrink-0 font-bold text-emerald-300 tnum">{displayMinute}'</span>
-          <span>{actionCommentary}</span>
+          <div className="min-w-0">
+            <div>{actionCommentary}</div>
+            {contextCommentary && contextCommentary !== actionCommentary && (
+              <div className="mt-0.5 text-[10px] leading-snug text-white/45">
+                {contextCommentary}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
