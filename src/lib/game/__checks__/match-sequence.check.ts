@@ -6,6 +6,7 @@ import {
   flowSequenceDurationMs,
   frameForSequence,
   sequenceResultVisible,
+  type MatchSequenceAction,
 } from "../matchSequence";
 import type { MatchEvent, MatchLineupPlayer, MatchSubstitution } from "../types";
 
@@ -264,11 +265,11 @@ assert(
   "open-play action actors must belong to the structured possession",
 );
 for (let index = 0; index < quietSequence.actions.length - 1; index += 1) {
-  const current = quietSequence.actions[index];
-  const next = quietSequence.actions[index + 1];
-  if (current.kind === "carry" && current.playerId === next.playerId) {
+  const current: MatchSequenceAction = quietSequence.actions[index];
+  const following: MatchSequenceAction = quietSequence.actions[index + 1];
+  if (current.kind === "carry" && current.playerId === following.playerId) {
     assert.deepEqual(
-      next.start,
+      following.start,
       current.end,
       "a pass after a carry must start where the carrier finished",
     );
