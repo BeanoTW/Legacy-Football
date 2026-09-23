@@ -854,6 +854,10 @@ export function buildMatchFlowSequence(input: MatchFlowSequenceInput): MatchSequ
     nextSide !== null &&
     gap >= 7 &&
     seedOf(input.nextEvent, "flow-turnover") % 3 === 0;
+  const includeClearance =
+    !includeTurnover &&
+    gap >= 6 &&
+    seedOf(input.nextEvent, "flow-clearance") % 3 === 0;
   const initialSide = includeTurnover && nextSide ? otherSide(nextSide) : quietPossessionSide(input);
   const sequenceId =
     `flow:${input.previousEvent?.sequenceId ?? "kickoff"}:${input.nextEvent.sequenceId ?? input.nextEvent.minute}`;
@@ -990,7 +994,8 @@ export function buildMatchFlowSequence(input: MatchFlowSequenceInput): MatchSequ
   ).slice(0, initialSupportCount);
   if (baseParticipants.length < 2) return null;
 
-  const cycleCount = includeTurnover ? 1 : clamp(Math.ceil(gap / 8), 1, 3);
+  const cycleCount =
+    includeTurnover || includeClearance ? 1 : clamp(Math.ceil(gap / 8), 1, 3);
   const initialRoute = [...baseParticipants];
   for (let cycle = 1; cycle < cycleCount; cycle += 1) {
     initialRoute.push(
@@ -1057,6 +1062,128 @@ export function buildMatchFlowSequence(input: MatchFlowSequenceInput): MatchSequ
         appendRoute(nextSide, followRoute, followPoints, turnoverPlan, turnoverEvent, false);
       }
     }
+  } else if (includeClearance) {
+    const defendingSide = otherSide(initialSide);
+    const defendingLineup = lineupFor(defendingSide);
+    const defender = defensiveInterventionPlayer(
+      input.nextEvent,
+      defendingLineup,
+      "flow-clearance-defender",
+    );
+    const attacker = initialRoute[initialRoute.length - 1];
+    const dangerPoint = initialPoints[initialPoints.length - 1];
+
+    if (defender && attacker) {
+      participants.add(defender.playerId);
+      if (seedOf(input.nextEvent, "flow-failed-challenge") % 2 === 0) {
+        actions.push(
+          action(sequenceId, actionIndex++, {
+            kind: "challenge",
+            side: defendingSide,
+            possessionSide: initialSide,
+            playerId: defender.playerId,
+            playerName: defender.name,
+            targetPlayerId: attacker.playerId,
+            targetPlayerName: attacker.name,
+            start: dangerPoint,
+            end: dangerPoint,
+            weight: 0.42,
+            commentary: `${surname(defender.name)} makes the challenge, but the ball stays alive.`,
+          }),
+        );
+      }
+
+      const clearedTo = clearanceDestination(
+        dangerPoint,
+        defendingSide,
+        input.nextEvent,
+        "flow-clearance-destination",
+      );
+      actions.push(
+        action(sequenceId, actionIndex++, {
+          kind: "clearance",
+          side: defendingSide,
+          possessionSide: defendingSide,
+          playerId: defender.playerId,
+          playerName: defender.name,
+          targetPlayerId: attacker.playerId,
+          targetPlayerName: attacker.name,
+          start: dangerPoint,
+          end: clearedTo,
+          weight: 0.78,
+          commentary: `${surname(defender.name)} gets it away.`,
+        }),
+      );
+
+      const recoverySide =
+        seedOf(input.nextEvent, "flow-second-ball-side") % 2 === 0
+          ? initialSide
+          : defendingSide;
+      const recoveryLineup = lineupFor(recoverySide);
+      const recoveryEvent: MatchEvent = {
+        ...initialEvent,
+        side: recoverySide,
+        sequenceId: `${sequenceId}:second-ball`,
+      };
+      const recoveryPlan = planFor(recoverySide);
+      finalPattern = flowPattern(recoveryEvent, recoveryPlan);
+      const recoveryPlayer =
+        orderedSupportPool(
+          recoveryEvent,
+          recoveryLineup,
+          finalPattern,
+          new Set([defender.playerId, attacker.playerId]),
+        )[0] ??
+        recoveryLineup.find((player) => player.playerId !== defender.playerId) ??
+        recoveryLineup[0];
+
+      if (recoveryPlayer) {
+        participants.add(recoveryPlayer.playerId);
+        actions.push(
+          action(sequenceId, actionIndex++, {
+            kind: "recovery",
+            side: recoverySide,
+            possessionSide: recoverySide,
+            playerId: recoveryPlayer.playerId,
+            playerName: recoveryPlayer.name,
+            start: clearedTo,
+            end: clearedTo,
+            weight: 0.5,
+            commentary:
+              recoverySide === initialSide
+                ? `${surname(recoveryPlayer.name)} wins the second ball and keeps the attack alive.`
+                : `${surname(recoveryPlayer.name)} collects the second ball and the danger passes.`,
+          }),
+        );
+
+        if (gap >= 10) {
+          const followPool = orderedSupportPool(
+            recoveryEvent,
+            recoveryLineup,
+            finalPattern,
+            new Set([recoveryPlayer.playerId]),
+          ).slice(0, 2);
+          const followRoute = [recoveryPlayer, ...followPool];
+          if (followRoute.length >= 2) {
+            const followPoints = circulationPoints(
+              recoveryEvent,
+              recoverySide,
+              followRoute.length,
+              recoveryPlan,
+            );
+            followPoints[0] = clearedTo;
+            appendRoute(
+              recoverySide,
+              followRoute,
+              followPoints,
+              recoveryPlan,
+              recoveryEvent,
+              false,
+            );
+          }
+        }
+      }
+    }
   }
 
   return {
@@ -1066,12 +1193,14 @@ export function buildMatchFlowSequence(input: MatchFlowSequenceInput): MatchSequ
     phase: "buildUp",
     sourceType: "info",
     sourceText: "Open play",
-    pattern: includeTurnover ? "circulation" : initialPattern,
+    pattern: includeTurnover || includeClearance ? "circulation" : initialPattern,
     styleLabel: includeTurnover
       ? "Turnover & transition"
-      : initialPattern === "circulation"
-        ? "Open play"
-        : styleLabel(finalPattern),
+      : includeClearance
+        ? "Clearance & second ball"
+        : initialPattern === "circulation"
+          ? "Open play"
+          : styleLabel(finalPattern),
     actions,
     participantIds: [...participants],
     totalWeight: actions.reduce((sum, item) => sum + item.weight, 0),
