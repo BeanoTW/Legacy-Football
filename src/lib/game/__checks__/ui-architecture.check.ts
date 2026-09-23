@@ -836,6 +836,7 @@ console.log("\n[U32] Defensive phases and second balls");
       /"clearanceRecovery"/.test(sequence) &&
       /"blockRecovery"/.test(sequence) &&
       /"blockPass"/.test(sequence) &&
+      /defendingPlan\.pressing/.test(sequence) &&
       /kind: "recovery"/.test(sequence),
   );
   check(
