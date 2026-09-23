@@ -14,6 +14,9 @@ export interface MatchPitchPoint {
 export type FootballActionKind =
   | "receive"
   | "interception"
+  | "tackle"
+  | "clearance"
+  | "recovery"
   | "carry"
   | "pass"
   | "recycle"
@@ -43,6 +46,8 @@ export interface MatchSequenceAction {
   id: string;
   kind: FootballActionKind;
   side: "us" | "them";
+  /** Team controlling the ball after/during this action. Defensive pressure can differ from actor side. */
+  possessionSide?: "us" | "them";
   playerId?: string;
   playerName?: string;
   targetPlayerId?: string;
@@ -354,7 +359,11 @@ function action(
   index: number,
   values: Omit<MatchSequenceAction, "id">,
 ): MatchSequenceAction {
-  return { id: `${sequenceId}:a${index}`, ...values };
+  return {
+    id: `${sequenceId}:a${index}`,
+    ...values,
+    possessionSide: values.possessionSide ?? values.side,
+  };
 }
 
 function linkKind(
@@ -535,6 +544,7 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
         action(sequenceId, actionIndex++, {
           kind: "press",
           side: otherSide(event.side),
+          possessionSide: event.side,
           playerId: pressPlayer.playerId,
           playerName: pressPlayer.name,
           targetPlayerId: holder.playerId,
