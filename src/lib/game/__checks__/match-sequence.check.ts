@@ -171,6 +171,11 @@ assert(
   directSequence.actions.some((item) => item.kind === "press"),
   "a high-press opponent must visibly close the ball in the sequence",
 );
+const pressureAction = directSequence.actions.find((item) => item.kind === "press");
+assert(
+  pressureAction?.side !== pressureAction?.possessionSide,
+  "defensive pressure must not falsely transfer possession",
+);
 
 const transitionEvent: MatchEvent = {
   ...chance,
@@ -265,6 +270,45 @@ assert(
 assert(
   flowSequenceDurationMs(quietSequence, 13) > 5_500,
   "longer quiet spells must receive meaningful real-time playback",
+);
+
+
+const turnoverSequence = Array.from({ length: 24 }, (_, index) =>
+  buildMatchFlowSequence({
+    nextEvent: {
+      ...directEvent,
+      minute: 58,
+      side: "us" as const,
+      sequenceId: `turnover-flow-${index}`,
+    },
+    previousEvent: { ...chance, minute: 42, sequenceId: `turnover-prev-${index}` },
+    userLineup: lineup,
+    opponentLineup: lineup.map((player) => ({ ...player, playerId: `turn-opp-${player.playerId}`, name: `Opp ${player.name}` })),
+    userBench: [],
+    opponentBench: [],
+    substitutions: [],
+    userPlan: highPressPlan,
+    opponentPlan: directPlan,
+  }),
+).find((sequence) => sequence?.actions.some((item) => item.kind === "tackle"));
+
+assert(turnoverSequence, "long open-play gaps must support deterministic turnovers");
+const tackle = turnoverSequence.actions.find((item) => item.kind === "tackle");
+assert(tackle, "turnover flow must include a tackle action");
+assert.equal(
+  tackle.possessionSide,
+  tackle.side,
+  "a successful turnover must explicitly change possession to the tackler's side",
+);
+assert(
+  turnoverSequence.actions
+    .slice(turnoverSequence.actions.indexOf(tackle) + 1)
+    .some((item) => item.possessionSide === tackle.side && ["pass", "throughBall", "carry"].includes(item.kind)),
+  "the team winning the ball must be able to build the next phase of open play",
+);
+assert(
+  !turnoverSequence.actions.some((item) => ["shot", "save", "block", "miss", "goal"].includes(item.kind)),
+  "a quiet-play turnover must still never invent a canonical outcome",
 );
 
 console.log("\nmatch-sequence: passed");
