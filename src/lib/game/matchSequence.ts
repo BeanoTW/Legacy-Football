@@ -784,6 +784,7 @@ export function buildMatchFlowSequence(input: MatchFlowSequenceInput): MatchSequ
       const start = points[i];
       const end = points[i + 1];
       const pattern = flowPattern(event, plan);
+      let passStart = start;
       if (
         (pattern === "direct" && i === 0) ||
         (pattern !== "patient" && seedOf(event, `flow-carry:${i}`) % 3 === 0)
@@ -804,11 +805,12 @@ export function buildMatchFlowSequence(input: MatchFlowSequenceInput): MatchSequ
             commentary: `${surname(holder.name)} moves into space.`,
           }),
         );
+        passStart = carryEnd;
       }
 
       const direction = side === "us" ? 1 : -1;
-      const forward = (end.x - start.x) * direction;
-      const lateral = Math.abs(end.y - start.y);
+      const forward = (end.x - passStart.x) * direction;
+      const lateral = Math.abs(end.y - passStart.y);
       const kind: FootballActionKind =
         forward < -2
           ? "recycle"
@@ -825,7 +827,7 @@ export function buildMatchFlowSequence(input: MatchFlowSequenceInput): MatchSequ
           playerName: holder.name,
           targetPlayerId: receiver.playerId,
           targetPlayerName: receiver.name,
-          start,
+          start: passStart,
           end,
           weight: (kind === "switch" ? 0.75 : kind === "throughBall" ? 0.65 : 0.58) * tempo,
           commentary: passCommentary(kind, holder, receiver),
