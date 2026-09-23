@@ -1320,7 +1320,6 @@ export function buildMatchFlowSequence(input: MatchFlowSequenceInput): MatchSequ
   const nextAction = input.nextSequence?.actions[0];
   if (
     nextAction?.playerId &&
-    nextAction.side !== "neutral" &&
     actions.length > 0
   ) {
     const finalAction = actions[actions.length - 1];
