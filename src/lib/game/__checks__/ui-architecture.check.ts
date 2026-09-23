@@ -755,5 +755,23 @@ console.log("\n[U27] Manager identity in matchday");
   );
 }
 
+console.log("\n[U28] Continuous open-play match flow");
+{
+  const viewer = read("src/components/game/MatchPitchViewer.tsx");
+  const sequence = read("src/lib/game/matchSequence.ts");
+  check(
+    "commentary bridges render structured open-play possession rather than a static centre ball",
+    /buildMatchFlowSequence/.test(viewer) &&
+      /bridgeSequence/.test(viewer) &&
+      /frameForSequence\(bridgeSequence, bridgeProgress\)/.test(viewer),
+  );
+  check(
+    "open-play sequences cannot invent terminal match outcomes",
+    /sourceType: "info"/.test(sequence) &&
+      /quiet possession must|never creates a shot or result/.test(sequence) &&
+      /buildMatchFlowSequence/.test(sequence),
+  );
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
