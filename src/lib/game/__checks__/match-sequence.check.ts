@@ -3,6 +3,7 @@ import {
   activeMatchLineupAtMinute,
   buildMatchFlowSequence,
   buildMatchSequence,
+  flowSequenceDurationMs,
   frameForSequence,
   sequenceResultVisible,
 } from "../matchSequence";
@@ -256,6 +257,14 @@ assert(
 assert(
   quietSequence.actions.every((item) => item.playerId === undefined || quietSequence.participantIds.includes(item.playerId)),
   "open-play action actors must belong to the structured possession",
+);
+assert(
+  quietSequence.actions.filter((item) => ["pass", "recycle", "switch", "throughBall"].includes(item.kind)).length >= 3,
+  "a meaningful quiet spell must contain several readable passes",
+);
+assert(
+  flowSequenceDurationMs(quietSequence, 13) > 5_500,
+  "longer quiet spells must receive meaningful real-time playback",
 );
 
 console.log("\nmatch-sequence: passed");
