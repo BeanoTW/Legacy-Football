@@ -81,7 +81,7 @@ function surname(name: string): string {
   return name.trim().split(/\s+/).pop() ?? name;
 }
 
-function activeLineupAtMinute(
+export function activeMatchLineupAtMinute(
   starters: MatchLineupPlayer[],
   bench: MatchLineupPlayer[],
   substitutions: MatchSubstitution[],
@@ -226,7 +226,7 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
 
   const starters = event.side === "us" ? input.userLineup : input.opponentLineup;
   const bench = event.side === "us" ? input.userBench ?? [] : input.opponentBench ?? [];
-  const lineup = activeLineupAtMinute(
+  const lineup = activeMatchLineupAtMinute(
     starters,
     bench,
     input.substitutions ?? [],
