@@ -127,6 +127,12 @@ function actionStage(action: MatchSequenceAction | undefined, event: MatchEvent 
       return "Cross";
     case "interception":
       return "Regain";
+    case "tackle":
+      return "Turnover";
+    case "clearance":
+      return "Clearance";
+    case "recovery":
+      return "Second ball";
     case "press":
       return "Press";
     case "shot":
@@ -162,7 +168,7 @@ function playerPosition(
   const direction = ours ? 1 : -1;
 
   const sameSideAsAction = action ? (action.side === "us") === ours : false;
-  const passActions = ["pass", "recycle", "switch", "throughBall", "overlap", "cutback", "cross"];
+  const passActions = ["pass", "recycle", "switch", "throughBall", "overlap", "cutback", "cross", "clearance"];
 
   if (sameSideAsAction && action?.playerId === player.playerId) {
     if (action.kind === "carry") {
@@ -174,14 +180,14 @@ function playerPosition(
     if (passActions.includes(action.kind)) {
       return { x: action.start.x, y: action.start.y };
     }
-    if (action.kind === "press") {
-      const close = 0.35 + localProgress * 0.55;
+    if (action.kind === "press" || action.kind === "tackle") {
+      const close = action.kind === "tackle" ? 0.5 + localProgress * 0.48 : 0.35 + localProgress * 0.55;
       return {
         x: clampX(base.x + (ball.x - base.x) * close),
         y: clampY(base.y + (ball.y - base.y) * close),
       };
     }
-    if (action.kind === "interception") {
+    if (action.kind === "interception" || action.kind === "recovery") {
       return {
         x: clampX(base.x + (action.end.x - base.x) * (0.55 + localProgress * 0.35)),
         y: clampY(base.y + (action.end.y - base.y) * (0.55 + localProgress * 0.35)),
@@ -499,7 +505,9 @@ export function MatchPitchViewer({
   );
   const userShape = formationPositions(activeUserLineup, true);
   const opponentShape = formationPositions(activeOpponentLineup, false);
-  const possessionSide = inBridge ? bridgeSequence?.side : active?.side;
+  const possessionSide =
+    activeAction?.possessionSide ??
+    (inBridge ? bridgeSequence?.side : active?.side);
   const passKinds = ["pass", "recycle", "switch", "throughBall", "overlap", "cutback", "cross"];
   const passLabel =
     activeAction?.targetPlayerName &&
@@ -574,7 +582,7 @@ export function MatchPitchViewer({
                   y2={item.end.y}
                   stroke={
                     index < (frame?.actionIndex ?? 0)
-                      ? renderSequence.side === "them"
+                      ? (item.possessionSide ?? item.side) === "them"
                         ? "#fda4af"
                         : "#6ee7b7"
                       : "rgba(255,255,255,.12)"
