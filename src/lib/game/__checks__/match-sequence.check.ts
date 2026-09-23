@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import {
   activeMatchLineupAtMinute,
+  buildMatchFlowSequence,
   buildMatchSequence,
   frameForSequence,
   sequenceResultVisible,
@@ -228,6 +229,33 @@ assert(
     ["recycle", "switch", "overlap", "cutback", "cross"].includes(item.kind),
   ),
   "possession build-up must expose richer ball circulation",
+);
+
+
+const quietSequence = buildMatchFlowSequence({
+  nextEvent: directEvent,
+  previousEvent: { ...chance, minute: 38, sequenceId: "quiet-previous" },
+  userLineup: lineup,
+  opponentLineup: lineup.map((player) => ({ ...player, playerId: `quiet-opp-${player.playerId}` })),
+  userBench: [],
+  opponentBench: [],
+  substitutions: [],
+  userPlan: patientPlan,
+  opponentPlan: directPlan,
+});
+assert(quietSequence, "a gap between highlights must create structured open play");
+assert.equal(quietSequence.sourceType, "info", "quiet possession must never masquerade as a canonical chance");
+assert(
+  !quietSequence.actions.some((item) => ["shot", "save", "block", "miss", "goal"].includes(item.kind)),
+  "quiet possession must never invent a shot or result",
+);
+assert(
+  quietSequence.actions.some((item) => ["pass", "recycle", "switch"].includes(item.kind)),
+  "quiet match flow must keep the ball circulating between real players",
+);
+assert(
+  quietSequence.actions.every((item) => item.playerId === undefined || quietSequence.participantIds.includes(item.playerId)),
+  "open-play action actors must belong to the structured possession",
 );
 
 console.log("\nmatch-sequence: passed");
