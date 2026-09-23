@@ -773,5 +773,23 @@ console.log("\n[U28] Continuous open-play match flow");
   );
 }
 
+console.log("\n[U29] Matchday breathing room");
+{
+  const viewer = read("src/components/game/MatchPitchViewer.tsx");
+  const sequence = read("src/lib/game/matchSequence.ts");
+  check(
+    "quiet spells scale their possession length and real-time playback",
+    /cycleCount/.test(sequence) &&
+      /flowSequenceDurationMs/.test(sequence) &&
+      /22_000/.test(sequence) &&
+      /bridgeDuration/.test(viewer),
+  );
+  check(
+    "playback speed still scales one canonical match flow rather than resimulating it",
+    /activeDuration \/ playbackSpeed/.test(viewer) &&
+      /PLAYBACK_SPEEDS = \[1, 2, 4\]/.test(viewer),
+  );
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
