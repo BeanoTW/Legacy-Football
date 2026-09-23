@@ -138,3 +138,7 @@ The first Stage A implementation lives in `src/lib/game/matchSequence.ts`.
 It translates canonical chance/goal events into deterministic football actions using the players who were actually active at that minute, including substitutions. `MatchPitchViewer` consumes that domain rather than inventing arbitrary waypoint football.
 
 `src/lib/game/matchFlow.ts` now provides deterministic written commentary bridges across quieter gaps between canonical events. The on-screen clock advances through those gaps before the 2D sequence begins, so 1× matchday has room to breathe without changing the underlying result.
+
+Stage B/C work has also begun. Sequence construction now understands patient possession, balanced build-up, direct attacks, wide overloads, counters, high-press regains and set pieces. Manager tempo, pressing and directness alter the presentation pattern without touching score RNG. The vocabulary now includes recycling, switches, overlaps, cutbacks, pressure and interceptions.
+
+Quiet gaps are no longer visually static: `buildMatchFlowSequence` creates structured open-play possessions using real active players. Longer gaps contain more circulation and receive more real-time playback at 1×, while 2× and 4× still scale the same underlying match flow.
