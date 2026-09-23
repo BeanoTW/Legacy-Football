@@ -424,4 +424,37 @@ assert(
   "an open-play defensive phase must still never invent a canonical chance",
 );
 
+
+const blockedPassSequence = Array.from({ length: 60 }, (_, index) =>
+  buildMatchSequence({
+    ...input,
+    event: {
+      ...chance,
+      minute: 73,
+      sequenceId: `blocked-pass-${index}`,
+    },
+    substitutions: [],
+    userPlan: patientPlan,
+    opponentPlan: highPressPlan,
+  }),
+).find((sequence) =>
+  sequence?.actions.some((item) => item.kind === "blockPass") &&
+  sequence.actions.some((item) => item.kind === "recovery"),
+);
+assert(blockedPassSequence, "canonical attacks must support a blocked pass and loose-ball recovery");
+const passBlockIndex = blockedPassSequence.actions.findIndex((item) => item.kind === "blockPass");
+const looseRecoveryIndex = blockedPassSequence.actions.findIndex((item) => item.kind === "recovery");
+const laterShotIndex = blockedPassSequence.actions.findIndex((item) => item.kind === "shot");
+assert(
+  passBlockIndex >= 0 &&
+    looseRecoveryIndex > passBlockIndex &&
+    laterShotIndex > looseRecoveryIndex,
+  "a blocked pass must produce a loose ball before the canonical attack resumes",
+);
+assert.equal(
+  blockedPassSequence.actions[passBlockIndex]?.possessionSide,
+  "us",
+  "a mere deflection must not falsely award settled possession to the defender",
+);
+
 console.log("\nmatch-sequence: passed");
