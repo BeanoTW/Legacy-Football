@@ -716,134 +716,230 @@ export function buildMatchFlowSequence(input: MatchFlowSequenceInput): MatchSequ
   const gap = input.nextEvent.minute - (input.previousEvent?.minute ?? 0);
   if (gap <= 1) return null;
 
-  const side = quietPossessionSide(input);
-  const starters = side === "us" ? input.userLineup : input.opponentLineup;
-  const bench = side === "us" ? input.userBench ?? [] : input.opponentBench ?? [];
-  const plan = side === "us" ? input.userPlan ?? DEFAULT_PLAN : input.opponentPlan ?? DEFAULT_PLAN;
-  const lineup = activeMatchLineupAtMinute(
-    starters,
-    bench,
-    input.substitutions ?? [],
-    side,
-    Math.max(0, input.nextEvent.minute - 1),
-  );
-  if (lineup.length < 2) return null;
+  const substitutions = input.substitutions ?? [];
+  const nextSide = input.nextEvent.side === "neutral" ? null : input.nextEvent.side;
+  const includeTurnover =
+    nextSide !== null &&
+    gap >= 7 &&
+    seedOf(input.nextEvent, "flow-turnover") % 3 === 0;
+  const initialSide = includeTurnover && nextSide ? otherSide(nextSide) : quietPossessionSide(input);
+  const sequenceId =
+    `flow:${input.previousEvent?.sequenceId ?? "kickoff"}:${input.nextEvent.sequenceId ?? input.nextEvent.minute}`;
+  const actions: MatchSequenceAction[] = [];
+  const participants = new Set<string>();
+  let actionIndex = 0;
 
-  const flowEvent: MatchEvent = {
-    minute: input.nextEvent.minute,
-    type: "info",
-    side,
-    text: "Open play",
-    phase: "buildUp",
-    zone: "middleThird",
-    sequenceId: `flow:${input.previousEvent?.sequenceId ?? "kickoff"}:${input.nextEvent.sequenceId ?? input.nextEvent.minute}`,
-  };
-  const pattern: MatchSequencePattern =
+  const lineupFor = (side: "us" | "them") =>
+    activeMatchLineupAtMinute(
+      side === "us" ? input.userLineup : input.opponentLineup,
+      side === "us" ? input.userBench ?? [] : input.opponentBench ?? [],
+      substitutions,
+      side,
+      Math.max(0, input.nextEvent.minute - 1),
+    );
+  const planFor = (side: "us" | "them") =>
+    side === "us" ? input.userPlan ?? DEFAULT_PLAN : input.opponentPlan ?? DEFAULT_PLAN;
+  const flowPattern = (
+    event: MatchEvent,
+    plan: MatchTeamPlan,
+  ): MatchSequencePattern =>
     plan.directness === "High"
       ? "direct"
       : plan.directness === "Low" || plan.philosophy === "Possession"
         ? "patient"
-        : seedOf(flowEvent, "flow-pattern") % 3 === 0
+        : seedOf(event, "flow-pattern") % 3 === 0
           ? "wide"
           : "circulation";
-  const supportCount = pattern === "direct" ? 3 : pattern === "patient" ? 5 : 4;
-  const baseParticipants = orderedSupportPool(flowEvent, lineup, pattern, new Set()).slice(0, supportCount);
-  if (baseParticipants.length < 2) return null;
 
-  const cycleCount = clamp(Math.ceil(gap / 8), 1, 3);
-  const participants = [...baseParticipants];
-  for (let cycle = 1; cycle < cycleCount; cycle += 1) {
-    const extension =
-      cycle % 2 === 1
-        ? baseParticipants.slice(0, -1).reverse()
-        : baseParticipants.slice(1);
-    participants.push(...extension);
-  }
+  const appendRoute = (
+    side: "us" | "them",
+    route: MatchLineupPlayer[],
+    points: MatchPitchPoint[],
+    plan: MatchTeamPlan,
+    event: MatchEvent,
+    addReceive: boolean,
+  ) => {
+    if (route.length < 2) return;
+    const tempo = tempoScale(plan);
+    route.forEach((player) => participants.add(player.playerId));
 
-  const points = circulationPoints(flowEvent, side, participants.length, plan);
-  const actions: MatchSequenceAction[] = [];
-  const sequenceId = flowEvent.sequenceId!;
-  const tempo = tempoScale(plan);
-  let actionIndex = 0;
-
-  actions.push(
-    action(sequenceId, actionIndex++, {
-      kind: "receive",
-      side,
-      playerId: participants[0].playerId,
-      playerName: participants[0].name,
-      start: points[0],
-      end: points[0],
-      weight: 0.34 * tempo,
-      commentary: `${surname(participants[0].name)} has it in open play.`,
-    }),
-  );
-
-  for (let i = 0; i < participants.length - 1; i += 1) {
-    const holder = participants[i];
-    const receiver = participants[i + 1];
-    const start = points[i];
-    const end = points[i + 1];
-    if (
-      (pattern === "direct" && i === 0) ||
-      (pattern !== "patient" && seedOf(flowEvent, `flow-carry:${i}`) % 3 === 0)
-    ) {
-      const carryEnd = {
-        x: clamp(start.x + (side === "us" ? 1 : -1) * 2.5, 8, 92),
-        y: start.y,
-      };
+    if (addReceive) {
       actions.push(
         action(sequenceId, actionIndex++, {
-          kind: "carry",
+          kind: "receive",
           side,
-          playerId: holder.playerId,
-          playerName: holder.name,
-          start,
-          end: carryEnd,
-          weight: 0.35 * tempo,
-          commentary: `${surname(holder.name)} moves into space.`,
+          playerId: route[0].playerId,
+          playerName: route[0].name,
+          start: points[0],
+          end: points[0],
+          weight: 0.34 * tempo,
+          commentary: `${surname(route[0].name)} has it in open play.`,
         }),
       );
     }
 
-    const direction = side === "us" ? 1 : -1;
-    const forward = (end.x - start.x) * direction;
-    const lateral = Math.abs(end.y - start.y);
-    const kind: FootballActionKind =
-      forward < -2
-        ? "recycle"
-        : lateral > 30
-          ? "switch"
-          : pattern === "direct" && i === participants.length - 2
-            ? "throughBall"
-            : "pass";
-    actions.push(
-      action(sequenceId, actionIndex++, {
-        kind,
-        side,
-        playerId: holder.playerId,
-        playerName: holder.name,
-        targetPlayerId: receiver.playerId,
-        targetPlayerName: receiver.name,
-        start,
-        end,
-        weight: (kind === "switch" ? 0.75 : kind === "throughBall" ? 0.65 : 0.58) * tempo,
-        commentary: passCommentary(kind, holder, receiver),
-      }),
+    for (let i = 0; i < route.length - 1; i += 1) {
+      const holder = route[i];
+      const receiver = route[i + 1];
+      const start = points[i];
+      const end = points[i + 1];
+      const pattern = flowPattern(event, plan);
+      if (
+        (pattern === "direct" && i === 0) ||
+        (pattern !== "patient" && seedOf(event, `flow-carry:${i}`) % 3 === 0)
+      ) {
+        const carryEnd = {
+          x: clamp(start.x + (side === "us" ? 1 : -1) * 2.5, 8, 92),
+          y: start.y,
+        };
+        actions.push(
+          action(sequenceId, actionIndex++, {
+            kind: "carry",
+            side,
+            playerId: holder.playerId,
+            playerName: holder.name,
+            start,
+            end: carryEnd,
+            weight: 0.35 * tempo,
+            commentary: `${surname(holder.name)} moves into space.`,
+          }),
+        );
+      }
+
+      const direction = side === "us" ? 1 : -1;
+      const forward = (end.x - start.x) * direction;
+      const lateral = Math.abs(end.y - start.y);
+      const kind: FootballActionKind =
+        forward < -2
+          ? "recycle"
+          : lateral > 30
+            ? "switch"
+            : pattern === "direct" && i === route.length - 2
+              ? "throughBall"
+              : "pass";
+      actions.push(
+        action(sequenceId, actionIndex++, {
+          kind,
+          side,
+          playerId: holder.playerId,
+          playerName: holder.name,
+          targetPlayerId: receiver.playerId,
+          targetPlayerName: receiver.name,
+          start,
+          end,
+          weight: (kind === "switch" ? 0.75 : kind === "throughBall" ? 0.65 : 0.58) * tempo,
+          commentary: passCommentary(kind, holder, receiver),
+        }),
+      );
+    }
+  };
+
+  const initialPlan = planFor(initialSide);
+  const initialLineup = lineupFor(initialSide);
+  if (initialLineup.length < 2) return null;
+  const initialEvent: MatchEvent = {
+    minute: input.nextEvent.minute,
+    type: "info",
+    side: initialSide,
+    text: "Open play",
+    phase: "buildUp",
+    zone: "middleThird",
+    sequenceId,
+  };
+  const initialPattern = flowPattern(initialEvent, initialPlan);
+  const initialSupportCount = initialPattern === "direct" ? 3 : initialPattern === "patient" ? 5 : 4;
+  const baseParticipants = orderedSupportPool(
+    initialEvent,
+    initialLineup,
+    initialPattern,
+    new Set(),
+  ).slice(0, initialSupportCount);
+  if (baseParticipants.length < 2) return null;
+
+  const cycleCount = includeTurnover ? 1 : clamp(Math.ceil(gap / 8), 1, 3);
+  const initialRoute = [...baseParticipants];
+  for (let cycle = 1; cycle < cycleCount; cycle += 1) {
+    initialRoute.push(
+      ...(cycle % 2 === 1
+        ? baseParticipants.slice(0, -1).reverse()
+        : baseParticipants.slice(1)),
     );
+  }
+  const initialPoints = circulationPoints(
+    initialEvent,
+    initialSide,
+    initialRoute.length,
+    initialPlan,
+  );
+  appendRoute(initialSide, initialRoute, initialPoints, initialPlan, initialEvent, true);
+
+  let finalPattern = initialPattern;
+  if (includeTurnover && nextSide) {
+    const turnoverLineup = lineupFor(nextSide);
+    const turnoverPlan = planFor(nextSide);
+    const tackler = pressurePlayer(input.nextEvent, turnoverLineup);
+    const dispossessed = initialRoute[initialRoute.length - 1];
+    const turnoverPoint = initialPoints[initialPoints.length - 1];
+
+    if (tackler && dispossessed) {
+      participants.add(tackler.playerId);
+      actions.push(
+        action(sequenceId, actionIndex++, {
+          kind: "tackle",
+          side: nextSide,
+          possessionSide: nextSide,
+          playerId: tackler.playerId,
+          playerName: tackler.name,
+          targetPlayerId: dispossessed.playerId,
+          targetPlayerName: dispossessed.name,
+          start: turnoverPoint,
+          end: turnoverPoint,
+          weight: 0.5,
+          commentary: `${surname(tackler.name)} steps in and wins it from ${surname(dispossessed.name)}.`,
+        }),
+      );
+
+      const turnoverEvent: MatchEvent = {
+        ...initialEvent,
+        side: nextSide,
+        sequenceId: `${sequenceId}:turnover`,
+      };
+      finalPattern = flowPattern(turnoverEvent, turnoverPlan);
+      const followPool = orderedSupportPool(
+        turnoverEvent,
+        turnoverLineup,
+        finalPattern,
+        new Set([tackler.playerId]),
+      ).slice(0, gap >= 14 ? 4 : 3);
+      const followRoute = [tackler, ...followPool];
+      if (followRoute.length >= 2) {
+        const followPoints = circulationPoints(
+          turnoverEvent,
+          nextSide,
+          followRoute.length,
+          turnoverPlan,
+        );
+        followPoints[0] = turnoverPoint;
+        appendRoute(nextSide, followRoute, followPoints, turnoverPlan, turnoverEvent, false);
+      }
+    }
   }
 
   return {
     id: sequenceId,
     minute: input.nextEvent.minute,
-    side,
+    side: initialSide,
     phase: "buildUp",
     sourceType: "info",
     sourceText: "Open play",
-    pattern,
-    styleLabel: pattern === "circulation" ? "Open play" : styleLabel(pattern),
+    pattern: includeTurnover ? "circulation" : initialPattern,
+    styleLabel: includeTurnover
+      ? "Turnover & transition"
+      : initialPattern === "circulation"
+        ? "Open play"
+        : styleLabel(finalPattern),
     actions,
-    participantIds: [...new Set(participants.map((player) => player.playerId))],
+    participantIds: [...participants],
     totalWeight: actions.reduce((sum, item) => sum + item.weight, 0),
   };
 }
@@ -871,6 +967,7 @@ function curvedPoint(
 
 const MOVING_BALL_ACTIONS = new Set<FootballActionKind>([
   "carry",
+  "clearance",
   "pass",
   "recycle",
   "switch",
