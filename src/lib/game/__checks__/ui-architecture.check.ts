@@ -586,5 +586,22 @@ console.log("\n[U20] Squad planning views");
       /setView\("stats"\)/.test(squad),
   );
 }
+
+console.log("\n[U21] First XI pitch polish");
+{
+  const squad = read("src/components/game/SquadSelectionTab.tsx");
+  check(
+    "first XI pitch exposes formation, average ability and fitness",
+    /Avg OVR/.test(squad) &&
+      /Avg fit/.test(squad) &&
+      /Manager selection/.test(squad),
+  );
+  check(
+    "pitch players expose fitness and role context without expanding card height",
+    /fitnessTone/.test(squad) &&
+      /form\.averageRating\.toFixed\(1\)/.test(squad) &&
+      /Tap a player for profile/.test(squad),
+  );
+}
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
