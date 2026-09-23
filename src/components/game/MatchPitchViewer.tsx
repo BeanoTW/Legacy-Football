@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pause, Play, RotateCcw, SkipForward } from "lucide-react";
+import { Pause, Play, RotateCcw } from "lucide-react";
 import type {
   MatchEvent,
   MatchLineupPlayer,
@@ -967,7 +967,7 @@ export function MatchPitchViewer({
             }}
             aria-label="Return to the latest played moment and resume"
           >
-            <SkipForward className="size-4" />
+            <span className="px-1 text-[9px] font-black uppercase tracking-wide">Live</span>
           </button>
         </div>
       </div>
