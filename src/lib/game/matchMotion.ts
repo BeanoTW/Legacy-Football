@@ -121,13 +121,12 @@ function genericShapeTarget(
         : 1.8
       : 0;
 
-  let target: MatchPitchPoint = {
-    x: current.x + direction * forwardShift + (ball.x - current.x) * ballPull,
+  const desired: MatchPitchPoint = {
+    x: base.x + direction * forwardShift + (ball.x - base.x) * ballPull,
     y:
-      current.y +
+      base.y +
       widthPush +
-      (ball.y - current.y) * ballPull +
-      (base.y - current.y) * 0.06,
+      (ball.y - base.y) * ballPull,
   };
 
   const defensiveRole = ["CB", "LB", "RB", "LWB", "RWB", "CDM"].includes(
@@ -147,15 +146,27 @@ function genericShapeTarget(
           ? 0.15
           : 0.1;
     const mark = player.role === "CB" || player.role === "CDM" ? 0.2 : 0.27;
-    target = {
-      x: current.x + (ownGoalX - current.x) * retreat,
-      y: current.y + (action.end.y - current.y) * mark,
-    };
+    desired.x = base.x + (ownGoalX - base.x) * retreat;
+    desired.y = base.y + (action.end.y - base.y) * mark;
   }
 
+  // Off-ball players converge towards a coherent team shape instead of
+  // receiving another full shift every action. This prevents the whole team
+  // from drifting or snapping as the sequence advances.
+  const response =
+    dangerous
+      ? 0.42
+      : inPossession
+        ? side.plan?.tempo === "High"
+          ? 0.34
+          : 0.28
+        : pressing === "High"
+          ? 0.36
+          : 0.24;
+
   return {
-    x: clamp(target.x, 3, 97),
-    y: clamp(target.y, 5, 95),
+    x: clamp(current.x + (desired.x - current.x) * response, 3, 97),
+    y: clamp(current.y + (desired.y - current.y) * response, 5, 95),
   };
 }
 
