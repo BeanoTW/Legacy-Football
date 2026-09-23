@@ -20,6 +20,7 @@ import {
   type MatchSequence,
   type MatchSequenceAction,
 } from "@/lib/game/matchSequence";
+import { motionFrameForSequence } from "@/lib/game/matchMotion";
 import { cn } from "@/lib/utils";
 
 const PLAYBACK_SPEEDS = [1, 2, 4] as const;
@@ -156,243 +157,8 @@ function isTerminalAction(action: MatchSequenceAction | undefined): boolean {
   return Boolean(action && ["goal", "save", "block", "miss"].includes(action.kind));
 }
 
-const RECEIVING_ACTIONS = new Set<MatchSequenceAction["kind"]>([
-  "pass",
-  "recycle",
-  "switch",
-  "throughBall",
-  "overlap",
-  "cutback",
-  "cross",
-]);
-
-function settledPositionAfterAction(
-  position: MatchPitchPoint,
-  playerId: string,
-  action: MatchSequenceAction,
-): MatchPitchPoint {
-  let next = position;
-
-  if (action.playerId === playerId) {
-    if (action.kind === "carry" || action.kind === "receive" || action.kind === "interception" || action.kind === "recovery") {
-      next = action.end;
-    } else if (
-      RECEIVING_ACTIONS.has(action.kind) ||
-      action.kind === "shot" ||
-      action.kind === "clearance" ||
-      action.kind === "blockPass" ||
-      action.kind === "press" ||
-      action.kind === "challenge" ||
-      action.kind === "tackle"
-    ) {
-      next = action.start;
-    }
-  }
-
-  if (action.targetPlayerId === playerId) {
-    if (RECEIVING_ACTIONS.has(action.kind)) {
-      next = action.end;
-    } else if (
-      action.kind === "press" ||
-      action.kind === "challenge" ||
-      action.kind === "tackle" ||
-      action.kind === "blockPass" ||
-      action.kind === "clearance"
-    ) {
-      next = action.start;
-    }
-  }
-
-  return next;
-}
-
-function settledPlayerPosition(
-  base: MatchPitchPoint,
-  playerId: string,
-  sequence: MatchSequence | null,
-  actionIndex: number,
-): MatchPitchPoint {
-  if (!sequence || actionIndex <= 0) return base;
-  let position = base;
-  for (let index = 0; index < actionIndex; index += 1) {
-    position = settledPositionAfterAction(position, playerId, sequence.actions[index]);
-  }
-  return position;
-}
-
-function playerPosition(
-  base: MatchPitchPoint,
-  ours: boolean,
-  player: MatchLineupPlayer,
-  action: MatchSequenceAction | undefined,
-  ball: MatchPitchPoint,
-  localProgress: number,
-  inPossession: boolean,
-  sourceType: MatchEvent["type"] | undefined,
-  plan: MatchTeamPlan | undefined,
-  sequence: MatchSequence | null,
-  actionIndex: number,
-  entrySequence: MatchSequence | null,
-): MatchPitchPoint {
-  const clampX = (value: number) => Math.max(3, Math.min(97, value));
-  const clampY = (value: number) => Math.max(5, Math.min(95, value));
-  const direction = ours ? 1 : -1;
-  const entryBase = entrySequence
-    ? settledPlayerPosition(base, player.playerId, entrySequence, entrySequence.actions.length)
-    : base;
-  const settledBase = settledPlayerPosition(entryBase, player.playerId, sequence, actionIndex);
-  const anchor = {
-    x: settledBase.x + (base.x - settledBase.x) * 0.06,
-    y: settledBase.y + (base.y - settledBase.y) * 0.06,
-  };
-
-  const sameSideAsAction = action ? (action.side === "us") === ours : false;
-  const passActions = ["pass", "recycle", "switch", "throughBall", "overlap", "cutback", "cross", "clearance"];
-
-  if (sameSideAsAction && action?.playerId === player.playerId) {
-    if (action.kind === "carry") {
-      return {
-        x: clampX(ball.x - direction * 1.8 * localProgress),
-        y: clampY(ball.y + Math.sin(localProgress * Math.PI) * 1.2),
-      };
-    }
-    if (passActions.includes(action.kind)) {
-      const settleIntoPass = Math.min(1, localProgress * 5);
-      return {
-        x: clampX(settledBase.x + (action.start.x - settledBase.x) * settleIntoPass),
-        y: clampY(settledBase.y + (action.start.y - settledBase.y) * settleIntoPass),
-      };
-    }
-    if (
-      action.kind === "press" ||
-      action.kind === "challenge" ||
-      action.kind === "tackle" ||
-      action.kind === "blockPass"
-    ) {
-      const close =
-        localProgress *
-        (action.kind === "tackle"
-          ? 0.98
-          : action.kind === "blockPass"
-            ? 0.94
-            : action.kind === "challenge"
-              ? 0.88
-              : 0.78);
-      return {
-        x: clampX(settledBase.x + (ball.x - settledBase.x) * close),
-        y: clampY(settledBase.y + (ball.y - settledBase.y) * close),
-      };
-    }
-    if (action.kind === "receive" || action.kind === "interception" || action.kind === "recovery") {
-      const arrive = Math.sin((Math.PI / 2) * localProgress);
-      return {
-        x: clampX(settledBase.x + (action.end.x - settledBase.x) * arrive),
-        y: clampY(settledBase.y + (action.end.y - settledBase.y) * arrive),
-      };
-    }
-    if (action.kind === "shot") {
-      return {
-        x: clampX(action.start.x + direction * localProgress * 1.8),
-        y: action.start.y,
-      };
-    }
-  }
-
-  if (sameSideAsAction && action?.targetPlayerId === player.playerId && action.kind !== "press") {
-    const receiveRun = Math.sin((Math.PI / 2) * localProgress);
-    return {
-      x: clampX(settledBase.x + (action.end.x - settledBase.x) * receiveRun),
-      y: clampY(settledBase.y + (action.end.y - settledBase.y) * receiveRun),
-    };
-  }
-
-  const defendingKeeper =
-    player.role === "GK" &&
-    !inPossession &&
-    (sourceType === "goal" || sourceType === "chance") &&
-    action &&
-    (action.kind === "shot" || isTerminalAction(action));
-  if (defendingKeeper && action) {
-    const react = action.kind === "shot" ? localProgress : 1;
-    const keeperX = ours ? 5.5 : 94.5;
-    const goalY = Math.max(40, Math.min(60, action.end.y));
-    return {
-      x: base.x + (keeperX - base.x) * react,
-      y: base.y + (goalY - base.y) * react,
-    };
-  }
-
-  if (player.role === "GK") return settledBase;
-
-  const ourSide = ours ? "us" : "them";
-  const defensiveRole = ["CB", "LB", "RB", "LWB", "RWB", "CDM"].includes(player.role);
-  const trackingAction =
-    action &&
-    action.possessionSide !== ourSide &&
-    ["throughBall", "overlap", "cutback", "cross", "shot"].includes(action.kind);
-  if (!inPossession && defensiveRole && trackingAction && action) {
-    const ownGoalX = ours ? 6 : 94;
-    const reaction = Math.sin((Math.PI / 2) * localProgress);
-    const retreat =
-      (action.kind === "shot"
-        ? 0.32
-        : action.kind === "cross" || action.kind === "cutback"
-          ? 0.24
-          : 0.18) * reaction;
-    const markPull =
-      (player.role === "CB" || player.role === "CDM"
-        ? 0.3
-        : 0.4) * reaction;
-    return {
-      x: clampX(
-        anchor.x +
-          (ownGoalX - anchor.x) * retreat +
-          (ball.x - anchor.x) * 0.05,
-      ),
-      y: clampY(
-        anchor.y +
-          (action.end.y - anchor.y) * markPull +
-          (ball.y - anchor.y) * 0.05,
-      ),
-    };
-  }
-
-  const directness = plan?.directness ?? "Medium";
-  const pressing = plan?.pressing ?? "Medium";
-  const philosophy = plan?.philosophy ?? "Balanced";
-  const attackShift =
-    inPossession
-      ? directness === "High"
-        ? 9
-        : directness === "Low"
-          ? 5
-          : 7
-      : pressing === "High"
-        ? 1
-        : philosophy === "Defensive" || pressing === "Low"
-          ? -6
-          : -3;
-  const ballPull =
-    inPossession
-      ? plan?.tempo === "High"
-        ? 0.13
-        : 0.1
-      : pressing === "High"
-        ? 0.16
-        : pressing === "Low"
-          ? 0.045
-          : 0.08;
-  const wideRole = ["LB", "RB", "LWB", "RWB", "LM", "RM", "LW", "RW"].includes(player.role);
-  const widthPush = inPossession && wideRole && directness !== "High" ? (base.y < 50 ? -3 : 3) : 0;
-  return {
-    x: clampX(anchor.x + direction * attackShift + (ball.x - anchor.x) * ballPull),
-    y: clampY(
-      anchor.y +
-        widthPush +
-        (ball.y - anchor.y) * ballPull +
-        (50 - anchor.y) * (inPossession ? 0.03 : pressing === "High" ? 0.12 : 0.08),
-    ),
-  };
+function playerSurname(name: string): string {
+  return name.trim().split(/\s+/).pop() ?? name;
 }
 
 function PlayerDot({
@@ -413,19 +179,33 @@ function PlayerDot({
   expanded?: boolean;
 }) {
   return (
-    <span
-      className={cn(
-        "absolute grid -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border font-black leading-none shadow-sm transition-[left,top] duration-300 will-change-[left,top,transform]",
-        expanded ? "size-5 text-[8px] sm:size-6 sm:text-[9px]" : "size-3.5 text-[6px] sm:size-4 sm:text-[7px]",
-        ours ? "border-emerald-950 bg-emerald-300" : "border-rose-950 bg-rose-300",
-        active && "z-20 scale-125 ring-2 ring-white/55",
-        receiver && !active && "z-10 ring-2 ring-white/25",
-      )}
+    <div
+      className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-1/2 will-change-[left,top]"
       style={{ left: `${x}%`, top: `${y}%` }}
       title={`${player.shirtNumber}. ${player.name} · ${player.role}`}
     >
-      {player.shirtNumber}
-    </span>
+      <span
+        className={cn(
+          "grid place-items-center rounded-full border font-black leading-none shadow-sm transition-transform duration-150",
+          expanded ? "size-5 text-[8px] sm:size-6 sm:text-[9px]" : "size-3.5 text-[6px] sm:size-4 sm:text-[7px]",
+          ours ? "border-emerald-950 bg-emerald-300" : "border-rose-950 bg-rose-300",
+          active && "scale-125 ring-2 ring-white/70",
+          receiver && !active && "ring-2 ring-white/35",
+        )}
+      >
+        {player.shirtNumber}
+      </span>
+      {(active || receiver) && (
+        <span
+          className={cn(
+            "absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded bg-black/75 px-1.5 py-0.5 text-[8px] font-bold leading-none text-white shadow-sm",
+            receiver && !active && "text-white/75",
+          )}
+        >
+          {playerSurname(player.name)}
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -682,9 +462,27 @@ export function MatchPitchViewer({
   );
   const userShape = formationPositions(activeUserLineup, true);
   const opponentShape = formationPositions(activeOpponentLineup, false);
-  const possessionSide =
-    activeAction?.possessionSide ??
-    (inBridge ? bridgeSequence?.side : active?.side);
+  const entrySequences = inBridge
+    ? [previousSequence]
+    : [previousSequence, bridgeSequence];
+  const motionFrame = motionFrameForSequence({
+    sequence: renderSequence,
+    actionIndex: frame?.actionIndex ?? 0,
+    localProgress: frame?.localProgress ?? 0,
+    user: {
+      lineup: activeUserLineup,
+      basePositions: userShape,
+      ours: true,
+      plan: userPlan,
+    },
+    opponent: {
+      lineup: activeOpponentLineup,
+      basePositions: opponentShape,
+      ours: false,
+      plan: opponentPlan,
+    },
+    entrySequences,
+  });
   const passKinds = ["pass", "recycle", "switch", "throughBall", "overlap", "cutback", "cross"];
   const passLabel =
     activeAction?.targetPlayerName &&
@@ -744,99 +542,52 @@ export function MatchPitchViewer({
         <div className="absolute left-0 top-[42%] h-[16%] w-[1.8%] border-y border-r border-white/70 bg-white/10" />
         <div className="absolute right-0 top-[42%] h-[16%] w-[1.8%] border-y border-l border-white/70 bg-white/10" />
 
-        {renderSequence && (
-          <svg
-            className="pointer-events-none absolute inset-0 size-full"
-            viewBox="0 0 100 100"
-            preserveAspectRatio="none"
-            aria-hidden="true"
-          >
-            {renderSequence.actions
-              .filter((item) => item.start.x !== item.end.x || item.start.y !== item.end.y)
-              .map((item, index) => (
-                <line
-                  key={item.id}
-                  x1={item.start.x}
-                  y1={item.start.y}
-                  x2={item.end.x}
-                  y2={item.end.y}
-                  stroke={
-                    index < (frame?.actionIndex ?? 0)
-                      ? (item.possessionSide ?? item.side) === "them"
-                        ? "#fda4af"
-                        : "#6ee7b7"
-                      : "rgba(255,255,255,.12)"
-                  }
-                  strokeWidth={index <= (frame?.actionIndex ?? -1) ? 0.75 : 0.45}
-                  strokeDasharray={item.kind === "carry" ? "1 1.5" : undefined}
-                  opacity={index <= (frame?.actionIndex ?? -1) ? 0.7 : 0.5}
-                />
-              ))}
-          </svg>
-        )}
-
         {activeUserLineup.map((player) => {
-          const base = userShape.get(player.playerId) ?? { x: 45, y: 50 };
-          const position = playerPosition(
-            base,
-            true,
-            player,
-            activeAction,
-            ball,
-            frame?.localProgress ?? progress,
-            possessionSide === "us",
-            active?.type,
-            userPlan,
-            renderSequence,
-            frame?.actionIndex ?? 0,
-            entrySequence,
-          );
+          const position =
+            motionFrame.user.get(player.playerId) ??
+            userShape.get(player.playerId) ??
+            { x: 45, y: 50 };
+          const isReceiver =
+            Boolean(activeAction?.targetPlayerId === player.playerId) &&
+            Boolean(activeAction && passKinds.includes(activeAction.kind));
           return (
             <PlayerDot
               key={`us-${player.playerId}`}
               x={position.x}
               y={position.y}
               ours
-              active={activeAction?.playerId === player.playerId}
-              receiver={activeAction?.targetPlayerId === player.playerId}
+              active={activeAction?.playerId === player.playerId && activeAction?.side === "us"}
+              receiver={isReceiver}
               player={player}
               expanded={expanded}
             />
           );
         })}
         {activeOpponentLineup.map((player) => {
-          const base = opponentShape.get(player.playerId) ?? { x: 55, y: 50 };
-          const position = playerPosition(
-            base,
-            false,
-            player,
-            activeAction,
-            ball,
-            frame?.localProgress ?? progress,
-            possessionSide === "them",
-            active?.type,
-            opponentPlan,
-            renderSequence,
-            frame?.actionIndex ?? 0,
-            entrySequence,
-          );
+          const position =
+            motionFrame.opponent.get(player.playerId) ??
+            opponentShape.get(player.playerId) ??
+            { x: 55, y: 50 };
+          const isReceiver =
+            Boolean(activeAction?.targetPlayerId === player.playerId) &&
+            Boolean(activeAction && passKinds.includes(activeAction.kind));
           return (
             <PlayerDot
               key={`them-${player.playerId}`}
               x={position.x}
               y={position.y}
-              active={activeAction?.playerId === player.playerId}
-              receiver={activeAction?.targetPlayerId === player.playerId}
+              active={activeAction?.playerId === player.playerId && activeAction?.side === "them"}
+              receiver={isReceiver}
               player={player}
               expanded={expanded}
             />
           );
         })}
 
-        <span
+                <span
           className={cn(
-            "absolute z-30 -translate-x-1/2 -translate-y-1/2 rounded-full border border-black/25 bg-white shadow-[0_1px_7px_rgba(0,0,0,.85)]",
-            expanded ? "size-3" : "size-2.5",
+            "absolute z-40 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-black/50 bg-white shadow-[0_0_0_3px_rgba(255,255,255,.18),0_1px_9px_rgba(0,0,0,.9)]",
+            expanded ? "size-3.5" : "size-3",
           )}
           style={{ left: `${ball.x}%`, top: `${ball.y}%` }}
         />
