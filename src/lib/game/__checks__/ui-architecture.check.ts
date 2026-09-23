@@ -607,20 +607,22 @@ console.log("\n[U21] First XI pitch polish");
 console.log("\n[U22] Match replay event fidelity");
 {
   const viewer = read("src/components/game/MatchPitchViewer.tsx");
+  const sequence = read("src/lib/game/matchSequence.ts");
   check(
-    "goal replay crosses the goal line while chances terminate by outcome",
-    /event\.type === "goal"/.test(viewer) &&
-      /x: direction === 1 \? 99\.3 : 0\.7/.test(viewer) &&
-      /chanceOutcome\(event\)/.test(viewer),
+    "goal sequences cross the goal line while chances terminate by outcome",
+    /event\.type === "goal"/.test(sequence) &&
+      /99\.3 : 0\.7/.test(sequence) &&
+      /chanceOutcome\(event\)/.test(sequence),
   );
   check(
-    "replay score changes only when the goal animation reaches the net",
-    /active\?\.type === "goal" && progress >= 0\.9/.test(viewer),
+    "replay score waits for the canonical sequence result",
+    /sequenceResultVisible\(sequence, progress\)/.test(viewer) &&
+      /activeGoal/.test(viewer),
   );
   check(
-    "replay actor and defending keeper react to the canonical event",
-    /event\.actorPlayerId === player\.playerId/.test(viewer) &&
-      /defendingKeeper/.test(viewer),
+    "defending keeper reacts to the sequence shot",
+    /defendingKeeper/.test(viewer) &&
+      /action\.kind === "shot"/.test(viewer),
   );
   check(
     "pausing replay does not force the current event to completion",
@@ -632,36 +634,72 @@ console.log("\n[U22] Match replay event fidelity");
 console.log("\n[U23] Match replay build-up and pace");
 {
   const viewer = read("src/components/game/MatchPitchViewer.tsx");
+  const sequence = read("src/lib/game/matchSequence.ts");
   check(
-    "highlight paths contain multiple build-up passes before the final action",
-    /const pass1/.test(viewer) &&
-      /const pass2/.test(viewer) &&
-      /const pass3/.test(viewer) &&
-      /const pass4/.test(viewer) &&
-      /Final ball/.test(viewer),
+    "highlight build-up is represented as explicit football actions",
+    /"receive"/.test(sequence) &&
+      /"carry"/.test(sequence) &&
+      /"pass"/.test(sequence) &&
+      /"throughBall"/.test(sequence) &&
+      /"cross"/.test(sequence) &&
+      /"shot"/.test(sequence),
   );
   check(
     "viewer offers steady fast and rapid replay speeds",
     /PLAYBACK_SPEEDS = \[1, 2, 4\]/.test(viewer) &&
       /setPlaybackSpeed/.test(viewer) &&
-      /eventDurationMs/.test(viewer),
+      /sequenceDurationMs/.test(viewer),
   );
 }
 
 console.log("\n[U24] Visible player-to-player passing");
 {
   const viewer = read("src/components/game/MatchPitchViewer.tsx");
+  const sequence = read("src/lib/game/matchSequence.ts");
   check(
-    "replay build-up assigns deterministic possession players",
-    /possessionPlayerIds/.test(viewer) &&
-      /touchPointForPlayer/.test(viewer) &&
-      /passLabel/.test(viewer),
+    "replay sequences assign real lineup players to passes and receivers",
+    /participantOrder/.test(sequence) &&
+      /targetPlayerId/.test(sequence) &&
+      /activeMatchLineupAtMinute/.test(sequence),
   );
   check(
-    "scorer only follows the ball for the final shot phase",
-    /actor && progress > 0\.72/.test(viewer) &&
-      /actorShotRun/.test(viewer),
+    "renderer highlights passer and receiver instead of attaching one player to the whole move",
+    /activeAction\?\.playerId === player\.playerId/.test(viewer) &&
+      /activeAction\?\.targetPlayerId === player\.playerId/.test(viewer),
   );
 }
+
+console.log("\n[U25] Matchday sequence architecture");
+{
+  const viewer = read("src/components/game/MatchPitchViewer.tsx");
+  const overlay = read("src/components/game/MatchDayOverlay.tsx");
+  const sequence = read("src/lib/game/matchSequence.ts");
+  check(
+    "2D renderer consumes the pure deterministic sequence domain",
+    /buildMatchSequence/.test(viewer) &&
+      /frameForSequence/.test(viewer) &&
+      !/Math\.random/.test(sequence),
+  );
+  check(
+    "sequence generation respects substitutes active at the event minute",
+    /activeMatchLineupAtMinute/.test(sequence) &&
+      /substitutions/.test(sequence) &&
+      /userBench=\{lm\.engine\?\.userBench\}/.test(overlay) &&
+      /substitutions=\{lm\.engine\?\.substitutions\}/.test(overlay),
+  );
+  check(
+    "pitch shape is derived from tactical roles rather than a fixed 4-3-3 array",
+    /ROLE_X/.test(viewer) &&
+      /roleY/.test(viewer) &&
+      /formationPositions/.test(viewer) &&
+      !/HOME_SHAPE/.test(viewer),
+  );
+  check(
+    "parent score reveal is synchronised to the visible sequence result",
+    /activeResultVisible/.test(viewer) &&
+      /cursor \+ \(activeResultVisible \? 1 : 0\)/.test(viewer),
+  );
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
