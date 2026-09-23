@@ -228,7 +228,6 @@ function playerPosition(
 
   if (index === 0) return { x: baseX, y: baseY };
 
-  const inPossession = (event.side === "us") === ours;
   const direction = ours ? 1 : -1;
   const seed = eventSeed(event) + index * 23 + (ours ? 11 : 37);
   const attackLine = index > 7 ? 10 : index > 4 ? 6 : 2.5;
@@ -321,10 +320,6 @@ export function MatchPitchViewer({
   const active = events[Math.min(cursor, Math.max(0, events.length - 1))];
   const path = useMemo(() => eventPath(active), [active]);
   const ball = useMemo(() => pointOnPath(path, progress), [path, progress]);
-
-  useEffect(() => {
-    if (!playing) setProgress(1);
-  }, [playing]);
 
   const replayScore = useMemo(() => {
     const committed = events.slice(0, cursor).filter((event) => event.type === "goal");
