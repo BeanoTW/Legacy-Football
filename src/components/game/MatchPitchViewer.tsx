@@ -248,12 +248,16 @@ function playerPosition(
   if (sameSideAsAction && action?.playerId === player.playerId) {
     if (action.kind === "carry") {
       return {
-        x: clampX(ball.x - direction * 1.8),
+        x: clampX(ball.x - direction * 1.8 * localProgress),
         y: clampY(ball.y + Math.sin(localProgress * Math.PI) * 1.2),
       };
     }
     if (passActions.includes(action.kind)) {
-      return { x: action.start.x, y: action.start.y };
+      const settleIntoPass = Math.min(1, localProgress * 5);
+      return {
+        x: clampX(settledBase.x + (action.start.x - settledBase.x) * settleIntoPass),
+        y: clampY(settledBase.y + (action.start.y - settledBase.y) * settleIntoPass),
+      };
     }
     if (
       action.kind === "press" ||
@@ -262,22 +266,24 @@ function playerPosition(
       action.kind === "blockPass"
     ) {
       const close =
-        action.kind === "tackle"
-          ? 0.5 + localProgress * 0.48
+        localProgress *
+        (action.kind === "tackle"
+          ? 0.98
           : action.kind === "blockPass"
-            ? 0.62 + localProgress * 0.32
+            ? 0.94
             : action.kind === "challenge"
-              ? 0.44 + localProgress * 0.45
-              : 0.35 + localProgress * 0.55;
+              ? 0.88
+              : 0.78);
       return {
         x: clampX(settledBase.x + (ball.x - settledBase.x) * close),
         y: clampY(settledBase.y + (ball.y - settledBase.y) * close),
       };
     }
     if (action.kind === "interception" || action.kind === "recovery") {
+      const arrive = Math.sin((Math.PI / 2) * localProgress);
       return {
-        x: clampX(settledBase.x + (action.end.x - settledBase.x) * (0.55 + localProgress * 0.35)),
-        y: clampY(settledBase.y + (action.end.y - settledBase.y) * (0.55 + localProgress * 0.35)),
+        x: clampX(settledBase.x + (action.end.x - settledBase.x) * arrive),
+        y: clampY(settledBase.y + (action.end.y - settledBase.y) * arrive),
       };
     }
     if (action.kind === "shot") {
@@ -289,10 +295,10 @@ function playerPosition(
   }
 
   if (sameSideAsAction && action?.targetPlayerId === player.playerId && action.kind !== "press") {
-    const settle = Math.max(0.2, localProgress);
+    const receiveRun = Math.sin((Math.PI / 2) * localProgress);
     return {
-      x: clampX(settledBase.x + (action.end.x - settledBase.x) * settle),
-      y: clampY(settledBase.y + (action.end.y - settledBase.y) * settle),
+      x: clampX(settledBase.x + (action.end.x - settledBase.x) * receiveRun),
+      y: clampY(settledBase.y + (action.end.y - settledBase.y) * receiveRun),
     };
   }
 
@@ -322,16 +328,17 @@ function playerPosition(
     ["throughBall", "overlap", "cutback", "cross", "shot"].includes(action.kind);
   if (!inPossession && defensiveRole && trackingAction && action) {
     const ownGoalX = ours ? 6 : 94;
+    const reaction = Math.sin((Math.PI / 2) * localProgress);
     const retreat =
-      action.kind === "shot"
+      (action.kind === "shot"
         ? 0.32
         : action.kind === "cross" || action.kind === "cutback"
           ? 0.24
-          : 0.18;
+          : 0.18) * reaction;
     const markPull =
-      player.role === "CB" || player.role === "CDM"
+      (player.role === "CB" || player.role === "CDM"
         ? 0.3
-        : 0.4;
+        : 0.4) * reaction;
     return {
       x: clampX(
         anchor.x +
