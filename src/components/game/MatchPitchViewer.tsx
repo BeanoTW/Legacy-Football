@@ -958,9 +958,9 @@ export function MatchPitchViewer({
               setCursor(nextCursor);
               progressRef.current = nextProgress;
               setProgress(nextProgress);
-              setPlaying(false);
+              setPlaying(true);
             }}
-            aria-label="Return to the latest played moment"
+            aria-label="Return to the latest played moment and resume"
           >
             <SkipForward className="size-4" />
           </button>
