@@ -628,5 +628,24 @@ console.log("\n[U22] Match replay event fidelity");
       /progressRef/.test(viewer),
   );
 }
+
+console.log("\n[U23] Match replay build-up and pace");
+{
+  const viewer = read("src/components/game/MatchPitchViewer.tsx");
+  check(
+    "highlight paths contain multiple build-up passes before the final action",
+    /const pass1/.test(viewer) &&
+      /const pass2/.test(viewer) &&
+      /const pass3/.test(viewer) &&
+      /const pass4/.test(viewer) &&
+      /Final ball/.test(viewer),
+  );
+  check(
+    "viewer offers steady fast and rapid replay speeds",
+    /PLAYBACK_SPEEDS = \[1, 2, 4\]/.test(viewer) &&
+      /setPlaybackSpeed/.test(viewer) &&
+      /eventDurationMs/.test(viewer),
+  );
+}
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
