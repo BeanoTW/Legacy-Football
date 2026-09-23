@@ -470,6 +470,9 @@ export function MatchDayOverlay({
                   themName={themName}
                   userLineup={lm.engine?.userLineup}
                   opponentLineup={lm.engine?.opponentLineup}
+                  userBench={lm.engine?.userBench}
+                  opponentBench={lm.engine?.opponentBench}
+                  substitutions={lm.engine?.substitutions}
                   onReplayProgress={onReplayProgress}
                   expanded={!finishedReplay}
                 />
