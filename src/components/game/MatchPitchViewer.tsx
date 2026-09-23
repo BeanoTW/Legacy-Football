@@ -32,6 +32,15 @@ function eventSeed(event: MatchEvent | undefined): number {
   );
 }
 
+function chanceOutcome(event: MatchEvent): "saved" | "wide" | "blocked" | "over" {
+  const text = event.text.toLowerCase();
+  if (text.includes("save") || text.includes("smother")) return "saved";
+  if (text.includes("block") || text.includes("turned behind")) return "blocked";
+  if (text.includes("over")) return "over";
+  if (text.includes("wide") || text.includes("dragged")) return "wide";
+  return ["saved", "wide", "blocked", "over"][eventSeed(event) % 4] as "saved" | "wide" | "blocked" | "over";
+}
+
 function eventPosition(event: MatchEvent | undefined): PitchPoint {
   if (!event) return { x: 50, y: 50 };
   const attackingX =
@@ -55,13 +64,54 @@ function eventPosition(event: MatchEvent | undefined): PitchPoint {
   return { x: Math.max(4, Math.min(96, x)), y: 16 + ((seed * 17) % 69) };
 }
 
+function attackingDirection(event: MatchEvent): 1 | -1 {
+  return event.side === "them" ? -1 : 1;
+}
+
+function shotEnd(event: MatchEvent): PitchPoint {
+  const direction = attackingDirection(event);
+  const seed = eventSeed(event);
+  if (event.type === "goal") {
+    return {
+      x: direction === 1 ? 99.3 : 0.7,
+      y: 44 + (seed % 13),
+    };
+  }
+
+  const outcome = chanceOutcome(event);
+  if (outcome === "saved") {
+    return {
+      x: direction === 1 ? 94.5 : 5.5,
+      y: 43 + (seed % 15),
+    };
+  }
+  if (outcome === "blocked") {
+    return {
+      x: direction === 1 ? 86 : 14,
+      y: 34 + (seed % 33),
+    };
+  }
+  if (outcome === "over") {
+    return {
+      x: direction === 1 ? 98 : 2,
+      y: seed % 2 === 0 ? 34 : 66,
+    };
+  }
+  return {
+    x: direction === 1 ? 98 : 2,
+    y: seed % 2 === 0 ? 27 : 73,
+  };
+}
+
 function eventPath(event: MatchEvent | undefined): PitchPoint[] {
   if (!event) return [{ x: 50, y: 50 }];
   const target = eventPosition(event);
   if (event.type === "card" || event.side === "neutral") return [target];
 
-  const direction = event.side === "them" ? -1 : 1;
+  const direction = attackingDirection(event);
   const seed = eventSeed(event);
+  const shotEvent = event.type === "goal" || event.type === "chance";
+  const end = shotEvent ? shotEnd(event) : target;
   const startX =
     event.phase === "transition"
       ? target.x - direction * 48
@@ -71,27 +121,37 @@ function eventPath(event: MatchEvent | undefined): PitchPoint[] {
   const startY = 14 + ((seed * 11) % 73);
   const laneA = ((seed % 5) - 2) * 6;
   const laneB = (((seed >> 2) % 5) - 2) * 5;
-  const clampX = (x: number) => Math.max(4, Math.min(96, x));
-  const clampY = (y: number) => Math.max(8, Math.min(92, y));
+  const clampX = (x: number) => Math.max(1, Math.min(99, x));
+  const clampY = (y: number) => Math.max(7, Math.min(93, y));
+  const shotOrigin = {
+    x: direction === 1 ? Math.min(88, target.x - 4) : Math.max(12, target.x + 4),
+    y: clampY(38 + ((seed * 7) % 25)),
+  };
 
-  return [
+  const buildUp: PitchPoint[] = [
     { x: clampX(startX), y: clampY(startY) },
     {
       x: clampX(startX + direction * Math.abs(target.x - startX) * 0.22),
       y: clampY(startY + laneA),
     },
     {
-      x: clampX(startX + direction * Math.abs(target.x - startX) * 0.48),
-      y: clampY((startY * 0.55 + target.y * 0.45) + laneB),
+      x: clampX(startX + direction * Math.abs(target.x - startX) * 0.5),
+      y: clampY((startY * 0.55 + shotOrigin.y * 0.45) + laneB),
     },
+  ];
+
+  if (!shotEvent) return [...buildUp, target];
+
+  return [
+    ...buildUp,
+    shotOrigin,
     {
-      x: clampX(startX + direction * Math.abs(target.x - startX) * 0.73),
-      y: clampY((startY * 0.28 + target.y * 0.72) - laneA * 0.45),
+      x: shotOrigin.x + (end.x - shotOrigin.x) * 0.52,
+      y: shotOrigin.y + (end.y - shotOrigin.y) * 0.52,
     },
-    target,
+    end,
   ];
 }
-
 function catmullRom(a: number, b: number, c: number, d: number, t: number): number {
   const t2 = t * t;
   const t3 = t2 * t;
@@ -228,12 +288,14 @@ export function MatchPitchViewer({
   }, [playing]);
 
   const replayScore = useMemo(() => {
-    const visible = events.slice(0, cursor + 1).filter((event) => event.type === "goal");
+    const committed = events.slice(0, cursor).filter((event) => event.type === "goal");
+    const activeGoalVisible = active?.type === "goal" && progress >= 0.9 ? [active] : [];
+    const visible = [...committed, ...activeGoalVisible];
     return {
       us: visible.filter((event) => event.side === "us").length,
       them: visible.filter((event) => event.side === "them").length,
     };
-  }, [cursor, events]);
+  }, [active, cursor, events, progress]);
 
   useEffect(() => {
     onReplayProgress?.(cursor + 1, !playing && cursor >= events.length - 1);
@@ -278,6 +340,8 @@ export function MatchPitchViewer({
         <div className="absolute inset-y-[36%] -right-px w-[6%] border border-white/55" />
         <div className="absolute left-[10%] top-1/2 size-1 -translate-y-1/2 rounded-full bg-white/60" />
         <div className="absolute right-[10%] top-1/2 size-1 -translate-y-1/2 rounded-full bg-white/60" />
+        <div className="absolute left-0 top-[42%] h-[16%] w-[1.8%] border-y border-r border-white/70 bg-white/10" />
+        <div className="absolute right-0 top-[42%] h-[16%] w-[1.8%] border-y border-l border-white/70 bg-white/10" />
 
         <svg
           className="pointer-events-none absolute inset-0 size-full"
@@ -338,11 +402,16 @@ export function MatchPitchViewer({
           )}
           style={{ left: `${ball.x}%`, top: `${ball.y}%` }}
         />
-        {active?.type === "goal" && progress > 0.92 && (
-          <span
-            className="absolute size-10 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full border-2 border-amber-300"
-            style={{ left: `${ball.x}%`, top: `${ball.y}%` }}
-          />
+        {active?.type === "goal" && progress > 0.9 && (
+          <>
+            <span
+              className="absolute size-10 -translate-x-1/2 -translate-y-1/2 animate-ping rounded-full border-2 border-amber-300"
+              style={{ left: `${ball.x}%`, top: `${ball.y}%` }}
+            />
+            <div className="absolute left-1/2 top-3 z-30 -translate-x-1/2 rounded-full border border-amber-200/50 bg-amber-300 px-4 py-1.5 font-display text-lg text-amber-950 shadow-lg">
+              GOAL
+            </div>
+          </>
         )}
 
         <div className="absolute bottom-2 left-2 rounded bg-black/45 px-2 py-1 text-[10px] font-bold tnum backdrop-blur-sm">
@@ -400,12 +469,14 @@ export function MatchPitchViewer({
       <div
         className={cn(
           "mt-2 min-h-11 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs leading-snug",
-          active?.type === "goal" && "border-amber-300/40 bg-amber-300/10",
+          active?.type === "goal" && progress >= 0.9 && "border-amber-300/40 bg-amber-300/10",
         )}
         aria-live="polite"
       >
         <span className="mr-2 font-bold text-emerald-300 tnum">{active?.minute}'</span>
-        {active?.text}
+        {active?.type === "goal" && progress < 0.9
+          ? `${active.actorName ?? (active.side === "us" ? usName : themName)} attacks the box…`
+          : active?.text}
       </div>
     </div>
   );
