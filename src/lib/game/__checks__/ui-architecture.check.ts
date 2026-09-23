@@ -553,5 +553,26 @@ console.log("\n[U18] Shared tactical player-card system");
       /Scouted \{knowledge\}%/.test(profile),
   );
 }
+
+console.log("\n[U19] Dense squad planning");
+{
+  const card = read("src/components/game/shared/TacticalPlayerCard.tsx");
+  const profile = read("src/components/game/shared/PlayerProfileSheet.tsx");
+  check(
+    "owned squad cards use dense planning rows",
+    /mode !== "recruitment"/.test(card) &&
+      /min-h-\[3\.75rem\]/.test(card) &&
+      /min-h-\[4\.45rem\]/.test(card),
+  );
+  check(
+    "player attributes stay two-column on mobile",
+    /grid grid-cols-2 gap-x-3 gap-y-2/.test(profile),
+  );
+  check(
+    "owned profile shows exact club value and wage rather than scouting ranges",
+    /owned \? fmtMoneyExact\(player\.marketValue\)/.test(profile) &&
+      /fmtMoneyExact\(contract\.weeklyWage\)/.test(profile),
+  );
+}
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
