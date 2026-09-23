@@ -323,4 +323,105 @@ assert(
   "a quiet-play turnover must still never invent a canonical outcome",
 );
 
+
+const defendedChance = Array.from({ length: 40 }, (_, index) =>
+  buildMatchSequence({
+    ...input,
+    event: {
+      ...chance,
+      minute: 67,
+      sequenceId: `defended-chance-${index}`,
+    },
+    substitutions: [],
+    userPlan: patientPlan,
+    opponentPlan: highPressPlan,
+  }),
+).find((sequence) =>
+  sequence?.actions.some((item) => item.kind === "clearance") &&
+  sequence.actions.some((item) => item.kind === "recovery"),
+);
+assert(defendedChance, "canonical chances must support a clearance and attacking second phase");
+const defendedClearanceIndex = defendedChance.actions.findIndex((item) => item.kind === "clearance");
+const defendedRecoveryIndex = defendedChance.actions.findIndex((item) => item.kind === "recovery");
+const defendedShotIndex = defendedChance.actions.findIndex((item) => item.kind === "shot");
+assert(
+  defendedClearanceIndex >= 0 &&
+    defendedRecoveryIndex > defendedClearanceIndex &&
+    defendedShotIndex > defendedRecoveryIndex,
+  "a cleared canonical attack must recover the second ball before the eventual canonical shot",
+);
+assert.equal(
+  defendedChance.actions[defendedClearanceIndex]?.possessionSide,
+  "them",
+  "a defender clearing the ball must temporarily own the possession phase",
+);
+assert.equal(
+  defendedChance.actions[defendedRecoveryIndex]?.possessionSide,
+  "us",
+  "the attacking recovery must explicitly restore possession",
+);
+assert.equal(
+  defendedChance.actions[defendedShotIndex]?.playerId,
+  chance.actorPlayerId,
+  "defensive presentation must not change the canonical shooter",
+);
+
+const challengedChance = Array.from({ length: 30 }, (_, index) =>
+  buildMatchSequence({
+    ...input,
+    event: {
+      ...chance,
+      minute: 69,
+      sequenceId: `challenged-chance-${index}`,
+    },
+    substitutions: [],
+    userPlan: directPlan,
+    opponentPlan: highPressPlan,
+  }),
+).find((sequence) => sequence?.actions.some((item) => item.kind === "challenge"));
+assert(challengedChance, "canonical attacks must support failed defensive challenges");
+const failedChallenge = challengedChance.actions.find((item) => item.kind === "challenge");
+assert.equal(
+  failedChallenge?.possessionSide,
+  "us",
+  "a failed challenge must not steal possession from the attacking side",
+);
+
+const clearanceFlow = Array.from({ length: 48 }, (_, index) =>
+  buildMatchFlowSequence({
+    nextEvent: {
+      ...directEvent,
+      minute: 61,
+      side: "us" as const,
+      sequenceId: `clearance-flow-${index}`,
+    },
+    previousEvent: { ...chance, minute: 44, sequenceId: `clearance-prev-${index}` },
+    userLineup: lineup,
+    opponentLineup: lineup.map((player) => ({
+      ...player,
+      playerId: `clear-opp-${player.playerId}`,
+      name: `Clear Opp ${player.name}`,
+    })),
+    userBench: [],
+    opponentBench: [],
+    substitutions: [],
+    userPlan: patientPlan,
+    opponentPlan: directPlan,
+  }),
+).find((sequence) =>
+  sequence?.actions.some((item) => item.kind === "clearance") &&
+  sequence.actions.some((item) => item.kind === "recovery"),
+);
+assert(clearanceFlow, "quiet open play must support clearances and second balls");
+const flowClearanceIndex = clearanceFlow.actions.findIndex((item) => item.kind === "clearance");
+const flowRecoveryIndex = clearanceFlow.actions.findIndex((item) => item.kind === "recovery");
+assert(
+  flowRecoveryIndex > flowClearanceIndex,
+  "the loose second ball must be recovered after the clearance",
+);
+assert(
+  !clearanceFlow.actions.some((item) => ["shot", "save", "block", "miss", "goal"].includes(item.kind)),
+  "an open-play defensive phase must still never invent a canonical chance",
+);
+
 console.log("\nmatch-sequence: passed");
