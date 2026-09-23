@@ -6,6 +6,7 @@ import type {
   MatchSubstitution,
   TacticalPosition,
 } from "@/lib/game/types";
+import { bridgeMinute, commentaryBridge } from "@/lib/game/matchFlow";
 import {
   activeMatchLineupAtMinute,
   buildMatchSequence,
@@ -272,6 +273,7 @@ export function MatchPitchViewer({
   }, [events.length]);
 
   const active = events[Math.min(cursor, Math.max(0, events.length - 1))];
+  const previousEvent = cursor > 0 ? events[cursor - 1] : undefined;
   const sequence = useMemo(
     () =>
       active
@@ -286,13 +288,25 @@ export function MatchPitchViewer({
         : null,
     [active, opponentBench, opponentLineup, substitutions, userBench, userLineup],
   );
-  const frame = useMemo(
-    () => (sequence ? frameForSequence(sequence, progress) : null),
-    [progress, sequence],
+  const bridge = useMemo(
+    () => (active ? commentaryBridge(previousEvent, active, usName, themName) : null),
+    [active, previousEvent, themName, usName],
   );
-  const ball = frame?.ball ?? fallbackEventPosition(active);
+  const sequenceBaseDuration = eventDurationMs(active, sequence);
+  const activeDuration = sequenceBaseDuration + (bridge?.durationMs ?? 0);
+  const bridgeFraction = bridge ? bridge.durationMs / Math.max(1, activeDuration) : 0;
+  const inBridge = Boolean(bridge && progress < bridgeFraction);
+  const bridgeProgress = bridgeFraction > 0 ? Math.min(1, progress / bridgeFraction) : 1;
+  const contentProgress =
+    bridgeFraction < 1
+      ? Math.max(0, Math.min(1, (progress - bridgeFraction) / Math.max(0.0001, 1 - bridgeFraction)))
+      : 0;
+  const frame = useMemo(
+    () => (sequence && !inBridge ? frameForSequence(sequence, contentProgress) : null),
+    [contentProgress, inBridge, sequence],
+  );
+  const ball = frame?.ball ?? (inBridge ? { x: 50, y: 50 } : fallbackEventPosition(active));
   const activeAction = frame?.action;
-  const activeDuration = eventDurationMs(active, sequence);
 
   useEffect(() => {
     if (!playing || events.length === 0) return;
@@ -333,8 +347,8 @@ export function MatchPitchViewer({
 
   const activeResultVisible =
     sequence
-      ? sequenceResultVisible(sequence, progress)
-      : progress >= 0.88;
+      ? !inBridge && sequenceResultVisible(sequence, contentProgress)
+      : !inBridge && contentProgress >= 0.88;
   const replayScore = useMemo(() => {
     const committed = events.slice(0, cursor).filter((event) => event.type === "goal");
     const activeGoal =
@@ -380,9 +394,15 @@ export function MatchPitchViewer({
       ? `${activeAction.playerName.split(" ").pop()} → ${activeAction.targetPlayerName.split(" ").pop()}`
       : null;
   const actionCommentary =
-    sequence && activeAction
-      ? activeAction.commentary
-      : active?.text ?? "The match settles into shape.";
+    inBridge && bridge
+      ? bridge.text
+      : sequence && activeAction
+        ? activeAction.commentary
+        : active?.text ?? "The match settles into shape.";
+  const displayMinute =
+    inBridge && bridge
+      ? bridgeMinute(bridge, bridgeProgress)
+      : active?.minute ?? 0;
 
   return (
     <div
@@ -535,10 +555,10 @@ export function MatchPitchViewer({
         )}
 
         <div className="absolute bottom-2 left-2 rounded bg-black/45 px-2 py-1 text-[10px] font-bold tnum backdrop-blur-sm">
-          {active?.minute ?? 0}'
+          {displayMinute}'
         </div>
         <div className="absolute bottom-2 right-2 rounded bg-black/45 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-white/75 backdrop-blur-sm">
-          {actionStage(activeAction, active)}
+          {inBridge ? "Match flow" : actionStage(activeAction, active)}
         </div>
       </div>
 
@@ -614,7 +634,7 @@ export function MatchPitchViewer({
         aria-live="polite"
       >
         <div className="flex items-start gap-2">
-          <span className="shrink-0 font-bold text-emerald-300 tnum">{active?.minute}'</span>
+          <span className="shrink-0 font-bold text-emerald-300 tnum">{displayMinute}'</span>
           <span>{actionCommentary}</span>
         </div>
       </div>
