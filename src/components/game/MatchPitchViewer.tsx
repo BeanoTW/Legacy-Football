@@ -232,11 +232,15 @@ function playerPosition(
   plan: MatchTeamPlan | undefined,
   sequence: MatchSequence | null,
   actionIndex: number,
+  entrySequence: MatchSequence | null,
 ): MatchPitchPoint {
   const clampX = (value: number) => Math.max(3, Math.min(97, value));
   const clampY = (value: number) => Math.max(5, Math.min(95, value));
   const direction = ours ? 1 : -1;
-  const settledBase = settledPlayerPosition(base, player.playerId, sequence, actionIndex);
+  const entryBase = entrySequence
+    ? settledPlayerPosition(base, player.playerId, entrySequence, entrySequence.actions.length)
+    : base;
+  const settledBase = settledPlayerPosition(entryBase, player.playerId, sequence, actionIndex);
   const anchor = {
     x: settledBase.x + (base.x - settledBase.x) * 0.06,
     y: settledBase.y + (base.y - settledBase.y) * 0.06,
@@ -279,7 +283,7 @@ function playerPosition(
         y: clampY(settledBase.y + (ball.y - settledBase.y) * close),
       };
     }
-    if (action.kind === "interception" || action.kind === "recovery") {
+    if (action.kind === "receive" || action.kind === "interception" || action.kind === "recovery") {
       const arrive = Math.sin((Math.PI / 2) * localProgress);
       return {
         x: clampX(settledBase.x + (action.end.x - settledBase.x) * arrive),
@@ -494,6 +498,31 @@ export function MatchPitchViewer({
         : null,
     [active, opponentBench, opponentLineup, opponentPlan, substitutions, userBench, userLineup, userPlan],
   );
+  const previousSequence = useMemo(
+    () =>
+      previousEvent
+        ? buildMatchSequence({
+            event: previousEvent,
+            userLineup,
+            opponentLineup,
+            userBench,
+            opponentBench,
+            substitutions,
+            userPlan,
+            opponentPlan,
+          })
+        : null,
+    [
+      opponentBench,
+      opponentLineup,
+      opponentPlan,
+      previousEvent,
+      substitutions,
+      userBench,
+      userLineup,
+      userPlan,
+    ],
+  );
   const bridge = useMemo(
     () => (active ? commentaryBridge(previousEvent, active, usName, themName) : null),
     [active, previousEvent, themName, usName],
@@ -554,6 +583,10 @@ export function MatchPitchViewer({
     [bridgeProgress, bridgeSequence, contentProgress, inBridge, sequence],
   );
   const renderSequence = inBridge ? bridgeSequence : sequence;
+  const entrySequence =
+    inBridge
+      ? previousSequence
+      : bridgeSequence ?? previousSequence;
   const ball = frame?.ball ?? (inBridge ? { x: 50, y: 50 } : fallbackEventPosition(active));
   const activeAction = frame?.action;
 
@@ -756,6 +789,7 @@ export function MatchPitchViewer({
             userPlan,
             renderSequence,
             frame?.actionIndex ?? 0,
+            entrySequence,
           );
           return (
             <PlayerDot
@@ -784,6 +818,7 @@ export function MatchPitchViewer({
             opponentPlan,
             renderSequence,
             frame?.actionIndex ?? 0,
+            entrySequence,
           );
           return (
             <PlayerDot
