@@ -998,3 +998,38 @@ export function buildGroundScene(input: SceneInput): SceneOutput {
   const core = [
     v(-reachX, -reachY, 0), v(reachX, -reachY, 0), v(reachX, reachY, 0), v(-reachX, reachY, 0),
     v(-reachX, reachY, tall), v(reachX, reachY, tall),
+// Club buildings to the left and hospitality to the right.
+    ...(stage >= 2 ? [v(-106, -8, 0), v(-106, 16, 10), v(-90, -56, 0), v(116, 40, 8)] : [v(-86, -12, 0), v(-86, 12, 8), v(-66, -48, 0), v(78, 30, 6)]),
+  ].map(project);
+  let minX = Math.min(...core.map((p) => p.x));
+  let maxX = Math.max(...core.map((p) => p.x));
+  let minY = Math.min(...core.map((p) => p.y));
+  let maxY = Math.max(...core.map((p) => p.y));
+  const aspect = Math.max(0.3, input.width / Math.max(1, input.height));
+  const pad = 1.06;
+  let w = (maxX - minX) * pad;
+  let h = (maxY - minY) * pad;
+  if (w / h > aspect) h = w / aspect;
+  else w = h * aspect;
+  const cx = (minX + maxX) / 2;
+  // Leave a little more room at the top for the stage badge.
+  const cy = (minY + maxY) / 2 - h * 0.02;
+  minX = cx - w / 2;
+  minY = cy - h / 2;
+  maxX = cx + w / 2;
+  maxY = cy + h / 2;
+
+  const objects = [...scene.objects].sort((a, b) => b.depth - a.depth).flatMap((o) => o.prims);
+  const outAnchors: SceneOutput["anchors"] = {};
+  for (const [id, point] of Object.entries(anchors)) {
+    const p = project(point);
+    outAnchors[id] = { x: (p.x - minX) / w, y: (p.y - minY) / h };
+  }
+
+  return {
+    viewBox: { x: minX, y: minY, w, h },
+    background: "#6f9a42",
+    prims: [...scene.ground, ...scene.shadows, ...objects],
+    anchors: outAnchors,
+  };
+}
