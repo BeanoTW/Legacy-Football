@@ -1,12 +1,128 @@
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { InfrastructureAsset } from "@/lib/game/types";
 import { conditionBand } from "@/lib/game/infrastructure";
+import { buildGroundScene } from "@/lib/game/groundScene";
 import { cn } from "@/lib/utils";
 
 export interface GroundHotspot {
   id: string;
   label: string;
   asset: InfrastructureAsset;
+  /** Legacy CSS position class. Labels are now anchored to the scene, so this is unused. */
   className: string;
+}
+
+const BAND_COLOUR: Record<string, string> = {
+  excellent: "oklch(0.73 0.17 145)",
+  good: "oklch(0.73 0.17 145)",
+  worn: "oklch(0.78 0.14 86)",
+  poor: "oklch(0.66 0.2 30)",
+  critical: "oklch(0.66 0.2 30)",
+  closed: "oklch(0.5 0.02 240)",
+};
+
+/* Leader lines replace the old fixed stem; everything else reuses .lf-ground-label. */
+const SCENE_CSS = `
+.lf-ground-scene-label.lf-ground-label { position: absolute; max-width: 7.3rem; }
+.lf-ground-scene-label.lf-ground-label::after { display: none; }
+.lf-ground-aerial-shade {
+  position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 50% 45%, transparent 55%, rgb(8 24 16 / 32%) 100%),
+    linear-gradient(180deg, rgb(255 255 255 / 6%), transparent 30%);
+}
+`;
+
+const LABEL_H = 28;
+const GAP = 5;
+const EDGE = 6;
+
+interface LabelBox {
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  ax: number;
+  ay: number;
+}
+
+/** Places pills above their anchors, then pushes overlapping ones apart. */
+export function layoutLabels(
+  items: Array<{ id: string; label: string; ax: number; ay: number }>,
+  width: number,
+  height: number,
+): LabelBox[] {
+  const compact = width <= 430;
+  const charW = compact ? 5.4 : 5.8;
+  const maxW = compact ? 101 : 117;
+  const boxes: LabelBox[] = items.map((item) => {
+    const w = Math.min(maxW, 30 + item.label.length * charW);
+    return { id: item.id, w, ax: item.ax, ay: item.ay, x: item.ax - w / 2, y: item.ay - LABEL_H - 12 };
+  });
+  // The stage badge in the top-right corner is a fixed obstacle.
+  const badge = { x: width - 104, y: 0, w: 104, h: 44 };
+
+  const clamp = (b: LabelBox) => {
+    b.x = Math.max(EDGE, Math.min(width - EDGE - b.w, b.x));
+    b.y = Math.max(EDGE, Math.min(height - EDGE - LABEL_H, b.y));
+  };
+  boxes.forEach(clamp);
+
+  for (let iteration = 0; iteration < 80; iteration += 1) {
+    let moved = false;
+    for (let i = 0; i < boxes.length; i += 1) {
+      const a = boxes[i];
+      for (let j = i + 1; j < boxes.length; j += 1) {
+        const b = boxes[j];
+        const ox = Math.min(a.x + a.w + GAP - b.x, b.x + b.w + GAP - a.x);
+        const oy = Math.min(a.y + LABEL_H + GAP - b.y, b.y + LABEL_H + GAP - a.y);
+        if (ox <= 0 || oy <= 0) continue;
+        moved = true;
+        if (oy <= ox) {
+          const dir = a.y + LABEL_H / 2 <= b.y + LABEL_H / 2 ? -1 : 1;
+          a.y += (dir * oy) / 2 + dir * 0.5;
+          b.y -= (dir * oy) / 2 + dir * 0.5;
+        } else {
+          const dir = a.x + a.w / 2 <= b.x + b.w / 2 ? -1 : 1;
+          a.x += (dir * ox) / 2 + dir * 0.5;
+          b.x -= (dir * ox) / 2 + dir * 0.5;
+        }
+        clamp(a);
+        clamp(b);
+      }
+      const ox = Math.min(a.x + a.w + GAP - badge.x, badge.x + badge.w + GAP - a.x);
+      const oy = Math.min(a.y + LABEL_H + GAP - badge.y, badge.y + badge.h + GAP - a.y);
+      if (ox > 0 && oy > 0) {
+        moved = true;
+        a.y = badge.y + badge.h + GAP;
+        clamp(a);
+      }
+    }
+    if (!moved) break;
+  }
+  return boxes;
+}
+
+function useViewportSize(ref: RefObject<HTMLDivElement | null>) {
+  const [size, setSize] = useState({ width: 390, height: 470 });
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    const measure = (width: number, height: number) => {
+      // Round so tiny layout jitters don't rebuild the scene.
+      const next = { width: Math.max(200, Math.round(width / 4) * 4), height: Math.max(200, Math.round(height / 4) * 4) };
+      setSize((current) => (current.width === next.width && current.height === next.height ? current : next));
+    };
+    measure(node.clientWidth, node.clientHeight);
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect;
+      if (rect) measure(rect.width, rect.height);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [ref]);
+  return size;
 }
 
 export function StadiumGround({
@@ -20,220 +136,115 @@ export function StadiumGround({
   selectedId: string | null;
   onSelect: (hotspot: GroundHotspot) => void;
 }) {
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const { width, height } = useViewportSize(viewportRef);
+
+  const pitchCondition = Math.round((hotspots.find((h) => h.id === "pitch")?.asset.condition ?? 80) / 5) * 5;
+  const worksKey = hotspots
+    .filter((h) => h.asset.activeProjectId)
+    .map((h) => h.id)
+    .sort()
+    .join(",");
+
+  const scene = useMemo(
+    () =>
+      buildGroundScene({
+        stage,
+        pitchCondition,
+        worksAt: worksKey ? worksKey.split(",") : [],
+        width,
+        height,
+      }),
+    [height, pitchCondition, stage, width, worksKey],
+  );
+
+  const strokeScale = scene.viewBox.w / width;
+
+  const paths = useMemo(
+    () =>
+      scene.prims.map((prim, index) => (
+        <path
+          key={index}
+          d={prim.d}
+          fill={prim.fill}
+          stroke={prim.stroke}
+          strokeWidth={prim.stroke ? (prim.sw ?? 1) * strokeScale : undefined}
+          strokeLinecap={prim.cap}
+          strokeLinejoin={prim.stroke ? "round" : undefined}
+          opacity={prim.opacity}
+        />
+      )),
+    [scene, strokeScale],
+  );
+
+  const labels = useMemo(() => {
+    const items = hotspots.flatMap((hotspot) => {
+      const anchor = scene.anchors[hotspot.id];
+      return anchor ? [{ id: hotspot.id, label: hotspot.label, ax: anchor.x * width, ay: anchor.y * height }] : [];
+    });
+    return layoutLabels(items, width, height);
+  }, [height, hotspots, scene.anchors, width]);
+
+  const byId = new Map(hotspots.map((hotspot) => [hotspot.id, hotspot]));
+  const { x, y, w, h } = scene.viewBox;
+
   return (
-    <div className={cn("lf-ground-viewport rounded-lg", `lf-ground-stage-${stage}`)}>
+    <div ref={viewportRef} className={cn("lf-ground-viewport rounded-lg", `lf-ground-stage-${stage}`)} style={{ background: scene.background }}>
+      <style>{SCENE_CSS}</style>
       <div className="lf-ground-scene-heading">
         <span className="lf-ground-scene-stage">Stage {stage + 1}</span>
       </div>
 
-      <svg className="lf-ground-scene" viewBox="0 0 900 610" role="img" aria-label="Elevated view of the club ground">
-        <defs>
-          <linearGradient id="lf-ground-grass" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="currentColor" stopOpacity=".92" />
-            <stop offset="1" stopColor="currentColor" stopOpacity=".72" />
-          </linearGradient>
-        </defs>
+      <svg
+        className="absolute inset-0 z-[2] h-full w-full"
+        viewBox={`${x} ${y} ${w} ${h}`}
+        preserveAspectRatio="xMidYMid slice"
+        role="img"
+        aria-label="Aerial view of the club ground"
+      >
+        {paths}
+      </svg>
+      <div className="lf-ground-aerial-shade" aria-hidden="true" />
 
-        <path className="ground-site" d="M44 212 449 38 861 220 450 586 30 392Z" />
-        <path className="ground-carpark" d="M54 350 177 298 279 343 153 451 47 401Z" />
-        <path className="ground-carpark-line" d="M76 355 163 319M94 378 183 340M113 399 203 361M133 420 222 382" />
-        <g className="ground-carpark-cars">
-          <path d="M91 346 113 337 127 344 105 354Z" />
-          <path d="M127 369 150 359 164 366 141 376Z" />
-          <path d="M163 391 185 382 199 389 176 399Z" />
-        </g>
-        <path className="ground-walkway" d="M121 208 449 70 785 219 451 520 91 365Z" />
-
-        <g className="stage-one-ground">
-          <path className="stage-one-field" d="M118 168 782 168 741 506 159 506Z" />
-          <path className="stage-one-path" d="M126 180 774 180 732 494 168 494Z" />
-
-          <g className="stage-one-cage">
-            <path className="stage-one-cage-outline" d="M142 193 758 193 720 480 180 480Z" />
-            <path className="stage-one-cage-posts" d="M142 193V176M758 193V176M180 480V500M720 480V500M315 185V168M585 185V168M202 332H184M716 332H734" />
-          </g>
-
-          <g className="stage-one-simple-lights">
-            <path d="M208 220V178M692 220V178M228 456V498M672 456V498" />
-            <rect x="197" y="171" width="22" height="8" rx="2" />
-            <rect x="681" y="171" width="22" height="8" rx="2" />
-            <rect x="217" y="497" width="22" height="8" rx="2" />
-            <rect x="661" y="497" width="22" height="8" rx="2" />
-          </g>
-
-          <g className="stage-one-benches">
-            <path d="M166 289 214 289 220 299 170 299Z" />
-            <path d="M686 369 734 369 730 379 680 379Z" />
-          </g>
-
-          <g className="stage-one-portacabins">
-            <path className="stage-one-cabin-side" d="M76 382 121 361 154 376 109 397Z" />
-            <path className="stage-one-cabin-front" d="M76 382V414L109 430V397L76 382Z" />
-            <path className="stage-one-cabin-side" d="M109 397 154 376V408L109 430V397Z" />
-            <path className="stage-one-cabin-window" d="M87 391 100 397V409L87 403ZM121 393 140 384V397L121 406Z" />
-          </g>
-
-          <g className="stage-one-gravel">
-            <path d="M66 430 174 380 217 400 108 450Z" />
-          </g>
-
-          <g className="stage-one-entry">
-            <path d="M156 481 174 472 192 481 174 490Z" />
-            <path d="M165 478V499M183 478V499" />
-          </g>
-        </g>
-
-        <g className="ground-main-stand">
-          <path className="ground-stand-shadow" d="M146 199 447 76 738 204 680 245 447 143 204 246Z" />
-          <path className="ground-stand-face" d="M177 200 446 91 708 207 665 235 446 141 220 236Z" />
-          <path className="ground-seat-row" d="M202 201 446 104 684 209M218 217 446 126 664 221" />
-          <path className="ground-stand-roof" d="M136 179 447 52 753 187 709 213 447 99 182 211Z" />
-        </g>
-
-        <g className="ground-grass-bank early-ground-bank">
-          <path d="M147 350 198 315 447 425 686 211 741 237 449 493Z" />
-          <path className="ground-rail" d="M176 345 445 462 710 226" />
-        </g>
-
-        <g className="ground-opposite-stand">
-          <path className="ground-stand-shadow" d="M131 350 195 305 447 417 690 199 759 229 451 512Z" />
-          <path className="ground-stand-face" d="M159 347 202 318 446 426 681 215 728 236 449 485Z" />
-          <path className="ground-seat-row" d="M190 348 445 459 701 230M180 331 446 444 715 214" />
-          <path className="ground-stand-roof secondary-roof" d="M122 347 183 302 447 419 699 193 770 224 450 521Z" />
-        </g>
-
-        <g className="ground-corner-build corner-build">
-          <path className="ground-stand-face" d="M192 245 229 221 269 239 232 266Z" />
-          <path className="ground-stand-face" d="M625 236 665 214 708 233 665 260Z" />
-        </g>
-
-        <g className="ground-upper-tier upper-tier-build">
-          <path className="ground-upper-tier-face" d="M242 155 447 75 646 164 616 184 447 111 272 181Z" />
-          <path className="ground-upper-tier-roof" d="M226 143 447 56 663 153 639 168 447 83 250 166Z" />
-        </g>
-
-        <g className="ground-media-box media-build">
-          <path className="ground-media-shell" d="M378 113 447 88 514 117 497 137 447 116 394 138Z" />
-          <path className="ground-media-glass" d="M394 118 447 99 497 121 486 132 447 116 405 133Z" />
-        </g>
-
-        <g className="ground-scoreboard scoreboard-build">
-          <rect x="705" y="287" width="70" height="42" rx="4" />
-          <path d="M720 329V353M759 329V353" />
-        </g>
-
-        <g className="ground-shop shop-build">
-          <path className="ground-building-front" d="M60 462 106 438 151 459 105 484Z" />
-          <path className="ground-building-front" d="M60 462V499L105 522V484L60 462Z" />
-          <path className="ground-building-side" d="M105 484 151 459V496L105 522V484Z" />
-          <path className="ground-window" d="M73 475 92 484V500L73 491ZM116 478 139 466V482L116 494Z" />
-        </g>
-
-        <g className="ground-academy academy-build">
-          <path className="ground-academy-pitch" d="M690 455 763 423 831 453 758 516Z" />
-          <path className="ground-academy-line" d="M701 458 763 431 819 456 758 508Z M760 432V507" />
-        </g>
-
-        <path className="ground-pitch-surround" d="M202 220 698 220 650 446 250 446Z" />
-        <path className="ground-pitch" d="M226 239 674 239 629 425 271 425Z" />
-
-        <g className="ground-mow-lines">
-          <path className="ground-pitch-stripe" d="M226 239 674 239 665 277 234 277Z" />
-          <path className="ground-pitch-stripe" d="M647 353 286 353 278 389 638 389Z" />
-        </g>
-
-        <g className="ground-marking">
-          <path d="M226 239 674 239 629 425 271 425Z" />
-          <path d="M450 239V425" />
-          <ellipse cx="450" cy="332" rx="55" ry="27" />
-          <circle cx="450" cy="332" r="3.5" />
-
-          <path d="M374 239 378 286 522 286 526 239" />
-          <path d="M408 239 410 260 490 260 492 239" />
-          <circle cx="450" cy="273" r="3" />
-
-          <path d="M340 425 346 377 554 377 560 425" />
-          <path d="M398 425 401 402 499 402 502 425" />
-          <circle cx="450" cy="389" r="3" />
-
-          <path d="M416 286 C425 304 475 304 484 286" />
-          <path d="M406 377 C417 359 483 359 494 377" />
-        </g>
-
-        <g className="ground-goals">
-          <path d="M420 239V226H480V239M420 226L428 220H472L480 226" />
-          <path d="M404 425V440H496V425M404 440L415 447H485L496 440" />
-        </g>
-
-        <g className="ground-dugouts">
-          <path d="M265 342 319 342 329 354 272 354Z" />
-          <path d="M581 342 635 342 628 354 571 354Z" />
-        </g>
-
-        <g className="ground-adboards">
-          <path d="M228 226H350M550 226H672M244 438H365M535 438H648" />
-        </g>
-
-        <g className="ground-clubhouse">
-          <path className="ground-building-side" d="M77 282 143 252 198 276 132 307 77 282Z" />
-          <path className="ground-building-front" d="M77 282V347L132 376V307L77 282Z" />
-          <path className="ground-building-side" d="M132 307 198 276V338L132 376V307Z" />
-          <path className="ground-building-roof" d="M70 277 143 244 205 272 132 306Z" />
-          <path className="ground-window" d="M92 310 112 320V344L92 334ZM151 308 178 295V318L151 332Z" />
-        </g>
-
-        <g className="ground-hospitality future-campus">
-          <path className="ground-building-side" d="M692 330 752 279 820 309 758 363 692 330Z" />
-          <path className="ground-building-front" d="M692 330V389L758 424V363L692 330Z" />
-          <path className="ground-building-side" d="M758 363 820 309V368L758 424V363Z" />
-          <path className="ground-building-roof" d="M685 325 751 270 829 305 758 364Z" />
-          <path className="ground-window" d="M715 348 742 362V386L715 372ZM773 348 803 323V346L773 371Z" />
-        </g>
-
-        <g className="ground-office-sign media-build">
-          <path d="M420 123 448 112 476 124 448 137Z" />
-        </g>
-
-        <g className="ground-turnstiles">
-          <path d="M121 433 155 405 190 421 155 451Z" />
-          <path d="M165 453 198 425 232 441 198 470Z" />
-        </g>
-
-        <g className="ground-fence">
-          <path d="M98 229 449 84 805 239M93 374 449 548 807 236" />
-        </g>
-
-        <g className="ground-light-tower">
-          <path className="ground-light-pole" d="M147 164V277M748 171V275M157 456V369M747 457V369" />
-          <g className="ground-light-head">
-            <rect x="128" y="145" width="38" height="18" rx="4" />
-            <rect x="729" y="152" width="38" height="18" rx="4" />
-            <rect x="138" y="456" width="38" height="18" rx="4" />
-            <rect x="728" y="457" width="38" height="18" rx="4" />
-          </g>
-        </g>
-
-        <g className="ground-tree-line">
-          <circle cx="72" cy="236" r="12" /><circle cx="95" cy="220" r="9" /><circle cx="821" cy="260" r="11" />
-          <circle cx="838" cy="279" r="9" /><circle cx="79" cy="447" r="10" /><circle cx="823" cy="430" r="12" />
-        </g>
+      {/* Leader lines from each label to the part of the ground it describes. */}
+      <svg className="pointer-events-none absolute inset-0 z-[5] h-full w-full" aria-hidden="true">
+        {labels.map((box) => {
+          const hotspot = byId.get(box.id);
+          if (!hotspot) return null;
+          const colour = BAND_COLOUR[conditionBand(hotspot.asset.condition)] ?? "white";
+          const lx = Math.max(box.x + 10, Math.min(box.x + box.w - 10, box.ax));
+          const ly = box.y + LABEL_H / 2 < box.ay ? box.y + LABEL_H : box.y;
+          const selected = selectedId === hotspot.asset.id;
+          return (
+            <g key={box.id}>
+              <line x1={lx} y1={ly} x2={box.ax} y2={box.ay} stroke="white" strokeOpacity={selected ? 0.9 : 0.55} strokeWidth={1.2} />
+              <circle cx={box.ax} cy={box.ay} r={selected ? 4.5 : 3.5} fill={colour} stroke="rgb(10 30 25 / 70%)" strokeWidth={1.5} />
+            </g>
+          );
+        })}
       </svg>
 
-      {hotspots.map((hotspot) => (
-        <button
-          key={hotspot.id}
-          type="button"
-          aria-pressed={selectedId === hotspot.id}
-          aria-label={`Open ${hotspot.label}`}
-          data-band={conditionBand(hotspot.asset.condition)}
-          onClick={() => onSelect(hotspot)}
-          className={cn("lf-ground-label", hotspot.className, selectedId === hotspot.id && "is-selected")}
-        >
-          <span className="lf-ground-label-dot" aria-hidden="true" />
-          <span className="truncate">{hotspot.label}</span>
-          {hotspot.asset.activeProjectId ? <span className="lf-ground-project-dot" aria-label="Project active" /> : null}
-        </button>
-      ))}
+      {labels.map((box) => {
+        const hotspot = byId.get(box.id);
+        if (!hotspot) return null;
+        const selected = selectedId === hotspot.asset.id;
+        return (
+          <button
+            key={box.id}
+            type="button"
+            aria-pressed={selected}
+            aria-label={`Open ${hotspot.label}`}
+            data-band={conditionBand(hotspot.asset.condition)}
+            onClick={() => onSelect(hotspot)}
+            className={cn("lf-ground-label lf-ground-scene-label", selected && "is-selected")}
+            style={{ left: box.x, top: box.y, width: box.w, justifyContent: "flex-start" }}
+          >
+            <span className="lf-ground-label-dot" aria-hidden="true" />
+            <span className="truncate">{hotspot.label}</span>
+            {hotspot.asset.activeProjectId ? <span className="lf-ground-project-dot" aria-label="Project active" /> : null}
+          </button>
+        );
+      })}
     </div>
   );
 }
