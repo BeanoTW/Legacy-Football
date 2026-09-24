@@ -37,6 +37,11 @@ export function StadiumGround({
         <path className="ground-site" d="M44 212 449 38 861 220 450 586 30 392Z" />
         <path className="ground-carpark" d="M54 350 177 298 279 343 153 451 47 401Z" />
         <path className="ground-carpark-line" d="M76 355 163 319M94 378 183 340M113 399 203 361M133 420 222 382" />
+        <g className="ground-carpark-cars">
+          <path d="M91 346 113 337 127 344 105 354Z" />
+          <path d="M127 369 150 359 164 366 141 376Z" />
+          <path d="M163 391 185 382 199 389 176 399Z" />
+        </g>
         <path className="ground-walkway" d="M121 208 449 70 785 219 451 520 91 365Z" />
 
         <g className="ground-main-stand">
@@ -104,6 +109,10 @@ export function StadiumGround({
           <path className="ground-building-side" d="M758 363 820 309V368L758 424V363Z" />
           <path className="ground-building-roof" d="M685 325 751 270 829 305 758 364Z" />
           <path className="ground-window" d="M715 348 742 362V386L715 372ZM773 348 803 323V346L773 371Z" />
+        </g>
+
+        <g className="ground-office-sign media-build">
+          <path d="M420 123 448 112 476 124 448 137Z" />
         </g>
 
         <g className="ground-turnstiles">

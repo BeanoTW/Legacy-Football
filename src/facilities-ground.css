@@ -273,11 +273,11 @@
 .lf-ground-label-pitch:hover,
 .lf-ground-label-pitch:focus-visible,
 .lf-ground-label-pitch.is-selected { transform: translate(-50%, calc(-50% - 1px)); }
-.lf-ground-label-lights { right: 7%; top: 16%; }
 .lf-ground-label-hospitality { right: 5%; bottom: 12%; }
-.lf-ground-label-media { left: 38%; top: 15%; }
-.lf-ground-label-access { left: 17%; bottom: 7%; }
-.lf-ground-label-clubhouse { left: 4%; top: 67%; }
+.lf-ground-label-shop { left: 4%; bottom: 12%; }
+.lf-ground-label-parking { left: 3%; top: 57%; }
+.lf-ground-label-access { left: 18%; bottom: 5%; }
+.lf-ground-label-offices { left: 39%; top: 15%; }
 
 .lf-ground-hint {
   position: absolute;
@@ -365,11 +365,11 @@
 
   .lf-ground-label-main { left: 3%; top: 42%; }
   .lf-ground-label-stands { right: 2%; top: 42%; }
-  .lf-ground-label-lights { right: 3%; top: 16%; }
   .lf-ground-label-hospitality { right: 3%; bottom: 13%; }
-  .lf-ground-label-media { left: 35%; top: 15%; }
-  .lf-ground-label-access { left: 14%; bottom: 7%; }
-  .lf-ground-label-clubhouse { left: 2%; top: 67%; }
+  .lf-ground-label-shop { left: 2%; bottom: 13%; }
+  .lf-ground-label-parking { left: 2%; top: 57%; }
+  .lf-ground-label-access { left: 14%; bottom: 5%; }
+  .lf-ground-label-offices { left: 35%; top: 15%; }
 }
 
 
@@ -537,4 +537,31 @@
   .academy-build {
     transition: none;
   }
+}
+
+/* Keep real stage-one facilities visible when their hotspots exist. */
+.lf-ground-stage-0 .shop-build {
+  opacity: .58;
+  transform: scale(.78);
+}
+.lf-ground-stage-1 .shop-build {
+  opacity: .78;
+  transform: scale(.9);
+}
+
+/* Compact supporting panels should feel subordinate to the stadium scene. */
+.lf-ground-sidebar > section,
+.lf-ground-sidebar > nav {
+  box-shadow: 0 .12rem .4rem rgb(0 0 0 / 5%);
+}
+
+.lf-ground-scene .ground-carpark-cars path {
+  fill: oklch(0.72 0.025 220);
+  stroke: rgb(25 45 50 / 45%);
+  stroke-width: 1.5;
+}
+.lf-ground-scene .ground-office-sign path {
+  fill: color-mix(in oklab, var(--color-primary) 72%, white);
+  stroke: rgb(255 255 255 / 28%);
+  stroke-width: 1.5;
 }
