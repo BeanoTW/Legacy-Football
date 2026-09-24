@@ -1,0 +1,42 @@
+.lf-ground-screen { --ground-night: oklch(0.16 0.025 190); --ground-concrete: oklch(0.34 0.025 205); --ground-roof: oklch(0.25 0.035 205); --ground-turf: oklch(0.48 0.13 148); }
+.lf-ground-viewport { position: relative; min-height: 21rem; height: min(58dvh, 34rem); overflow: hidden; border: 1px solid color-mix(in oklab, var(--color-border) 75%, transparent); background: linear-gradient(180deg, var(--ground-night), color-mix(in oklab, var(--ground-night) 72%, var(--color-primary))); isolation: isolate; }
+.lf-ground-viewport::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 50% 38%, color-mix(in oklab, var(--color-foreground) 15%, transparent), transparent 46%); pointer-events: none; }
+.lf-ground-scene { position: absolute; inset: 2.8rem -8% 1.6rem; width: 116%; height: calc(100% - 4.4rem); filter: drop-shadow(0 1.2rem 1rem rgb(0 0 0 / 35%)); }
+.lf-ground-scene .ground-base { fill: color-mix(in oklab, var(--ground-night) 78%, var(--color-primary)); }
+.lf-ground-scene .ground-concrete { fill: var(--ground-concrete); stroke: color-mix(in oklab, var(--color-foreground) 20%, transparent); stroke-width: 2; }
+.lf-ground-scene .ground-roof { fill: var(--ground-roof); stroke: color-mix(in oklab, var(--color-foreground) 24%, transparent); stroke-width: 2; }
+.lf-ground-scene .ground-tier { fill: color-mix(in oklab, var(--color-primary) 48%, var(--ground-concrete)); }
+.lf-ground-scene .ground-pitch { fill: var(--ground-turf); stroke: color-mix(in oklab, var(--color-foreground) 72%, transparent); stroke-width: 2; }
+.lf-ground-scene .ground-line { fill: none; stroke: color-mix(in oklab, var(--color-foreground) 70%, transparent); stroke-width: 2; }
+.lf-ground-scene .ground-building { fill: color-mix(in oklab, var(--color-banner) 48%, var(--ground-concrete)); stroke: color-mix(in oklab, var(--color-foreground) 25%, transparent); stroke-width: 2; }
+.lf-ground-scene .ground-light { fill: color-mix(in oklab, var(--color-banner) 72%, var(--color-foreground)); filter: drop-shadow(0 0 .55rem color-mix(in oklab, var(--color-banner) 80%, transparent)); }
+.lf-ground-stage-0 .upper-tier, .lf-ground-stage-1 .upper-tier { display: none; }
+.lf-ground-stage-0 .roof-upgrade, .lf-ground-stage-1 .roof-upgrade, .lf-ground-stage-2 .roof-upgrade { opacity: .24; }
+.lf-ground-stage-0 .corner-fill, .lf-ground-stage-1 .corner-fill, .lf-ground-stage-2 .corner-fill, .lf-ground-stage-3 .corner-fill { display: none; }
+.lf-ground-label { position: absolute; z-index: 3; min-height: 2.15rem; max-width: 8rem; border-color: color-mix(in oklab, var(--color-foreground) 24%, transparent); background: color-mix(in oklab, var(--ground-night) 84%, transparent); color: var(--color-foreground); box-shadow: 0 .35rem 1rem rgb(0 0 0 / 24%); backdrop-filter: blur(7px); }
+.lf-ground-label:hover, .lf-ground-label:focus-visible { border-color: var(--color-banner); background: color-mix(in oklab, var(--color-primary) 75%, var(--ground-night)); }
+.lf-ground-label-main { left: 3%; top: 43%; }
+.lf-ground-label-stands { right: 3%; top: 39%; }
+.lf-ground-label-pitch { left: 50%; top: 55%; transform: translate(-50%, -50%); }
+.lf-ground-label-lights { right: 4%; top: 10%; }
+.lf-ground-label-hospitality { left: 5%; top: 18%; }
+.lf-ground-label-media { left: 37%; top: 11%; }
+.lf-ground-label-access { right: 5%; bottom: 7%; }
+.lf-ground-label-clubhouse { left: 4%; bottom: 7%; }
+.lf-ground-kicker { color: color-mix(in oklab, var(--color-foreground) 65%, transparent); }
+.lf-ground-sheet { max-height: min(84dvh, 46rem); border-radius: .85rem .85rem 0 0; padding: 0; overflow: hidden; }
+.lf-ground-sheet-scroll { max-height: calc(min(84dvh, 46rem) - 5rem); overflow-y: auto; overscroll-behavior: contain; }
+.lf-ground-metric { border-left: 2px solid color-mix(in oklab, var(--color-primary) 70%, transparent); }
+@media (min-width: 768px) {
+  .lf-ground-layout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(18rem, .7fr); gap: .75rem; min-height: 0; }
+  .lf-ground-viewport { height: 100%; min-height: 31rem; }
+  .lf-ground-scene { inset: 3.4rem -2% 1.5rem; width: 104%; }
+  .lf-ground-sidebar { min-height: 0; overflow-y: auto; }
+  .lf-ground-sheet { left: auto; right: 1rem; bottom: 1rem; width: min(31rem, calc(100vw - 2rem)); border-radius: .85rem; border: 1px solid var(--color-border); }
+}
+@media (max-width: 430px) {
+  .lf-ground-viewport { min-height: 20rem; height: 56dvh; }
+  .lf-ground-scene { inset-inline: -17%; width: 134%; }
+  .lf-ground-label { max-width: 6.9rem; min-height: 2rem; padding-inline: .45rem; font-size: .64rem; }
+  .lf-ground-label-media { left: 35%; }
+}
