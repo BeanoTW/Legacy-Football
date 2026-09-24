@@ -486,7 +486,8 @@ console.log("\n[U15] Match centre identity and competition context");
   check(
     "2D viewer identifies persisted active lineup players on the pitch",
     /activeMatchLineupAtMinute/.test(viewer) &&
-      /userActive\.map|userLineup\.map/.test(viewer) &&
+      /function renderSide/.test(viewer) &&
+      /lineup\.map\(\(player\)/.test(viewer) &&
       /player\.shirtNumber/.test(viewer) &&
       /player\.name/.test(viewer),
   );
