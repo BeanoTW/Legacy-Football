@@ -710,3 +710,118 @@
 @media (max-width: 430px) {
   .lf-ground-label-offices { left: 12%; top: 24%; }
 }
+
+
+/* True grassroots Stage 1: open ground, tiny stand, simple terrace, no stadium bowl. */
+.stage-one-ground { display: none; }
+
+.lf-ground-stage-0 .stage-one-ground { display: block; }
+.lf-ground-stage-0 .ground-walkway,
+.lf-ground-stage-0 .ground-main-stand,
+.lf-ground-stage-0 .ground-opposite-stand,
+.lf-ground-stage-0 .early-ground-bank,
+.lf-ground-stage-0 .ground-corner-build,
+.lf-ground-stage-0 .upper-tier-build,
+.lf-ground-stage-0 .media-build,
+.lf-ground-stage-0 .scoreboard-build,
+.lf-ground-stage-0 .ground-academy,
+.lf-ground-stage-0 .ground-hospitality,
+.lf-ground-stage-0 .ground-fence,
+.lf-ground-stage-0 .ground-turnstiles {
+  display: none;
+}
+
+.lf-ground-stage-0 .ground-site {
+  fill: oklch(0.42 0.11 145);
+  stroke: rgb(255 255 255 / 7%);
+}
+
+.lf-ground-stage-0 .ground-pitch-surround {
+  fill: oklch(0.36 0.045 145);
+  stroke: rgb(255 255 255 / 10%);
+}
+
+.stage-one-hardstanding {
+  fill: oklch(0.58 0.025 145);
+  opacity: .38;
+  stroke: rgb(255 255 255 / 11%);
+  stroke-width: 1.5;
+}
+
+.stage-one-stand-shadow {
+  fill: rgb(0 0 0 / 20%);
+}
+
+.stage-one-stand-face {
+  fill: oklch(0.42 0.04 215);
+  stroke: rgb(255 255 255 / 18%);
+  stroke-width: 1.5;
+}
+
+.stage-one-stand-roof {
+  fill: oklch(0.28 0.035 210);
+  stroke: rgb(255 255 255 / 20%);
+  stroke-width: 1.5;
+}
+
+.stage-one-seats {
+  fill: none;
+  stroke: rgb(230 240 240 / 30%);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.stage-one-terrace-bank {
+  fill: oklch(0.38 0.09 145);
+  stroke: rgb(255 255 255 / 10%);
+  stroke-width: 1.5;
+}
+
+.stage-one-terrace-step {
+  fill: none;
+  stroke: rgb(225 235 228 / 32%);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+.stage-one-rail,
+.stage-one-boundary,
+.stage-one-entry {
+  fill: none;
+  stroke: rgb(235 245 240 / 50%);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.stage-one-cabin-front {
+  fill: oklch(0.56 0.07 70);
+  stroke: rgb(255 255 255 / 14%);
+  stroke-width: 1.5;
+}
+
+.stage-one-cabin-side {
+  fill: oklch(0.46 0.055 65);
+  stroke: rgb(255 255 255 / 12%);
+  stroke-width: 1.5;
+}
+
+.stage-one-cabin-window {
+  fill: oklch(0.72 0.04 205 / .72);
+}
+
+.lf-ground-stage-0 .ground-light-head {
+  transform: scale(.56);
+}
+.lf-ground-stage-0 .ground-light-pole {
+  stroke-width: 4;
+  opacity: .62;
+}
+.lf-ground-stage-0 .ground-adboards {
+  opacity: .30;
+}
+.lf-ground-stage-0 .ground-dugouts {
+  opacity: .55;
+}
+.lf-ground-stage-0 .ground-shop {
+  opacity: .52;
+}

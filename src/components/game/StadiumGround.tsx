@@ -44,6 +44,40 @@ export function StadiumGround({
         </g>
         <path className="ground-walkway" d="M121 208 449 70 785 219 451 520 91 365Z" />
 
+        <g className="stage-one-ground">
+          <path className="stage-one-hardstanding" d="M205 224 695 224 650 443 250 443Z" />
+
+          <g className="stage-one-main-stand">
+            <path className="stage-one-stand-shadow" d="M145 285 208 256 245 274 181 304Z" />
+            <path className="stage-one-stand-face" d="M154 278 208 254 236 267 181 292Z" />
+            <path className="stage-one-stand-roof" d="M146 268 207 241 241 256 181 284Z" />
+            <path className="stage-one-seats" d="M166 275 207 257 225 265M170 284 207 268 218 273" />
+          </g>
+
+          <g className="stage-one-terrace">
+            <path className="stage-one-terrace-bank" d="M657 281 706 259 729 270 678 293Z" />
+            <path className="stage-one-terrace-step" d="M665 278 705 261M671 284 713 266M678 290 720 272" />
+            <path className="stage-one-rail" d="M660 274 682 284 726 264" />
+          </g>
+
+          <g className="stage-one-portacabins">
+            <path className="stage-one-cabin-side" d="M90 353 145 328 184 346 129 372Z" />
+            <path className="stage-one-cabin-front" d="M90 353V394L129 414V372L90 353Z" />
+            <path className="stage-one-cabin-side" d="M129 372 184 346V387L129 414V372Z" />
+            <path className="stage-one-cabin-window" d="M103 365 119 373V388L103 380ZM143 366 166 355V371L143 382Z" />
+          </g>
+
+          <g className="stage-one-boundary">
+            <path d="M214 227 687 227M250 445 648 445" />
+            <path d="M211 231 252 443M690 231 647 443" />
+          </g>
+
+          <g className="stage-one-entry">
+            <path d="M196 438 214 429 232 438 214 447Z" />
+            <path d="M205 435V454M223 435V454" />
+          </g>
+        </g>
+
         <g className="ground-main-stand">
           <path className="ground-stand-shadow" d="M146 199 447 76 738 204 680 245 447 143 204 246Z" />
           <path className="ground-stand-face" d="M177 200 446 91 708 207 665 235 446 141 220 236Z" />
