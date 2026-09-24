@@ -17,6 +17,9 @@ const plan: MatchTeamPlan = {
 const userLineup: MatchLineupPlayer[] = [
   { playerId: "u1", name: "User One", shirtNumber: 6, role: "CM", ability: 66 },
   { playerId: "u2", name: "User Two", shirtNumber: 9, role: "ST", ability: 70 },
+  { playerId: "u3", name: "User Three", shirtNumber: 11, role: "LW", ability: 68 },
+  { playerId: "u4", name: "User Four", shirtNumber: 8, role: "CAM", ability: 67 },
+  { playerId: "u5", name: "User Five", shirtNumber: 2, role: "RB", ability: 64 },
 ];
 const opponentLineup: MatchLineupPlayer[] = [
   { playerId: "o1", name: "Opp One", shirtNumber: 4, role: "CB", ability: 65 },
@@ -29,6 +32,9 @@ const opponentLineup: MatchLineupPlayer[] = [
 const userBase = new Map<string, MatchPitchPoint>([
   ["u1", { x: 35, y: 48 }],
   ["u2", { x: 68, y: 50 }],
+  ["u3", { x: 62, y: 20 }],
+  ["u4", { x: 56, y: 46 }],
+  ["u5", { x: 28, y: 82 }],
 ]);
 const opponentBase = new Map<string, MatchPitchPoint>([
   ["o1", { x: 76, y: 50 }],
@@ -156,6 +162,14 @@ for (const id of ["o1", "o3", "o4", "o5"]) {
     point(action1End.opponent, id),
     point(opponentBase, id),
     `defender ${id} must react to the attacking pass rather than stay frozen`,
+  );
+}
+
+for (const id of ["u3", "u4", "u5"]) {
+  assert.notDeepEqual(
+    point(action1End.user, id),
+    point(userBase, id),
+    `off-ball attacker ${id} must react to possession rather than stay frozen`,
   );
 }
 const pressingMidfielder = point(action1End.opponent, "o5");
