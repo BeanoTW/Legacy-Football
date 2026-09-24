@@ -36,16 +36,14 @@
 .lf-ground-scene-heading {
   position: absolute;
   top: .8rem;
-  left: .85rem;
   right: .85rem;
   z-index: 5;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   pointer-events: none;
 }
 
-.lf-ground-kicker,
 .lf-ground-scene-stage {
   border: 1px solid rgb(255 255 255 / 18%);
   border-radius: 999px;
@@ -623,4 +621,92 @@
 }
 .lf-ground-stage-1 .ground-adboards {
   opacity: .78;
+}
+
+/* Fresh screenshot polish: Stage 1 should feel like an actual modest non-league ground, not a tiny modern bowl. */
+.lf-ground-scene .ground-grass-bank path:first-child {
+  fill: color-mix(in oklab, var(--ground-site) 82%, var(--ground-turf));
+  stroke: rgb(255 255 255 / 10%);
+  stroke-width: 2;
+}
+.lf-ground-scene .ground-grass-bank .ground-rail {
+  fill: none;
+  stroke: rgb(235 245 240 / 52%);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.lf-ground-stage-0 .ground-opposite-stand {
+  opacity: .12;
+  transform: translateY(8px) scale(.97);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.lf-ground-stage-0 .ground-opposite-stand .ground-seat-row,
+.lf-ground-stage-0 .ground-opposite-stand .secondary-roof {
+  opacity: 0;
+}
+.lf-ground-stage-0 .early-ground-bank {
+  opacity: 1;
+}
+.lf-ground-stage-1 .early-ground-bank {
+  opacity: .46;
+}
+.lf-ground-stage-2 .early-ground-bank,
+.lf-ground-stage-3 .early-ground-bank,
+.lf-ground-stage-4 .early-ground-bank,
+.lf-ground-stage-5 .early-ground-bank,
+.lf-ground-stage-6 .early-ground-bank {
+  opacity: 0;
+}
+
+.lf-ground-stage-0 .future-campus {
+  opacity: .10;
+}
+.lf-ground-stage-0 .ground-carpark {
+  fill: oklch(0.45 0.035 75);
+  opacity: .82;
+}
+.lf-ground-stage-0 .ground-carpark-line,
+.lf-ground-stage-0 .ground-carpark-cars {
+  opacity: .12;
+}
+.lf-ground-stage-0 .ground-light-head {
+  transform: scale(.72);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.lf-ground-stage-0 .ground-light-pole {
+  stroke-width: 5;
+  opacity: .78;
+}
+.lf-ground-stage-0 .ground-walkway {
+  fill: color-mix(in oklab, var(--ground-concrete) 55%, var(--ground-site));
+}
+.lf-ground-stage-0 .ground-building-front,
+.lf-ground-stage-0 .ground-building-side {
+  filter: saturate(.68) brightness(.93);
+}
+.lf-ground-stage-0 .ground-main-stand {
+  transform: translateY(24px) scale(.68);
+}
+.lf-ground-stage-0 .ground-office-sign,
+.lf-ground-stage-0 .media-build {
+  opacity: 0;
+}
+
+/* The top-level ground title already provides context, so hotspot labels can stay lighter and less dominant. */
+.lf-ground-label {
+  background: rgb(12 38 38 / 58%);
+  box-shadow: 0 .22rem .58rem rgb(0 0 0 / 14%);
+}
+.lf-ground-label::after {
+  opacity: .68;
+}
+.lf-ground-label-offices {
+  left: 16%;
+  top: 24%;
+}
+@media (max-width: 430px) {
+  .lf-ground-label-offices { left: 12%; top: 24%; }
 }

@@ -23,7 +23,6 @@ export function StadiumGround({
   return (
     <div className={cn("lf-ground-viewport rounded-lg", `lf-ground-stage-${stage}`)}>
       <div className="lf-ground-scene-heading">
-        <span className="lf-ground-kicker">Your ground</span>
         <span className="lf-ground-scene-stage">Stage {stage + 1}</span>
       </div>
 
@@ -50,6 +49,11 @@ export function StadiumGround({
           <path className="ground-stand-face" d="M177 200 446 91 708 207 665 235 446 141 220 236Z" />
           <path className="ground-seat-row" d="M202 201 446 104 684 209M218 217 446 126 664 221" />
           <path className="ground-stand-roof" d="M136 179 447 52 753 187 709 213 447 99 182 211Z" />
+        </g>
+
+        <g className="ground-grass-bank early-ground-bank">
+          <path d="M147 350 198 315 447 425 686 211 741 237 449 493Z" />
+          <path className="ground-rail" d="M176 345 445 462 710 226" />
         </g>
 
         <g className="ground-opposite-stand">
@@ -154,8 +158,6 @@ export function StadiumGround({
           <circle cx="838" cy="279" r="9" /><circle cx="79" cy="447" r="10" /><circle cx="823" cy="430" r="12" />
         </g>
       </svg>
-
-      <div className="lf-ground-hint">Tap an area to manage it</div>
 
       {hotspots.map((hotspot) => (
         <button
