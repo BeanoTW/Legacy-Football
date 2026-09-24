@@ -1,4 +1,5 @@
 import type { InfrastructureAsset } from "@/lib/game/types";
+import { conditionBand } from "@/lib/game/infrastructure";
 import { cn } from "@/lib/utils";
 
 export interface GroundHotspot {
@@ -148,6 +149,7 @@ export function StadiumGround({
           type="button"
           aria-pressed={selectedId === hotspot.id}
           aria-label={`Open ${hotspot.label}`}
+          data-band={conditionBand(hotspot.asset.condition)}
           onClick={() => onSelect(hotspot)}
           className={cn("lf-ground-label", hotspot.className, selectedId === hotspot.id && "is-selected")}
         >

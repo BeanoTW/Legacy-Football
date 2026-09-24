@@ -82,6 +82,7 @@ export function FacilitiesTab({ state, update }: { state: GameState; update: (fn
   const evolutionPercent = progression.next && nextRequirements.length
     ? Math.round((metCount / nextRequirements.length) * 100)
     : 100;
+  const nextUnlock = nextRequirements.find((requirement) => !requirement.met) ?? null;
 
   return (
     <div className="lf-ground-screen flex h-full min-h-0 flex-col gap-2">
@@ -111,7 +112,7 @@ export function FacilitiesTab({ state, update }: { state: GameState; update: (fn
           <section className="border bg-card">
             <div className="grid grid-cols-3 divide-x border-b">
               <GroundMetric label="Capacity" value={snap.capacity.toLocaleString()} />
-              <GroundMetric label="Available" value={snap.usableCapacity.toLocaleString()} />
+              <GroundMetric label="Open capacity" value={snap.usableCapacity.toLocaleString()} />
               <GroundMetric label="Weekly cost" value={fmtMoneyExact(snap.weeklyMaintenance + snap.weeklyOperating)} />
             </div>
             <Button variant="ghost" className="h-auto w-full justify-between rounded-none px-3 py-2 text-left" onClick={() => setRequirementsOpen((value) => !value)}>
@@ -127,8 +128,16 @@ export function FacilitiesTab({ state, update }: { state: GameState; update: (fn
               <ChevronDown className={cn("size-4 shrink-0 transition-transform", requirementsOpen && "rotate-180")} />
             </Button>
             {progression.next ? (
-              <div className="lf-ground-evolution-track mx-3 mb-3" aria-label={`${evolutionPercent}% of next ground evolution requirements met`}>
-                <div className="lf-ground-evolution-fill" style={{ width: `${evolutionPercent}%` }} />
+              <div className="px-3 pb-3">
+                <div className="lf-ground-evolution-track" aria-label={`${evolutionPercent}% of next ground evolution requirements met`}>
+                  <div className="lf-ground-evolution-fill" style={{ width: `${evolutionPercent}%` }} />
+                </div>
+                {nextUnlock ? (
+                  <div className="mt-1.5 flex items-center justify-between gap-2 text-[9px] uppercase tracking-wide text-muted-foreground">
+                    <span className="truncate">Next unlock · {nextUnlock.label}</span>
+                    <span className="shrink-0 font-mono normal-case tracking-normal">{nextUnlock.value}</span>
+                  </div>
+                ) : null}
               </div>
             ) : null}
             {requirementsOpen && progression.next ? (
