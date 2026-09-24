@@ -15,6 +15,7 @@ import homeOverhaulCss from "../home-overhaul.css?url";
 import stadiumAtmosphereCss from "../stadium-atmosphere.css?url";
 import mastheadPolishCss from "../masthead-polish.css?url";
 import inboxOverhaulCss from "../inbox-overhaul.css?url";
+import facilitiesGroundCss from "../facilities-ground.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
@@ -67,6 +68,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: stadiumAtmosphereCss },
       { rel: "stylesheet", href: mastheadPolishCss },
       { rel: "stylesheet", href: inboxOverhaulCss },
+      { rel: "stylesheet", href: facilitiesGroundCss },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
