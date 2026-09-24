@@ -79,6 +79,11 @@ interface DefensiveReactionContext {
   coverId?: string;
 }
 
+interface AttackingReactionContext {
+  supportId?: string;
+  runnerId?: string;
+}
+
 function distanceSquared(a: MatchPitchPoint, b: MatchPitchPoint): number {
   const dx = a.x - b.x;
   const dy = a.y - b.y;
@@ -111,6 +116,55 @@ function defensiveReactionContext(
   };
 }
 
+function attackingReactionContext(
+  positions: MatchPositionMap,
+  side: MatchMotionSide,
+  action: MatchSequenceAction,
+): AttackingReactionContext {
+  const ourSide = sideId(side.ours);
+  if (action.possessionSide !== ourSide) return {};
+
+  const excluded = new Set(
+    [action.playerId, action.targetPlayerId].filter(Boolean) as string[],
+  );
+  const support = side.lineup
+    .filter((player) => player.role !== "GK" && !excluded.has(player.playerId))
+    .map((player) => ({
+      player,
+      point: positions.get(player.playerId) ?? fallbackBase(side, player),
+    }))
+    .sort(
+      (a, b) =>
+        distanceSquared(a.point, action.end) - distanceSquared(b.point, action.end) ||
+        a.player.playerId.localeCompare(b.player.playerId),
+    )[0];
+
+  const direction = side.ours ? 1 : -1;
+  const runnerRoles = new Set(["ST", "LW", "RW", "LM", "RM", "CAM", "LWB", "RWB"]);
+  const runners = side.lineup
+    .filter(
+      (player) =>
+        player.role !== "GK" &&
+        !excluded.has(player.playerId) &&
+        player.playerId !== support?.player.playerId &&
+        runnerRoles.has(player.role),
+    )
+    .map((player) => ({
+      player,
+      point: positions.get(player.playerId) ?? fallbackBase(side, player),
+    }))
+    .sort((a, b) => {
+      const af = a.point.x * direction;
+      const bf = b.point.x * direction;
+      return bf - af || a.player.playerId.localeCompare(b.player.playerId);
+    });
+
+  return {
+    supportId: support?.player.playerId,
+    runnerId: runners[0]?.player.playerId,
+  };
+}
+
 function genericShapeTarget(
   current: MatchPitchPoint,
   base: MatchPitchPoint,
@@ -118,6 +172,7 @@ function genericShapeTarget(
   side: MatchMotionSide,
   action: MatchSequenceAction,
   reaction: DefensiveReactionContext,
+  attackReaction: AttackingReactionContext,
 ): MatchPitchPoint {
   const ourSide = sideId(side.ours);
   const inPossession = action.possessionSide === ourSide;
@@ -172,6 +227,24 @@ function genericShapeTarget(
   );
   const midfieldRole = ["CDM", "CM", "CAM", "LM", "RM"].includes(player.role);
 
+  if (inPossession) {
+    const attackGoalX = side.ours ? 94 : 6;
+    if (attackReaction.supportId === player.playerId) {
+      const behindBallX = ball.x + (side.ours ? -7 : 7);
+      desired.x = behindBallX;
+      desired.y = ball.y + (base.y < ball.y ? -7 : 7);
+    } else if (attackReaction.runnerId === player.playerId) {
+      desired.x = ball.x + (attackGoalX - ball.x) * 0.32;
+      const laneBias = base.y < 50 ? -8 : 8;
+      desired.y = clamp(ball.y + laneBias, 12, 88);
+    } else {
+      // The rest of the attacking shape advances and slides with the ball,
+      // preserving width/spacing instead of standing on formation dots.
+      desired.x += (ball.x - base.x) * 0.08;
+      desired.y += (ball.y - base.y) * 0.12;
+    }
+  }
+
   if (!inPossession) {
     const ownGoalX = side.ours ? 6 : 94;
     const goalSideX = ball.x + (ownGoalX - ball.x) * 0.16;
@@ -217,9 +290,15 @@ function genericShapeTarget(
     dangerous
       ? 0.5
       : inPossession
-        ? side.plan?.tempo === "High"
-          ? 0.34
-          : 0.28
+        ? attackReaction.runnerId === player.playerId
+          ? side.plan?.tempo === "High"
+            ? 0.54
+            : 0.46
+          : attackReaction.supportId === player.playerId
+            ? 0.44
+            : side.plan?.tempo === "High"
+              ? 0.38
+              : 0.32
         : reaction.presserId === player.playerId
           ? pressing === "High"
             ? 0.62
@@ -247,6 +326,7 @@ function endPositionForPlayer(
   side: MatchMotionSide,
   action: MatchSequenceAction,
   reaction: DefensiveReactionContext,
+  attackReaction: AttackingReactionContext,
 ): MatchPitchPoint {
   const ourSide = sideId(side.ours);
   const actor = action.side === ourSide && action.playerId === player.playerId;
@@ -289,7 +369,15 @@ function endPositionForPlayer(
     };
   }
 
-  return genericShapeTarget(current, base, player, side, action, reaction);
+  return genericShapeTarget(
+    current,
+    base,
+    player,
+    side,
+    action,
+    reaction,
+    attackReaction,
+  );
 }
 
 function applyAction(
@@ -299,12 +387,21 @@ function applyAction(
 ): MatchPositionMap {
   const next = copyPositions(positions);
   const reaction = defensiveReactionContext(positions, side, action);
+  const attackReaction = attackingReactionContext(positions, side, action);
   for (const player of side.lineup) {
     const current = positions.get(player.playerId) ?? fallbackBase(side, player);
     const base = fallbackBase(side, player);
     next.set(
       player.playerId,
-      endPositionForPlayer(current, base, player, side, action, reaction),
+      endPositionForPlayer(
+        current,
+        base,
+        player,
+        side,
+        action,
+        reaction,
+        attackReaction,
+      ),
     );
   }
   return next;
