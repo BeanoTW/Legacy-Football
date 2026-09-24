@@ -581,3 +581,46 @@
 .lf-ground-label[data-band="closed"] .lf-ground-label-dot {
   background: oklch(0.5 0.02 240);
 }
+
+/* Football-specific scene details: goals, dugouts and perimeter boards make the ground read instantly. */
+.lf-ground-scene .ground-goals {
+  fill: none;
+  stroke: rgb(248 255 250 / 88%);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.lf-ground-scene .ground-dugouts path {
+  fill: oklch(0.48 0.035 210 / .82);
+  stroke: rgb(255 255 255 / 40%);
+  stroke-width: 1.5;
+}
+.lf-ground-scene .ground-adboards {
+  fill: none;
+  stroke: color-mix(in oklab, var(--color-primary) 58%, white);
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+
+/* Early grounds should look piecemeal rather than like a miniature Premier League bowl. */
+.lf-ground-stage-0 .ground-seat-row {
+  stroke-width: 3;
+  opacity: .55;
+}
+.lf-ground-stage-0 .ground-stand-roof {
+  filter: saturate(.72);
+}
+.lf-ground-stage-0 .ground-adboards {
+  opacity: .58;
+}
+.lf-ground-stage-0 .ground-fence {
+  opacity: .82;
+}
+.lf-ground-stage-0 .ground-carpark {
+  filter: saturate(.45);
+}
+.lf-ground-stage-0 .ground-carpark-line {
+  opacity: .28;
+}
+.lf-ground-stage-1 .ground-adboards {
+  opacity: .78;
+}

@@ -96,6 +96,20 @@ export function StadiumGround({
         <path className="ground-pitch-stripe" d="M271 264 447 189 626 267 595 294 447 230 302 292ZM331 319 447 269 565 321 532 351 447 314 365 350ZM391 374 447 350 507 377 447 430Z" />
         <path className="ground-marking" d="M257 260 448 178 641 263 447 429ZM448 178V429M350 219 350 303 448 346 545 302 545 220M414 253C432 244 462 244 480 253 499 262 499 278 480 287 462 296 432 296 414 287 395 278 395 262 414 253Z" />
 
+        <g className="ground-goals">
+          <path d="M427 188 448 179 470 188V201L448 211 427 201Z" />
+          <path d="M426 417 447 429 469 417V403L447 392 426 403Z" />
+        </g>
+
+        <g className="ground-dugouts">
+          <path d="M302 362 337 346 356 355 320 371Z" />
+          <path d="M541 337 575 322 594 331 559 347Z" />
+        </g>
+
+        <g className="ground-adboards">
+          <path d="M260 238 311 216M584 218 634 240M223 307 267 327M625 328 671 307" />
+        </g>
+
         <g className="ground-clubhouse">
           <path className="ground-building-side" d="M77 282 143 252 198 276 132 307 77 282Z" />
           <path className="ground-building-front" d="M77 282V347L132 376V307L77 282Z" />
