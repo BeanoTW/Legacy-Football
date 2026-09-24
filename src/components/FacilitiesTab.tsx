@@ -78,6 +78,10 @@ export function FacilitiesTab({ state, update }: { state: GameState; update: (fn
   const open = openAssetId ? assetById(state, openAssetId) : null;
   const nextRequirements = progression.next?.requirements ?? [];
   const metCount = nextRequirements.filter((requirement) => requirement.met).length;
+  const unmetCount = Math.max(0, nextRequirements.length - metCount);
+  const evolutionPercent = progression.next && nextRequirements.length
+    ? Math.round((metCount / nextRequirements.length) * 100)
+    : 100;
 
   return (
     <div className="lf-ground-screen flex h-full min-h-0 flex-col gap-2">
@@ -113,10 +117,19 @@ export function FacilitiesTab({ state, update }: { state: GameState; update: (fn
               <span className="min-w-0">
                 <span className="block text-[10px] uppercase text-muted-foreground">Next evolution</span>
                 <span className="block truncate font-display text-base">{progression.next?.name ?? "Elite standard reached"}</span>
-                {progression.next ? <span className="block text-[11px] text-muted-foreground">{metCount} / {nextRequirements.length} requirements met</span> : null}
+                {progression.next ? (
+                  <span className="block text-[11px] text-muted-foreground">
+                    {metCount} / {nextRequirements.length} requirements met · {unmetCount} remaining
+                  </span>
+                ) : null}
               </span>
               <ChevronDown className={cn("size-4 shrink-0 transition-transform", requirementsOpen && "rotate-180")} />
             </Button>
+            {progression.next ? (
+              <div className="lf-ground-evolution-track mx-3 mb-3" aria-label={`${evolutionPercent}% of next ground evolution requirements met`}>
+                <div className="lf-ground-evolution-fill" style={{ width: `${evolutionPercent}%` }} />
+              </div>
+            ) : null}
             {requirementsOpen && progression.next ? (
               <div className="grid gap-1 border-t p-2">
                 {nextRequirements.map((requirement) => (

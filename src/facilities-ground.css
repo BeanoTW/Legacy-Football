@@ -371,3 +371,170 @@
   .lf-ground-label-access { left: 14%; bottom: 7%; }
   .lf-ground-label-clubhouse { left: 2%; top: 67%; }
 }
+
+
+/* Ground evolution: each stage reuses the same scene and progressively reveals more developed structures. */
+.lf-ground-evolution-track {
+  height: .28rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-border) 55%, transparent);
+}
+
+.lf-ground-evolution-fill {
+  height: 100%;
+  min-width: .25rem;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-primary), color-mix(in oklab, var(--color-primary) 60%, var(--color-banner)));
+  transition: width 220ms ease;
+}
+
+.lf-ground-scene .ground-upper-tier-face {
+  fill: color-mix(in oklab, var(--ground-seat) 82%, var(--ground-concrete));
+  stroke: rgb(255 255 255 / 18%);
+  stroke-width: 2;
+}
+
+.lf-ground-scene .ground-upper-tier-roof {
+  fill: color-mix(in oklab, var(--ground-roof) 90%, black);
+  stroke: rgb(255 255 255 / 22%);
+  stroke-width: 2;
+}
+
+.lf-ground-scene .ground-media-shell {
+  fill: color-mix(in oklab, var(--ground-roof) 72%, var(--ground-concrete));
+  stroke: rgb(255 255 255 / 22%);
+  stroke-width: 2;
+}
+
+.lf-ground-scene .ground-media-glass {
+  fill: oklch(0.72 0.045 210 / .72);
+  stroke: rgb(255 255 255 / 28%);
+  stroke-width: 1.5;
+}
+
+.lf-ground-scene .ground-scoreboard rect {
+  fill: oklch(0.2 0.025 210);
+  stroke: rgb(255 255 255 / 30%);
+  stroke-width: 2;
+}
+
+.lf-ground-scene .ground-scoreboard path {
+  fill: none;
+  stroke: oklch(0.3 0.02 210);
+  stroke-width: 5;
+}
+
+.lf-ground-scene .ground-academy-pitch {
+  fill: color-mix(in oklab, var(--ground-turf) 86%, white);
+  stroke: rgb(255 255 255 / 38%);
+  stroke-width: 2;
+}
+
+.lf-ground-scene .ground-academy-line {
+  fill: none;
+  stroke: rgb(255 255 255 / 55%);
+  stroke-width: 1.5;
+}
+
+.upper-tier-build,
+.media-build,
+.scoreboard-build,
+.shop-build,
+.academy-build {
+  transition: opacity 180ms ease, transform 220ms ease;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* Stage 1: deliberately humble — one small covered stand, open terrace, little clubhouse. */
+.lf-ground-stage-0 .ground-main-stand {
+  transform: translateY(18px) scale(.78);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.lf-ground-stage-0 .ground-opposite-stand {
+  opacity: .42;
+}
+.lf-ground-stage-0 .ground-opposite-stand .secondary-roof {
+  opacity: .08;
+}
+.lf-ground-stage-0 .future-campus {
+  opacity: .26;
+}
+.lf-ground-stage-0 .upper-tier-build,
+.lf-ground-stage-0 .media-build,
+.lf-ground-stage-0 .scoreboard-build,
+.lf-ground-stage-0 .shop-build,
+.lf-ground-stage-0 .academy-build {
+  opacity: 0;
+  transform: scale(.72);
+}
+
+/* Stage 2: developed non-league. The opposite side becomes a real covered terrace. */
+.lf-ground-stage-1 .ground-main-stand {
+  transform: translateY(8px) scale(.9);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.lf-ground-stage-1 .ground-opposite-stand { opacity: .82; }
+.lf-ground-stage-1 .ground-opposite-stand .secondary-roof { opacity: .68; }
+.lf-ground-stage-1 .future-campus { opacity: .55; }
+.lf-ground-stage-1 .upper-tier-build,
+.lf-ground-stage-1 .media-build,
+.lf-ground-stage-1 .scoreboard-build,
+.lf-ground-stage-1 .shop-build,
+.lf-ground-stage-1 .academy-build { opacity: 0; transform: scale(.8); }
+
+/* Stage 3: small professional ground gets proper ancillary facilities and a scoreboard. */
+.lf-ground-stage-2 .media-build,
+.lf-ground-stage-2 .scoreboard-build { opacity: 1; }
+.lf-ground-stage-2 .shop-build { opacity: .55; }
+.lf-ground-stage-2 .academy-build,
+.lf-ground-stage-2 .upper-tier-build { opacity: 0; transform: scale(.84); }
+
+/* Stage 4: established EFL ground. Corners, shop and wider club campus read clearly. */
+.lf-ground-stage-3 .media-build,
+.lf-ground-stage-3 .scoreboard-build,
+.lf-ground-stage-3 .shop-build { opacity: 1; }
+.lf-ground-stage-3 .academy-build { opacity: .62; }
+.lf-ground-stage-3 .upper-tier-build { opacity: 0; transform: translateY(8px) scale(.88); }
+
+/* Stage 5+: upper tier and academy/campus infrastructure arrive. */
+.lf-ground-stage-4 .upper-tier-build { opacity: .72; }
+.lf-ground-stage-4 .academy-build,
+.lf-ground-stage-4 .media-build,
+.lf-ground-stage-4 .scoreboard-build,
+.lf-ground-stage-4 .shop-build { opacity: 1; }
+
+.lf-ground-stage-5 .upper-tier-build,
+.lf-ground-stage-5 .academy-build,
+.lf-ground-stage-5 .media-build,
+.lf-ground-stage-5 .scoreboard-build,
+.lf-ground-stage-5 .shop-build,
+.lf-ground-stage-6 .upper-tier-build,
+.lf-ground-stage-6 .academy-build,
+.lf-ground-stage-6 .media-build,
+.lf-ground-stage-6 .scoreboard-build,
+.lf-ground-stage-6 .shop-build { opacity: 1; }
+
+.lf-ground-stage-5 .ground-main-stand,
+.lf-ground-stage-6 .ground-main-stand {
+  filter: drop-shadow(0 .55rem .24rem rgb(0 0 0 / 20%));
+}
+
+.lf-ground-stage-6 .ground-upper-tier-face {
+  fill: color-mix(in oklab, var(--ground-seat) 70%, var(--color-primary));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lf-ground-label,
+  .lf-ground-evolution-fill,
+  .upper-tier-build,
+  .media-build,
+  .scoreboard-build,
+  .shop-build,
+  .academy-build {
+    transition: none;
+  }
+}

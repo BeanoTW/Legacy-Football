@@ -58,6 +58,33 @@ export function StadiumGround({
           <path className="ground-stand-face" d="M625 236 665 214 708 233 665 260Z" />
         </g>
 
+        <g className="ground-upper-tier upper-tier-build">
+          <path className="ground-upper-tier-face" d="M242 155 447 75 646 164 616 184 447 111 272 181Z" />
+          <path className="ground-upper-tier-roof" d="M226 143 447 56 663 153 639 168 447 83 250 166Z" />
+        </g>
+
+        <g className="ground-media-box media-build">
+          <path className="ground-media-shell" d="M378 113 447 88 514 117 497 137 447 116 394 138Z" />
+          <path className="ground-media-glass" d="M394 118 447 99 497 121 486 132 447 116 405 133Z" />
+        </g>
+
+        <g className="ground-scoreboard scoreboard-build">
+          <rect x="705" y="287" width="70" height="42" rx="4" />
+          <path d="M720 329V353M759 329V353" />
+        </g>
+
+        <g className="ground-shop shop-build">
+          <path className="ground-building-front" d="M60 462 106 438 151 459 105 484Z" />
+          <path className="ground-building-front" d="M60 462V499L105 522V484L60 462Z" />
+          <path className="ground-building-side" d="M105 484 151 459V496L105 522V484Z" />
+          <path className="ground-window" d="M73 475 92 484V500L73 491ZM116 478 139 466V482L116 494Z" />
+        </g>
+
+        <g className="ground-academy academy-build">
+          <path className="ground-academy-pitch" d="M690 455 763 423 831 453 758 516Z" />
+          <path className="ground-academy-line" d="M701 458 763 431 819 456 758 508Z M760 432V507" />
+        </g>
+
         <path className="ground-pitch-surround" d="M218 244 448 146 682 248 447 462Z" />
         <path className="ground-pitch" d="M239 253 448 164 659 257 447 443Z" />
         <path className="ground-pitch-stripe" d="M271 264 447 189 626 267 595 294 447 230 302 292ZM331 319 447 269 565 321 532 351 447 314 365 350ZM391 374 447 350 507 377 447 430Z" />
