@@ -21,6 +21,9 @@ const userLineup: MatchLineupPlayer[] = [
 const opponentLineup: MatchLineupPlayer[] = [
   { playerId: "o1", name: "Opp One", shirtNumber: 4, role: "CB", ability: 65 },
   { playerId: "o2", name: "Opp Two", shirtNumber: 1, role: "GK", ability: 65 },
+  { playerId: "o3", name: "Opp Three", shirtNumber: 3, role: "LB", ability: 64 },
+  { playerId: "o4", name: "Opp Four", shirtNumber: 5, role: "CB", ability: 67 },
+  { playerId: "o5", name: "Opp Five", shirtNumber: 8, role: "CM", ability: 66 },
 ];
 
 const userBase = new Map<string, MatchPitchPoint>([
@@ -30,6 +33,9 @@ const userBase = new Map<string, MatchPitchPoint>([
 const opponentBase = new Map<string, MatchPitchPoint>([
   ["o1", { x: 76, y: 50 }],
   ["o2", { x: 94, y: 50 }],
+  ["o3", { x: 74, y: 24 }],
+  ["o4", { x: 78, y: 67 }],
+  ["o5", { x: 61, y: 43 }],
 ]);
 
 const user: MatchMotionSide = {
@@ -143,6 +149,19 @@ assert.deepEqual(
   point(action1End.user, "u2"),
   { x: 66, y: 51 },
   "the receiver must finish at the actual pass destination",
+);
+
+for (const id of ["o1", "o3", "o4", "o5"]) {
+  assert.notDeepEqual(
+    point(action1End.opponent, id),
+    point(opponentBase, id),
+    `defender ${id} must react to the attacking pass rather than stay frozen`,
+  );
+}
+const pressingMidfielder = point(action1End.opponent, "o5");
+assert(
+  Math.abs(pressingMidfielder.y - 51) < Math.abs(point(opponentBase, "o5").y - 51),
+  "nearest defender should close toward the ball lane",
 );
 
 const action2Start = motionFrameForSequence({
