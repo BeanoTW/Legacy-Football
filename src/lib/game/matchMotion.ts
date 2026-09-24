@@ -74,12 +74,50 @@ function fallbackBase(
   };
 }
 
+interface DefensiveReactionContext {
+  presserId?: string;
+  coverId?: string;
+}
+
+function distanceSquared(a: MatchPitchPoint, b: MatchPitchPoint): number {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return dx * dx + dy * dy;
+}
+
+function defensiveReactionContext(
+  positions: MatchPositionMap,
+  side: MatchMotionSide,
+  action: MatchSequenceAction,
+): DefensiveReactionContext {
+  const ourSide = sideId(side.ours);
+  if (action.possessionSide === ourSide) return {};
+
+  const candidates = side.lineup
+    .filter((player) => player.role !== "GK")
+    .map((player) => ({
+      player,
+      point: positions.get(player.playerId) ?? fallbackBase(side, player),
+    }))
+    .sort(
+      (a, b) =>
+        distanceSquared(a.point, action.end) - distanceSquared(b.point, action.end) ||
+        a.player.playerId.localeCompare(b.player.playerId),
+    );
+
+  return {
+    presserId: candidates[0]?.player.playerId,
+    coverId: candidates[1]?.player.playerId,
+  };
+}
+
 function genericShapeTarget(
   current: MatchPitchPoint,
   base: MatchPitchPoint,
   player: MatchLineupPlayer,
   side: MatchMotionSide,
   action: MatchSequenceAction,
+  reaction: DefensiveReactionContext,
 ): MatchPitchPoint {
   const ourSide = sideId(side.ours);
   const inPossession = action.possessionSide === ourSide;
@@ -132,6 +170,28 @@ function genericShapeTarget(
   const defensiveRole = ["CB", "LB", "RB", "LWB", "RWB", "CDM"].includes(
     player.role,
   );
+  const midfieldRole = ["CDM", "CM", "CAM", "LM", "RM"].includes(player.role);
+
+  if (!inPossession) {
+    const ownGoalX = side.ours ? 6 : 94;
+    const goalSideX = ball.x + (ownGoalX - ball.x) * 0.16;
+    const ballSideShift = (ball.y - base.y) * (defensiveRole ? 0.42 : midfieldRole ? 0.34 : 0.22);
+    const depthShift = (goalSideX - base.x) * (defensiveRole ? 0.3 : midfieldRole ? 0.22 : 0.12);
+
+    desired.x = base.x + depthShift;
+    desired.y = base.y + ballSideShift;
+
+    if (reaction.presserId === player.playerId) {
+      desired.x = ball.x + (ownGoalX - ball.x) * 0.06;
+      desired.y = ball.y;
+    } else if (reaction.coverId === player.playerId) {
+      desired.x = ball.x + (ownGoalX - ball.x) * 0.2;
+      desired.y = ball.y + (base.y - ball.y) * 0.35;
+    } else if (defensiveRole) {
+      // Back four/five slide together and narrow on the ball side.
+      desired.y += (50 - desired.y) * 0.08;
+    }
+  }
   const dangerous =
     !inPossession &&
     defensiveRole &&
@@ -155,14 +215,24 @@ function genericShapeTarget(
   // from drifting or snapping as the sequence advances.
   const response =
     dangerous
-      ? 0.42
+      ? 0.5
       : inPossession
         ? side.plan?.tempo === "High"
           ? 0.34
           : 0.28
-        : pressing === "High"
-          ? 0.36
-          : 0.24;
+        : reaction.presserId === player.playerId
+          ? pressing === "High"
+            ? 0.62
+            : pressing === "Low"
+              ? 0.42
+              : 0.52
+          : reaction.coverId === player.playerId
+            ? 0.44
+            : pressing === "High"
+              ? 0.4
+              : pressing === "Low"
+                ? 0.3
+                : 0.34;
 
   return {
     x: clamp(current.x + (desired.x - current.x) * response, 3, 97),
@@ -176,6 +246,7 @@ function endPositionForPlayer(
   player: MatchLineupPlayer,
   side: MatchMotionSide,
   action: MatchSequenceAction,
+  reaction: DefensiveReactionContext,
 ): MatchPitchPoint {
   const ourSide = sideId(side.ours);
   const actor = action.side === ourSide && action.playerId === player.playerId;
@@ -218,7 +289,7 @@ function endPositionForPlayer(
     };
   }
 
-  return genericShapeTarget(current, base, player, side, action);
+  return genericShapeTarget(current, base, player, side, action, reaction);
 }
 
 function applyAction(
@@ -227,12 +298,13 @@ function applyAction(
   action: MatchSequenceAction,
 ): MatchPositionMap {
   const next = copyPositions(positions);
+  const reaction = defensiveReactionContext(positions, side, action);
   for (const player of side.lineup) {
     const current = positions.get(player.playerId) ?? fallbackBase(side, player);
     const base = fallbackBase(side, player);
     next.set(
       player.playerId,
-      endPositionForPlayer(current, base, player, side, action),
+      endPositionForPlayer(current, base, player, side, action, reaction),
     );
   }
   return next;
