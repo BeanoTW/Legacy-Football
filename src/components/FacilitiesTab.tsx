@@ -64,9 +64,10 @@ export function FacilitiesTab({ state, update }: { state: GameState; update: (fn
   const access = chooseAsset(list, "sanitary", "sanitary");
   const shop = chooseAsset(list, "shop", "shop");
   const parking = chooseAsset(list, "parking", "parking");
+  const isGrassroots = progression.visualStage === 0;
   const candidates: Array<[string, string, InfrastructureAsset | undefined, string]> = [
-    ["main", "Main Stand", mainStand, "lf-ground-label-main"],
-    ["stands", "Terrace / Stand", otherStand, "lf-ground-label-stands"],
+    ["main", isGrassroots ? "West Side" : "Main Stand", mainStand, "lf-ground-label-main"],
+    ["stands", isGrassroots ? "East Side" : "Terrace / Stand", otherStand, "lf-ground-label-stands"],
     ["pitch", "Pitch", pitch, "lf-ground-label-pitch"],
     ["hospitality", "Hospitality", hospitality, "lf-ground-label-hospitality"],
     ["shop", "Club Shop", shop, "lf-ground-label-shop"],

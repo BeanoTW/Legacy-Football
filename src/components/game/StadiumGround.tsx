@@ -45,36 +45,41 @@ export function StadiumGround({
         <path className="ground-walkway" d="M121 208 449 70 785 219 451 520 91 365Z" />
 
         <g className="stage-one-ground">
-          <path className="stage-one-hardstanding" d="M205 224 695 224 650 443 250 443Z" />
+          <path className="stage-one-field" d="M118 168 782 168 741 506 159 506Z" />
+          <path className="stage-one-path" d="M126 180 774 180 732 494 168 494Z" />
 
-          <g className="stage-one-main-stand">
-            <path className="stage-one-stand-shadow" d="M145 285 208 256 245 274 181 304Z" />
-            <path className="stage-one-stand-face" d="M154 278 208 254 236 267 181 292Z" />
-            <path className="stage-one-stand-roof" d="M146 268 207 241 241 256 181 284Z" />
-            <path className="stage-one-seats" d="M166 275 207 257 225 265M170 284 207 268 218 273" />
+          <g className="stage-one-cage">
+            <path className="stage-one-cage-outline" d="M142 193 758 193 720 480 180 480Z" />
+            <path className="stage-one-cage-posts" d="M142 193V176M758 193V176M180 480V500M720 480V500M315 185V168M585 185V168M202 332H184M716 332H734" />
           </g>
 
-          <g className="stage-one-terrace">
-            <path className="stage-one-terrace-bank" d="M657 281 706 259 729 270 678 293Z" />
-            <path className="stage-one-terrace-step" d="M665 278 705 261M671 284 713 266M678 290 720 272" />
-            <path className="stage-one-rail" d="M660 274 682 284 726 264" />
+          <g className="stage-one-simple-lights">
+            <path d="M208 220V178M692 220V178M228 456V498M672 456V498" />
+            <rect x="197" y="171" width="22" height="8" rx="2" />
+            <rect x="681" y="171" width="22" height="8" rx="2" />
+            <rect x="217" y="497" width="22" height="8" rx="2" />
+            <rect x="661" y="497" width="22" height="8" rx="2" />
+          </g>
+
+          <g className="stage-one-benches">
+            <path d="M166 289 214 289 220 299 170 299Z" />
+            <path d="M686 369 734 369 730 379 680 379Z" />
           </g>
 
           <g className="stage-one-portacabins">
-            <path className="stage-one-cabin-side" d="M90 353 145 328 184 346 129 372Z" />
-            <path className="stage-one-cabin-front" d="M90 353V394L129 414V372L90 353Z" />
-            <path className="stage-one-cabin-side" d="M129 372 184 346V387L129 414V372Z" />
-            <path className="stage-one-cabin-window" d="M103 365 119 373V388L103 380ZM143 366 166 355V371L143 382Z" />
+            <path className="stage-one-cabin-side" d="M76 382 121 361 154 376 109 397Z" />
+            <path className="stage-one-cabin-front" d="M76 382V414L109 430V397L76 382Z" />
+            <path className="stage-one-cabin-side" d="M109 397 154 376V408L109 430V397Z" />
+            <path className="stage-one-cabin-window" d="M87 391 100 397V409L87 403ZM121 393 140 384V397L121 406Z" />
           </g>
 
-          <g className="stage-one-boundary">
-            <path d="M214 227 687 227M250 445 648 445" />
-            <path d="M211 231 252 443M690 231 647 443" />
+          <g className="stage-one-gravel">
+            <path d="M66 430 174 380 217 400 108 450Z" />
           </g>
 
           <g className="stage-one-entry">
-            <path d="M196 438 214 429 232 438 214 447Z" />
-            <path d="M205 435V454M223 435V454" />
+            <path d="M156 481 174 472 192 481 174 490Z" />
+            <path d="M165 478V499M183 478V499" />
           </g>
         </g>
 

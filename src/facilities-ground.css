@@ -825,3 +825,99 @@
 .lf-ground-stage-0 .ground-shop {
   opacity: .52;
 }
+
+
+/* Reference pass: Stage 1 is a fenced community/non-professional pitch, not a stadium. */
+.lf-ground-stage-0 .ground-carpark,
+.lf-ground-stage-0 .ground-carpark-line,
+.lf-ground-stage-0 .ground-carpark-cars,
+.lf-ground-stage-0 .ground-clubhouse,
+.lf-ground-stage-0 .ground-shop,
+.lf-ground-stage-0 .ground-light-tower {
+  display: none;
+}
+
+.lf-ground-stage-0 .ground-site {
+  fill: oklch(0.58 0.13 140);
+}
+
+.lf-ground-stage-0 .ground-pitch-surround {
+  fill: oklch(0.45 0.08 142);
+  stroke: none;
+}
+
+.lf-ground-stage-0 .ground-pitch {
+  fill: oklch(0.56 0.16 142);
+}
+
+.lf-ground-stage-0 .ground-pitch-stripe {
+  fill: oklch(0.50 0.15 142);
+  opacity: .35;
+}
+
+.stage-one-field {
+  fill: oklch(0.62 0.12 137);
+  stroke: none;
+}
+
+.stage-one-path {
+  fill: oklch(0.50 0.07 137);
+  opacity: .55;
+  stroke: none;
+}
+
+.stage-one-cage-outline,
+.stage-one-cage-posts {
+  fill: none;
+  stroke: oklch(0.30 0.07 155);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.stage-one-simple-lights path {
+  fill: none;
+  stroke: oklch(0.38 0.035 210);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+}
+
+.stage-one-simple-lights rect {
+  fill: oklch(0.76 0.08 88);
+  stroke: rgb(255 255 255 / 35%);
+  stroke-width: 1;
+}
+
+.stage-one-benches path {
+  fill: oklch(0.66 0.025 210);
+  stroke: rgb(255 255 255 / 22%);
+  stroke-width: 1.2;
+}
+
+.stage-one-gravel path {
+  fill: oklch(0.64 0.025 80);
+  opacity: .82;
+}
+
+.lf-ground-stage-0 .ground-adboards,
+.lf-ground-stage-0 .ground-dugouts {
+  opacity: .18;
+}
+
+.lf-ground-stage-0 .lf-ground-label {
+  background: rgb(18 52 40 / 58%);
+}
+
+.lf-ground-stage-0 .lf-ground-label-main { left: 5%; top: 45%; }
+.lf-ground-stage-0 .lf-ground-label-stands { right: 4%; top: 45%; }
+.lf-ground-stage-0 .lf-ground-label-offices { left: 7%; top: 29%; }
+.lf-ground-stage-0 .lf-ground-label-parking { left: 3%; top: 62%; }
+.lf-ground-stage-0 .lf-ground-label-shop { left: 4%; bottom: 11%; }
+.lf-ground-stage-0 .lf-ground-label-hospitality { right: 4%; bottom: 11%; }
+.lf-ground-stage-0 .lf-ground-label-access { left: 17%; bottom: 4%; }
+
+@media (max-width: 430px) {
+  .lf-ground-stage-0 .lf-ground-label-main { left: 2%; top: 45%; }
+  .lf-ground-stage-0 .lf-ground-label-stands { right: 2%; top: 45%; }
+  .lf-ground-stage-0 .lf-ground-label-offices { left: 3%; top: 28%; }
+  .lf-ground-stage-0 .lf-ground-label-parking { left: 2%; top: 62%; }
+}
