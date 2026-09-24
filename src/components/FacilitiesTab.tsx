@@ -87,7 +87,7 @@ export function FacilitiesTab({ state, update }: { state: GameState; update: (fn
           <h1 className="truncate font-display text-2xl leading-none md:text-3xl">{progression.current.name}</h1>
         </div>
         <div className="text-right">
-          <div className="text-[10px] uppercase text-muted-foreground">Ground condition</div>
+          <div className="text-[10px] uppercase text-muted-foreground">Overall condition</div>
           <div className={cn("font-display text-xl", BAND_TONE[conditionBand(snap.averageStadiumCondition)])}>{snap.averageStadiumCondition.toFixed(0)}%</div>
         </div>
       </header>
@@ -106,7 +106,7 @@ export function FacilitiesTab({ state, update }: { state: GameState; update: (fn
           <section className="border bg-card">
             <div className="grid grid-cols-3 divide-x border-b">
               <GroundMetric label="Capacity" value={snap.capacity.toLocaleString()} />
-              <GroundMetric label="Usable" value={snap.usableCapacity.toLocaleString()} />
+              <GroundMetric label="Available" value={snap.usableCapacity.toLocaleString()} />
               <GroundMetric label="Weekly cost" value={fmtMoneyExact(snap.weeklyMaintenance + snap.weeklyOperating)} />
             </div>
             <Button variant="ghost" className="h-auto w-full justify-between rounded-none px-3 py-2 text-left" onClick={() => setRequirementsOpen((value) => !value)}>

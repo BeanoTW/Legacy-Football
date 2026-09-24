@@ -1,42 +1,373 @@
-.lf-ground-screen { --ground-night: oklch(0.16 0.025 190); --ground-concrete: oklch(0.34 0.025 205); --ground-roof: oklch(0.25 0.035 205); --ground-turf: oklch(0.48 0.13 148); }
-.lf-ground-viewport { position: relative; min-height: 21rem; height: min(58dvh, 34rem); overflow: hidden; border: 1px solid color-mix(in oklab, var(--color-border) 75%, transparent); background: linear-gradient(180deg, var(--ground-night), color-mix(in oklab, var(--ground-night) 72%, var(--color-primary))); isolation: isolate; }
-.lf-ground-viewport::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 50% 38%, color-mix(in oklab, var(--color-foreground) 15%, transparent), transparent 46%); pointer-events: none; }
-.lf-ground-scene { position: absolute; inset: 2.8rem -8% 1.6rem; width: 116%; height: calc(100% - 4.4rem); filter: drop-shadow(0 1.2rem 1rem rgb(0 0 0 / 35%)); }
-.lf-ground-scene .ground-base { fill: color-mix(in oklab, var(--ground-night) 78%, var(--color-primary)); }
-.lf-ground-scene .ground-concrete { fill: var(--ground-concrete); stroke: color-mix(in oklab, var(--color-foreground) 20%, transparent); stroke-width: 2; }
-.lf-ground-scene .ground-roof { fill: var(--ground-roof); stroke: color-mix(in oklab, var(--color-foreground) 24%, transparent); stroke-width: 2; }
-.lf-ground-scene .ground-tier { fill: color-mix(in oklab, var(--color-primary) 48%, var(--ground-concrete)); }
-.lf-ground-scene .ground-pitch { fill: var(--ground-turf); stroke: color-mix(in oklab, var(--color-foreground) 72%, transparent); stroke-width: 2; }
-.lf-ground-scene .ground-line { fill: none; stroke: color-mix(in oklab, var(--color-foreground) 70%, transparent); stroke-width: 2; }
-.lf-ground-scene .ground-building { fill: color-mix(in oklab, var(--color-banner) 48%, var(--ground-concrete)); stroke: color-mix(in oklab, var(--color-foreground) 25%, transparent); stroke-width: 2; }
-.lf-ground-scene .ground-light { fill: color-mix(in oklab, var(--color-banner) 72%, var(--color-foreground)); filter: drop-shadow(0 0 .55rem color-mix(in oklab, var(--color-banner) 80%, transparent)); }
-.lf-ground-stage-0 .upper-tier, .lf-ground-stage-1 .upper-tier { display: none; }
-.lf-ground-stage-0 .roof-upgrade, .lf-ground-stage-1 .roof-upgrade, .lf-ground-stage-2 .roof-upgrade { opacity: .24; }
-.lf-ground-stage-0 .corner-fill, .lf-ground-stage-1 .corner-fill, .lf-ground-stage-2 .corner-fill, .lf-ground-stage-3 .corner-fill { display: none; }
-.lf-ground-label { position: absolute; z-index: 3; min-height: 2.15rem; max-width: 8rem; border-color: color-mix(in oklab, var(--color-foreground) 24%, transparent); background: color-mix(in oklab, var(--ground-night) 84%, transparent); color: var(--color-foreground); box-shadow: 0 .35rem 1rem rgb(0 0 0 / 24%); backdrop-filter: blur(7px); }
-.lf-ground-label:hover, .lf-ground-label:focus-visible { border-color: var(--color-banner); background: color-mix(in oklab, var(--color-primary) 75%, var(--ground-night)); }
-.lf-ground-label-main { left: 3%; top: 43%; }
-.lf-ground-label-stands { right: 3%; top: 39%; }
-.lf-ground-label-pitch { left: 50%; top: 55%; transform: translate(-50%, -50%); }
-.lf-ground-label-lights { right: 4%; top: 10%; }
-.lf-ground-label-hospitality { left: 5%; top: 18%; }
-.lf-ground-label-media { left: 37%; top: 11%; }
-.lf-ground-label-access { right: 5%; bottom: 7%; }
-.lf-ground-label-clubhouse { left: 4%; bottom: 7%; }
-.lf-ground-kicker { color: color-mix(in oklab, var(--color-foreground) 65%, transparent); }
-.lf-ground-sheet { max-height: min(84dvh, 46rem); border-radius: .85rem .85rem 0 0; padding: 0; overflow: hidden; }
-.lf-ground-sheet-scroll { max-height: calc(min(84dvh, 46rem) - 5rem); overflow-y: auto; overscroll-behavior: contain; }
-.lf-ground-metric { border-left: 2px solid color-mix(in oklab, var(--color-primary) 70%, transparent); }
-@media (min-width: 768px) {
-  .lf-ground-layout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(18rem, .7fr); gap: .75rem; min-height: 0; }
-  .lf-ground-viewport { height: 100%; min-height: 31rem; }
-  .lf-ground-scene { inset: 3.4rem -2% 1.5rem; width: 104%; }
-  .lf-ground-sidebar { min-height: 0; overflow-y: auto; }
-  .lf-ground-sheet { left: auto; right: 1rem; bottom: 1rem; width: min(31rem, calc(100vw - 2rem)); border-radius: .85rem; border: 1px solid var(--color-border); }
+.lf-ground-screen {
+  --ground-sky: oklch(0.78 0.055 190);
+  --ground-site: oklch(0.43 0.085 150);
+  --ground-site-deep: oklch(0.31 0.055 155);
+  --ground-concrete: oklch(0.63 0.018 205);
+  --ground-roof: oklch(0.31 0.035 210);
+  --ground-roof-edge: oklch(0.2 0.024 210);
+  --ground-seat: oklch(0.42 0.075 200);
+  --ground-turf: oklch(0.57 0.15 145);
+  --ground-turf-alt: oklch(0.51 0.135 145);
+  --ground-building: oklch(0.58 0.09 68);
 }
+
+.lf-ground-viewport {
+  position: relative;
+  min-height: 21rem;
+  height: min(58dvh, 34rem);
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--color-border) 78%, transparent);
+  background:
+    radial-gradient(circle at 50% 18%, rgb(255 255 255 / 26%), transparent 38%),
+    linear-gradient(180deg, var(--ground-sky) 0%, color-mix(in oklab, var(--ground-sky) 52%, var(--ground-site)) 60%, var(--ground-site-deep) 100%);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 6%), 0 .45rem 1.2rem rgb(0 0 0 / 10%);
+  isolation: isolate;
+}
+
+.lf-ground-viewport::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(180deg, rgb(255 255 255 / 4%), transparent 22%, rgb(0 0 0 / 8%));
+  pointer-events: none;
+}
+
+.lf-ground-scene-heading {
+  position: absolute;
+  top: .8rem;
+  left: .85rem;
+  right: .85rem;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.lf-ground-kicker,
+.lf-ground-scene-stage {
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 999px;
+  background: rgb(10 35 35 / 54%);
+  color: rgb(255 255 255 / 88%);
+  padding: .26rem .55rem;
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  box-shadow: 0 .2rem .55rem rgb(0 0 0 / 12%);
+  backdrop-filter: blur(8px);
+}
+
+.lf-ground-scene {
+  position: absolute;
+  z-index: 2;
+  inset: 2.15rem -7% .9rem;
+  width: 114%;
+  height: calc(100% - 3.05rem);
+  color: var(--ground-turf);
+  filter: drop-shadow(0 1.15rem 1rem rgb(0 0 0 / 24%));
+}
+
+.lf-ground-scene .ground-site {
+  fill: var(--ground-site-deep);
+  stroke: rgb(255 255 255 / 12%);
+  stroke-width: 2;
+}
+
+.lf-ground-scene .ground-walkway {
+  fill: var(--ground-concrete);
+  stroke: rgb(20 40 42 / 35%);
+  stroke-width: 2;
+}
+
+.lf-ground-scene .ground-carpark {
+  fill: oklch(0.39 0.02 220);
+  stroke: rgb(255 255 255 / 12%);
+  stroke-width: 2;
+}
+
+.lf-ground-scene .ground-carpark-line {
+  fill: none;
+  stroke: rgb(255 255 255 / 42%);
+  stroke-width: 2;
+}
+
+.lf-ground-scene .ground-stand-shadow {
+  fill: var(--ground-roof-edge);
+  opacity: .72;
+}
+
+.lf-ground-scene .ground-stand-face {
+  fill: color-mix(in oklab, var(--ground-seat) 75%, var(--ground-concrete));
+  stroke: rgb(255 255 255 / 19%);
+  stroke-width: 2;
+}
+
+.lf-ground-scene .ground-seat-row {
+  fill: none;
+  stroke: rgb(255 255 255 / 28%);
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.lf-ground-scene .ground-stand-roof {
+  fill: var(--ground-roof);
+  stroke: rgb(255 255 255 / 24%);
+  stroke-width: 2;
+}
+
+.lf-ground-scene .ground-pitch-surround {
+  fill: oklch(0.28 0.035 165);
+  stroke: rgb(255 255 255 / 16%);
+  stroke-width: 2;
+}
+
+.lf-ground-scene .ground-pitch {
+  fill: url(#lf-ground-grass);
+  stroke: rgb(245 255 245 / 78%);
+  stroke-width: 2;
+}
+
+.lf-ground-scene .ground-pitch-stripe {
+  fill: var(--ground-turf-alt);
+  opacity: .42;
+}
+
+.lf-ground-scene .ground-marking {
+  fill: none;
+  stroke: rgb(245 255 245 / 72%);
+  stroke-width: 2.2;
+  stroke-linejoin: round;
+}
+
+.lf-ground-scene .ground-building-front {
+  fill: color-mix(in oklab, var(--ground-building) 76%, oklch(0.42 0.04 55));
+  stroke: rgb(255 255 255 / 18%);
+  stroke-width: 2;
+}
+
+.lf-ground-scene .ground-building-side {
+  fill: color-mix(in oklab, var(--ground-building) 54%, oklch(0.35 0.025 45));
+  stroke: rgb(255 255 255 / 15%);
+  stroke-width: 2;
+}
+
+.lf-ground-scene .ground-building-roof {
+  fill: color-mix(in oklab, var(--ground-roof) 82%, var(--ground-building));
+  stroke: rgb(255 255 255 / 22%);
+  stroke-width: 2;
+}
+
+.lf-ground-scene .ground-window {
+  fill: oklch(0.72 0.055 205);
+  opacity: .68;
+}
+
+.lf-ground-scene .ground-turnstiles path {
+  fill: color-mix(in oklab, var(--ground-concrete) 72%, var(--ground-roof));
+  stroke: rgb(255 255 255 / 22%);
+  stroke-width: 2;
+}
+
+.lf-ground-scene .ground-fence {
+  fill: none;
+  stroke: rgb(230 244 240 / 38%);
+  stroke-width: 2;
+  stroke-dasharray: 6 7;
+}
+
+.lf-ground-scene .ground-light-pole {
+  fill: none;
+  stroke: oklch(0.3 0.02 215);
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+
+.lf-ground-scene .ground-light-head {
+  fill: oklch(0.84 0.12 83);
+  stroke: rgb(255 255 255 / 55%);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 .55rem rgb(255 212 90 / 52%));
+}
+
+.lf-ground-scene .ground-tree-line {
+  fill: oklch(0.37 0.105 145);
+  stroke: oklch(0.26 0.06 145);
+  stroke-width: 3;
+}
+
+.lf-ground-stage-0 .secondary-roof { opacity: .28; }
+.lf-ground-stage-0 .corner-build,
+.lf-ground-stage-1 .corner-build { display: none; }
+.lf-ground-stage-0 .future-campus,
+.lf-ground-stage-1 .future-campus { opacity: .48; }
+.lf-ground-stage-2 .ground-main-stand,
+.lf-ground-stage-3 .ground-main-stand,
+.lf-ground-stage-4 .ground-main-stand,
+.lf-ground-stage-5 .ground-main-stand,
+.lf-ground-stage-6 .ground-main-stand { filter: drop-shadow(0 .4rem .18rem rgb(0 0 0 / 15%)); }
+
+.lf-ground-label {
+  position: absolute;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: .32rem;
+  max-width: 7.3rem;
+  min-height: 1.85rem;
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: 999px;
+  background: rgb(12 38 38 / 68%);
+  color: rgb(255 255 255 / 92%);
+  padding: .3rem .5rem .3rem .38rem;
+  font-size: .62rem;
+  font-weight: 600;
+  line-height: 1;
+  box-shadow: 0 .3rem .8rem rgb(0 0 0 / 17%);
+  backdrop-filter: blur(7px);
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+
+.lf-ground-label::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 1px;
+  height: .55rem;
+  background: rgb(255 255 255 / 35%);
+}
+
+.lf-ground-label:hover,
+.lf-ground-label:focus-visible,
+.lf-ground-label.is-selected {
+  border-color: color-mix(in oklab, var(--color-banner) 78%, white);
+  background: color-mix(in oklab, var(--color-primary) 78%, rgb(11 38 38));
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.lf-ground-label-dot {
+  width: .45rem;
+  height: .45rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 72%);
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 10%);
+}
+
+.lf-ground-project-dot {
+  width: .42rem;
+  height: .42rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: var(--color-banner);
+  box-shadow: 0 0 .35rem color-mix(in oklab, var(--color-banner) 78%, transparent);
+}
+
+.lf-ground-label-main { left: 7%; top: 41%; }
+.lf-ground-label-stands { right: 4%; top: 41%; }
+.lf-ground-label-pitch { left: 50%; top: 56%; transform: translate(-50%, -50%); }
+.lf-ground-label-pitch:hover,
+.lf-ground-label-pitch:focus-visible,
+.lf-ground-label-pitch.is-selected { transform: translate(-50%, calc(-50% - 1px)); }
+.lf-ground-label-lights { right: 7%; top: 16%; }
+.lf-ground-label-hospitality { right: 5%; bottom: 12%; }
+.lf-ground-label-media { left: 38%; top: 15%; }
+.lf-ground-label-access { left: 17%; bottom: 7%; }
+.lf-ground-label-clubhouse { left: 4%; top: 67%; }
+
+.lf-ground-hint {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  bottom: .55rem;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: rgb(10 32 32 / 55%);
+  color: rgb(255 255 255 / 72%);
+  padding: .22rem .52rem;
+  font-size: .56rem;
+  letter-spacing: .02em;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+}
+
+.lf-ground-sheet {
+  max-height: min(84dvh, 46rem);
+  border-radius: .85rem .85rem 0 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.lf-ground-sheet-scroll {
+  max-height: calc(min(84dvh, 46rem) - 5rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.lf-ground-metric {
+  border-left: 2px solid color-mix(in oklab, var(--color-primary) 70%, transparent);
+}
+
+@media (min-width: 768px) {
+  .lf-ground-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(18rem, .7fr);
+    gap: .75rem;
+    min-height: 0;
+  }
+
+  .lf-ground-viewport {
+    height: 100%;
+    min-height: 31rem;
+  }
+
+  .lf-ground-scene {
+    inset: 2.4rem -1% .8rem;
+    width: 102%;
+  }
+
+  .lf-ground-sidebar {
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .lf-ground-sheet {
+    left: auto;
+    right: 1rem;
+    bottom: 1rem;
+    width: min(31rem, calc(100vw - 2rem));
+    border-radius: .85rem;
+    border: 1px solid var(--color-border);
+  }
+}
+
 @media (max-width: 430px) {
-  .lf-ground-viewport { min-height: 20rem; height: 56dvh; }
-  .lf-ground-scene { inset-inline: -17%; width: 134%; }
-  .lf-ground-label { max-width: 6.9rem; min-height: 2rem; padding-inline: .45rem; font-size: .64rem; }
-  .lf-ground-label-media { left: 35%; }
+  .lf-ground-viewport {
+    min-height: 20rem;
+    height: 56dvh;
+  }
+
+  .lf-ground-scene {
+    inset: 2rem -16% .8rem;
+    width: 132%;
+  }
+
+  .lf-ground-label {
+    max-width: 6.3rem;
+    min-height: 1.75rem;
+    padding: .28rem .42rem .28rem .34rem;
+    font-size: .58rem;
+  }
+
+  .lf-ground-label-main { left: 3%; top: 42%; }
+  .lf-ground-label-stands { right: 2%; top: 42%; }
+  .lf-ground-label-lights { right: 3%; top: 16%; }
+  .lf-ground-label-hospitality { right: 3%; bottom: 13%; }
+  .lf-ground-label-media { left: 35%; top: 15%; }
+  .lf-ground-label-access { left: 14%; bottom: 7%; }
+  .lf-ground-label-clubhouse { left: 2%; top: 67%; }
 }
