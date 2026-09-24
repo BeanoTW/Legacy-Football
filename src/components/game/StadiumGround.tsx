@@ -95,23 +95,44 @@ export function StadiumGround({
           <path className="ground-academy-line" d="M701 458 763 431 819 456 758 508Z M760 432V507" />
         </g>
 
-        <path className="ground-pitch-surround" d="M218 244 448 146 682 248 447 462Z" />
-        <path className="ground-pitch" d="M239 253 448 164 659 257 447 443Z" />
-        <path className="ground-pitch-stripe" d="M271 264 447 189 626 267 595 294 447 230 302 292ZM331 319 447 269 565 321 532 351 447 314 365 350ZM391 374 447 350 507 377 447 430Z" />
-        <path className="ground-marking" d="M257 260 448 178 641 263 447 429ZM448 178V429M350 219 350 303 448 346 545 302 545 220M414 253C432 244 462 244 480 253 499 262 499 278 480 287 462 296 432 296 414 287 395 278 395 262 414 253Z" />
+        <path className="ground-pitch-surround" d="M202 220 698 220 650 446 250 446Z" />
+        <path className="ground-pitch" d="M226 239 674 239 629 425 271 425Z" />
+
+        <g className="ground-mow-lines">
+          <path className="ground-pitch-stripe" d="M226 239 674 239 665 277 234 277Z" />
+          <path className="ground-pitch-stripe" d="M647 353 286 353 278 389 638 389Z" />
+        </g>
+
+        <g className="ground-marking">
+          <path d="M226 239 674 239 629 425 271 425Z" />
+          <path d="M450 239V425" />
+          <ellipse cx="450" cy="332" rx="55" ry="27" />
+          <circle cx="450" cy="332" r="3.5" />
+
+          <path d="M374 239 378 286 522 286 526 239" />
+          <path d="M408 239 410 260 490 260 492 239" />
+          <circle cx="450" cy="273" r="3" />
+
+          <path d="M340 425 346 377 554 377 560 425" />
+          <path d="M398 425 401 402 499 402 502 425" />
+          <circle cx="450" cy="389" r="3" />
+
+          <path d="M416 286 C425 304 475 304 484 286" />
+          <path d="M406 377 C417 359 483 359 494 377" />
+        </g>
 
         <g className="ground-goals">
-          <path d="M427 188 448 179 470 188V201L448 211 427 201Z" />
-          <path d="M426 417 447 429 469 417V403L447 392 426 403Z" />
+          <path d="M420 239V226H480V239M420 226L428 220H472L480 226" />
+          <path d="M404 425V440H496V425M404 440L415 447H485L496 440" />
         </g>
 
         <g className="ground-dugouts">
-          <path d="M302 362 337 346 356 355 320 371Z" />
-          <path d="M541 337 575 322 594 331 559 347Z" />
+          <path d="M265 342 319 342 329 354 272 354Z" />
+          <path d="M581 342 635 342 628 354 571 354Z" />
         </g>
 
         <g className="ground-adboards">
-          <path d="M260 238 311 216M584 218 634 240M223 307 267 327M625 328 671 307" />
+          <path d="M228 226H350M550 226H672M244 438H365M535 438H648" />
         </g>
 
         <g className="ground-clubhouse">
