@@ -6,12 +6,15 @@ import {
   ageOf,
   playerName,
   syncLegacySquad,
-  valueForPlayer,
-  wageForAbility,
 } from "./recruitment";
 import { buildWorldSimulationPlan } from "./world";
 import { clubReputation } from "./reputation";
-import { tierOfClub } from "./economy";
+import { footballLevelOfClub } from "./footballLevel";
+import {
+  recruitmentPlayerValue,
+  recruitmentWageForLevel,
+} from "./recruitmentEconomy";
+import { clubOverallProfile } from "./playerOverall";
 import { WEEKS_PER_SEASON } from "./time";
 import { activeLoanForPlayer } from "./loans";
 import { isUserClubReference, sameClubReference } from "./clubReference";
@@ -278,7 +281,7 @@ function completeAiCareerTransfer(
   }
 
   const buyerRep = clubReputation(s, buyer);
-  const buyerTier = tierOfClub(s, buyer);
+  const buyerLevel = footballLevelOfClub(s, buyer);
   const age = ageOf(player, s.season);
   const fee = Math.max(
     0,
@@ -287,7 +290,13 @@ function completeAiCareerTransfer(
   const wage = Math.max(
     150,
     Math.round(
-      wageForAbility(player.currentAbility, buyerRep, buyerTier, age, player.potentialAbility) / 25,
+      recruitmentWageForLevel(
+        buyerLevel,
+        player.currentAbility,
+        buyerRep,
+        age,
+        player.potentialAbility,
+      ) / 25,
     ) * 25,
   );
   const newContract: PlayerContract = {
@@ -310,11 +319,11 @@ function completeAiCareerTransfer(
   player.contractId = newContract.id;
   player.transferStatus = "unlisted";
   player.wageExpectation = wage;
-  player.marketValue = valueForPlayer(
+  player.marketValue = recruitmentPlayerValue(
     player.currentAbility,
     player.potentialAbility,
     age,
-    buyerTier,
+    buyerLevel,
   );
 
   s.football.transferHistory = s.football.transferHistory.concat({
@@ -521,10 +530,22 @@ function runYouthIntake(s: GameState, focus: Set<string>): void {
 function makeYouth(s: GameState, club: string, index: number): FootballPlayer {
   const rng = seededRng(s.saveSeed, "youthIntake", club, s.season, index);
   const rep = clubReputation(s, club);
-  const tier = tierOfClub(s, club);
+  const level = footballLevelOfClub(s, club);
+  const profile = clubOverallProfile(s, club);
   const age = rngInt(rng, 16, 18);
-  const ability = clamp(round(34 + rep * 0.28 + rngRange(rng, -5, 6)), 32, 67);
-  const potential = clamp(ability + rngInt(rng, 8, 28), ability + 4, 92);
+  // Youth intakes sit meaningfully below the senior average at every level.
+  // Elite academies can still produce outstanding prospects, but a Level 7
+  // intake no longer spawns Championship-standard teenagers.
+  const ability = clamp(
+    round(profile.average - rngRange(rng, 6, 14)),
+    Math.max(20, profile.floor - 8),
+    Math.min(profile.star - 3, 84),
+  );
+  const potential = clamp(
+    ability + rngInt(rng, 6, level <= 2 ? 18 : 14),
+    ability + 3,
+    Math.min(95, profile.star + (level <= 2 ? 5 : 3)),
+  );
 
   return {
     id: `y-${s.season}-${hashString(`${s.saveSeed}|youth|${club}|${s.season}|${index}`).toString(
@@ -545,8 +566,8 @@ function makeYouth(s: GameState, club: string, index: number): FootballPlayer {
     reputation: clamp(round(ability * 0.72), 5, 70),
     currentAbility: ability,
     potentialAbility: potential,
-    marketValue: valueForPlayer(ability, potential, age, tier),
-    wageExpectation: wageForAbility(ability, rep, tier, age, potential),
+    marketValue: recruitmentPlayerValue(ability, potential, age, level),
+    wageExpectation: recruitmentWageForLevel(level, ability, rep, age, potential),
     personality: "Balanced",
     contractId: null,
     transferStatus: "unlisted",
@@ -563,14 +584,14 @@ function makeYouthContract(
 ): PlayerContract {
   const rng = seededRng(s.saveSeed, "youthContract", club, s.season, index);
   const rep = clubReputation(s, club);
-  const tier = tierOfClub(s, club);
+  const level = footballLevelOfClub(s, club);
   const wage = Math.max(
     150,
     Math.round(
-      (wageForAbility(
+      (recruitmentWageForLevel(
+        level,
         player.currentAbility,
         rep,
-        tier,
         ageOf(player, s.season),
         player.potentialAbility,
       ) *
