@@ -6,7 +6,7 @@
  *   3. A re-export barrel, so every existing `from "@/lib/game/engine"` import
  *      in the app and the check suites keeps resolving unchanged.
  */
-import type { GameState, FixtureResult } from "./types";
+import type { GameState } from "./types";
 import { runWeeklyGenerators } from "./inbox";
 import { processDueTransferResponsesInPlace, runRecruitmentWeek } from "./recruitment";
 import { processDuePlayerLoansInPlace } from "./loans";
