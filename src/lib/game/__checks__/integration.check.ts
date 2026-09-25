@@ -25,6 +25,7 @@ import { clubStrengthFor } from "../reputation";
 import { DIVISION_ONE } from "../pyramid";
 import { evaluateObjective } from "../board";
 import type { GameState } from "../types";
+import { isUserClubReference } from "../clubReference";
 
 let passed = 0;
 let failed = 0;
