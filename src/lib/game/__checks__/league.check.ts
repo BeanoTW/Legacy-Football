@@ -46,8 +46,10 @@ function fresh(seed = "LEAGUE_SEED_1"): GameState {
       week: f.week,
       opponent: isUserClubReference(g, f.home) ? f.away : f.home,
       home: isUserClubReference(g, f.home),
+      competition: f.competition ?? "league",
+      dayOfWeek: f.dayOfWeek ?? 5,
     }))
-    .sort((a, b) => a.week - b.week);
+    .sort((a, b) => a.week - b.week || (a.dayOfWeek ?? 5) - (b.dayOfWeek ?? 5));
   return g;
 }
 
@@ -83,8 +85,8 @@ console.log("\n[1] Schedule + state shape");
   check("matchRecords starts empty", g.matchRecords.length === 0);
   check("hasFullSchedule true for new games", hasFullSchedule(g));
   check(
-    "every round has 10 fixtures per division",
-    [...new Set(g.leagueSchedule.map((f) => f.round))].every(
+    "every top-division round has 10 fixtures",
+    [...new Set(g.leagueSchedule.filter((f) => f.league === DIVISION_ONE).map((f) => f.round))].every(
       (r) =>
         g.leagueSchedule.filter((f) => f.round === r && f.league === DIVISION_ONE).length === 10,
     ),
@@ -211,11 +213,16 @@ console.log("\n[5] Table is a pure projection of records");
     JSON.stringify(sortTable(stored)) === JSON.stringify(sortTable(rebuilt)) || t.season > 1,
   );
   const rows = rebuilt;
+  const expectedClubMatches = (teams.length - 1) * 2;
+  const expectedLeagueFixtures = teams.length * (teams.length - 1);
   check(
-    "played = 38 for every club",
-    rows.every((r) => r.p === 38),
+    `played = ${expectedClubMatches} for every club`,
+    rows.every((r) => r.p === expectedClubMatches),
   );
-  check("played total equals 2x completed fixtures", rows.reduce((a, r) => a + r.p, 0) === 380 * 2);
+  check(
+    "played total equals 2x completed fixtures",
+    rows.reduce((a, r) => a + r.p, 0) === expectedLeagueFixtures * 2,
+  );
   check(
     "total wins === total losses",
     rows.reduce((a, r) => a + r.w, 0) === rows.reduce((a, r) => a + r.l, 0),
@@ -348,14 +355,18 @@ console.log("\n[9] User club is not privileged");
   const t = playSeason(initial);
   const rows = buildTable(teams, t.matchRecords, 1, leagueId);
   const user = rows.find((r) => isUserClubReference(initial, r.team))!;
-  check("user club has 38 played like everyone else", user.p === 38);
+  const expectedClubMatches = (teams.length - 1) * 2;
   check(
-    "user club appears in exactly 38 season-1 records",
+    `user club has ${expectedClubMatches} played like everyone else`,
+    user.p === expectedClubMatches,
+  );
+  check(
+    `user club appears in exactly ${expectedClubMatches} season-1 records`,
     t.matchRecords.filter(
       (r) =>
         r.season === 1 &&
         (isUserClubReference(initial, r.home) || isUserClubReference(initial, r.away)),
-    ).length === 38,
+    ).length === expectedClubMatches,
   );
 }
 

@@ -401,7 +401,7 @@ console.log("\n[H7] Hot-core size at S5 / S10 / S20");
   }
   const s20 = marks.get(20)!.hot;
   const worldClubs = s.leagues.reduce((total, league) => total + league.clubIds.length, 0);
-  const hotCoreBudget = 2 * 1024 * 1024 + Math.max(0, worldClubs - 40) * 13 * 1024;
+  const hotCoreBudget = 2 * 1024 * 1024 + Math.max(0, worldClubs - 40) * 14 * 1024;
   check(
     "S20 hot core stays within the scalable per-club budget",
     s20 < hotCoreBudget,

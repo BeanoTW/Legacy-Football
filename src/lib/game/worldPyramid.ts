@@ -1,6 +1,7 @@
 import type { League } from "./types";
 import { CLUBS } from "./clubs";
-import { LEAGUE_ID } from "./league";
+
+const TOP_LEAGUE_ID = "league-1";
 
 
 export interface WorldDivisionDefinition {
@@ -29,11 +30,12 @@ export interface WorldDivisionDefinition {
  * order. New lower divisions are append-only. `tier` is an economic/football
  * level, NOT a unique division ordinal: regional divisions legitimately share it.
  *
- * Persisted tier 5 maps to canonical football Level 7 through the fixed +2 bridge.
+ * Current world tiers are canonical football levels. Legacy saves are translated
+ * at migration boundaries rather than inside this world definition.
  */
 export const WORLD_DIVISIONS: readonly WorldDivisionDefinition[] = [
   {
-    id: LEAGUE_ID,
+    id: TOP_LEAGUE_ID,
     name: "Division One",
     tier: 1,
     clubCount: 20,
@@ -292,7 +294,7 @@ export function expandExistingLeagues(existing: readonly League[], clubName: str
   }
 
   // Re-derive only structural competition settings. Membership and historical
-  // fields remain untouched. Multiple leagues may legitimately share tier 5.
+  // fields remain untouched. Multiple leagues may legitimately share one level.
   for (const league of out) {
     const def = WORLD_DIVISIONS.find((candidate) => candidate.id === league.id);
     if (!def) continue;
