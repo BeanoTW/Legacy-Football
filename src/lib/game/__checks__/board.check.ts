@@ -92,7 +92,8 @@ console.log("\n[B3] Objectives");
     "league position target is inside the division",
     (() => {
       const o = objs.find((x) => x.kind === "leaguePosition")!;
-      return o.target >= 1 && o.target <= 20;
+      const size = s.leagues.find((league) => league.id === s.playerLeagueId)?.clubIds.length ?? s.league.length;
+      return o.target >= 1 && o.target <= size;
     })(),
   );
   check(

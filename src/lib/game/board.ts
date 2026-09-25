@@ -338,8 +338,14 @@ export function weeklyIncomeEstimate(s: GameState): number {
   const avgPrice = capacity
     ? (s.stands ?? []).reduce((a, b) => a + b.ticketPrice * b.capacity, 0) / capacity
     : 0;
-  // 19 home league games spread across a 46-week season, ~65% occupancy.
-  const matchday = avgPrice * capacity * 0.65 * (19 / 46);
+  const leagueSize =
+    (s.leagues ?? []).find((league) => league.id === playerLeagueId(s))?.clubIds.length ??
+    (s.league ?? []).length ??
+    20;
+  const homeLeagueGames = Math.max(1, leagueSize - 1);
+  // League sizes vary from 20 to 24 clubs. Spread the correct number of home
+  // dates across the same 46-week financial season instead of assuming 19.
+  const matchday = avgPrice * capacity * 0.65 * (homeLeagueGames / 46);
   return Math.max(1, sponsor + merchandise + matchday);
 }
 
