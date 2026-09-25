@@ -415,7 +415,7 @@ function colour(value: unknown, fallback: string): string {
 
 /** Repairs anything malformed in a saved identity, field by field. */
 export function sanitizeClubKit(input: unknown, clubName: string): ClubKitState {
-  const fallback = defaultClubKit(presentationName);
+  const fallback = defaultClubKit(clubName);
   if (!input || typeof input !== "object") return fallback;
   const raw = input as Partial<Record<keyof ClubKitState, Record<string, unknown>>>;
   const b = raw.badge ?? {};
@@ -520,7 +520,7 @@ export function randomClubKit(clubName: string, random: () => number = Math.rand
       secondary: s,
       accent: contrast(accent, p) > 1.6 ? accent : readableOn(p),
       emblemColour: contrast(s, p) > 1.6 ? s : readableOn(p),
-      initials: clubInitials(presentationName),
+      initials: clubInitials(clubName),
       founded: String(1865 + Math.floor(random() * 70)),
     },
     home,
