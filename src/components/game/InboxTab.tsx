@@ -147,26 +147,25 @@ function compactDecisionLabel(label: string) {
 
 function decisionSummaryRows(section: string): DecisionSummaryItem[] | null {
   const lines = section.split("\n").map((line) => line.trim()).filter(Boolean);
-  const rows = lines.map((line) => {
+  const parsed: DecisionSummaryItem[] = lines.flatMap((line) => {
     const cleaned = line.replace(/^[-•]\s*/, "");
     const match = cleaned.match(/^(.{2,42}?)(?:\s*\.{2,}\s*|\s*:\s+)(.+)$/);
-    if (!match) return null;
+    if (!match) return [];
     const label = compactDecisionLabel(match[1]);
     const value = match[2].trim();
     const lower = label.toLowerCase();
-    return {
+    return [{
       label,
       value,
       emphasis:
         /fee offered|fee on the table|wage freed|saving|income/.test(lower)
-          ? "positive" as const
+          ? "positive"
           : /deadline|asking/.test(lower)
-            ? "warning" as const
-            : "neutral" as const,
+            ? "warning"
+            : "neutral",
       wide: /player|term/.test(lower) && value.length > 22,
-    };
+    }];
   });
-  const parsed = rows.filter((row): row is DecisionSummaryItem => row !== null);
   return parsed.length >= 3 && parsed.length === lines.length ? parsed : null;
 }
 
