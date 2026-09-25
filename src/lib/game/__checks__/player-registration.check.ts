@@ -10,7 +10,7 @@ import {
 import { freeAgents, squadOf, userSquad } from "../recruitment";
 
 const state = newGame("Registration Identity FC", "Auditor", "PLAYER_REGISTRATION_AUDIT");
-assert.equal(SAVE_VERSION, 20);
+assert.equal(state.version, SAVE_VERSION);
 
 for (const player of state.football.players) {
   assert.equal(
@@ -67,7 +67,7 @@ const before = legacy.football.players.map((player) => ({
   contractId: player.contractId,
 }));
 const migrated = migrateSave(JSON.parse(JSON.stringify(legacy)) as Record<string, unknown>);
-assert.equal(migrated.version, 20);
+assert.equal(migrated.version, SAVE_VERSION);
 assert.deepEqual(
   migrated.football.players.map((player) => ({
     id: player.id,

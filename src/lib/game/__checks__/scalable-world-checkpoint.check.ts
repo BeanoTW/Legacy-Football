@@ -3,6 +3,7 @@ import { buildWorldSimulationPlan } from "../world";
 import { reconcileRecruitmentFidelity, setWorldClubTracked } from "../recruitment";
 import type { GameState } from "../types";
 import { isUserClubReference } from "../clubReference";
+import { WORLD_DIVISIONS } from "../worldPyramid";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -165,8 +166,11 @@ for (let completed = 0; completed < 5; completed++) {
     `after season ${targetSeason - 1}: promotion/relegation must never lose or create persistent clubs`,
   );
   assert(
-    a.leagues.every((league) => league.clubIds.length === 20),
-    `after season ${targetSeason - 1}: every division must retain 20 clubs`,
+    a.leagues.every((league) => {
+      const expected = WORLD_DIVISIONS.find((definition) => definition.id === league.id)?.clubCount;
+      return expected === undefined || league.clubIds.length === expected;
+    }),
+    `after season ${targetSeason - 1}: every division must retain its configured club count`,
   );
 
   // Reconcile is intentionally idempotent at any save boundary.

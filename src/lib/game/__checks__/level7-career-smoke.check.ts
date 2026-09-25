@@ -83,8 +83,8 @@ ensureRecruitment(s);
 assert(s.version === SAVE_VERSION, `fresh save must use schema v${SAVE_VERSION}, got v${s.version}`);
 assert(footballLevelOfUser(s) === 7, "fresh career must resolve to canonical Level 7");
 assert(
-  s.leagues.find((league) => league.id === s.playerLeagueId)?.tier === 5,
-  "fresh Level 7 career must persist on tier 5",
+  s.leagues.find((league) => league.id === s.playerLeagueId)?.tier === 7,
+  "fresh Level 7 career must persist on canonical tier 7",
 );
 assert(s.cash === 220_000, `fresh Level 7 cash must be £220,000, got £${s.cash}`);
 assert((s.transferBudget ?? 0) === 0, "fresh save must keep the legacy transfer pot retired");
