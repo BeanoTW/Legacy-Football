@@ -29,6 +29,8 @@ import { clubLegacyRecord } from "@/lib/game/clubLegacy";
 import { setWorldClubTracked } from "@/lib/game/recruitment";
 import { footballLevelOfLeague, legacyTierToFootballLevel } from "@/lib/game/footballLevel";
 import { clubPresentationName, leaguePresentationName } from "@/lib/game/clubPresentation";
+import { clubKitForReference } from "@/lib/game/clubKit";
+import { ClubBadge } from "@/components/game/ClubKitArt";
 
 type View = "table" | "fixtures" | "predictions";
 
@@ -185,7 +187,12 @@ function TableView({
               )}
             >
               <td className="py-1.5 px-3 text-muted-foreground">{i + 1}</td>
-              <td className="py-1.5 pr-2">{clubPresentationName(clubDisplayName(state, r.team))}</td>
+              <td className="py-1.5 pr-2">
+                <span className="flex min-w-0 items-center gap-2">
+                  <ClubBadge design={clubKitForReference(state, r.team).badge} clubName={clubDisplayName(state, r.team)} size={22} className="shrink-0" />
+                  <span className="truncate">{clubPresentationName(clubDisplayName(state, r.team))}</span>
+                </span>
+              </td>
               <td className="py-1.5 pr-2 text-right">{r.p}</td>
               <td className="py-1.5 pr-2 text-right">{r.w}</td>
               <td className="py-1.5 pr-2 text-right">{r.d}</td>
@@ -251,11 +258,17 @@ function FixturesView({
               (isUserClubReference(state, f.home) || isUserClubReference(state, f.away)) && "bg-accent/15",
             )}
           >
-            <span className="text-right truncate">{clubDisplayName(state, f.home)}</span>
+            <span className="flex min-w-0 items-center justify-end gap-1.5 text-right">
+              <span className="truncate">{clubDisplayName(state, f.home)}</span>
+              <ClubBadge design={clubKitForReference(state, f.home).badge} clubName={clubDisplayName(state, f.home)} size={20} className="shrink-0" />
+            </span>
             <span className="tnum text-xs font-bold px-2 py-0.5 rounded bg-muted min-w-12 text-center">
               {f.record ? `${f.record.homeGoals}-${f.record.awayGoals}` : "v"}
             </span>
-            <span className="truncate">{clubDisplayName(state, f.away)}</span>
+            <span className="flex min-w-0 items-center gap-1.5">
+              <ClubBadge design={clubKitForReference(state, f.away).badge} clubName={clubDisplayName(state, f.away)} size={20} className="shrink-0" />
+              <span className="truncate">{clubDisplayName(state, f.away)}</span>
+            </span>
           </div>
         ))}
       </div>

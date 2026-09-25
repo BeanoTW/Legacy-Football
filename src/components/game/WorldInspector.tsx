@@ -12,6 +12,8 @@ import {
 } from "@/lib/game/clubReference";
 import { footballLevelOfLeague } from "@/lib/game/footballLevel";
 import { clubPresentationName, leaguePresentationName } from "@/lib/game/clubPresentation";
+import { clubKitForReference } from "@/lib/game/clubKit";
+import { ClubBadge } from "./ClubKitArt";
 import {
   browsableFringeSquad,
   preserveFringePlayerForProfile,
@@ -185,10 +187,13 @@ export function WorldInspector({
                           event.stopPropagation();
                           setSelectedClub(row.team);
                         }}
-                        className="max-w-full truncate text-left font-semibold hover:underline"
+                        className="flex max-w-full min-w-0 items-center gap-2 text-left font-semibold hover:underline"
                       >
-                        {clubPresentationName(clubDisplayName(state, row.team))}
-                        {isMe ? " · YOU" : ""}
+                        <ClubBadge design={clubKitForReference(state, row.team).badge} clubName={clubDisplayName(state, row.team)} size={22} className="shrink-0" />
+                        <span className="truncate">
+                          {clubPresentationName(clubDisplayName(state, row.team))}
+                          {isMe ? " · YOU" : ""}
+                        </span>
                       </button>
                     </td>
                     <td className="px-2 py-1.5 text-right text-muted-foreground">{row.p}</td>
@@ -256,7 +261,7 @@ function ClubSquadPanel({
       <div className="panel-strip flex items-center justify-between gap-3 px-3 py-2.5 sm:px-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <Users className="size-4 shrink-0" />
+            <ClubBadge design={clubKitForReference(state, canonical).badge} clubName={displayName} size={28} className="shrink-0" />
             <div className="truncate font-display text-lg">{displayName}</div>
           </div>
           <div className="mt-0.5 text-[11px] opacity-70">

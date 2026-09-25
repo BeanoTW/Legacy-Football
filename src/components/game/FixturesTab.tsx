@@ -4,6 +4,8 @@ import { cn } from "@/lib/utils";
 import { calendarDay, fmtMoney, simulateFixture, startMatchDay } from "@/lib/game/engine";
 import { Section } from "./shared/primitives";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
+import { clubKitForReference } from "@/lib/game/clubKit";
+import { ClubBadge } from "./ClubKitArt";
 import { domesticCupName, domesticCupRoundLabel } from "@/lib/game/cupNarrative";
 import { cupSlot } from "@/lib/game/cupSchedule";
 import { Button } from "@/components/ui/button";
@@ -85,7 +87,10 @@ export function FixturesTab({
                       </div>
                       <div className="lf-fixture-copy min-w-0">
                         <span className="lf-competition-label">{competitionLabel(competition)}</span>
-                        <strong className="truncate">{clubDisplayName(state, fixture.opponent)}</strong>
+                        <span className="flex min-w-0 items-center gap-2">
+                          <ClubBadge design={clubKitForReference(state, fixture.opponent).badge} clubName={clubDisplayName(state, fixture.opponent)} size={24} className="shrink-0" />
+                          <strong className="truncate">{clubDisplayName(state, fixture.opponent)}</strong>
+                        </span>
                         <span>{fixture.home ? "Home" : "Away"}</span>
                       </div>
                       <div className="lf-fixture-outcome tnum">
