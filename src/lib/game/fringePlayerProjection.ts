@@ -1,5 +1,5 @@
 import type { FringeClubState, GameState, Position } from "./types";
-import { legacyTierToFootballLevel } from "./footballLevel";
+import { footballLevelOfClub } from "./footballLevel";
 import { recruitmentPlayerValue, recruitmentWageForLevel } from "./recruitmentEconomy";
 import { fringePlayersForClub } from "./fringePlayers";
 import { fringePlayerPresentation } from "./fringePlayerPresentation";
@@ -52,7 +52,7 @@ export function projectFringePlayer(
     currentClubId: player.currentClubId,
     createdSeason: player.createdSeason ?? state.season,
   };
-  const level = legacyTierToFootballLevel(club.tier);
+  const level = footballLevelOfClub(state, club.clubId);
 
   return {
     id: player.playerId,
