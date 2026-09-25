@@ -629,7 +629,8 @@ export const matchdayKey = (i: { season: number; week: number; opponent: string 
  * `level` scales spend per head with the level of football: supporters in the
  * top flight spend several times what a National Division crowd does.
  */
-export const spendLevelFactor = (tier: number) => profileForTier(tier).ticketPriceReference / 20;
+export const spendLevelFactor = (level: import("./footballLevel").FootballLevel) =>
+  economicProfileForLevel(level).ticketPriceReference / 20;
 
 export const hospitalityFor = (attendance: number, mult = 1, level = 1) =>
   int(attendance * 1.35 * mult * level);
