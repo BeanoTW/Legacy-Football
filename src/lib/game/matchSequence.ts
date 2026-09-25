@@ -649,7 +649,7 @@ class Possession {
   /** The nearest defender closes the ball down without winning it. */
   press(event: MatchEvent): MatchLineupPlayer | undefined {
     const presser = this.nearestDefender(this.ball);
-    if (!presser) return undefined;
+    if (!presser || event.side === "neutral") return undefined;
     this.push({
       kind: "press",
       side: otherSide(this.cfg.side),
