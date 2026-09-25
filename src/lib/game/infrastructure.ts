@@ -38,7 +38,8 @@ import type {
 import { absoluteWeek } from "./time";
 import { seededRng, rngRange } from "./rng";
 import { assessSpend, postEntry } from "./finance";
-import { profileForTier, tierOfUser } from "./economy";
+import { economicProfileForLevel } from "./levelEconomy";
+import { footballLevelOfUser } from "./footballLevel";
 import { archivedBucketSum } from "./archive";
 
 const int = (n: number) => Math.round(Number.isFinite(n) ? n : 0);
@@ -699,7 +700,7 @@ export function assetCosts(
   const closed = a.status === "closed";
   // Running a ground costs what the level of football demands: staffing,
   // stewarding, energy and compliance all scale with the division.
-  const level = profileForTier(tierOfUser(s)).infrastructureCostFactor;
+  const level = economicProfileForLevel(footballLevelOfUser(s)).infrastructureCostFactor;
   const operating = closed
     ? 0
     : int(cfg.operatingCost * levelScale * capScale * BAND_COST[band] * level);

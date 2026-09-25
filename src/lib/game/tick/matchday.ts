@@ -15,7 +15,8 @@ import {
   userClubReference,
 } from "../clubReference";
 import { mulberry32, hashString } from "../rng";
-import { profileForTier, tierOfUser } from "../economy";
+import { economicProfileForLevel } from "../levelEconomy";
+import { footballLevelOfUser } from "../footballLevel";
 import { facilityModifiers } from "../infrastructure";
 import { postMatchdayFinance } from "../finance";
 import { clubMatchStrength, userMatchStrength } from "../matchStrength";
@@ -110,7 +111,7 @@ export function tickSelectedMatchday(
       gate = Math.round(attendance * avgPrice);
       // Central broadcast money arrives weekly through the league
       // distribution; this is only the per-fixture facility/host fee.
-      const econ = profileForTier(tierOfUser(s));
+      const econ = economicProfileForLevel(footballLevelOfUser(s));
       tv = Math.round(((econ.broadcastSeason * 0.07) / 23) * (0.85 + rng() * 0.3));
       matchdayOps = fixture.home
         ? Math.round((4_200 + attendance * 1.35) * econ.matchdayCostFactor)

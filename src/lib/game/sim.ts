@@ -5,7 +5,9 @@
  * match both consume these, which is why they live outside the tick modules.
  */
 import type { GameState } from "./types";
-import { profileForTier, tierOfUser, clubSizeFactor } from "./economy";
+import { clubSizeFactor } from "./economy";
+import { economicProfileForLevel } from "./levelEconomy";
+import { footballLevelOfUser } from "./footballLevel";
 import { detailedSquadStrength } from "./footballStrength";
 import { stadiumCapacity, stadiumUsableCapacity, facilityModifiers } from "./infrastructure";
 
@@ -61,8 +63,7 @@ export function simAttendance(
   // stadium does not create supporters: the level of football and the size of
   // the club set the crowd, and the ground only limits it.
   const cap = usableCapacity(s);
-  const tier = tierOfUser(s);
-  const profile = profileForTier(tier);
+  const profile = economicProfileForLevel(footballLevelOfUser(s));
   const demandBase = profile.typicalAttendance * clubSizeFactor(s.reputation ?? 50);
 
   const avgPrice = avgTicketPrice(s);

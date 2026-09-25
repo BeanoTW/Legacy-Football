@@ -40,15 +40,16 @@ import { isUserClubReference, userClubReference } from "./clubReference";
 import { loanWageAdjustmentForClub } from "./loans";
 import { absoluteWeek } from "./time";
 import {
-  profileForTier,
   clubSizeFactor,
-  revenueBaseline,
-  sustainableWeeklyWageBill,
-  wageStructureFrom,
-  tierOfUser,
   SEASON_MATCH_WEEKS,
   type WageStructure,
 } from "./economy";
+import {
+  economicProfileForLevel,
+  revenueBaselineForLevel,
+  sustainableWeeklyWageBillForLevel,
+} from "./levelEconomy";
+import { footballLevelOfLeague, footballLevelOfUser } from "./footballLevel";
 import { clubReputation } from "./reputation";
 import { archivedFinanceGuard, archivedNet, archivedTrailingLossWeeks } from "./archive";
 
@@ -394,7 +395,7 @@ export function wageSummary(s: GameState): WageSummary {
  * cost of running a club is set by the league it operates in.
  */
 export const adminWeeklyCost = (s: GameState) => {
-  const p = profileForTier(leagueTierOf(s));
+  const p = economicProfileForLevel(footballLevelOfUser(s));
   const size = clubSizeFactor(s.reputation ?? 50);
   return int((2_600 + (s.reputation ?? 50) * 26) * p.staffCostFactor * size);
 };
@@ -405,7 +406,7 @@ export const adminWeeklyCost = (s: GameState) => {
  * relegation change the club's whole income base with no special casing.
  */
 export function leagueDistributionWeekly(s: GameState): number {
-  const base = revenueBaseline(leagueTierOf(s), s.reputation ?? 50);
+  const base = revenueBaselineForLevel(footballLevelOfUser(s), s.reputation ?? 50);
   return base.weeklyBroadcast;
 }
 
@@ -425,7 +426,7 @@ export const sponsorWeeklyIncome = (s: GameState) =>
  * sponsorship) and moved by how happy the supporters are.
  */
 export const merchandiseWeeklyIncome = (s: GameState) => {
-  const base = revenueBaseline(leagueTierOf(s), s.reputation ?? 50);
+  const base = revenueBaselineForLevel(footballLevelOfUser(s), s.reputation ?? 50);
   const mood = 0.6 + (s.fanHappiness ?? 60) / 150; // 0.6 - 1.27
   return int(((base.commercialSeason * 0.3) / SEASON_WEEKS) * mood);
 };
@@ -458,9 +459,13 @@ export function weeklyRevenueEstimate(s: GameState): number {
   // Fresh save: use the canonical economy baseline for the club's level and
   // size. The old stand-capacity projection predated economy.ts and badly
   // understated income, which starved the derived wage ceiling.
-  const tier = tierOfUser(s);
+  const level = footballLevelOfUser(s);
   const rep = clubReputation(s, userClubReference(s));
-  const baseline = revenueBaseline(tier, rep).totalSeason / SEASON_MATCH_WEEKS;
+  const homeMatches =
+    ((s.leagues ?? []).find((league) => league.id === s.playerLeagueId)?.clubIds.length ?? 20) - 1;
+  const baseline =
+    revenueBaselineForLevel(level, rep, Math.max(1, homeMatches)).totalSeason /
+    SEASON_MATCH_WEEKS;
   return Math.max(1, int(Math.max(baseline, recurringWeeklyIncome(s))));
 }
 
@@ -642,7 +647,7 @@ export function postMatchdayFinance(
   const m = i.modifiers ?? {};
   const attendance = home ? int(i.attendance) : 0;
   const tickets = home ? int(i.gate) : 0;
-  const level = spendLevelFactor(leagueTierOf(s));
+  const level = economicProfileForLevel(footballLevelOfUser(s)).ticketPriceReference / 20;
   const hospitality = home ? hospitalityFor(attendance, m.hospitalityIncome ?? 1, level) : 0;
   const concessions = home ? concessionsFor(attendance, m.concessionSpend ?? 1, level) : 0;
   const parking = home ? parkingFor(attendance, m.parkingIncome ?? 1, level) : 0;
@@ -717,7 +722,7 @@ export function postMatchdayFinance(
 
 export function prizeRulesFor(league: League): LeaguePrizeRules {
   if (league.prizeRules) return league.prizeRules;
-  const prize = profileForTier(league.tier ?? 1).prize;
+  const prize = economicProfileForLevel(footballLevelOfLeague(league)).prize;
   return {
     basePayment: prize.basePayment,
     positionStep: prize.positionStep,
@@ -1440,7 +1445,53 @@ export function squadWageStructure(s: GameState): WageStructure {
   const wages = (s.football?.contracts ?? [])
     .filter((c) => isUserClubReference(s, c.clubId) && (c.status === "Active" || c.status === "Expiring"))
     .map((c) => c.weeklyWage);
-  return wageStructureFrom(wages, leagueTierOf(s));
+  const profile = economicProfileForLevel(footballLevelOfUser(s));
+  const ordered: Array<keyof typeof profile.wageBands> = [
+    "fringe",
+    "rotation",
+    "firstTeam",
+    "key",
+    "star",
+  ];
+  const sorted = [...wages].filter((wage) => wage > 0).sort((a, b) => b - a);
+  const bands: WageStructure["bands"] = {
+    fringe: 0,
+    rotation: 0,
+    firstTeam: 0,
+    key: 0,
+    star: 0,
+    aboveScale: 0,
+  };
+  for (const wage of sorted) {
+    const band = ordered.find((key) => wage <= profile.wageBands[key][1]) ?? "aboveScale";
+    bands[band] += 1;
+  }
+  if (!sorted.length) {
+    return {
+      count: 0,
+      totalWeekly: 0,
+      averageWeekly: 0,
+      medianWeekly: 0,
+      highestWeekly: 0,
+      lowestWeekly: 0,
+      topFiveSharePct: 0,
+      compression: 0,
+      bands,
+    };
+  }
+  const total = sorted.reduce((sum, wage) => sum + wage, 0);
+  const median = sorted[Math.floor(sorted.length / 2)]!;
+  return {
+    count: sorted.length,
+    totalWeekly: total,
+    averageWeekly: int(total / sorted.length),
+    medianWeekly: median,
+    highestWeekly: sorted[0]!,
+    lowestWeekly: sorted[sorted.length - 1]!,
+    topFiveSharePct: (sorted.slice(0, 5).reduce((sum, wage) => sum + wage, 0) / total) * 100,
+    compression: median > 0 ? sorted[0]! / median : 0,
+    bands,
+  };
 }
 
 export interface EconomyBenchmark {
@@ -1497,20 +1548,27 @@ export function operatingSplit(
 
 export function economyBenchmark(s: GameState): EconomyBenchmark {
   const tier = leagueTierOf(s);
-  const p = profileForTier(tier);
+  const level = footballLevelOfUser(s);
+  const p = economicProfileForLevel(level);
   const rep = s.reputation ?? 50;
   const split = operatingSplit(s, s.season);
   const weeksPlayed = Math.max(1, s.week - 1);
   const annualised = int((split.operatingIncome / weeksPlayed) * SEASON_WEEKS);
   const wages = playerWageBill(s) + staffWageBill(s);
-  const benchmark = revenueBaseline(tier, rep).totalSeason;
+  const homeMatches =
+    ((s.leagues ?? []).find((league) => league.id === s.playerLeagueId)?.clubIds.length ?? 20) - 1;
+  const benchmark = revenueBaselineForLevel(level, rep, Math.max(1, homeMatches)).totalSeason;
   return {
     tier,
     levelLabel: p.label,
     revenueAnnualised: annualised,
     revenueBenchmark: benchmark,
     wageBillWeekly: wages,
-    sustainableWageBillWeekly: sustainableWeeklyWageBill(tier, rep),
+    sustainableWageBillWeekly: sustainableWeeklyWageBillForLevel(
+      level,
+      rep,
+      Math.max(1, homeMatches),
+    ),
     wageToRevenuePct: ((wages * SEASON_WEEKS) / Math.max(1, annualised || benchmark)) * 100,
     expectedWageToRevenuePct: p.expectedWageRevenueRatio * 100,
     operatingResultSeason: split.operatingResult,
