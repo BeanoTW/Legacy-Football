@@ -44,7 +44,7 @@ import { clubReputation } from "./reputation";
 import { facilityModifiers } from "./infrastructure";
 import { buildWorldSimulationPlan } from "./world";
 import { ensureFringeWorldState, makeFringeClubState } from "./fringe";
-import { legacyTierToFootballLevel, type FootballLevel } from "./footballLevel";
+import { footballLevelOfLeague, legacyTierToFootballLevel, type FootballLevel } from "./footballLevel";
 import {
   clubOperatingModel,
   contractEmploymentType,
@@ -103,10 +103,15 @@ import {
 const int = (n: number) => Math.round(n) || 0;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
-/** Compatibility edge: persisted leagues still store legacy tiers. */
+/** Deepest canonical football level currently present in the save. */
 function deepestWorldFootballLevel(s: GameState): FootballLevel {
-  const deepestLegacyTier = Math.max(...(s.leagues ?? []).map((league) => league.tier ?? 1), 1);
-  return legacyTierToFootballLevel(deepestLegacyTier);
+  return (s.leagues ?? []).reduce<FootballLevel>(
+    (deepest, league) => {
+      const level = footballLevelOfLeague(league);
+      return level > deepest ? level : deepest;
+    },
+    1,
+  );
 }
 
 /* ---------- Constants ---------- */
