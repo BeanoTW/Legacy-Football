@@ -20,10 +20,10 @@ assert.equal(cup.champion, final.away, "final winner must persist as cup champio
 
 const world = {
   leagues: [
-    { tier: 5, clubIds: ["L7 A", "L7 B", "L7 C", "L7 D"] },
-    { tier: 4, clubIds: ["L6 A", "L6 B"] },
-    { tier: 2, clubIds: ["L4 A", "L4 B"] },
-    { tier: 0, clubIds: ["L2 A", "L2 B"] },
+    { tier: 7, clubIds: ["L7 A", "L7 B", "L7 C", "L7 D"] },
+    { tier: 6, clubIds: ["L6 A", "L6 B"] },
+    { tier: 4, clubIds: ["L4 A", "L4 B"] },
+    { tier: 2, clubIds: ["L2 A", "L2 B"] },
   ],
 };
 let national = initialiseDomesticCup("faCup", world.leagues[0].clubIds, "entry-test");

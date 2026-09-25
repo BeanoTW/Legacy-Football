@@ -25,7 +25,7 @@ import {
 } from "../recruitment";
 
 const state = newGame("Employment Audit FC", "Auditor", "EMPLOYMENT_MODEL_AUDIT");
-assert.equal(SAVE_VERSION, 20, "latest schema should include employment plus player registration");
+assert.equal(SAVE_VERSION, 21, "latest schema should include ratings recalibration after employment and player registration");
 assert.ok(state.clubIdentity, "fresh opaque club identity state missing");
 assert.ok(state.football.employment, "fresh game should persist club employment state");
 
@@ -255,7 +255,7 @@ delete legacy.football.employment;
 for (const contract of legacy.football.contracts) delete contract.employmentType;
 
 const migrated = migrateSave(JSON.parse(JSON.stringify(legacy)) as Record<string, unknown>);
-assert.equal(migrated.version, 20);
+assert.equal(migrated.version, SAVE_VERSION);
 assert.ok(migrated.football.employment, "v17 migration should seed explicit club models");
 assert.deepEqual(
   migrated.football.contracts.map((contract) => ({
