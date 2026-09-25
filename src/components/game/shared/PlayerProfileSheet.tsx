@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Binoculars, CheckCircle2, Handshake, Repeat2, Star } from "lucide-react";
+import { Binoculars, CheckCircle2, Handshake, Repeat2, Star, X } from "lucide-react";
 import type { GameState, LoanPlayingTimeExpectation, TacticalPosition } from "@/lib/game/types";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -133,8 +133,18 @@ export function PlayerProfileSheet({
 
   return (
     <Sheet open onOpenChange={(open) => !open && setPlayerId(null)}>
-      <SheetContent side="right" className="w-[94vw] overflow-y-auto p-0 sm:max-w-md">
-        <div className="relative overflow-hidden border-b border-emerald-300/10 bg-[#071713] px-5 pb-5 pt-6 text-white">
+      <SheetContent side="right" hideClose className="w-[94vw] overflow-y-auto p-0 sm:max-w-md">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={() => setPlayerId(null)}
+          className="absolute right-3 top-3 z-50 size-10 rounded-full border border-white/15 bg-black/30 text-white shadow-lg backdrop-blur-sm hover:bg-black/45 hover:text-white"
+          aria-label="Close player profile"
+        >
+          <X className="size-5" />
+        </Button>
+        <div className="relative overflow-hidden border-b border-emerald-300/10 bg-[#071713] px-5 pb-5 pt-6 pr-16 text-white">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(52,211,153,.16),transparent_34%),linear-gradient(140deg,rgba(255,255,255,.035),transparent_50%)]" />
           <SheetHeader className="relative text-left">
             <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-200/55">Player profile</div>
