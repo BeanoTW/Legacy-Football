@@ -182,7 +182,7 @@ export const CLUBS: string[] = [
   "Warrington Town",
   "Stockton Athletic",
   "Leek Town",
-  "Basford United",,
+  "Basford United",
 
   // Additional National League system capacity. Append only.
   "Aylesbury United",
