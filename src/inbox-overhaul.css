@@ -250,3 +250,98 @@
 .lf-objective-progress { display: block; margin-top: 0.4rem; color: #55ded8; font-size: 0.57rem; font-weight: 700; line-height: 1.25; }
 .lf-objective-progress.is-behind { color: #ffad73; }
 .lf-objectives-review { margin-top: 0.7rem; border-top: 1px solid rgb(105 224 218 / 0.16); padding: 0.65rem 0.15rem 0; color: #9fb9b6; font-size: 0.65rem; }
+
+
+/* Dense decision summaries: facts read as a management dashboard rather than a document. */
+.lf-decision-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.42rem;
+}
+.lf-decision-summary-tile {
+  min-width: 0;
+  border: 1px solid rgb(105 224 218 / 0.18);
+  border-radius: 0.65rem;
+  background: rgb(8 65 66 / 0.52);
+  padding: 0.52rem 0.62rem;
+  box-shadow: inset 0 1px rgb(255 255 255 / 0.025);
+}
+.lf-decision-summary-tile > span {
+  display: block;
+  overflow: hidden;
+  color: #8fb0ad;
+  font-size: 0.55rem;
+  font-weight: 750;
+  letter-spacing: 0.055em;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.lf-decision-summary-tile > strong {
+  display: block;
+  margin-top: 0.18rem;
+  overflow: hidden;
+  color: #f2fbfa;
+  font-family: "Work Sans", var(--font-sans);
+  font-size: 0.78rem;
+  font-weight: 720;
+  line-height: 1.22;
+  text-overflow: ellipsis;
+}
+.lf-decision-summary-tile.is-positive {
+  border-color: rgb(82 225 219 / 0.36);
+  background: rgb(14 92 88 / 0.5);
+}
+.lf-decision-summary-tile.is-positive > strong { color: #6ff0e8; }
+.lf-decision-summary-tile.is-warning > strong { color: #ffb37c; }
+.lf-decision-brief .lf-briefing-copy { gap: 0.58rem; }
+.lf-decision-brief .lf-briefing-copy > p {
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+.lf-decision-brief .lf-briefing-copy > p:first-of-type {
+  font-size: 0.8rem;
+}
+.lf-conversation-history {
+  max-width: 44rem;
+  margin: 0.7rem auto 0;
+  border-top: 1px solid rgb(105 224 218 / 0.12);
+  padding-top: 0.55rem;
+}
+.lf-conversation-history > summary {
+  display: flex;
+  cursor: pointer;
+  list-style: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  border-radius: 0.55rem;
+  padding: 0.5rem 0.58rem;
+  color: #92b3b0;
+  font-size: 0.62rem;
+  font-weight: 650;
+}
+.lf-conversation-history > summary::-webkit-details-marker { display: none; }
+.lf-conversation-history > summary:hover { background: rgb(82 225 219 / 0.055); color: #d9efec; }
+.lf-conversation-history > summary span { display: inline-flex; align-items: center; gap: 0.35rem; }
+.lf-conversation-history > summary svg { width: 0.8rem; height: 0.8rem; transition: transform 160ms ease; }
+.lf-conversation-history[open] > summary > svg { transform: rotate(90deg); }
+.lf-conversation-history-body { display: grid; gap: 0.5rem; padding-top: 0.45rem; }
+.lf-conversation-history .lf-conversation-entry { padding: 0.6rem; opacity: 0.82; }
+.lf-conversation-history .lf-conversation-entry h3 { margin-bottom: 0.4rem; font-size: 0.95rem; }
+.lf-conversation-history .lf-briefing-copy { gap: 0.5rem; }
+.lf-decision-section { margin-top: 0.72rem; padding-top: 0.62rem; }
+.lf-decision-heading { margin-bottom: 0.42rem; }
+.lf-decision-grid { gap: 0.38rem; }
+.lf-decision-card { min-height: 3.35rem; padding: 0.58rem 0.72rem; }
+
+@media (min-width: 700px) {
+  .lf-decision-summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .lf-decision-summary-tile.is-wide { grid-column: span 2; }
+}
+@media (max-width: 360px) {
+  .lf-decision-summary-grid { gap: 0.35rem; }
+  .lf-decision-summary-tile { padding: 0.46rem 0.5rem; }
+  .lf-decision-summary-tile > strong { font-size: 0.72rem; }
+}

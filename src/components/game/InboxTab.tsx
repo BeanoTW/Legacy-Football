@@ -126,6 +126,70 @@ function boardObjectiveRows(body: string) {
   return rows.length >= 3 ? rows : null;
 }
 
+type DecisionSummaryItem = {
+  label: string;
+  value: string;
+  emphasis?: "positive" | "warning" | "neutral";
+  wide?: boolean;
+};
+
+const DECISION_LABELS: Record<string, string> = {
+  "fee on the table": "Fee offered",
+  "wage proposed": "Wage",
+  "current wage": "Current wage",
+  "signing bonus": "Signing bonus",
+};
+
+function compactDecisionLabel(label: string) {
+  const clean = label.trim().replace(/\s+/g, " ");
+  return DECISION_LABELS[clean.toLowerCase()] ?? clean;
+}
+
+function decisionSummaryRows(section: string): DecisionSummaryItem[] | null {
+  const lines = section.split("\n").map((line) => line.trim()).filter(Boolean);
+  const rows = lines.map((line) => {
+    const cleaned = line.replace(/^[-•]\s*/, "");
+    const match = cleaned.match(/^(.{2,42}?)(?:\s*\.{2,}\s*|\s*:\s+)(.+)$/);
+    if (!match) return null;
+    const label = compactDecisionLabel(match[1]);
+    const value = match[2].trim();
+    const lower = label.toLowerCase();
+    return {
+      label,
+      value,
+      emphasis:
+        /fee offered|fee on the table|wage freed|saving|income/.test(lower)
+          ? "positive" as const
+          : /deadline|asking/.test(lower)
+            ? "warning" as const
+            : "neutral" as const,
+      wide: /player|term/.test(lower) && value.length > 22,
+    };
+  });
+  const parsed = rows.filter((row): row is DecisionSummaryItem => row !== null);
+  return parsed.length >= 3 && parsed.length === lines.length ? parsed : null;
+}
+
+function DecisionSummaryGrid({ items }: { items: DecisionSummaryItem[] }) {
+  return (
+    <div className="lf-decision-summary-grid">
+      {items.map((item, index) => (
+        <div
+          key={`${item.label}-${index}`}
+          className={cn(
+            "lf-decision-summary-tile",
+            item.emphasis && `is-${item.emphasis}`,
+            item.wide && "is-wide",
+          )}
+        >
+          <span>{item.label}</span>
+          <strong>{item.value}</strong>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function BriefingBody({ body, department }: { body: string; department?: InboxDepartment }) {
   const financial = department === "Finance" ? financeRows(body) : null;
   const objectives = department === "Board of Directors" ? boardObjectiveRows(body) : null;
@@ -147,6 +211,10 @@ function BriefingBody({ body, department }: { body: string; department?: InboxDe
   return (
     <div className="lf-briefing-copy">
       {sections.map((section, index) => {
+        const summary = decisionSummaryRows(section);
+        if (summary) {
+          return <DecisionSummaryGrid key={`${index}-${section.slice(0, 12)}`} items={summary} />;
+        }
         const lines = section.split("\n").map((line) => line.trim()).filter(Boolean);
         const looksStructured = lines.length > 1 || /^[-•]/.test(section);
         if (looksStructured) {
@@ -390,6 +458,8 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
   const status = itemStatus(item, decision);
   const deadline = deadlineCopy(item, state);
   const DepartmentIcon = department.icon;
+  const currentMessage = conversation.find((message) => message.id === item.id) ?? item;
+  const earlierConversation = conversation.filter((message) => message.id !== item.id);
 
   return (
     <Sheet open onOpenChange={(value) => !value && onClose()}>
@@ -410,7 +480,12 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
         </header>
 
         <div className="lf-briefing-scroll">
-          {hasConversation ? (
+          {decision ? (
+            <article className="lf-briefing-document lf-decision-brief">
+              <div className="lf-briefing-section-title"><Megaphone /> Decision briefing</div>
+              <BriefingBody body={currentMessage.body} department={currentMessage.department} />
+            </article>
+          ) : hasConversation ? (
             <section className="lf-conversation">
               <div className="lf-briefing-section-title"><MessagesSquare /> Conversation · {conversation.length}</div>
               {conversation.map((message) => (
@@ -455,6 +530,24 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
                 </>
               )}
             </section>
+          )}
+
+          {decision && earlierConversation.length > 0 && (
+            <details className="lf-conversation-history">
+              <summary>
+                <span><MessagesSquare /> Earlier conversation · {earlierConversation.length}</span>
+                <ChevronRight />
+              </summary>
+              <div className="lf-conversation-history-body">
+                {earlierConversation.map((message) => (
+                  <article key={message.id} className="lf-conversation-entry">
+                    <div><strong>{message.sender}</strong><span>S{message.season} W{message.week}</span></div>
+                    <h3>{message.subject}</h3>
+                    <BriefingBody body={message.body} department={message.department} />
+                  </article>
+                ))}
+              </div>
+            </details>
           )}
 
           <div className="lf-briefing-secondary-actions">
