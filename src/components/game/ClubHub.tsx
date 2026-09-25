@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   ArrowLeftRight,
   ArrowRight,
@@ -30,8 +30,13 @@ import { recomputeConfidence } from "@/lib/game/board";
 import { playerManagerQuality } from "@/lib/game/playerClubPerformance";
 import { Button } from "@/components/ui/button";
 import { competitionLabel, fixtureCompetition, fixtureDate, resultForFixture } from "./fixturePresentation";
+import { ClubIdentitySheet } from "./ClubIdentityStudio";
+import { ClubBadge } from "./ClubKitArt";
+import { clubKitFor } from "@/lib/game/clubKit";
 
 export function ClubHub({ state, update, setTab, isContinuing }: { state: GameState; update: (fn: (s: GameState) => GameState) => void; setTab: (t: Tab) => void; isContinuing: boolean }) {
+  const [identityOpen, setIdentityOpen] = useState(false);
+  const identity = clubKitFor(state);
   const today = calendarDay(state);
   const nextFixture = [...state.fixtures]
     .filter((fixture) => {
@@ -124,13 +129,16 @@ export function ClubHub({ state, update, setTab, isContinuing }: { state: GameSt
         <ActionTile onClick={() => setTab("stadium")} icon={<FacilitiesIcon className="size-5" />} title="Facilities" value={`${totalCapacity(state).toLocaleString()} seats`} sub="Stadium · training" />
         <ActionTile onClick={() => setTab("tickets")} icon={<Heart className="size-5" />} title="Supporters" value={`${state.fanHappiness}% happy`} sub="Mood · engagement" />
         <ActionTile onClick={() => setTab("board")} icon={<Target className="size-5" />} title="Club vision" value={`${boardConf}% confidence`} sub={strategic.pressure.headline} />
+        <ActionTile onClick={() => setIdentityOpen(true)} icon={<ClubBadge design={identity.badge} clubName={state.clubName} size={24} />} title="Club identity" value="Badge & kits" sub="Crest · home · away" />
       </section>
+      <ClubIdentitySheet open={identityOpen} onOpenChange={setIdentityOpen} state={state} update={update} />
       <div className="hidden xl:block"><LeaguePanel state={state} miniLeague={miniLeague} leagueSorted={leagueSorted} setTab={setTab} /></div>
     </div>
   );
 }
 
 function MatchStrip({ state, nextFixture, manager, update, onOpenSchedule, onOpenStaff }: { state: GameState; nextFixture: GameState["fixtures"][number] | undefined; manager: GameState["hiredStaff"][number] | undefined; update: (fn: (s: GameState) => GameState) => void; onOpenSchedule: () => void; onOpenStaff: () => void }) {
+  const identity = clubKitFor(state);
   const matchReady = !!nextFixture && nextFixture.week === state.week && (nextFixture.dayOfWeek ?? 5) === calendarDay(state) && !resultForFixture(state, nextFixture);
   const currentCompetition = nextFixture ? fixtureCompetition(nextFixture) : undefined;
   const isPreseason = currentCompetition === "preseason";
@@ -140,7 +148,7 @@ function MatchStrip({ state, nextFixture, manager, update, onOpenSchedule, onOpe
   const fitTone = prep.squadFitBand === "Excellent" ? "text-emerald-600" : prep.squadFitBand === "Good" ? "text-green-600" : prep.squadFitBand === "Workable" ? "text-amber-600" : prep.squadFitBand === "Poor" ? "text-rose-600" : "text-muted-foreground";
   const date = nextFixture ? fixtureDate(nextFixture) : null;
   const competition = nextFixture ? competitionLabel(fixtureCompetition(nextFixture)) : isPreseason ? "Preseason" : "Schedule";
-  return <div className="lf-match-inner"><div className="lf-match-copy"><div className="lf-match-kicker">Next fixture · Week {nextFixture?.week ?? state.week}</div><h2>{nextFixture ? clubPresentationName(clubDisplayName(state, nextFixture.opponent)) : "No fixture scheduled"}</h2><p>{nextFixture && date ? `${date.dayName} ${date.day} ${date.month} · ${nextFixture.home ? "Home" : "Away"} · ${competition}` : "Use the schedule to review upcoming fixtures."}</p>{nextFixture && <div className="lf-match-brief"><div><span>{manager ? "Manager's brief" : "Caretaker setup"}</span><strong>{prep.managerName} · {prep.selectedFormation} · {prep.style}</strong></div><div className={cn("lf-match-fit", fitTone)}>{prep.squadFitBand}<small>{prep.squadFitScore}/100 fit</small></div></div>}<div className="lf-match-actions">{matchReady ? <><Button onClick={() => update((current) => startMatchDay(current))} className="lf-match-primary"><Play /> View match</Button><Button variant="outline" onClick={() => update((current) => simulateFixtureToday(current))} className="lf-match-secondary">Sim match</Button></> : <Button onClick={onOpenSchedule} className="lf-match-primary"><Play /> View schedule</Button>}<Button variant="outline" onClick={onOpenStaff} className="lf-match-secondary">{manager ? "Manager profile" : "Appoint manager"}</Button></div></div><div className="lf-match-versus"><div className="lf-match-team"><div className="lf-team-mark">{initials(homeName)}</div><div className="truncate font-display">{homeName}</div><span>{nextFixture ? "Home" : ""}</span></div><div className="lf-vs">VS</div><div className="lf-match-team"><div className={cn("lf-team-mark", !nextFixture && "is-tbc")}>{nextFixture ? initials(awayName) : "?"}</div><div className="truncate font-display">{awayName}</div><span>{nextFixture ? "Away" : ""}</span></div></div></div>;
+  return <div className="lf-match-inner"><div className="lf-match-copy"><div className="lf-match-kicker">Next fixture · Week {nextFixture?.week ?? state.week}</div><h2>{nextFixture ? clubPresentationName(clubDisplayName(state, nextFixture.opponent)) : "No fixture scheduled"}</h2><p>{nextFixture && date ? `${date.dayName} ${date.day} ${date.month} · ${nextFixture.home ? "Home" : "Away"} · ${competition}` : "Use the schedule to review upcoming fixtures."}</p>{nextFixture && <div className="lf-match-brief"><div><span>{manager ? "Manager's brief" : "Caretaker setup"}</span><strong>{prep.managerName} · {prep.selectedFormation} · {prep.style}</strong></div><div className={cn("lf-match-fit", fitTone)}>{prep.squadFitBand}<small>{prep.squadFitScore}/100 fit</small></div></div>}<div className="lf-match-actions">{matchReady ? <><Button onClick={() => update((current) => startMatchDay(current))} className="lf-match-primary"><Play /> View match</Button><Button variant="outline" onClick={() => update((current) => simulateFixtureToday(current))} className="lf-match-secondary">Sim match</Button></> : <Button onClick={onOpenSchedule} className="lf-match-primary"><Play /> View schedule</Button>}<Button variant="outline" onClick={onOpenStaff} className="lf-match-secondary">{manager ? "Manager profile" : "Appoint manager"}</Button></div></div><div className="lf-match-versus"><div className="lf-match-team"><div className="lf-team-mark">{nextFixture?.home ? <ClubBadge design={identity.badge} clubName={state.clubName} size={34} /> : initials(homeName)}</div><div className="truncate font-display">{homeName}</div><span>{nextFixture ? "Home" : ""}</span></div><div className="lf-vs">VS</div><div className="lf-match-team"><div className={cn("lf-team-mark", !nextFixture && "is-tbc")}>{nextFixture ? (!nextFixture.home ? <ClubBadge design={identity.badge} clubName={state.clubName} size={34} /> : initials(awayName)) : "?"}</div><div className="truncate font-display">{awayName}</div><span>{nextFixture ? "Away" : ""}</span></div></div></div>;
 }
 
 function ordinal(value: number): string {
