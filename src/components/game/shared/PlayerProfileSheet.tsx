@@ -31,6 +31,7 @@ import { fitnessLabel, playerFitness } from "@/lib/game/playerHealth";
 import { fromAbsoluteWeek } from "@/lib/game/time";
 import { playerCareerTotals, playerSeasonByPlayer, playerSeasonStats } from "@/lib/game/playerSeasonStats";
 import { playerRecentForm } from "@/lib/game/playerForm";
+import { dynamicOverall } from "@/lib/game/playerOverall";
 
 const PLAYER_PROFILE_EVENT = "legacy-football:open-player-profile";
 
@@ -91,6 +92,7 @@ export function PlayerProfileSheet({
   const owned = isUserClubReference(state, player.currentClubId);
   const report = scoutingReportById(state, player.id);
   const overall = scoutedOverallPresentation(state, player, report);
+  const dynamic = owned ? dynamicOverall(state, player) : null;
   const assignment = scoutingAssignment(state, player.id);
   const knowledge = owned ? 100 : report?.knowledgePct ?? 0;
   const fullKnowledge = owned || Boolean(report?.complete);
@@ -174,8 +176,18 @@ export function PlayerProfileSheet({
                 </div>
               </div>
               <div className="shrink-0 rounded-xl border border-emerald-300/15 bg-emerald-300/10 px-3 py-2 text-center">
-                <div className="font-display text-3xl leading-none text-white">{overall.label}</div>
-                <div className="mt-1 text-[8px] font-bold uppercase tracking-wider text-emerald-200/60">{overall.exact ? "Ability" : overall.known ? "Est. ability" : "Unknown"}</div>
+                <div className="font-display text-3xl leading-none text-white">
+                  {dynamic ? dynamic.effective : overall.label}
+                </div>
+                <div className="mt-1 text-[8px] font-bold uppercase tracking-wider text-emerald-200/60">
+                  {dynamic
+                    ? `Dynamic · base ${dynamic.base}${dynamic.delta === 0 ? "" : dynamic.delta > 0 ? ` · +${dynamic.delta}` : ` · ${dynamic.delta}`}`
+                    : overall.exact
+                      ? "Ability"
+                      : overall.known
+                        ? "Est. ability"
+                        : "Unknown"}
+                </div>
               </div>
             </div>
             {owned && (

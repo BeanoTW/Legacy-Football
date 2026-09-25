@@ -2,6 +2,7 @@ import type { GameState, Position } from "./types";
 import { clubSimulationSeedKey } from "./clubIdentity";
 import { canonicalClubReference, sameClubReference } from "./clubReference";
 import { hashString } from "./rng";
+import { clubOverallProfile, generatedOverallForSlot } from "./playerOverall";
 
 export const FRINGE_SQUAD_SIZE = 20;
 export const FRINGE_INACTIVE_RETENTION_SEASONS = 1;
@@ -58,12 +59,19 @@ function replacementPlayerId(
   return `fp_${unsignedHash(`${state.saveSeed}|fringe-player|${clubSeed}|replacement|s${entrySeason}|${ordinal}`).toString(36)}`;
 }
 
-function makeCompactPlayer(state: GameState, clubId: string, strength: number, slot: number): CompactFringePlayer {
+function makeCompactPlayer(
+  state: GameState,
+  clubId: string,
+  strength: number,
+  slot: number,
+  floor: number,
+  starCeiling: number,
+): CompactFringePlayer {
   const clubSeed = clubSimulationSeedKey(state, clubId);
   const key = `${state.saveSeed}|fringe-player|${clubSeed}|${slot}`;
   const age = 18 + (unsignedHash(`${key}|age`) % 17);
-  const abilityNoise = (unsignedHash(`${key}|ability`) % 15) - 7;
-  const currentAbility = clamp(Math.round(strength + abilityNoise), 30, 95);
+  const abilityNoise = (unsignedHash(`${key}|ability`) % 5) - 2;
+  const currentAbility = generatedOverallForSlot(strength, floor, starCeiling, slot, abilityNoise);
   const potentialBoost = age < 24 ? 3 + (unsignedHash(`${key}|potential`) % 14) : 0;
   return {
     playerId: compactPlayerId(state, clubId, slot),
@@ -74,7 +82,7 @@ function makeCompactPlayer(state: GameState, clubId: string, strength: number, s
     },
     primaryPosition: positionForSlot(slot),
     currentAbility,
-    potentialAbility: Math.max(currentAbility, Math.min(97, currentAbility + potentialBoost)),
+    potentialAbility: Math.max(currentAbility, Math.min(95, currentAbility + potentialBoost)),
     currentClubId: clubId,
     contractExpirySeason: state.season + 1 + (unsignedHash(`${key}|contract`) % 4),
     lastDevelopedSeason: state.season,
@@ -88,12 +96,14 @@ function makeReplacementCompactPlayer(
   strength: number,
   ordinal: number,
   position: Position,
+  floor: number,
+  starCeiling: number,
 ): CompactFringePlayer {
   const clubSeed = clubSimulationSeedKey(state, clubId);
   const key = `${state.saveSeed}|fringe-player|${clubSeed}|replacement|s${state.season}|${ordinal}`;
   const age = 18 + (unsignedHash(`${key}|age`) % 6);
-  const abilityNoise = (unsignedHash(`${key}|ability`) % 15) - 7;
-  const currentAbility = clamp(Math.round(strength + abilityNoise), 30, 95);
+  const abilityNoise = (unsignedHash(`${key}|ability`) % 5) - 2;
+  const currentAbility = generatedOverallForSlot(strength, floor, starCeiling, ordinal, abilityNoise);
   const potentialBoost = age < 24 ? 3 + (unsignedHash(`${key}|potential`) % 14) : 0;
   return {
     playerId: replacementPlayerId(state, clubId, state.season, ordinal),
@@ -104,7 +114,7 @@ function makeReplacementCompactPlayer(
     },
     primaryPosition: position,
     currentAbility,
-    potentialAbility: Math.max(currentAbility, Math.min(97, currentAbility + potentialBoost)),
+    potentialAbility: Math.max(currentAbility, Math.min(95, currentAbility + potentialBoost)),
     currentClubId: clubId,
     contractExpirySeason: state.season + 1 + (unsignedHash(`${key}|contract`) % 4),
     lastDevelopedSeason: state.season,
@@ -236,9 +246,20 @@ export function ensurePersistentFringePlayers(state: GameState): FringePlayerWor
     // the first time, so seed its canonical original slots. Once any identities
     // exist, vacancies use generation-specific replacements; this prevents a
     // pruned retired original slot from ever being resurrected later.
+    const profile = clubOverallProfile(state, club.clubId);
+    const seedStrength = existing.length === 0
+      ? profile.average
+      : clamp(club.strength, profile.floor, profile.star);
     if (existing.length === 0) {
       for (let slot = 0; slot < FRINGE_SQUAD_SIZE; slot += 1) {
-        const player = makeCompactPlayer(state, club.clubId, club.strength, slot);
+        const player = makeCompactPlayer(
+          state,
+          club.clubId,
+          seedStrength,
+          slot,
+          profile.floor,
+          profile.star,
+        );
         world[player.playerId] = player;
         existing.push(player);
         existingIds.add(player.playerId);
@@ -252,9 +273,11 @@ export function ensurePersistentFringePlayers(state: GameState): FringePlayerWor
       const player = makeReplacementCompactPlayer(
         state,
         club.clubId,
-        club.strength,
+        seedStrength,
         ordinal,
         position,
+        profile.floor,
+        profile.star,
       );
       ordinal += 1;
       if (existingIds.has(player.playerId) || world[player.playerId]) continue;

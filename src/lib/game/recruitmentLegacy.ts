@@ -75,6 +75,7 @@ import {
   userClubReference,
 } from "./clubReference";
 import { boundedTrackedClubIds } from "./worldFocusPolicy";
+import { clubOverallProfile, generatedOverallForSlot, overallBandForLevel } from "./playerOverall";
 import {
   activeLoanForPlayer,
   ensureLoanStateInPlace,
@@ -319,6 +320,8 @@ function makePlayerFor(
   season: number,
   level: FootballLevel = 3,
   clubRep = 50,
+  abilityFloor = 35,
+  starCeiling = 94,
 ): FootballPlayer {
   const key = `${saveSeed}|player|${clubId ?? "free"}|${index}`;
   const rng = seededRng(key);
@@ -335,13 +338,19 @@ function makePlayerFor(
   // exceptional. Club squads remain centred on the level of their division.
   const currentAbility =
     clubId === null
-      ? clamp(int(35 + Math.pow(rng(), 1.85) * 52), 35, 89)
-      : clamp(int(tierRating + rngRange(rng, -9, 9)), 35, 94);
+      ? clamp(int(tierRating + Math.pow(rng(), 1.7) * 10 - 5), abilityFloor, starCeiling)
+      : generatedOverallForSlot(
+          tierRating,
+          abilityFloor,
+          starCeiling,
+          index,
+          rngRange(rng, -2, 2),
+        );
   const age = rngInt(rng, 17, 35);
   const potentialAbility = clamp(
     int(currentAbility + (age < 24 ? rngRange(rng, 2, 16) : rngRange(rng, -1, 4))),
     currentAbility,
-    96,
+    95,
   );
   const reputation = clamp(int(currentAbility * 0.85 + rngRange(rng, -6, 8)), 5, 98);
   const secondary: Position[] =
@@ -401,10 +410,13 @@ export function generateWorld(s: GameState): {
   for (const club of clubs) {
     const rep = clubReputation(s, club);
     const level = recruitmentLevelOfClub(s, club);
-    const tierRating = clamp(42 + rep * 0.42, 40, 88);
+    const profile = clubOverallProfile(s, club);
+    const tierRating = profile.average;
     const squad: FootballPlayer[] = [];
     for (let i = 0; i < SQUAD_SIZE; i++) {
-      squad.push(makePlayerFor(s.saveSeed, club, i, tierRating, s.season, level, rep));
+      squad.push(
+        makePlayerFor(s.saveSeed, club, i, tierRating, s.season, level, rep, profile.floor, profile.star),
+      );
     }
     squad.sort((a, b) => b.currentAbility - a.currentAbility || a.id.localeCompare(b.id));
 
@@ -461,8 +473,19 @@ export function generateWorld(s: GameState): {
   }
 
   const freeAgentLevel = deepestWorldFootballLevel(s);
+  const freeAgentBand = overallBandForLevel(freeAgentLevel);
   for (let i = 0; i < FREE_AGENT_POOL; i++) {
-    const p = makePlayerFor(s.saveSeed, null, i, 52, s.season, freeAgentLevel, 45);
+    const p = makePlayerFor(
+      s.saveSeed,
+      null,
+      i,
+      freeAgentBand.squadAverage - 2,
+      s.season,
+      freeAgentLevel,
+      45,
+      freeAgentBand.floor,
+      freeAgentBand.starCeiling,
+    );
     p.contractId = null;
     p.transferStatus = "listed";
     players.push(p);
@@ -560,9 +583,24 @@ export function reconcileRecruitmentFidelity(s: GameState): void {
     if (detailedClubs.has(club)) continue;
     const rep = clubReputation(s, club);
     const level = recruitmentLevelOfClub(s, club);
-    const tierRating = clamp(previousFringe[club]?.strength ?? 42 + rep * 0.42, 40, 88);
+    const profile = clubOverallProfile(s, club);
+    const retainedStrength = previousFringe[club]?.strength;
+    const tierRating =
+      retainedStrength === undefined
+        ? profile.average
+        : clamp(retainedStrength, profile.floor, profile.star);
     const squad = Array.from({ length: SQUAD_SIZE }, (_, index) =>
-      makePlayerFor(s.saveSeed, club, index, tierRating, s.season, level, rep),
+      makePlayerFor(
+        s.saveSeed,
+        club,
+        index,
+        tierRating,
+        s.season,
+        level,
+        rep,
+        profile.floor,
+        profile.star,
+      ),
     ).sort((a, b) => b.currentAbility - a.currentAbility || a.id.localeCompare(b.id));
 
     const rawBill = squad.reduce(
