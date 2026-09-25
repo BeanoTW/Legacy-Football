@@ -77,7 +77,7 @@ export function buildWorldSimulationPlan(
   const focusLeagueIds = new Set<string>([playerLeague.id]);
   const includeAdjacent = options.includeAdjacentLeagues ?? true;
   const adjacentLeagueIds = includeAdjacent
-    ? new Set(boundedAdjacentLeagueIds(state.leagues, playerLeague.tier))
+    ? new Set(boundedAdjacentLeagueIds(state.leagues, playerLeague.tier, playerLeague.id))
     : new Set<string>();
   for (const leagueId of adjacentLeagueIds) focusLeagueIds.add(leagueId);
 

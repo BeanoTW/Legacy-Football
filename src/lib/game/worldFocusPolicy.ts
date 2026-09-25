@@ -1,5 +1,6 @@
 import type { GameState } from "./types";
 import { sameClubReference } from "./clubReference";
+import { WORLD_DIVISIONS, promotionDestinationsForDefinition } from "./worldPyramid";
 
 export const MAX_TRACKED_FOCUS_CLUBS = 8;
 export const MAX_RECENT_OPPONENT_FOCUS_CLUBS = 6;
@@ -46,7 +47,34 @@ export function boundedRecentOpponentIds(
 export function boundedAdjacentLeagueIds(
   leagues: readonly { id: string; tier: number }[],
   playerTier: number,
+  playerLeagueId?: string,
 ): string[] {
+  const available = new Set(leagues.map((league) => league.id));
+  const playerDefinition = playerLeagueId
+    ? WORLD_DIVISIONS.find((division) => division.id === playerLeagueId)
+    : undefined;
+
+  // Regional pyramid routing is explicit. A Southern/Isthmian Level 7 career
+  // should focus National League South, not whichever Level 6 id sorts first.
+  const routedAbove = playerDefinition
+    ? promotionDestinationsForDefinition(playerDefinition, WORLD_DIVISIONS)
+        .filter((id) => available.has(id))
+        .slice(0, 1)
+    : [];
+
+  const routedBelow = playerLeagueId
+    ? WORLD_DIVISIONS
+        .filter(
+          (division) =>
+            division.tier === playerTier + 1 &&
+            (division.feedsInto ?? []).includes(playerLeagueId) &&
+            available.has(division.id),
+        )
+        .sort((a, b) => a.id.localeCompare(b.id))
+        .slice(0, 1)
+        .map((division) => division.id)
+    : [];
+
   const candidates = leagues
     .filter((league) => Math.abs(league.tier - playerTier) === 1)
     .sort((a, b) => {
@@ -55,7 +83,9 @@ export function boundedAdjacentLeagueIds(
       return aDirection - bDirection || a.id.localeCompare(b.id);
     });
 
-  const above = candidates.filter((league) => league.tier < playerTier).slice(0, 1);
-  const below = candidates.filter((league) => league.tier > playerTier).slice(0, 1);
-  return [...above, ...below].slice(0, MAX_ADJACENT_FOCUS_LEAGUES).map((league) => league.id);
+  const fallbackAbove = candidates.filter((league) => league.tier < playerTier).map((league) => league.id);
+  const fallbackBelow = candidates.filter((league) => league.tier > playerTier).map((league) => league.id);
+  const above = routedAbove.length ? routedAbove : fallbackAbove.slice(0, 1);
+  const below = routedBelow.length ? routedBelow : fallbackBelow.slice(0, 1);
+  return [...above, ...below].slice(0, MAX_ADJACENT_FOCUS_LEAGUES);
 }
