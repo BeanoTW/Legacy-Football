@@ -249,6 +249,8 @@ export function halfPresentation(
   themGoals: number,
   opponent: string,
   style?: ManagerMatchStyle,
+  /** Share of featured chances that belong to us (0.5 = even). Same number of draws either way. */
+  usChanceShare = 0.5,
 ): MatchEvent[] {
   const ev = matchStream(seedBase, half === 1 ? "h1.events" : "h2.events");
   const styleRng = matchStream(seedBase, half === 1 ? "h1.style" : "h2.style");
@@ -256,7 +258,7 @@ export function halfPresentation(
   const events: MatchEvent[] = [];
   const chances = rInt(ev, 2, 4);
   for (let i = 0; i < chances; i++) {
-    const side = ev() < 0.5 ? "us" : "them";
+    const side = ev() < usChanceShare ? "us" : "them";
     const minute = rInt(ev, fromMin + 1, toMin);
     const genericText = rPick(ev, CHANCE_TEXT);
     events.push({

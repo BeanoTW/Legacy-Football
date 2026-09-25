@@ -1,13 +1,12 @@
-import { useCallback, useState } from "react";
-import type { GameState } from "@/lib/game/types";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { GameState, MatchEvent } from "@/lib/game/types";
 import {
-  Activity,
+  ArrowLeftRight,
   ChevronsRight,
-  Flame,
+  Cross,
   Landmark,
   Newspaper,
   Play,
-  Target,
   Users,
   X,
 } from "lucide-react";
@@ -20,16 +19,55 @@ import {
   fmtMoney,
   kickoff,
 } from "@/lib/game/engine";
-import { Info2, initials } from "./shared/primitives";
+import { Info2 } from "./shared/primitives";
 import { clubDisplayName } from "@/lib/game/clubReference";
+import { clubPresentationName } from "@/lib/game/clubPresentation";
 import { footballLevelOfLeague } from "@/lib/game/footballLevel";
 import { managerMatchPrep } from "@/lib/game/managerMatchPrep";
-import { totalMatchStats } from "@/lib/game/matchEngine";
-import { MatchPitchViewer } from "./MatchPitchViewer";
+import { opponentMatchPlan, totalMatchStats } from "@/lib/game/matchEngine";
+import { MatchPitchViewer, type DotColours } from "./MatchPitchViewer";
 import { medicalSupport } from "@/lib/game/playerHealth";
 import { userSelectionStrengthPenalty } from "@/lib/game/matchStrength";
 import { inFormPlayers } from "@/lib/game/playerForm";
 import { userSquad } from "@/lib/game/recruitment";
+import { clubKitFor, defaultClubKit, readableOn, type KitDesign } from "@/lib/game/clubKit";
+import { ClubBadge, ClubShirt } from "./ClubKitArt";
+
+const MATCH_CSS = `
+@keyframes lf-goal-in { 0% { opacity: 0; transform: scale(.7); } 60% { opacity: 1; transform: scale(1.06); } 100% { transform: scale(1); } }
+@keyframes lf-score-pop { 0% { transform: scale(1); } 35% { transform: scale(1.35); } 100% { transform: scale(1); } }
+@keyframes lf-marker-in { from { opacity: 0; transform: translate(-50%, -4px) scale(.6); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+.lf-goal-in { animation: lf-goal-in .5s cubic-bezier(.2,.9,.3,1.2) both; }
+.lf-score-pop { animation: lf-score-pop .6s ease-out; display: inline-block; }
+.lf-marker-in { animation: lf-marker-in .3s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .lf-goal-in, .lf-score-pop, .lf-marker-in { animation: none; } }
+`;
+
+/* ------------------------------------------------------------------ */
+/* Kit colours on the pitch                                            */
+/* ------------------------------------------------------------------ */
+
+function rgb(hex: string): [number, number, number] {
+  return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
+}
+function colourDistance(a: string, b: string): number {
+  const [r1, g1, b1] = rgb(a);
+  const [r2, g2, b2] = rgb(b);
+  return Math.hypot(r1 - r2, g1 - g2, b1 - b2);
+}
+function dotColours(kit: KitDesign): DotColours {
+  const edge = colourDistance(kit.trim, kit.body) > 60 ? kit.trim : readableOn(kit.body) === "#ffffff" ? "#ffffff" : "#16181b";
+  return { fill: kit.body, edge, text: readableOn(kit.body) };
+}
+/** Home side wears home colours; the away side changes if the shirts clash. */
+function matchKits(homeKit: KitDesign, awayHome: KitDesign, awayAlt: KitDesign): { home: KitDesign; away: KitDesign } {
+  const clash = colourDistance(homeKit.body, awayHome.body) < 120;
+  return { home: homeKit, away: clash ? awayAlt : awayHome };
+}
+
+/* ------------------------------------------------------------------ */
+/* Overlay                                                             */
+/* ------------------------------------------------------------------ */
 
 export function MatchDayOverlay({
   state,
@@ -41,80 +79,101 @@ export function MatchDayOverlay({
   const lm = state.liveMatch!;
   const [revealedEvents, setRevealedEvents] = useState(0);
   const [replayComplete, setReplayComplete] = useState(false);
+  const [minute, setMinute] = useState(0);
   const finishedReplay = replayComplete && revealedEvents >= lm.events.length;
-  const onReplayProgress = useCallback((count: number, complete: boolean) => {
+  const onReplayProgress = useCallback((count: number, complete: boolean, clock?: number) => {
     setRevealedEvents(count);
     setReplayComplete(complete);
+    if (typeof clock === "number") setMinute(clock);
   }, []);
-  const matchPrep = managerMatchPrep(state);
-  const medical = medicalSupport(state);
-  const selectionPenalty = userSelectionStrengthPenalty(state);
-  const formLeaders = inFormPlayers(state, 2);
-  const squad = userSquad(state);
-  const selectedFitness = lm.engine?.userLineup?.length
-    ? Math.round(
-        lm.engine.userLineup.reduce((sum, player) => sum + (player.fitness ?? 100), 0) /
-          lm.engine.userLineup.length,
-      )
-    : 100;
+
   const usName = state.clubName;
-  const themName = clubDisplayName(state, lm.fixture.opponent);
+  const themName = clubPresentationName(clubDisplayName(state, lm.fixture.opponent));
   const matchLeague = state.leagues.find((league) => league.id === lm.leagueId);
-  const homeName = lm.fixture.home ? usName : themName;
-  const awayName = lm.fixture.home ? themName : usName;
-  const visibleGoals = lm.events.slice(0, revealedEvents).filter((event) => event.type === "goal");
-  const visibleOurGoals = visibleGoals.filter((event) => event.side === "us").length;
-  const visibleTheirGoals = visibleGoals.filter((event) => event.side === "them").length;
-  const homeGoals =
-    lm.status === "brief" ? 0 : lm.fixture.home ? visibleOurGoals : visibleTheirGoals;
-  const awayGoals =
-    lm.status === "brief" ? 0 : lm.fixture.home ? visibleTheirGoals : visibleOurGoals;
-  const statusLabel =
+  const home = lm.fixture.home;
+  const homeName = home ? usName : themName;
+  const awayName = home ? themName : usName;
+
+  // Identities: our saved badge and kits, the opposition's derived defaults.
+  const ours = clubKitFor(state);
+  const theirs = useMemo(() => defaultClubKit(themName), [themName]);
+  const kits = home ? matchKits(ours.home, theirs.home, theirs.away) : matchKits(theirs.home, ours.home, ours.away);
+  const ourKit = home ? kits.home : kits.away;
+  const theirKit = home ? kits.away : kits.home;
+  const opponentStyle = lm.engine?.opponentPlan ?? opponentMatchPlan(lm.fixture.opponent);
+
+  const visible = lm.status === "brief" ? [] : lm.events.slice(0, revealedEvents);
+  const visibleGoals = visible.filter((event) => event.type === "goal");
+  const ourGoalsShown = visibleGoals.filter((event) => event.side === "us").length;
+  const theirGoalsShown = visibleGoals.filter((event) => event.side === "them").length;
+  const homeGoals = home ? ourGoalsShown : theirGoalsShown;
+  const awayGoals = home ? theirGoalsShown : ourGoalsShown;
+
+  // A goal moment each time a new goal is revealed.
+  const [goalFlash, setGoalFlash] = useState<{ key: number; event: MatchEvent } | null>(null);
+  const shownGoalCount = useRef(0);
+  const flashTimer = useRef<number | null>(null);
+  const goalCount = visibleGoals.length;
+  const latestGoal = visibleGoals[goalCount - 1];
+  useEffect(() => {
+    const previous = shownGoalCount.current;
+    shownGoalCount.current = goalCount;
+    // Only celebrate goals revealed live, not ones already on the board when the screen opens.
+    if (goalCount > previous && latestGoal && !replayComplete) {
+      setGoalFlash({ key: goalCount, event: latestGoal });
+      if (flashTimer.current) window.clearTimeout(flashTimer.current);
+      flashTimer.current = window.setTimeout(() => setGoalFlash(null), 2800);
+    }
+  }, [goalCount, latestGoal, replayComplete]);
+  useEffect(() => () => {
+    if (flashTimer.current) window.clearTimeout(flashTimer.current);
+  }, []);
+
+  const clock =
     lm.status === "brief"
-      ? "PRE-MATCH"
+      ? "Pre-match"
       : !finishedReplay
-        ? "LIVE"
+        ? `${Math.max(1, Math.min(90, minute))}'`
         : lm.status === "halfTime"
-          ? "HALF TIME"
+          ? "Half time"
           : lm.status === "fullTime"
-            ? "FULL TIME"
-            : "LIVE";
+            ? "Full time"
+            : `${minute}'`;
+  const live = lm.status !== "brief" && !finishedReplay;
+
   const stats = totalMatchStats(lm.engine);
-  const visibleOurShots = lm.events
-    .slice(0, revealedEvents)
-    .filter((event) => event.side === "us" && (event.type === "chance" || event.type === "goal"));
-  const visibleTheirShots = lm.events
-    .slice(0, revealedEvents)
-    .filter((event) => event.side === "them" && (event.type === "chance" || event.type === "goal"));
-  const possession =
-    stats?.us.possession ??
-    Math.max(34, Math.min(66, Math.round(50 + (lm.ourStrength - lm.oppStrength) * 0.7)));
-  const result =
-    lm.ourGoals > lm.theirGoals ? "Victory" : lm.ourGoals < lm.theirGoals ? "Defeat" : "Draw";
-  const playerOfMatch = lm.engine?.playerStats?.length ? [...lm.engine.playerStats].sort((a, b) => b.rating - a.rating || b.goals - a.goals || b.assists - a.assists)[0] : undefined;
+  const liveChances = (side: "us" | "them") => visible.filter((event) => event.side === side && (event.type === "chance" || event.type === "goal"));
+  const liveXg = (side: "us" | "them") => liveChances(side).reduce((sum, event) => sum + (event.xg ?? 0), 0);
+  const possession = stats?.us.possession ?? Math.max(34, Math.min(66, Math.round(50 + (lm.ourStrength - lm.oppStrength) * 0.7)));
+
+  const result = lm.ourGoals > lm.theirGoals ? "Victory" : lm.ourGoals < lm.theirGoals ? "Defeat" : "Draw";
+  const playerOfMatch = lm.engine?.playerStats?.length
+    ? [...lm.engine.playerStats].sort((a, b) => b.rating - a.rating || b.goals - a.goals || b.assists - a.assists)[0]
+    : undefined;
   const expectationMet =
-    lm.boardExpectation === "Any result" ||
-    (lm.boardExpectation === "Win" ? result === "Victory" : result !== "Defeat");
-  const atmosphere = lm.fixture.home
-    ? Math.round((lm.projectedAttendance / Math.max(1, lm.projectedAttendance + 1200)) * 100)
-    : 72;
+    lm.boardExpectation === "Any result" || (lm.boardExpectation === "Win" ? result === "Victory" : result !== "Defeat");
+  const atmosphere = home ? Math.round((lm.projectedAttendance / Math.max(1, lm.projectedAttendance + 1200)) * 100) : 72;
+
+  const goalsFor = (side: "us" | "them") => visibleGoals.filter((event) => event.side === side);
+  const homeScorers = goalsFor(home ? "us" : "them");
+  const awayScorers = goalsFor(home ? "them" : "us");
 
   return (
     <div className="fixed inset-0 z-50 h-dvh overflow-hidden bg-[#07130f] text-white">
+      <style>{MATCH_CSS}</style>
       <div className="mx-auto h-full max-w-5xl p-0 sm:px-4 sm:py-3">
         <div className="flex h-full min-h-0 flex-col overflow-hidden bg-card text-card-foreground shadow-2xl sm:rounded-[2rem] sm:border">
-          <div className="flex shrink-0 items-center justify-between gap-3 bg-[#0c211a] px-4 py-2 text-white sm:px-6 sm:py-3">
-            <div>
-              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.24em] text-emerald-300">
-                <span className="size-2 animate-pulse rounded-full bg-emerald-400" /> Chairman match
-                centre
-              </div>
-              <div className="text-sm font-semibold mt-0.5">
-                Week {lm.fixture.week} · {lm.fixture.home ? "Home" : "Away"}
-              </div>
+          {/* Top bar */}
+          <div className="flex shrink-0 items-center justify-between gap-3 bg-[#0c211a] px-4 py-2 text-white sm:px-6">
+            <div className="min-w-0 text-xs text-white/70">
+              <span className="font-semibold text-white">Match centre</span>
+              <span className="mx-1.5 text-white/30">/</span>
+              {matchLeague ? `${matchLeague.name} · Level ${footballLevelOfLeague(matchLeague)}` : `Week ${lm.fixture.week}`}
+              <span className="mx-1.5 text-white/30">/</span>
+              {lm.weather}
             </div>
             <button
-              className="grid size-9 place-items-center rounded-xl bg-black/15 transition-colors hover:bg-black/25 sm:size-10"
+              className="grid size-9 shrink-0 place-items-center rounded-xl bg-black/15 transition-colors hover:bg-black/25"
               aria-label={lm.status === "fullTime" ? "Return to club" : "Close matchday"}
               onClick={() => {
                 if (lm.status === "fullTime") {
@@ -126,62 +185,63 @@ export function MatchDayOverlay({
                 }
               }}
             >
-              {lm.status === "fullTime" ? (
-                <ChevronsRight className="size-5" />
-              ) : (
-                <X className="size-5" />
-              )}
+              {lm.status === "fullTime" ? <ChevronsRight className="size-5" /> : <X className="size-5" />}
             </button>
           </div>
 
-          <section className="relative shrink-0 overflow-hidden bg-[radial-gradient(circle_at_50%_120%,#258660_0%,#123d2e_36%,#07130f_78%)] px-3 py-3 text-center text-white sm:px-8 sm:py-6">
-            <div className="absolute inset-x-10 bottom-0 h-px bg-white/20" />
-            <div className="inline-flex rounded-full border border-white/15 bg-black/20 px-3 py-1 text-[10px] font-bold tracking-[0.2em] text-emerald-100 backdrop-blur">
-              {statusLabel}
-            </div>
-            <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:mt-5 sm:gap-6">
-              <TeamBadge name={homeName} label="Home" active={lm.fixture.home} />
-              <div>
-                <div className="whitespace-nowrap font-display text-4xl leading-none tnum sm:text-6xl">
-                  {homeGoals}
-                  <span className="text-muted-foreground mx-2 sm:mx-3">–</span>
-                  {awayGoals}
+          {/* Scoreboard */}
+          <section className="relative shrink-0 overflow-hidden bg-[radial-gradient(circle_at_50%_130%,#258660_0%,#123d2e_40%,#07130f_80%)] px-3 pb-3 pt-3 text-white sm:px-8 sm:pb-4">
+            <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-2 sm:gap-6">
+              <TeamSide name={homeName} badge={home ? ours.badge : theirs.badge} scorers={homeScorers} />
+              <div className="flex flex-col items-center pt-1">
+                <div className="whitespace-nowrap font-display text-5xl leading-none tnum sm:text-6xl" aria-live="polite">
+                  <span key={`h${homeGoals}`} className={homeGoals ? "lf-score-pop" : undefined}>{homeGoals}</span>
+                  <span className="mx-2 text-white/35 sm:mx-3">–</span>
+                  <span key={`a${awayGoals}`} className={awayGoals ? "lf-score-pop" : undefined}>{awayGoals}</span>
                 </div>
-                <div className="mt-2 text-xs text-white/60">
-                  {matchLeague
-                    ? `${matchLeague.name} · Level ${footballLevelOfLeague(matchLeague)} · `
-                    : ""}
-                  {lm.weather}
+                <div
+                  className={cn(
+                    "mt-2 inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-semibold tnum",
+                    live ? "bg-emerald-400 text-emerald-950" : "bg-white/10 text-white/80",
+                  )}
+                >
+                  {live ? <span className="size-1.5 animate-pulse rounded-full bg-emerald-950" aria-hidden="true" /> : null}
+                  {clock}
                 </div>
               </div>
-              <TeamBadge name={awayName} label="Away" active={!lm.fixture.home} />
+              <TeamSide name={awayName} badge={home ? theirs.badge : ours.badge} scorers={awayScorers} />
             </div>
+
+            {goalFlash ? (
+              <div key={goalFlash.key} className="pointer-events-none absolute inset-0 grid place-items-center bg-black/35 backdrop-blur-[1px]">
+                <div className="lf-goal-in text-center">
+                  <div className={cn("font-display text-6xl leading-none sm:text-7xl", goalFlash.event.side === "us" ? "text-emerald-300" : "text-rose-300")}>
+                    GOAL
+                  </div>
+                  <div className="mt-1 text-sm font-semibold">
+                    {goalFlash.event.actorName ?? (goalFlash.event.side === "us" ? usName : themName)} {goalFlash.event.minute}'
+                  </div>
+                  {goalFlash.event.secondaryName ? <div className="text-xs text-white/70">Assist: {goalFlash.event.secondaryName}</div> : null}
+                </div>
+              </div>
+            ) : null}
           </section>
 
-          {lm.status !== "brief" && (
-            <section className="grid shrink-0 grid-cols-3 border-b bg-[#0c211a] text-white">
-              <MatchPulse icon={Activity} label="Possession" value={`${possession}%`} />
-              <MatchPulse
-                icon={Target}
-                label="Shots (on target)"
-                value={
-                  stats && finishedReplay
-                    ? `${stats.us.shots} (${stats.us.shotsOnTarget})–${stats.them.shots} (${stats.them.shotsOnTarget})`
-                    : `${visibleOurShots.length}–${visibleTheirShots.length}`
-                }
-              />
-              <MatchPulse icon={Users} label="Atmosphere" value={`${atmosphere}%`} />
+          {lm.status !== "brief" ? (
+            <section className="shrink-0 border-b bg-[#0c211a] px-3 pb-2 pt-1 text-white sm:px-6">
+              <MatchTimeline events={visible} minute={finishedReplay ? (lm.status === "fullTime" ? 90 : 45) : minute} ourKit={ourKit} theirKit={theirKit} />
+              <div className="mt-1.5 grid grid-cols-3 text-center text-[11px]">
+                <PulseStat label="Possession" value={`${possession}%`} />
+                <PulseStat label="Chances" value={`${liveChances("us").length}–${liveChances("them").length}`} />
+                <PulseStat label="xG" value={`${liveXg("us").toFixed(1)}–${liveXg("them").toFixed(1)}`} />
+              </div>
             </section>
-          )}
+          ) : null}
 
           <div
             className={cn(
               "min-h-0 flex-1",
-              lm.status === "brief"
-                ? "block"
-                : !finishedReplay
-                  ? "block"
-                  : "grid lg:grid-cols-[minmax(0,1.15fr)_minmax(20rem,.85fr)] lg:grid-rows-1",
+              lm.status === "brief" || !finishedReplay ? "block" : "grid lg:grid-cols-[minmax(0,1.15fr)_minmax(20rem,.85fr)] lg:grid-rows-1",
               finishedReplay && lm.status === "halfTime"
                 ? "grid-rows-[minmax(12rem,1fr)_minmax(14rem,1.1fr)]"
                 : finishedReplay
@@ -189,224 +249,131 @@ export function MatchDayOverlay({
                   : "",
             )}
           >
-            {lm.status === "brief" && (
-              <section className="h-full overflow-y-auto overscroll-contain border-t p-3 sm:p-5 space-y-3 sm:space-y-4">
-                <div>
-                  <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-primary">
-                    The boardroom view
-                  </div>
-                  <h2 className="font-display text-3xl">The doors close. The noise rises.</h2>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    You picked the squad and funded the club. Now watch what your decisions have
-                    built.
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <Info2 label="Weather" value={lm.weather} />
-                  <Info2
-                    label="Projected gate"
-                    value={
-                      lm.fixture.home
-                        ? `${lm.projectedAttendance.toLocaleString()} fans`
-                        : "Away — no gate"
-                    }
-                  />
-                  <Info2 label="Board expects" value={lm.boardExpectation} />
-                  <Info2 label="Form" value={lm.formGuide} />
-                  <Info2 label="Starting XI fitness" value={`${selectedFitness}%`} />
-                  <Info2 label="Medical support" value={`${medical.label} · ${medical.score}`} />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <StrengthCard label="Your team" value={Math.round(lm.ourStrength)} />
-                  <StrengthCard label="Opposition" value={Math.round(lm.oppStrength)} />
-                </div>
-                <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4 text-left">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="flex items-center gap-2 font-semibold">
-                      <Users className="size-4 text-emerald-600" /> {matchPrep.managerName}'s match
-                      plan
-                    </div>
-                    <span className="rounded-full border border-emerald-500/20 bg-background/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
-                      {matchPrep.selectedFormation}
-                    </span>
-                    <span className="rounded-full border bg-background/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                      {matchPrep.style}
-                    </span>
-                    <span className="rounded-full border bg-background/70 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                      {matchPrep.rotation} rotation
-                    </span>
-                  </div>
-                  <p className="mt-1.5 text-sm text-muted-foreground">{matchPrep.summary}</p>
-                  <div className="mt-2 flex flex-wrap gap-2 text-[10px]">
-                    <span className="rounded-full border bg-background/60 px-2 py-0.5 text-muted-foreground">
-                      XI fitness {selectedFitness}%
-                    </span>
-                    {selectionPenalty < -0.05 && (
-                      <span className="rounded-full border border-amber-500/30 bg-amber-500/5 px-2 py-0.5 text-amber-700">
-                        Selection cost {selectionPenalty.toFixed(2)}
-                      </span>
-                    )}
-                    {formLeaders.map((form) => {
-                      const player = squad.find((candidate) => candidate.id === form.playerId);
-                      return (
-                        <span key={form.playerId} className="rounded-full border bg-background/60 px-2 py-0.5 text-muted-foreground">
-                          {player ? `${player.firstName} ${player.lastName}` : "In-form player"} · {form.averageRating.toFixed(2)}
-                        </span>
-                      );
-                    })}
-                  </div>
-                  {matchPrep.managerId &&
-                    matchPrep.selectedFormation !== matchPrep.preferredFormation && (
-                      <p className="mt-2 text-xs font-medium text-foreground">
-                        Squad-driven adjustment: preferred {matchPrep.preferredFormation} → selected{" "}
-                        {matchPrep.selectedFormation}.
-                      </p>
-                    )}
-                </div>
-                <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 text-left">
-                  <div className="flex items-center gap-2 font-semibold">
-                    <Landmark className="size-4 text-primary" /> Boardroom pressure
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    The board expects{" "}
-                    <strong className="text-foreground">{lm.boardExpectation.toLowerCase()}</strong>
-                    . Supporters want intent as much as points.
-                  </p>
-                </div>
-                <Button
-                  className="w-full h-14 text-base font-semibold"
-                  onClick={() => update((s) => kickoff(s))}
-                >
-                  <Play className="size-5 mr-2" /> Kick off
-                </Button>
-              </section>
-            )}
+            {lm.status === "brief" ? (
+              <PreMatch
+                state={state}
+                lm={lm}
+                ourKit={ourKit}
+                theirKit={theirKit}
+                ourBadge={ours.badge}
+                theirBadge={theirs.badge}
+                themName={themName}
+                opponentStyle={`${opponentStyle.philosophy.toLowerCase()} football, ${(opponentStyle.tempo ?? "Medium").toLowerCase()} tempo, ${(opponentStyle.pressing ?? "Medium").toLowerCase()} press`}
+                onKickoff={() => update((s) => kickoff(s))}
+              />
+            ) : null}
 
-            {lm.status === "halfTime" && finishedReplay && (
-              <section className="flex min-h-0 flex-col justify-center border-t p-4 text-center sm:p-6">
-                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                  Half time
-                </div>
-                <h2 className="mt-1 font-display text-3xl">The manager takes it from here</h2>
-                <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-                  Team talk, tactical changes and substitutions belong to the manager. As chairman,
-                  you watch the second half unfold.
+            {lm.status === "halfTime" && finishedReplay ? (
+              <section className="flex min-h-0 flex-col justify-center gap-3 overflow-y-auto border-t p-4 text-center sm:p-6">
+                <h2 className="font-display text-3xl">Half time</h2>
+                {lm.engine?.halves[0] ? (
+                  <div className="mx-auto w-full max-w-sm space-y-1.5 text-left">
+                    <StatBar label="Shots" us={lm.engine.halves[0].us.shots} them={lm.engine.halves[0].them.shots} ourKit={ourKit} theirKit={theirKit} />
+                    <StatBar label="On target" us={lm.engine.halves[0].us.shotsOnTarget} them={lm.engine.halves[0].them.shotsOnTarget} ourKit={ourKit} theirKit={theirKit} />
+                    <StatBar label="xG" us={lm.engine.halves[0].us.xg} them={lm.engine.halves[0].them.xg} ourKit={ourKit} theirKit={theirKit} decimals />
+                  </div>
+                ) : null}
+                <p className="mx-auto max-w-md text-sm text-muted-foreground">
+                  Team talk, tactics and substitutions belong to the manager. As chairman, you watch the second half unfold.
                 </p>
-                <Button
-                  className="mx-auto mt-4 h-12 w-full max-w-sm text-base font-semibold"
-                  onClick={() => update((s) => continueSecondHalf(s))}
-                >
+                <Button className="mx-auto h-12 w-full max-w-sm text-base font-semibold" onClick={() => update((s) => continueSecondHalf(s))}>
                   Continue second half <ChevronsRight className="ml-1 size-5" />
                 </Button>
               </section>
-            )}
+            ) : null}
 
-            
-
-            {lm.status === "fullTime" && finishedReplay && (
+            {lm.status === "fullTime" && finishedReplay ? (
               <section className="flex min-h-0 flex-col overflow-hidden border-t">
-                <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-3 sm:space-y-4 sm:p-5">
-                  <div className="text-center py-1">
-                    <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Result
+                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-3 sm:p-5">
+                  <div className="text-center">
+                    <div
+                      className={cn(
+                        "font-display text-4xl",
+                        result === "Victory" ? "text-emerald-600" : result === "Defeat" ? "text-rose-600" : "text-foreground",
+                      )}
+                    >
+                      {result}
                     </div>
-                    <div className="font-display text-4xl mt-1">{result}</div>
+                    <p className="mt-0.5 text-sm text-muted-foreground">
+                      {expectationMet ? "The board's expectation was met." : `The board expected ${lm.boardExpectation.toLowerCase()}.`}
+                    </p>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm tnum">
-                    <Info2 label="Attendance" value={lm.attendance.toLocaleString()} />
-                    <Info2 label="Gate" value={fmtMoney(lm.gateReceipts)} />
-                    <Info2 label="TV" value={fmtMoney(lm.tvIncome)} />
-                    <Info2 label="Matchday ops" value={`-${fmtMoney(lm.matchdayOps)}`} tone="bad" />
-                  </div>
-                  {playerOfMatch && (
-                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Player of the match</div>
-                      <div className="mt-1 flex items-end justify-between gap-3">
-                        <div>
-                          <div className="font-display text-2xl">{playerOfMatch.name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {playerOfMatch.minutes} min{playerOfMatch.goals ? ` · ${playerOfMatch.goals}G` : ""}{playerOfMatch.assists ? ` · ${playerOfMatch.assists}A` : ""}
-                          </div>
-                        </div>
-                        <div className="font-display text-3xl tnum">{playerOfMatch.rating.toFixed(1)}</div>
+
+                  {stats ? (
+                    <div className="space-y-1.5 rounded-2xl border p-3">
+                      <div className="mb-1 flex items-center justify-between text-xs font-semibold">
+                        <span className="flex items-center gap-1.5"><ClubBadge design={ours.badge} size={18} /> {usName}</span>
+                        <span className="flex items-center gap-1.5">{themName} <ClubBadge design={theirs.badge} size={18} /></span>
                       </div>
-                    </div>
-                  )}
-                  {stats && (
-                    <div className="grid grid-cols-3 gap-3 text-sm tnum">
-                      <Info2
-                        label="Possession"
-                        value={`${stats.us.possession}% – ${stats.them.possession}%`}
-                      />
-                      <Info2 label="Shots" value={`${stats.us.shots} – ${stats.them.shots}`} />
-                      <Info2
-                        label="Expected goals"
-                        value={`${stats.us.xg.toFixed(2)} – ${stats.them.xg.toFixed(2)}`}
-                      />
-                    </div>
-                  )}
-                  {(lm.engine?.substitutions?.length || lm.engine?.injuries?.length) ? (
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <div className="rounded-xl border bg-muted/20 p-3">
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Changes used</div>
-                        <div className="mt-1 font-display text-2xl">{lm.engine?.substitutions?.filter((sub) => sub.side === "us").length ?? 0}</div>
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          {(lm.engine?.substitutions ?? []).filter((sub) => sub.side === "us").map((sub) => `${sub.minute}' ${sub.playerOnName} for ${sub.playerOffName}`).join(" · ") || "No substitutions"}
-                        </div>
-                      </div>
-                      <div className="rounded-xl border bg-muted/20 p-3">
-                        <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Medical report</div>
-                        <div className="mt-1 font-display text-2xl">{lm.engine?.injuries?.filter((injury) => injury.side === "us").length ?? 0}</div>
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          {(lm.engine?.injuries ?? []).filter((injury) => injury.side === "us").map((injury) => `${injury.playerName}: ${injury.type}`).join(" · ") || "No new injuries"}
-                        </div>
-                      </div>
+                      <StatBar label="Possession" us={stats.us.possession} them={stats.them.possession} ourKit={ourKit} theirKit={theirKit} suffix="%" />
+                      <StatBar label="Shots" us={stats.us.shots} them={stats.them.shots} ourKit={ourKit} theirKit={theirKit} />
+                      <StatBar label="On target" us={stats.us.shotsOnTarget} them={stats.them.shotsOnTarget} ourKit={ourKit} theirKit={theirKit} />
+                      <StatBar label="Expected goals" us={stats.us.xg} them={stats.them.xg} ourKit={ourKit} theirKit={theirKit} decimals />
+                      <StatBar label="Corners" us={stats.us.corners} them={stats.them.corners} ourKit={ourKit} theirKit={theirKit} />
+                      <StatBar label="Fouls" us={stats.us.fouls} them={stats.them.fouls} ourKit={ourKit} theirKit={theirKit} />
+                      <StatBar label="Yellow cards" us={stats.us.yellowCards} them={stats.them.yellowCards} ourKit={ourKit} theirKit={theirKit} />
                     </div>
                   ) : null}
-                  {lm.engine?.playerStats?.length ? (
-                    <div className="rounded-xl border bg-muted/20 p-3">
-                      <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Player ratings
+
+                  {playerOfMatch ? (
+                    <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-3">
+                      <ClubShirt kit={{ ...ourKit, sponsor: "" }} size={44} />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs text-emerald-700 dark:text-emerald-400">Player of the match</div>
+                        <div className="truncate font-display text-2xl leading-tight">{playerOfMatch.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {playerOfMatch.minutes} min{playerOfMatch.goals ? ` · ${playerOfMatch.goals} goal${playerOfMatch.goals > 1 ? "s" : ""}` : ""}
+                          {playerOfMatch.assists ? ` · ${playerOfMatch.assists} assist${playerOfMatch.assists > 1 ? "s" : ""}` : ""}
+                        </div>
                       </div>
-                      <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+                      <RatingChip rating={playerOfMatch.rating} large />
+                    </div>
+                  ) : null}
+
+                  {lm.engine?.playerStats?.length ? (
+                    <div className="rounded-2xl border p-3">
+                      <div className="mb-1.5 text-sm font-semibold">Player ratings</div>
+                      <div className="grid gap-x-4 sm:grid-cols-2">
                         {[...lm.engine.playerStats]
                           .sort((a, b) => b.rating - a.rating)
                           .map((player) => (
-                            <div
-                              key={player.playerId}
-                              className="flex items-center gap-2 border-b py-1.5 text-xs last:border-0"
-                            >
-                              <span className="w-5 text-center font-bold text-muted-foreground">
-                                {player.shirtNumber}
-                              </span>
-                              <span className="min-w-0 flex-1 truncate font-medium">
-                                {player.name}
-                              </span>
-                              {(player.goals > 0 || player.assists > 0) && (
-                                <span className="text-[10px] text-muted-foreground">
-                                  {player.goals > 0 ? `${player.goals}G` : ""}
-                                  {player.goals > 0 && player.assists > 0 ? " · " : ""}
-                                  {player.assists > 0 ? `${player.assists}A` : ""}
-                                </span>
-                              )}
-                              {player.fitnessAfter !== undefined && (
-                                <span className="text-[10px] text-muted-foreground">{player.fitnessAfter}% fit</span>
-                              )}
-                              <strong
-                                className={cn(
-                                  "rounded px-1.5 py-0.5 tnum",
-                                  player.rating >= 7
-                                    ? "bg-emerald-500/15 text-emerald-700"
-                                    : "bg-muted",
-                                )}
-                              >
-                                {player.rating.toFixed(1)}
-                              </strong>
+                            <div key={player.playerId} className="flex items-center gap-2 border-b py-1.5 text-xs last:border-0">
+                              <span className="w-8 text-[10px] font-semibold text-muted-foreground">{player.role}</span>
+                              <span className="min-w-0 flex-1 truncate font-medium">{player.name}</span>
+                              {player.goals > 0 ? <span className="text-[10px]">{"⚽".repeat(Math.min(3, player.goals))}</span> : null}
+                              {player.assists > 0 ? <span className="text-[10px] text-muted-foreground">{player.assists}A</span> : null}
+                              {!player.started ? <span className="text-[10px] text-muted-foreground">sub</span> : null}
+                              <RatingChip rating={player.rating} />
                             </div>
                           ))}
                       </div>
                     </div>
                   ) : null}
+
+                  <div className="grid grid-cols-2 gap-2 text-sm tnum sm:grid-cols-4">
+                    <Info2 label="Attendance" value={lm.attendance.toLocaleString()} />
+                    <Info2 label="Gate" value={fmtMoney(lm.gateReceipts)} />
+                    <Info2 label="TV" value={fmtMoney(lm.tvIncome)} />
+                    <Info2 label="Matchday ops" value={`-${fmtMoney(lm.matchdayOps)}`} tone="bad" />
+                  </div>
+
+                  {lm.engine?.substitutions?.length || lm.engine?.injuries?.length ? (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <div className="rounded-xl border bg-muted/20 p-3 text-xs">
+                        <div className="mb-1 font-semibold">Changes</div>
+                        <div className="text-muted-foreground">
+                          {(lm.engine?.substitutions ?? []).filter((sub) => sub.side === "us").map((sub) => `${sub.minute}' ${sub.playerOnName} for ${sub.playerOffName}`).join(" · ") || "No substitutions"}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border bg-muted/20 p-3 text-xs">
+                        <div className="mb-1 font-semibold">Medical report</div>
+                        <div className="text-muted-foreground">
+                          {(lm.engine?.injuries ?? []).filter((injury) => injury.side === "us").map((injury) => `${injury.playerName}: ${injury.type}`).join(" · ") || "No new injuries"}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
                   <div className="grid gap-2 sm:grid-cols-3">
                     <ReactionCard
                       icon={Users}
@@ -423,11 +390,7 @@ export function MatchDayOverlay({
                     <ReactionCard
                       icon={Landmark}
                       label="Board"
-                      text={
-                        expectationMet
-                          ? "Expectation met. The room stays calm."
-                          : "Expectation missed. Questions will follow."
-                      }
+                      text={expectationMet ? "Expectation met. The room stays calm." : "Expectation missed. Questions will follow."}
                       tone={expectationMet ? "good" : "bad"}
                     />
                     <ReactionCard
@@ -438,32 +401,23 @@ export function MatchDayOverlay({
                           ? `${state.clubName} make their point.`
                           : result === "Defeat"
                             ? `${state.clubName} leave with hard lessons.`
-                            : `Nothing settled after a tense draw.`
+                            : "Nothing settled after a tense draw."
                       }
                       tone="neutral"
                     />
                   </div>
+                  <p className="text-center text-xs text-muted-foreground">Atmosphere {atmosphere}%</p>
                 </div>
                 <div className="shrink-0 border-t bg-card p-3 sm:p-4">
-                  <Button
-                    className="h-12 w-full text-base font-semibold sm:h-14"
-                    onClick={() => update((s) => commitLiveMatchAndAdvance(s))}
-                  >
-                    Return to club <ChevronsRight className="size-5 ml-1" />
+                  <Button className="h-12 w-full text-base font-semibold sm:h-14" onClick={() => update((s) => commitLiveMatchAndAdvance(s))}>
+                    Return to club <ChevronsRight className="ml-1 size-5" />
                   </Button>
                 </div>
               </section>
-            )}
+            ) : null}
 
-            {lm.status !== "brief" && (
-              <section
-                className={cn(
-                  "flex min-h-0 flex-col border-t bg-muted/20",
-                  !finishedReplay
-                    ? "h-full border-t-0"
-                    : "lg:border-l lg:border-t-0",
-                )}
-              >
+            {lm.status !== "brief" ? (
+              <section className={cn("flex min-h-0 flex-col border-t bg-muted/20", !finishedReplay ? "h-full border-t-0" : "lg:border-l lg:border-t-0")}>
                 <MatchPitchViewer
                   events={lm.events}
                   usName={usName}
@@ -477,62 +431,26 @@ export function MatchDayOverlay({
                   opponentPlan={lm.engine?.opponentPlan}
                   onReplayProgress={onReplayProgress}
                   expanded={!finishedReplay}
+                  userColours={dotColours(ourKit)}
+                  opponentColours={dotColours(theirKit)}
                 />
-                {finishedReplay && <div className="px-4 py-3 flex items-center justify-between">
-                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    The story of the match
-                  </div>
-                  <div className="text-xs text-muted-foreground">{lm.events.length} events</div>
-                </div>}
-                {finishedReplay && <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain border-t">
-                  {lm.events.length === 0 ? (
-                    <div className="p-5 text-sm text-muted-foreground text-center">
-                      No events yet.
+                {finishedReplay ? (
+                  <>
+                    <div className="flex items-center justify-between px-4 py-2.5 text-sm">
+                      <span className="font-semibold">Match story</span>
+                      <span className="text-xs text-muted-foreground">{lm.events.length} moments</span>
                     </div>
-                  ) : (
-                    <ul className="text-sm divide-y">
-                  {lm.events.slice(0, revealedEvents).map((e, i) => (
-                        <li
-                          key={i}
-                          className={cn(
-                            "flex items-center gap-3 border-l-4 px-4 py-3",
-                            e.type === "goal"
-                              ? e.side === "us"
-                                ? "border-l-emerald-500 bg-emerald-500/5"
-                                : "border-l-rose-500 bg-rose-500/5"
-                              : "border-l-transparent",
-                          )}
-                        >
-                          <span className="text-xs w-8 text-muted-foreground tnum">
-                            {e.minute}'
-                          </span>
-                          <span
-                            className={cn(
-                              "text-[10px] font-bold px-1.5 py-0.5 rounded",
-                              e.type === "goal"
-                                ? "bg-[color:var(--color-income)]/20 text-[color:var(--color-income)]"
-                                : e.type === "card"
-                                  ? "bg-yellow-500/20 text-yellow-700"
-                                  : "bg-muted",
-                            )}
-                          >
-                            {e.type.toUpperCase()}
-                          </span>
-                          <span
-                            className={cn(
-                              "flex-1 text-sm",
-                              e.side === "us" ? "text-foreground" : "text-muted-foreground",
-                            )}
-                          >
-                            {e.text}
-                          </span>
-                        </li>
-                      ))}
+                    <ul className="min-h-0 flex-1 divide-y overflow-y-auto overscroll-contain border-t text-sm">
+                      {visible.length === 0 ? (
+                        <li className="p-5 text-center text-muted-foreground">No moments yet.</li>
+                      ) : (
+                        visible.map((event, index) => <StoryRow key={index} event={event} ourKit={ourKit} theirKit={theirKit} />)
+                      )}
                     </ul>
-                  )}
-                </div>}
+                  </>
+                ) : null}
               </section>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
@@ -540,81 +458,164 @@ export function MatchDayOverlay({
   );
 }
 
-function TeamBadge({ name, label, active }: { name: string; label: string; active: boolean }) {
+/* ------------------------------------------------------------------ */
+/* Pieces                                                              */
+/* ------------------------------------------------------------------ */
+
+function TeamSide({ name, badge, scorers }: { name: string; badge: Parameters<typeof ClubBadge>[0]["design"]; scorers: MatchEvent[] }) {
+  // Group a player's goals: "Fin Sub 12', 72'".
+  const byScorer = new Map<string, number[]>();
+  for (const goal of scorers) {
+    const key = goal.actorName ?? "Goal";
+    byScorer.set(key, [...(byScorer.get(key) ?? []), goal.minute]);
+  }
   return (
-    <div className="min-w-0 flex flex-col items-center gap-2">
-      <div
-        className={cn(
-          "size-14 sm:size-16 rounded-2xl grid place-items-center font-display text-xl sm:text-2xl",
-          active
-            ? "bg-emerald-400 text-[#07130f] shadow-lg shadow-emerald-950/40"
-            : "border border-white/15 bg-white/10 text-white",
+    <div className="flex min-w-0 flex-col items-center gap-1.5">
+      <ClubBadge design={badge} clubName={name} size={56} className="drop-shadow-[0_4px_8px_rgba(0,0,0,.45)]" />
+      <div className="max-w-full truncate font-display text-base leading-tight sm:text-lg">{name}</div>
+      {byScorer.size ? (
+        <ul className="max-w-full space-y-0.5 text-center text-[11px] leading-tight text-white/75">
+          {[...byScorer.entries()].map(([scorer, minutes]) => (
+            <li key={scorer} className="truncate">
+              {scorer} {minutes.map((m) => `${m}'`).join(", ")}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+function PulseStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-white/50">{label}</div>
+      <div className="font-display text-sm tnum">{value}</div>
+    </div>
+  );
+}
+
+/** 0-90 strip of the match so far: goals, chances, cards and changes. */
+function MatchTimeline({ events, minute, ourKit, theirKit }: { events: MatchEvent[]; minute: number; ourKit: KitDesign; theirKit: KitDesign }) {
+  const at = (m: number) => `${(Math.min(90, Math.max(0, m)) / 90) * 100}%`;
+  return (
+    <div className="relative h-12" aria-label={`Match timeline, ${minute} minutes played`}>
+      {/* track */}
+      <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-white/10" />
+      <div className="absolute left-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-emerald-400/70 transition-[width] duration-500" style={{ width: at(minute) }} />
+      <div className="absolute top-1/2 h-3 w-px -translate-y-1/2 bg-white/40" style={{ left: "50%" }} aria-hidden="true" />
+      <span className="absolute bottom-0 left-0 text-[9px] text-white/40">0'</span>
+      <span className="absolute bottom-0 left-1/2 -translate-x-1/2 text-[9px] text-white/40">HT</span>
+      <span className="absolute bottom-0 right-0 text-[9px] text-white/40">90'</span>
+      {events.map((event, index) => {
+        const up = event.side === "us";
+        const kit = up ? ourKit : theirKit;
+        const top = up ? "top-0" : "bottom-2.5";
+        const label = `${event.minute}' ${event.text}`;
+        if (event.type === "goal") {
+          return (
+            <span
+              key={index}
+              title={label}
+              className={cn("lf-marker-in absolute grid size-4 -translate-x-1/2 place-items-center rounded-full border-2 text-[8px]", top)}
+              style={{ left: at(event.minute), background: kit.body, borderColor: readableOn(kit.body) === "#ffffff" ? "#ffffff" : "#16181b" }}
+            >
+              <span className="size-1.5 rounded-full" style={{ background: readableOn(kit.body) }} />
+            </span>
+          );
+        }
+        if (event.type === "card") {
+          return <span key={index} title={label} className={cn("lf-marker-in absolute h-3 w-2 -translate-x-1/2 rounded-[2px] bg-yellow-400", up ? "top-0.5" : "bottom-3")} style={{ left: at(event.minute) }} />;
+        }
+        if (event.type === "sub" || event.type === "injury") {
+          return (
+            <span key={index} title={label} className={cn("lf-marker-in absolute -translate-x-1/2 text-white/70", up ? "top-0.5" : "bottom-3")} style={{ left: at(event.minute) }}>
+              {event.type === "injury" ? <Cross className="size-3" /> : <ArrowLeftRight className="size-3" />}
+            </span>
+          );
+        }
+        if (event.type === "chance") {
+          return <span key={index} title={label} className={cn("lf-marker-in absolute size-1.5 -translate-x-1/2 rounded-full bg-white/60", up ? "top-1.5" : "bottom-4")} style={{ left: at(event.minute) }} />;
+        }
+        return null;
+      })}
+    </div>
+  );
+}
+
+function StatBar({
+  label,
+  us,
+  them,
+  ourKit,
+  theirKit,
+  decimals = false,
+  suffix = "",
+}: {
+  label: string;
+  us: number;
+  them: number;
+  ourKit: KitDesign;
+  theirKit: KitDesign;
+  decimals?: boolean;
+  suffix?: string;
+}) {
+  const total = us + them || 1;
+  const fmt = (value: number) => (decimals ? value.toFixed(2) : String(value)) + suffix;
+  // Neutral kits (white or near-white) get an outline so the bar stays visible.
+  const bar = (kit: KitDesign) => ({ background: kit.body, boxShadow: readableOn(kit.body) === "#16181b" ? "inset 0 0 0 1px rgba(0,0,0,.25)" : undefined });
+  return (
+    <div>
+      <div className="flex items-baseline justify-between text-xs tnum">
+        <span className={cn("font-semibold", us > them && "text-foreground", us < them && "text-muted-foreground")}>{fmt(us)}</span>
+        <span className="text-muted-foreground">{label}</span>
+        <span className={cn("font-semibold", them > us && "text-foreground", them < us && "text-muted-foreground")}>{fmt(them)}</span>
+      </div>
+      <div className="mt-1 flex h-1.5 gap-0.5 overflow-hidden rounded-full bg-muted">
+        <div className="h-full rounded-l-full" style={{ width: `${(us / total) * 100}%`, ...bar(ourKit) }} />
+        <div className="h-full rounded-r-full" style={{ width: `${(them / total) * 100}%`, ...bar(theirKit) }} />
+      </div>
+    </div>
+  );
+}
+
+function RatingChip({ rating, large = false }: { rating: number; large?: boolean }) {
+  const tone =
+    rating >= 8 ? "bg-emerald-600 text-white" : rating >= 7 ? "bg-emerald-500/20 text-emerald-800 dark:text-emerald-300" : rating >= 6 ? "bg-muted text-foreground" : "bg-rose-500/15 text-rose-700 dark:text-rose-300";
+  return <strong className={cn("rounded tnum", tone, large ? "px-2 py-1 font-display text-2xl" : "px-1.5 py-0.5 text-xs")}>{rating.toFixed(1)}</strong>;
+}
+
+function StoryRow({ event, ourKit, theirKit }: { event: MatchEvent; ourKit: KitDesign; theirKit: KitDesign }) {
+  const kit = event.side === "us" ? ourKit : theirKit;
+  const goal = event.type === "goal";
+  return (
+    <li className={cn("flex items-start gap-3 px-4 py-2.5", goal && "bg-muted/40")}>
+      <span className="w-7 shrink-0 pt-0.5 text-xs text-muted-foreground tnum">{event.minute}'</span>
+      <span className="mt-1 shrink-0">
+        {goal ? (
+          <span className="block size-3.5 rounded-full border-2" style={{ background: kit.body, borderColor: kit.trim }} />
+        ) : event.type === "card" ? (
+          <span className="block h-3.5 w-2.5 rounded-[2px] bg-yellow-400" />
+        ) : event.type === "sub" ? (
+          <ArrowLeftRight className="size-3.5 text-muted-foreground" />
+        ) : event.type === "injury" ? (
+          <Cross className="size-3.5 text-rose-500" />
+        ) : (
+          <span className="block size-2 translate-x-0.5 rounded-full bg-muted-foreground/50" />
         )}
-      >
-        {initials(name)}
-      </div>
-      <div className="font-display text-base sm:text-lg leading-tight truncate max-w-full text-white">
-        {name}
-      </div>
-      <div className="text-[10px] uppercase tracking-[0.2em] text-white/50">{label}</div>
-    </div>
+      </span>
+      <span className={cn("min-w-0 flex-1", goal ? "font-semibold" : event.side === "us" ? "" : "text-muted-foreground")}>
+        {event.text}
+        {goal && event.xg ? <span className="ml-1.5 text-[10px] font-normal text-muted-foreground">xG {event.xg.toFixed(2)}</span> : null}
+      </span>
+    </li>
   );
 }
 
-function MatchPulse({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof Activity;
-  label: string;
-  value: string;
-}) {
+function ReactionCard({ icon: Icon, label, text, tone }: { icon: typeof Users; label: string; text: string; tone: "good" | "bad" | "neutral" }) {
   return (
-    <div className="flex items-center justify-center gap-2 border-r border-white/10 px-2 py-2 last:border-r-0 sm:gap-3 sm:px-4 sm:py-3">
-      <Icon className="size-4 text-emerald-300" />
-      <div>
-        <div className="text-[9px] uppercase tracking-wide text-white/50 sm:text-[10px]">
-          {label}
-        </div>
-        <div className="font-display text-sm tnum sm:text-base">{value}</div>
-      </div>
-    </div>
-  );
-}
-
-function StrengthCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-2xl border bg-card p-4 text-center shadow-sm">
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="font-display text-3xl mt-1 tnum">{value}</div>
-    </div>
-  );
-}
-
-function ReactionCard({
-  icon: Icon,
-  label,
-  text,
-  tone,
-}: {
-  icon: typeof Users;
-  label: string;
-  text: string;
-  tone: "good" | "bad" | "neutral";
-}) {
-  return (
-    <div
-      className={cn(
-        "rounded-2xl border p-3",
-        tone === "good"
-          ? "border-emerald-500/20 bg-emerald-500/5"
-          : tone === "bad"
-            ? "border-rose-500/20 bg-rose-500/5"
-            : "bg-muted/30",
-      )}
-    >
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+    <div className={cn("rounded-2xl border p-3", tone === "good" ? "border-emerald-500/20 bg-emerald-500/5" : tone === "bad" ? "border-rose-500/20 bg-rose-500/5" : "bg-muted/30")}>
+      <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
         <Icon className="size-4" /> {label}
       </div>
       <div className="mt-1 text-sm">{text}</div>
@@ -622,8 +623,117 @@ function ReactionCard({
   );
 }
 
-function EventIcon({ type }: { type: "goal" | "chance" | "card" }) {
-  if (type === "goal") return <Flame className="size-4" />;
-  if (type === "chance") return <Target className="size-4" />;
-  return <span className="block size-3 rounded-sm bg-yellow-400" />;
+function PreMatch({
+  state,
+  lm,
+  ourKit,
+  theirKit,
+  ourBadge,
+  theirBadge,
+  themName,
+  opponentStyle,
+  onKickoff,
+}: {
+  state: GameState;
+  lm: NonNullable<GameState["liveMatch"]>;
+  ourKit: KitDesign;
+  theirKit: KitDesign;
+  ourBadge: Parameters<typeof ClubBadge>[0]["design"];
+  theirBadge: Parameters<typeof ClubBadge>[0]["design"];
+  themName: string;
+  opponentStyle: string;
+  onKickoff: () => void;
+}) {
+  const matchPrep = managerMatchPrep(state);
+  const medical = medicalSupport(state);
+  const selectionPenalty = userSelectionStrengthPenalty(state);
+  const formLeaders = inFormPlayers(state, 2);
+  const squad = userSquad(state);
+  const selectedFitness = lm.engine?.userLineup?.length
+    ? Math.round(lm.engine.userLineup.reduce((sum, player) => sum + (player.fitness ?? 100), 0) / lm.engine.userLineup.length)
+    : 100;
+  const ourShare = (lm.ourStrength / Math.max(1, lm.ourStrength + lm.oppStrength)) * 100;
+
+  return (
+    <section className="h-full space-y-4 overflow-y-auto overscroll-contain border-t p-3 sm:p-5">
+      {/* Kit matchup */}
+      <div className="flex items-end justify-center gap-6 rounded-2xl bg-[radial-gradient(120%_90%_at_50%_0%,#1f5a57_0%,#0e2e2d_60%,#081d1c_100%)] px-4 pb-3 pt-4 text-white">
+        <div className="flex flex-col items-center gap-1">
+          <ClubShirt kit={ourKit} badge={ourBadge} clubName={state.clubName} size={92} />
+          <span className="text-xs text-white/75">{state.clubName}</span>
+        </div>
+        <span className="pb-10 font-display text-xl text-white/50">v</span>
+        <div className="flex flex-col items-center gap-1">
+          <ClubShirt kit={theirKit} badge={theirBadge} clubName={themName} size={92} />
+          <span className="text-xs text-white/75">{themName}</span>
+        </div>
+      </div>
+
+      {/* Strength balance */}
+      <div>
+        <div className="mb-1 flex justify-between text-xs">
+          <span className="font-semibold tnum">{Math.round(lm.ourStrength)}</span>
+          <span className="text-muted-foreground">Team strength</span>
+          <span className="font-semibold tnum">{Math.round(lm.oppStrength)}</span>
+        </div>
+        <div className="flex h-2 gap-0.5 overflow-hidden rounded-full">
+          <div className="h-full" style={{ width: `${ourShare}%`, background: ourKit.body, boxShadow: "inset 0 0 0 1px rgba(0,0,0,.2)" }} />
+          <div className="h-full flex-1" style={{ background: theirKit.body, boxShadow: "inset 0 0 0 1px rgba(0,0,0,.2)" }} />
+        </div>
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          {themName} usually play <span className="font-medium text-foreground">{opponentStyle}</span>.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
+        <Info2 label="Weather" value={lm.weather} />
+        <Info2 label="Projected gate" value={lm.fixture.home ? `${lm.projectedAttendance.toLocaleString()} fans` : "Away, no gate"} />
+        <Info2 label="Board expects" value={lm.boardExpectation} />
+        <Info2 label="Form" value={lm.formGuide} />
+        <Info2 label="Starting XI fitness" value={`${selectedFitness}%`} />
+        <Info2 label="Medical support" value={`${medical.label} · ${medical.score}`} />
+      </div>
+
+      <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold">{matchPrep.managerName}'s plan</span>
+          <span className="rounded-full border bg-background/70 px-2 py-0.5 text-[11px]">{matchPrep.selectedFormation}</span>
+          <span className="rounded-full border bg-background/70 px-2 py-0.5 text-[11px]">{matchPrep.style}</span>
+          <span className="rounded-full border bg-background/70 px-2 py-0.5 text-[11px]">{matchPrep.rotation} rotation</span>
+        </div>
+        <p className="mt-1.5 text-sm text-muted-foreground">{matchPrep.summary}</p>
+        <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+          {selectionPenalty < -0.05 ? (
+            <span className="rounded-full border border-amber-500/30 bg-amber-500/5 px-2 py-0.5 text-amber-700">Selection cost {selectionPenalty.toFixed(2)}</span>
+          ) : null}
+          {formLeaders.map((form) => {
+            const player = squad.find((candidate) => candidate.id === form.playerId);
+            return (
+              <span key={form.playerId} className="rounded-full border bg-background/60 px-2 py-0.5 text-muted-foreground">
+                In form: {player ? `${player.firstName} ${player.lastName}` : "player"} · {form.averageRating.toFixed(2)}
+              </span>
+            );
+          })}
+        </div>
+        {matchPrep.managerId && matchPrep.selectedFormation !== matchPrep.preferredFormation ? (
+          <p className="mt-2 text-xs font-medium">
+            Adjusted for the squad: preferred {matchPrep.preferredFormation}, playing {matchPrep.selectedFormation}.
+          </p>
+        ) : null}
+      </div>
+
+      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+        <div className="flex items-center gap-2 font-semibold">
+          <Landmark className="size-4 text-primary" /> Boardroom pressure
+        </div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          The board expects <strong className="text-foreground">{lm.boardExpectation.toLowerCase()}</strong>. Supporters want intent as much as points.
+        </p>
+      </div>
+
+      <Button className="h-14 w-full text-base font-semibold" onClick={onKickoff}>
+        <Play className="mr-2 size-5" /> Kick off
+      </Button>
+    </section>
+  );
 }
