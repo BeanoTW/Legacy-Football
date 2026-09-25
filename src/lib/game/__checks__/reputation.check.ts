@@ -592,7 +592,7 @@ console.log("\n[R12] Promoted / relegated clubs evolve rather than jump");
   const pred2 = predictionFor(s2, 2, DIVISION_ONE)!;
   check(
     "season 2 projection covers the new tier-1 membership",
-    pred2.clubs.length === 20 && pred2.clubs.every((c) => t1.clubIds.includes(c.club)),
+    pred2.clubs.length === t1.clubIds.length && pred2.clubs.every((c) => t1.clubIds.includes(c.club)),
   );
   const lg = predictLeague(s2, t1, 2);
   check("stored projection equals a fresh one", JSON.stringify(lg) === JSON.stringify(pred2));
