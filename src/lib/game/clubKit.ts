@@ -1,5 +1,6 @@
 import type { GameState } from "./types";
 import { clubDisplayName, isUserClubReference } from "./clubReference";
+import { clubPresentationName } from "./clubPresentation";
 
 /*
  * Club identity: badge and kits.
@@ -184,118 +185,130 @@ type AuthoredIdentitySeed = {
  * traditions and badge families are carried across into the original builder.
  * Every other AI club still receives a stable identity from defaultClubKit().
  */
+const authored = (
+  primary: string,
+  secondary: string,
+  shape: BadgeShape,
+  division: BadgeDivision,
+  emblem: BadgeEmblem,
+  homePattern: KitPattern = "plain",
+  extra: Partial<AuthoredIdentitySeed> = {},
+): AuthoredIdentitySeed => ({
+  primary,
+  secondary,
+  accent: extra.accent ?? (primary === "#ffffff" ? secondary : "#f2c14e"),
+  shape,
+  division,
+  emblem,
+  homePattern,
+  ...extra,
+});
+
 const AUTHORED_AI_IDENTITIES: Readonly<Record<string, AuthoredIdentitySeed>> = {
-  "Manchester Devils": {
-    primary: "#c8102e",
-    secondary: "#ffffff",
-    accent: "#16181b",
-    shape: "shield",
-    division: "chief",
-    emblem: "star",
-    homePattern: "plain",
-    shorts: "#ffffff",
-    socks: "#16181b",
-    awayBody: "#ffffff",
-    awaySecondary: "#16181b",
-  },
-  "Manchester Sky": {
-    primary: "#6cabdd",
-    secondary: "#ffffff",
-    accent: "#14264a",
-    shape: "roundel",
-    division: "plain",
-    emblem: "castle",
-    homePattern: "plain",
-    shorts: "#ffffff",
-    socks: "#6cabdd",
-    awayBody: "#14264a",
-    awaySecondary: "#6cabdd",
-  },
-  "Mersey Reds": {
-    primary: "#c8102e",
-    secondary: "#ffffff",
-    accent: "#f2c14e",
-    shape: "classic",
-    division: "plain",
-    emblem: "swallow",
-    homePattern: "plain",
-    shorts: "#c8102e",
-    socks: "#c8102e",
-    awayBody: "#ffffff",
-    awaySecondary: "#0e4a2c",
-  },
-  "Highbury Cannons": {
-    primary: "#c8102e",
-    secondary: "#ffffff",
-    accent: "#f2c14e",
-    shape: "shield",
-    division: "plain",
-    emblem: "star",
-    homePattern: "plain",
-    sleeves: "#ffffff",
-    shorts: "#ffffff",
-    socks: "#c8102e",
-    awayBody: "#f2b705",
-    awaySecondary: "#14264a",
-  },
-  "Madrid Imperial": {
-    primary: "#ffffff",
-    secondary: "#14264a",
-    accent: "#f2c14e",
-    shape: "roundel",
-    division: "plain",
-    emblem: "crown",
-    homePattern: "plain",
-    shorts: "#ffffff",
-    socks: "#ffffff",
-    awayBody: "#14264a",
-    awaySecondary: "#ffffff",
-  },
-  "Catalonia FC": {
-    primary: "#7a1631",
-    secondary: "#1b4fb4",
-    accent: "#f2c14e",
-    shape: "shield",
-    division: "stripes",
-    emblem: "ball",
-    homePattern: "stripes",
-    shorts: "#14264a",
-    socks: "#14264a",
-    awayBody: "#f2b705",
-    awaySecondary: "#7a1631",
-  },
-  "Munich Adler": {
-    primary: "#c8102e",
-    secondary: "#ffffff",
-    accent: "#14264a",
-    shape: "round",
-    division: "hoops",
-    emblem: "star",
-    homePattern: "plain",
-    shorts: "#c8102e",
-    socks: "#c8102e",
-    awayBody: "#ffffff",
-    awaySecondary: "#c8102e",
-  },
-  "Paris Étoile": {
-    primary: "#14264a",
-    secondary: "#c8102e",
-    accent: "#ffffff",
-    shape: "roundel",
-    division: "chief",
-    emblem: "star",
-    homePattern: "band",
-    shorts: "#14264a",
-    socks: "#14264a",
-    awayBody: "#ffffff",
-    awaySecondary: "#c8102e",
-  },
+  // Premier Division — broad colour and badge families inspired by the real 2026/27 clubs.
+  "AFC Bournemuth": authored("#c8102e", "#16181b", "shield", "stripes", "ball", "stripes", { shorts: "#16181b", socks: "#c8102e" }),
+  "Arsenol": authored("#c8102e", "#ffffff", "shield", "plain", "star", "plain", { sleeves: "#ffffff", shorts: "#ffffff", socks: "#c8102e" }),
+  "Aston Viller": authored("#7a1631", "#6cabdd", "shield", "chief", "crown", "plain", { sleeves: "#6cabdd", shorts: "#ffffff", socks: "#7a1631" }),
+  "Brentford City": authored("#c8102e", "#ffffff", "roundel", "stripes", "star", "stripes", { shorts: "#16181b" }),
+  "Brighton & Hove Athletic": authored("#1b4fb4", "#ffffff", "shield", "stripes", "swallow", "stripes", { shorts: "#ffffff" }),
+  "Chelsey": authored("#1b4fb4", "#ffffff", "round", "plain", "star", "plain", { shorts: "#1b4fb4" }),
+  "Coventry Town": authored("#6cabdd", "#ffffff", "shield", "plain", "ball", "plain", { shorts: "#6cabdd" }),
+  "Crystal Palais": authored("#1b4fb4", "#c8102e", "shield", "stripes", "star", "stripes", { shorts: "#14264a" }),
+  "Evertoon": authored("#1b4fb4", "#ffffff", "shield", "plain", "castle", "plain", { shorts: "#ffffff" }),
+  "Fulhem": authored("#ffffff", "#16181b", "shield", "plain", "ball", "plain", { accent: "#c8102e", shorts: "#16181b", socks: "#ffffff" }),
+  "Hull United": authored("#f2b705", "#16181b", "shield", "stripes", "castle", "stripes", { accent: "#ffffff", shorts: "#16181b", socks: "#f2b705" }),
+  "Ipswich City": authored("#1b4fb4", "#ffffff", "shield", "plain", "crown", "plain", { accent: "#c8102e", shorts: "#ffffff" }),
+  "Leeds City": authored("#ffffff", "#14264a", "shield", "plain", "star", "plain", { accent: "#f2b705", shorts: "#ffffff", socks: "#ffffff", awayBody: "#f2b705", awaySecondary: "#14264a" }),
+  "Liverpoul": authored("#c8102e", "#ffffff", "classic", "plain", "swallow", "plain", { accent: "#f2c14e", shorts: "#c8102e", socks: "#c8102e" }),
+  "Monchester City": authored("#6cabdd", "#ffffff", "roundel", "plain", "castle", "plain", { accent: "#14264a", shorts: "#ffffff", socks: "#6cabdd" }),
+  "Monchester United": authored("#c8102e", "#ffffff", "shield", "chief", "castle", "plain", { accent: "#f2c14e", shorts: "#ffffff", socks: "#16181b" }),
+  "Newcastle City": authored("#16181b", "#ffffff", "shield", "stripes", "castle", "stripes", { accent: "#6cabdd", shorts: "#16181b", socks: "#16181b" }),
+  "Nottingham Wood": authored("#c8102e", "#ffffff", "shield", "plain", "oak", "plain", { shorts: "#ffffff", socks: "#c8102e" }),
+  "Sunderland Town": authored("#c8102e", "#ffffff", "shield", "stripes", "star", "stripes", { shorts: "#16181b", socks: "#c8102e" }),
+  "Tottenham Hotspurs": authored("#ffffff", "#14264a", "shield", "plain", "star", "plain", { accent: "#14264a", shorts: "#14264a", socks: "#ffffff" }),
+
+  // Championship.
+  "Birmingham United": authored("#1b4fb4", "#ffffff", "shield", "plain", "ball", "plain", { shorts: "#ffffff" }),
+  "Blackburn Town": authored("#1b4fb4", "#ffffff", "shield", "perPale", "star", "halves", { accent: "#c8102e", shorts: "#ffffff" }),
+  "Bolton Wanderers": authored("#ffffff", "#14264a", "roundel", "plain", "ball", "plain", { accent: "#c8102e", shorts: "#14264a" }),
+  "Bristol United": authored("#c8102e", "#ffffff", "shield", "plain", "star", "plain", { shorts: "#ffffff" }),
+  "Burnley Town": authored("#7a1631", "#6cabdd", "shield", "plain", "star", "plain", { sleeves: "#6cabdd", shorts: "#ffffff" }),
+  "Cardiff Town": authored("#1b4fb4", "#ffffff", "shield", "plain", "star", "plain", { accent: "#c8102e", shorts: "#1b4fb4" }),
+  "Charlton United": authored("#c8102e", "#ffffff", "shield", "plain", "star", "plain", { shorts: "#ffffff" }),
+  "Derby City": authored("#ffffff", "#16181b", "roundel", "plain", "star", "plain", { accent: "#16181b", shorts: "#16181b" }),
+  "Lincoln Town": authored("#c8102e", "#ffffff", "shield", "stripes", "star", "stripes", { shorts: "#16181b" }),
+  "Middlesborough": authored("#c8102e", "#ffffff", "shield", "chief", "star", "band", { shorts: "#c8102e" }),
+  "Millwall Town": authored("#14264a", "#ffffff", "shield", "plain", "star", "plain", { shorts: "#ffffff" }),
+  "Norwich United": authored("#fbe122", "#138a3e", "shield", "plain", "star", "plain", { accent: "#138a3e", shorts: "#138a3e", socks: "#fbe122" }),
+  "Portsmouth City": authored("#1b4fb4", "#ffffff", "shield", "plain", "star", "plain", { accent: "#c8102e", shorts: "#ffffff", socks: "#c8102e" }),
+  "Preston North": authored("#ffffff", "#14264a", "shield", "plain", "star", "plain", { accent: "#14264a", shorts: "#14264a" }),
+  "Queens Park United": authored("#1b4fb4", "#ffffff", "roundel", "hoops", "star", "hoops", { accent: "#c8102e", shorts: "#ffffff" }),
+  "Sheffield City": authored("#1b4fb4", "#ffffff", "shield", "stripes", "star", "stripes", { shorts: "#16181b" }),
+  "Stoke Town": authored("#c8102e", "#ffffff", "shield", "stripes", "star", "stripes", { shorts: "#ffffff" }),
+  "Swansea Town": authored("#ffffff", "#16181b", "shield", "plain", "swallow", "plain", { accent: "#16181b", shorts: "#ffffff" }),
+  "Westham United": authored("#7a1631", "#6cabdd", "shield", "plain", "hammers", "plain", { sleeves: "#6cabdd", shorts: "#ffffff" }),
+  "Wolverton Wanderers": authored("#f2b705", "#16181b", "shield", "plain", "star", "plain", { accent: "#16181b", shorts: "#16181b", socks: "#f2b705" }),
+
+  // League One.
+  "Leicestor City": authored("#1b4fb4", "#ffffff", "roundel", "plain", "star", "plain", { accent: "#f2c14e", shorts: "#1b4fb4" }),
+  "Notts City": authored("#16181b", "#ffffff", "shield", "stripes", "star", "stripes", { shorts: "#16181b" }),
+  "Oxford City": authored("#f2b705", "#14264a", "shield", "plain", "castle", "plain", { accent: "#14264a", shorts: "#14264a" }),
+  "MK United": authored("#ffffff", "#c8102e", "roundel", "plain", "star", "plain", { accent: "#16181b", shorts: "#ffffff" }),
+  "Reading City": authored("#1b4fb4", "#ffffff", "roundel", "hoops", "star", "hoops", { shorts: "#ffffff" }),
+  "Luton City": authored("#f06a0f", "#14264a", "shield", "plain", "star", "plain", { accent: "#ffffff", shorts: "#14264a" }),
+  "Barnsley City": authored("#c8102e", "#ffffff", "shield", "plain", "star", "plain", { shorts: "#ffffff" }),
+  "Bromley City": authored("#c8102e", "#16181b", "shield", "plain", "ball", "plain", { accent: "#ffffff", shorts: "#16181b" }),
+  "Blackpool City": authored("#f06a0f", "#ffffff", "shield", "plain", "star", "plain", { accent: "#16181b", shorts: "#ffffff" }),
+  "Wycombe United": authored("#1b4fb4", "#6cabdd", "shield", "quarterly", "star", "quarters", { accent: "#ffffff", shorts: "#14264a" }),
+  "Bradford United": authored("#7a1631", "#f2b705", "shield", "stripes", "star", "stripes", { accent: "#16181b", shorts: "#16181b" }),
+  "Peterborough City": authored("#1b4fb4", "#ffffff", "shield", "plain", "star", "plain", { shorts: "#ffffff" }),
+  "Burton City": authored("#f2b705", "#16181b", "shield", "plain", "star", "plain", { accent: "#16181b", shorts: "#16181b" }),
+  "Stevenage City": authored("#c8102e", "#ffffff", "shield", "plain", "star", "plain", { shorts: "#c8102e" }),
+  "Cambridge City": authored("#f2b705", "#16181b", "shield", "plain", "star", "plain", { accent: "#16181b", shorts: "#16181b" }),
+  "Wigan United": authored("#1b4fb4", "#ffffff", "shield", "stripes", "star", "stripes", { shorts: "#1b4fb4" }),
+  "Huddersfield City": authored("#6cabdd", "#ffffff", "shield", "stripes", "star", "stripes", { accent: "#14264a", shorts: "#ffffff" }),
+  "AFC Wimbeldon": authored("#1b4fb4", "#f2b705", "shield", "plain", "star", "plain", { accent: "#f2b705", shorts: "#1b4fb4" }),
+  "Leyton Orion": authored("#c8102e", "#ffffff", "shield", "plain", "star", "plain", { shorts: "#c8102e" }),
+  "Sheffield Wednsday": authored("#1b4fb4", "#ffffff", "shield", "stripes", "star", "stripes", { shorts: "#16181b" }),
+
+  // League Two / lower EFL set.
+  "Chesterfield City": authored("#1b4fb4", "#ffffff", "shield", "plain", "star", "plain", { shorts: "#ffffff" }),
+  "Salford United": authored("#c8102e", "#ffffff", "shield", "plain", "star", "plain", { shorts: "#16181b" }),
+  "Grimsby City": authored("#16181b", "#ffffff", "shield", "stripes", "star", "stripes", { accent: "#c8102e", shorts: "#16181b" }),
+  "Cheltenham City": authored("#c8102e", "#ffffff", "shield", "stripes", "star", "stripes", { shorts: "#c8102e" }),
+  "Crewe Alexanders": authored("#c8102e", "#ffffff", "shield", "plain", "star", "plain", { shorts: "#ffffff" }),
+  "Colchester City": authored("#1b4fb4", "#ffffff", "shield", "stripes", "star", "stripes", { shorts: "#ffffff" }),
+  "Fleetwood City": authored("#c8102e", "#ffffff", "shield", "plain", "star", "plain", { shorts: "#ffffff" }),
+  "Harrogate City": authored("#f2b705", "#16181b", "shield", "plain", "star", "plain", { accent: "#16181b", shorts: "#16181b" }),
+  "Newport City": authored("#f2b705", "#16181b", "shield", "plain", "star", "plain", { accent: "#16181b", shorts: "#16181b" }),
+  "Swindon City": authored("#c8102e", "#ffffff", "shield", "plain", "star", "plain", { shorts: "#c8102e" }),
+  "Tranmere United": authored("#ffffff", "#1b4fb4", "shield", "plain", "star", "plain", { accent: "#1b4fb4", shorts: "#1b4fb4" }),
+  "Walsall City": authored("#c8102e", "#ffffff", "shield", "plain", "star", "plain", { shorts: "#ffffff" }),
+  "Accrington City": authored("#c8102e", "#ffffff", "shield", "plain", "star", "plain", { shorts: "#c8102e" }),
+  "Barrow City": authored("#1b4fb4", "#ffffff", "shield", "plain", "star", "plain", { shorts: "#ffffff" }),
+  "Crawley City": authored("#c8102e", "#ffffff", "shield", "plain", "star", "plain", { shorts: "#c8102e" }),
+  "Doncaster Town": authored("#c8102e", "#ffffff", "shield", "hoops", "star", "hoops", { shorts: "#16181b" }),
+  "Gillingham City": authored("#1b4fb4", "#ffffff", "shield", "plain", "star", "plain", { shorts: "#1b4fb4" }),
+  "Morecambe City": authored("#c8102e", "#ffffff", "shield", "plain", "star", "plain", { shorts: "#c8102e" }),
+  "Port Vale City": authored("#ffffff", "#16181b", "shield", "plain", "star", "plain", { accent: "#f2b705", shorts: "#16181b" }),
+  "Rotherham City": authored("#c8102e", "#ffffff", "shield", "plain", "star", "plain", { shorts: "#ffffff" }),
+
+  // Authored living-world identities outside the legacy presentation aliases.
+  "Manchester Devils": authored("#c8102e", "#ffffff", "shield", "chief", "star", "plain", { accent: "#16181b", shorts: "#ffffff", socks: "#16181b" }),
+  "Manchester Sky": authored("#6cabdd", "#ffffff", "roundel", "plain", "castle", "plain", { accent: "#14264a", shorts: "#ffffff" }),
+  "Mersey Reds": authored("#c8102e", "#ffffff", "classic", "plain", "swallow", "plain", { shorts: "#c8102e", socks: "#c8102e" }),
+  "Highbury Cannons": authored("#c8102e", "#ffffff", "shield", "plain", "star", "plain", { sleeves: "#ffffff", shorts: "#ffffff" }),
+  "Madrid Imperial": authored("#ffffff", "#14264a", "roundel", "plain", "crown", "plain", { accent: "#f2c14e", shorts: "#ffffff" }),
+  "Catalonia FC": authored("#7a1631", "#1b4fb4", "shield", "stripes", "ball", "stripes", { accent: "#f2c14e", shorts: "#14264a" }),
+  "Munich Adler": authored("#c8102e", "#ffffff", "round", "hoops", "star", "plain", { accent: "#14264a", shorts: "#c8102e" }),
+  "Paris Étoile": authored("#14264a", "#c8102e", "roundel", "chief", "star", "band", { accent: "#ffffff", shorts: "#14264a" }),
 };
 
 function authoredAiClubKit(clubName: string): ClubKitState | null {
-  const seed = AUTHORED_AI_IDENTITIES[clubName];
+  const presentationName = clubPresentationName(clubName);
+  const seed = AUTHORED_AI_IDENTITIES[presentationName] ?? AUTHORED_AI_IDENTITIES[clubName];
   if (!seed) return null;
-  const base = defaultClubKit(clubName);
+  const base = defaultClubKit(presentationName);
   const home: KitDesign = {
     ...base.home,
     pattern: seed.homePattern ?? "plain",
@@ -328,7 +341,7 @@ function authoredAiClubKit(clubName: string): ClubKitState | null {
       secondary: seed.secondary,
       accent: seed.accent,
       emblemColour: seed.secondary,
-      initials: clubInitials(clubName),
+      initials: clubInitials(presentationName),
     },
     home,
     away,
@@ -402,7 +415,7 @@ function colour(value: unknown, fallback: string): string {
 
 /** Repairs anything malformed in a saved identity, field by field. */
 export function sanitizeClubKit(input: unknown, clubName: string): ClubKitState {
-  const fallback = defaultClubKit(clubName);
+  const fallback = defaultClubKit(presentationName);
   if (!input || typeof input !== "object") return fallback;
   const raw = input as Partial<Record<keyof ClubKitState, Record<string, unknown>>>;
   const b = raw.badge ?? {};
@@ -457,7 +470,8 @@ export function clubKitFor(state: Pick<GameState, "clubKit" | "clubName">): Club
 export function clubKitForReference(state: GameState, clubRef: string): ClubKitState {
   if (isUserClubReference(state, clubRef)) return clubKitFor(state);
   const displayName = clubDisplayName(state, clubRef);
-  return authoredAiClubKit(displayName) ?? defaultClubKit(displayName);
+  const presentationName = clubPresentationName(displayName);
+  return authoredAiClubKit(displayName) ?? defaultClubKit(presentationName);
 }
 
 export function setClubKit(state: GameState, kit: ClubKitState): GameState {
@@ -506,7 +520,7 @@ export function randomClubKit(clubName: string, random: () => number = Math.rand
       secondary: s,
       accent: contrast(accent, p) > 1.6 ? accent : readableOn(p),
       emblemColour: contrast(s, p) > 1.6 ? s : readableOn(p),
-      initials: clubInitials(clubName),
+      initials: clubInitials(presentationName),
       founded: String(1865 + Math.floor(random() * 70)),
     },
     home,
