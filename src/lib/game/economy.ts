@@ -96,7 +96,7 @@ const TIER_PROFILES: Record<number, LeagueEconomicProfile> = {
     staffCostFactor: 6.5,
     matchdayCostFactor: 5.5,
     infrastructureCostFactor: 5,
-    expectedWageRevenueRatio: 0.7,
+    expectedWageRevenueRatio: 0.65,
     transferMarketScale: 40,
     prize: {
       basePayment: 22_000_000,

@@ -1,6 +1,7 @@
 import type { GameState } from "./types";
 import { clubReputation } from "./reputation";
-import { userClubReference } from "./clubReference";
+import { userClubReference, isUserClubReference } from "./clubReference";
+import { clubFinancialWeeklyWageBudget } from "./clubFinanceProfile";
 import {
   footballLevelOfClub,
   footballLevelOfUser,
@@ -132,6 +133,9 @@ export function recruitmentSustainableWageBill(
   clubId: string,
   homeMatches = 23,
 ): number {
+  if (!isUserClubReference(state, clubId) && recruitmentLevelOfClub(state, clubId) === 1) {
+    return clubFinancialWeeklyWageBudget(state, clubId, 19);
+  }
   return sustainableWeeklyWageBillForLevel(
     recruitmentLevelOfClub(state, clubId),
     clubReputation(state, clubId),

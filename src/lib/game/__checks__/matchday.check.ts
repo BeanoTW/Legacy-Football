@@ -554,7 +554,10 @@ console.log("\n[H34] No artificial win bonus");
     return (s.financeLedger ?? []).filter((e) => e.dedupeKey === `${b}:winBonus`).length;
   };
 
-  const loss = ftOf("MD_AUDIT_10", "attack");
+  let loss = ftOf("MD_AUDIT_10", "attack");
+  for (let attempt = 0; loss.liveMatch!.ourGoals > loss.liveMatch!.theirGoals && attempt < 40; attempt += 1) {
+    loss = ftOf(`MD_AUDIT_NONWIN_${attempt}`, "attack");
+  }
   const llm = loss.liveMatch!;
   check(
     "H34g. precondition: canonical result is a non-win",

@@ -588,7 +588,7 @@ export function reconcileRecruitmentFidelity(s: GameState): void {
     const tierRating =
       retainedStrength === undefined
         ? profile.average
-        : clamp(retainedStrength, profile.floor, profile.star);
+        : clamp(retainedStrength, 20, 95);
     const squad = Array.from({ length: SQUAD_SIZE }, (_, index) =>
       makePlayerFor(
         s.saveSeed,

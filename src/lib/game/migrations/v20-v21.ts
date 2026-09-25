@@ -25,7 +25,11 @@ function refreshEconomy(state: GameState, player: FootballPlayer): void {
     ? isUserClubReference(state, player.currentClubId)
       ? footballLevelOfUser(state)
       : footballLevelOfClub(state, player.currentClubId)
-    : Math.max(...state.leagues.map(footballLevelOfLeague));
+    : state.leagues.reduce(
+        (deepest, league) =>
+          footballLevelOfLeague(league) > deepest ? footballLevelOfLeague(league) : deepest,
+        1 as import("../footballLevel").FootballLevel,
+      );
   const rep = player.currentClubId ? clubReputation(state, player.currentClubId) : 45;
   player.marketValue = recruitmentPlayerValue(
     player.currentAbility,
@@ -70,7 +74,10 @@ function recalibrateClub(state: GameState, clubRef: string, players: FootballPla
 
 function recalibrateFreeAgents(state: GameState, players: FootballPlayer[]): void {
   if (!players.length) return;
-  const deepest = Math.max(...state.leagues.map(footballLevelOfLeague));
+  const deepest = state.leagues.reduce(
+    (level, league) => footballLevelOfLeague(league) > level ? footballLevelOfLeague(league) : level,
+    1 as import("../footballLevel").FootballLevel,
+  );
   const band = overallBandForLevel(deepest);
   const ordered = [...players].sort(
     (a, b) => b.currentAbility - a.currentAbility || a.id.localeCompare(b.id),

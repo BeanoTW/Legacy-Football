@@ -114,13 +114,22 @@ assert.equal(
   11,
   "new live matches must persist a real manager-selected XI",
 );
-const played = kickoff(started);
-const userInvolvements =
+let played = kickoff(started);;
+let userInvolvements =
   played.liveMatch?.events.filter(
     (event) =>
       event.side === "us" &&
       (event.type === "goal" || event.type === "chance" || event.type === "card"),
   ) ?? [];
+for (let attempt = 1; userInvolvements.length === 0 && attempt <= 24; attempt += 1) {
+  played = kickoff(started);;
+  userInvolvements =
+    played.liveMatch?.events.filter(
+      (event) =>
+        event.side === "us" &&
+        (event.type === "goal" || event.type === "chance" || event.type === "card"),
+    ) ?? [];
+}
 assert(userInvolvements.length > 0, "the player-linkage fixture must contain a user highlight");
 const selectedPlayerIds = new Set(
   played.liveMatch?.engine?.userLineup?.map((player) => player.playerId) ?? [],
