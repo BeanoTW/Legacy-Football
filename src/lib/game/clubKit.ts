@@ -244,6 +244,10 @@ const AUTHORED_AI_IDENTITIES: Readonly<Record<string, AuthoredIdentitySeed>> = {
   "Preston North": authored("#ffffff", "#14264a", "shield", "plain", "star", "plain", { accent: "#14264a", shorts: "#14264a" }),
   "Queens Park United": authored("#1b4fb4", "#ffffff", "roundel", "hoops", "star", "hoops", { accent: "#c8102e", shorts: "#ffffff" }),
   "Sheffield City": authored("#1b4fb4", "#ffffff", "shield", "stripes", "star", "stripes", { shorts: "#16181b" }),
+  "Southampton City": authored("#c8102e", "#ffffff", "shield", "stripes", "star", "stripes", { accent: "#16181b", shorts: "#16181b" }),
+  "Watford City": authored("#fbe122", "#16181b", "shield", "plain", "star", "plain", { accent: "#c8102e", shorts: "#16181b", socks: "#fbe122" }),
+  "West Bromwich City": authored("#14264a", "#ffffff", "roundel", "stripes", "star", "stripes", { accent: "#ffffff", shorts: "#ffffff" }),
+  "Wrexhum AFC": authored("#c8102e", "#ffffff", "classic", "chief", "crown", "plain", { accent: "#ffffff", shorts: "#c8102e", socks: "#c8102e" }),
   "Stoke Town": authored("#c8102e", "#ffffff", "shield", "stripes", "star", "stripes", { shorts: "#ffffff" }),
   "Swansea Town": authored("#ffffff", "#16181b", "shield", "plain", "swallow", "plain", { accent: "#16181b", shorts: "#ffffff" }),
   "Westham United": authored("#7a1631", "#6cabdd", "shield", "plain", "hammers", "plain", { sleeves: "#6cabdd", shorts: "#ffffff" }),
@@ -270,6 +274,9 @@ const AUTHORED_AI_IDENTITIES: Readonly<Record<string, AuthoredIdentitySeed>> = {
   "AFC Wimbeldon": authored("#1b4fb4", "#f2b705", "shield", "plain", "star", "plain", { accent: "#f2b705", shorts: "#1b4fb4" }),
   "Leyton Orion": authored("#c8102e", "#ffffff", "shield", "plain", "star", "plain", { shorts: "#c8102e" }),
   "Sheffield Wednsday": authored("#1b4fb4", "#ffffff", "shield", "stripes", "star", "stripes", { shorts: "#16181b" }),
+  "Mansfield City": authored("#fbe122", "#1b4fb4", "shield", "plain", "star", "plain", { accent: "#1b4fb4", shorts: "#1b4fb4" }),
+  "Plymouth United": authored("#138a3e", "#16181b", "shield", "plain", "star", "plain", { accent: "#ffffff", shorts: "#16181b", socks: "#138a3e" }),
+  "Stockport City": authored("#1b4fb4", "#ffffff", "shield", "stripes", "star", "stripes", { shorts: "#1b4fb4" }),
 
   // League Two / lower EFL set.
   "Chesterfield City": authored("#1b4fb4", "#ffffff", "shield", "plain", "star", "plain", { shorts: "#ffffff" }),
@@ -292,6 +299,14 @@ const AUTHORED_AI_IDENTITIES: Readonly<Record<string, AuthoredIdentitySeed>> = {
   "Morecambe City": authored("#c8102e", "#ffffff", "shield", "plain", "star", "plain", { shorts: "#c8102e" }),
   "Port Vale City": authored("#ffffff", "#16181b", "shield", "plain", "star", "plain", { accent: "#f2b705", shorts: "#16181b" }),
   "Rotherham City": authored("#c8102e", "#ffffff", "shield", "plain", "star", "plain", { shorts: "#ffffff" }),
+  "Barnet United": authored("#f06a0f", "#16181b", "shield", "plain", "star", "plain", { accent: "#ffffff", shorts: "#16181b" }),
+  "Bristol Rovers": authored("#1b4fb4", "#ffffff", "shield", "quarterly", "star", "quarters", { accent: "#16181b", shorts: "#ffffff" }),
+  "Exeter City": authored("#c8102e", "#ffffff", "shield", "stripes", "star", "stripes", { shorts: "#16181b" }),
+  "Northampton City": authored("#7a1631", "#ffffff", "shield", "plain", "star", "plain", { shorts: "#ffffff" }),
+  "Oldham City": authored("#1b4fb4", "#ffffff", "shield", "plain", "star", "plain", { accent: "#c8102e", shorts: "#ffffff" }),
+  "Rochdale Town": authored("#1b4fb4", "#16181b", "shield", "stripes", "star", "stripes", { accent: "#ffffff", shorts: "#16181b" }),
+  "Shrewsbury City": authored("#1b4fb4", "#f2b705", "shield", "stripes", "star", "stripes", { accent: "#f2b705", shorts: "#1b4fb4" }),
+  "York United": authored("#c8102e", "#14264a", "shield", "plain", "star", "plain", { accent: "#ffffff", shorts: "#14264a" }),
 
   // Authored living-world identities outside the legacy presentation aliases.
   "Manchester Devils": authored("#c8102e", "#ffffff", "shield", "chief", "star", "plain", { accent: "#16181b", shorts: "#ffffff", socks: "#16181b" }),
