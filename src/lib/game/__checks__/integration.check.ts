@@ -255,8 +255,15 @@ console.log("\n[I8] Season rollover is an atomic, once-only transaction");
     })(),
   );
   check(
-    "prize money awarded exactly once",
-    s.financeLedger.filter((e) => /prize/i.test(e.description ?? "")).length <= 1,
+    "league prize money awarded exactly once",
+    (() => {
+      const leaguePrizeEntries = s.financeLedger.filter(
+        (entry) => entry.dedupeKey === `prize:s1:${hist1.find((history) =>
+          history.finalTable.some((row) => isUserClubReference(s, row.team)),
+        )?.leagueId}`,
+      );
+      return leaguePrizeEntries.length === 1;
+    })(),
   );
 }
 

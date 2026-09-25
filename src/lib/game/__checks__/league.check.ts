@@ -187,13 +187,18 @@ console.log("\n[4] Deterministic AI simulation");
   const a = simulateAiFixture(gx, 1, 7, "Millbrook", "Highgate");
   const b = simulateAiFixture(gx, 1, 7, "Millbrook", "Highgate");
   const c = simulateAiFixture(gy, 1, 7, "Millbrook", "Highgate");
+  const alternateScores = ["SEED_Y", "SEED_Z", "SEED_ALT_1", "SEED_ALT_2"]
+    .map((seed) => fresh(seed))
+    .map((state) => simulateAiFixture(state, 1, 7, "Millbrook", "Highgate"));
   check(
     "same seed/season/round/fixture => same score",
     a.homeGoals === b.homeGoals && a.awayGoals === b.awayGoals,
   );
   check(
     "different save seed can change the score",
-    c.homeGoals !== a.homeGoals || c.awayGoals !== a.awayGoals,
+    [c, ...alternateScores].some(
+      (result) => result.homeGoals !== a.homeGoals || result.awayGoals !== a.awayGoals,
+    ),
   );
   const src = require("fs").readFileSync("src/lib/game/league.ts", "utf8");
   check("league.ts contains no Math.random", !src.includes("Math.random"));

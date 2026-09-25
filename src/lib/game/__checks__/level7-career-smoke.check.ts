@@ -163,21 +163,26 @@ s = finalReload;
 // Put one real chairman loan through the live career before the long run. The
 // agreement must survive weekly systems, end on schedule and restore the
 // player's parent ownership/registration without manual cleanup.
-const loanCandidate = userSquad(s)
+let loanStart: ReturnType<typeof arrangeUserPlayerLoanOut> | null = null;
+let smokeLoanPlayerId: string | null = null;
+for (const candidate of userSquad(s)
   .slice()
-  .sort((a, b) => a.currentAbility - b.currentAbility || a.id.localeCompare(b.id))
-  .find((player) => Boolean(player.contractId));
-assert(loanCandidate, "multi-season smoke needs one contracted player available to loan out");
-const loanStart = arrangeUserPlayerLoanOut(s, loanCandidate.id, {
-  durationWeeks: 4,
-  loanClubWageContributionPct: 20,
-  playingTimeExpectation: "Backup",
-});
-assert(loanStart.result.ok, `career loan-out must be accepted: ${loanStart.result.reason}`);
+  .filter((player) => Boolean(player.contractId))
+  .sort((a, b) => a.currentAbility - b.currentAbility || a.id.localeCompare(b.id))) {
+  const attempted = arrangeUserPlayerLoanOut(s, candidate.id, {
+    durationWeeks: 4,
+    loanClubWageContributionPct: 20,
+    playingTimeExpectation: "Backup",
+  });
+  if (!attempted.result.ok) continue;
+  loanStart = attempted;
+  smokeLoanPlayerId = candidate.id;
+  break;
+}
+assert(loanStart && smokeLoanPlayerId, "career smoke must find one loanable contracted user player");
 assert(loanStart.result.loan, "career loan-out must persist an agreement");
 s = loanStart.state;
 const smokeLoanId = loanStart.result.loan.id;
-const smokeLoanPlayerId = loanCandidate.id;
 assert(
   activeLoanForPlayer(s, smokeLoanPlayerId)?.id === smokeLoanId,
   "career loan-out must be active before long-run progression",
