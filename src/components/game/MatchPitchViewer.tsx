@@ -998,3 +998,200 @@ export function MatchPitchViewer({
   const passLabel =
     activeAction?.targetPlayerName && activeAction.playerName && PASS_KINDS.has(activeAction.kind)
       ? `${playerSurname(activeAction.playerName)} → ${playerSurname(activeAction.targetPlayerName)}`
+: null;
+  const actionCommentary =
+    activeAction?.commentary ??
+    (view.inBridge && bridge
+      ? bridge.text
+      : (plan.active.text ?? "The match settles into shape."));
+  const contextCommentary = view.inBridge && bridge && activeAction ? bridge.text : null;
+  const showResultBadge =
+    activeAction && ["save", "block", "miss"].includes(activeAction.kind) && view.badge;
+  const showGoal = activeAction?.kind === "goal" && view.badge;
+  const atLiveEdge = timeline.position >= timeline.frontier - 0.02;
+
+  return (
+    <div
+      className={cn(
+        "flex min-h-0 flex-col bg-[#07130f] text-white",
+        expanded ? "h-full flex-1 p-3 sm:p-4" : "border-b p-2.5 sm:p-3",
+      )}
+    >
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="min-w-0 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-300">
+          Live match simulation
+          {renderSequence && <span className="ml-2 text-white/45">· {renderSequence.styleLabel}</span>}
+        </div>
+        <div className="flex items-center gap-2 text-xs font-semibold tnum">
+          <span className="max-w-24 truncate">{usName}</span>
+          <strong className="rounded bg-black/25 px-2 py-0.5 font-display text-base">
+            {replayScore.us}–{replayScore.them}
+          </strong>
+          <span className="max-w-24 truncate text-white/65">{themName}</span>
+        </div>
+      </div>
+
+      <div
+        ref={engine.pitchRef}
+        className={cn(
+          "relative w-full overflow-hidden rounded-2xl border border-white/25 bg-[linear-gradient(90deg,#17764f_0%,#17764f_12.5%,#1b8056_12.5%,#1b8056_25%,#17764f_25%,#17764f_37.5%,#1b8056_37.5%,#1b8056_50%,#17764f_50%,#17764f_62.5%,#1b8056_62.5%,#1b8056_75%,#17764f_75%,#17764f_87.5%,#1b8056_87.5%,#1b8056_100%)] shadow-inner",
+          expanded ? "aspect-[1.58/1] max-h-[calc(100dvh-17rem)] flex-1" : "aspect-[1.62/1] max-h-52",
+        )}
+      >
+        <PitchMarkings />
+
+        {renderSide(engine, activeUserLineup, "us", activeAction, expanded, userColours)}
+        {renderSide(engine, activeOpponentLineup, "them", activeAction, expanded, opponentColours)}
+
+        <div
+          ref={engine.refFor("ball")}
+          className="pointer-events-none absolute left-0 top-0 z-40 will-change-transform"
+          style={HIDDEN_STYLE}
+        >
+          {showGoal && (
+            <span className="absolute left-0 top-0 -translate-x-1/2 -translate-y-1/2">
+              <span className="block size-10 animate-ping rounded-full border-2 border-amber-300" />
+            </span>
+          )}
+          <span
+            className={cn(
+              "relative block -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-black/50 bg-white shadow-[0_0_0_3px_rgba(255,255,255,.18),0_1px_9px_rgba(0,0,0,.9)]",
+              expanded ? "size-3.5" : "size-3",
+            )}
+          />
+        </div>
+
+        {passLabel && (
+          <div className="absolute left-1/2 top-3 z-30 -translate-x-1/2 rounded-full border border-white/15 bg-black/60 px-3 py-1 text-[10px] font-bold text-white/85 shadow-sm backdrop-blur-sm">
+            {passLabel}
+          </div>
+        )}
+
+        {showGoal && (
+          <div className="absolute left-1/2 top-3 z-40 -translate-x-1/2 rounded-full border border-amber-200/50 bg-amber-300 px-4 py-1.5 font-display text-lg text-amber-950 shadow-lg">
+            GOAL
+          </div>
+        )}
+        {showResultBadge && (
+          <div className="absolute left-1/2 top-3 z-40 -translate-x-1/2 rounded-full border border-white/20 bg-black/70 px-3 py-1 font-display text-sm uppercase tracking-wide text-white shadow-lg">
+            {activeAction.kind === "save" ? "SAVED" : activeAction.kind === "block" ? "BLOCKED" : "MISSED"}
+          </div>
+        )}
+
+        <div className="absolute bottom-2 left-2 rounded bg-black/45 px-2 py-1 text-[10px] font-bold tnum backdrop-blur-sm">
+          {view.minute}'
+        </div>
+        <div className="absolute bottom-2 right-2 rounded bg-black/45 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-white/75 backdrop-blur-sm">
+          {view.inBridge ? "Match flow" : actionStage(activeAction, plan.active)}
+        </div>
+      </div>
+
+      <div className="mt-2 rounded-xl border border-white/10 bg-black/15 px-2.5 py-2">
+        <div className="mb-1.5 flex items-center justify-between gap-2 text-[9px] font-bold uppercase tracking-wide text-white/45">
+          <span>Played match history</span>
+          <span>
+            {playing && atLiveEdge
+              ? `LIVE · ${view.minute}'`
+              : `PAUSED · ${view.minute}' · played to ${Math.round(timeline.playedTo)}'`}
+          </span>
+        </div>
+        <div className="mb-1 flex items-center justify-between px-0.5 text-[9px] text-white/35">
+          <span>0'</span>
+          <span>Drag left to replay · rewinding pauses the match</span>
+          <span>{Math.round(timeline.playedTo)}'</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="grid size-9 shrink-0 place-items-center rounded-lg bg-white/10 hover:bg-white/20"
+            onClick={() => engine.seek(0, 0, { snap: true, play: false })}
+            aria-label="Rewind to the start and pause"
+          >
+            <RotateCcw className="size-4" />
+          </button>
+          <button
+            type="button"
+            className="grid size-9 shrink-0 place-items-center rounded-lg bg-emerald-400 text-[#07130f] hover:bg-emerald-300"
+            onClick={() => engine.togglePlaying()}
+            aria-label={playing ? "Pause match" : "Play match"}
+          >
+            {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
+          </button>
+          <input
+            className="h-1.5 min-w-0 flex-1 cursor-pointer accent-emerald-400"
+            type="range"
+            min={0}
+            max={Math.max(0.001, timeline.frontier)}
+            step={0.01}
+            value={Math.min(timeline.position, Math.max(0.001, timeline.frontier))}
+            onChange={(event) => {
+              const frontier = playback.current.frontier;
+              const requested = Math.min(Number(event.target.value), frontier);
+              const bounded = Math.max(0, Math.min(requested, events.length));
+              const nextCursor = Math.min(
+                events.length - 1,
+                Math.floor(Math.min(bounded, Math.max(0, events.length - 0.000001))),
+              );
+              const nextProgress =
+                bounded >= events.length ? 1 : Math.max(0, Math.min(1, bounded - nextCursor));
+              engine.seek(nextCursor, nextProgress, { snap: true, play: false });
+            }}
+            aria-label="Rewind through the portion of the match already played"
+          />
+          <div className="flex shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white/5">
+            {PLAYBACK_SPEEDS.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => engine.setSpeed(option)}
+                className={cn(
+                  "min-w-8 px-1.5 py-2 text-[9px] font-bold",
+                  speed === option ? "bg-white text-[#07130f]" : "text-white/65 hover:bg-white/10",
+                )}
+                aria-label={`Playback speed ${option} times`}
+              >
+                {option}×
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="grid size-9 shrink-0 place-items-center rounded-lg bg-white/10 hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30"
+            disabled={timeline.position >= timeline.frontier - 0.01}
+            onClick={() => {
+              const frontier = playback.current.frontier;
+              const nextCursor = Math.min(
+                events.length - 1,
+                Math.floor(Math.min(frontier, Math.max(0, events.length - 0.000001))),
+              );
+              const nextProgress =
+                frontier >= events.length ? 1 : Math.max(0, Math.min(1, frontier - nextCursor));
+              engine.seek(nextCursor, nextProgress, { snap: false, play: true });
+            }}
+            aria-label="Return to the latest played moment and resume"
+          >
+            <span className="px-1 text-[9px] font-black uppercase tracking-wide">Live</span>
+          </button>
+        </div>
+      </div>
+
+      <div
+        className={cn(
+          "mt-2 min-h-12 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs leading-snug",
+          activeAction?.kind === "goal" && "border-amber-300/40 bg-amber-300/10",
+        )}
+        aria-live="polite"
+      >
+        <div className="flex items-start gap-2">
+          <span className="shrink-0 font-bold text-emerald-300 tnum">{view.minute}'</span>
+          <div className="min-w-0">
+            <div>{actionCommentary}</div>
+            {contextCommentary && contextCommentary !== actionCommentary && (
+              <div className="mt-0.5 text-[10px] leading-snug text-white/45">{contextCommentary}</div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
