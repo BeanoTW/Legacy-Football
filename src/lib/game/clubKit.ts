@@ -1,4 +1,5 @@
 import type { GameState } from "./types";
+import { clubDisplayName, isUserClubReference } from "./clubReference";
 
 /*
  * Club identity: badge and kits.
@@ -162,6 +163,178 @@ const PAIRINGS: ReadonlyArray<[string, string]> = [
   ["#6cabdd", "#14264a"],
 ];
 
+type AuthoredIdentitySeed = {
+  primary: string;
+  secondary: string;
+  accent: string;
+  shape: BadgeShape;
+  division: BadgeDivision;
+  emblem: BadgeEmblem;
+  homePattern?: KitPattern;
+  sleeves?: string;
+  shorts?: string;
+  socks?: string;
+  awayBody?: string;
+  awaySecondary?: string;
+};
+
+/**
+ * Research-backed visual direction for the deliberately recognisable analogue
+ * clubs. These are not copies of real crests: only broad football colour
+ * traditions and badge families are carried across into the original builder.
+ * Every other AI club still receives a stable identity from defaultClubKit().
+ */
+const AUTHORED_AI_IDENTITIES: Readonly<Record<string, AuthoredIdentitySeed>> = {
+  "Manchester Devils": {
+    primary: "#c8102e",
+    secondary: "#ffffff",
+    accent: "#16181b",
+    shape: "shield",
+    division: "chief",
+    emblem: "star",
+    homePattern: "plain",
+    shorts: "#ffffff",
+    socks: "#16181b",
+    awayBody: "#ffffff",
+    awaySecondary: "#16181b",
+  },
+  "Manchester Sky": {
+    primary: "#6cabdd",
+    secondary: "#ffffff",
+    accent: "#14264a",
+    shape: "roundel",
+    division: "plain",
+    emblem: "castle",
+    homePattern: "plain",
+    shorts: "#ffffff",
+    socks: "#6cabdd",
+    awayBody: "#14264a",
+    awaySecondary: "#6cabdd",
+  },
+  "Mersey Reds": {
+    primary: "#c8102e",
+    secondary: "#ffffff",
+    accent: "#f2c14e",
+    shape: "classic",
+    division: "plain",
+    emblem: "swallow",
+    homePattern: "plain",
+    shorts: "#c8102e",
+    socks: "#c8102e",
+    awayBody: "#ffffff",
+    awaySecondary: "#0e4a2c",
+  },
+  "Highbury Cannons": {
+    primary: "#c8102e",
+    secondary: "#ffffff",
+    accent: "#f2c14e",
+    shape: "shield",
+    division: "plain",
+    emblem: "star",
+    homePattern: "plain",
+    sleeves: "#ffffff",
+    shorts: "#ffffff",
+    socks: "#c8102e",
+    awayBody: "#f2b705",
+    awaySecondary: "#14264a",
+  },
+  "Madrid Imperial": {
+    primary: "#ffffff",
+    secondary: "#14264a",
+    accent: "#f2c14e",
+    shape: "roundel",
+    division: "plain",
+    emblem: "crown",
+    homePattern: "plain",
+    shorts: "#ffffff",
+    socks: "#ffffff",
+    awayBody: "#14264a",
+    awaySecondary: "#ffffff",
+  },
+  "Catalonia FC": {
+    primary: "#7a1631",
+    secondary: "#1b4fb4",
+    accent: "#f2c14e",
+    shape: "shield",
+    division: "stripes",
+    emblem: "ball",
+    homePattern: "stripes",
+    shorts: "#14264a",
+    socks: "#14264a",
+    awayBody: "#f2b705",
+    awaySecondary: "#7a1631",
+  },
+  "Munich Adler": {
+    primary: "#c8102e",
+    secondary: "#ffffff",
+    accent: "#14264a",
+    shape: "round",
+    division: "hoops",
+    emblem: "star",
+    homePattern: "plain",
+    shorts: "#c8102e",
+    socks: "#c8102e",
+    awayBody: "#ffffff",
+    awaySecondary: "#c8102e",
+  },
+  "Paris Étoile": {
+    primary: "#14264a",
+    secondary: "#c8102e",
+    accent: "#ffffff",
+    shape: "roundel",
+    division: "chief",
+    emblem: "star",
+    homePattern: "band",
+    shorts: "#14264a",
+    socks: "#14264a",
+    awayBody: "#ffffff",
+    awaySecondary: "#c8102e",
+  },
+};
+
+function authoredAiClubKit(clubName: string): ClubKitState | null {
+  const seed = AUTHORED_AI_IDENTITIES[clubName];
+  if (!seed) return null;
+  const base = defaultClubKit(clubName);
+  const home: KitDesign = {
+    ...base.home,
+    pattern: seed.homePattern ?? "plain",
+    body: seed.primary,
+    secondary: seed.secondary,
+    sleeves: seed.sleeves ?? seed.primary,
+    trim: seed.secondary,
+    shorts: seed.shorts ?? seed.secondary,
+    socks: seed.socks ?? seed.primary,
+    sponsor: "",
+  };
+  const awayBase = defaultAwayKit(home.body, home.secondary);
+  const away: KitDesign = {
+    ...awayBase,
+    body: seed.awayBody ?? awayBase.body,
+    secondary: seed.awaySecondary ?? awayBase.secondary,
+    sleeves: seed.awayBody ?? awayBase.body,
+    trim: seed.awaySecondary ?? awayBase.secondary,
+    shorts: seed.awayBody ?? awayBase.body,
+    socks: seed.awayBody ?? awayBase.body,
+  };
+  return {
+    badge: {
+      ...base.badge,
+      shape: seed.shape,
+      division: seed.division,
+      emblem: seed.emblem,
+      lettering: seed.shape === "roundel" || seed.shape === "round" ? "ring" : "initials",
+      primary: seed.primary,
+      secondary: seed.secondary,
+      accent: seed.accent,
+      emblemColour: seed.secondary,
+      initials: clubInitials(clubName),
+    },
+    home,
+    away,
+  };
+}
+
 /** A tasteful default so every club has an identity before it is customised. */
 export function defaultClubKit(clubName: string): ClubKitState {
   const hash = hashName(clubName);
@@ -274,6 +447,17 @@ export function cleanSponsor(value: string): string {
 /** The identity to display: the saved design, or the club's default. */
 export function clubKitFor(state: Pick<GameState, "clubKit" | "clubName">): ClubKitState {
   return state.clubKit ? sanitizeClubKit(state.clubKit, state.clubName) : defaultClubKit(state.clubName);
+}
+
+/**
+ * Identity for any club reference in the world. The user's saved design wins;
+ * AI clubs use an authored analogue seed when one exists, otherwise the stable
+ * name-derived builder identity. No identity data is persisted for AI clubs.
+ */
+export function clubKitForReference(state: GameState, clubRef: string): ClubKitState {
+  if (isUserClubReference(state, clubRef)) return clubKitFor(state);
+  const displayName = clubDisplayName(state, clubRef);
+  return authoredAiClubKit(displayName) ?? defaultClubKit(displayName);
 }
 
 export function setClubKit(state: GameState, kit: ClubKitState): GameState {

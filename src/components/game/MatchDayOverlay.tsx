@@ -30,7 +30,7 @@ import { medicalSupport } from "@/lib/game/playerHealth";
 import { userSelectionStrengthPenalty } from "@/lib/game/matchStrength";
 import { inFormPlayers } from "@/lib/game/playerForm";
 import { userSquad } from "@/lib/game/recruitment";
-import { clubKitFor, defaultClubKit, readableOn, type KitDesign } from "@/lib/game/clubKit";
+import { clubKitFor, clubKitForReference, readableOn, type KitDesign } from "@/lib/game/clubKit";
 import { ClubBadge, ClubShirt } from "./ClubKitArt";
 
 const MATCH_CSS = `
@@ -96,9 +96,9 @@ export function MatchDayOverlay({
   const homeName = home ? usName : themName;
   const awayName = home ? themName : usName;
 
-  // Identities: our saved badge and kits, the opposition's derived defaults.
+  // Identities: the user's saved design plus the opposition's stable world identity.
   const ours = clubKitFor(state);
-  const theirs = useMemo(() => defaultClubKit(themName), [themName]);
+  const theirs = useMemo(() => clubKitForReference(state, lm.fixture.opponent), [state, lm.fixture.opponent]);
   const kits = home ? matchKits(ours.home, theirs.home, theirs.away) : matchKits(theirs.home, ours.home, ours.away);
   const ourKit = home ? kits.home : kits.away;
   const theirKit = home ? kits.away : kits.home;
