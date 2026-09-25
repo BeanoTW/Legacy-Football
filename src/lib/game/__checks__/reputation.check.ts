@@ -329,7 +329,8 @@ console.log("\n[R6] Predictions are deterministic and complete");
     );
     check(
       `${p.leagueId}: ranks are 1..n with no gaps`,
-      p.clubs.every((c, i) => c.rank === i + 1) && p.clubs.length === 20,
+      p.clubs.every((c, i) => c.rank === i + 1) &&
+        p.clubs.length === a.leagues.find((league) => league.id === p.leagueId)?.clubIds.length,
     );
   }
   const t2 = pa.find((p) => p.leagueId === DIVISION_TWO)!;
@@ -466,14 +467,17 @@ console.log("\n[R10] League browser data layer");
 {
   const g = fresh("REP_SEED_10");
   for (const lid of [DIVISION_ONE, DIVISION_TWO]) {
+    const league = g.leagues.find((candidate) => candidate.id === lid)!;
+    const expectedClubs = league.clubIds.length;
+    const expectedFixtures = expectedClubs * (expectedClubs - 1);
     const t = tableFor(g, lid);
-    check(`${lid}: table has 20 rows`, t.length === 20);
+    check(`${lid}: table has ${expectedClubs} rows`, t.length === expectedClubs);
     check(
       `${lid}: reads live state (all zeroed pre-season)`,
       t.every((r) => r.p === 0),
     );
     const fx = leagueFixtures(g, lid);
-    check(`${lid}: 380 fixtures listed`, fx.length === 380);
+    check(`${lid}: full fixture list exposed`, fx.length === expectedFixtures);
     check(
       `${lid}: nothing played yet`,
       fx.every((f) => !f.record),
@@ -485,11 +489,15 @@ console.log("\n[R10] League browser data layer");
   }
   const s2 = playSeason(g);
   for (const lid of [DIVISION_ONE, DIVISION_TWO]) {
+    const league = g.leagues.find((candidate) => candidate.id === lid)!;
+    const expectedClubs = league.clubIds.length;
+    const expectedFixtures = expectedClubs * (expectedClubs - 1);
+    const expectedPlayedTotal = expectedFixtures * 2;
     const played = leagueFixtures(s2, lid, 1).filter((f) => f.record);
-    check(`${lid}: season 1 fully played in the browser view`, played.length === 380);
+    check(`${lid}: season 1 fully played in the browser view`, played.length === expectedFixtures);
     const hist = historicalTable(s2, 1, lid)!;
-    check(`${lid}: historical final table available`, !!hist && hist.length === 20);
-    check(`${lid}: history matches the played fixtures`, hist.reduce((a, r) => a + r.p, 0) === 760);
+    check(`${lid}: historical final table available`, !!hist && hist.length === expectedClubs);
+    check(`${lid}: history matches the played fixtures`, hist.reduce((a, r) => a + r.p, 0) === expectedPlayedTotal);
     check(
       `${lid}: history is sorted by points`,
       hist.every((r, i) => i === 0 || hist[i - 1].pts >= r.pts),
