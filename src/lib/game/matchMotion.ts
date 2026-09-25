@@ -113,12 +113,11 @@ function shapeTarget(
     return { x: goalX + followX, y: clamp(50 + (ball.y - 50) * 0.18, 42, 58) };
   }
 
-  const plan = side.plan;
   if (inPossession) {
-    const directness = plan?.directness ?? "Medium";
+    const directness = side.plan?.directness ?? "Medium";
     const push = directness === "High" ? 5 : directness === "Low" ? 7 : 6;
     const fullBackPush = FULL_BACKS.has(player.role)
-      ? plan?.philosophy === "Possession" || directness === "Low"
+      ? side.plan?.philosophy === "Possession" || directness === "Low"
         ? 12
         : 8
       : 0;
@@ -130,8 +129,9 @@ function shapeTarget(
     };
   }
 
-  const pressing = plan?.pressing ?? "Medium";
-  const drop = pressing === "High" ? 1 : pressing === "Low" ? 7 : 4;
+  const pressing = side.plan?.pressing ?? "Medium";
+  const tempo = side.plan?.tempo ?? "Medium";
+  const drop = pressing === "High" ? 1 : pressing === "Low" ? 7 : tempo === "High" ? 3 : 4;
   // Out of possession the block compacts to roughly 35 m around the ball.
   const blockX = base.x * 0.35 + (ball.x + (base.x - 50) * 0.6) * 0.65;
   const target = {
@@ -169,15 +169,17 @@ function offBallTarget(
 
   if (!inPossession && markTarget) {
     // Stay goal-side of the attacker in this zone, a few metres off him.
+    const defensiveRole = BACK_LINE.has(player.role);
+    const dangerous = ["throughBall", "overlap", "cutback", "cross", "shot"].includes(action.kind);
+    const retreat = defensiveRole && dangerous ? 1.35 : 1;
     const goal = { x: ownGoalX(side.ours), y: 50 };
     const towardsGoal = { x: goal.x - markTarget.x, y: goal.y - markTarget.y };
     const length = Math.hypot(towardsGoal.x, towardsGoal.y) || 1;
     const mark = {
-      x: markTarget.x + (towardsGoal.x / length) * 3,
-      y: markTarget.y + (towardsGoal.y / length) * 3,
+      x: markTarget.x + (towardsGoal.x / length) * 3 * retreat,
+      y: markTarget.y + (towardsGoal.y / length) * 3 * retreat,
     };
-    const danger = ["throughBall", "overlap", "cutback", "cross", "shot"].includes(action.kind);
-    const weight = danger ? 0.75 : 0.5;
+    const weight = dangerous ? 0.75 : 0.5;
     desired = {
       x: shape.x + (mark.x - shape.x) * weight,
       y: shape.y + (mark.y - shape.y) * weight,
@@ -332,7 +334,8 @@ function sideTargets(
     }
 
     if (player.role === "GK" && !inPossession && action.kind === "shot") {
-      next.set(id, { x: side.ours ? 5.5 : 94.5, y: clamp(action.end.y, 40, 60) });
+      const keeperX = side.ours ? 5.5 : 94.5;
+      next.set(id, { x: keeperX, y: clamp(action.end.y, 40, 60) });
       continue;
     }
 
@@ -464,7 +467,7 @@ export function motionFrameForSequence({
     sequence.actions[boundedIndex + 1],
   );
 
-  const blend = (side: MatchMotionSide, from: MatchPositionMap, to: MatchPositionMap) => {
+  const sideFrame = (side: MatchMotionSide, from: MatchPositionMap, to: MatchPositionMap) => {
     const frame = new Map<string, MatchPitchPoint>();
     for (const player of side.lineup) {
       const a = from.get(player.playerId) ?? fallbackBase(side, player);
@@ -475,7 +478,7 @@ export function motionFrameForSequence({
   };
 
   return {
-    user: blend(user, start.user, end.user),
-    opponent: blend(opponent, start.opponent, end.opponent),
+    user: sideFrame(user, start.user, end.user),
+    opponent: sideFrame(opponent, start.opponent, end.opponent),
   };
 }

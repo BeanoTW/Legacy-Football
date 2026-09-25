@@ -368,7 +368,7 @@ const FORWARD_ROLES = new Set<TacticalPosition>(["ST", "LW", "RW", "CAM", "LM", 
 const DEEP_ROLES = new Set<TacticalPosition>(["GK", "CB"]);
 
 /** Neutral formation depth (0 = own goal line, 100 = opponent's). */
-const NEUTRAL_DEPTH: Record<TacticalPosition, number> = {
+const ROLE_DEPTH: Record<TacticalPosition, number> = {
   GK: 6,
   CB: 22,
   LB: 26,
@@ -393,6 +393,26 @@ const CENTRAL_SPREAD: Partial<Record<TacticalPosition, [number, number]>> = {
   ST: [40, 60],
 };
 
+function roleLane(role: TacticalPosition, occurrence = 0, count = 1): number {
+  if (LEFT_ROLES.has(role)) return role === "LW" ? 17 : 15;
+  if (RIGHT_ROLES.has(role)) return role === "RW" ? 83 : 85;
+  if (role !== "GK" && count > 1) {
+    const [low, high] = CENTRAL_SPREAD[role] ?? [38, 62];
+    return low + ((high - low) * occurrence) / (count - 1);
+  }
+  return 50;
+}
+
+function rolePitchPoint(
+  role: TacticalPosition,
+  side: Side,
+  occurrence = 0,
+  count = 1,
+): MatchPitchPoint {
+  const depth = ROLE_DEPTH[role];
+  return { x: side === "us" ? depth : 100 - depth, y: roleLane(role, occurrence, count) };
+}
+
 function baseShape(lineup: MatchLineupPlayer[], side: Side): Map<string, MatchPitchPoint> {
   const totals = new Map<TacticalPosition, number>();
   for (const player of lineup) totals.set(player.role, (totals.get(player.role) ?? 0) + 1);
@@ -403,15 +423,7 @@ function baseShape(lineup: MatchLineupPlayer[], side: Side): Map<string, MatchPi
     const occurrence = seen.get(player.role) ?? 0;
     seen.set(player.role, occurrence + 1);
     const count = totals.get(player.role) ?? 1;
-    let y = 50;
-    if (LEFT_ROLES.has(player.role)) y = player.role === "LW" ? 17 : 15;
-    else if (RIGHT_ROLES.has(player.role)) y = player.role === "RW" ? 83 : 85;
-    else if (player.role !== "GK" && count > 1) {
-      const [low, high] = CENTRAL_SPREAD[player.role] ?? [38, 62];
-      y = low + ((high - low) * occurrence) / (count - 1);
-    }
-    const depth = NEUTRAL_DEPTH[player.role];
-    result.set(player.playerId, { x: side === "us" ? depth : 100 - depth, y });
+    result.set(player.playerId, rolePitchPoint(player.role, side, occurrence, count));
   }
   return result;
 }
@@ -635,13 +647,13 @@ class Possession {
   }
 
   /** The nearest defender closes the ball down without winning it. */
-  press(): MatchLineupPlayer | undefined {
+  press(event: MatchEvent): MatchLineupPlayer | undefined {
     const presser = this.nearestDefender(this.ball);
     if (!presser) return undefined;
     this.push({
       kind: "press",
       side: otherSide(this.cfg.side),
-      possessionSide: this.cfg.side,
+      possessionSide: event.side,
       playerId: presser.playerId,
       playerName: presser.name,
       targetPlayerId: this.holder.playerId,
@@ -869,6 +881,32 @@ class Possession {
   }
 }
 
+function touchPoints(
+  event: MatchEvent,
+  participants: MatchLineupPlayer[],
+  pattern: MatchSequencePattern,
+): Map<string, MatchPitchPoint> {
+  const side: Side = event.side === "them" ? "them" : "us";
+  const dir = side === "us" ? 1 : -1;
+  const points = new Map<string, MatchPitchPoint>();
+  participants.forEach((player, index) => {
+    const base = rolePitchPoint(player.role, side, index, participants.length);
+    const phasePush =
+      pattern === "highPress" || pattern === "counter"
+        ? 18
+        : pattern === "direct"
+          ? 12
+          : pattern === "setPiece"
+            ? 24
+            : 8;
+    points.set(player.playerId, {
+      x: clamp(base.x + dir * phasePush, 6, 94),
+      y: base.y,
+    });
+  });
+  return points;
+}
+
 function nameOrFallback(lineup: MatchLineupPlayer[], id: string | undefined): MatchLineupPlayer | undefined {
   return id ? lineup.find((player) => player.playerId === id) : undefined;
 }
@@ -930,7 +968,10 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
     counter,
   };
 
+  const participants = [scorer, ...(creator ? [creator] : [])];
+  const canonicalTouches = touchPoints(event, participants, pattern);
   const spot = shootingSpot(scorer.role, event, dir);
+  canonicalTouches.set(scorer.playerId, spot);
   let possession: Possession;
 
   if (pattern === "setPiece") {
@@ -981,7 +1022,7 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
       regain ? 0.55 : 0.45,
     );
 
-    if (shouldShowPressure(event, defendingPlan)) possession.press();
+    if (shouldShowPressure(event, defendingPlan)) possession.press(event);
 
     // How many passes the move takes before the final ball.
     const passRange: Record<MatchSequencePattern, [number, number]> = {
@@ -1137,6 +1178,7 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
     action(sequenceId, counter.next++, {
       kind: "shot",
       side,
+      possessionSide: event.side,
       playerId: scorer.playerId,
       playerName: scorer.name,
       start: shotStart,
@@ -1181,15 +1223,12 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
     );
   }
 
-  // The canonical creator always takes part, even if the move found another route.
-  const participantIds = [
-    ...new Set(
-      [
-        ...actions.flatMap((item) => [item.playerId, item.targetPlayerId]),
-        creator?.playerId,
-      ].filter(Boolean) as string[],
-    ),
-  ];
+  // Preserve first-touch order for stable replay identity while ensuring canonical participants remain present.
+  const participantOrder = [
+    ...actions.flatMap((item) => [item.playerId, item.targetPlayerId]),
+    creator?.playerId,
+  ].filter(Boolean) as string[];
+  const participantIds = [...new Set(participantOrder)];
   return {
     id: sequenceId,
     minute: event.minute,
@@ -1334,9 +1373,9 @@ export function buildMatchFlowSequence(input: MatchFlowSequenceInput): MatchSequ
   let possession = possessionFor(initialSide, initialEvent, initialPattern, "flow-initial", starter, starterPoint);
   possession.start("receive", `${surname(starter.name)} has it in open play.`, 0.34);
 
-  const quietPasses =
+  const cycleCount =
     includeTurnover || includeClearance ? 3 : clamp(Math.ceil(gap / 4) + 2, 3, 8);
-  for (let i = 0; i < quietPasses; i += 1) {
+  for (let i = 0; i < cycleCount; i += 1) {
     const moved = possession.step({
       exclude: new Set(),
       preferBackward: initialPattern === "patient" && i === 2,
