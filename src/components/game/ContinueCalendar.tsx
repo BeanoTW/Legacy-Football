@@ -55,10 +55,13 @@ export function ContinueCalendar({
     () =>
       calendarRail(state, 3).map((day) => ({
         ...day,
-        fixtures: day.fixtures.map((fixture) => ({
-          ...fixture,
-          opponent: clubPresentationName(clubDisplayName(state, fixture.opponentRef)),
-        })),
+        fixtures: day.fixtures.map((railFixture) => {
+          const fixture = { ...railFixture, opponent: railFixture.opponentRef };
+          return {
+            ...railFixture,
+            opponent: clubPresentationName(clubDisplayName(state, fixture.opponent)),
+          };
+        }),
       })),
     [state],
   );
