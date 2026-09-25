@@ -812,7 +812,7 @@ const beforePlayers = legacy.football.players.map((row) => ({
 }));
 const beforeContracts = JSON.stringify(legacy.football.contracts);
 const migrated = migrateSave(JSON.parse(JSON.stringify(legacy)) as Record<string, unknown>);
-assert.equal(migrated.version, 20);
+assert.equal(migrated.version, SAVE_VERSION);
 assert.deepEqual(migrated.football.loans, []);
 assert.equal(migrated.football.nextLoanId, 1);
 assert.deepEqual(

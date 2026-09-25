@@ -2783,12 +2783,19 @@ function generateIncomingOffers(s: GameState, windowOpen: boolean): void {
 
   const squad = userSquad(s);
   if (squad.length <= MIN_SQUAD_SIZE) return;
+  const userProfile = clubOverallProfile(s, userClubReference(s));
+  // Market interest must scale with the football level. The old fixed 55 OVR
+  // threshold made incoming bids effectively impossible in a Level 7 career,
+  // where 55 is already a star-level player. Listed players are explicitly
+  // available regardless of ability; otherwise AI clubs target players around
+  // the upper half of the user's current squad level.
+  const marketabilityFloor = Math.max(userProfile.floor, userProfile.average - 1);
   const targets = squad.filter(
     (p) =>
       isUserClubReference(s, playerOwnerClubId(p)) &&
       !activeLoanForPlayer(s, p.id) &&
       !openNegotiations(s).some((n) => n.playerId === p.id) &&
-      p.currentAbility >= 55,
+      (p.transferStatus === "listed" || p.currentAbility >= marketabilityFloor),
   );
   if (!targets.length) return;
   const p = targets[rngInt(rng, 0, targets.length - 1)];
