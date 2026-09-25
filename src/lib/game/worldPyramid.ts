@@ -2,7 +2,6 @@ import type { League } from "./types";
 import { CLUBS } from "./clubs";
 import { LEAGUE_ID } from "./league";
 
-export const WORLD_CLUBS_PER_DIVISION = 20;
 
 export interface WorldDivisionDefinition {
   id: string;
@@ -10,11 +9,18 @@ export interface WorldDivisionDefinition {
   /** Persisted legacy economic tier. Multiple divisions may share one tier. */
   tier: number;
   reputationRange: [number, number];
+  /** Real-world sized membership for this competition. */
+  clubCount: number;
+  /** Promotion/relegation slots exposed to the movement planner. */
+  promotionPlaces: number;
+  relegationPlaces: number;
   /** Stable regional/lane identity for parallel divisions at one football level. */
   lane?: string;
   /** Explicit upward routing. Required once a tier contains parallel divisions. */
   feedsInto?: readonly string[];
-  /** Exactly one deepest division may be the default fresh-save starting lane. */
+  /** A new chairman may choose this as their Level 7 starting lane. */
+  startable?: boolean;
+  /** Backwards-compatible default if no lane is explicitly selected. */
   freshStart?: boolean;
 }
 
@@ -26,49 +32,134 @@ export interface WorldDivisionDefinition {
  * Persisted tier 5 maps to canonical football Level 7 through the fixed +2 bridge.
  */
 export const WORLD_DIVISIONS: readonly WorldDivisionDefinition[] = [
-  { id: LEAGUE_ID, name: "Division One", tier: 1, reputationRange: [55, 90] },
-  { id: "league-2", name: "Division Two", tier: 2, reputationRange: [35, 62] },
-  { id: "league-3", name: "Division Three", tier: 3, reputationRange: [24, 48] },
+  {
+    id: LEAGUE_ID,
+    name: "Division One",
+    tier: 1,
+    clubCount: 20,
+    promotionPlaces: 0,
+    relegationPlaces: 3,
+    reputationRange: [55, 90],
+  },
+  {
+    id: "league-2",
+    name: "Division Two",
+    tier: 2,
+    clubCount: 24,
+    promotionPlaces: 3,
+    relegationPlaces: 3,
+    reputationRange: [35, 62],
+  },
+  {
+    id: "league-3",
+    name: "Division Three",
+    tier: 3,
+    clubCount: 24,
+    promotionPlaces: 3,
+    relegationPlaces: 4,
+    reputationRange: [24, 48],
+  },
   {
     id: "league-4",
     name: "Division Four",
     tier: 4,
+    clubCount: 24,
+    promotionPlaces: 4,
+    relegationPlaces: 2,
     reputationRange: [14, 36],
+  },
+  {
+    id: "national-league",
+    name: "National League",
+    tier: 5,
+    clubCount: 24,
+    promotionPlaces: 2,
+    relegationPlaces: 4,
+    reputationRange: [12, 32],
+    feedsInto: ["league-4"],
+  },
+  {
+    id: "national-league-north",
+    name: "National League North",
+    tier: 6,
+    clubCount: 24,
+    promotionPlaces: 2,
+    relegationPlaces: 4,
+    reputationRange: [10, 28],
+    lane: "north",
+    feedsInto: ["national-league"],
+  },
+  {
+    id: "national-league-south",
+    name: "National League South",
+    tier: 6,
+    clubCount: 24,
+    promotionPlaces: 2,
+    relegationPlaces: 4,
+    reputationRange: [10, 28],
+    lane: "south",
+    feedsInto: ["national-league"],
   },
   {
     id: "regional-premier-central",
     name: "Regional Premier Central",
-    tier: 5,
+    tier: 7,
+    clubCount: 22,
+    promotionPlaces: 2,
+    relegationPlaces: 0,
     reputationRange: [8, 24],
     lane: "central",
-    feedsInto: ["league-4"],
+    feedsInto: ["national-league-north"],
+    startable: true,
     freshStart: true,
   },
   {
     id: "regional-premier-south",
     name: "Regional Premier South",
-    tier: 5,
+    tier: 7,
+    clubCount: 22,
+    promotionPlaces: 2,
+    relegationPlaces: 0,
     reputationRange: [8, 24],
     lane: "south",
-    feedsInto: ["league-4"],
+    feedsInto: ["national-league-south"],
+    startable: true,
   },
   {
     id: "regional-premier-isthmian",
     name: "Regional Premier Isthmian",
-    tier: 5,
+    tier: 7,
+    clubCount: 22,
+    promotionPlaces: 2,
+    relegationPlaces: 0,
     reputationRange: [8, 24],
     lane: "isthmian",
-    feedsInto: ["league-4"],
+    feedsInto: ["national-league-south"],
+    startable: true,
   },
   {
     id: "regional-premier-north",
     name: "Regional Premier North",
-    tier: 5,
+    tier: 7,
+    clubCount: 22,
+    promotionPlaces: 2,
+    relegationPlaces: 0,
     reputationRange: [8, 24],
     lane: "north",
-    feedsInto: ["league-4"],
+    feedsInto: ["national-league-north"],
+    startable: true,
   },
 ] as const;
+
+export const STARTING_REGIONAL_DIVISIONS = WORLD_DIVISIONS.filter(
+  (division) => division.startable,
+);
+
+export function worldClubCount(
+  definitions: readonly WorldDivisionDefinition[] = WORLD_DIVISIONS,
+): number {
+  return definitions.reduce((total, division) => total + division.clubCount, 0);
+}
 
 /** Deepest football/economic tier, independent of how many parallel leagues exist. */
 export function deepestWorldTier(
@@ -116,14 +207,13 @@ export function promotionDestinationsForDefinition(
 }
 
 function worldLeagueShell(def: WorldDivisionDefinition, clubIds: string[]): League {
-  const bottomTier = deepestWorldTier();
   return {
     id: def.id,
     name: def.name,
     tier: def.tier,
     clubIds,
-    promotionPlaces: def.tier === 1 ? 0 : 2,
-    relegationPlaces: def.tier === bottomTier ? 0 : 2,
+    promotionPlaces: def.promotionPlaces,
+    relegationPlaces: def.relegationPlaces,
     prizeMoney: 0,
     reputationRange: def.reputationRange,
   };
@@ -136,8 +226,18 @@ function worldLeagueShell(def: WorldDivisionDefinition, clubIds: string[]): Leag
  * consumed from the stable CLUBS pool in order. The other Level 7 lanes remain
  * AI-only until movement can place the user there through future regional logic.
  */
-export function makeExpandedLeagues(clubName: string): League[] {
-  const requiredAiClubs = WORLD_DIVISIONS.length * WORLD_CLUBS_PER_DIVISION - 1;
+export function makeExpandedLeagues(
+  clubName: string,
+  startingDivisionId: string = freshStartDivision().id,
+): League[] {
+  const startingDefinition = WORLD_DIVISIONS.find(
+    (division) => division.id === startingDivisionId && division.startable,
+  );
+  if (!startingDefinition) {
+    throw new Error(`Invalid Level 7 starting division: ${startingDivisionId}`);
+  }
+
+  const requiredAiClubs = worldClubCount() - 1;
   const pool = CLUBS.filter((club) => club !== clubName);
   if (pool.length < requiredAiClubs) {
     throw new Error(
@@ -146,12 +246,9 @@ export function makeExpandedLeagues(clubName: string): League[] {
   }
 
   let cursor = 0;
-  const startingDivisionId = freshStartDivision().id;
   return WORLD_DIVISIONS.map((def) => {
-    const isStartingDivision = def.id === startingDivisionId;
-    const slots = isStartingDivision
-      ? WORLD_CLUBS_PER_DIVISION - 1
-      : WORLD_CLUBS_PER_DIVISION;
+    const isStartingDivision = def.id === startingDefinition.id;
+    const slots = def.clubCount - (isStartingDivision ? 1 : 0);
     const aiClubs = pool.slice(cursor, cursor + slots);
     cursor += slots;
     const clubIds = isStartingDivision ? [clubName, ...aiClubs] : aiClubs;
@@ -183,11 +280,11 @@ export function expandExistingLeagues(existing: readonly League[], clubName: str
     for (const clubId of candidates) {
       if (used.has(clubId) || clubIds.includes(clubId)) continue;
       clubIds.push(clubId);
-      if (clubIds.length === WORLD_CLUBS_PER_DIVISION) break;
+      if (clubIds.length === def.clubCount) break;
     }
-    if (clubIds.length !== WORLD_CLUBS_PER_DIVISION) {
+    if (clubIds.length !== def.clubCount) {
       throw new Error(
-        `Cannot expand ${def.name}: expected ${WORLD_CLUBS_PER_DIVISION} unused clubs, found ${clubIds.length}.`,
+        `Cannot expand ${def.name}: expected ${def.clubCount} unused clubs, found ${clubIds.length}.`,
       );
     }
     clubIds.forEach((clubId) => used.add(clubId));
@@ -196,14 +293,13 @@ export function expandExistingLeagues(existing: readonly League[], clubName: str
 
   // Re-derive only structural competition settings. Membership and historical
   // fields remain untouched. Multiple leagues may legitimately share tier 5.
-  const bottomTier = deepestWorldTier();
   for (const league of out) {
     const def = WORLD_DIVISIONS.find((candidate) => candidate.id === league.id);
     if (!def) continue;
     league.name = def.name;
     league.tier = def.tier;
-    league.promotionPlaces = def.tier === 1 ? 0 : 2;
-    league.relegationPlaces = def.tier === bottomTier ? 0 : 2;
+    league.promotionPlaces = def.promotionPlaces;
+    league.relegationPlaces = def.relegationPlaces;
     league.reputationRange = def.reputationRange;
   }
 

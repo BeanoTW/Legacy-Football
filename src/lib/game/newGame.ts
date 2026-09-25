@@ -37,10 +37,15 @@ import { initialisePreseasonFixtures } from "./preseason";
  */
 export const SAVE_VERSION = 21;
 
-export function newGame(clubName: string, managerName: string, seed?: string): GameState {
+export function newGame(
+  clubName: string,
+  managerName: string,
+  seed?: string,
+  startingDivisionId?: string,
+): GameState {
   // `seed` is optional: verification suites pass a fixed seed so the whole
   // generated world (squads, schedule, sim) is reproducible across runs.
-  const base = _newGameSeed(clubName, managerName, seed);
+  const base = _newGameSeed(clubName, managerName, seed, startingDivisionId);
   // Pre-season projection for season 1 (derived from starting reputations).
   storePredictions(base, base.season);
   ensureBoard(base);
@@ -95,7 +100,12 @@ export function newGame(clubName: string, managerName: string, seed?: string): G
   return runWeeklyGenerators(base);
 }
 
-function _newGameSeed(clubName: string, managerName: string, seed?: string): GameState {
+function _newGameSeed(
+  clubName: string,
+  managerName: string,
+  seed?: string,
+  startingDivisionId?: string,
+): GameState {
   const saveSeed = seed ?? `${clubName}|${managerName}|${Date.now().toString(36)}`;
 
   // Fresh careers now begin at canonical football Level 7. Existing saves are
@@ -108,7 +118,7 @@ function _newGameSeed(clubName: string, managerName: string, seed?: string): Gam
     { key: "S", name: "Town End", capacity: 800, condition: 74, ticketPrice: 10 },
     { key: "W", name: "West Terrace", capacity: 650, condition: 68, ticketPrice: 9 },
   ];
-  const leagues = makeExpandedLeagues(clubName);
+  const leagues = makeExpandedLeagues(clubName, startingDivisionId);
   const playerLeague = leagues.find((league) => league.clubIds.includes(clubName));
   if (!playerLeague) throw new Error(`No starting division found for ${clubName}`);
   const leagueSchedule = makePyramidSchedule(leagues, `${saveSeed}|season1`);

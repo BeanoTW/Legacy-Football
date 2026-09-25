@@ -6,10 +6,15 @@ import { Label } from "@/components/ui/label";
 import { TopBar } from "./shared/primitives";
 import type { SaveSlotId, SaveSlotSummary } from "@/lib/game/engine";
 import { cn } from "@/lib/utils";
+import { STARTING_REGIONAL_DIVISIONS } from "@/lib/game/worldPyramid";
+import { leaguePresentationName } from "@/lib/game/clubPresentation";
 
-export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart: (club: string, manager: string) => void; activeSlot: SaveSlotId; slots: SaveSlotSummary[]; onSelectSlot: (slot: SaveSlotId) => void }) {
+export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart: (club: string, manager: string, startingDivisionId?: string) => void; activeSlot: SaveSlotId; slots: SaveSlotSummary[]; onSelectSlot: (slot: SaveSlotId) => void }) {
   const [club, setClub] = useState("Dalton Town");
   const [manager, setManager] = useState("N. Cahill");
+  const [startingDivisionId, setStartingDivisionId] = useState(
+    STARTING_REGIONAL_DIVISIONS[0]?.id ?? "regional-premier-central",
+  );
   return (
     <div className="min-h-screen bg-background">
       <TopBar title="Legacy Football" subtitle="Build a club legacy from non-league to the top" />
@@ -44,10 +49,35 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
               <Label htmlFor="mgr">Chairman name</Label>
               <Input id="mgr" value={manager} onChange={(e) => setManager(e.target.value)} />
             </div>
+            <div className="space-y-2">
+              <Label>Starting regional league</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {STARTING_REGIONAL_DIVISIONS.map((division) => (
+                  <button
+                    key={division.id}
+                    type="button"
+                    onClick={() => setStartingDivisionId(division.id)}
+                    className={cn(
+                      "rounded-xl border p-3 text-left transition-colors",
+                      division.id === startingDivisionId
+                        ? "border-primary bg-primary/10"
+                        : "bg-background hover:bg-muted/60",
+                    )}
+                  >
+                    <span className="block text-xs font-semibold">
+                      {leaguePresentationName(division.name)}
+                    </span>
+                    <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                      Level 7 · {division.clubCount} clubs
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
             <Button
               className="w-full"
               disabled={!club.trim()}
-              onClick={() => onStart(club.trim(), manager.trim() || "Chairman")}
+              onClick={() => onStart(club.trim(), manager.trim() || "Chairman", startingDivisionId)}
             >
               <Play className="mr-2 size-4" /> Start Season
             </Button>

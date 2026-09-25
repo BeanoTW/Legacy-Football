@@ -84,9 +84,9 @@ export function useGame() {
     };
   }, [activeSlot, hydrated, state]);
 
-  const start = useCallback((clubName: string, managerName: string) => {
+  const start = useCallback((clubName: string, managerName: string, startingDivisionId?: string) => {
     skipCloudWrite.current = false;
-    setState(newGame(clubName, managerName));
+    setState(newGame(clubName, managerName, undefined, startingDivisionId));
   }, []);
 
   const clearTarget = useCallback(() => {

@@ -51,9 +51,36 @@ export const DIVISION_ONE = LEAGUE_ID;
 export const DIVISION_TWO = "league-2";
 export const CLUBS_PER_DIVISION = 20;
 
-/** Rounds 1-19 -> weeks 5-23, rounds 20-38 -> weeks 28-46. */
+/**
+ * Calendar slot for variable-sized leagues.
+ * 20 clubs retain the historic mid-season split; 22 clubs play one round per
+ * week from week 5; 24-club divisions use four midweek rounds so all 46 league
+ * matches still fit between weeks 5 and 46.
+ */
+export function leagueCalendarSlot(
+  round: number,
+  clubCount = 20,
+): { week: number; dayOfWeek: number } {
+  if (clubCount === 20) {
+    return {
+      week: round <= 19 ? 4 + round : 27 + (round - 19),
+      dayOfWeek: 5,
+    };
+  }
+  if (clubCount === 22) return { week: 4 + round, dayOfWeek: 5 };
+
+  const midweekWeeks = new Set([12, 20, 32, 40]);
+  const slots: Array<{ week: number; dayOfWeek: number }> = [];
+  for (let week = 5; week <= 46; week += 1) {
+    if (midweekWeeks.has(week)) slots.push({ week, dayOfWeek: 2 });
+    slots.push({ week, dayOfWeek: 5 });
+  }
+  return slots[Math.max(0, round - 1)] ?? { week: 46, dayOfWeek: 5 };
+}
+
+/** Backwards-compatible 20-club mapping used by legacy callers/checks. */
 export function weekForLeagueRound(round: number): number {
-  return round <= 19 ? 4 + round : 27 + (round - 19);
+  return leagueCalendarSlot(round, 20).week;
 }
 
 /* ---------- League construction ---------- */
@@ -89,15 +116,17 @@ export const leagueOfClub = (s: GameState, club: string) =>
 /* ---------- Scheduling ---------- */
 
 export function scheduleForLeague(league: League, seed: string): ScheduledFixture[] {
-  return buildSeasonSchedule(league.clubIds, `${seed}|${league.id}`).flatMap((round, idx) =>
-    round.map((m) => ({
+  return buildSeasonSchedule(league.clubIds, `${seed}|${league.id}`).flatMap((round, idx) => {
+    const slot = leagueCalendarSlot(idx + 1, league.clubIds.length);
+    return round.map((m) => ({
       league: league.id,
       round: idx + 1,
-      week: weekForLeagueRound(idx + 1),
+      week: slot.week,
+      dayOfWeek: slot.dayOfWeek,
       home: m.home,
       away: m.away,
-    })),
-  );
+    }));
+  });
 }
 
 export function makePyramidSchedule(leagues: League[], seed: string): ScheduledFixture[] {
@@ -156,7 +185,10 @@ export function seasonAlreadyFinalised(s: GameState, season: number): boolean {
 function promotionTargets(league: League, leagues: readonly League[]): readonly string[] {
   const definition = WORLD_DIVISIONS.find((candidate) => candidate.id === league.id);
   if (definition) {
-    const explicit = promotionDestinationsForDefinition(definition, WORLD_DIVISIONS);
+    const leagueIds = new Set(leagues.map((candidate) => candidate.id));
+    const explicit = promotionDestinationsForDefinition(definition, WORLD_DIVISIONS).filter(
+      (id) => leagueIds.has(id),
+    );
     if (explicit.length) return explicit;
   }
   const above = leagues.filter((candidate) => candidate.tier === league.tier - 1);
@@ -466,8 +498,12 @@ export function pyramidIntegrity(s: GameState): { ok: boolean; problems: string[
     seen.add(c);
   }
   for (const l of s.leagues ?? []) {
-    if (l.clubIds.length !== CLUBS_PER_DIVISION)
-      problems.push(`${l.id} has ${l.clubIds.length} clubs`);
+    const expected = WORLD_DIVISIONS.find((division) => division.id === l.id)?.clubCount;
+    // Legacy careers created before variable capacities are allowed to retain
+    // their old 20-club membership until naturally replaced by a fresh career.
+    if (expected !== undefined && l.clubIds.length !== expected && l.clubIds.length !== CLUBS_PER_DIVISION) {
+      problems.push(`${l.id} has ${l.clubIds.length} clubs (expected ${expected})`);
+    }
   }
   if (!all.some((club) => isUserClubReference(s, club))) problems.push("user club is not in any league");
   const fixtureLeagues = new Set((s.leagueSchedule ?? []).map(leagueOf));
