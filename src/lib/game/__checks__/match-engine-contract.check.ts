@@ -114,7 +114,7 @@ assert.equal(
   11,
   "new live matches must persist a real manager-selected XI",
 );
-let played = kickoff(started);;
+let played = kickoff(started);
 let userInvolvements =
   played.liveMatch?.events.filter(
     (event) =>
@@ -122,7 +122,10 @@ let userInvolvements =
       (event.type === "goal" || event.type === "chance" || event.type === "card"),
   ) ?? [];
 for (let attempt = 1; userInvolvements.length === 0 && attempt <= 24; attempt += 1) {
-  played = kickoff(started);;
+  const alternate = structuredClone(game);
+  alternate.saveSeed = `calendar-match-contract-${attempt}`;
+  const alternateStarted = startMatchDay(alternate);
+  played = kickoff(alternateStarted);
   userInvolvements =
     played.liveMatch?.events.filter(
       (event) =>

@@ -589,6 +589,13 @@ export function reconcileRecruitmentFidelity(s: GameState): void {
       retainedStrength === undefined
         ? profile.average
         : clamp(retainedStrength, 20, 95);
+    // Fidelity transitions must preserve the football level the compact club
+    // had actually reached. A synthetic/high-performing Fringe club can sit
+    // outside the normal authored band, so widen only this hydration envelope.
+    const hydrationFloor =
+      retainedStrength === undefined ? profile.floor : Math.min(profile.floor, tierRating - 10);
+    const hydrationStar =
+      retainedStrength === undefined ? profile.star : Math.min(95, Math.max(profile.star, tierRating + 10));
     const squad = Array.from({ length: SQUAD_SIZE }, (_, index) =>
       makePlayerFor(
         s.saveSeed,
@@ -598,8 +605,8 @@ export function reconcileRecruitmentFidelity(s: GameState): void {
         s.season,
         level,
         rep,
-        profile.floor,
-        profile.star,
+        hydrationFloor,
+        hydrationStar,
       ),
     ).sort((a, b) => b.currentAbility - a.currentAbility || a.id.localeCompare(b.id));
 
