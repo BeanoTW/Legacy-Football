@@ -1,7 +1,14 @@
 /* Verification for the multi-division pyramid (promotion / relegation).
    Run with: bun src/lib/game/__checks__/pyramid.check.ts
 */
-import { newGame, advanceWeek, migrateSave, SAVE_VERSION } from "../engine";
+import {
+  newGame,
+  advanceDay,
+  advanceWeek,
+  migrateSave,
+  SAVE_VERSION,
+  simulateFixtureToday,
+} from "../engine";
 import {
   DIVISION_ONE,
   DIVISION_TWO,
@@ -41,26 +48,29 @@ function fresh(seed = "PYRAMID_SEED_1"): GameState {
       week: f.week,
       opponent: isUserClubReference(g, f.home) ? f.away : f.home,
       home: isUserClubReference(g, f.home),
+      competition: f.competition ?? "league",
+      dayOfWeek: f.dayOfWeek ?? 5,
     }))
-    .sort((a, b) => a.week - b.week);
+    .sort((a, b) => a.week - b.week || (a.dayOfWeek ?? 5) - (b.dayOfWeek ?? 5));
   return g;
 }
 
 function playSeason(g0: GameState): GameState {
   let s = g0;
-  for (let i = 0; i < 46; i++) {
-    const fx = s.fixtures.find((f) => f.week === s.week && (f.competition ?? "league") === "league");
-    s = fx
-      ? advanceWeek(s, {
-          gf: 0,
-          ga: 2,
-          attendance: 9000,
-          gate: 1,
-          tv: 1,
-          matchdayOps: 1,
-          winBonus: 0,
-        })
-      : advanceWeek(s);
+  const startingSeason = s.season;
+  let guard = 0;
+  while (s.season === startingSeason && guard < 600) {
+    const beforeResults = s.results.length;
+    const played = simulateFixtureToday(s);
+    if (played.results.length > beforeResults) {
+      s = played;
+    } else {
+      s = advanceDay(s);
+    }
+    guard += 1;
+  }
+  if (s.season === startingSeason) {
+    throw new Error(`Season did not roll over within ${guard} calendar advances`);
   }
   return s;
 }
@@ -143,16 +153,41 @@ console.log("\n[4] Linear promotion/relegation remains correct above regional ti
 console.log("\n[5] Parallel Level 7 feeders preserve capacity");
 {
   const before = fresh();
-  const regional = before.leagues.filter((l) => l.tier === 5);
-  const upper = before.leagues.find((l) => l.tier === 4)!;
+  const regional = before.leagues.filter((l) => l.tier === 7);
+  const levelSix = before.leagues.filter((l) => l.tier === 6);
   const t = playSeason(before);
-  const upperHistory = t.seasonHistory.find((h) => h.season === 1 && h.leagueId === upper.id)!;
   const regionalHistory = regional.map((l) => t.seasonHistory.find((h) => h.season === 1 && h.leagueId === l.id)!);
-  const promoted = regionalHistory.flatMap((h) => h.promoted);
-  check("all four regional divisions completed", regionalHistory.every((h) => h.finalTable.length === 20));
-  check("regional promotions exactly match upper-tier vacancies", promoted.length === upperHistory.relegated.length, `${promoted.length}/${upperHistory.relegated.length}`);
-  check("promoted regional clubs now occupy the upper division", promoted.every((c) => t.leagues.find((l) => l.id === upper.id)!.clubIds.includes(c)));
-  check("every division retains configured size after regional movement", t.leagues.every((l) => l.clubIds.length === WORLD_DIVISIONS.find((d) => d.id === l.id)?.clubCount));
+
+  check(
+    "all four regional divisions completed",
+    regionalHistory.every((h) => {
+      const expected = WORLD_DIVISIONS.find((d) => d.id === h.leagueId)?.clubCount;
+      return h.finalTable.length === expected;
+    }),
+  );
+
+  for (const upper of levelSix) {
+    const feederIds = WORLD_DIVISIONS
+      .filter((d) => d.tier === 7 && (d.feedsInto ?? []).includes(upper.id))
+      .map((d) => d.id);
+    const feederHistories = regionalHistory.filter((h) => feederIds.includes(h.leagueId));
+    const promoted = feederHistories.flatMap((h) => h.promoted);
+    const upperHistory = t.seasonHistory.find((h) => h.season === 1 && h.leagueId === upper.id)!;
+    check(
+      `${upper.id}: feeder promotions match relegation vacancies`,
+      promoted.length === upperHistory.relegated.length,
+      `${promoted.length}/${upperHistory.relegated.length}`,
+    );
+    check(
+      `${upper.id}: promoted feeder clubs occupy the destination`,
+      promoted.every((club) => t.leagues.find((l) => l.id === upper.id)!.clubIds.includes(club)),
+    );
+  }
+
+  check(
+    "every division retains configured size after regional movement",
+    t.leagues.every((l) => l.clubIds.length === WORLD_DIVISIONS.find((d) => d.id === l.id)?.clubCount),
+  );
   check("regional rollover keeps every club unique", new Set(pyramidClubs(t)).size === pyramidClubs(t).length);
 }
 
@@ -191,7 +226,14 @@ console.log("\n[8] Two consecutive seasons + projections");
   check("season counter advanced to 3", s2.season === 3);
   check("history has one entry per league and season", s2.seasonHistory.length === s2.leagues.length * 2, String(s2.seasonHistory.length));
   check("season-1 history remains byte-identical", JSON.stringify(s2.seasonHistory.filter((h) => h.season === 1)) === JSON.stringify(before));
-  check("both seasons contain every division's 380 records", [1, 2].every((season) => s2.matchRecords.filter((r) => r.season === season).length === s2.leagues.length * 380));
+  const expectedSeasonRecords = s2.leagues.reduce(
+    (total, league) => total + league.clubIds.length * (league.clubIds.length - 1),
+    0,
+  );
+  check(
+    "both seasons contain every division's complete schedule",
+    [1, 2].every((season) => s2.matchRecords.filter((r) => r.season === season).length === expectedSeasonRecords),
+  );
   check("clubs remain unique", new Set(pyramidClubs(s2)).size === pyramidClubs(s2).length);
   check("integrity after two rollovers", pyramidIntegrity(s2).ok, pyramidIntegrity(s2).problems.join("; "));
   check("club league history has two rows per club", Object.values(s2.clubRecords).every((r) => r.leagueHistory.length === 2));

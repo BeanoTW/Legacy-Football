@@ -50,7 +50,7 @@ function promoteUser(g0: GameState): GameState {
 
 const before = fresh();
 const startingLeague = before.leagues.find((l) => l.id === before.playerLeagueId)!;
-if (startingLeague.tier !== 5 || footballLevelOfUser(before) !== 7) {
+if (startingLeague.tier !== 7 || footballLevelOfUser(before) !== 7) {
   throw new Error("Fresh career is not starting at canonical Level 7");
 }
 const clubsBefore = pyramidClubs(before);
@@ -69,8 +69,10 @@ if (after.season !== 2) throw new Error(`Expected season 2 after rollover, got $
 if (!history?.promoted.some((club) => isUserClubReference(after, club))) {
   throw new Error("Forced Level 7 champion was not recorded as promoted");
 }
-if (!destination || destination.id !== "league-4" || destination.tier !== 4) {
-  throw new Error(`Promoted user did not enter league-4/tier 4: ${destination?.id}/${destination?.tier}`);
+if (!destination || destination.id !== "national-league-north" || destination.tier !== 6) {
+  throw new Error(
+    `Promoted Central Level 7 user did not enter National League North: ${destination?.id}/${destination?.tier}`,
+  );
 }
 if (after.playerLeagueId !== destination.id) {
   throw new Error("playerLeagueId did not follow the promoted club");
@@ -78,8 +80,13 @@ if (after.playerLeagueId !== destination.id) {
 if (footballLevelOfUser(after) !== 6) {
   throw new Error(`Promoted user did not resolve to canonical Level 6: ${footballLevelOfUser(after)}`);
 }
-if (!after.leagues.every((l) => l.clubIds.length === 20)) {
-  throw new Error("A division lost its 20-club capacity during Level 7 promotion");
+if (
+  !after.leagues.every((league) => {
+    const configured = before.leagues.find((candidate) => candidate.id === league.id)?.clubIds.length;
+    return league.clubIds.length === configured;
+  })
+) {
+  throw new Error("A division lost its configured capacity during Level 7 promotion");
 }
 const clubsAfter = pyramidClubs(after);
 if (

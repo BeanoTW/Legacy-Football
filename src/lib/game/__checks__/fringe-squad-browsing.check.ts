@@ -24,8 +24,8 @@ assert(
   "unscouted compact squad rows do not expose hidden overall ability",
 );
 assert(
-  helper.includes("state.fringePlayers ?? {}"),
-  "squad browsing projects the existing compact player world instead of fabricating detailed players",
+  helper.includes("previewFringePlayersForClub(state, canonical)"),
+  "squad browsing reads the compact player world through the deterministic preview gateway",
 );
 assert(
   helper.includes("preserveKnownIdentityInPlace") && helper.includes("source: \"fringe\""),
@@ -40,4 +40,9 @@ assert(
   "competition browsing uses the canonical persisted game update path",
 );
 
-console.log("\n7 passed, 0 failed");
+assert(
+  helper.includes("footballLevelOfClub(state, canonical)"),
+  "fringe squad values resolve from the club's canonical football level",
+);
+
+console.log("\n8 passed, 0 failed");
