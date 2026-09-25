@@ -27,7 +27,11 @@ import {
 } from "@/lib/game/clubReference";
 import { clubLegacyRecord } from "@/lib/game/clubLegacy";
 import { setWorldClubTracked } from "@/lib/game/recruitment";
-import { footballLevelOfLeague, legacyTierToFootballLevel } from "@/lib/game/footballLevel";
+import {
+  footballLevelOfClub as canonicalFootballLevelOfClub,
+  footballLevelOfLeague,
+  legacyTierToFootballLevel,
+} from "@/lib/game/footballLevel";
 import { clubPresentationName, leaguePresentationName } from "@/lib/game/clubPresentation";
 import { clubKitForReference } from "@/lib/game/clubKit";
 import { ClubBadge } from "@/components/game/ClubKitArt";
@@ -378,7 +382,7 @@ function ClubCard({
       <div className="p-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
         <Cell label="Reputation" value={clubReputation(state, club).toFixed(1)} />
         <Cell label="Strength" value={clubStrengthFor(state, club, state.season).toFixed(1)} />
-        <Cell label="Football level" value={String(legacyTierToFootballLevel(tierOfClub(state, club)))} />
+        <Cell label="Football level" value={String(canonicalFootballLevelOfClub(state, club))} />
         <Cell label="Expectation" value={pred ? EXPECTATION_LABEL[pred.expectation] : "—"} />
         <Cell label="Promotions" value={String(legacy?.promotions ?? record?.promotions ?? 0)} />
         <Cell label="Relegations" value={String(legacy?.relegations ?? record?.relegations ?? 0)} />

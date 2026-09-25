@@ -292,6 +292,44 @@ export function ensurePersistentFringePlayers(state: GameState): FringePlayerWor
   return world;
 }
 
+/**
+ * Pure squad projection for a Fringe club whose compact individuals have not
+ * been materialised into the save yet. It uses the exact same deterministic
+ * ids and player generator as ensurePersistentFringePlayers(), so browsing a
+ * club early cannot create a second/different squad later.
+ */
+export function previewFringePlayersForClub(
+  state: GameState,
+  clubId: string,
+): CompactFringePlayer[] {
+  const canonical = canonicalClubReference(state, clubId);
+  const existing = Object.values(state.fringePlayers ?? {})
+    .filter(
+      (player) =>
+        isActive(player) &&
+        sameClubReference(state, player.currentClubId, canonical),
+    )
+    .sort((a, b) => a.playerId.localeCompare(b.playerId));
+  if (existing.length > 0) return existing;
+
+  const club = Object.values(state.fringeWorld ?? {}).find((candidate) =>
+    sameClubReference(state, candidate.clubId, canonical),
+  );
+  if (!club) return [];
+
+  const profile = clubOverallProfile(state, club.clubId);
+  return Array.from({ length: FRINGE_SQUAD_SIZE }, (_, slot) =>
+    makeCompactPlayer(
+      state,
+      club.clubId,
+      profile.average,
+      slot,
+      profile.floor,
+      profile.star,
+    ),
+  );
+}
+
 export function fringePlayersForClub(state: GameState, clubId: string): CompactFringePlayer[] {
   return Object.values(ensurePersistentFringePlayers(state))
     .filter((player) => isActive(player) && sameClubReference(state, player.currentClubId, clubId))

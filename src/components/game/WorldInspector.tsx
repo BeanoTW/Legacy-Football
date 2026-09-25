@@ -20,6 +20,8 @@ import {
   type BrowsableFringePlayer,
 } from "@/lib/game/fringeSquadBrowsing";
 import { openPlayerProfile } from "./shared/PlayerProfileSheet";
+import { scoutingReportById } from "@/lib/game/scouting";
+import { scoutedOverallPresentation } from "@/lib/game/scoutingPresentation";
 
 const POSITION_ORDER: Record<Position, number> = { GK: 0, DEF: 1, MID: 2, FWD: 3 };
 
@@ -312,7 +314,11 @@ function ClubSquadPanel({
                     {ageOf(player, state.season)}
                   </td>
                   <td className="px-3 py-1.5 text-right font-display text-base">
-                    {player.currentAbility}
+                    {scoutedOverallPresentation(
+                      state,
+                      player,
+                      scoutingReportById(state, player.id),
+                    ).label}
                   </td>
                 </tr>
               ))}

@@ -35,7 +35,7 @@ import { initialisePreseasonFixtures } from "./preseason";
  * (src/lib/game/migrations) — no module holds per-version field knowledge
  * outside that registry.
  */
-export const SAVE_VERSION = 20;
+export const SAVE_VERSION = 21;
 
 export function newGame(clubName: string, managerName: string, seed?: string): GameState {
   // `seed` is optional: verification suites pass a fixed seed so the whole

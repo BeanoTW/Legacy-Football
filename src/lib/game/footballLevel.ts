@@ -23,6 +23,25 @@ export type FootballLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
  */
 export const LEGACY_TIER_TO_FOOTBALL_LEVEL_OFFSET = 2;
 
+/**
+ * The expanded world kept historical persisted tier numbers for save
+ * compatibility, while presentation moved the top four divisions onto the
+ * real English pyramid. Resolve those stable league ids explicitly so the
+ * canonical football level is no longer shifted by two places.
+ *
+ * The four regional-premier lanes are parallel Level 7 competitions.
+ */
+const PERSISTED_WORLD_LEVELS: Readonly<Record<string, FootballLevel>> = {
+  "league-1": 1,
+  "league-2": 2,
+  "league-3": 3,
+  "league-4": 4,
+  "regional-premier-central": 7,
+  "regional-premier-south": 7,
+  "regional-premier-isthmian": 7,
+  "regional-premier-north": 7,
+};
+
 export function legacyTierToFootballLevel(tier: number): FootballLevel {
   const level = Math.round(tier) + LEGACY_TIER_TO_FOOTBALL_LEVEL_OFFSET;
   if (level < 1 || level > 8) {
@@ -35,13 +54,13 @@ export function footballLevelToLegacyTier(level: FootballLevel): number {
   return level - LEGACY_TIER_TO_FOOTBALL_LEVEL_OFFSET;
 }
 
-export function footballLevelOfLeague(league: Pick<League, "tier">): FootballLevel {
-  return legacyTierToFootballLevel(league.tier);
+export function footballLevelOfLeague(league: Pick<League, "id" | "tier">): FootballLevel {
+  return PERSISTED_WORLD_LEVELS[league.id] ?? legacyTierToFootballLevel(league.tier);
 }
 
 export function footballLevelOfClub(state: GameState, clubId: string): FootballLevel {
   const league = (state.leagues ?? []).find((candidate) => candidate.clubIds?.includes(clubId));
-  return legacyTierToFootballLevel(league?.tier ?? 1);
+  return league ? footballLevelOfLeague(league) : legacyTierToFootballLevel(1);
 }
 
 export function footballLevelOfUser(state: GameState): FootballLevel {
@@ -50,5 +69,5 @@ export function footballLevelOfUser(state: GameState): FootballLevel {
     (state.leagues ?? []).find((candidate) =>
       candidate.clubIds?.some((club) => isUserClubReference(state, club)),
     );
-  return legacyTierToFootballLevel(league?.tier ?? 1);
+  return league ? footballLevelOfLeague(league) : legacyTierToFootballLevel(1);
 }

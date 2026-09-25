@@ -1,10 +1,10 @@
 import type { GameState, Position } from "./types";
 import { canonicalClubReference, sameClubReference } from "./clubReference";
 import { fringePlayerPresentation } from "./fringePlayerPresentation";
-import { legacyTierToFootballLevel } from "./footballLevel";
+import { footballLevelOfClub } from "./footballLevel";
 import { recruitmentPlayerValue, recruitmentWageForLevel } from "./recruitmentEconomy";
 import { preserveKnownIdentityInPlace } from "./playerLifecycle";
-import type { CompactFringePlayer } from "./fringePlayers";
+import { previewFringePlayersForClub, type CompactFringePlayer } from "./fringePlayers";
 
 const BASE_YEAR = 2000;
 
@@ -39,9 +39,9 @@ export function browsableFringeSquad(state: GameState, clubId: string): Browsabl
   );
   if (!club) return [];
 
-  const level = legacyTierToFootballLevel(club.tier);
-  return Object.values(state.fringePlayers ?? {})
-    .filter((player) => active(player) && sameClubReference(state, player.currentClubId, canonical))
+  const level = footballLevelOfClub(state, canonical);
+  return previewFringePlayersForClub(state, canonical)
+    .filter(active)
     .map((player) => {
       const presentation = fringePlayerPresentation(
         state.saveSeed,
