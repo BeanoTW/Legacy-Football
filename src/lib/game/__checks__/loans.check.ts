@@ -59,7 +59,7 @@ function discover<T extends ReturnType<typeof newGame>>(
 
 
 const state = newGame("Loan Audit FC", "Auditor", "PLAYER_LOAN_AUDIT");
-assert.equal(SAVE_VERSION, 20);
+assert.equal(state.version, SAVE_VERSION);
 assert.deepEqual(state.football.loans, []);
 assert.equal(state.football.nextLoanId, 1);
 

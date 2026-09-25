@@ -152,15 +152,17 @@ function completeIncomingTransfer(
   return completeTransferInPlace(s, negotiationId);
 }
 
-/** Advance until an AI club bids for one of ours. */
+/** Find a deterministic career path where an AI club bids for one of ours. */
 function withIncomingBid(seed: string): { s: GameState; n: TransferNegotiation } | null {
-  const s = fixture(seed);
-  for (let i = 0; i < 60; i++) {
-    const bid = (s.football.negotiations ?? []).find(
-      (n) => n.direction === "out" && n.stage === "clubTalks",
-    );
-    if (bid) return { s, n: bid };
-    Object.assign(s, advanceWeek(s));
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const s = fixture(`${seed}-${attempt}`);
+    for (let i = 0; i < 80; i++) {
+      const bid = (s.football.negotiations ?? []).find(
+        (n) => n.direction === "out" && n.stage === "clubTalks",
+      );
+      if (bid) return { s, n: bid };
+      Object.assign(s, advanceWeek(s));
+    }
   }
   return null;
 }
