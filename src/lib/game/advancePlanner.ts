@@ -23,6 +23,7 @@ type Result = GameState["results"][number];
 
 export interface RailFixture {
   opponent: string;
+  opponentRef: string;
   home: boolean;
   competition: NonNullable<Fixture["competition"]> | "league" | "preseason";
   result?: { goalsFor: number; goalsAgainst: number; outcome: "W" | "D" | "L" };
@@ -101,6 +102,7 @@ export function calendarRail(state: GameState, weeks = 3): RailDay[] {
         const result = resultFor(state, fixture);
         return {
           opponent: opponentName(state, fixture.opponent),
+          opponentRef: fixture.opponent,
           home: fixture.home,
           competition: fixtureCompetitionOf(fixture),
           result: result

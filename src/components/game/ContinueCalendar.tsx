@@ -3,6 +3,8 @@ import { ArrowLeftRight, CalendarDays, ChevronsRight, Search, Trophy } from "luc
 import type { GameState } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { clubDisplayName } from "@/lib/game/clubReference";
+import { clubPresentationName } from "@/lib/game/clubPresentation";
 import {
   calendarRail,
   dayTarget,
@@ -49,7 +51,17 @@ export function ContinueCalendar({
   onOpenSchedule?: () => void;
   onAdvanceTo?: (target: AdvanceTarget) => void;
 }) {
-  const days = useMemo(() => calendarRail(state, 3), [state]);
+  const days = useMemo(
+    () =>
+      calendarRail(state, 3).map((day) => ({
+        ...day,
+        fixtures: day.fixtures.map((fixture) => ({
+          ...fixture,
+          opponent: clubPresentationName(clubDisplayName(state, fixture.opponentRef)),
+        })),
+      })),
+    [state],
+  );
   const defaultSelection = useMemo(() => {
     const upcoming = days.filter((day) => !day.isPast);
     return (upcoming.find((day) => day.fixtures.some((fixture) => !fixture.result)) ?? upcoming[0] ?? days[0])?.absoluteDay;

@@ -81,10 +81,12 @@ export function MatchDayOverlay({
   const [replayComplete, setReplayComplete] = useState(false);
   const [minute, setMinute] = useState(0);
   const finishedReplay = replayComplete && revealedEvents >= lm.events.length;
-  const onReplayProgress = useCallback((count: number, complete: boolean, clock?: number) => {
+  const onReplayProgress = useCallback((count: number, complete: boolean) => {
     setRevealedEvents(count);
     setReplayComplete(complete);
-    if (typeof clock === "number") setMinute(clock);
+  }, []);
+  const onReplayClock = useCallback((clock: number) => {
+    setMinute(clock);
   }, []);
 
   const usName = state.clubName;
@@ -430,6 +432,7 @@ export function MatchDayOverlay({
                   userPlan={lm.engine?.userPlan}
                   opponentPlan={lm.engine?.opponentPlan}
                   onReplayProgress={onReplayProgress}
+                  onReplayClock={onReplayClock}
                   expanded={!finishedReplay}
                   userColours={dotColours(ourKit)}
                   opponentColours={dotColours(theirKit)}

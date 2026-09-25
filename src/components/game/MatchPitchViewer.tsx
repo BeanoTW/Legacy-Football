@@ -451,7 +451,8 @@ interface Latest {
   ctx: MatchContext;
   usName: string;
   themName: string;
-  onReplayProgress?: (revealedEvents: number, complete: boolean, minute: number) => void;
+  onReplayProgress?: (revealedEvents: number, complete: boolean) => void;
+  onReplayClock?: (minute: number) => void;
 }
 
 interface PlaybackState {
@@ -529,7 +530,7 @@ function createEngine(deps: EngineDeps) {
       }
     }
 
-    const { events, onReplayProgress } = deps.latest.current;
+    const { events, onReplayProgress, onReplayClock } = deps.latest.current;
     const revealed = Math.min(events.length, pb.cursor + (sample.resultVisible ? 1 : 0));
     const complete =
       events.length > 0 && !pb.playing && pb.cursor >= events.length - 1 && pb.progress >= 0.99;
@@ -537,7 +538,8 @@ function createEngine(deps: EngineDeps) {
     const report = `${revealed}:${complete}:${minute}`;
     if (report !== lastReport) {
       lastReport = report;
-      onReplayProgress?.(revealed, complete, minute);
+      onReplayProgress?.(revealed, complete);
+      onReplayClock?.(minute);
     }
   }
 
@@ -891,6 +893,7 @@ export function MatchPitchViewer({
   userPlan,
   opponentPlan,
   onReplayProgress,
+  onReplayClock,
   expanded = false,
   userColours,
   opponentColours,
@@ -905,7 +908,8 @@ export function MatchPitchViewer({
   substitutions?: MatchSubstitution[];
   userPlan?: MatchTeamPlan;
   opponentPlan?: MatchTeamPlan;
-  onReplayProgress?: (revealedEvents: number, complete: boolean, minute: number) => void;
+  onReplayProgress?: (revealedEvents: number, complete: boolean) => void;
+  onReplayClock?: (minute: number) => void;
   expanded?: boolean;
   /** Kit colours for each side's player dots. Falls back to green and red. */
   userColours?: DotColours;
@@ -927,7 +931,7 @@ export function MatchPitchViewer({
     [opponentBench, opponentLineup, opponentPlan, substitutions, userBench, userLineup, userPlan],
   );
 
-  const latest = useRef<Latest>({ events, cache, ctx, usName, themName, onReplayProgress });
+  const latest = useRef<Latest>({ events, cache, ctx, usName, themName, onReplayProgress, onReplayClock });
   const playback = useRef<PlaybackState>({
     cursor: 0,
     progress: 0,
@@ -948,7 +952,7 @@ export function MatchPitchViewer({
 
   // Keep the engine's view of props current before any effect reads it.
   useIsomorphicLayoutEffect(() => {
-    latest.current = { events, cache, ctx, usName, themName, onReplayProgress };
+    latest.current = { events, cache, ctx, usName, themName, onReplayProgress, onReplayClock };
   });
 
   useEffect(() => {
