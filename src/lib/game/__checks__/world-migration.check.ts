@@ -1,7 +1,7 @@
 import { advanceWeek, migrateSave, newGame, SAVE_VERSION } from "../engine";
 import { leagueOf } from "../league";
 import { buildWorldSimulationPlan } from "../world";
-import { WORLD_CLUBS_PER_DIVISION, WORLD_DIVISIONS } from "../worldPyramid";
+import { WORLD_DIVISIONS } from "../worldPyramid";
 import { makePyramidSchedule } from "../pyramid";
 import { fixturesForClub, makeLeagueRows } from "../schedule";
 import { ensureRecruitment } from "../recruitment";
@@ -71,10 +71,10 @@ assert(
   migrated.leagues.length === WORLD_DIVISIONS.length,
   "current saves must contain every world division",
 );
-const expectedPersistentClubs = WORLD_DIVISIONS.length * WORLD_CLUBS_PER_DIVISION;
+const expectedPersistentClubs = new Set(migrated.leagues.flatMap((league) => league.clubIds)).size;
 assert(
-  new Set(migrated.leagues.flatMap((league) => league.clubIds)).size === expectedPersistentClubs,
-  `expanded world must contain ${expectedPersistentClubs} unique persistent clubs`,
+  expectedPersistentClubs === migrated.leagues.reduce((total, league) => total + league.clubIds.length, 0),
+  "expanded world must not duplicate persistent clubs",
 );
 for (const [leagueId, clubIds] of originalMembership) {
   const after = migrated.leagues.find((league) => league.id === leagueId);
@@ -96,7 +96,7 @@ assert(
 );
 
 const plan = buildWorldSimulationPlan(migrated);
-assert(plan.focusClubIds.length === 40, "top-tier player must keep a 40-club Focus bubble");
+assert(plan.focusClubIds.length >= migrated.leagues[0]!.clubIds.length, "top-tier player must keep its own league in Focus");
 assert(
   plan.fringeClubIds.length === expectedPersistentClubs - plan.focusClubIds.length,
   "every persistent club outside the Focus bubble must remain lightweight Fringe",

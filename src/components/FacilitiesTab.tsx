@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Building2, Check, ChevronDown, CircleAlert, Hammer, History, ShieldCheck, Wrench, X } from "lucide-react";
+import { BriefcaseBusiness, Building2, Check, ChevronDown, CircleAlert, Hammer, History, ShieldCheck, Wrench, X } from "lucide-react";
 import { StadiumGround, type GroundHotspot } from "@/components/game/StadiumGround";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -25,6 +25,9 @@ import {
 import { facilityCurrentEffect, groundProgression } from "@/lib/game/groundPresentation";
 import { fmtMoneyExact } from "@/lib/game/engine";
 import { fromAbsoluteWeek } from "@/lib/game/time";
+import { stadiumAccreditation } from "@/lib/game/stadiumAccreditation";
+import { clubOperatingModel, professionaliseUserClub, userProfessionalisationReadiness } from "@/lib/game/employment";
+import { userClubReference } from "@/lib/game/clubReference";
 
 type SupportingView = "ground" | "projects" | "maintenance" | "history";
 
@@ -50,6 +53,8 @@ export function FacilitiesTab({ state, update }: { state: GameState; update: (fn
   const [note, setNote] = useState<string | null>(null);
   const snap = useMemo(() => state.infrastructure ? infrastructureSnapshot(state) : null, [state]);
   const progression = useMemo(() => state.infrastructure ? groundProgression(state) : null, [state]);
+  const accreditation = useMemo(() => state.infrastructure ? stadiumAccreditation(state) : null, [state]);
+  const professional = useMemo(() => state.infrastructure ? userProfessionalisationReadiness(state) : null, [state]);
 
   if (!state.infrastructure || !snap || !progression) {
     return <div className="rounded-lg border bg-card p-6 text-sm text-muted-foreground">The club's physical assets have not been surveyed yet. Advance a week to open the ground.</div>;
@@ -167,7 +172,14 @@ export function FacilitiesTab({ state, update }: { state: GameState; update: (fn
             ))}
           </nav>
 
-          {view === "ground" ? <GroundStatus snap={snap} assets={list} onOpen={(asset) => setOpenAssetId(asset.id)} critical={snap.criticalAssets} /> : null}
+          {view === "ground" ? <>
+            <GroundStatus snap={snap} assets={list} onOpen={(asset) => setOpenAssetId(asset.id)} critical={snap.criticalAssets} />
+            {accreditation && professional ? <ClubStatusPanel state={state} accreditation={accreditation} professional={professional} onProfessionalise={() => {
+              const outcome = professionaliseUserClub(state);
+              setNote(outcome.result.reason);
+              if (outcome.result.ok) update(() => outcome.state);
+            }} /> : null}
+          </> : null}
           {view === "projects" ? <ProjectsPanel state={state} projects={snap.activeProjects} commitments={snap.commitments} onCancel={(project) => {
             const result = cancelProject(state, project.id);
             setNote(result.ok ? `${project.title} cancelled — a penalty was booked.` : (result.reason ?? "Unable to cancel project."));
@@ -232,6 +244,28 @@ function GroundStatus({ snap, assets, critical, onOpen }: { snap: ReturnType<typ
     <div className="mt-2 border-t pt-2 text-[10px] text-muted-foreground">{fmtMoneyExact(snap.totalCapitalSpend)} invested in the ground to date</div>
   </section>;
 }
+function ClubStatusPanel({ state, accreditation, professional, onProfessionalise }: { state: GameState; accreditation: ReturnType<typeof stadiumAccreditation>; professional: ReturnType<typeof userProfessionalisationReadiness>; onProfessionalise: () => void }) {
+  const fullTime = clubOperatingModel(state, userClubReference(state)) === "FullTime";
+  return <section className="border bg-card p-3">
+    <div className="flex items-center gap-2"><BriefcaseBusiness className={cn("size-4", fullTime ? "text-income" : "text-muted-foreground")} /><h2 className="font-display text-base">Club status</h2><span className={cn("ml-auto text-xs font-semibold", fullTime ? "text-income" : "text-muted-foreground")}>{fullTime ? "Full-time" : "Semi-professional"}</span></div>
+    <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
+      <div className="rounded-sm bg-muted/45 px-2 py-1.5"><span className="block text-[9px] uppercase text-muted-foreground">Ground accreditation</span><strong className="font-display text-sm">{accreditation.faCapacityLabel}</strong></div>
+      <div className="rounded-sm bg-muted/45 px-2 py-1.5"><span className="block text-[9px] uppercase text-muted-foreground">EFL qualification</span><strong className={cn("font-display text-sm", accreditation.eflQualificationReady ? "text-income" : "text-muted-foreground")}>{accreditation.eflQualificationReady ? "Ready" : "Not yet"}</strong></div>
+    </div>
+    {!fullTime ? <div className="mt-2 border-t pt-2">
+      <div className="mb-1.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Full-time requirements</div>
+      <StatusRequirement label="Training ground" met={professional.trainingLevel >= professional.minimumTrainingLevel} current={professional.trainingLabel} required="Basic ground+" />
+      {accreditation.professionalisationRequirements.map((item) => <StatusRequirement key={item.label} label={item.label} met={item.met} current={String(item.current)} required={String(item.required)} />)}
+      <Button className="mt-2 w-full" size="sm" disabled={!professional.allowed} onClick={onProfessionalise}>{professional.allowed ? "Turn club full-time" : professional.reason}</Button>
+    </div> : null}
+    <div className="mt-2 border-t pt-2"><div className="mb-1 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">EFL entry benchmark</div>{accreditation.eflQualificationRequirements.map((item) => <StatusRequirement key={item.label} label={item.label} met={item.met} current={String(item.current)} required={String(item.required)} />)}</div>
+  </section>;
+}
+
+function StatusRequirement({ label, met, current, required }: { label: string; met: boolean; current: string; required: string }) {
+  return <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 py-0.5 text-[10px]">{met ? <Check className="size-3.5 text-income" /> : <CircleAlert className="size-3.5 text-muted-foreground" />}<span className="truncate">{label}</span><span className="text-right font-mono text-muted-foreground">{current} / {required}</span></div>;
+}
+
 function FacilitySheet({ state, asset, onApprove }: { state: GameState; asset: InfrastructureAsset; onApprove: (type: CapitalProjectType) => void }) {
   const config = ASSET_CONFIG[asset.type];
   const catalogue = projectCatalogue(state, asset.id);

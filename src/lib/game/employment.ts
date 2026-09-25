@@ -9,6 +9,7 @@ import { footballLevelOfClub, type FootballLevel } from "./footballLevel";
 import { clubReputation } from "./reputation";
 import { isUserClubReference, userClubReference } from "./clubReference";
 import { ASSET_CONFIG, assetById } from "./infrastructure";
+import { stadiumAccreditation } from "./stadiumAccreditation";
 
 /**
  * New-career / migration seed only. Once persisted, a club's operating model
@@ -65,6 +66,9 @@ export interface ProfessionalisationReadiness {
   trainingLevel: number;
   trainingLabel: string;
   minimumTrainingLevel: number;
+  stadiumCapacity: number;
+  minimumStadiumCapacity: number;
+  stadiumReady: boolean;
   futureWageFactor: number;
   recruitmentReputationBonus: number;
 }
@@ -84,12 +88,16 @@ export function userProfessionalisationReadiness(
   const trainingLevel = training?.level ?? 0;
   const trainingLabel =
     ASSET_CONFIG.training.levels[Math.max(0, trainingLevel - 1)] ?? "No training ground";
+  const ground = stadiumAccreditation(state);
   const impact = {
     currentModel,
     footballLevel,
     trainingLevel,
     trainingLabel,
     minimumTrainingLevel: PROFESSIONALISATION_MIN_TRAINING_LEVEL,
+    stadiumCapacity: ground.usableCapacity,
+    minimumStadiumCapacity: 1_950,
+    stadiumReady: ground.professionalisationReady,
     futureWageFactor: employmentNegotiationWageFactorFor("FullTime", footballLevel),
     recruitmentReputationBonus: employmentRecruitmentReputationBonusFor(
       "FullTime",
@@ -121,10 +129,18 @@ export function userProfessionalisationReadiness(
       reason: "Upgrade the Training Ground to Basic ground or better first.",
     };
   }
+  if (!ground.professionalisationReady) {
+    const missing = ground.professionalisationRequirements.find((item) => !item.met);
+    return {
+      ...impact,
+      allowed: false,
+      reason: missing ? `Ground accreditation: ${missing.label} must reach ${missing.required}.` : "The ground does not yet meet the full-time operating standard.",
+    };
+  }
   return {
     ...impact,
     allowed: true,
-    reason: "The club has the facilities required to move to full-time operation.",
+    reason: "The training ground and stadium meet the requirements for full-time operation.",
   };
 }
 

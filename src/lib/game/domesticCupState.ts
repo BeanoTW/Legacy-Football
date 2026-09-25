@@ -42,7 +42,7 @@ export function domesticCupRoundComplete(cup: DomesticCupState): boolean {
   return cup.ties.every((tie) => Boolean(tie.winner)) && (cup.ties.length > 0 || (cup.byes?.length ?? 0) > 0);
 }
 
-export function advanceDomesticCup(cup: DomesticCupState, seed: string, state?: { leagues: { tier: number; clubIds: string[] }[] }): DomesticCupState {
+export function advanceDomesticCup(cup: DomesticCupState, seed: string, state?: { leagues: { id?: string; tier: number; clubIds: string[] }[] }): DomesticCupState {
   if (!domesticCupRoundComplete(cup)) return cup;
   const winners = [...cup.ties.flatMap((tie) => (tie.winner ? [tie.winner] : [])), ...(cup.byes ?? [])];
   const nextRound = cup.round + 1;

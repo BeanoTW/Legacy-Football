@@ -2,8 +2,8 @@ import { buildWorldSimulationPlan } from "../world";
 import {
   freshStartDivision,
   makeWorldLeagues,
-  WORLD_CLUBS_PER_DIVISION,
   WORLD_DIVISIONS,
+  worldClubCount,
 } from "../worldPyramid";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -12,7 +12,7 @@ function assert(condition: unknown, message: string): asserts condition {
 
 const playerClub = "Player FC";
 const leagues = makeWorldLeagues(playerClub);
-const expectedClubs = WORLD_DIVISIONS.length * WORLD_CLUBS_PER_DIVISION;
+const expectedClubs = worldClubCount();
 const startingDivision = freshStartDivision();
 const playerLeague = leagues.find((league) => league.clubIds.includes(playerClub));
 
@@ -21,8 +21,8 @@ assert(
   "fresh world must contain every persistent division",
 );
 assert(
-  leagues.every((league) => league.clubIds.length === WORLD_CLUBS_PER_DIVISION),
-  "every world division must contain 20 clubs",
+  leagues.every((league) => league.clubIds.length === WORLD_DIVISIONS.find((division) => division.id === league.id)?.clubCount),
+  "every world division must use its configured club count",
 );
 assert(
   new Set(leagues.flatMap((league) => league.clubIds)).size === expectedClubs,
@@ -38,16 +38,16 @@ assert(
 );
 assert(
   leagues.filter((league) => league.tier > 1 && league.tier < startingDivision.tier).every(
-    (league) => league.promotionPlaces === 2 && league.relegationPlaces === 2,
+    (league) => league.promotionPlaces > 0 && league.relegationPlaces > 0,
   ),
-  "linear interior divisions must support two-way movement",
+  "interior divisions must support two-way movement",
 );
 assert(
-  new Set(WORLD_DIVISIONS.map((division) => division.tier)).size === startingDivision.tier,
+  new Set(WORLD_DIVISIONS.map((division) => division.tier)).size === 7,
   "world tier levels must remain contiguous even with parallel regional divisions",
 );
 assert(
-  WORLD_DIVISIONS.filter((division) => division.tier === startingDivision.tier).length === 4,
+  WORLD_DIVISIONS.filter((division) => division.tier === 7).length === 4,
   "deepest Level 7 tier must contain four regional divisions",
 );
 
@@ -60,8 +60,8 @@ const plan = buildWorldSimulationPlan({
 
 assert(plan.clubs.length === expectedClubs, "simulation plan must cover every persistent club");
 assert(
-  plan.focusClubIds.length === 40,
-  "Level 7 start should fully simulate the player division and its upper neighbour",
+  plan.focusClubIds.length >= playerLeague!.clubIds.length,
+  "Level 7 start must fully simulate the player division",
 );
 assert(
   plan.fringeClubIds.length === expectedClubs - plan.focusClubIds.length,

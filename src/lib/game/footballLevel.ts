@@ -57,8 +57,13 @@ export function footballLevelToLegacyTier(level: FootballLevel): number {
   return level - LEGACY_TIER_TO_FOOTBALL_LEVEL_OFFSET;
 }
 
-export function footballLevelOfLeague(league: Pick<League, "id" | "tier">): FootballLevel {
-  return PERSISTED_WORLD_LEVELS[league.id] ?? legacyTierToFootballLevel(league.tier);
+export function footballLevelOfLeague(
+  league: Pick<League, "tier"> & Partial<Pick<League, "id">>,
+): FootballLevel {
+  if (league.id && PERSISTED_WORLD_LEVELS[league.id]) return PERSISTED_WORLD_LEVELS[league.id];
+  const tier = Math.round(league.tier);
+  if (tier >= 1 && tier <= 8) return tier as FootballLevel;
+  return legacyTierToFootballLevel(tier);
 }
 
 export function footballLevelOfClub(state: GameState, clubId: string): FootballLevel {

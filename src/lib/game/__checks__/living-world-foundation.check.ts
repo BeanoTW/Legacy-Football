@@ -1,8 +1,8 @@
 import type { League, LeagueRow } from "../types";
 import { CLUBS } from "../clubs";
 import {
-  WORLD_CLUBS_PER_DIVISION,
   WORLD_DIVISIONS,
+  worldClubCount,
   deepestWorldTier,
   freshStartDivision,
   makeExpandedLeagues,
@@ -49,11 +49,14 @@ function outcome(leagueId: string, tier: number, table: LeagueRow[], promoted: s
 
 export function runLivingWorldFoundationChecks(): void {
   const parallel: readonly WorldDivisionDefinition[] = [
-    { id: "l4", name: "Level Six", tier: 4, reputationRange: [14, 36] },
+    { id: "l4", name: "Level Six", tier: 4, clubCount: 20, promotionPlaces: 0, relegationPlaces: 2, reputationRange: [14, 36] },
     {
       id: "l7-central",
       name: "Regional Premier Central",
       tier: 5,
+      clubCount: 20,
+      promotionPlaces: 2,
+      relegationPlaces: 0,
       reputationRange: [8, 24],
       lane: "central",
       feedsInto: ["l4"],
@@ -63,6 +66,9 @@ export function runLivingWorldFoundationChecks(): void {
       id: "l7-south",
       name: "Regional Premier South",
       tier: 5,
+      clubCount: 20,
+      promotionPlaces: 2,
+      relegationPlaces: 0,
       reputationRange: [8, 24],
       lane: "south",
       feedsInto: ["l4"],
@@ -77,20 +83,20 @@ export function runLivingWorldFoundationChecks(): void {
     "parallel regional division must retain explicit upward routing",
   );
 
-  assert(WORLD_DIVISIONS.length === 8, "persistent world must now contain four legacy divisions plus four Level 7 regions");
-  assert(worldDivisionsAtTier(5).length === 4, "Level 7 must contain exactly four regional divisions");
-  assert(deepestWorldTier() === 5, "Level 7 must be the deepest enabled world tier");
+  assert(WORLD_DIVISIONS.length === 11, "persistent world must contain Levels 1-7 with regional splits");
+  assert(worldDivisionsAtTier(7).length === 4, "Level 7 must contain exactly four regional divisions");
+  assert(deepestWorldTier() === 7, "Level 7 must be the deepest enabled world tier");
   assert(freshStartDivision().id === "regional-premier-central", "fresh saves must begin in the designated Level 7 lane");
   assert(
-    CLUBS.length >= WORLD_DIVISIONS.length * WORLD_CLUBS_PER_DIVISION,
+    CLUBS.length >= worldClubCount(),
     "stable club pool must be large enough to build the whole Level 7 world",
   );
 
   const freshWorld = makeExpandedLeagues("Beano Test FC");
-  assert(freshWorld.length === 8, "fresh world must build all eight divisions");
+  assert(freshWorld.length === WORLD_DIVISIONS.length, "fresh world must build every configured division");
   assert(
-    freshWorld.every((division) => division.clubIds.length === WORLD_CLUBS_PER_DIVISION),
-    "every fresh-world division must contain exactly twenty clubs",
+    freshWorld.every((division) => division.clubIds.length === WORLD_DIVISIONS.find((definition) => definition.id === division.id)?.clubCount),
+    "every fresh-world division must use its configured capacity",
   );
   assert(
     freshWorld.filter((division) => division.clubIds.includes("Beano Test FC")).length === 1,
@@ -101,7 +107,7 @@ export function runLivingWorldFoundationChecks(): void {
     "fresh user club must start in the Level 7 central lane",
   );
   assert(
-    new Set(freshWorld.flatMap((division) => division.clubIds)).size === WORLD_DIVISIONS.length * WORLD_CLUBS_PER_DIVISION,
+    new Set(freshWorld.flatMap((division) => division.clubIds)).size === worldClubCount(),
     "fresh world must not duplicate clubs across regional divisions",
   );
 
