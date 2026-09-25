@@ -42,7 +42,7 @@ import {
   setTransferDeadlineHour,
   transferDeadlineHour,
 } from "./calendar";
-import { tickMatchday, tickSelectedMatchday, type MatchOverride } from "./tick/matchday";
+import { tickSelectedMatchday, type MatchOverride } from "./tick/matchday";
 import { tickLegacyAiResults, tickContractsAndMarkets, tickTicketBacklash } from "./tick/world";
 import { tickSeasonRollover } from "./tick/rollover";
 import { commitLiveMatch } from "./liveMatch";
@@ -147,25 +147,44 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   advancePlayerClubPerformanceWeekInPlace(s);
   progressScoutingWeekInPlace(s);
 
-  // Dated daily play may already have committed this week's user fixture.
-  // Keep the weekly selector only for legacy/fast-forward callers that reached
-  // Sunday without traversing the visible fixture day.
-  const weeklyFixture = s.fixtures.find((f) => f.week === s.week);
-  const weeklyFixtureAlreadyPlayed = weeklyFixture
-    ? s.results.some(
-        (r) =>
-          r.week === s.week &&
-          r.opponent === weeklyFixture.opponent &&
-          r.home === weeklyFixture.home &&
-          (r.dayOfWeek ?? 5) === (weeklyFixture.dayOfWeek ?? 5) &&
-          (r.competition ?? "league") === (weeklyFixture.competition ?? "league"),
-      )
-    : false;
-  const matchdayOutcome = weeklyFixtureAlreadyPlayed
-    ? { fxResult: null as FixtureResult | null }
-    : tickMatchday(s, override) ?? { fxResult: null };
-  const { fxResult, matchdayNote }: { fxResult: FixtureResult | null; matchdayNote?: string } =
-    matchdayOutcome;
+  // Dated daily play may already have committed some of this week's user
+  // fixtures. Direct weekly/fast-forward callers still need to settle every
+  // remaining date. This matters in 24-club divisions, where selected weeks
+  // contain both a midweek and weekend league fixture.
+  const weeklyFixtures = s.fixtures
+    .filter((fixture) => fixture.week === s.week)
+    .sort(
+      (a, b) =>
+        (a.dayOfWeek ?? 5) - (b.dayOfWeek ?? 5) ||
+        (a.competition ?? "league").localeCompare(b.competition ?? "league") ||
+        a.opponent.localeCompare(b.opponent),
+    );
+  const matchdayNotes: string[] = [];
+  let overrideUnused = Boolean(override);
+  for (const fixture of weeklyFixtures) {
+    const alreadyPlayed = s.results.some(
+      (result) =>
+        result.week === s.week &&
+        result.opponent === fixture.opponent &&
+        result.home === fixture.home &&
+        (result.dayOfWeek ?? 5) === (fixture.dayOfWeek ?? 5) &&
+        (result.competition ?? "league") === (fixture.competition ?? "league"),
+    );
+    if (alreadyPlayed) continue;
+
+    const outcome = tickSelectedMatchday(
+      s,
+      fixture,
+      overrideUnused ? override : undefined,
+    );
+    overrideUnused = false;
+    if (outcome.matchdayNote) matchdayNotes.push(outcome.matchdayNote);
+    const fxResult = outcome.fxResult;
+    if (!fxResult) continue;
+    s.results.push(fxResult);
+    if (fxResult.competition === "preseason") settlePreseasonInvitational(s);
+    applyPlayerClubMatchOutcomeInPlace(s, fxResult);
+  }
 
   tickLegacyAiResults(s);
   tickContractsAndMarkets(s);
@@ -173,16 +192,9 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
 
   syncWeekLedger(s, s.season, s.week);
   runSustainabilityWeek(s);
-  if (matchdayNote) {
+  if (matchdayNotes.length) {
     const row = s.ledger.find((l) => l.season === s.season && l.week === s.week);
-    if (row) row.matchdayNote = matchdayNote;
-  }
-  if (fxResult) {
-    s.results.push(fxResult);
-    if (fxResult.competition === "preseason") settlePreseasonInvitational(s);
-    // The completed result changes morale for subsequent fixtures; it never
-    // feeds back into the score that has already been decided.
-    applyPlayerClubMatchOutcomeInPlace(s, fxResult);
+    if (row) row.matchdayNote = matchdayNotes.join(" · ");
   }
   resolveWeek(s, s.week);
   syncTable(s);
