@@ -30,11 +30,12 @@ import { recomputeConfidence } from "@/lib/game/board";
 import { playerManagerQuality } from "@/lib/game/playerClubPerformance";
 import { Button } from "@/components/ui/button";
 import { competitionLabel, fixtureCompetition, fixtureDate, resultForFixture } from "./fixturePresentation";
+import type { AdvanceTarget } from "@/lib/game/advancePlanner";
 import { ClubIdentitySheet } from "./ClubIdentityStudio";
 import { ClubBadge } from "./ClubKitArt";
 import { clubKitFor } from "@/lib/game/clubKit";
 
-export function ClubHub({ state, update, setTab, isContinuing }: { state: GameState; update: (fn: (s: GameState) => GameState) => void; setTab: (t: Tab) => void; isContinuing: boolean }) {
+export function ClubHub({ state, update, setTab, isContinuing, onAdvanceTo }: { state: GameState; update: (fn: (s: GameState) => GameState) => void; setTab: (t: Tab) => void; isContinuing: boolean; onAdvanceTo?: (target: AdvanceTarget) => void }) {
   const [identityOpen, setIdentityOpen] = useState(false);
   const identity = clubKitFor(state);
   const today = calendarDay(state);
@@ -97,7 +98,7 @@ export function ClubHub({ state, update, setTab, isContinuing }: { state: GameSt
           </button>
         </aside>
       </section>
-      <div className="lf-home-calendar"><ContinueCalendar state={state} isContinuing={isContinuing} onOpenSchedule={() => setTab("fixtures")} /></div>
+      <div className="lf-home-calendar"><ContinueCalendar state={state} isContinuing={isContinuing} onOpenSchedule={() => setTab("fixtures")} onAdvanceTo={onAdvanceTo} /></div>
       <section className="lf-vital-grid">
         <VitalCard icon={<Coins className="size-4" />} label="Financial health" value={strategic.health.label} detail={`${fmtMoney(state.cash)} cash · ${strategic.health.coverMonths.toFixed(1)} months cover`} tone={HEALTH_TONE[strategic.health.state]} meter={Math.min(100, strategic.health.coverMonths * 12)} onClick={() => setTab("cashflow")} />
         <VitalCard icon={<Handshake className="size-4" />} label="Board confidence" value={`${boardConf}%`} detail={strategic.pressure.headline} tone={boardConf >= 65 ? "text-emerald-600" : "text-amber-600"} meter={boardConf} onClick={() => setTab("board")} />
