@@ -289,12 +289,15 @@ console.log("\n[9] v3 save migration expands without rewriting active top flight
   );
   check("no duplicate clubs across divisions", new Set(pyramidClubs(m)).size === pyramidClubs(m).length);
   const expectedTopMembership = new Set(
-    (g.league as { team: string }[]).map((row) => canonicalClubReference(m, row.team)),
+    (g.league as { team: string }[]).map((row) => row.team),
+  );
+  const migratedTopSeedKeys = m.leagues[0].clubIds.map(
+    (club) => m.clubIdentity?.clubsById[club]?.seedKey ?? clubDisplayName(m, club),
   );
   check(
     "existing tier-1 membership preserved",
-    m.leagues[0].clubIds.length === 20 &&
-      m.leagues[0].clubIds.every((club) => expectedTopMembership.has(club)),
+    migratedTopSeedKeys.length === 20 &&
+      migratedTopSeedKeys.every((seedKey) => expectedTopMembership.has(seedKey)),
   );
   const migratedTopSchedule = m.leagueSchedule.filter((f) => f.league === undefined || f.league === DIVISION_ONE);
   check("active top schedule preserved while lower leagues append", migratedTopSchedule.length === originalTopScheduleLength && m.leagueSchedule.some((f) => f.league === "league-4") && m.leagueSchedule.some((f) => f.league === "regional-premier-central"));
