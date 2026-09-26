@@ -1872,3 +1872,227 @@
   height: 100%;
   filter: drop-shadow(0 4px 6px rgb(0 0 0 / 28%));
 }
+
+
+/* Mobile density pass — restore game-UI density without shrinking core type. */
+@media (max-width: 767px) {
+  .game-screen:has(.lf-home-dashboard) {
+    overflow-y: auto;
+  }
+
+  .lf-home-dashboard {
+    height: auto;
+    overflow: visible;
+    gap: .38rem;
+  }
+
+  /* Fixture remains the visual anchor, but not a poster. */
+  .lf-home-dashboard .lf-match-card,
+  .lf-home-dashboard .lf-match-inner {
+    min-height: 0;
+    height: auto;
+  }
+
+  .lf-home-dashboard .lf-match-inner {
+    grid-template-columns: minmax(0, 1fr) 8.35rem;
+    gap: .5rem;
+    padding: .68rem .72rem;
+  }
+
+  .lf-home-dashboard .lf-match-copy h2 {
+    font-size: 1.42rem;
+  }
+
+  .lf-home-dashboard .lf-match-copy p {
+    margin-top: .22rem;
+    font-size: .69rem;
+  }
+
+  .lf-home-dashboard .lf-match-kicker {
+    padding: .12rem .32rem;
+    font-size: .54rem;
+  }
+
+  .lf-home-dashboard .lf-match-brief {
+    margin-top: .34rem;
+    padding-top: .32rem;
+    gap: .3rem;
+  }
+
+  .lf-home-dashboard .lf-match-brief span {
+    font-size: .52rem;
+  }
+
+  .lf-home-dashboard .lf-match-brief strong {
+    margin-top: .08rem;
+    font-size: .64rem;
+    white-space: normal;
+  }
+
+  .lf-home-dashboard .lf-match-fit {
+    min-width: 0;
+    padding: .16rem .28rem;
+    font-size: .62rem;
+  }
+
+  .lf-home-dashboard .lf-match-actions {
+    gap: .3rem;
+    margin-top: .42rem;
+  }
+
+  .lf-home-dashboard .lf-match-primary,
+  .lf-home-dashboard .lf-match-secondary {
+    min-width: 0;
+    padding: .42rem .5rem;
+    font-size: .58rem;
+  }
+
+  .lf-home-dashboard .lf-match-versus {
+    gap: .18rem;
+  }
+
+  .lf-home-dashboard .lf-match-team {
+    width: 2.75rem;
+  }
+
+  .lf-home-dashboard .lf-team-mark {
+    width: 2.45rem;
+    height: 2.75rem;
+  }
+
+  /* Standing and manager become a true status strip. */
+  .lf-home-dashboard .lf-club-pulse {
+    min-height: 0;
+  }
+
+  .lf-home-dashboard .lf-pulse-block,
+  .lf-home-dashboard .lf-pulse-manager {
+    min-height: 4.15rem;
+    padding: .48rem .62rem;
+  }
+
+  .lf-home-dashboard .lf-standing-value {
+    margin-top: .08rem;
+    font-size: 1.42rem;
+  }
+
+  .lf-home-dashboard .lf-form-strip {
+    min-height: 1rem;
+    margin-top: .18rem;
+  }
+
+  .lf-home-dashboard .lf-pulse-manager strong {
+    margin-top: .18rem;
+    font-size: .8rem;
+  }
+
+  .lf-home-dashboard .lf-pulse-manager small {
+    margin-top: .06rem;
+    font-size: .58rem;
+  }
+
+  /* Three vitals read as one compact KPI band. */
+  .lf-home-dashboard .lf-vital-grid {
+    gap: .3rem;
+  }
+
+  .lf-home-dashboard .lf-vital-card {
+    min-height: 0;
+    padding: .42rem .46rem;
+    border-radius: .58rem;
+  }
+
+  .lf-home-dashboard .lf-vital-heading > b {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .lf-home-dashboard .lf-vital-heading > span {
+    font-size: .52rem;
+  }
+
+  .lf-home-dashboard .lf-vital-card > strong {
+    margin-top: .16rem;
+    font-size: 1rem;
+  }
+
+  .lf-home-dashboard .lf-vital-card > small {
+    margin-top: .14rem;
+    font-size: .52rem;
+  }
+
+  .lf-home-dashboard .lf-vital-card > i {
+    height: .14rem;
+    margin-top: .26rem;
+  }
+
+  /* Suggested actions are rows, not feature tiles. */
+  .lf-home-dashboard .lf-suggested-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: .2rem .28rem .28rem;
+  }
+
+  .lf-home-dashboard .lf-suggested-row {
+    min-height: 2.9rem;
+    margin-inline: 0;
+    padding: .38rem .5rem;
+    border-radius: .5rem;
+  }
+
+  .lf-home-dashboard .lf-suggested-row strong {
+    font-size: .72rem;
+  }
+
+  .lf-home-dashboard .lf-suggested-row small {
+    margin-top: .04rem;
+    font-size: .58rem;
+  }
+
+  .lf-home-dashboard .lf-home-panel-heading {
+    min-height: 1.65rem;
+    padding: .32rem .62rem;
+    font-size: .66rem;
+  }
+
+  /* Inbox-style tasks stay readable but lose dead padding. */
+  .lf-home-dashboard .lf-task-list {
+    padding: .22rem .28rem .28rem;
+  }
+
+  .lf-home-dashboard .lf-task-row {
+    min-height: 2.9rem;
+    margin-inline: 0;
+    padding: .36rem .46rem;
+  }
+
+  .lf-home-dashboard .lf-task-icon {
+    width: 1.7rem;
+    height: 1.7rem;
+  }
+
+  .lf-home-dashboard .lf-task-row strong {
+    font-size: .72rem;
+  }
+
+  .lf-home-dashboard .lf-task-row small {
+    margin-top: .04rem;
+    font-size: .58rem;
+  }
+
+  /* Empty news is a status row; actual stories can still use the richer card. */
+  .lf-home-dashboard .lf-news-card {
+    min-height: 0;
+  }
+
+  .lf-home-dashboard .lf-news-card:has(.lf-news-empty),
+  .lf-home-dashboard .lf-news-card:has(.lf-empty-state) {
+    grid-template-rows: auto auto;
+  }
+
+  .lf-home-dashboard .lf-news-card:has(.lf-news-empty) .lf-news-art,
+  .lf-home-dashboard .lf-news-card:has(.lf-empty-state) .lf-news-art {
+    display: none;
+  }
+}
