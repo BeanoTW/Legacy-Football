@@ -239,59 +239,69 @@
 @media (prefers-reduced-motion:reduce){.lf-home-dashboard > *{animation:none}}
 
 @media (max-width:767px) {
-  .lf-masthead .panel-strip > div { gap:.62rem; padding:.7rem .85rem .75rem; align-items:center; }
-  .lf-masthead .lf-club-crest { width:3.2rem; height:3.2rem; }
-  .lf-masthead h1 { font-size:1.7rem; line-height:.95; }
-  .lf-masthead .lf-club-subtitle { margin-top:.14rem; font-size:.82rem; color:rgb(255 255 255 / 88%); }
-  .lf-masthead .lf-club-detail { margin-top:.14rem; font-size:.62rem; color:rgb(255 255 255 / 72%); }
-  .lf-masthead .lf-chairman-badge { min-width:5.4rem; padding:.4rem .5rem .45rem; border-radius:.8rem; }
-  .lf-masthead .lf-chairman-badge strong { font-size:1.45rem; line-height:1; }
-  .lf-masthead .lf-chairman-badge small { font-size:.56rem; color:rgb(255 255 255 / 78%); }
-  .lf-rep-star { width:.68rem; height:.68rem; }
+  /* Pic-4 density target: compact football-game dashboard, not stacked web cards. */
+  .lf-masthead .panel-strip > div { gap:.55rem; padding:.42rem .7rem .48rem; align-items:center; }
+  .lf-masthead .lf-club-crest { width:2.9rem; height:2.9rem; }
+  .lf-masthead h1 { font-size:1.55rem; line-height:.95; }
+  .lf-masthead .lf-club-subtitle { margin-top:.08rem; font-size:.76rem; color:rgb(255 255 255 / 88%); }
+  .lf-masthead .lf-club-detail { margin-top:.08rem; font-size:.57rem; color:rgb(255 255 255 / 72%); }
+  .lf-masthead .lf-chairman-badge { min-width:4.8rem; padding:.3rem .42rem .34rem; border-radius:.72rem; }
+  .lf-masthead .lf-chairman-badge strong { font-size:1.3rem; line-height:1; }
+  .lf-masthead .lf-chairman-badge small { font-size:.5rem; color:rgb(255 255 255 / 78%); }
+  .lf-rep-star { width:.58rem; height:.58rem; }
 
-  .lf-home-dashboard { gap:.7rem; }
-  .lf-home-dashboard .lf-match-card { border-radius:1rem !important; min-height:23rem; }
-  .lf-home-dashboard .lf-match-inner { min-height:23rem; }
-  .lf-home-dashboard .lf-match-copy { padding:1rem 1rem .9rem; }
-  .lf-home-dashboard .lf-match-kicker { font-size:.62rem; }
-  .lf-home-dashboard .lf-match-copy h2 { margin-top:.9rem; font-size:2rem; line-height:.95; }
-  .lf-home-dashboard .lf-match-copy > p { margin-top:.45rem; font-size:.8rem; }
-  .lf-home-dashboard .lf-match-versus { top:1.2rem; right:.9rem; width:46%; gap:.5rem; }
+  .lf-home-dashboard { gap:.45rem; }
+  .lf-home-dashboard .lf-match-card { border-radius:1rem !important; min-height:15.5rem; }
+  .lf-home-dashboard .lf-match-inner { min-height:15.5rem; }
+  .lf-home-dashboard .lf-match-copy { padding:.72rem .78rem .62rem; }
+  .lf-home-dashboard .lf-match-kicker { font-size:.58rem; }
+  .lf-home-dashboard .lf-match-copy h2 { margin-top:.55rem; font-size:1.72rem; line-height:.95; }
+  .lf-home-dashboard .lf-match-copy > p { margin-top:.3rem; font-size:.7rem; }
+  .lf-home-dashboard .lf-match-versus { top:.8rem; right:.65rem; width:45%; gap:.28rem; }
   .lf-home-dashboard .lf-match-team { min-width:0; }
-  .lf-home-dashboard .lf-match-team > div:nth-child(2) { white-space:normal !important; overflow:visible !important; text-overflow:clip !important; text-align:center; line-height:1.02; max-width:5.1rem; }
-  .lf-home-dashboard .lf-team-mark { width:3.7rem; height:4.1rem; }
-  .lf-home-dashboard .lf-vs { width:2rem; height:2rem; border-radius:999px; font-size:.58rem; flex:0 0 auto; }
-  .lf-home-dashboard .lf-match-brief { margin-top:1.5rem; padding:.6rem 9rem .6rem 1rem; min-height:4.3rem; }
-  .lf-home-dashboard .lf-match-brief > div:first-child strong { display:block; max-width:13rem; line-height:1.1; }
-  .lf-home-dashboard .lf-match-fit { position:absolute; right:1rem; bottom:4.9rem; min-width:7.1rem; padding:.45rem .55rem; display:flex; gap:.3rem; align-items:center; justify-content:center; }
-  .lf-home-dashboard .lf-match-fit small { display:block; margin-left:.1rem; font-size:.58rem; }
-  .lf-home-dashboard .lf-match-actions { padding:0 1rem 1rem; gap:.55rem; }
+  .lf-home-dashboard .lf-match-team > div:nth-child(2) { white-space:normal !important; overflow:visible !important; text-overflow:clip !important; text-align:center; line-height:1.02; max-width:4.4rem; }
+  .lf-home-dashboard .lf-team-mark { width:3rem; height:3.3rem; }
+  .lf-home-dashboard .lf-vs { width:1.7rem; height:1.7rem; border-radius:999px; font-size:.52rem; flex:0 0 auto; }
+  .lf-home-dashboard .lf-match-brief { margin-top:.75rem; padding:.42rem 7.2rem .42rem .78rem; min-height:3.15rem; }
+  .lf-home-dashboard .lf-match-brief > div:first-child strong { display:block; max-width:10.5rem; line-height:1.08; font-size:.68rem; }
+  .lf-home-dashboard .lf-match-fit { position:absolute; right:.72rem; bottom:3.75rem; min-width:6.2rem; padding:.34rem .42rem; display:flex; gap:.22rem; align-items:center; justify-content:center; }
+  .lf-home-dashboard .lf-match-fit small { display:block; margin-left:.05rem; font-size:.52rem; }
+  .lf-home-dashboard .lf-match-actions { padding:0 .78rem .72rem; gap:.38rem; }
   .lf-home-dashboard .lf-match-actions .lf-match-primary,
-  .lf-home-dashboard .lf-match-actions .lf-match-secondary { min-width:0; padding-inline:.75rem; font-size:.76rem; }
-  .lf-match-dots { right:1.15rem; bottom:3.45rem; }
+  .lf-home-dashboard .lf-match-actions .lf-match-secondary { min-width:0; padding:.5rem .58rem; font-size:.67rem; }
+  .lf-match-dots { right:.9rem; bottom:2.85rem; }
 
   .lf-home-dashboard .lf-club-pulse { display:grid; grid-template-columns:1fr 1fr; gap:0; }
   .lf-home-dashboard .lf-pulse-block,
-  .lf-home-dashboard .lf-pulse-manager { min-height:8.8rem; padding:1rem; }
+  .lf-home-dashboard .lf-pulse-manager { min-height:5.5rem; padding:.65rem .75rem; }
   .lf-home-dashboard .lf-pulse-manager { border-left:1px solid var(--hc-line); }
   .lf-home-dashboard .lf-pulse-table { display:none; }
-  .lf-home-dashboard .lf-standing-value { font-size:2.4rem; }
+  .lf-home-dashboard .lf-standing-value { margin-top:.08rem; font-size:1.75rem; }
+  .lf-home-dashboard .lf-form-strip { margin-top:.25rem; min-height:1.1rem; }
+  .lf-home-dashboard .lf-pulse-manager strong { margin-top:.18rem; font-size:.88rem; }
+  .lf-home-dashboard .lf-pulse-manager small { margin-top:.08rem; font-size:.6rem; }
 
-  .lf-home-dashboard .lf-vital-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:.5rem; }
-  .lf-home-dashboard .lf-vital-card { min-height:9.5rem; padding:.75rem .65rem; }
-  .lf-home-dashboard .lf-vital-heading { font-size:.55rem; line-height:1.05; letter-spacing:.05em; }
-  .lf-home-dashboard .lf-vital-card > strong { font-size:1.45rem; }
-  .lf-home-dashboard .lf-vital-card > small { font-size:.63rem; line-height:1.2; }
+  .lf-home-dashboard .lf-vital-grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:.38rem; }
+  .lf-home-dashboard .lf-vital-card { min-height:6.35rem; padding:.55rem .52rem; }
+  .lf-home-dashboard .lf-vital-heading { font-size:.5rem; line-height:1.02; letter-spacing:.04em; }
+  .lf-home-dashboard .lf-vital-card > strong { margin-top:.22rem; font-size:1.2rem; }
+  .lf-home-dashboard .lf-vital-card > small { margin-top:.2rem; font-size:.57rem; line-height:1.12; }
+  .lf-home-dashboard .lf-vital-card > i { margin-top:.38rem; }
 
   .lf-home-dashboard .lf-suggested-next { border-radius:1rem; }
-  .lf-home-dashboard .lf-suggested-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); padding:.75rem; }
-  .lf-home-dashboard .lf-suggested-row { min-height:7rem; padding:.7rem; }
-  .lf-home-dashboard .lf-suggested-row strong { font-size:.9rem; line-height:1.05; }
-  .lf-home-dashboard .lf-suggested-row small { margin-top:.18rem; font-size:.67rem; line-height:1.15; }
+  .lf-home-dashboard .lf-home-panel-heading { min-height:2rem; padding:.45rem .65rem; }
+  .lf-home-dashboard .lf-suggested-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.45rem; padding:.5rem; }
+  .lf-home-dashboard .lf-suggested-row { min-height:4.8rem; padding:.55rem; }
+  .lf-home-dashboard .lf-suggested-row strong { font-size:.8rem; line-height:1.05; }
+  .lf-home-dashboard .lf-suggested-row small { margin-top:.12rem; font-size:.61rem; line-height:1.12; }
 
-  .lf-news-body { min-height:4.8rem; margin:.5rem; }
-  .lf-news-copy strong { font-size:.84rem; }
-  .lf-news-copy small { font-size:.66rem; }
+  .lf-home-dashboard .lf-task-list { padding:.25rem; }
+  .lf-home-dashboard .lf-task-row { min-height:3.15rem; padding:.42rem .5rem; }
+  .lf-home-dashboard .lf-task-icon { width:1.8rem; height:1.8rem; }
+
+  .lf-news-body { min-height:3.4rem; margin:.32rem; padding:.5rem .6rem; }
+  .lf-news-copy strong { font-size:.78rem; }
+  .lf-news-copy small { font-size:.6rem; }
 
   .lf-continue-bar .lf-continue-button { height:3.45rem; }
 }
