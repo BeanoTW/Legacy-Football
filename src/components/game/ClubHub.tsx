@@ -120,7 +120,7 @@ export function ClubHub({ state, update, setTab, isContinuing, onAdvanceTo }: { 
             <button key={item.id} onClick={() => setTab("inbox")} className="lf-task-row"><span className="lf-task-icon"><Mail className="size-4" /></span><span className="min-w-0 flex-1"><strong className="block truncate">{item.subject}</strong><small className="block truncate">{item.department}</small></span><ArrowRight className="size-4 shrink-0 opacity-55" /></button>
           )) : <div className="lf-task-row is-clear"><span className="lf-task-icon"><Mail className="size-4" /></span><span><strong className="block">No decisions waiting</strong><small className="block">Nothing needs your attention</small></span></div>}</div>
         </div>
-        <button onClick={() => setTab("inbox")} className="lf-news-card overflow-hidden rounded-2xl border bg-card text-left shadow-sm">
+        <button onClick={() => setTab("inbox")} className={cn("lf-news-card overflow-hidden rounded-2xl border bg-card text-left shadow-sm", !latestNews && "is-empty")}>
           <div className="lf-home-panel-heading"><span className="lf-heading-label"><Mail className="size-3.5" />Club news</span><span>View all <ArrowRight className="inline size-3.5" /></span></div>
           <div className="lf-news-body">
             <div className="lf-news-copy">
