@@ -251,22 +251,27 @@ console.log("\n[9] v3 save migration expands without rewriting active top flight
   g.version = 3;
   g.week = 12;
 
-  // A genuine v3 save stored display names, not the opaque IDs stamped by a
-  // current newGame. Reconstruct that old boundary before exercising v3->v17.
+  // A genuine v3 save stored the built-in source names, before opaque IDs
+  // and before later presentation aliases existed. Reconstruct that historical
+  // identity boundary from each club's immutable seed key rather than today's
+  // displayed parody name, otherwise an alias change can falsely look like a
+  // migration membership rewrite.
+  const legacyName = (ref: string) =>
+    modern.clubIdentity?.clubsById[ref]?.seedKey ?? clubDisplayName(modern, ref);
   g.league = modern.league.map((row) => ({
     ...row,
-    team: clubDisplayName(modern, row.team),
+    team: legacyName(row.team),
   }));
   g.fixtures = modern.fixtures.map((fixture) => ({
     ...fixture,
-    opponent: clubDisplayName(modern, fixture.opponent),
+    opponent: legacyName(fixture.opponent),
   }));
   g.leagueSchedule = modern.leagueSchedule
     .filter((f) => f.league === DIVISION_ONE)
     .map(({ league, ...rest }) => ({
       ...rest,
-      home: clubDisplayName(modern, rest.home),
-      away: clubDisplayName(modern, rest.away),
+      home: legacyName(rest.home),
+      away: legacyName(rest.away),
     }));
 
   delete g.leagues;
