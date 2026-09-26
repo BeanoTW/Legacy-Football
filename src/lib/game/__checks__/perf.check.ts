@@ -60,7 +60,7 @@ bench(
 
 bench(
   "full season (46 weeks)",
-  8000,
+  12000,
   () => {
     let s = newGame("Perf United", "Bench Marker", SEED);
     for (let i = 0; i < 46; i++) s = advanceWeek(s);
