@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 440" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#16263a"/>
+      <stop offset=".45" stop-color="#3b3f58"/>
+      <stop offset=".75" stop-color="#b8684a"/>
+      <stop offset="1" stop-color="#e59a58"/>
+    </linearGradient>
+    <linearGradient id="pitch" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2f7a45"/>
+      <stop offset="1" stop-color="#14452b"/>
+    </linearGradient>
+    <linearGradient id="stand" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1b2a33"/>
+      <stop offset="1" stop-color="#0c161c"/>
+    </linearGradient>
+    <radialGradient id="flood" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#fff8e0" stop-opacity=".95"/>
+      <stop offset=".25" stop-color="#fff1c4" stop-opacity=".45"/>
+      <stop offset="1" stop-color="#fff1c4" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff6d8" stop-opacity=".28"/>
+      <stop offset="1" stop-color="#fff6d8" stop-opacity="0"/>
+    </linearGradient>
+    <pattern id="crowd" width="8" height="6" patternUnits="userSpaceOnUse">
+      <rect width="8" height="6" fill="#16232b"/>
+      <circle cx="2" cy="2" r="1.1" fill="#3e5560"/>
+      <circle cx="6" cy="4" r="1.1" fill="#5b3c3a"/>
+      <circle cx="4" cy="1" r=".8" fill="#6d7f86" opacity=".6"/>
+    </pattern>
+    <filter id="soft"><feGaussianBlur stdDeviation="8"/></filter>
+  </defs>
+
+  <rect width="1000" height="440" fill="url(#sky)"/>
+  <g filter="url(#soft)">
+    <ellipse cx="220" cy="90" rx="200" ry="22" fill="#e38c5a" opacity=".45"/>
+    <ellipse cx="640" cy="70" rx="240" ry="20" fill="#d77b58" opacity=".4"/>
+    <ellipse cx="860" cy="130" rx="160" ry="16" fill="#f2a866" opacity=".5"/>
+    <ellipse cx="420" cy="140" rx="170" ry="14" fill="#f0b276" opacity=".45"/>
+    <ellipse cx="120" cy="40" rx="180" ry="18" fill="#2a3048" opacity=".7"/>
+  </g>
+
+  <path fill="url(#stand)" d="M0 196 Q500 160 1000 196 L1000 262 L0 262 Z"/>
+  <path fill="url(#crowd)" opacity=".95" d="M20 206 Q500 172 980 206 L980 252 L20 252 Z"/>
+  <path fill="#0b141a" d="M0 186 Q500 150 1000 186 L1000 196 Q500 160 0 196 Z"/>
+  <path fill="none" stroke="#f3c48e" stroke-opacity=".35" stroke-width="1.5" d="M0 186 Q500 150 1000 186"/>
+
+  <path fill="url(#stand)" d="M0 206 L150 250 L90 440 L0 440 Z"/>
+  <path fill="url(#crowd)" opacity=".85" d="M0 222 L128 258 L76 430 L0 430 Z"/>
+  <path fill="url(#stand)" d="M1000 206 L850 250 L910 440 L1000 440 Z"/>
+  <path fill="url(#crowd)" opacity=".85" d="M1000 222 L872 258 L924 430 L1000 430 Z"/>
+
+  <g stroke="#0d171d" stroke-width="5">
+    <line x1="70" y1="40" x2="92" y2="210"/>
+    <line x1="930" y1="40" x2="908" y2="210"/>
+    <line x1="360" y1="70" x2="366" y2="170"/>
+    <line x1="640" y1="70" x2="634" y2="170"/>
+  </g>
+  <g fill="#0d171d">
+    <rect x="40" y="26" width="62" height="24" rx="3"/>
+    <rect x="898" y="26" width="62" height="24" rx="3"/>
+    <rect x="336" y="58" width="48" height="18" rx="3"/>
+    <rect x="616" y="58" width="48" height="18" rx="3"/>
+  </g>
+  <g fill="#fff4d2">
+    <circle cx="50" cy="33" r="3.4"/><circle cx="61" cy="33" r="3.4"/><circle cx="72" cy="33" r="3.4"/><circle cx="83" cy="33" r="3.4"/><circle cx="94" cy="33" r="3.4"/>
+    <circle cx="50" cy="43" r="3.4"/><circle cx="61" cy="43" r="3.4"/><circle cx="72" cy="43" r="3.4"/><circle cx="83" cy="43" r="3.4"/><circle cx="94" cy="43" r="3.4"/>
+    <circle cx="906" cy="33" r="3.4"/><circle cx="917" cy="33" r="3.4"/><circle cx="928" cy="33" r="3.4"/><circle cx="939" cy="33" r="3.4"/><circle cx="950" cy="33" r="3.4"/>
+    <circle cx="906" cy="43" r="3.4"/><circle cx="917" cy="43" r="3.4"/><circle cx="928" cy="43" r="3.4"/><circle cx="939" cy="43" r="3.4"/><circle cx="950" cy="43" r="3.4"/>
+    <circle cx="344" cy="64" r="2.6"/><circle cx="354" cy="64" r="2.6"/><circle cx="364" cy="64" r="2.6"/><circle cx="374" cy="64" r="2.6"/>
+    <circle cx="344" cy="71" r="2.6"/><circle cx="354" cy="71" r="2.6"/><circle cx="364" cy="71" r="2.6"/><circle cx="374" cy="71" r="2.6"/>
+    <circle cx="624" cy="64" r="2.6"/><circle cx="634" cy="64" r="2.6"/><circle cx="644" cy="64" r="2.6"/><circle cx="654" cy="64" r="2.6"/>
+    <circle cx="624" cy="71" r="2.6"/><circle cx="634" cy="71" r="2.6"/><circle cx="644" cy="71" r="2.6"/><circle cx="654" cy="71" r="2.6"/>
+  </g>
+  <circle cx="72" cy="38" r="90" fill="url(#flood)"/>
+  <circle cx="928" cy="38" r="90" fill="url(#flood)"/>
+  <circle cx="360" cy="67" r="60" fill="url(#flood)"/>
+  <circle cx="640" cy="67" r="60" fill="url(#flood)"/>
+  <path fill="url(#beam)" d="M72 40 L420 440 L120 440 Z"/>
+  <path fill="url(#beam)" d="M928 40 L580 440 L880 440 Z"/>
+
+  <path fill="url(#pitch)" d="M160 262 L840 262 L1000 440 L0 440 Z"/>
+  <g fill="#ffffff" opacity=".06">
+    <path d="M160 262 L245 262 L125 440 L0 440 Z"/>
+    <path d="M330 262 L415 262 L375 440 L250 440 Z"/>
+    <path d="M500 262 L585 262 L625 440 L500 440 Z"/>
+    <path d="M670 262 L755 262 L875 440 L750 440 Z"/>
+  </g>
+  <g fill="none" stroke="#e9f5ea" stroke-opacity=".55" stroke-width="2">
+    <path d="M168 266 L832 266 L990 438 L10 438 Z"/>
+    <line x1="500" y1="266" x2="500" y2="438"/>
+    <ellipse cx="500" cy="338" rx="120" ry="32"/>
+    <path d="M148 300 L258 300 L208 380 L78 380"/>
+    <path d="M852 300 L742 300 L792 380 L922 380"/>
+    <circle cx="500" cy="338" r="2.5" fill="#e9f5ea"/>
+  </g>
+  <ellipse cx="500" cy="360" rx="420" ry="80" fill="#fff6d8" opacity=".08" filter="url(#soft)"/>
+  <rect y="150" width="1000" height="120" fill="#f5c68e" opacity=".06" filter="url(#soft)"/>
+</svg>

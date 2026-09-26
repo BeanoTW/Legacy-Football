@@ -27,16 +27,19 @@ export function TopBar({
   subtitle,
   detail,
   right,
+  crest,
 }: {
   title: string;
   subtitle?: string;
   detail?: string;
   right?: React.ReactNode;
+  /** Club crest shown in place of the generic trophy mark. */
+  crest?: React.ReactNode;
 }) {
   return (
     <header className="panel-strip">
       <div className="mx-auto max-w-6xl px-4 py-3 flex items-center gap-3">
-        <Trophy className="size-6 shrink-0" />
+        {crest ? <span className="lf-club-crest shrink-0">{crest}</span> : <Trophy className="size-6 shrink-0" />}
         <div className="flex-1 min-w-0">
           <div className="lf-brand-kicker">Legacy Football</div>
           <h1 className="font-display text-xl leading-none truncate">{title}</h1>

@@ -1,4 +1,4 @@
-import { ChevronUp, Pause, Play } from "lucide-react";
+import { ChevronRight, ChevronUp, Pause, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -37,16 +37,19 @@ export function MobileContinueBar({
           variant={isContinuing ? "destructive" : "default"}
           onClick={isContinuing ? stopContinue : startContinue}
         >
-          <span className="flex items-center gap-2">
+          <span className="lf-continue-label flex items-center gap-2">
             {isContinuing ? <Pause className="size-5" /> : <Play className="size-5" />}
             {isContinuing ? "Stop" : "Continue"}
           </span>
-          <span className="ml-3 min-w-0 truncate text-xs font-medium opacity-80 md:text-sm">{hint}</span>
+          <span className="lf-continue-hint ml-3 flex min-w-0 items-center gap-1 text-xs font-medium opacity-80 md:text-sm">
+            <span className="min-w-0 truncate">{hint}</span>
+            {!isContinuing && <ChevronRight className="size-4 shrink-0" aria-hidden="true" />}
+          </span>
         </Button>
         {!isContinuing && onAdvanceTo && choices.length > 0 ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-12 shrink-0 px-3 md:h-14" aria-label="Choose where to stop">
+              <Button variant="outline" className="lf-continue-more h-12 shrink-0 px-3 md:h-14" aria-label="Choose where to stop">
                 <ChevronUp className="size-5" />
                 <span className="hidden text-sm sm:inline">Advance to</span>
               </Button>

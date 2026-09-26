@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { CircleDollarSign, Menu, Ticket, Users, Wallet } from "lucide-react";
+import { CircleDollarSign, Menu, Star, Ticket, Users, Wallet } from "lucide-react";
 
 import { BoardTab } from "@/components/BoardTab";
 import { CommercialTab } from "@/components/CommercialTab";
@@ -25,11 +25,13 @@ import { RecruitmentFlow } from "@/components/game/RecruitmentFlow";
 import { SquadSelectionTab } from "@/components/game/SquadSelectionTab";
 import { FacilitiesFlow } from "@/components/game/FacilitiesFlow";
 import { SettingsTab } from "@/components/game/SettingsTab";
+import { ClubBadge } from "@/components/game/ClubKitArt";
 import { useGame, type ContinueSpeed } from "@/hooks/useGame";
 import type { GameState } from "@/lib/game/types";
 import type { SaveSlotId, SaveSlotSummary } from "@/lib/game/engine";
 import { avgTicketPrice, fmtMoney, fmtMoneyExact, phaseOf, CALENDAR } from "@/lib/game/engine";
 import { chairmanStyle, clubNickname } from "@/lib/game/character";
+import { clubKitFor } from "@/lib/game/clubKit";
 import { clubKpi } from "@/lib/game/selectors/club";
 import { unreadCount } from "@/lib/game/inbox";
 import { actionableInbox } from "@/lib/game/attention";
@@ -64,6 +66,18 @@ function Page() {
   return <Game {...game} state={game.state} />;
 }
 
+/** Five-star reputation read-out: one star per 20 reputation points. */
+function ReputationStars({ value }: { value: number }) {
+  const filled = Math.max(0, Math.min(5, Math.round(value / 20)));
+  return (
+    <span className="lf-rep-stars" aria-label={`${filled} of 5 stars`}>
+      {Array.from({ length: 5 }, (_, index) => (
+        <Star key={index} className={cn("lf-rep-star", index < filled && "is-filled")} aria-hidden="true" />
+      ))}
+    </span>
+  );
+}
+
 function Game({ state, update, isContinuing, continueReason, continueTarget, continueSpeed, setContinueSpeed, startContinue, stopContinue, activeSlot, saveSlots, switchSlot, deleteSlot }: {
   state: GameState;
   update: (fn: (s: GameState) => GameState) => void;
@@ -92,6 +106,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
   const blockingDecisions = actionableInbox(state);
   const phaseLabel = ({ preseason: "Pre-season", firstHalf: "League — 1st half", midseason: "Mid-season break", secondHalf: "League — 2nd half" } as const)[phaseOf(state.week)];
   const chairman = chairmanStyle(state);
+  const crestDesign = clubKitFor(state).badge;
 
   useEffect(() => {
     if (blockingDecisions.length === 0 || (!isContinuing && !continueReason)) return;
@@ -122,11 +137,13 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
           title={state.clubName}
           subtitle={clubNickname(state)}
           detail={`Season ${state.season} · Week ${state.week}/${CALENDAR.seasonEnd} · ${phaseLabel}`}
+          crest={<ClubBadge design={crestDesign} clubName={state.clubName} size={56} />}
           right={
             <div className="lf-chairman-badge" title={chairman.detail}>
               <span>{chairman.label}</span>
               <strong>{Math.round(state.reputation)}</strong>
               <small>Reputation</small>
+              <ReputationStars value={state.reputation} />
             </div>
           }
         />

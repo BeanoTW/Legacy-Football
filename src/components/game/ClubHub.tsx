@@ -92,6 +92,7 @@ export function ClubHub({ state, update, setTab, isContinuing, onAdvanceTo }: { 
             <span className="lf-pulse-label"><Users className="size-3.5" />Manager status</span>
             <strong>{manager?.name ?? "Vacant"}</strong>
             <small>{manager ? `${Math.round(managerQuality)}/100 quality` : "Appointment required"}</small>
+            <ArrowRight className="lf-pulse-chevron size-4" aria-hidden="true" />
           </button>
           <button className="lf-pulse-table" onClick={() => setTab("world")}>
             {miniLeague.slice(0, 3).map((row) => <span key={row.team} className={cn(isUserClubReference(state, row.team) && "is-club")}><b>{leagueSorted.indexOf(row) + 1}</b><em>{clubPresentationName(clubDisplayName(state, row.team))}</em><strong>{row.pts}</strong></span>)}
@@ -100,9 +101,9 @@ export function ClubHub({ state, update, setTab, isContinuing, onAdvanceTo }: { 
       </section>
       <div className="lf-home-calendar"><ContinueCalendar state={state} isContinuing={isContinuing} onOpenSchedule={() => setTab("fixtures")} onAdvanceTo={onAdvanceTo} /></div>
       <section className="lf-vital-grid">
-        <VitalCard icon={<Coins className="size-4" />} label="Financial health" value={strategic.health.label} detail={`${fmtMoney(state.cash)} cash · ${strategic.health.coverMonths.toFixed(1)} months cover`} tone={HEALTH_TONE[strategic.health.state]} meter={Math.min(100, strategic.health.coverMonths * 12)} onClick={() => setTab("cashflow")} />
-        <VitalCard icon={<Handshake className="size-4" />} label="Board confidence" value={`${boardConf}%`} detail={strategic.pressure.headline} tone={boardConf >= 65 ? "text-emerald-600" : "text-amber-600"} meter={boardConf} onClick={() => setTab("board")} />
-        <VitalCard icon={<Users className="size-4" />} label="Supporter mood" value={`${state.fanHappiness}%`} detail="Current supporter sentiment" tone={state.fanHappiness >= 60 ? "text-emerald-600" : "text-amber-600"} meter={state.fanHappiness} onClick={() => setTab("tickets")} />
+        <VitalCard variant="finance" icon={<Coins className="size-4" />} label="Financial health" value={strategic.health.label} detail={`${fmtMoney(state.cash)} cash · ${strategic.health.coverMonths.toFixed(1)} months cover`} tone={HEALTH_TONE[strategic.health.state]} meter={Math.min(100, strategic.health.coverMonths * 12)} onClick={() => setTab("cashflow")} />
+        <VitalCard variant="board" icon={<Handshake className="size-4" />} label="Board confidence" value={`${boardConf}%`} detail={strategic.pressure.headline} tone={boardConf >= 65 ? "text-emerald-600" : "text-amber-600"} meter={boardConf} onClick={() => setTab("board")} />
+        <VitalCard variant="fans" icon={<Users className="size-4" />} label="Supporter mood" value={`${state.fanHappiness}%`} detail="Current supporter sentiment" tone={state.fanHappiness >= 60 ? "text-emerald-600" : "text-amber-600"} meter={state.fanHappiness} onClick={() => setTab("tickets")} />
       </section>
       {suggestedSteps.length > 0 && (
         <section className="lf-suggested-next rounded-2xl border bg-card shadow-sm">
@@ -120,7 +121,22 @@ export function ClubHub({ state, update, setTab, isContinuing, onAdvanceTo }: { 
           )) : <div className="lf-task-row is-clear"><span className="lf-task-icon"><Mail className="size-4" /></span><span><strong className="block">No decisions waiting</strong><small className="block">Nothing needs your attention</small></span></div>}</div>
         </div>
         <button onClick={() => setTab("inbox")} className="lf-news-card overflow-hidden rounded-2xl border bg-card text-left shadow-sm">
-          <div className="lf-home-panel-heading"><span className="lf-heading-label"><Mail className="size-3.5" />Club news</span><span>View all <ArrowRight className="inline size-3.5" /></span></div><div className="lf-news-art" aria-hidden="true" /><div className="p-3"><strong className="block line-clamp-2 text-sm">{latestNews?.subject ?? "No club news yet"}</strong><p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{latestNews ? `${latestNews.department} · Week ${latestNews.week}` : "Updates from the club will appear here."}</p></div>
+          <div className="lf-home-panel-heading"><span className="lf-heading-label"><Mail className="size-3.5" />Club news</span><span>View all <ArrowRight className="inline size-3.5" /></span></div>
+          <div className="lf-news-body">
+            <div className="lf-news-copy">
+              <strong className="line-clamp-2">{latestNews?.subject ?? "No club news yet"}</strong>
+              <small className="line-clamp-2">{latestNews ? `${latestNews.department} · Week ${latestNews.week}` : "Updates from the club will appear here."}</small>
+            </div>
+            <div className="lf-news-paper" aria-hidden="true">
+              <div className="lf-news-paper-sheet is-back" />
+              <div className="lf-news-paper-sheet">
+                <span className="lf-news-paper-dateline">Legacy Football · Club edition</span>
+                <b className="lf-news-paper-masthead">{state.clubName}</b>
+                <em className="lf-news-paper-sub">The club chronicle</em>
+                <span className="lf-news-paper-cols"><i className="lf-news-paper-photo" /><span className="lf-news-paper-lines"><i /><i /><i /><i /><i /></span></span>
+              </div>
+            </div>
+          </div>
         </button>
       </section>
       <section className="lf-management-grid grid grid-cols-2 gap-2 md:grid-cols-3">
@@ -150,7 +166,7 @@ function MatchStrip({ state, nextFixture, manager, update, onOpenSchedule, onOpe
   const fitTone = prep.squadFitBand === "Excellent" ? "text-emerald-600" : prep.squadFitBand === "Good" ? "text-green-600" : prep.squadFitBand === "Workable" ? "text-amber-600" : prep.squadFitBand === "Poor" ? "text-rose-600" : "text-muted-foreground";
   const date = nextFixture ? fixtureDate(nextFixture) : null;
   const competition = nextFixture ? competitionLabel(fixtureCompetition(nextFixture)) : isPreseason ? "Preseason" : "Schedule";
-  return <div className="lf-match-inner"><div className="lf-match-copy"><div className="lf-match-kicker">Next fixture · Week {nextFixture?.week ?? state.week}</div><h2>{nextFixture ? clubPresentationName(clubDisplayName(state, nextFixture.opponent)) : "No fixture scheduled"}</h2><p>{nextFixture && date ? `${date.dayName} ${date.day} ${date.month} · ${nextFixture.home ? "Home" : "Away"} · ${competition}` : "Use the schedule to review upcoming fixtures."}</p>{nextFixture && <div className="lf-match-brief"><div><span>{manager ? "Manager's brief" : "Caretaker setup"}</span><strong>{prep.managerName} · {prep.selectedFormation} · {prep.style}</strong></div><div className={cn("lf-match-fit", fitTone)}>{prep.squadFitBand}<small>{prep.squadFitScore}/100 fit</small></div></div>}<div className="lf-match-actions">{matchReady ? <><Button onClick={() => update((current) => startMatchDay(current))} className="lf-match-primary"><Play /> View match</Button><Button variant="outline" onClick={() => update((current) => simulateFixtureToday(current))} className="lf-match-secondary">Sim match</Button></> : <Button onClick={onOpenSchedule} className="lf-match-primary"><Play /> View schedule</Button>}<Button variant="outline" onClick={onOpenStaff} className="lf-match-secondary">{manager ? "Manager profile" : "Appoint manager"}</Button></div></div><div className="lf-match-versus"><div className="lf-match-team"><div className={cn("lf-team-mark", nextFixture && "has-club-badge")}>{nextFixture ? <ClubBadge design={nextFixture.home ? identity.badge : opponentIdentity!.badge} clubName={homeName} size={40} /> : <ClubBadge design={identity.badge} clubName={state.clubName} size={40} />}</div><div className="truncate font-display">{homeName}</div><span>{nextFixture ? "Home" : ""}</span></div><div className="lf-vs">VS</div><div className="lf-match-team"><div className={cn("lf-team-mark", nextFixture && "has-club-badge", !nextFixture && "is-tbc")}>{nextFixture ? <ClubBadge design={nextFixture.home ? opponentIdentity!.badge : identity.badge} clubName={awayName} size={40} /> : "?"}</div><div className="truncate font-display">{awayName}</div><span>{nextFixture ? "Away" : ""}</span></div></div></div>;
+  return <div className="lf-match-inner"><div className="lf-match-copy"><div className="lf-match-kicker">Next fixture · Week {nextFixture?.week ?? state.week}</div><h2>{nextFixture ? clubPresentationName(clubDisplayName(state, nextFixture.opponent)) : "No fixture scheduled"}</h2><p>{nextFixture && date ? `${date.dayName} ${date.day} ${date.month} · ${nextFixture.home ? "Home" : "Away"} · ${competition}` : "Use the schedule to review upcoming fixtures."}</p>{nextFixture && <div className="lf-match-brief"><div><span>{manager ? "Manager's brief" : "Caretaker setup"}</span><strong>{prep.managerName} · {prep.selectedFormation} · {prep.style}</strong></div><div className={cn("lf-match-fit", fitTone)}>{prep.squadFitBand}<small>{prep.squadFitScore}/100 fit</small></div></div>}<div className="lf-match-actions">{matchReady ? <><Button onClick={() => update((current) => startMatchDay(current))} className="lf-match-primary"><Play /> View match</Button><Button variant="outline" onClick={() => update((current) => simulateFixtureToday(current))} className="lf-match-secondary">Sim match</Button></> : <Button onClick={onOpenSchedule} className="lf-match-primary"><Play /> View schedule</Button>}<Button variant="outline" onClick={onOpenStaff} className="lf-match-secondary">{manager ? "Manager profile" : "Appoint manager"}</Button></div></div><div className="lf-match-versus"><div className="lf-match-team"><div className={cn("lf-team-mark", nextFixture && "has-club-badge")}>{nextFixture ? <ClubBadge design={nextFixture.home ? identity.badge : opponentIdentity!.badge} clubName={homeName} size={40} /> : <ClubBadge design={identity.badge} clubName={state.clubName} size={40} />}</div><div className="truncate font-display">{homeName}</div><span>{nextFixture ? "Home" : ""}</span></div><div className="lf-vs">VS</div><div className="lf-match-team"><div className={cn("lf-team-mark", nextFixture && "has-club-badge", !nextFixture && "is-tbc")}>{nextFixture ? <ClubBadge design={nextFixture.home ? opponentIdentity!.badge : identity.badge} clubName={awayName} size={40} /> : "?"}</div><div className="truncate font-display">{awayName}</div><span>{nextFixture ? "Away" : ""}</span></div><div className="lf-match-dots" aria-hidden="true"><i className="is-active" /><i /><i /></div></div>;
 }
 
 function ordinal(value: number): string {
@@ -158,8 +174,8 @@ function ordinal(value: number): string {
   return `${value}${suffix}`;
 }
 
-function VitalCard({ icon, label, value, detail, meter, tone, onClick }: { icon: React.ReactNode; label: string; value: string; detail: string; meter: number; tone?: string; onClick: () => void }) {
-  return <button onClick={onClick} className="lf-vital-card"><span className="lf-vital-heading"><b>{icon}</b><span>{label}</span></span><strong className={tone}>{value}</strong><small>{detail}</small><i><b style={{ width: `${Math.max(0, Math.min(100, meter))}%` }} /></i></button>;
+function VitalCard({ variant, icon, label, value, detail, meter, tone, onClick }: { variant: "finance" | "board" | "fans"; icon: React.ReactNode; label: string; value: string; detail: string; meter: number; tone?: string; onClick: () => void }) {
+  return <button onClick={onClick} className={cn("lf-vital-card", `is-${variant}`)}><span className="lf-vital-heading"><b>{icon}</b><span>{label}</span></span><strong className={tone}>{value}</strong><small>{detail}</small><i><b style={{ width: `${Math.max(0, Math.min(100, meter))}%` }} /></i></button>;
 }
 
 function LeaguePanel({ state, miniLeague, leagueSorted, setTab }: { state: GameState; miniLeague: GameState["league"]; leagueSorted: GameState["league"]; setTab: (t: Tab) => void }) {
