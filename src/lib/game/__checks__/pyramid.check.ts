@@ -25,6 +25,7 @@ import { buildTable, isLeagueSeasonComplete, tableFor } from "../league";
 import type { GameState } from "../types";
 import { canonicalClubReference, clubDisplayName, isUserClubReference } from "../clubReference";
 import { WORLD_DIVISIONS } from "../worldPyramid";
+import { fixturesForClub, makeLeagueRows } from "../schedule";
 
 let passed = 0;
 let failed = 0;
@@ -251,28 +252,16 @@ console.log("\n[9] v3 save migration expands without rewriting active top flight
   g.version = 3;
   g.week = 12;
 
-  // A genuine v3 save stored the built-in source names, before opaque IDs
-  // and before later presentation aliases existed. Reconstruct that historical
-  // identity boundary from each club's immutable seed key rather than today's
-  // displayed parody name, otherwise an alias change can falsely look like a
-  // migration membership rewrite.
-  const legacyName = (ref: string) =>
-    modern.clubIdentity?.clubsById[ref]?.seedKey ?? clubDisplayName(modern, ref);
-  g.league = modern.league.map((row) => ({
-    ...row,
-    team: legacyName(row.team),
-  }));
-  g.fixtures = modern.fixtures.map((fixture) => ({
-    ...fixture,
-    opponent: legacyName(fixture.opponent),
-  }));
-  g.leagueSchedule = modern.leagueSchedule
-    .filter((f) => f.league === DIVISION_ONE)
-    .map(({ league, ...rest }) => ({
-      ...rest,
-      home: legacyName(rest.home),
-      away: legacyName(rest.away),
-    }));
+  // Build an actual v3-era active top flight rather than projecting today's
+  // fresh Level 7 career back into an old schema. v3 stored source club names,
+  // a 20-club user division and only that division's live schedule.
+  const legacyLeagues = makeLeagues("Legacy FC");
+  const legacyTop = legacyLeagues.find((league) => league.id === DIVISION_ONE)!;
+  const legacySchedule = makePyramidSchedule(legacyLeagues, `${modern.saveSeed}|season1`)
+    .filter((fixture) => fixture.league === DIVISION_ONE);
+  g.league = makeLeagueRows(legacyTop.clubIds);
+  g.fixtures = fixturesForClub(legacySchedule, "Legacy FC");
+  g.leagueSchedule = legacySchedule.map(({ league, ...rest }) => rest);
 
   delete g.leagues;
   delete g.playerLeagueId;
