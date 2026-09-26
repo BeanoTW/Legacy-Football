@@ -305,3 +305,322 @@
 
   .lf-continue-bar .lf-continue-button { height:3.45rem; }
 }
+
+
+/* Pic-4 structural mobile pass — final layer, intentionally last. */
+@media (max-width:767px) {
+  /* Keep club identity clear of the handset status area and restore the
+     balanced masthead proportions from the compact reference. */
+  .lf-masthead {
+    min-height:6rem;
+    padding-top:max(env(safe-area-inset-top), .8rem);
+  }
+  .lf-masthead .panel-strip { min-height:5.15rem; }
+  .lf-masthead .panel-strip > div {
+    gap:.55rem;
+    padding:.38rem .72rem .5rem;
+    align-items:center;
+  }
+  .lf-masthead .lf-club-crest { width:3rem; height:3rem; }
+  .lf-masthead h1 {
+    max-width:10.5rem;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    font-size:1.55rem;
+  }
+  .lf-masthead .lf-club-subtitle,
+  .lf-masthead .lf-club-detail {
+    max-width:10.5rem;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .lf-masthead .lf-chairman-badge {
+    min-width:4.6rem;
+    margin-left:auto;
+    padding:.3rem .4rem .34rem;
+  }
+
+  /* Rebuild the fixture as five clean rows. The markup stays the same; the
+     copy wrapper becomes transparent to this grid on phones. */
+  .lf-home-dashboard .lf-match-card {
+    min-height:16rem;
+  }
+  .lf-home-dashboard .lf-match-inner {
+    position:relative;
+    display:grid;
+    grid-template-columns:minmax(0, 1fr) minmax(8.6rem, .82fr);
+    grid-template-rows:auto auto auto auto auto;
+    column-gap:.5rem;
+    row-gap:0;
+    min-height:16rem;
+    padding:.72rem .78rem .68rem;
+    align-items:start;
+  }
+  .lf-home-dashboard .lf-match-copy { display:contents; }
+  .lf-home-dashboard .lf-match-kicker {
+    grid-column:1;
+    grid-row:1;
+    align-self:start;
+    width:max-content;
+    max-width:100%;
+    padding:.16rem .38rem;
+    font-size:.57rem;
+  }
+  .lf-home-dashboard .lf-match-copy h2 {
+    grid-column:1;
+    grid-row:2;
+    align-self:end;
+    max-width:100%;
+    margin:.52rem 0 0;
+    font-size:1.78rem;
+    line-height:.93;
+    overflow-wrap:normal;
+    word-break:normal;
+  }
+  .lf-home-dashboard .lf-match-copy > p {
+    grid-column:1;
+    grid-row:3;
+    margin:.32rem 0 .4rem;
+    font-size:.69rem;
+    line-height:1.15;
+  }
+  .lf-home-dashboard .lf-match-versus {
+    position:static;
+    grid-column:2;
+    grid-row:1 / 4;
+    align-self:center;
+    width:100%;
+    min-width:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:.3rem;
+  }
+  .lf-home-dashboard .lf-match-versus::before { display:none; }
+  .lf-home-dashboard .lf-match-team {
+    width:4.15rem;
+    min-width:0;
+    text-align:center;
+  }
+  .lf-home-dashboard .lf-team-mark {
+    width:3.35rem;
+    height:3.65rem;
+    margin-inline:auto;
+  }
+  .lf-home-dashboard .lf-match-team .font-display {
+    width:4.15rem;
+    max-width:4.15rem;
+    margin-top:.18rem;
+    overflow:visible;
+    text-overflow:clip;
+    white-space:normal;
+    font-size:.68rem;
+    line-height:1.02;
+    text-align:center;
+  }
+  .lf-home-dashboard .lf-match-team > span {
+    display:block;
+    margin-top:.08rem;
+    font-size:.5rem;
+  }
+  .lf-home-dashboard .lf-vs {
+    width:1.75rem;
+    height:1.75rem;
+    flex:0 0 auto;
+    padding:0;
+    display:grid;
+    place-items:center;
+    font-size:.52rem;
+  }
+  .lf-home-dashboard .lf-match-brief {
+    position:relative;
+    grid-column:1 / -1;
+    grid-row:4;
+    display:grid;
+    grid-template-columns:minmax(0, 1fr) auto;
+    align-items:center;
+    gap:.55rem;
+    min-height:3rem;
+    margin:.02rem -.78rem 0;
+    padding:.45rem .78rem;
+    border-top:1px solid rgb(255 255 255 / 11%);
+    border-bottom:1px solid rgb(255 255 255 / 7%);
+  }
+  .lf-home-dashboard .lf-match-brief > div:first-child {
+    min-width:0;
+  }
+  .lf-home-dashboard .lf-match-brief > div:first-child strong {
+    max-width:none;
+    margin-top:.1rem;
+    overflow:visible;
+    text-overflow:clip;
+    white-space:normal;
+    font-size:.68rem;
+    line-height:1.08;
+  }
+  .lf-home-dashboard .lf-match-fit {
+    position:static;
+    min-width:5.8rem;
+    padding:.34rem .45rem;
+    display:block;
+    text-align:center;
+    font-size:.66rem;
+  }
+  .lf-home-dashboard .lf-match-fit small {
+    margin:.08rem 0 0;
+    font-size:.5rem;
+  }
+  .lf-home-dashboard .lf-match-actions {
+    grid-column:1 / -1;
+    grid-row:5;
+    display:grid;
+    grid-template-columns:minmax(0, 1fr) minmax(0, 1fr);
+    gap:.45rem;
+    margin:0;
+    padding:.52rem 0 0;
+  }
+  .lf-home-dashboard .lf-match-actions .lf-match-primary,
+  .lf-home-dashboard .lf-match-actions .lf-match-secondary {
+    width:100%;
+    min-width:0;
+    min-height:2.45rem;
+    justify-content:center;
+    padding:.48rem .48rem;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    font-size:.66rem;
+  }
+  .lf-home-dashboard .lf-match-actions svg {
+    width:.85rem;
+    height:.85rem;
+    flex:0 0 auto;
+  }
+  .lf-home-dashboard .lf-match-dots {
+    position:absolute;
+    right:.8rem;
+    bottom:.48rem;
+    gap:.24rem;
+    pointer-events:none;
+  }
+  .lf-home-dashboard .lf-match-dots i {
+    width:.42rem;
+    height:.42rem;
+  }
+
+  /* Compact status strip. */
+  .lf-home-dashboard .lf-pulse-block,
+  .lf-home-dashboard .lf-pulse-manager {
+    min-height:5.15rem;
+    padding:.62rem .72rem;
+  }
+  .lf-home-dashboard .lf-standing-value {
+    margin-top:.08rem;
+    font-size:1.65rem;
+  }
+
+  /* KPI band: restore the contrast seen in the reference. */
+  .lf-home-dashboard .lf-vital-card {
+    min-height:6.2rem;
+    padding:.55rem .58rem;
+  }
+  .lf-home-dashboard .lf-vital-heading,
+  .lf-home-dashboard .lf-vital-heading > span {
+    color:rgb(255 255 255 / 88%) !important;
+    opacity:1;
+  }
+  .lf-home-dashboard .lf-vital-heading > b {
+    color:rgb(208 247 240 / 95%) !important;
+    border-color:rgb(126 214 200 / 34%);
+    background:rgb(39 179 161 / 14%);
+  }
+  .lf-home-dashboard .lf-vital-card > small {
+    color:rgb(255 255 255 / 68%) !important;
+    opacity:1;
+  }
+  .lf-home-dashboard .lf-vital-card.is-finance > strong,
+  .lf-home-dashboard .lf-vital-card.is-fans > strong {
+    color:#42d98a !important;
+  }
+  .lf-home-dashboard .lf-vital-card.is-board > strong {
+    color:#f5b83d !important;
+  }
+  .lf-home-dashboard .lf-vital-card.is-board .lf-vital-heading > b {
+    color:#ffd86a !important;
+    border-color:rgb(245 184 61 / 42%);
+    background:rgb(245 184 61 / 14%);
+  }
+
+  /* Suggested actions keep the two-column reference layout, but the icon,
+     copy and chevron all participate instead of leaving a blank card. */
+  .lf-home-dashboard .lf-suggested-list {
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:.45rem;
+    padding:.5rem;
+  }
+  .lf-home-dashboard .lf-suggested-row {
+    display:grid;
+    grid-template-columns:2.35rem minmax(0, 1fr) .8rem;
+    align-items:center;
+    gap:.42rem;
+    min-height:5.1rem;
+    margin:0;
+    padding:.5rem .48rem;
+    border-radius:.7rem;
+  }
+  .lf-home-dashboard .lf-suggested-row .lf-task-icon {
+    display:grid !important;
+    width:2.35rem;
+    height:2.35rem;
+    place-items:center;
+    border-radius:.62rem;
+    color:#8de1d5 !important;
+    border:1px solid rgb(126 214 200 / 28%);
+    background:rgb(39 179 161 / 16%);
+  }
+  .lf-home-dashboard .lf-suggested-row .lf-task-icon svg {
+    width:1.15rem;
+    height:1.15rem;
+  }
+  .lf-home-dashboard .lf-suggested-row strong {
+    font-size:.78rem;
+    line-height:1.04;
+  }
+  .lf-home-dashboard .lf-suggested-row small {
+    margin-top:.12rem;
+    font-size:.59rem;
+    line-height:1.12;
+  }
+  .lf-home-dashboard .lf-suggested-row > svg {
+    opacity:.72 !important;
+    color:rgb(255 255 255 / 76%);
+  }
+
+  /* Chairman tasks were already close; only remove the remaining loose air. */
+  .lf-home-dashboard .lf-task-row {
+    min-height:3rem;
+    padding:.4rem .48rem;
+  }
+
+  /* Empty news should read as a status row, not a newspaper feature. */
+  .lf-home-dashboard .lf-news-card.is-empty .lf-news-body {
+    min-height:2.85rem;
+    margin:.28rem;
+    padding:.42rem .58rem;
+  }
+  .lf-home-dashboard .lf-news-card.is-empty .lf-news-copy {
+    max-width:100%;
+  }
+  .lf-home-dashboard .lf-news-card.is-empty .lf-news-paper {
+    display:none;
+  }
+  .lf-home-dashboard .lf-news-card.is-empty .lf-news-copy strong {
+    font-size:.74rem;
+  }
+  .lf-home-dashboard .lf-news-card.is-empty .lf-news-copy small {
+    font-size:.57rem;
+  }
+}
