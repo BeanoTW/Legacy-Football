@@ -268,6 +268,11 @@ console.log("\n[9] v3 save migration expands without rewriting active top flight
   delete g.seasonHistory;
   delete g.clubRecords;
   const originalTopScheduleLength = (g.leagueSchedule as unknown[]).length;
+  // migrateSave intentionally mutates the parsed save in place. Snapshot the
+  // legacy names BEFORE migration so this assertion compares like with like.
+  const expectedTopMembership = new Set(
+    (g.league as { team: string }[]).map((row) => row.team),
+  );
   const m = migrateSave(g);
   check("migrated to current schema", m.version === SAVE_VERSION);
   check("full current world created", m.leagues.length === WORLD_DIVISIONS.length);
@@ -277,9 +282,6 @@ console.log("\n[9] v3 save migration expands without rewriting active top flight
     m.leagues.filter((l) => l.clubIds.some((club) => isUserClubReference(m, club))).length === 1,
   );
   check("no duplicate clubs across divisions", new Set(pyramidClubs(m)).size === pyramidClubs(m).length);
-  const expectedTopMembership = new Set(
-    (g.league as { team: string }[]).map((row) => row.team),
-  );
   const migratedTopSeedKeys = m.leagues[0].clubIds.map(
     (club) => m.clubIdentity?.clubsById[club]?.seedKey ?? clubDisplayName(m, club),
   );
