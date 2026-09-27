@@ -905,3 +905,108 @@
     font-size:.51rem;
   }
 }
+
+
+/* Merge Manager + Club News into one status column. */
+.lf-home-dashboard .lf-pulse-side {
+  display:grid;
+  grid-template-rows:1fr 1fr;
+  min-width:0;
+  border-bottom:1px solid var(--hc-line);
+}
+.lf-home-dashboard .lf-pulse-manager,
+.lf-home-dashboard .lf-pulse-news {
+  position:relative;
+  min-width:0;
+  padding:.72rem 1rem;
+  border:0;
+  background:transparent;
+  color:var(--hc-text);
+  text-align:left;
+}
+.lf-home-dashboard .lf-pulse-manager {
+  border-bottom:1px solid var(--hc-line);
+}
+.lf-home-dashboard .lf-pulse-news strong,
+.lf-home-dashboard .lf-pulse-manager strong {
+  display:block;
+  margin-top:.22rem;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:.86rem;
+}
+.lf-home-dashboard .lf-pulse-news small,
+.lf-home-dashboard .lf-pulse-manager small {
+  display:block;
+  margin-top:.08rem;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  color:var(--hc-text-dim);
+  font-size:.6rem;
+}
+.lf-home-dashboard .lf-pulse-news .lf-pulse-chevron,
+.lf-home-dashboard .lf-pulse-manager .lf-pulse-chevron {
+  position:absolute;
+  top:50%;
+  right:.55rem;
+  transform:translateY(-50%);
+  color:rgb(255 255 255 / 55%);
+}
+.lf-home-dashboard .lf-home-desk {
+  display:block;
+}
+
+@media (max-width:767px) {
+  .lf-home-dashboard .lf-club-pulse {
+    grid-template-columns:1fr 1fr;
+    grid-template-rows:auto;
+  }
+  .lf-home-dashboard .lf-pulse-block {
+    min-height:5.45rem;
+    padding:.5rem .62rem;
+    border-right:1px solid var(--hc-line);
+  }
+  .lf-home-dashboard .lf-pulse-side {
+    min-height:5.45rem;
+    border-bottom:0;
+  }
+  .lf-home-dashboard .lf-pulse-manager,
+  .lf-home-dashboard .lf-pulse-news {
+    min-height:0;
+    padding:.3rem 1.4rem .3rem .55rem;
+  }
+  .lf-home-dashboard .lf-pulse-manager {
+    border-bottom:1px solid var(--hc-line);
+  }
+  .lf-home-dashboard .lf-pulse-manager::after {
+    display:none;
+  }
+  .lf-home-dashboard .lf-pulse-label {
+    gap:.22rem;
+    font-size:.43rem;
+  }
+  .lf-home-dashboard .lf-pulse-label svg {
+    width:.6rem;
+    height:.6rem;
+  }
+  .lf-home-dashboard .lf-pulse-manager strong,
+  .lf-home-dashboard .lf-pulse-news strong {
+    margin-top:.02rem;
+    font-size:.68rem;
+    line-height:1.05;
+  }
+  .lf-home-dashboard .lf-pulse-manager small,
+  .lf-home-dashboard .lf-pulse-news small {
+    margin-top:.02rem;
+    font-size:.46rem;
+    line-height:1;
+  }
+  .lf-home-dashboard .lf-pulse-manager .lf-pulse-chevron,
+  .lf-home-dashboard .lf-pulse-news .lf-pulse-chevron {
+    right:.4rem;
+    width:.68rem;
+    height:.68rem;
+  }
+}
