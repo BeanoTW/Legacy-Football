@@ -116,7 +116,7 @@ export function clubOverallProfile(
 
   // Clubs at the same level should not all regenerate to an identical squad.
   // Map the club's persisted reputation within its CURRENT division band onto
-  // a narrow ±3 OVR spread around the level baseline. This deliberately allows
+  // a narrow ±2 OVR spread around the level baseline. This deliberately allows
   // the strongest lower-level clubs to approach the weakest clubs above them
   // without erasing the step up between divisions.
   const league = (state.leagues ?? []).find((candidate) =>
@@ -128,7 +128,7 @@ export function clubOverallProfile(
     repHi > repLo && rep >= repLo && rep <= repHi
       ? (rep - repLo) / (repHi - repLo)
       : 0.5;
-  const reputationAdjustment = (percentile - 0.5) * 6;
+  const reputationAdjustment = (percentile - 0.5) * 4;
   const average = clamp(
     Math.round((band.squadAverage + reputationAdjustment) * 10) / 10,
     band.floor + 2,
