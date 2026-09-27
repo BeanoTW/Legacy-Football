@@ -123,6 +123,9 @@ function _newGameSeed(
   const playerLeague = leagues.find((league) => league.clubIds.includes(clubName));
   if (!playerLeague) throw new Error(`No starting division found for ${clubName}`);
   const leagueSchedule = makePyramidSchedule(leagues, `${saveSeed}|season1`);
+  const openingReputation = 24;
+  const clubReputations = initClubReputations(leagues, saveSeed);
+  clubReputations[clubName] = openingReputation;
   return {
     version: SAVE_VERSION,
     saveSeed,
@@ -132,7 +135,7 @@ function _newGameSeed(
     week: 1,
 
     cash: 220_000,
-    reputation: 24,
+    reputation: openingReputation,
     fanHappiness: 70,
     stands,
     pitchCondition: 76,
@@ -155,7 +158,7 @@ function _newGameSeed(
     matchRecords: [],
     seasonHistory: [],
     clubRecords: makeClubRecords(leagues),
-    clubReputations: initClubReputations(leagues, saveSeed),
+    clubReputations,
     seasonPredictions: [],
     clubSnapshots: [],
     results: [],
