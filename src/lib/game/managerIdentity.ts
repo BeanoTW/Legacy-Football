@@ -1,7 +1,7 @@
 import type { Staff } from "./types";
 import { hashString } from "./rng";
 
-export type ManagerFormation = "4-4-2" | "4-2-3-1" | "4-3-3" | "3-5-2" | "5-3-2";
+export type ManagerFormation = "4-4-2" | "4-2-3-1" | "4-3-3" | "3-4-3" | "3-5-2" | "5-3-2";
 export type ManagerPhilosophy =
   | "Possession"
   | "Front-foot"
@@ -26,7 +26,7 @@ export interface ManagerFootballIdentity {
 const level = (value: number): ManagerTendency =>
   value >= 72 ? "High" : value >= 54 ? "Medium" : "Low";
 
-const FORMATIONS: readonly ManagerFormation[] = ["4-4-2", "4-2-3-1", "4-3-3", "3-5-2", "5-3-2"];
+const FORMATIONS: readonly ManagerFormation[] = ["4-4-2", "4-2-3-1", "4-3-3", "3-4-3", "3-5-2", "5-3-2"];
 
 function identityBias(manager: Staff, formation: ManagerFormation): number {
   // Manager ids are already generated from the seeded staff-market RNG, so
@@ -43,6 +43,14 @@ function formationFor(manager: Staff): ManagerFormation {
   if (defense >= attack + 14 && tactics >= 66) return "5-3-2";
   if (attack >= defense + 14 && tactics >= 64) return "4-3-3";
 
+  // Three-back football should be a real part of the manager market, not an
+  // edge case. Balanced managers get a stable seeded lean toward 3-5-2/3-4-3.
+  const shapeLean = hashString(`manager-three-back|${manager.id}`) % 10;
+  if (Math.abs(attack - defense) <= 11 && tactics >= 54) {
+    if (shapeLean <= 1) return "3-5-2";
+    if (shapeLean === 2) return "3-4-3";
+  }
+
   const scores: Record<ManagerFormation, number> = {
     "4-4-2":
       tactics * 0.28 + motivation * 0.24 + attack * 0.24 + defense * 0.24,
@@ -50,6 +58,8 @@ function formationFor(manager: Staff): ManagerFormation {
       tactics * 0.4 + attack * 0.24 + motivation * 0.24 + defense * 0.12,
     "4-3-3":
       attack * 0.4 + tactics * 0.3 + motivation * 0.18 + development * 0.12,
+    "3-4-3":
+      attack * 0.34 + tactics * 0.28 + development * 0.16 + motivation * 0.12 + defense * 0.1,
     "3-5-2":
       defense * 0.31 + tactics * 0.27 + attack * 0.22 + motivation * 0.2,
     "5-3-2":
@@ -68,8 +78,8 @@ function alternatives(primary: ManagerFormation, manager: Staff): ManagerFormati
   const { attack, defense, tactics } = manager.stats;
   const ordered: ManagerFormation[] =
     attack > defense
-      ? ["4-3-3", "4-2-3-1", "4-4-2", "3-5-2", "5-3-2"]
-      : ["4-2-3-1", "4-4-2", "3-5-2", "5-3-2", "4-3-3"];
+      ? ["4-3-3", "3-4-3", "4-2-3-1", "3-5-2", "4-4-2", "5-3-2"]
+      : ["3-5-2", "5-3-2", "4-2-3-1", "4-4-2", "3-4-3", "4-3-3"];
 
   const count = tactics >= 76 ? 2 : 1;
   return ordered.filter((shape) => shape !== primary).slice(0, count);
