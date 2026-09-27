@@ -88,12 +88,20 @@ export function ClubHub({ state, update, setTab, isContinuing, onAdvanceTo }: { 
               {recentResults.length ? recentResults.map((result, index) => <span key={`${result.week}-${index}`} className={`is-${result.result.toLowerCase()}`}>{result.result}</span>) : <small>Season yet to begin</small>}
             </div>
           </div>
-          <button className="lf-pulse-manager" onClick={() => setTab("staff")}>
-            <span className="lf-pulse-label"><Users className="size-3.5" />Manager status</span>
-            <strong>{manager?.name ?? "Vacant"}</strong>
-            <small>{manager ? `${Math.round(managerQuality)}/100 quality` : "Appointment required"}</small>
-            <ArrowRight className="lf-pulse-chevron size-4" aria-hidden="true" />
-          </button>
+          <div className="lf-pulse-side">
+            <button className="lf-pulse-manager" onClick={() => setTab("staff")}>
+              <span className="lf-pulse-label"><Users className="size-3.5" />Manager status</span>
+              <strong>{manager?.name ?? "Vacant"}</strong>
+              <small>{manager ? `${Math.round(managerQuality)}/100 quality` : "Appointment required"}</small>
+              <ArrowRight className="lf-pulse-chevron size-4" aria-hidden="true" />
+            </button>
+            <button className="lf-pulse-news" onClick={() => setTab("inbox")}>
+              <span className="lf-pulse-label"><Mail className="size-3.5" />Club news</span>
+              <strong>{latestNews?.subject ?? "Nothing to report"}</strong>
+              <small>{latestNews ? `${latestNews.department} · Week ${latestNews.week}` : "No updates yet"}</small>
+              <ArrowRight className="lf-pulse-chevron size-4" aria-hidden="true" />
+            </button>
+          </div>
           <button className="lf-pulse-table" onClick={() => setTab("world")}>
             {miniLeague.slice(0, 3).map((row) => <span key={row.team} className={cn(isUserClubReference(state, row.team) && "is-club")}><b>{leagueSorted.indexOf(row) + 1}</b><em>{clubPresentationName(clubDisplayName(state, row.team))}</em><strong>{row.pts}</strong></span>)}
           </button>
@@ -120,24 +128,6 @@ export function ClubHub({ state, update, setTab, isContinuing, onAdvanceTo }: { 
             <button key={item.id} onClick={() => setTab("inbox")} className="lf-task-row"><span className="lf-task-icon"><Mail className="size-4" /></span><span className="min-w-0 flex-1"><strong className="block truncate">{item.subject}</strong><small className="block truncate">{item.department}</small></span><ArrowRight className="size-4 shrink-0 opacity-55" /></button>
           )) : <div className="lf-task-row is-clear"><span className="lf-task-icon"><Mail className="size-4" /></span><span><strong className="block">No decisions waiting</strong><small className="block">Nothing needs your attention</small></span></div>}</div>
         </div>
-        <button onClick={() => setTab("inbox")} className={cn("lf-news-card overflow-hidden rounded-2xl border bg-card text-left shadow-sm", !latestNews && "is-empty")}>
-          <div className="lf-home-panel-heading"><span className="lf-heading-label"><Mail className="size-3.5" />Club news</span><span>View all <ArrowRight className="inline size-3.5" /></span></div>
-          <div className="lf-news-body">
-            <div className="lf-news-copy">
-              <strong className="line-clamp-2">{latestNews?.subject ?? "No club news yet"}</strong>
-              <small className="line-clamp-2">{latestNews ? `${latestNews.department} · Week ${latestNews.week}` : "Updates from the club will appear here."}</small>
-            </div>
-            <div className="lf-news-paper" aria-hidden="true">
-              <div className="lf-news-paper-sheet is-back" />
-              <div className="lf-news-paper-sheet">
-                <span className="lf-news-paper-dateline">Legacy Football · Club edition</span>
-                <b className="lf-news-paper-masthead">{state.clubName}</b>
-                <em className="lf-news-paper-sub">The club chronicle</em>
-                <span className="lf-news-paper-cols"><i className="lf-news-paper-photo" /><span className="lf-news-paper-lines"><i /><i /><i /><i /><i /></span></span>
-              </div>
-            </div>
-          </div>
-        </button>
       </section>
       <section className="lf-management-grid grid grid-cols-2 gap-2 md:grid-cols-3">
         <ActionTile onClick={() => setTab("squad")} icon={<SquadIcon className="size-5" />} title="Squad" value={`${squadSize} players`} sub="Selection · contracts" />
