@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { hashString } from "@/lib/game/rng";
 import {
   ACCENT_COLOURS,
   EYEWEAR,
@@ -80,20 +81,23 @@ function StudioRow({ title, children }: { title: string; children: React.ReactNo
   );
 }
 
-function randomAvatar(current: ChairmanAvatar): ChairmanAvatar {
-  const pick = <T,>(items: readonly T[]) => items[Math.floor(Math.random() * items.length)];
-  // Randomise within the styles most typical for the chosen sex.
+function randomAvatar(current: ChairmanAvatar, nonce: number): ChairmanAvatar {
+  const base = JSON.stringify(current);
+  const pick = <T,>(label: string, items: readonly T[]) =>
+    items[(hashString(`${base}|${nonce}|${label}`) >>> 0) % items.length];
+  // Deterministic per click: varied without introducing uncontrolled UI randomness.
   const hairOptions = HAIR_STYLES.filter((style) => style.for[0] === current.sex);
+  const eyewearRoll = (hashString(`${base}|${nonce}|eyewear-roll`) >>> 0) % 4;
   return {
     ...current,
-    skin: pick(SKIN_TONES),
-    hair: pick(hairOptions).id,
-    hairColour: pick(HAIR_COLOURS).id,
-    facialHair: current.sex === "female" ? "none" : pick(FACIAL_HAIR).id,
-    outfit: pick(OUTFITS).id,
-    outfitColour: pick(OUTFIT_COLOURS).id,
-    accentColour: pick(ACCENT_COLOURS).id,
-    eyewear: Math.random() < 0.25 ? pick(EYEWEAR.slice(1)).id : "none",
+    skin: pick("skin", SKIN_TONES),
+    hair: pick("hair", hairOptions).id,
+    hairColour: pick("hair-colour", HAIR_COLOURS).id,
+    facialHair: current.sex === "female" ? "none" : pick("facial-hair", FACIAL_HAIR).id,
+    outfit: pick("outfit", OUTFITS).id,
+    outfitColour: pick("outfit-colour", OUTFIT_COLOURS).id,
+    accentColour: pick("accent-colour", ACCENT_COLOURS).id,
+    eyewear: eyewearRoll === 0 ? pick("eyewear", EYEWEAR.slice(1)).id : "none",
   };
 }
 
@@ -112,6 +116,7 @@ export function ChairmanStudio({
   showName?: boolean;
 }) {
   const [draft, setDraft] = useState<ChairmanProfile>(() => loadChairmanProfile());
+  const [randomiseNonce, setRandomiseNonce] = useState(0);
   useEffect(() => {
     if (open) setDraft(loadChairmanProfile());
   }, [open]);
@@ -146,7 +151,7 @@ export function ChairmanStudio({
                 </button>
               ))}
             </div>
-            <Button type="button" variant="outline" size="sm" onClick={() => set(randomAvatar(avatar))}>
+            <Button type="button" variant="outline" size="sm" onClick={() => setRandomiseNonce((nonce) => { const next = nonce + 1; set(randomAvatar(avatar, next)); return next; })}>
               <Shuffle /> Randomise
             </Button>
           </div>
