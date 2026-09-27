@@ -12,6 +12,7 @@ import { clubReputation } from "./reputation";
 import { footballLevelOfClub } from "./footballLevel";
 import {
   recruitmentPlayerValue,
+  recruitmentSustainableWageBill,
   recruitmentWageForLevel,
 } from "./recruitmentEconomy";
 import { clubOverallProfile, playerReputationForAbility } from "./playerOverall";
@@ -194,6 +195,52 @@ function clubPlayers(s: GameState, club: string): FootballPlayer[] {
   );
 }
 
+function liveClubWageBill(s: GameState, club: string): number {
+  return s.football.contracts
+    .filter(
+      (contract) =>
+        sameClubReference(s, contract.clubId, club) &&
+        (contract.status === "Active" || contract.status === "Expiring"),
+    )
+    .reduce((sum, contract) => sum + contract.weeklyWage, 0);
+}
+
+export function aiTransferAffordability(
+  s: GameState,
+  buyer: string,
+  player: FootballPlayer,
+): { allowed: boolean; projectedWage: number; wageCeiling: number; feeCeiling: number } {
+  const level = footballLevelOfClub(s, buyer);
+  const rep = clubReputation(s, buyer);
+  const age = ageOf(player, s.season);
+  const projectedWage = recruitmentWageForLevel(
+    level,
+    player.currentAbility,
+    rep,
+    age,
+    player.potentialAbility,
+  );
+  const wageCeiling = recruitmentSustainableWageBill(s, buyer);
+  const currentWages = liveClubWageBill(s, buyer);
+  // One signing should not consume an absurd share of the whole payroll, and
+  // the post-deal squad should remain close to the club's sustainable bill.
+  const individualCap = Math.max(150, wageCeiling * 0.18);
+  const payrollFits = currentWages + projectedWage <= wageCeiling * 1.08;
+  const wageFits = projectedWage <= individualCap;
+
+  // AI clubs do not persist a second hidden cash account. Use annual wage
+  // capacity as a deterministic transfer-market proxy instead.
+  const feeCeiling = Math.max(1_000, wageCeiling * 52 * (level <= 4 ? 1.25 : level <= 6 ? 0.85 : 0.55));
+  const feeFits = player.marketValue <= feeCeiling;
+
+  return {
+    allowed: payrollFits && wageFits && feeFits,
+    projectedWage,
+    wageCeiling,
+    feeCeiling,
+  };
+}
+
 function positionNeed(squad: FootballPlayer[]): Position {
   const count = (position: Position) =>
     squad.filter((player) => player.primaryPosition === position).length;
@@ -227,6 +274,13 @@ function chooseAiTransferCandidate(
     const age = ageOf(player, s.season);
     if (age < 18 || age > 31) return false;
     if (clubPlayers(s, seller).length <= MIN_AI_SELLER_SQUAD) return false;
+
+    const profile = clubOverallProfile(s, buyer);
+    // AI recruitment should improve a squad, not teleport a regional club to
+    // Championship quality or fill it with players far below its own level.
+    if (player.currentAbility > profile.star + 2) return false;
+    if (player.currentAbility < profile.average - 9) return false;
+    if (!aiTransferAffordability(s, buyer, player).allowed) return false;
     return true;
   });
 
