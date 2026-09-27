@@ -129,7 +129,40 @@ for (const level of liveLevels) {
   );
  }
 
- state.season += 12;
+// Compact clubs should then ADAPT toward the standard of their new division
+// over subsequent seasons instead of staying frozen forever.
+{
+  const upper = state.leagues.find((league) => footballLevelOfLeague(league) === 2)!;
+  const lower = state.leagues.find((league) => footballLevelOfLeague(league) === 3)!;
+  const promotedClub = lower.clubIds.find((club) => state.fringeWorld?.[club])!;
+  const relegatedClub = upper.clubIds.find((club) => state.fringeWorld?.[club])!;
+  assert.ok(promotedClub && relegatedClub, "fringe adaptation fixture requires outer-world clubs");
+
+  const promotedBefore = state.fringeWorld![promotedClub].strength;
+  const relegatedBefore = state.fringeWorld![relegatedClub].strength;
+
+  lower.clubIds = lower.clubIds.map((club) => (club === promotedClub ? relegatedClub : club));
+  upper.clubIds = upper.clubIds.map((club) => (club === relegatedClub ? promotedClub : club));
+
+  for (let season = 0; season < 3; season += 1) {
+    state.season += 1;
+    advanceFringeWorldToSeason(state);
+    advancePersistentFringePlayersToSeason(state);
+  }
+
+  const promotedAfter = state.fringeWorld![promotedClub].strength;
+  const relegatedAfter = state.fringeWorld![relegatedClub].strength;
+  assert.ok(
+    promotedAfter > promotedBefore,
+    `promoted fringe club should strengthen gradually: ${promotedBefore} -> ${promotedAfter}`,
+  );
+  assert.ok(
+    relegatedAfter < relegatedBefore,
+    `relegated fringe club should soften gradually: ${relegatedBefore} -> ${relegatedAfter}`,
+  );
+}
+
+state.season += 9;
 advanceFringeWorldToSeason(state);
 advancePersistentFringePlayersToSeason(state);
 
