@@ -57,7 +57,10 @@ for (let i = 0; i < 12; i += 1) {
   audit();
 }
 
-const moves = Object.values(s.clubRecords).reduce((n, r) => n + r.promotions + r.relegations, 0);
+const moves = s.seasonHistory.reduce(
+  (n, season) => n + season.promoted.length + season.relegated.length,
+  0,
+);
 assert.ok(moves > 0, "audit must exercise promotion and relegation");
 assert.ok(s.football.transferHistory.length > 0, "audit must exercise AI transfers");
 

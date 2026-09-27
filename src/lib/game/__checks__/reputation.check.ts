@@ -595,6 +595,11 @@ console.log("\n[R11] Save migration (v4 → v5)");
   // otherwise ID-shaped save would create two keys for the same club.
   const kept = structuredClone(g);
   const keptState = kept as unknown as GameState;
+  // This fixture represents a current-shape state whose version alone was
+  // downgraded. Keep the legacy mirror consistent with the canonical value so
+  // the v21->v22 unification step is testing preservation rather than an
+  // intentionally conflicting pair of reputation sources.
+  kept.reputation = 12.5;
   kept.clubReputations = { [userClubReference(keptState)]: 12.5 };
   const m2 = migrateSave(kept);
   check(
