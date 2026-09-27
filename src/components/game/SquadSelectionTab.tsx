@@ -277,7 +277,12 @@ function Pitch({
 
   return (
     <>
-    <div className={cn("relative overflow-hidden", planner ? "min-h-[31rem] sm:min-h-[36rem]" : "min-h-[24rem] sm:min-h-[27rem]")} bg-[linear-gradient(90deg,rgba(16,112,74,.96)_0%,rgba(16,112,74,.96)_12.5%,rgba(19,122,81,.96)_12.5%,rgba(19,122,81,.96)_25%,rgba(16,112,74,.96)_25%,rgba(16,112,74,.96)_37.5%,rgba(19,122,81,.96)_37.5%,rgba(19,122,81,.96)_50%,rgba(16,112,74,.96)_50%,rgba(16,112,74,.96)_62.5%,rgba(19,122,81,.96)_62.5%,rgba(19,122,81,.96)_75%,rgba(16,112,74,.96)_75%,rgba(16,112,74,.96)_87.5%,rgba(19,122,81,.96)_87.5%,rgba(19,122,81,.96)_100%)] px-2 py-4 sm:min-h-[27rem] sm:px-4">
+    <div
+      className={cn(
+        "relative overflow-hidden bg-[linear-gradient(90deg,rgba(16,112,74,.96)_0%,rgba(16,112,74,.96)_12.5%,rgba(19,122,81,.96)_12.5%,rgba(19,122,81,.96)_25%,rgba(16,112,74,.96)_25%,rgba(16,112,74,.96)_37.5%,rgba(19,122,81,.96)_37.5%,rgba(19,122,81,.96)_50%,rgba(16,112,74,.96)_50%,rgba(16,112,74,.96)_62.5%,rgba(19,122,81,.96)_62.5%,rgba(19,122,81,.96)_75%,rgba(16,112,74,.96)_75%,rgba(16,112,74,.96)_87.5%,rgba(19,122,81,.96)_87.5%,rgba(19,122,81,.96)_100%)] px-2 py-4 sm:px-4",
+        planner ? "min-h-[31rem] sm:min-h-[36rem]" : "min-h-[24rem] sm:min-h-[27rem]",
+      )}
+    >
       <div className="pointer-events-none absolute inset-3 rounded-xl border border-white/35" />
       <div className="pointer-events-none absolute inset-y-3 left-1/2 w-px bg-white/35" />
       <div className="pointer-events-none absolute left-1/2 top-1/2 aspect-square h-[22%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/35" />
