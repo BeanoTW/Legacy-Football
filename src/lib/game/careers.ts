@@ -334,7 +334,6 @@ function chooseAiTransferCandidate(
     );
     return aiCanAffordCareerTransfer(s, buyer, expectedFee, expectedWage);
   });
-  });
 
   if (!candidates.length) return null;
 
