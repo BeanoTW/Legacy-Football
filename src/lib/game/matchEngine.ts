@@ -429,9 +429,12 @@ function activeLineupAtMinute(
   for (const sub of substitutions
     .filter((item) => item.side === side && item.minute <= minute)
     .sort((a, b) => a.minute - b.minute)) {
+    const outgoing = active.get(sub.playerOffId);
     active.delete(sub.playerOffId);
     const incoming = bench.find((player) => player.playerId === sub.playerOnId);
-    if (incoming) active.set(incoming.playerId, incoming);
+    if (incoming) {
+      active.set(incoming.playerId, outgoing ? { ...incoming, role: outgoing.role } : incoming);
+    }
   }
   return [...active.values()];
 }
