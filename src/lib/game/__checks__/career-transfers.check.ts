@@ -1,9 +1,14 @@
 import { newGame } from "../engine";
-import { runAiCareerTransfers } from "../careers";
+import {
+  aiCanAffordCareerTransfer,
+  aiCareerTransferAffordability,
+  runAiCareerTransfers,
+} from "../careers";
 import { buildWorldSimulationPlan } from "../world";
 import { SQUAD_SIZE } from "../recruitment";
 import type { GameState } from "../types";
 import { isUserClubReference } from "../clubReference";
+import { footballLevelOfClub } from "../footballLevel";
 import {
   playerRegisteredClubId,
   setPlayerClubIdentityInPlace,
@@ -134,6 +139,53 @@ console.log("\n[CT2] Transfer records and squad safety");
         ).length === 1
       );
     }),
+  );
+  check(
+    "completed AI fees stay inside the buyer's derived transfer capacity",
+    newTransfers.every((r) => {
+      if (!r.toClubId) return false;
+      return r.fee <= aiCareerTransferAffordability(s, r.toClubId).maxSingleFee;
+    }),
+  );
+  check(
+    "completed AI wages stay inside club wage structure",
+    newTransfers.every((r) => {
+      if (!r.toClubId) return false;
+      const budget = aiCareerTransferAffordability(s, r.toClubId);
+      return (
+        r.weeklyWage <= budget.maxSingleWage &&
+        budget.currentWeeklyWages <= budget.sustainableWeeklyWageBill * 1.08 + 1
+      );
+    }),
+  );
+}
+
+console.log("\n[CT3] Derived affordability follows club scale");
+{
+  const state = seedState();
+  const clubs = state.leagues.flatMap((league) => league.clubIds);
+  const levelOne = clubs.find((club) => footballLevelOfClub(state, club) === 1);
+  const levelSeven = clubs.find(
+    (club) => footballLevelOfClub(state, club) === 7 && !isUserClubReference(state, club),
+  );
+  if (!levelOne || !levelSeven) throw new Error("affordability fixture needs level 1 and 7 clubs");
+
+  const elite = aiCareerTransferAffordability(state, levelOne);
+  const semiPro = aiCareerTransferAffordability(state, levelSeven);
+  check("AI affordability exposes positive revenue", elite.annualRevenue > 0 && semiPro.annualRevenue > 0);
+  check(
+    "top-flight single-deal capacity exceeds semi-pro capacity",
+    elite.maxSingleFee > semiPro.maxSingleFee && elite.maxSingleWage > semiPro.maxSingleWage,
+    `fee £${elite.maxSingleFee} vs £${semiPro.maxSingleFee}; wage £${elite.maxSingleWage} vs £${semiPro.maxSingleWage}`,
+  );
+  check(
+    "semi-pro clubs reject clearly impossible transfer commitments",
+    !aiCanAffordCareerTransfer(
+      state,
+      levelSeven,
+      Math.max(100_000_000, semiPro.maxSingleFee * 10),
+      Math.max(100_000, semiPro.maxSingleWage * 10),
+    ),
   );
 }
 
