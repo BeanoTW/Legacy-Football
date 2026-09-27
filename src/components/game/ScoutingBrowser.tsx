@@ -43,6 +43,7 @@ import { POSITION_BADGE_CLASS } from "./playerPosition";
 import { isTransferWindowOpen, windowStatus } from "@/lib/game/calendar";
 import { TacticalPlayerCard } from "./shared/TacticalPlayerCard";
 import { positionUnit, tacticalPositionProfile } from "@/lib/game/positions";
+import { playerAttributeIdentity } from "@/lib/game/playerAttributeIdentity";
 
 function newestBrief(state: GameState) {
   return [...(state.football?.scoutingDiscovery?.briefs ?? [])].sort((a, b) => {
@@ -189,6 +190,7 @@ export function ScoutingBrowser({
         const tactical = tacticalPositionProfile(player);
         const report = scoutingReport(state, player);
         const overall = scoutedOverallPresentation(state, player, report);
+        const identity = playerAttributeIdentity(tactical.primary, report.attributes);
         const interest = playerInterestAssessment(state, player);
         const watched = isChairmanShortlisted(state, player.id);
         const freeAgent = player.currentClubId === null;
@@ -207,6 +209,13 @@ export function ScoutingBrowser({
             mode="recruitment"
             actions={
               <div>
+                {identity && (
+                  <div className="mb-2 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2">
+                    <div className="text-[11px] font-semibold text-white/90">{identity.label}</div>
+                    <div className="mt-0.5 text-[10px] leading-relaxed text-white/55">{identity.summary}</div>
+                    <div className="mt-1 text-[9px] uppercase tracking-wide text-white/40">Strengths · {identity.strengths.join(" · ")}</div>
+                  </div>
+                )}
                 <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-white/60">
                   <span>Interest <strong className="text-white/85" title={interest.reason}>{interest.label}</strong></span>
                   <span className={budgetComfortable ? "text-emerald-300" : "text-rose-300"}>
