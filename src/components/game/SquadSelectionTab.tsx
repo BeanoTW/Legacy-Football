@@ -59,6 +59,35 @@ const sandboxPositionOverall = (player: FootballPlayer, slot: TacticalPosition):
   return Math.max(1, Math.round(player.currentAbility * effectiveness));
 };
 
+const SUB_POSITION_ORDER: Record<TacticalPosition, number> = {
+  GK: 0,
+  CB: 1,
+  LB: 2,
+  RB: 2,
+  LWB: 3,
+  RWB: 3,
+  CDM: 4,
+  CM: 5,
+  CAM: 6,
+  LM: 7,
+  RM: 7,
+  LW: 8,
+  RW: 8,
+  ST: 9,
+};
+
+const sortSubsByPosition = (players: FootballPlayer[]): FootballPlayer[] =>
+  [...players].sort((a, b) => {
+    const aPosition = tacticalPositionProfile(a).primary;
+    const bPosition = tacticalPositionProfile(b).primary;
+    return (
+      SUB_POSITION_ORDER[aPosition] - SUB_POSITION_ORDER[bPosition] ||
+      aPosition.localeCompare(bPosition) ||
+      b.currentAbility - a.currentAbility ||
+      a.lastName.localeCompare(b.lastName)
+    );
+  });
+
 export function SquadSelectionTab({
   state,
   update,
@@ -86,7 +115,7 @@ export function SquadSelectionTab({
     return planned.length === 11 ? planned : automaticXi;
   }, [automaticXi, formation, planner, squad]);
   const selected = new Set(xi.map((player) => player.id));
-  const bench = squad.filter((player) => !selected.has(player.id)).sort((a, b) => b.currentAbility - a.currentAbility);
+  const bench = sortSubsByPosition(squad.filter((player) => !selected.has(player.id)));
   const clubEmployment = employmentLabel(clubOperatingModel(state, userClubReference(state)));
   const professionalisation = userProfessionalisationReadiness(state);
   const cohesion = state.playerClubPerformance?.cohesion ?? PLAYER_COHESION_DEFAULT;
@@ -258,9 +287,9 @@ function Pitch({
   const [draggedPlayerId, setDraggedPlayerId] = useState<string | null>(null);
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
   const selectedIds = new Set(xi.map((player) => player.id));
-  const sandboxBench = squad
-    .filter((player) => !selectedIds.has(player.id))
-    .sort((a, b) => b.currentAbility - a.currentAbility);
+  const sandboxBench = sortSubsByPosition(
+    squad.filter((player) => !selectedIds.has(player.id)),
+  );
 
   const swapPlayers = (draggedId: string, targetId: string) => {
     if (!onSwap || draggedId === targetId) return;
