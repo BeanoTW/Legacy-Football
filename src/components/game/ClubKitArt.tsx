@@ -450,7 +450,19 @@ interface ShirtProps {
 export function ClubShirt({ kit, badge, clubName, full = false, size = 160, className, label }: ShirtProps) {
   const uid = useId().replace(/:/g, "");
   const outline = shadeHex(kit.body, -0.4);
-  const sponsorColour = kit.pattern === "band" ? readableOn(kit.secondary) : readableOn(kit.body);
+  const automaticSponsorColour =
+    kit.pattern === "band" && kit.sponsorPosition === "centre"
+      ? readableOn(kit.secondary)
+      : readableOn(kit.body);
+  const sponsorColour = kit.sponsorColour || automaticSponsorColour;
+  const sponsorY =
+    kit.sponsorPosition === "high"
+      ? 90
+      : kit.sponsorPosition === "low"
+        ? 124
+        : kit.pattern === "band"
+          ? 101
+          : 106;
   const height = full ? 330 : 200;
   return (
     <svg
@@ -505,7 +517,7 @@ export function ClubShirt({ kit, badge, clubName, full = false, size = 160, clas
       {kit.sponsor ? (
         <text
           x="100"
-          y={kit.pattern === "band" ? 101 : 106}
+          y={sponsorY}
           textAnchor="middle"
           fontSize={kit.sponsor.length > 10 ? 13 : 16}
           fontWeight="800"
