@@ -24,6 +24,8 @@ export type BadgeEmblem = (typeof BADGE_EMBLEMS)[number];
 export type BadgeLettering = (typeof BADGE_LETTERING)[number];
 export type KitPattern = (typeof KIT_PATTERNS)[number];
 export type KitCollar = (typeof KIT_COLLARS)[number];
+export const SPONSOR_POSITIONS = ["high", "centre", "low"] as const;
+export type SponsorPosition = (typeof SPONSOR_POSITIONS)[number];
 
 export interface BadgeDesign {
   shape: BadgeShape;
@@ -52,6 +54,10 @@ export interface KitDesign {
   socks: string;
   /** Front-of-shirt text, up to 14 characters. */
   sponsor: string;
+  /** Empty means automatic black/white contrast. */
+  sponsorColour: string;
+  /** Small vertical adjustment for sponsor placement. */
+  sponsorPosition: SponsorPosition;
 }
 
 export interface ClubKitState {
@@ -396,6 +402,8 @@ export function defaultClubKit(clubName: string): ClubKitState {
       shorts: lightPrimary ? secondary : pattern === "plain" ? secondary : "#16181b",
       socks: primary,
       sponsor: "",
+      sponsorColour: "",
+      sponsorPosition: "centre",
     },
     away: defaultAwayKit(primary, secondary),
   };
@@ -417,6 +425,8 @@ export function defaultAwayKit(homeBody: string, homeSecondary: string): KitDesi
     shorts: body,
     socks: body,
     sponsor: "",
+    sponsorColour: "",
+    sponsorPosition: "centre",
   };
 }
 
@@ -456,6 +466,11 @@ export function sanitizeClubKit(input: unknown, clubName: string): ClubKitState 
     shorts: colour(k?.shorts, base.shorts),
     socks: colour(k?.socks, base.socks),
     sponsor: typeof k?.sponsor === "string" ? cleanSponsor(k.sponsor) : base.sponsor,
+    sponsorColour:
+      typeof k?.sponsorColour === "string" && (k.sponsorColour === "" || isHexColour(k.sponsorColour))
+        ? k.sponsorColour.toLowerCase()
+        : base.sponsorColour,
+    sponsorPosition: pick(k?.sponsorPosition, SPONSOR_POSITIONS, base.sponsorPosition),
   });
   return { badge, home: kit(raw.home, fallback.home), away: kit(raw.away, fallback.away) };
 }
@@ -524,6 +539,8 @@ export function randomClubKit(clubName: string, random: () => number = Math.rand
     shorts: any([s, "#ffffff", "#16181b"]),
     socks: any([p, s]),
     sponsor: "",
+    sponsorColour: "",
+    sponsorPosition: "centre",
   };
   return {
     badge: {
