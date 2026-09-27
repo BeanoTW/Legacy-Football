@@ -33,6 +33,7 @@ import { avgTicketPrice, fmtMoney, fmtMoneyExact, phaseOf, CALENDAR } from "@/li
 import { chairmanStyle, clubNickname } from "@/lib/game/character";
 import { clubKitFor } from "@/lib/game/clubKit";
 import { clubKpi } from "@/lib/game/selectors/club";
+import { clubReputation } from "@/lib/game/reputation";
 import { unreadCount } from "@/lib/game/inbox";
 import { actionableInbox } from "@/lib/game/attention";
 import { advanceTargets, type AdvanceTarget } from "@/lib/game/advancePlanner";
@@ -106,6 +107,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
   const blockingDecisions = actionableInbox(state);
   const phaseLabel = ({ preseason: "Pre-season", firstHalf: "League — 1st half", midseason: "Mid-season break", secondHalf: "League — 2nd half" } as const)[phaseOf(state.week)];
   const chairman = chairmanStyle(state);
+  const userReputation = clubReputation(state, state.clubName);
   const crestDesign = clubKitFor(state).badge;
 
   useEffect(() => {
@@ -141,9 +143,9 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
           right={
             <div className="lf-chairman-badge" title={chairman.detail}>
               <span>{chairman.label}</span>
-              <strong>{Math.round(state.reputation)}</strong>
+              <strong>{Math.round(userReputation)}</strong>
               <small>Reputation</small>
-              <ReputationStars value={state.reputation} />
+              <ReputationStars value={userReputation} />
             </div>
           }
         />
