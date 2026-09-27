@@ -6,7 +6,7 @@ import {
   advancePersistentFringePlayersToSeason,
   ensurePersistentFringePlayers,
 } from "../fringePlayers";
-import { footballLevelOfLeague, type FootballLevel } from "../footballLevel";
+import { footballLevelOfClub, footballLevelOfLeague, type FootballLevel } from "../footballLevel";
 import { clubOverallProfile, overallBandForLevel } from "../playerOverall";
 import { clubReputation } from "../reputation";
 import { sameClubReference } from "../clubReference";
@@ -86,7 +86,50 @@ for (const level of liveLevels) {
   previousMean = levelMean;
 }
 
-state.season += 12;
+// Promotion/relegation must change the STANDARD a club is judged against,
+ // not magically rewrite the squad on the day the club changes division.
+ {
+  const lowerLeague = state.leagues.find((league) => footballLevelOfLeague(league) === 7)!;
+  const upperLeague = state.leagues.find((league) => footballLevelOfLeague(league) === 6)!;
+  const promotedClub = lowerLeague.clubIds.find(
+    (club) => !sameClubReference(state, club, state.clubName),
+  )!;
+  const relegatedClub = upperLeague.clubIds[0]!;
+  const promotedStrengthBefore = clubFootballStrength(state, promotedClub);
+  const relegatedStrengthBefore = clubFootballStrength(state, relegatedClub);
+  const promotedTargetBefore = clubOverallProfile(state, promotedClub).average;
+  const relegatedTargetBefore = clubOverallProfile(state, relegatedClub).average;
+
+  lowerLeague.clubIds = lowerLeague.clubIds.map((club) =>
+    sameClubReference(state, club, promotedClub) ? relegatedClub : club,
+  );
+  upperLeague.clubIds = upperLeague.clubIds.map((club) =>
+    sameClubReference(state, club, relegatedClub) ? promotedClub : club,
+  );
+
+  assert.equal(footballLevelOfClub(state, promotedClub), 6, "promoted club moves up one level");
+  assert.equal(footballLevelOfClub(state, relegatedClub), 7, "relegated club moves down one level");
+  assert.equal(
+    clubFootballStrength(state, promotedClub),
+    promotedStrengthBefore,
+    "promotion does not grant an instant squad-rating boost",
+  );
+  assert.equal(
+    clubFootballStrength(state, relegatedClub),
+    relegatedStrengthBefore,
+    "relegation does not instantly delete squad quality",
+  );
+  assert.ok(
+    clubOverallProfile(state, promotedClub).average >= promotedTargetBefore + 4,
+    "promoted club now recruits against a meaningfully stronger level benchmark",
+  );
+  assert.ok(
+    clubOverallProfile(state, relegatedClub).average <= relegatedTargetBefore - 4,
+    "relegated club now recruits against a meaningfully lower level benchmark",
+  );
+ }
+
+ state.season += 12;
 advanceFringeWorldToSeason(state);
 advancePersistentFringePlayersToSeason(state);
 
