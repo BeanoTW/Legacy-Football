@@ -22,7 +22,7 @@ import { tacticalPositionProfile, positionFamiliarity, positionUnit } from "@/li
 import { activeLoanForPlayer } from "@/lib/game/loans";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { fmtMoneyExact } from "@/lib/game/engine";
-import { scoutingAssignment, scoutingReportById, startScouting } from "@/lib/game/scouting";
+import { PLAYER_ATTRIBUTE_GROUPS, scoutingAssignment, scoutingReportById, startScouting, type PlayerAttributeCategory } from "@/lib/game/scouting";
 import { scoutedOverallPresentation } from "@/lib/game/scoutingPresentation";
 import { isTransferWindowOpen, windowStatus } from "@/lib/game/calendar";
 import { cn } from "@/lib/utils";
@@ -401,57 +401,70 @@ export function PlayerProfileSheet({
           </section>
 
           <section className="rounded-xl border bg-card p-3">
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-2 flex items-center justify-between">
               <div>
                 <div className="font-display text-lg">{owned ? "Player attributes" : "Scouting profile"}</div>
                 <div className="text-[10px] text-muted-foreground">
                   {owned
-                    ? "Full club knowledge"
+                    ? "Swipe between Technical, Mental and Physical"
                     : fullKnowledge
-                      ? "Full scouting report"
+                      ? "Full scouting report · swipe categories"
                       : assignment
-                        ? "Scout following up"
+                        ? "Scout following up · swipe categories"
                         : hasScouting
-                          ? "Initial staff assessment"
+                          ? "Initial staff assessment · swipe categories"
                           : "Not scouted"}
                 </div>
               </div>
               <div className="font-display text-xl">{knowledge}%</div>
             </div>
 
-            <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-              {(report?.attributes ?? []).map((attribute) => {
-                const value =
-                  !attribute.known
-                    ? "?"
-                    : attribute.exact !== undefined
-                      ? String(attribute.exact)
-                      : `${attribute.min}–${attribute.max}`;
-                const midpoint =
-                  attribute.exact ??
-                  (attribute.min !== undefined && attribute.max !== undefined
-                    ? Math.round((attribute.min + attribute.max) / 2)
-                    : 0);
-                return (
-                  <div key={attribute.key}>
-                    <div className="flex items-end justify-between gap-2">
-                      <span className="text-xs font-semibold">{attribute.label}</span>
-                      <span className="font-display text-base tabular-nums">{value}</span>
+            {report ? (
+              <div className="flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {(Object.keys(PLAYER_ATTRIBUTE_GROUPS) as PlayerAttributeCategory[]).map((category) => {
+                  const keys = PLAYER_ATTRIBUTE_GROUPS[category];
+                  const attributes = report.attributes.filter((attribute) => keys.includes(attribute.key));
+                  return (
+                    <div key={category} className="w-full shrink-0 snap-start pr-1 last:pr-0">
+                      <div className="mb-2 flex items-center justify-between">
+                        <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground">{category}</div>
+                        <div className="text-[8px] uppercase tracking-wider text-muted-foreground">Swipe ↔</div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+                        {attributes.map((attribute) => {
+                          const value =
+                            !attribute.known
+                              ? "?"
+                              : attribute.exact !== undefined
+                                ? String(attribute.exact)
+                                : `${attribute.min}–${attribute.max}`;
+                          const midpoint =
+                            attribute.exact ??
+                            (attribute.min !== undefined && attribute.max !== undefined
+                              ? Math.round((attribute.min + attribute.max) / 2)
+                              : 0);
+                          return (
+                            <div key={attribute.key}>
+                              <div className="flex items-end justify-between gap-2">
+                                <span className="truncate text-[11px] font-semibold">{attribute.label}</span>
+                                <span className="font-display text-base tabular-nums">{value}</span>
+                              </div>
+                              <div className="mt-1 h-1 overflow-hidden rounded-full bg-muted">
+                                {attribute.known && (
+                                  <div className="h-full rounded-full bg-foreground" style={{ width: `${Math.max(3, Math.min(100, midpoint))}%` }} />
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div className="mt-1 h-1 overflow-hidden rounded-full bg-muted">
-                      {attribute.known && (
-                        <div className="h-full rounded-full bg-foreground" style={{ width: `${Math.max(3, Math.min(100, midpoint))}%` }} />
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-              {!report && (
-                <div className="col-span-2 text-sm text-muted-foreground">
-                  No scouting information is available yet.
-                </div>
-              )}
-            </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">No scouting information is available yet.</div>
+            )}
           </section>
 
           <section className="grid grid-cols-2 gap-2">
