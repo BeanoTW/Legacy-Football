@@ -82,8 +82,8 @@ declare module "./types" {
 
 export const PLAYER_ATTRIBUTE_GROUPS: Readonly<Record<PlayerAttributeCategory, readonly PlayerAttributeKey[]>> = {
   Technical: ["shortPassing", "longPassing", "crossing", "firstTouch", "dribbling", "finishing", "tackling", "goalkeeping"],
-  Mental: ["positioning", "decisions", "vision", "composure", "aggression", "leadership", "workRate"],
   Physical: ["pace", "acceleration", "strength", "stamina", "agility", "jumping", "balance"],
+  Mental: ["positioning", "decisions", "vision", "composure", "aggression", "leadership", "workRate"],
 };
 
 export const PLAYER_ATTRIBUTE_LABELS: Record<PlayerAttributeKey, string> = {
