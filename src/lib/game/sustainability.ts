@@ -47,7 +47,7 @@ import {
 } from "./infrastructure";
 import { activeContracts, commercialWeeklyIncome } from "./commercial";
 import { squadOf, userWageBill } from "./recruitment";
-import { clubReputation } from "./reputation";
+import { clubReputation, setClubReputation } from "./reputation";
 import { clubFootballStrength } from "./footballStrength";
 import { absoluteWeek } from "./time";
 import { archivedBucketSum } from "./archive";
@@ -948,7 +948,13 @@ export function settleCommitmentsInPlace(s: GameState): CommitmentSettlement[] {
     const owner = (s.board?.directors ?? []).find((d) => d.role === c.owningDirectorRole);
     if (owner) owner.confidence = clamp(owner.confidence + confidenceDelta, 0, 100);
     s.fanHappiness = clamp((s.fanHappiness ?? 60) + fanDelta, 0, 100);
-    if (reputationDelta) s.reputation = clamp((s.reputation ?? 50) + reputationDelta, 0, 100);
+    if (reputationDelta) {
+      setClubReputation(
+        s,
+        userClubReference(s),
+        clubReputation(s, userClubReference(s)) + reputationDelta,
+      );
+    }
 
     out.push({ commitment: c, outcome, confidenceDelta, fanDelta, reputationDelta });
   }
