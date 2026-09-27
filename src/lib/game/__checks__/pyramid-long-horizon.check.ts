@@ -4,6 +4,8 @@ import { tickSeasonRollover } from "../tick/rollover";
 import { pyramidIntegrity } from "../pyramid";
 import { footballLevelOfLeague, type FootballLevel } from "../footballLevel";
 import { clubFootballStrength } from "../footballStrength";
+import { fixtureId, leagueOf, makeRecord, simulateAiFixture } from "../league";
+import { isUserClubReference } from "../clubReference";
 import { overallBandForLevel } from "../playerOverall";
 import { buildWorldSimulationPlan } from "../world";
 import { playerRegisteredClubId } from "../playerRegistration";
@@ -50,8 +52,36 @@ function audit(): void {
 }
 
 audit();
+
+function settleControlledLeagueFixtures(): void {
+  s.matchRecords ??= [];
+  for (const fixture of s.leagueSchedule ?? []) {
+    if ((fixture.competition ?? "league") !== "league") continue;
+    if (!isUserClubReference(s, fixture.home) && !isUserClubReference(s, fixture.away)) continue;
+    const lid = leagueOf(fixture);
+    const id = fixtureId(s.season, fixture.round, fixture.home, fixture.away, lid);
+    if (s.matchRecords.some((record) => record.id === id)) continue;
+    const sim = simulateAiFixture(s, s.season, fixture.round, fixture.home, fixture.away, lid);
+    s.matchRecords.push(
+      makeRecord({
+        leagueId: lid,
+        season: s.season,
+        week: fixture.week,
+        round: fixture.round,
+        home: fixture.home,
+        away: fixture.away,
+        homeGoals: sim.homeGoals,
+        awayGoals: sim.awayGoals,
+        seed: sim.seed,
+        userInvolved: true,
+      }),
+    );
+  }
+}
+
 for (let i = 0; i < 12; i += 1) {
   const before = s.season;
+  settleControlledLeagueFixtures();
   tickSeasonRollover(s);
   assert.equal(s.season, before + 1, "season rollover must advance once");
   audit();
