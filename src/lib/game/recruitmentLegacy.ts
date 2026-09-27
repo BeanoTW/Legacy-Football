@@ -75,7 +75,12 @@ import {
   userClubReference,
 } from "./clubReference";
 import { boundedTrackedClubIds } from "./worldFocusPolicy";
-import { clubOverallProfile, generatedOverallForSlot, overallBandForLevel } from "./playerOverall";
+import {
+  clubOverallProfile,
+  generatedOverallForSlot,
+  overallBandForLevel,
+  playerReputationForAbility,
+} from "./playerOverall";
 import {
   activeLoanForPlayer,
   ensureLoanStateInPlace,
@@ -357,7 +362,11 @@ function makePlayerFor(
     currentAbility,
     95,
   );
-  const reputation = clamp(int(currentAbility * 0.85 + rngRange(rng, -6, 8)), 5, 98);
+  const reputation = playerReputationForAbility(
+    currentAbility,
+    level,
+    rngRange(rng, -4, 6),
+  );
   const secondary: Position[] =
     rng() > 0.65
       ? [
