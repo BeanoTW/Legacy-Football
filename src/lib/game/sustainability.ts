@@ -500,7 +500,7 @@ export function reinvestmentPressure(s: GameState): ReinvestmentPressure {
   // Idle money becomes a talking point over time, but the effect saturates:
   // it is a nudge, not a runaway clock.
   const weeksIdle = s.sustainability?.excessWeeks ?? 0;
-  const patience = clamp(0.6 + weeksIdle / 90, 0.6, 1.25);
+  const patience = clamp(0.7 + weeksIdle / 90, 0.7, 1.25);
 
   // A club that just went up is expected to back it up.
   const promoted =
