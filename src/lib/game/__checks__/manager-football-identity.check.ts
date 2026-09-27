@@ -1,5 +1,6 @@
 import type { Staff } from "../types";
 import { managerFootballIdentity } from "../managerIdentity";
+import { openingStaffPool } from "../staff";
 
 let passed = 0;
 function check(condition: unknown, message: string): void {
@@ -46,5 +47,18 @@ check(adaptable.summary.includes(adaptable.preferredFormation), "summary should 
 
 const direct = managerFootballIdentity(manager({ tactics: 48, attack: 70, defense: 65, motivation: 65 }));
 check(direct.philosophy === "Direct", "lower-tactics attacking manager should expose direct philosophy");
+
+
+
+const openingManagers = openingStaffPool("MANAGER_FORMATION_VARIETY")
+  .filter((staff) => staff.role === "Manager")
+  .map((staff) => managerFootballIdentity(staff).preferredFormation);
+const openingShapes = new Set(openingManagers);
+const fourFourTwoCount = openingManagers.filter((formation) => formation === "4-4-2").length;
+check(openingShapes.size >= 4, "opening manager market should offer at least four distinct formations");
+check(
+  fourFourTwoCount <= Math.ceil(openingManagers.length * 0.45),
+  "4-4-2 should not dominate the opening manager market",
+);
 
 console.log(`manager-football-identity.check: ${passed} checks passed`);
