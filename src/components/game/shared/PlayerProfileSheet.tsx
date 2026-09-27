@@ -314,31 +314,31 @@ export function PlayerProfileSheet({
             </section>
           )}
 
-          <section className="overflow-hidden rounded-xl border border-emerald-950/10 bg-[#0b211d] p-3 text-white shadow-sm">
-            <div className="flex items-start justify-between gap-3">
+          <section className="overflow-hidden rounded-xl border border-emerald-950/10 bg-[#0b211d] px-3 py-2.5 text-white shadow-sm">
+            <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="text-[9px] uppercase tracking-wider text-white/45">Position</div>
+                <div className="text-[8px] uppercase tracking-wider text-white/40">Position</div>
                 <span className={cn(
-                  "mt-1 inline-flex rounded-md border px-3 py-1.5 text-base font-bold",
+                  "mt-1 inline-flex rounded-md border px-2.5 py-1 text-sm font-bold",
                   POSITION_BADGE_CLASS[positionUnit(tactical.primary)],
                 )}>
                   {tactical.primary}
                 </span>
               </div>
-              <div className="text-right text-xs">
+              <div className="text-right text-[11px]">
                 <div className="font-semibold">{club}</div>
-                <div className="mt-1 text-white/45">
+                <div className="mt-0.5 text-[10px] text-white/40">
                   {player.currentClubId ? "Under contract" : "Available on a free"}
                 </div>
               </div>
             </div>
 
             {tactical.secondary.length > 0 && (
-              <div className="mt-3">
-                <div className="mb-1.5 text-[9px] uppercase tracking-wider text-white/45">
+              <div className="mt-2 border-t border-white/10 pt-2">
+                <div className="mb-1 text-[8px] uppercase tracking-wider text-white/40">
                   Other positions
                 </div>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-1">
                   {tactical.secondary.map((position) => (
                     <PositionChip key={position} player={player} position={position} />
                   ))}
