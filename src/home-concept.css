@@ -104,9 +104,9 @@
 .lf-home-dashboard .lf-match-card {
   border-color:rgb(126 214 200 / 25%) !important;
   background:
-    linear-gradient(90deg, rgb(4 20 25 / 94%) 0%, rgb(7 31 36 / 84%) 47%, rgb(8 31 36 / 65%) 100%),
-    linear-gradient(180deg, transparent 54%, rgb(4 22 26 / 92%) 100%),
-    url("/stadium-floodlit.svg") center/cover no-repeat !important;
+    linear-gradient(90deg, rgb(4 20 25 / 72%) 0%, rgb(7 31 36 / 50%) 47%, rgb(8 31 36 / 42%) 100%),
+    linear-gradient(180deg, rgb(0 0 0 / 2%) 0%, rgb(3 20 23 / 18%) 48%, rgb(4 22 26 / 66%) 100%),
+    url("/stadium-floodlit.svg") center 56%/cover no-repeat !important;
   color:white;
   box-shadow:0 14px 28px rgb(3 22 27 / 24%), inset 0 1px rgb(255 255 255 / 10%) !important;
 }
@@ -1008,5 +1008,38 @@
     right:.4rem;
     width:.68rem;
     height:.68rem;
+  }
+}
+
+
+/* Let the stadium read clearly through the fixture UI without sacrificing text contrast. */
+@media (max-width:767px) {
+  .lf-home-dashboard .lf-match-card {
+    background:
+      linear-gradient(90deg, rgb(4 20 25 / 68%) 0%, rgb(7 31 36 / 44%) 46%, rgb(8 31 36 / 36%) 100%),
+      linear-gradient(180deg, rgb(0 0 0 / 1%) 0%, rgb(3 20 23 / 12%) 46%, rgb(4 22 26 / 58%) 100%),
+      url("/stadium-floodlit.svg") center 54%/cover no-repeat !important;
+  }
+
+  .lf-home-dashboard .lf-match-card::after {
+    opacity:.62;
+  }
+
+  .lf-home-dashboard .lf-match-copy h2,
+  .lf-home-dashboard .lf-match-copy > p,
+  .lf-home-dashboard .lf-match-kicker,
+  .lf-home-dashboard .lf-match-team .font-display,
+  .lf-home-dashboard .lf-match-team > span {
+    text-shadow:0 2px 8px rgb(0 0 0 / 72%);
+  }
+
+  .lf-home-dashboard .lf-match-brief {
+    background:linear-gradient(90deg, rgb(4 36 37 / 78%), rgb(6 48 43 / 58%));
+    backdrop-filter:blur(1px);
+  }
+
+  .lf-home-dashboard .lf-match-actions {
+    position:relative;
+    z-index:2;
   }
 }
