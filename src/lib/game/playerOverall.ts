@@ -63,6 +63,24 @@ export function overallBandForLevel(level: FootballLevel): OverallBand {
   return LEVEL_BANDS[level];
 }
 
+/**
+ * Player reputation is a fame/market-standing scale, not an ability clone.
+ * The same OVR means very different public standing at Premier League and
+ * regional level, so level prestige must be part of the value.
+ */
+export function playerReputationForAbility(
+  ability: number,
+  level: FootballLevel,
+  noise = 0,
+): number {
+  const levelPrestige = (8 - level) * 4;
+  return clamp(
+    Math.round(ability - 20 + levelPrestige + clamp(noise, -8, 8)),
+    5,
+    98,
+  );
+}
+
 export function clubOverallProfile(
   state: GameState,
   clubRef: string,
