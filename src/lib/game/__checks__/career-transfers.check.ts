@@ -1,9 +1,11 @@
 import { newGame } from "../engine";
 import { runAiCareerTransfers } from "../careers";
+import { clubOverallProfile } from "../playerOverall";
+import { recruitmentSustainableWageBill } from "../recruitmentEconomy";
 import { buildWorldSimulationPlan } from "../world";
 import { SQUAD_SIZE } from "../recruitment";
 import type { GameState } from "../types";
-import { isUserClubReference } from "../clubReference";
+import { isUserClubReference, sameClubReference } from "../clubReference";
 import {
   playerRegisteredClubId,
   setPlayerClubIdentityInPlace,
@@ -133,6 +135,27 @@ console.log("\n[CT2] Transfer records and squad safety");
           (c) => c.playerId === player.id && (c.status === "Active" || c.status === "Expiring"),
         ).length === 1
       );
+    }),
+  );
+  check(
+    "AI clubs do not sign players wildly above their football level",
+    newTransfers.every((r) => {
+      const player = s.football.players.find((p) => p.id === r.playerId);
+      if (!player || !r.toClubId) return false;
+      return player.currentAbility <= clubOverallProfile(s, r.toClubId).star + 2;
+    }),
+  );
+  check(
+    "AI destination payrolls stay close to sustainable club scale",
+    [...new Set(newTransfers.map((r) => r.toClubId).filter(Boolean) as string[])].every((club) => {
+      const payroll = s.football.contracts
+        .filter(
+          (contract) =>
+            sameClubReference(s, contract.clubId, club) &&
+            (contract.status === "Active" || contract.status === "Expiring"),
+        )
+        .reduce((sum, contract) => sum + contract.weeklyWage, 0);
+      return payroll <= recruitmentSustainableWageBill(s, club) * 1.08 + 1;
     }),
   );
 }
