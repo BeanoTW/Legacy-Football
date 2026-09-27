@@ -4,6 +4,7 @@ import { recruitmentPlayerValue, recruitmentWageForLevel } from "./recruitmentEc
 import { fringePlayersForClub } from "./fringePlayers";
 import { fringePlayerPresentation } from "./fringePlayerPresentation";
 import type { KnownPlayerSeed } from "./playerLifecycle";
+import { sameClubReference } from "./clubReference";
 
 const BASE_YEAR = 2000;
 
@@ -29,9 +30,20 @@ export function projectFringePlayer(
   club: FringeClubState,
   position: Position,
 ): FringePlayerProjection {
-  const player = fringePlayersForClub(state, club.clubId).find(
+  const candidates = fringePlayersForClub(state, club.clubId).filter(
     (candidate) => candidate.primaryPosition === position,
   );
+  const knownCandidate = state.football?.playerLifecycle?.knownPlayers.find(
+    (known) =>
+      known.primaryPosition === position &&
+      known.currentClubId !== null &&
+      sameClubReference(state, known.currentClubId, club.clubId) &&
+      candidates.some((candidate) => candidate.playerId === known.playerId),
+  );
+  const player =
+    (knownCandidate
+      ? candidates.find((candidate) => candidate.playerId === knownCandidate.playerId)
+      : undefined) ?? candidates[0];
   if (!player) {
     throw new Error(`compact fringe squad ${club.clubId} has no active ${position}`);
   }
