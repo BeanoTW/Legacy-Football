@@ -43,5 +43,25 @@ assert.doesNotMatch(
   />Contract weeks</,
   "engine week storage must not leak into the player-facing manager negotiation UI",
 );
+assert.match(
+  staffTab,
+  /setManagerAcceptedOffer\(\{\.\.\.managerOffer\}\)/,
+  "accepted manager terms must pause in an explicit agreement state before appointment",
+);
+assert.match(
+  staffTab,
+  /Appoint manager/,
+  "accepted manager talks must require an explicit appointment confirmation",
+);
+assert.match(
+  staffTab,
+  /Nothing is final until you confirm the appointment/,
+  "the acceptance screen must make the pending appointment state clear",
+);
+assert.match(
+  staffTab,
+  /MessageCircle/,
+  "the accepted offer should surface a conversational manager response rather than disappearing immediately",
+);
 
 console.log("\nmanager-negotiation-ui: passed");
