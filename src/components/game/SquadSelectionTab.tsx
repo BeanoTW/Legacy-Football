@@ -146,8 +146,20 @@ export function SquadSelectionTab({
         <section className="rounded-xl border bg-card p-3 shadow-sm lg:col-start-1"><div className="mb-3 flex items-center justify-between gap-3"><div><div className="font-display text-xl">Chairman&apos;s preference</div><div className="text-xs text-muted-foreground">The manager retains final team selection unless ownership rules say otherwise.</div></div><Sparkles className="size-5 text-primary" /></div><div className="grid grid-cols-3 gap-2"><PresetButton active={preset === "strongest"} onClick={() => choose("strongest")} title="Strongest" sub="Best XI" /><PresetButton active={preset === "rested"} onClick={() => choose("rested")} title="Rested" sub="Rotate depth" /><PresetButton active={preset === "youth"} onClick={() => choose("youth")} title="Youth" sub="Favour U23s" /></div></section>
         {view === "pitch" ? <section className={cn("lf-pitch-card overflow-hidden rounded-xl border border-emerald-900/40 bg-[#06251c] text-white shadow-sm lg:col-start-1", planner && "lg:col-span-2")}><div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-3"><div><div className="text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-200/55">{matchPrep.managerId ? "Manager selection" : "Caretaker selection"}</div><div className="mt-0.5 flex items-end gap-2"><div className="font-display text-2xl">First XI</div><span className="mb-0.5 rounded-md border border-white/10 bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold text-white/75">{formation}</span></div></div><div className="grid grid-cols-2 gap-1.5 text-right"><div className="rounded-lg border border-white/10 bg-black/15 px-2 py-1"><div className="font-display text-base">{averageAbility(xi).toFixed(1)}</div><div className="text-[7px] uppercase tracking-wide text-white/40">Avg OVR</div></div><div className="rounded-lg border border-white/10 bg-black/15 px-2 py-1"><div className="font-display text-base">{Math.round(xi.reduce((sum, player) => sum + playerFitness(player), 0) / Math.max(1, xi.length))}%</div><div className="text-[7px] uppercase tracking-wide text-white/40">Avg fit</div></div></div></div><div className="border-b border-white/10 px-3 py-2">
   {!planner ? (
-    <button type="button" onClick={startPlanner} className="w-full rounded-lg border border-white/15 bg-white/[0.06] px-3 py-2 text-left text-xs font-semibold text-white/90">
-      Try a lineup <span className="ml-1 font-normal text-white/50">Sandbox only · does not affect the manager&apos;s XI</span>
+    <button
+      type="button"
+      onClick={startPlanner}
+      className="group w-full rounded-xl border border-cyan-200/35 bg-gradient-to-r from-cyan-400/25 via-teal-400/20 to-emerald-400/20 px-3.5 py-3 text-left shadow-[0_8px_24px_rgba(20,184,166,0.18)] ring-1 ring-inset ring-white/10 transition hover:from-cyan-400/30 hover:via-teal-400/25 hover:to-emerald-400/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/80"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-display text-base font-bold tracking-wide text-white">Lineup Sandbox</div>
+          <div className="mt-0.5 text-[10px] font-medium text-cyan-50/70">Test formations and swap players without affecting the manager&apos;s real XI.</div>
+        </div>
+        <div className="shrink-0 rounded-lg border border-white/15 bg-black/20 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-white/90 transition group-hover:bg-black/30">
+          Open
+        </div>
+      </div>
     </button>
   ) : (
     <div className="flex flex-wrap items-center gap-2">
