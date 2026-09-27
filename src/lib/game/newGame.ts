@@ -36,7 +36,7 @@ import { WEEKS_PER_SEASON } from "./time";
  * (src/lib/game/migrations) — no module holds per-version field knowledge
  * outside that registry.
  */
-export const SAVE_VERSION = 22;
+export const SAVE_VERSION = 23;
 
 export function newGame(
   clubName: string,
