@@ -14,7 +14,7 @@ import {
   recruitmentPlayerValue,
   recruitmentWageForLevel,
 } from "./recruitmentEconomy";
-import { clubOverallProfile } from "./playerOverall";
+import { clubOverallProfile, playerReputationForAbility } from "./playerOverall";
 import { WEEKS_PER_SEASON } from "./time";
 import { activeLoanForPlayer } from "./loans";
 import { isUserClubReference, sameClubReference } from "./clubReference";
@@ -136,8 +136,15 @@ export function progressPlayerForSeason(s: GameState, player: FootballPlayer): n
   if (delta < 0 && player.personality === "Professional" && rng() < 0.35) delta += 1;
 
   player.currentAbility = clamp(before + delta, 30, Math.max(before, player.potentialAbility));
+  const reputationClub = playerRegisteredClubId(player) ?? playerOwnerClubId(player);
+  const reputationTarget = reputationClub
+    ? playerReputationForAbility(
+        player.currentAbility,
+        footballLevelOfClub(s, reputationClub),
+      )
+    : player.reputation;
   player.reputation = clamp(
-    player.reputation + clamp(round((player.currentAbility - player.reputation) * 0.12), -2, 2),
+    player.reputation + clamp(round((reputationTarget - player.reputation) * 0.18), -2, 2),
     1,
     100,
   );
@@ -563,7 +570,7 @@ function makeYouth(s: GameState, club: string, index: number): FootballPlayer {
     primaryPosition: POSITIONS[rngInt(rng, 0, POSITIONS.length - 1)],
     secondaryPositions: [],
     currentClubId: club,
-    reputation: clamp(round(ability * 0.72), 5, 70),
+    reputation: playerReputationForAbility(ability, level, -4),
     currentAbility: ability,
     potentialAbility: potential,
     marketValue: recruitmentPlayerValue(ability, potential, age, level),
