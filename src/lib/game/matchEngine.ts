@@ -14,8 +14,26 @@ import type {
 import type { ManagerMatchStyle } from "./managerMatchStyle";
 import { managerMatchPrep } from "./managerMatchPrep";
 import { halfGoals, halfPresentation, matchStream } from "./matchday";
-import { opponentMatchBench, opponentMatchLineup, userMatchBench, userMatchLineup } from "./matchLineup";
+import {
+  lineupShapeSuitability,
+  opponentMatchBench,
+  opponentMatchLineup,
+  userMatchBench,
+  userMatchLineup,
+} from "./matchLineup";
 import { injuryWeeks } from "./playerHealth";
+import { aiClubManagerSetup } from "./aiClubManager";
+import { resolveManagerFormation } from "./managerFormationLayout";
+import {
+  engineGoalModifiers,
+  formationPhaseNudges,
+  lineupAverageFitness,
+  planMatchStyle,
+  shapeExecution,
+  tacticalMatchModifiers,
+  tacticalStrengthEdge,
+  type TacticalMatchModifiers,
+} from "./formationTactics";
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 const round2 = (value: number) => Math.round(value * 100) / 100;
@@ -55,7 +73,7 @@ function weightedPick<T>(items: T[], weight: (item: T) => number, roll: number):
 /* Opponent identity                                                   */
 /* ------------------------------------------------------------------ */
 
-const OPPONENT_STYLES: ReadonlyArray<Pick<MatchTeamPlan, "philosophy" | "tempo" | "pressing" | "directness">> = [
+const LEGACY_OPPONENT_STYLES: ReadonlyArray<Pick<MatchTeamPlan, "philosophy" | "tempo" | "pressing" | "directness">> = [
   { philosophy: "Balanced", tempo: "Medium", pressing: "Medium", directness: "Medium" },
   { philosophy: "Direct", tempo: "High", pressing: "Medium", directness: "High" },
   { philosophy: "Possession", tempo: "Low", pressing: "Medium", directness: "Low" },
@@ -64,13 +82,8 @@ const OPPONENT_STYLES: ReadonlyArray<Pick<MatchTeamPlan, "philosophy" | "tempo" 
   { philosophy: "Balanced", tempo: "Medium", pressing: "High", directness: "Medium" },
 ];
 
-/**
- * Every opponent now has a recognisable way of playing, fixed per club so
- * the same side feels the same each time you meet them. Presentation only:
- * scores are still decided by strength and your manager's style.
- */
-export function opponentMatchPlan(opponent: string): MatchTeamPlan {
-  const style = OPPONENT_STYLES[Math.floor(hashUnit(`opponent-style|${opponent}`) * OPPONENT_STYLES.length)];
+function legacyOpponentPlan(opponent: string): MatchTeamPlan {
+  const style = LEGACY_OPPONENT_STYLES[Math.floor(hashUnit(`opponent-style|${opponent}`) * LEGACY_OPPONENT_STYLES.length)];
   return {
     managerId: null,
     managerName: `${opponent} staff`,
@@ -81,30 +94,73 @@ export function opponentMatchPlan(opponent: string): MatchTeamPlan {
   };
 }
 
+export function opponentMatchPlan(state: GameState, opponent: string, lineup?: MatchLineupPlayer[]): MatchTeamPlan;
+export function opponentMatchPlan(opponent: string): MatchTeamPlan;
+export function opponentMatchPlan(
+  stateOrOpponent: GameState | string,
+  opponent?: string,
+  lineup?: MatchLineupPlayer[],
+): MatchTeamPlan {
+  if (typeof stateOrOpponent === "string") return legacyOpponentPlan(stateOrOpponent);
+  const state = stateOrOpponent;
+  const club = opponent ?? "";
+  const setup = aiClubManagerSetup(state, club);
+  const xi = lineup ?? opponentMatchLineup(state, club, setup.formation);
+  return {
+    managerId: setup.manager.id,
+    managerName: setup.manager.name,
+    formation: setup.formation,
+    philosophy: setup.identity.philosophy,
+    squadFit: setup.squadFit,
+    tempo: setup.identity.tempo,
+    pressing: setup.identity.pressing,
+    directness: setup.identity.directness,
+    rotation: setup.identity.rotation,
+    shapeExecution: shapeExecution({
+      suitability: xi.length >= 11 ? lineupShapeSuitability(state, xi) : 0.9,
+      managerTactics: setup.manager.stats.tactics,
+      averageFitness: lineupAverageFitness(xi),
+      pressing: setup.identity.pressing,
+    }),
+  };
+}
+
+function userMatchPlan(state: GameState, style: ManagerMatchStyle, lineup: MatchLineupPlayer[]): MatchTeamPlan {
+  const prep = managerMatchPrep(state);
+  const manager = (state.hiredStaff ?? []).find((staff) => staff.role === "Manager");
+  return {
+    managerId: prep.managerId,
+    managerName: prep.managerName,
+    formation: style.formation,
+    philosophy: style.philosophy,
+    squadFit: prep.squadFitScore,
+    tempo: style.tempo,
+    pressing: style.pressing,
+    directness: style.directness,
+    rotation: prep.rotation,
+    shapeExecution: shapeExecution({
+      suitability: lineupShapeSuitability(state, lineup),
+      managerTactics: manager?.stats.tactics ?? 45,
+      averageFitness: lineupAverageFitness(lineup),
+      pressing: style.pressing,
+    }),
+  };
+}
+
 export function createMatchEngineSnapshot(
   state: GameState,
   style: ManagerMatchStyle,
   opponent: string,
 ): MatchEngineSnapshot {
-  const prep = managerMatchPrep(state);
   const userLineup = userMatchLineup(state, style.formation);
-  const opponentLineup = opponentMatchLineup(state, opponent);
+  const opponentSetup = aiClubManagerSetup(state, opponent);
+  const opponentLineup = opponentMatchLineup(state, opponent, opponentSetup.formation);
   const userBench = userMatchBench(state, userLineup);
   const opponentBench = opponentMatchBench(state, opponent, opponentLineup);
   return {
     version: 1,
-    userPlan: {
-      managerId: prep.managerId,
-      managerName: prep.managerName,
-      formation: style.formation,
-      philosophy: style.philosophy,
-      squadFit: prep.squadFitScore,
-      tempo: style.tempo,
-      pressing: style.pressing,
-      directness: style.directness,
-      rotation: prep.rotation,
-    },
-    opponentPlan: opponentMatchPlan(opponent),
+    userPlan: userMatchPlan(state, style, userLineup),
+    opponentPlan: opponentMatchPlan(state, opponent, opponentLineup),
     halves: [],
     userLineup,
     opponentLineup,
@@ -114,6 +170,29 @@ export function createMatchEngineSnapshot(
     injuries: [],
     playerStats: playerStats(userLineup, [], 0, userBench, []),
   };
+}
+
+export function matchTacticalModifiers(
+  userStyle: ManagerMatchStyle,
+  userPlan: MatchTeamPlan | undefined,
+  opponentPlan: MatchTeamPlan | undefined,
+): { goals: { attackMod: number; defenseMod: number }; tactical: TacticalMatchModifiers | null } {
+  if (!userPlan || !opponentPlan || opponentPlan.shapeExecution === undefined) {
+    return { goals: { attackMod: userStyle.attackModifier, defenseMod: userStyle.defenseModifier }, tactical: null };
+  }
+  const opponentStyle = planMatchStyle(opponentPlan);
+  const tactical = tacticalMatchModifiers(
+    { plan: { ...userPlan, formation: resolveManagerFormation(userPlan.formation) }, style: userStyle },
+    { plan: opponentPlan, style: opponentStyle },
+  );
+  return { goals: engineGoalModifiers(userStyle, opponentStyle, tactical), tactical };
+}
+
+export function autoResolvedTacticalEdge(state: GameState, style: ManagerMatchStyle, opponent: string): number {
+  const userLineup = userMatchLineup(state, style.formation);
+  const userPlan = userMatchPlan(state, style, userLineup);
+  const opponentPlan = opponentMatchPlan(state, opponent);
+  return tacticalStrengthEdge(matchTacticalModifiers(style, userPlan, opponentPlan).goals);
 }
 
 /* ------------------------------------------------------------------ */
@@ -163,7 +242,7 @@ function teamStats(
 /* ------------------------------------------------------------------ */
 
 type Phase = NonNullable<MatchEvent["phase"]>;
-type PlanLike = Pick<MatchTeamPlan, "philosophy" | "pressing" | "directness" | "tempo">;
+type PlanLike = Pick<MatchTeamPlan, "philosophy" | "pressing" | "directness" | "tempo"> & { formation?: string };
 
 /** How a team's goals and chances tend to arrive, by style. */
 function phaseWeights(plan: PlanLike | undefined, goal: boolean): Record<Phase, number> {
@@ -186,6 +265,13 @@ function phaseWeights(plan: PlanLike | undefined, goal: boolean): Record<Phase, 
     weights.setPiece += 0.04;
   }
   if (plan.philosophy === "Front-foot" || plan.tempo === "High") weights.finalThird += 0.06;
+  if (plan.formation) {
+    const nudge = formationPhaseNudges(plan.formation);
+    weights.buildUp += nudge.buildUp;
+    weights.finalThird += nudge.finalThird;
+    weights.transition += nudge.transition;
+    weights.progression += nudge.progression;
+  }
   return weights;
 }
 
@@ -723,18 +809,28 @@ export function simulateMatchHalf(input: {
   userBench?: MatchLineupPlayer[];
   opponentBench?: MatchLineupPlayer[];
   substitutions?: MatchSubstitution[];
+  userPlan?: MatchTeamPlan;
+  opponentPlan?: MatchTeamPlan;
 }): { snapshot: MatchHalfSnapshot; events: MatchEvent[] } {
+  const { goals: modifiers, tactical } = matchTacticalModifiers(input.style, input.userPlan, input.opponentPlan);
   const goals = halfGoals(
     input.seedBase,
     input.half,
     input.ourStrength,
     input.opponentStrength,
-    input.style.attackModifier,
-    input.style.defenseModifier,
+    modifiers.attackMod,
+    modifiers.defenseMod,
   );
   const strengthEdge = input.ourStrength - input.opponentStrength;
-  // The stronger side features in more of the highlights.
-  const usChanceShare = clamp(0.5 + strengthEdge * 0.012 + input.style.chanceBias * 0.5, 0.28, 0.72);
+  const usChanceShare = clamp(
+    0.5 + strengthEdge * 0.012 + input.style.chanceBias * 0.5 + (tactical?.chanceShareShift ?? 0),
+    0.28,
+    0.72,
+  );
+  const opponentPlan = input.opponentPlan ?? opponentMatchPlan(input.opponentName);
+  const userPlanLike: PlanLike = input.userPlan
+    ? { ...input.style, formation: input.userPlan.formation }
+    : { ...input.style, formation: undefined };
   const events = linkEventActors(
     enrichEvents(
       halfPresentation(
@@ -749,8 +845,8 @@ export function simulateMatchHalf(input: {
         usChanceShare,
       ),
       input.half,
-      input.style,
-      opponentMatchPlan(input.opponentName),
+      userPlanLike,
+      input.opponentPlan ? opponentPlan : { ...opponentPlan, formation: undefined },
     ),
     input.userLineup ?? [],
     input.opponentLineup ?? [],
@@ -761,7 +857,7 @@ export function simulateMatchHalf(input: {
 
   const rng = matchStream(input.seedBase, input.half === 1 ? "h1.metrics" : "h2.metrics");
   const possession = clamp(
-    50 + strengthEdge * 0.45 + input.style.possessionBias * 100 + (rng() - 0.5) * 6,
+    50 + strengthEdge * 0.45 + input.style.possessionBias * 100 + (tactical?.possessionShift ?? 0) + (rng() - 0.5) * 6,
     28,
     72,
   );
@@ -769,9 +865,7 @@ export function simulateMatchHalf(input: {
   const them = teamStats(rng, goals.themGoals, 100 - possession, -strengthEdge, 0, featuredShots(events, "them"));
   them.possession = 100 - us.possession;
   us.yellowCards = events.filter((event) => event.type === "card" && event.side === "us").length;
-  them.yellowCards = events.filter(
-    (event) => event.type === "card" && event.side === "them",
-  ).length;
+  them.yellowCards = events.filter((event) => event.type === "card" && event.side === "them").length;
   return { snapshot: { half: input.half, ...goals, us, them }, events };
 }
 
