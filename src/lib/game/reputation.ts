@@ -109,10 +109,15 @@ export function clubReputation(s: GameState, club: string): number {
 export function setClubReputation(s: GameState, club: string, value: number): void {
   s.clubReputations ??= {};
   const canonical = canonicalClubReference(s, club);
-  s.clubReputations[canonical] = Math.round(clamp(value, REP_MIN, REP_MAX) * 10) / 10;
+  const next = Math.round(clamp(value, REP_MIN, REP_MAX) * 10) / 10;
+  s.clubReputations[canonical] = next;
   if (canonical !== club && Object.prototype.hasOwnProperty.call(s.clubReputations, club)) {
     delete s.clubReputations[club];
   }
+  // GameState.reputation is retained for legacy saves and older subsystems.
+  // Keep it mirrored for the controlled club so commercial/staff/finance code
+  // cannot drift away from the canonical club-reputation map.
+  if (sameClubReference(s, canonical, s.clubName)) s.reputation = next;
 }
 
 /* ---------- Strength ---------- */
