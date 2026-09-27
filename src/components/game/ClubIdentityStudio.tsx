@@ -24,6 +24,7 @@ import {
   type KitDesign,
 } from "@/lib/game/clubKit";
 import { ClubBadge, ClubShirt } from "./ClubKitArt";
+import { cleanClubNickname, clubNickname, setClubNickname } from "@/lib/game/character";
 
 type Section = "badge" | "home" | "away";
 
@@ -112,10 +113,12 @@ export function ClubIdentityStudio({
   onDone?: () => void;
 }) {
   const saved = useMemo(() => clubKitFor(state), [state]);
+  const savedNickname = useMemo(() => clubNickname(state), [state]);
   const [draft, setDraft] = useState<ClubKitState>(saved);
+  const [draftNickname, setDraftNickname] = useState(savedNickname);
   const [section, setSection] = useState<Section>("badge");
   const [justSaved, setJustSaved] = useState(false);
-  const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
+  const dirty = JSON.stringify(draft) !== JSON.stringify(saved) || draftNickname !== savedNickname;
   const name = state.clubName;
 
   const setBadge = (patch: Partial<BadgeDesign>) => {
@@ -128,7 +131,7 @@ export function ClubIdentityStudio({
   };
 
   const save = () => {
-    update((current) => setClubKit(current, draft));
+    update((current) => setClubNickname(setClubKit(current, draft), draftNickname));
     setJustSaved(true);
   };
 
@@ -140,7 +143,7 @@ export function ClubIdentityStudio({
         <div className="flex items-baseline justify-between gap-3">
           <div className="min-w-0">
             <h2 className="truncate font-display text-xl leading-tight">{name}</h2>
-            <p className="text-xs text-white/60">{draft.badge.founded ? `Founded ${draft.badge.founded}` : "Club identity"}</p>
+            <p className="text-xs text-white/60">{draftNickname}{draft.badge.founded ? ` · Founded ${draft.badge.founded}` : ""}</p>
           </div>
           {onDone ? (
             <button type="button" onClick={onDone} className="shrink-0 rounded-md px-2 py-1 text-xs text-white/70 hover:bg-white/10 hover:text-white">
@@ -178,7 +181,13 @@ export function ClubIdentityStudio({
 
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain bg-card px-4 py-4">
         {section === "badge" ? (
-          <BadgeEditor badge={draft.badge} name={name} onChange={setBadge} />
+          <BadgeEditor
+            badge={draft.badge}
+            name={name}
+            nickname={draftNickname}
+            onNicknameChange={(value) => { setJustSaved(false); setDraftNickname(cleanClubNickname(value)); }}
+            onChange={setBadge}
+          />
         ) : (
           <KitEditor
             which={section}
@@ -199,7 +208,7 @@ export function ClubIdentityStudio({
           variant="ghost"
           size="sm"
           disabled={!dirty}
-          onClick={() => { setJustSaved(false); setDraft(saved); }}
+          onClick={() => { setJustSaved(false); setDraft(saved); setDraftNickname(savedNickname); }}
         >
           <RotateCcw /> Undo changes
         </Button>
@@ -359,9 +368,30 @@ function TextField({ label, value, onChange, placeholder, inputMode, maxLength }
   );
 }
 
-function BadgeEditor({ badge, name, onChange }: { badge: BadgeDesign; name: string; onChange: (patch: Partial<BadgeDesign>) => void }) {
+function BadgeEditor({
+  badge,
+  name,
+  nickname,
+  onNicknameChange,
+  onChange,
+}: {
+  badge: BadgeDesign;
+  name: string;
+  nickname: string;
+  onNicknameChange: (value: string) => void;
+  onChange: (patch: Partial<BadgeDesign>) => void;
+}) {
   return (
     <>
+      <Field title="Club details">
+        <TextField
+          label="Nickname"
+          value={nickname}
+          maxLength={28}
+          placeholder="The Railwaymen"
+          onChange={onNicknameChange}
+        />
+      </Field>
       <Field title="Shape">
         <OptionGrid
           options={BADGE_SHAPES}
