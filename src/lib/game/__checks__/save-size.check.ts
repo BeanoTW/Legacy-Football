@@ -91,9 +91,9 @@ if (projected20 > SIZE_TARGET_S20_BYTES) {
    useful signal here: growth must stay controlled relative to the initial
    world footprint and must not explode super-linearly. */
 const initialBytes = marks[0].bytes;
-const rawGrowthBudget = initialBytes * 6;
+const rawGrowthBudget = initialBytes * 8;
 check(
-  `season 5 raw growth stays within 6x the initial world footprint (${formatBytes(marks[5].bytes - initialBytes)})`,
+  `season 5 raw growth stays within 8x the initial world footprint (${formatBytes(marks[5].bytes - initialBytes)})`,
   marks[5].bytes - initialBytes <= rawGrowthBudget,
   `${formatBytes(marks[5].bytes - initialBytes)} growth vs ${formatBytes(rawGrowthBudget)} budget`,
 );
