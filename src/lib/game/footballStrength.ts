@@ -1,6 +1,7 @@
 import type { GameState } from "./types";
 import { sameClubReference } from "./clubReference";
 import { clubStrengthFor } from "./reputation";
+import { clubOverallProfile } from "./playerOverall";
 import { playerFitness, playerIsAvailable } from "./playerHealth";
 
 export const FOOTBALL_STRENGTH_MIN = 25;
@@ -61,6 +62,20 @@ export function clubFootballStrength(state: GameState, clubId: string, season = 
     .map((player) => player.currentAbility);
   const compactStrength = compactSquadStrength(compact);
   if (compactStrength !== null) return compactStrength;
+
+  // Most outer-world clubs deliberately do not materialise 20 player rows
+  // until the chairman needs them. Their persisted Fringe strength is already
+  // on the canonical player-OVR scale and must therefore beat the old
+  // reputation-derived fallback (which is a prestige scale, not squad OVR).
+  const fringe = Object.values(state.fringeWorld ?? {}).find((candidate) =>
+    sameClubReference(state, candidate.clubId, clubId),
+  );
+  if (fringe && Number.isFinite(fringe.strength)) {
+    return Math.round(clamp(fringe.strength) * 100) / 100;
+  }
+
+  const profile = clubOverallProfile(state, clubId);
+  if (Number.isFinite(profile.average)) return Math.round(clamp(profile.average) * 100) / 100;
 
   return clubStrengthFor(state, clubId, season);
 }
