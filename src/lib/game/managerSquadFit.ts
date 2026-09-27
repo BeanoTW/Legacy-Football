@@ -1,5 +1,5 @@
 import type { FootballPlayer, GameState, Position, Staff } from "./types";
-import { managerFootballIdentity, type ManagerFormation } from "./managerIdentity";
+import { managerFootballIdentity, type ManagerFootballIdentity, type ManagerFormation } from "./managerIdentity";
 import { userClubReference } from "./clubReference";
 
 export type SquadFitBand = "Excellent" | "Good" | "Workable" | "Poor";
@@ -122,6 +122,26 @@ function scoreFormation(
     gaps,
     needs: needs.sort((a, b) => b.severity - a.severity),
   };
+}
+
+
+export function chooseFormationForPlayers(
+  identity: ManagerFootballIdentity,
+  players: FootballPlayer[],
+): { formation: ManagerFormation; score: number } {
+  const primary = { formation: identity.preferredFormation, ...scoreFormation(players, identity.preferredFormation) };
+  const alternatives = identity.alternativeFormations
+    .map((formation) => ({ formation, ...scoreFormation(players, formation) }))
+    .sort((a, b) => b.score - a.score);
+  const bestAlternative = alternatives[0] ?? null;
+  if (
+    identity.adaptability === "High" &&
+    bestAlternative &&
+    bestAlternative.score >= primary.score + 5
+  ) {
+    return { formation: bestAlternative.formation, score: bestAlternative.score };
+  }
+  return { formation: primary.formation, score: primary.score };
 }
 
 function band(score: number): SquadFitBand {
