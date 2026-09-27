@@ -353,7 +353,36 @@ function ColourRow({ title, value, onChange }: { title: string; value: string; o
   );
 }
 
-function SponsorColourRow({\n  value,\n  onChange,\n}: {\n  value: string;\n  onChange: (value: string) => void;\n}) {\n  const custom = value && value !== "#ffffff" && value !== "#16181b";\n  return (\n    <div>\n      <div className="mb-1.5 flex items-center justify-between text-xs">\n        <span className="font-medium">Sponsor colour</span>\n        <span className="text-muted-foreground">{value ? (custom ? "Custom" : value === "#ffffff" ? "White" : "Black") : "Auto contrast"}</span>\n      </div>\n      <div className="flex items-center gap-2">\n        {[["", "Auto"], ["#ffffff", "White"], ["#16181b", "Black"]].map(([colour, label]) => (\n          <button key={label} type="button" aria-pressed={value === colour} onClick={() => onChange(colour)} className={cn("h-8 rounded-md border px-2.5 text-xs transition-colors", value === colour ? "border-primary bg-primary/10 font-semibold" : "bg-muted/40")}>\n            {label}\n          </button>\n        ))}\n        <label className={cn("relative grid size-8 cursor-pointer place-items-center overflow-hidden rounded-md border border-dashed border-muted-foreground/60 text-[10px] text-muted-foreground", custom && "ring-2 ring-primary ring-offset-2 ring-offset-background")} style={custom ? { background: value } : undefined} title="Choose any sponsor colour">\n          {custom ? null : "+"}\n          <input type="color" value={custom ? value : "#ffffff"} onChange={(event) => onChange(event.target.value)} className="absolute inset-0 cursor-pointer opacity-0" aria-label="Custom sponsor colour" />\n        </label>\n      </div>\n    </div>\n  );\n}\n\nfunction TextField({ label, value, onChange, placeholder, inputMode, maxLength }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; inputMode?: "text" | "numeric"; maxLength: number }) {
+function SponsorColourRow({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const custom = value && value !== "#ffffff" && value !== "#16181b";
+  return (
+    <div>
+      <div className="mb-1.5 flex items-center justify-between text-xs">
+        <span className="font-medium">Sponsor colour</span>
+        <span className="text-muted-foreground">{value ? (custom ? "Custom" : value === "#ffffff" ? "White" : "Black") : "Auto contrast"}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        {[["", "Auto"], ["#ffffff", "White"], ["#16181b", "Black"]].map(([colour, label]) => (
+          <button key={label} type="button" aria-pressed={value === colour} onClick={() => onChange(colour)} className={cn("h-8 rounded-md border px-2.5 text-xs transition-colors", value === colour ? "border-primary bg-primary/10 font-semibold" : "bg-muted/40")}>
+            {label}
+          </button>
+        ))}
+        <label className={cn("relative grid size-8 cursor-pointer place-items-center overflow-hidden rounded-md border border-dashed border-muted-foreground/60 text-[10px] text-muted-foreground", custom && "ring-2 ring-primary ring-offset-2 ring-offset-background")} style={custom ? { background: value } : undefined} title="Choose any sponsor colour">
+          {custom ? null : "+"}
+          <input type="color" value={custom ? value : "#ffffff"} onChange={(event) => onChange(event.target.value)} className="absolute inset-0 cursor-pointer opacity-0" aria-label="Custom sponsor colour" />
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function TextField({ label, value, onChange, placeholder, inputMode, maxLength }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; inputMode?: "text" | "numeric"; maxLength: number }) {
   return (
     <label className="block min-w-0 flex-1">
       <span className="mb-1 block text-xs font-medium">{label}</span>
@@ -485,7 +514,16 @@ function KitEditor({
           <ColourRow title="Socks" value={kit.socks} onChange={(socks) => onChange({ socks })} />
         </div>
       </Field>
-      <Field title="Shirt sponsor" hint="Up to 14 characters">\n        <div className="space-y-3">\n          <TextField label="Sponsor name" value={kit.sponsor} maxLength={14} placeholder={`${name.split(" ")[0]} Rail`} onChange={(value) => onChange({ sponsor: cleanSponsor(value) })} />\n          <div>\n            <div className="mb-1.5 text-xs font-medium">Position</div>\n            <Segmented options={SPONSOR_POSITIONS} value={kit.sponsorPosition} onChange={(sponsorPosition) => onChange({ sponsorPosition })} label={(position) => position === "high" ? "High" : position === "centre" ? "Centre" : "Low"} />\n          </div>\n          <SponsorColourRow value={kit.sponsorColour} onChange={(sponsorColour) => onChange({ sponsorColour })} />\n        </div>\n      </Field>
+      <Field title="Shirt sponsor" hint="Up to 14 characters">
+        <div className="space-y-3">
+          <TextField label="Sponsor name" value={kit.sponsor} maxLength={14} placeholder={`${name.split(" ")[0]} Rail`} onChange={(value) => onChange({ sponsor: cleanSponsor(value) })} />
+          <div>
+            <div className="mb-1.5 text-xs font-medium">Position</div>
+            <Segmented options={SPONSOR_POSITIONS} value={kit.sponsorPosition} onChange={(sponsorPosition) => onChange({ sponsorPosition })} label={(position) => position === "high" ? "High" : position === "centre" ? "Centre" : "Low"} />
+          </div>
+          <SponsorColourRow value={kit.sponsorColour} onChange={(sponsorColour) => onChange({ sponsorColour })} />
+        </div>
+      </Field>
       {which === "away" ? (
         <Button
           variant="outline"
