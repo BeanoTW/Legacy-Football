@@ -71,11 +71,24 @@ export function overallBandForLevel(level: FootballLevel): OverallBand {
 export function playerReputationForAbility(
   ability: number,
   level: FootballLevel,
+  clubStanding?: number,
   noise = 0,
 ): number {
-  const levelPrestige = (8 - level) * 4;
+  const representativeClubStanding: Record<FootballLevel, number> = {
+    1: 72,
+    2: 48,
+    3: 36,
+    4: 25,
+    5: 22,
+    6: 19,
+    7: 16,
+    8: 13,
+  };
+  const band = overallBandForLevel(level);
+  const base = clubStanding ?? representativeClubStanding[level];
+  const abilityStanding = (ability - band.squadAverage) * 1.35;
   return clamp(
-    Math.round(ability - 20 + levelPrestige + clamp(noise, -8, 8)),
+    Math.round(base + abilityStanding + clamp(noise, -8, 8)),
     5,
     98,
   );
