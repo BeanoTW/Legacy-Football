@@ -17,6 +17,7 @@ import mastheadPolishCss from "../masthead-polish.css?url";
 import inboxOverhaulCss from "../inbox-overhaul.css?url";
 import facilitiesGroundCss from "../facilities-ground.css?url";
 import homeConceptCss from "../home-concept.css?url";
+import newsroomCss from "../newsroom.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
@@ -70,8 +71,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: mastheadPolishCss },
       { rel: "stylesheet", href: inboxOverhaulCss },
       { rel: "stylesheet", href: facilitiesGroundCss },
-      // Home concept pass: must stay last so it overrides the layers above.
+      // Home concept pass: overrides the layers above.
       { rel: "stylesheet", href: homeConceptCss },
+      // Chairman's office, newsroom and chairman studio.
+      { rel: "stylesheet", href: newsroomCss },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },

@@ -1,0 +1,191 @@
+import { useMemo, useState } from "react";
+import { ArrowRight, Heart, MessageCircle, Newspaper, Repeat2, X } from "lucide-react";
+import type { GameState } from "@/lib/game/types";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { newsAge, newsFeed, type NewsArticle, type NewsKind } from "@/lib/game/newsFeed";
+import { ChairmanPortrait } from "./ChairmanPortrait";
+import { useChairmanProfile } from "./ChairmanStudio";
+
+type NewsFilter = "all" | "club" | "matches" | "transfers" | "league";
+
+const FILTERS: { id: NewsFilter; label: string; kinds?: NewsKind[] }[] = [
+  { id: "all", label: "For you" },
+  { id: "club", label: "Our club" },
+  { id: "matches", label: "Matches", kinds: ["matchReport", "upset", "roundUp"] },
+  { id: "transfers", label: "Transfers", kinds: ["transfer", "appointment"] },
+  { id: "league", label: "League", kinds: ["tableWatch", "season", "roundUp", "upset"] },
+];
+
+const KIND_LABEL: Record<NewsKind, string> = {
+  matchReport: "Match report",
+  roundUp: "Round-up",
+  upset: "Shock result",
+  transfer: "Transfer",
+  appointment: "Appointment",
+  tableWatch: "Table watch",
+  season: "Season review",
+};
+
+function compact(value: number) {
+  return value >= 1000 ? `${(value / 1000).toFixed(1)}k` : String(value);
+}
+
+function initials(name: string) {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]).join("").toUpperCase();
+}
+
+function ScorePlate({ article, large = false }: { article: NewsArticle; large?: boolean }) {
+  const score = article.scoreline;
+  if (!score) return null;
+  return (
+    <div className={cn("lf-news-score", large && "is-large")}>
+      <span className="lf-news-score-label">{score.label} · Full time</span>
+      <div className="lf-news-score-row">
+        <span className="lf-news-score-team"><i>{initials(score.home)}</i><b>{score.home}</b></span>
+        <strong>{score.homeGoals}<em>–</em>{score.awayGoals}</strong>
+        <span className="lf-news-score-team is-away"><i>{initials(score.away)}</i><b>{score.away}</b></span>
+      </div>
+    </div>
+  );
+}
+
+function TransferPlate({ article }: { article: NewsArticle }) {
+  const [from, to] = article.standfirst.split(" → ");
+  const fee = article.facts?.find((fact) => fact.label === "Fee")?.value;
+  return (
+    <div className="lf-news-transfer">
+      <span>{from}</span>
+      <ArrowRight />
+      <span className="is-to">{to}</span>
+      {fee && <strong>{fee}</strong>}
+    </div>
+  );
+}
+
+function ShapePlate({ article }: { article: NewsArticle }) {
+  const shape = article.facts?.find((fact) => fact.label === "Shape")?.value;
+  const approach = article.facts?.find((fact) => fact.label === "Approach")?.value;
+  if (!shape) return null;
+  return (
+    <div className="lf-news-shape">
+      <strong>{shape}</strong>
+      <span>{approach}</span>
+    </div>
+  );
+}
+
+function QuoteBlock({ article }: { article: NewsArticle }) {
+  const profile = useChairmanProfile();
+  const quote = article.quote;
+  if (!quote) return null;
+  return (
+    <figure className="lf-news-quote">
+      {quote.chairman && <ChairmanPortrait avatar={profile.avatar} size={46} className="lf-news-quote-portrait" />}
+      <blockquote>
+        <p>“{quote.text}”</p>
+        <figcaption>{quote.speaker} · {quote.role}</figcaption>
+      </blockquote>
+    </figure>
+  );
+}
+
+function NewsCard({ article, state, onOpen }: { article: NewsArticle; state: GameState; onOpen: () => void }) {
+  return (
+    <article className={cn("lf-news-post", `tone-${article.publication.tone}`, article.involvesUser && "is-ours")}>
+      <header className="lf-news-post-head">
+        <span className="lf-news-avatar">{article.publication.mark}</span>
+        <span className="lf-news-source">
+          <strong>{article.publication.name}</strong>
+          <small>{article.publication.handle} · {newsAge(state, article)}</small>
+        </span>
+        <span className="lf-news-kind">{KIND_LABEL[article.kind]}</span>
+      </header>
+      <button type="button" className="lf-news-post-body" onClick={onOpen}>
+        <h3>{article.headline}</h3>
+        <p>{article.standfirst}</p>
+        {(article.kind === "matchReport" || article.kind === "upset") && <ScorePlate article={article} />}
+        {article.kind === "transfer" && <TransferPlate article={article} />}
+        {article.kind === "appointment" && <ShapePlate article={article} />}
+        {article.quote && <QuoteBlock article={article} />}
+      </button>
+      <footer className="lf-news-reactions" aria-label="Reactions">
+        <span><Heart /> {compact(article.reactions.likes)}</span>
+        <span><MessageCircle /> {compact(article.reactions.comments)}</span>
+        <span><Repeat2 /> {compact(article.reactions.shares)}</span>
+        <button type="button" onClick={onOpen}>Read <ArrowRight /></button>
+      </footer>
+    </article>
+  );
+}
+
+function ArticleReader({ article, state, onClose }: { article: NewsArticle; state: GameState; onClose: () => void }) {
+  return (
+    <Sheet open onOpenChange={(open) => !open && onClose()}>
+      <SheetContent side="bottom" hideClose className="lf-paper-sheet">
+        <div className="lf-paper">
+          <div className="lf-paper-masthead">
+            <span>Season {article.season} · Week {article.week}</span>
+            <SheetTitle className="lf-paper-name">{article.publication.name}</SheetTitle>
+            <Button variant="ghost" size="icon" className="lf-paper-close" onClick={onClose} aria-label="Close article"><X /></Button>
+          </div>
+          <div className="lf-paper-rule" />
+          <span className="lf-paper-kicker">{KIND_LABEL[article.kind]}</span>
+          <h2 className="lf-paper-headline">{article.headline}</h2>
+          <p className="lf-paper-standfirst">{article.standfirst}</p>
+          <p className="lf-paper-byline">By {article.byline} · {newsAge(state, article)}</p>
+          {article.scoreline && <ScorePlate article={article} large />}
+          <div className="lf-paper-body">
+            {article.body.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+          </div>
+          {article.quote && <QuoteBlock article={article} />}
+          {article.facts && article.facts.length > 0 && (
+            <dl className="lf-paper-facts">
+              {article.facts.map((fact) => (
+                <div key={fact.label}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>
+              ))}
+            </dl>
+          )}
+          <div className="lf-paper-tags">{article.tags.map((tag) => <span key={tag}>#{tag.replace(/\s+/g, "")}</span>)}</div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+export function NewsFeed({ state }: { state: GameState }) {
+  const [filter, setFilter] = useState<NewsFilter>("all");
+  const [openId, setOpenId] = useState<string | null>(null);
+  const articles = useMemo(() => newsFeed(state), [state]);
+  const visible = useMemo(() => {
+    const config = FILTERS.find((entry) => entry.id === filter)!;
+    if (filter === "club") return articles.filter((article) => article.involvesUser);
+    return config.kinds ? articles.filter((article) => config.kinds!.includes(article.kind)) : articles;
+  }, [articles, filter]);
+  const open = openId ? articles.find((article) => article.id === openId) ?? null : null;
+
+  return (
+    <div className="lf-newsroom">
+      <div className="lf-news-filters" role="tablist" aria-label="News filters">
+        {FILTERS.map((entry) => (
+          <button key={entry.id} type="button" role="tab" aria-selected={filter === entry.id} className={cn(filter === entry.id && "is-active")} onClick={() => setFilter(entry.id)}>
+            {entry.label}
+          </button>
+        ))}
+      </div>
+      <div className="lf-news-stream contained-scroll touch-pan-y">
+        {visible.length === 0 ? (
+          <div className="lf-inbox-empty">
+            <Newspaper />
+            <h2>The presses are quiet</h2>
+            <p>Match reports, results and transfer news will appear here as the season unfolds.</p>
+          </div>
+        ) : (
+          visible.map((article) => <NewsCard key={article.id} article={article} state={state} onOpen={() => setOpenId(article.id)} />)
+        )}
+      </div>
+      {open && <ArticleReader article={open} state={state} onClose={() => setOpenId(null)} />}
+    </div>
+  );
+}

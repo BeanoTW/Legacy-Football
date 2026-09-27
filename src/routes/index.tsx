@@ -19,7 +19,7 @@ import { HistoryTab } from "@/components/game/HistoryTab";
 import { StaffTab } from "@/components/game/StaffTab";
 import { ClubHub } from "@/components/game/ClubHub";
 import { MatchDayOverlay } from "@/components/game/MatchDayOverlay";
-import { InboxTab } from "@/components/game/InboxTab";
+import { ChairmansOffice } from "@/components/game/ChairmansOffice";
 import { WorldInspector } from "@/components/game/WorldInspector";
 import { RecruitmentFlow } from "@/components/game/RecruitmentFlow";
 import { SquadSelectionTab } from "@/components/game/SquadSelectionTab";
@@ -190,7 +190,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
       <main className="game-main">
         <div className="game-screen">
           <ScreenBoundary name={ALL_TABS.find(([id]) => id === tab)?.[1] ?? tab}>
-            {tab === "inbox" && <InboxTab state={state} update={update} decisionQueue={decisionQueue} onDecisionQueueCleared={() => { setDecisionQueue(false); setTab("hub"); }} />}
+            {tab === "inbox" && <ChairmansOffice state={state} update={update} decisionQueue={decisionQueue} onDecisionQueueCleared={() => { setDecisionQueue(false); setTab("hub"); }} />}
             {tab === "hub" && <ClubHub state={state} update={update} setTab={setTab} isContinuing={isContinuing} onAdvanceTo={requestContinue} />}
             {tab === "squad" && <SquadSelectionTab state={state} update={update} />}
             {tab === "dashboard" && <DashboardTab state={state} />}
