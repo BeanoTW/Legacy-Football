@@ -12,17 +12,31 @@ import { progressSemanticScoutingDiscoveryDayInPlace } from "./semanticScoutingS
 import { knownPlayerDetail } from "./knownPlayerDetail";
 import { isUserClubReference } from "./clubReference";
 
+export type PlayerAttributeCategory = "Technical" | "Mental" | "Physical";
+
 export type PlayerAttributeKey =
-  | "pace"
-  | "strength"
-  | "stamina"
-  | "agility"
-  | "passing"
+  | "shortPassing"
+  | "longPassing"
+  | "crossing"
+  | "firstTouch"
   | "dribbling"
   | "finishing"
   | "tackling"
+  | "goalkeeping"
   | "positioning"
-  | "goalkeeping";
+  | "decisions"
+  | "vision"
+  | "composure"
+  | "aggression"
+  | "leadership"
+  | "workRate"
+  | "pace"
+  | "acceleration"
+  | "strength"
+  | "stamina"
+  | "agility"
+  | "jumping"
+  | "balance";
 export type PlayerAttributes = Record<PlayerAttributeKey, number>;
 
 export interface ScoutingAssignment {
@@ -65,19 +79,37 @@ declare module "./types" {
   }
 }
 
-const LABELS: Record<PlayerAttributeKey, string> = {
-  pace: "Pace",
-  strength: "Strength",
-  stamina: "Stamina",
-  agility: "Agility",
-  passing: "Passing",
+export const PLAYER_ATTRIBUTE_GROUPS: Readonly<Record<PlayerAttributeCategory, readonly PlayerAttributeKey[]>> = {
+  Technical: ["shortPassing", "longPassing", "crossing", "firstTouch", "dribbling", "finishing", "tackling", "goalkeeping"],
+  Mental: ["positioning", "decisions", "vision", "composure", "aggression", "leadership", "workRate"],
+  Physical: ["pace", "acceleration", "strength", "stamina", "agility", "jumping", "balance"],
+};
+
+export const PLAYER_ATTRIBUTE_LABELS: Record<PlayerAttributeKey, string> = {
+  shortPassing: "Short passing",
+  longPassing: "Long passing",
+  crossing: "Crossing",
+  firstTouch: "First touch",
   dribbling: "Dribbling",
   finishing: "Finishing",
   tackling: "Tackling",
-  positioning: "Positioning",
   goalkeeping: "Goalkeeping",
+  positioning: "Positioning",
+  decisions: "Decisions",
+  vision: "Vision",
+  composure: "Composure",
+  aggression: "Aggression",
+  leadership: "Leadership",
+  workRate: "Work rate",
+  pace: "Pace",
+  acceleration: "Acceleration",
+  strength: "Strength",
+  stamina: "Stamina",
+  agility: "Agility",
+  jumping: "Jumping",
+  balance: "Balance",
 };
-const KEYS = Object.keys(LABELS) as PlayerAttributeKey[];
+const KEYS = (Object.keys(PLAYER_ATTRIBUTE_LABELS) as PlayerAttributeKey[]);
 const clamp = (n: number, lo = 1, hi = 99) => Math.max(lo, Math.min(hi, Math.round(n)));
 const PARTIAL_REPORT_DAYS = 4;
 const FULL_REPORT_DAYS = 6;
@@ -98,10 +130,61 @@ function absoluteDay(state: GameState): number {
 export function playerAttributes(player: FootballPlayer): PlayerAttributes {
   const ca = player.currentAbility;
   const positional: Record<Position, Partial<Record<PlayerAttributeKey, number>>> = {
-    GK: { goalkeeping: 14, positioning: 6, finishing: -22, tackling: -8, dribbling: -8 },
-    DEF: { tackling: 10, positioning: 8, strength: 6, finishing: -10, goalkeeping: -25 },
-    MID: { passing: 10, dribbling: 7, stamina: 6, positioning: 4, goalkeeping: -25 },
-    FWD: { finishing: 12, pace: 7, dribbling: 6, tackling: -12, goalkeeping: -25 },
+    GK: {
+      goalkeeping: 15,
+      positioning: 7,
+      decisions: 5,
+      composure: 5,
+      jumping: 5,
+      strength: 3,
+      shortPassing: -3,
+      longPassing: 2,
+      firstTouch: -4,
+      crossing: -18,
+      dribbling: -12,
+      finishing: -24,
+      tackling: -10,
+    },
+    DEF: {
+      tackling: 11,
+      positioning: 9,
+      strength: 7,
+      jumping: 7,
+      aggression: 5,
+      workRate: 4,
+      shortPassing: 1,
+      longPassing: -1,
+      crossing: -1,
+      dribbling: -5,
+      finishing: -12,
+      goalkeeping: -28,
+    },
+    MID: {
+      shortPassing: 10,
+      longPassing: 7,
+      firstTouch: 8,
+      vision: 8,
+      decisions: 5,
+      dribbling: 6,
+      stamina: 6,
+      workRate: 5,
+      positioning: 3,
+      finishing: -2,
+      goalkeeping: -28,
+    },
+    FWD: {
+      finishing: 12,
+      composure: 7,
+      positioning: 7,
+      pace: 7,
+      acceleration: 7,
+      dribbling: 7,
+      firstTouch: 5,
+      agility: 5,
+      crossing: 3,
+      tackling: -13,
+      goalkeeping: -28,
+    },
   };
   const mods = positional[player.primaryPosition];
   return Object.fromEntries(
@@ -259,7 +342,7 @@ export function scoutingReport(state: GameState, player: FootballPlayer): Scouti
   );
   const visible = new Set(order.slice(0, revealedCount));
   const attributes = KEYS.map((key): AttributeKnowledge => {
-    if (!visible.has(key)) return { key, label: LABELS[key], known: false };
+    if (!visible.has(key)) return { key, label: PLAYER_ATTRIBUTE_LABELS[key], known: false };
     if (width === 0) return { key, label: LABELS[key], known: true, exact: attrs[key] };
     const [min, max] = rangeAround(attrs[key], width);
     return { key, label: LABELS[key], known: true, min, max };
