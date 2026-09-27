@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, BriefcaseBusiness, Search, UserMinus, UserPlus, Users } from "lucide-react";
+import { ArrowLeft, BriefcaseBusiness, CheckCircle2, MessageCircle, Search, UserMinus, UserPlus, Users } from "lucide-react";
 import type { GameState, Staff, StaffRole } from "@/lib/game/types";
 import type { ManagerOffer } from "@/lib/game/staff";
 import { cn } from "@/lib/utils";
@@ -65,4 +65,143 @@ export function StaffTab({ state, update }: { state: GameState; update: (fn: (s:
 
 function StaffCard({state,staff,terms,onAction,onRenew,action,affordable=true}:{state:GameState;staff:Staff;terms?:ReturnType<typeof staffJoinTermsForState>;onAction:()=>void;onRenew?:()=>void;action:"hire"|"release";affordable?:boolean}){const manager=staff.role==="Manager";const contractLabel=staff.contractWeeks<=52?"Final season":`${Math.ceil(staff.contractWeeks/52)} seasons left`;return <div className="lf-staff-card rounded-2xl border bg-card p-4"><div className="flex items-start justify-between gap-3"><div><div className="font-display text-xl">{staff.name}</div><div className="text-xs text-muted-foreground">{staff.role} · Age {staff.age} · Rating {staff.rating}</div></div><div className="text-right text-xs"><div className="font-semibold">{fmtMoneyExact(terms?.wageDemand??staff.wage)}/wk</div><div className="text-muted-foreground">{terms?`${fmtMoneyExact(terms.signingBonus)} sign-on`:contractLabel}</div></div></div><div className="mt-3 grid grid-cols-4 gap-1.5">{STAT_KEYS.map(k=><div key={k} className="rounded-lg border bg-background/50 p-2 text-center"><div className="text-[9px] uppercase tracking-wider text-muted-foreground">{STAT_LABEL[k]}</div><div className="font-display text-lg">{staff.stats[k]}</div></div>)}</div>{manager&&<><ManagerIdentityPanel staff={staff}/><ManagerSquadFitPanel state={state} staff={staff}/></>}{terms&&<div className="mt-3 rounded-xl bg-muted/50 p-3 text-xs"><div className="font-semibold">{terms.willing?"Open to talks":"Not currently interested"}</div><div className="mt-1 text-muted-foreground">{terms.note}</div></div>}<div className="mt-3 flex gap-2">{action==="hire"?<Button onClick={onAction} disabled={!terms?.willing||!affordable} className="flex-1"><UserPlus className="size-4 mr-2"/> {manager?"Open talks":"Hire"}</Button>:<><Button variant="destructive" onClick={onAction} className="flex-1"><UserMinus className="size-4 mr-2"/> Release</Button>{onRenew&&staff.contractWeeks<=52&&<Button variant="outline" onClick={onRenew}>Renew</Button>}</>}</div></div>;}
 
-function ManagerNegotiationDialog({state,open,candidate,offer,counter,message,cash,onOpenChange,onOfferChange,onSubmit,onUseCounter}:{state:GameState;open:boolean;candidate:Staff|null;offer:ManagerOffer|null;counter:ManagerOffer|null;message:string;cash:number;onOpenChange:(open:boolean)=>void;onOfferChange:(offer:ManagerOffer)=>void;onSubmit:()=>void;onUseCounter:()=>void}){if(!candidate||!offer)return null;const terms=staffJoinTermsForState(state,candidate);const fit=managerSquadFit(state,candidate);return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-w-lg"><DialogHeader><DialogTitle>Talks with {candidate.name}</DialogTitle></DialogHeader><div className="space-y-4"><div className="rounded-xl border bg-muted/30 p-3 text-sm"><div className="font-semibold">{fit.band} squad fit · {fit.score}/100</div><div className="mt-1 text-muted-foreground">{fit.summary}</div></div><div className="grid grid-cols-3 gap-2"><label className="text-xs">Weekly wage<Input type="number" min={0} step={50} value={offer.wage} onChange={e=>onOfferChange({...offer,wage:Number(e.target.value)||0})}/></label><label className="text-xs">Signing bonus<Input type="number" min={0} step={100} value={offer.signingBonus} onChange={e=>onOfferChange({...offer,signingBonus:Number(e.target.value)||0})}/></label><label className="text-xs">Contract length<select value={managerOfferSeasons(offer)} onChange={e=>onOfferChange({...offer,contractWeeks:Number(e.target.value)*52})} className="mt-1 h-10 w-full rounded-md border bg-background px-3"><option value={1}>1 season</option><option value={2}>2 seasons</option><option value={3}>3 seasons</option><option value={4}>4 seasons</option></select></label></div><div className="rounded-xl border p-3 text-sm"><div className="font-semibold">Agent position</div><div className="mt-1 text-muted-foreground">{message||terms.note}</div>{counter&&<div className="mt-3 rounded-lg bg-muted/50 p-2.5"><div className="text-xs font-semibold">Counter-offer</div><div className="mt-1 text-xs text-muted-foreground">{fmtMoneyExact(counter.wage)}/wk · {fmtMoneyExact(counter.signingBonus)} signing bonus · {managerOfferSeasons(counter)} season{managerOfferSeasons(counter)===1?"":"s"}</div><Button variant="outline" size="sm" className="mt-2" onClick={onUseCounter}>Use counter-offer</Button></div>}</div><div className="text-xs text-muted-foreground">Cash available: {fmtMoneyExact(cash)}</div></div><DialogFooter><Button variant="outline" onClick={()=>onOpenChange(false)}>Walk away</Button><Button onClick={onSubmit} disabled={cash<offer.signingBonus}><BriefcaseBusiness className="size-4 mr-2"/>Make offer</Button></DialogFooter></DialogContent></Dialog>;}
+function ManagerNegotiationDialog({
+  state,
+  open,
+  candidate,
+  offer,
+  acceptedOffer,
+  counter,
+  message,
+  cash,
+  onOpenChange,
+  onOfferChange,
+  onSubmit,
+  onConfirmAppointment,
+  onUseCounter,
+}: {
+  state: GameState;
+  open: boolean;
+  candidate: Staff | null;
+  offer: ManagerOffer | null;
+  acceptedOffer: ManagerOffer | null;
+  counter: ManagerOffer | null;
+  message: string;
+  cash: number;
+  onOpenChange: (open: boolean) => void;
+  onOfferChange: (offer: ManagerOffer) => void;
+  onSubmit: () => void;
+  onConfirmAppointment: () => void;
+  onUseCounter: () => void;
+}) {
+  if (!candidate || !offer) return null;
+  const terms = staffJoinTermsForState(state, candidate);
+  const fit = managerSquadFit(state, candidate);
+  const identity = managerFootballIdentity(candidate);
+  const acceptanceLine =
+    fit.band === "Excellent" || fit.band === "Good"
+      ? `"I'm happy with that. I can see a clear way to work with this squad and I'm ready to get started. I want us to be a ${identity.philosophy.toLowerCase()} side from day one."`
+      : `"I'm happy with that. There's work to do with the squad, but that's part of the appeal. Give me the chance to build this around my ${identity.preferredFormation} and we'll get moving."`;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{acceptedOffer ? "Agreement reached" : `Talks with ${candidate.name}`}</DialogTitle>
+        </DialogHeader>
+
+        {acceptedOffer ? (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.08] p-4">
+              <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+                <CheckCircle2 className="size-5" />
+                <div className="font-semibold">Terms accepted</div>
+              </div>
+              <div className="mt-2 text-sm text-muted-foreground">
+                {candidate.name} has agreed to become manager. Nothing is final until you confirm the appointment.
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 rounded-2xl border bg-card p-4">
+              <div className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+                <MessageCircle className="size-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                  {candidate.name}
+                </div>
+                <div className="mt-1 text-sm leading-relaxed">{acceptanceLine}</div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border bg-muted/30 p-3">
+              <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Agreed package</div>
+              <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-lg bg-background p-2">
+                  <div className="font-display text-lg">{fmtMoneyExact(acceptedOffer.wage)}</div>
+                  <div className="text-[9px] text-muted-foreground">per week</div>
+                </div>
+                <div className="rounded-lg bg-background p-2">
+                  <div className="font-display text-lg">{fmtMoneyExact(acceptedOffer.signingBonus)}</div>
+                  <div className="text-[9px] text-muted-foreground">signing bonus</div>
+                </div>
+                <div className="rounded-lg bg-background p-2">
+                  <div className="font-display text-lg">{managerOfferSeasons(acceptedOffer)}</div>
+                  <div className="text-[9px] text-muted-foreground">season{managerOfferSeasons(acceptedOffer) === 1 ? "" : "s"}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border bg-primary/[0.04] p-3 text-sm">
+              <div className="font-semibold">{identity.preferredFormation} · {identity.philosophy}</div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                {fit.band} squad fit · {fit.score}/100. {fit.summary}
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Walk away</Button>
+              <Button onClick={onConfirmAppointment}>
+                <BriefcaseBusiness className="mr-2 size-4" />
+                Appoint manager
+              </Button>
+            </DialogFooter>
+          </div>
+        ) : (
+          <>
+            <div className="space-y-4">
+              <div className="rounded-xl border bg-muted/30 p-3 text-sm">
+                <div className="font-semibold">{fit.band} squad fit · {fit.score}/100</div>
+                <div className="mt-1 text-muted-foreground">{fit.summary}</div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <label className="text-xs">Weekly wage<Input type="number" min={0} step={50} value={offer.wage} onChange={e => onOfferChange({ ...offer, wage: Number(e.target.value) || 0 })} /></label>
+                <label className="text-xs">Signing bonus<Input type="number" min={0} step={100} value={offer.signingBonus} onChange={e => onOfferChange({ ...offer, signingBonus: Number(e.target.value) || 0 })} /></label>
+                <label className="text-xs">Contract length<select value={managerOfferSeasons(offer)} onChange={e => onOfferChange({ ...offer, contractWeeks: Number(e.target.value) * 52 })} className="mt-1 h-10 w-full rounded-md border bg-background px-3"><option value={1}>1 season</option><option value={2}>2 seasons</option><option value={3}>3 seasons</option><option value={4}>4 seasons</option></select></label>
+              </div>
+              <div className="rounded-xl border p-3 text-sm">
+                <div className="font-semibold">Agent position</div>
+                <div className="mt-1 text-muted-foreground">{message || terms.note}</div>
+                {counter && (
+                  <div className="mt-3 rounded-lg bg-muted/50 p-2.5">
+                    <div className="text-xs font-semibold">Counter-offer</div>
+                    <div className="mt-1 text-xs text-muted-foreground">{fmtMoneyExact(counter.wage)}/wk · {fmtMoneyExact(counter.signingBonus)} signing bonus · {managerOfferSeasons(counter)} season{managerOfferSeasons(counter) === 1 ? "" : "s"}</div>
+                    <Button variant="outline" size="sm" className="mt-2" onClick={onUseCounter}>Use counter-offer</Button>
+                  </div>
+                )}
+              </div>
+              <div className="text-xs text-muted-foreground">Cash available: {fmtMoneyExact(cash)}</div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Walk away</Button>
+              <Button onClick={onSubmit} disabled={cash < offer.signingBonus}>
+                <BriefcaseBusiness className="mr-2 size-4" />
+                Make offer
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
