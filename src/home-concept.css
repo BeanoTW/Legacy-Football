@@ -624,3 +624,284 @@
     font-size:.57rem;
   }
 }
+
+
+/* Ultra-compact phone pass — bring Club News into the normal first-scroll flow. */
+@media (max-width:767px) {
+  /* Masthead: keep identity readable, but reputation is supporting info only. */
+  .lf-masthead {
+    min-height:5.1rem;
+    padding-top:max(env(safe-area-inset-top), .55rem);
+  }
+  .lf-masthead .panel-strip { min-height:4.4rem; }
+  .lf-masthead .panel-strip > div {
+    gap:.45rem;
+    padding:.28rem .62rem .34rem;
+  }
+  .lf-masthead .lf-club-crest {
+    width:2.6rem;
+    height:2.6rem;
+  }
+  .lf-masthead h1 {
+    max-width:11.5rem;
+    font-size:1.35rem;
+  }
+  .lf-masthead .lf-club-subtitle {
+    max-width:11.5rem;
+    font-size:.7rem;
+  }
+  .lf-masthead .lf-club-detail {
+    max-width:11.5rem;
+    font-size:.52rem;
+  }
+  .lf-masthead .lf-chairman-badge {
+    min-width:3.15rem;
+    max-width:3.45rem;
+    padding:.18rem .26rem .2rem;
+    border-radius:.52rem;
+    gap:.04rem;
+  }
+  .lf-masthead .lf-chairman-badge > span {
+    display:none;
+  }
+  .lf-masthead .lf-chairman-badge strong {
+    font-size:1rem;
+    line-height:.95;
+  }
+  .lf-masthead .lf-chairman-badge small {
+    font-size:.4rem;
+    line-height:1;
+  }
+  .lf-masthead .lf-chairman-badge .lf-rep-stars {
+    gap:.04rem;
+    margin-top:.08rem;
+  }
+  .lf-masthead .lf-rep-star {
+    width:.4rem;
+    height:.4rem;
+  }
+
+  /* Slightly slimmer nav; preserve tap targets and labels. */
+  .lf-mobile-nav.lf-mobile-nav {
+    padding:.18rem .3rem .24rem;
+  }
+  .lf-mobile-nav .lf-mobile-nav-item {
+    min-height:2.9rem;
+    gap:.12rem;
+    font-size:.58rem;
+  }
+  .lf-mobile-nav .lf-mobile-nav-item svg {
+    width:1.1rem;
+    height:1.1rem;
+  }
+
+  .lf-home-dashboard {
+    gap:.34rem;
+  }
+
+  /* Fixture stays the hero, but target roughly 220–230px instead of 260+. */
+  .lf-home-dashboard .lf-match-card {
+    min-height:13.65rem;
+  }
+  .lf-home-dashboard .lf-match-inner {
+    grid-template-columns:minmax(0, 1fr) minmax(7.8rem, .78fr);
+    min-height:13.65rem;
+    padding:.56rem .66rem .54rem;
+    column-gap:.38rem;
+  }
+  .lf-home-dashboard .lf-match-kicker {
+    padding:.12rem .3rem;
+    font-size:.52rem;
+  }
+  .lf-home-dashboard .lf-match-copy h2 {
+    margin-top:.38rem;
+    font-size:1.55rem;
+  }
+  .lf-home-dashboard .lf-match-copy > p {
+    margin:.22rem 0 .28rem;
+    font-size:.63rem;
+  }
+  .lf-home-dashboard .lf-match-team {
+    width:3.75rem;
+  }
+  .lf-home-dashboard .lf-team-mark {
+    width:2.85rem;
+    height:3.05rem;
+  }
+  .lf-home-dashboard .lf-match-team .font-display {
+    width:3.75rem;
+    max-width:3.75rem;
+    font-size:.61rem;
+  }
+  .lf-home-dashboard .lf-match-team > span {
+    font-size:.45rem;
+  }
+  .lf-home-dashboard .lf-vs {
+    width:1.55rem;
+    height:1.55rem;
+    font-size:.47rem;
+  }
+  .lf-home-dashboard .lf-match-brief {
+    min-height:2.45rem;
+    margin:.01rem -.66rem 0;
+    padding:.32rem .66rem;
+    gap:.4rem;
+  }
+  .lf-home-dashboard .lf-match-brief span {
+    font-size:.48rem;
+  }
+  .lf-home-dashboard .lf-match-brief > div:first-child strong {
+    margin-top:.05rem;
+    font-size:.61rem;
+  }
+  .lf-home-dashboard .lf-match-fit {
+    min-width:5rem;
+    padding:.26rem .36rem;
+    font-size:.58rem;
+  }
+  .lf-home-dashboard .lf-match-fit small {
+    margin-top:.04rem;
+    font-size:.45rem;
+  }
+  .lf-home-dashboard .lf-match-actions {
+    gap:.34rem;
+    padding:.4rem 0 0;
+  }
+  .lf-home-dashboard .lf-match-actions .lf-match-primary,
+  .lf-home-dashboard .lf-match-actions .lf-match-secondary {
+    min-height:2.08rem;
+    padding:.38rem .4rem;
+    font-size:.59rem;
+  }
+  .lf-home-dashboard .lf-match-dots {
+    right:.68rem;
+    bottom:.32rem;
+  }
+
+  /* League/manager strip. */
+  .lf-home-dashboard .lf-pulse-block,
+  .lf-home-dashboard .lf-pulse-manager {
+    min-height:4.35rem;
+    padding:.48rem .62rem;
+  }
+  .lf-home-dashboard .lf-pulse-label {
+    font-size:.49rem;
+  }
+  .lf-home-dashboard .lf-standing-value {
+    font-size:1.38rem;
+  }
+  .lf-home-dashboard .lf-form-strip {
+    min-height:.9rem;
+    margin-top:.12rem;
+  }
+  .lf-home-dashboard .lf-form-strip small,
+  .lf-home-dashboard .lf-pulse-manager small {
+    font-size:.52rem;
+  }
+  .lf-home-dashboard .lf-pulse-manager strong {
+    margin-top:.1rem;
+    font-size:.8rem;
+  }
+
+  /* KPI band. */
+  .lf-home-dashboard .lf-vital-grid {
+    gap:.3rem;
+  }
+  .lf-home-dashboard .lf-vital-card {
+    min-height:5.25rem;
+    padding:.42rem .45rem;
+    border-radius:.72rem;
+  }
+  .lf-home-dashboard .lf-vital-heading > b {
+    width:.95rem;
+    height:.95rem;
+  }
+  .lf-home-dashboard .lf-vital-heading > b svg {
+    width:.6rem;
+    height:.6rem;
+  }
+  .lf-home-dashboard .lf-vital-heading > span {
+    font-size:.45rem;
+  }
+  .lf-home-dashboard .lf-vital-card > strong {
+    margin-top:.12rem;
+    font-size:1.02rem;
+  }
+  .lf-home-dashboard .lf-vital-card > small {
+    margin-top:.1rem;
+    font-size:.5rem;
+  }
+  .lf-home-dashboard .lf-vital-card > i {
+    height:.12rem;
+    margin-top:.22rem;
+  }
+
+  /* Suggested next steps: compact action tiles, no dead lower half. */
+  .lf-home-dashboard .lf-home-panel-heading {
+    min-height:1.65rem;
+    padding:.3rem .56rem;
+    font-size:.58rem;
+  }
+  .lf-home-dashboard .lf-suggested-list {
+    gap:.34rem;
+    padding:.34rem;
+  }
+  .lf-home-dashboard .lf-suggested-row {
+    grid-template-columns:1.85rem minmax(0, 1fr) .65rem;
+    gap:.32rem;
+    min-height:3.95rem;
+    padding:.38rem .38rem;
+  }
+  .lf-home-dashboard .lf-suggested-row .lf-task-icon {
+    width:1.85rem;
+    height:1.85rem;
+  }
+  .lf-home-dashboard .lf-suggested-row .lf-task-icon svg {
+    width:.92rem;
+    height:.92rem;
+  }
+  .lf-home-dashboard .lf-suggested-row strong {
+    font-size:.7rem;
+  }
+  .lf-home-dashboard .lf-suggested-row small {
+    margin-top:.06rem;
+    font-size:.52rem;
+  }
+
+  /* Chairman tasks: keep content, tighten vertically. */
+  .lf-home-dashboard .lf-task-list {
+    padding:.18rem;
+  }
+  .lf-home-dashboard .lf-task-row {
+    min-height:2.62rem;
+    padding:.3rem .4rem;
+    gap:.36rem;
+  }
+  .lf-home-dashboard .lf-task-row .lf-task-icon {
+    width:1.52rem;
+    height:1.52rem;
+  }
+  .lf-home-dashboard .lf-task-row strong {
+    font-size:.67rem;
+  }
+  .lf-home-dashboard .lf-task-row small {
+    font-size:.53rem;
+  }
+
+  /* Empty Club News should be clearly visible, not hidden at the floor. */
+  .lf-home-dashboard .lf-news-card.is-empty .lf-home-panel-heading {
+    min-height:1.55rem;
+  }
+  .lf-home-dashboard .lf-news-card.is-empty .lf-news-body {
+    min-height:2.35rem;
+    margin:.2rem;
+    padding:.32rem .5rem;
+  }
+  .lf-home-dashboard .lf-news-card.is-empty .lf-news-copy strong {
+    font-size:.68rem;
+  }
+  .lf-home-dashboard .lf-news-card.is-empty .lf-news-copy small {
+    margin-top:.06rem;
+    font-size:.51rem;
+  }
+}
