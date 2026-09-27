@@ -37,6 +37,8 @@ import { syncUserCupFixtures } from "../cupFixtures";
 import { announceUserCupDrawInPlace, awardUserCupProgressInPlace } from "../cupNarrative";
 import { recordCupChampionInLegacyInPlace } from "../clubLegacy";
 import { recordAutoResolvedPlayerMatch } from "../autoPlayerMatchStats";
+import { managerMatchStyle } from "../managerMatchStyle";
+import { autoResolvedTacticalEdge } from "../matchEngine";
 
 export interface MatchOverride {
   gf: number;
@@ -95,7 +97,12 @@ export function tickSelectedMatchday(
       // Both sides now cross the same final match-strength gateway. Underlying
       // squad quality remains canonical; only the small asymmetric performance
       // layer differs between the player club and AI clubs.
-      const myStrength = userMatchStrength(s, s.season);
+      const tacticalEdge = autoResolvedTacticalEdge(
+        s,
+        managerMatchStyle(s),
+        clubDisplayName(s, fixture.opponent),
+      );
+      const myStrength = userMatchStrength(s, s.season) + tacticalEdge;
       const oppStrength = clubMatchStrength(s, fixture.opponent, s.season);
       const round = sched?.round ?? s.week;
       const lid = sched ? leagueOf(sched) : playerLeagueId(s);
