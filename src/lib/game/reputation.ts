@@ -39,8 +39,14 @@ export const MAX_REP_CHANGE_PER_SEASON = 8;
 
 /** Reputation a club starts with when nothing is known about it. */
 const TIER_BASE_REP: Record<number, [number, number]> = {
-  1: [54, 84],
-  2: [30, 62],
+  1: [55, 90],
+  2: [35, 62],
+  3: [24, 48],
+  4: [14, 36],
+  5: [12, 32],
+  6: [10, 28],
+  7: [8, 24],
+  8: [6, 20],
 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -64,16 +70,25 @@ export function tierOfClub(s: GameState, club: string): number {
 /* ---------- Reputation ---------- */
 
 /** Deterministic starting reputation for a club in a given seed identity. */
-export function baseReputation(saveSeed: string, clubSeedKey: string, tier: number): number {
-  const [lo, hi] = TIER_BASE_REP[tier] ?? TIER_BASE_REP[2];
+export function baseReputation(
+  saveSeed: string,
+  clubSeedKey: string,
+  tier: number,
+  range?: readonly [number, number],
+): number {
+  const [lo, hi] = range ?? TIER_BASE_REP[tier] ?? TIER_BASE_REP[2];
   const rng = mulberry32(hashString(`rep0|${saveSeed}|${clubSeedKey}`));
   return Math.round((lo + rng() * (hi - lo)) * 10) / 10;
 }
 
-/** Starting reputation map for a whole legacy-name pyramid. */
+/** Starting reputation map for the full pyramid, using each division's calibrated band. */
 export function initClubReputations(leagues: League[], saveSeed: string): Record<string, number> {
   const out: Record<string, number> = {};
-  for (const l of leagues) for (const c of l.clubIds) out[c] = baseReputation(saveSeed, c, l.tier);
+  for (const league of leagues) {
+    for (const club of league.clubIds) {
+      out[club] = baseReputation(saveSeed, club, league.tier, league.reputationRange);
+    }
+  }
   return out;
 }
 
@@ -82,7 +97,13 @@ export function clubReputation(s: GameState, club: string): number {
   const canonical = canonicalClubReference(s, club);
   const stored = s.clubReputations?.[canonical] ?? s.clubReputations?.[club];
   if (typeof stored === "number" && Number.isFinite(stored)) return clamp(stored, REP_MIN, REP_MAX);
-  return baseReputation(s.saveSeed, clubSimulationSeedKey(s, canonical), tierOfClub(s, canonical));
+  const league = leagueOfClub(s, canonical);
+  return baseReputation(
+    s.saveSeed,
+    clubSimulationSeedKey(s, canonical),
+    league?.tier ?? tierOfClub(s, canonical),
+    league?.reputationRange,
+  );
 }
 
 export function setClubReputation(s: GameState, club: string, value: number): void {
