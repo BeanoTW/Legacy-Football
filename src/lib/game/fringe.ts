@@ -3,6 +3,7 @@ import { buildWorldSimulationPlan } from "./world";
 import { clubReputation, finishIn } from "./reputation";
 import { hashString } from "./rng";
 import { clubSimulationSeedKey } from "./clubIdentity";
+import { clubOverallProfile } from "./playerOverall";
 
 /**
  * Compact persistent state for clubs outside the detailed simulation bubble.
@@ -65,12 +66,17 @@ export function makeFringeClubState(
   tier: number,
 ): FringeClubState {
   const reputation = clubReputation(s, clubId);
+  const profile = clubOverallProfile(s, clubId);
   return {
     clubId,
     leagueId,
     tier,
     reputation,
-    strength: clamp(reputation + stableOffset(s, clubId, "strength", 7), 1, 100),
+    strength: clamp(
+      Math.round(profile.average + stableOffset(s, clubId, "strength", 2)),
+      profile.floor,
+      profile.star,
+    ),
     form: stableOffset(s, clubId, `form-s${s.season}`, 5),
     financeBand: clamp(
       Math.round(reputation / 20) + stableOffset(s, clubId, "finance", 1),
@@ -148,14 +154,18 @@ export function advanceFringeWorldToSeason(s: GameState): FringeWorldState {
     while (current.lastSimulatedSeason < s.season) {
       const season = current.lastSimulatedSeason + 1;
       const reputation = clubReputation(s, clubId);
-      const strengthDrift = stableOffset(s, clubId, `strength-s${season}`, 2);
+      const profile = clubOverallProfile(s, clubId);
+      const strengthDrift = stableOffset(s, clubId, `strength-s${season}`, 1);
       const financeDrift = stableOffset(s, clubId, `finance-s${season}`, 1);
 
       current.reputation = reputation;
+      // Compact strength lives on the SAME OVR scale as detailed squads. It
+      // follows real squad quality slowly rather than collapsing toward the
+      // much smaller 0-100 club-reputation number used for prestige/economy.
       current.strength = clamp(
-        Math.round(current.strength * 0.75 + reputation * 0.25 + strengthDrift),
-        1,
-        100,
+        Math.round(current.strength * 0.72 + profile.average * 0.28 + strengthDrift),
+        20,
+        95,
       );
       current.form =
         fringeFormFromFinish(s, clubId, season) ??
