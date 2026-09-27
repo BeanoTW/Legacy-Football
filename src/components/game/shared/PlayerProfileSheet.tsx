@@ -146,28 +146,28 @@ export function PlayerProfileSheet({
         >
           <X className="size-5" />
         </Button>
-        <div className="relative overflow-hidden border-b border-emerald-300/10 bg-[#071713] px-5 pb-5 pt-6 pr-16 text-white">
+        <div className="relative overflow-hidden border-b border-emerald-300/10 bg-[#071713] px-4 pb-3 pt-4 pr-14 text-white">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(52,211,153,.16),transparent_34%),linear-gradient(140deg,rgba(255,255,255,.035),transparent_50%)]" />
           <SheetHeader className="relative text-left">
             <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-200/55">Player profile</div>
-            <div className="mt-2 flex items-start gap-4">
-              <div className="grid size-20 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.05]">
+            <div className="mt-1.5 flex items-start gap-3">
+              <div className="grid size-16 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.05]">
                 <div className="text-center">
-                  <div className="font-display text-3xl leading-none">{tactical.primary}</div>
+                  <div className="font-display text-2xl leading-none">{tactical.primary}</div>
                   <div className="mt-1 text-[8px] uppercase tracking-wider text-white/40">Position</div>
                 </div>
               </div>
               <div className="min-w-0 flex-1">
-                <SheetTitle className="truncate font-display text-3xl text-white">
+                <SheetTitle className="truncate font-display text-2xl text-white">
                   {playerName(player)}
                 </SheetTitle>
-                <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 text-xs text-white/55">
+                <div className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] text-white/55">
                   <span>{player.nationality}</span>
                   <span>Age {ageOf(player, state.season)}</span>
                   <span>{player.preferredFoot} foot</span>
                   <span>{club}</span>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-1.5">
+                <div className="mt-1.5 flex flex-wrap gap-1">
                   <span className={cn("rounded-md border px-2 py-1 text-[10px] font-bold", POSITION_BADGE_CLASS[positionUnit(tactical.primary)])}>{tactical.primary}</span>
                   {tactical.secondary.slice(0, 3).map((position) => (
                     <span key={position} className="rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] text-white/60">{position}</span>
@@ -175,11 +175,11 @@ export function PlayerProfileSheet({
                   {!owned && <span className="rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] text-white/60">Scouted {knowledge}%</span>}
                 </div>
               </div>
-              <div className="shrink-0 rounded-xl border border-emerald-300/15 bg-emerald-300/10 px-3 py-2 text-center">
-                <div className="font-display text-3xl leading-none text-white">
+              <div className="shrink-0 rounded-lg border border-emerald-300/15 bg-emerald-300/10 px-2.5 py-1.5 text-center">
+                <div className="font-display text-2xl leading-none text-white">
                   {dynamic ? dynamic.effective : overall.label}
                 </div>
-                <div className="mt-1 text-[8px] font-bold uppercase tracking-wider text-emerald-200/60">
+                <div className="mt-0.5 text-[7px] font-bold uppercase tracking-wider text-emerald-200/60">
                   {dynamic
                     ? `Dynamic · base ${dynamic.base}${dynamic.delta === 0 ? "" : dynamic.delta > 0 ? ` · +${dynamic.delta}` : ` · ${dynamic.delta}`}`
                     : overall.exact
@@ -191,15 +191,15 @@ export function PlayerProfileSheet({
               </div>
             </div>
             {owned && (
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <div className="rounded-xl border border-white/10 bg-white/[0.035] p-2.5">
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <div className="rounded-lg border border-white/10 bg-white/[0.035] p-2">
                   <div className="text-[8px] uppercase tracking-wider text-white/40">Fitness</div>
-                  <div className="mt-1 flex items-end justify-between gap-2"><span className="font-display text-xl">{playerFitness(player)}%</span><span className="text-[10px] text-white/50">{fitnessLabel(playerFitness(player))}</span></div>
+                  <div className="mt-0.5 flex items-end justify-between gap-2"><span className="font-display text-lg">{playerFitness(player)}%</span><span className="text-[9px] text-white/50">{fitnessLabel(playerFitness(player))}</span></div>
                   <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-emerald-400" style={{ width: `${playerFitness(player)}%` }} /></div>
                 </div>
-                <div className="rounded-xl border border-white/10 bg-white/[0.035] p-2.5">
+                <div className="rounded-lg border border-white/10 bg-white/[0.035] p-2">
                   <div className="text-[8px] uppercase tracking-wider text-white/40">Recent form</div>
-                  <div className="mt-1 font-display text-xl">{recentForm?.appearances ? recentForm.band : "No form"}</div>
+                  <div className="mt-0.5 font-display text-lg">{recentForm?.appearances ? recentForm.band : "No form"}</div>
                   <div className="mt-1 text-[10px] text-white/50">{recentForm?.appearances ? `${recentForm.averageRating.toFixed(2)} avg · ${recentForm.appearances} apps` : "No recorded appearances yet"}</div>
                 </div>
               </div>
