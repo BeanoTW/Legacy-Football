@@ -47,7 +47,8 @@ import {
 } from "./infrastructure";
 import { activeContracts, commercialWeeklyIncome } from "./commercial";
 import { squadOf, userWageBill } from "./recruitment";
-import { clubReputation, clubStrengthFor } from "./reputation";
+import { clubReputation } from "./reputation";
+import { clubFootballStrength } from "./footballStrength";
 import { absoluteWeek } from "./time";
 import { archivedBucketSum } from "./archive";
 import { isUserClubReference, userClubReference } from "./clubReference";
@@ -363,8 +364,10 @@ export function squadNeed(s: GameState): number {
   const rivals = (league?.clubIds ?? []).filter((club: string) => !isUserClubReference(s, club));
   if (!rivals.length) return clamp01((60 - ours) / 25);
   const par =
-    rivals.reduce((a: number, c: string) => a + clubStrengthFor(s, c, s.season), 0) / rivals.length;
-  // clubStrength and player ability share a 0-100 scale by construction.
+    rivals.reduce((a: number, c: string) => a + clubFootballStrength(s, c, s.season), 0) /
+    rivals.length;
+  // Sustainable squad need must compare player ability with the canonical
+  // football-strength scale, not club prestige/reputation.
   return clamp01((par - ours) / 20);
 }
 
