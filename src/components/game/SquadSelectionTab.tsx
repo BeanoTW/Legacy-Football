@@ -26,7 +26,7 @@ import {
   userProfessionalisationReadiness,
 } from "@/lib/game/employment";
 import { userClubReference } from "@/lib/game/clubReference";
-import { positionFamiliarity, positionUnit, tacticalPositionProfile } from "@/lib/game/positions";
+import { positionEffectiveness, positionFamiliarity, positionUnit, tacticalPositionProfile } from "@/lib/game/positions";
 import { openPlayerProfile } from "./shared/PlayerProfileSheet";
 import { TacticalPlayerCard } from "./shared/TacticalPlayerCard";
 import { fitnessLabel, fixtureLoadThisWeek, medicalSupport, playerFitness, playerIsAvailable, squadAverageFitness } from "@/lib/game/playerHealth";
@@ -48,6 +48,15 @@ const employmentLabel = (value: "PartTime" | "FullTime") =>
 const managerFormation = (state: GameState): ManagerFormation => {
   const selected = managerMatchPrep(state).selectedFormation;
   return selected in MANAGER_FORMATION_SLOTS ? selected as ManagerFormation : "4-4-2";
+};
+
+const sandboxPositionOverall = (player: FootballPlayer, slot: TacticalPosition): number => {
+  const natural = tacticalPositionProfile(player).primary;
+  // Goalkeeper/outfield mismatches should look as severe as they are rather
+  // than inheriting the generic "unfamiliar" outfield penalty.
+  const goalkeeperMismatch = (natural === "GK") !== (slot === "GK");
+  const effectiveness = goalkeeperMismatch ? 0.38 : positionEffectiveness(player, slot);
+  return Math.max(1, Math.round(player.currentAbility * effectiveness));
 };
 
 export function SquadSelectionTab({
@@ -137,19 +146,33 @@ export function SquadSelectionTab({
       planner && "fixed inset-0 z-[80] overflow-y-auto bg-background p-2 pb-[calc(.5rem+env(safe-area-inset-bottom))] sm:p-3",
     )}>
       {planner ? (
-        <div className="flex shrink-0 items-center justify-between gap-3 rounded-xl border bg-card px-3 py-2 shadow-sm">
-          <div className="min-w-0">
-            <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Squad planning</div>
-            <div className="font-display text-xl leading-none">Lineup Sandbox</div>
-            <div className="mt-1 text-[10px] text-muted-foreground">Planning only · does not change the manager&apos;s real XI</div>
+        <div className="shrink-0 rounded-xl border bg-card px-3 py-2 shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Squad planning</div>
+              <div className="font-display text-xl leading-none">Lineup Sandbox</div>
+              <div className="mt-1 text-[10px] text-muted-foreground">Planning only · does not change the manager&apos;s real XI</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPlanner(null)}
+              className="min-h-10 shrink-0 rounded-lg border bg-background px-3 text-xs font-bold"
+            >
+              Exit
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setPlanner(null)}
-            className="min-h-10 shrink-0 rounded-lg border bg-background px-3 text-xs font-bold"
-          >
-            Exit
-          </button>
+          <div className="mt-2 flex items-center gap-2 border-t pt-2">
+            <label htmlFor="sandbox-formation" className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Formation</label>
+            <select
+              id="sandbox-formation"
+              value={formation}
+              onChange={(event) => changePlannerFormation(event.target.value as ManagerFormation)}
+              className="min-h-10 min-w-[7.5rem] rounded-lg border bg-background px-3 text-sm font-bold"
+            >
+              {Object.keys(MANAGER_FORMATION_SLOTS).map((shape) => <option key={shape} value={shape}>{shape}</option>)}
+            </select>
+            <span className="min-w-0 text-[10px] text-muted-foreground">Change shape without affecting the manager.</span>
+          </div>
         </div>
       ) : (
         <div className="flex shrink-0 items-center justify-between gap-2">
@@ -185,13 +208,7 @@ export function SquadSelectionTab({
       </div>
     </button>
   ) : (
-    <div className="flex flex-wrap items-center gap-2">
-      <label className="text-[9px] font-bold uppercase tracking-[0.14em] text-white/50">Formation</label>
-      <select value={formation} onChange={(event) => changePlannerFormation(event.target.value as ManagerFormation)} className="min-h-9 rounded-md border border-white/15 bg-black/30 px-2 text-xs font-semibold text-white">
-        {Object.keys(MANAGER_FORMATION_SLOTS).map((shape) => <option key={shape} value={shape}>{shape}</option>)}
-      </select>
-      <span className="text-[10px] text-white/45">Drag players onto each other to swap · tap still works on mobile.</span>
-    </div>
+    <div className="text-[10px] text-white/55">Drag players onto each other to swap · tap still works on mobile. The large number is the player&apos;s estimated effectiveness in that slot.</div>
   )}
 </div>
 <Pitch state={state} xi={xi} formation={formation} planner={Boolean(planner)} onSwap={swapPlannerPlayer} squad={squad} /></section> : <section className="overflow-hidden rounded-xl border bg-card shadow-sm lg:col-start-1"><div className="border-b px-3 py-3"><div className="font-display text-xl">Season performance</div><div className="text-xs text-muted-foreground">Recorded appearances from watched and simulated matches.</div></div><div className="grid grid-cols-3 divide-x border-b text-center"><Summary label="Avg fitness" value={`${averageFitness}%`} /><Summary label="Medical" value={medical.label} /><Summary label="Fixtures this week" value={String(fixtureLoad)} /></div><div className="grid grid-cols-2 gap-2 border-b p-3 text-xs sm:grid-cols-4"><Leader label="Top scorer" name={leaders.topScorer?.name} value={leaders.topScorer ? `${leaders.topScorer.goals} goals` : "—"} /><Leader label="Top assists" name={leaders.topAssister?.name} value={leaders.topAssister ? `${leaders.topAssister.assists} assists` : "—"} /><Leader label="Top rated" name={leaders.topRated?.name} value={leaders.topRated ? leaders.topRated.averageRating.toFixed(2) : "—"} /><Leader label="Most used" name={leaders.mostUsed?.name} value={leaders.mostUsed ? `${leaders.mostUsed.minutes} min` : "—"} /></div><div className="overflow-x-auto"><table className="w-full text-xs"><thead className="border-b bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground"><tr><th className="px-3 py-2 text-left">Player</th><th className="px-2 py-2 text-right">Apps</th><th className="px-2 py-2 text-right">Starts</th><th className="px-2 py-2 text-right">Sub</th><th className="px-2 py-2 text-right">Min</th><th className="px-2 py-2 text-right">G</th><th className="px-2 py-2 text-right">A</th><th className="px-2 py-2 text-right">Rat</th><th className="px-2 py-2 text-right">Form</th></tr></thead><tbody>{seasonStats.map((row) => <tr key={row.playerId} className="border-b last:border-b-0"><td className="px-3 py-2 font-semibold">{row.name}</td><td className="px-2 py-2 text-right">{row.appearances}</td><td className="px-2 py-2 text-right">{row.starts}</td><td className="px-2 py-2 text-right">{row.substituteAppearances}</td><td className="px-2 py-2 text-right">{row.minutes}</td><td className="px-2 py-2 text-right">{row.goals}</td><td className="px-2 py-2 text-right">{row.assists}</td><td className="px-2 py-2 text-right">{row.averageRating.toFixed(2)}</td><td className="px-2 py-2 text-right">{playerRecentForm(state, row.playerId).appearances ? `${playerRecentForm(state, row.playerId).band} ${playerRecentForm(state, row.playerId).averageRating.toFixed(2)}` : "—"}</td></tr>)}{seasonStats.length === 0 && <tr><td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">No player match records yet.</td></tr>}</tbody></table></div><div className="border-t bg-muted/20 px-3 py-2 text-[10px] text-muted-foreground">Medical score {medical.score}/100 · weekly fitness recovery +{medical.recoveryPerWeek} · injury-risk factor {medical.injuryRiskMultiplier.toFixed(2)}×</div></section>}
@@ -296,6 +313,8 @@ function Pitch({
         {pitchPlayers.map(({ player, slot, point, index }) => {
           const fitness = playerFitness(player);
           const familiarity = positionFamiliarity(player, slot);
+          const tactical = tacticalPositionProfile(player);
+          const effectiveOverall = sandboxPositionOverall(player, slot);
           const form = playerRecentForm(state, player.id);
           const fitnessTone =
             fitness >= 90 ? "bg-emerald-300" : fitness >= 75 ? "bg-amber-300" : "bg-rose-300";
@@ -356,14 +375,20 @@ function Pitch({
                 POSITION_PITCH_CLASS[positionUnit(slot)],
                 familiarityTone,
               )}>
-                {player.currentAbility}
+                {effectiveOverall}
+                {planner && effectiveOverall !== player.currentAbility && (
+                  <span className="absolute -left-1.5 -top-1.5 rounded-md border border-white/20 bg-black/60 px-1 py-0.5 text-[7px] font-bold text-white/75">
+                    {player.currentAbility}
+                  </span>
+                )}
                 <span className={cn("absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border border-emerald-950", fitnessTone)} />
               </div>
               <div className="mt-1 rounded-lg border border-white/10 bg-black/35 px-1.5 py-1 shadow-sm backdrop-blur-[1px]">
                 <div className="truncate font-display text-[11px] leading-none sm:text-xs">{player.lastName}</div>
                 <div className="mt-0.5 flex items-center justify-center gap-1 text-[8px] font-bold text-white/60">
                   <span>{slot}</span>
-                  {form.appearances > 0 && <span>· {form.averageRating.toFixed(1)}</span>}
+                  {planner && tactical.primary !== slot && <span>· NAT {tactical.primary}</span>}
+                  {!planner && form.appearances > 0 && <span>· {form.averageRating.toFixed(1)}</span>}
                 </div>
               </div>
             </button>
@@ -373,7 +398,11 @@ function Pitch({
       <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-black/25 px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.14em] text-white/45">
         {planner ? "Drag to swap · tap for player list" : "Tap a player for profile"}
       </div>
-      {planner && swapSlot !== null && onSwap && <div className="absolute inset-x-2 bottom-8 z-20 max-h-44 overflow-auto rounded-xl border border-white/15 bg-[#071713]/95 p-2 shadow-xl"><div className="mb-1 flex items-center justify-between"><div className="text-[9px] font-bold uppercase tracking-wider text-white/55">Replace {xi[swapSlot]?.lastName ?? "player"} · {slots[swapSlot]}</div><button type="button" onClick={() => setSwapSlot(null)} className="rounded px-2 py-1 text-xs text-white/60">Close</button></div>{squad.filter((candidate) => candidate.id !== xi[swapSlot]?.id).sort((a,b) => b.currentAbility-a.currentAbility).map((candidate) => <button type="button" key={candidate.id} onClick={() => { onSwap(swapSlot, candidate.id); setSwapSlot(null); }} className="flex min-h-10 w-full items-center justify-between border-t border-white/10 px-2 text-left text-xs"><span><b>{candidate.lastName}</b> <span className="text-white/45">{tacticalPositionProfile(candidate).primary}</span></span><span className="font-display text-base">{candidate.currentAbility}</span></button>)}</div>}
+      {planner && swapSlot !== null && onSwap && <div className="absolute inset-x-2 bottom-8 z-20 max-h-44 overflow-auto rounded-xl border border-white/15 bg-[#071713]/95 p-2 shadow-xl"><div className="mb-1 flex items-center justify-between"><div className="text-[9px] font-bold uppercase tracking-wider text-white/55">Replace {xi[swapSlot]?.lastName ?? "player"} · {slots[swapSlot]}</div><button type="button" onClick={() => setSwapSlot(null)} className="rounded px-2 py-1 text-xs text-white/60">Close</button></div>{squad.filter((candidate) => candidate.id !== xi[swapSlot]?.id).sort((a,b) => sandboxPositionOverall(b, slots[swapSlot]) - sandboxPositionOverall(a, slots[swapSlot])).map((candidate) => {
+  const natural = tacticalPositionProfile(candidate).primary;
+  const effective = sandboxPositionOverall(candidate, slots[swapSlot]);
+  return <button type="button" key={candidate.id} onClick={() => { onSwap(swapSlot, candidate.id); setSwapSlot(null); }} className="flex min-h-10 w-full items-center justify-between border-t border-white/10 px-2 text-left text-xs"><span><b>{candidate.lastName}</b> <span className="text-white/45">NAT {natural}</span></span><span className="text-right"><span className="block font-display text-base">{effective}</span>{effective !== candidate.currentAbility && <span className="block text-[8px] text-white/40">base {candidate.currentAbility}</span>}</span></button>;
+})}</div>}
     </div>
       {planner && (
         <div className="border-t border-white/10 bg-[#071713] px-3 py-3">
@@ -441,7 +470,7 @@ function Pitch({
                 >
                   <div className="mx-auto grid size-10 place-items-center rounded-full border border-white/15 bg-black/25 font-display text-base">{player.currentAbility}</div>
                   <div className="mt-1 max-w-[4.7rem] truncate font-display text-[11px]">{player.lastName}</div>
-                  <div className="mt-0.5 text-[8px] font-bold text-white/45">{tactical.primary} · {fitness}%</div>
+                  <div className="mt-0.5 text-[8px] font-bold text-white/45">NAT {tactical.primary} · {fitness}%</div>
                 </button>
               );
             })}
