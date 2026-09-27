@@ -1,8 +1,9 @@
 import type { FootballPlayer, GameState } from "./types";
-import { clubDisplayName, isUserClubReference } from "./clubReference";
+import { clubDisplayName, isUserClubReference, sameClubReference } from "./clubReference";
 import { clubPresentationName } from "./clubPresentation";
 import { footballLevelOfClub, footballLevelOfUser, type FootballLevel } from "./footballLevel";
 import { playerRecentForm } from "./playerForm";
+import { clubReputation } from "./reputation";
 import { playerFitness } from "./playerHealth";
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
@@ -72,10 +73,38 @@ export function clubOverallProfile(
   const band = overallBandForLevel(level);
   const display = clubPresentationName(clubDisplayName(state, clubRef));
   const authored = level === 1 ? PREMIER_PROFILES[display] : undefined;
+
+  if (authored) {
+    return {
+      level,
+      average: authored.average,
+      star: authored.star,
+      floor: band.floor,
+    };
+  }
+
+  // Clubs at the same level should not all regenerate to an identical squad.
+  // Map the club's persisted reputation within its CURRENT division band onto
+  // a narrow ±3 OVR spread around the level baseline. This deliberately allows
+  // the strongest lower-level clubs to approach the weakest clubs above them
+  // without erasing the step up between divisions.
+  const league = (state.leagues ?? []).find((candidate) =>
+    candidate.clubIds.some((club) => sameClubReference(state, club, clubRef)),
+  );
+  const [repLo, repHi] = league?.reputationRange ?? [0, 100];
+  const rep = clubReputation(state, clubRef);
+  const percentile = repHi > repLo ? clamp((rep - repLo) / (repHi - repLo), 0, 1) : 0.5;
+  const reputationAdjustment = (percentile - 0.5) * 6;
+  const average = clamp(
+    Math.round((band.squadAverage + reputationAdjustment) * 10) / 10,
+    band.floor + 2,
+    band.starCeiling - 3,
+  );
+
   return {
     level,
-    average: authored?.average ?? band.squadAverage,
-    star: authored?.star ?? band.starCeiling,
+    average,
+    star: band.starCeiling,
     floor: band.floor,
   };
 }
