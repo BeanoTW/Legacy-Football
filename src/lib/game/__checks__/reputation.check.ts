@@ -137,6 +137,23 @@ console.log("\n[R1b] Opaque club identity gateway");
   check("legacy user reputation mirrors canonical mutations", g.reputation === 42.5);
 }
 
+console.log("\n[R1c] v21 user reputation unification");
+{
+  const legacy = newGame("Legacy Reputation FC", "Migration Tester", "REP_V21_SYNC") as unknown as Record<string, unknown>;
+  const typed = legacy as unknown as GameState;
+  const userId = userClubReference(typed);
+  legacy.version = 21;
+  legacy.reputation = 37;
+  typed.clubReputations[userId] = 12;
+  const migrated = migrateSave(structuredClone(legacy));
+  const migratedUser = userClubReference(migrated);
+  check(
+    "v21 migration preserves the reputation the chairman actually played under",
+    migrated.reputation === 37 && migrated.clubReputations[migratedUser] === 37,
+    `${migrated.reputation} / ${migrated.clubReputations[migratedUser]}`,
+  );
+}
+
 console.log("\n[R2] Promotion raises reputation, relegation lowers it");
 {
   const g = fresh("REP_SEED_2");
