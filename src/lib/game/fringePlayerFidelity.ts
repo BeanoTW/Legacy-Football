@@ -1,5 +1,6 @@
 import type { FootballPlayer, GameState } from "./types";
 import type { CompactFringePlayer } from "./fringePlayers";
+import { clubReputation } from "./reputation";
 import { fringePlayerPresentation } from "./fringePlayerPresentation";
 import {
   recruitmentLevelOfClub,
@@ -42,7 +43,11 @@ export function hydrateCompactFringePlayer(
     primaryPosition: compact.primaryPosition,
     secondaryPositions: [...presentation.secondaryPositions],
     currentClubId: compact.currentClubId,
-    reputation: playerReputationForAbility(compact.currentAbility, level),
+    reputation: playerReputationForAbility(
+      compact.currentAbility,
+      level,
+      clubReputation(state, compact.currentClubId),
+    ),
     currentAbility: compact.currentAbility,
     potentialAbility: compact.potentialAbility,
     marketValue: recruitmentPlayerValue(
