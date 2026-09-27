@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Play } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Pencil, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,13 +8,31 @@ import type { SaveSlotId, SaveSlotSummary } from "@/lib/game/engine";
 import { cn } from "@/lib/utils";
 import { STARTING_REGIONAL_DIVISIONS } from "@/lib/game/worldPyramid";
 import { leaguePresentationName } from "@/lib/game/clubPresentation";
+import { saveChairmanProfile } from "@/lib/game/chairmanProfile";
+import { ChairmanPortrait } from "./ChairmanPortrait";
+import { ChairmanStudio, useChairmanProfile } from "./ChairmanStudio";
 
 export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart: (club: string, manager: string, startingDivisionId?: string) => void; activeSlot: SaveSlotId; slots: SaveSlotSummary[]; onSelectSlot: (slot: SaveSlotId) => void }) {
+  const profile = useChairmanProfile();
   const [club, setClub] = useState("Dalton Town");
-  const [manager, setManager] = useState("N. Cahill");
+  const [manager, setManager] = useState(profile.name);
+  const [studioOpen, setStudioOpen] = useState(false);
   const [startingDivisionId, setStartingDivisionId] = useState(
     STARTING_REGIONAL_DIVISIONS[0]?.id ?? "regional-premier-central",
   );
+
+  // The saved chairman follows the player into every new career; edits made
+  // in the studio flow straight back into the name field.
+  useEffect(() => {
+    setManager(profile.name);
+  }, [profile.name]);
+
+  const start = () => {
+    const name = manager.trim() || "Chairman";
+    saveChairmanProfile({ ...profile, name });
+    onStart(club.trim(), name, startingDivisionId);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <TopBar title="Legacy Football" subtitle="Build a club legacy from non-league to the top" />
@@ -41,13 +59,24 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
               You take over a semi-professional club at Football Level 7 with £220,000 in the bank.
               Shape the squad, control the wage bill, invest in the ground and build your way up the pyramid.
             </p>
+
+            <div className="lf-newgame-chairman">
+              <button type="button" className="lf-office-portrait" onClick={() => setStudioOpen(true)} aria-label="Edit the chairman's look">
+                <ChairmanPortrait avatar={profile.avatar} size={76} />
+                <span className="lf-office-edit"><Pencil /></span>
+              </button>
+              <div className="min-w-0 flex-1 space-y-2">
+                <Label htmlFor="mgr">Chairman name</Label>
+                <Input id="mgr" value={manager} maxLength={40} onChange={(e) => setManager(e.target.value)} />
+                <button type="button" className="lf-newgame-edit-look" onClick={() => setStudioOpen(true)}>
+                  <Pencil /> Edit look
+                </button>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="club">Club name</Label>
               <Input id="club" value={club} onChange={(e) => setClub(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="mgr">Chairman name</Label>
-              <Input id="mgr" value={manager} onChange={(e) => setManager(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Starting regional league</Label>
@@ -74,16 +103,13 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
                 ))}
               </div>
             </div>
-            <Button
-              className="w-full"
-              disabled={!club.trim()}
-              onClick={() => onStart(club.trim(), manager.trim() || "Chairman", startingDivisionId)}
-            >
+            <Button className="w-full" disabled={!club.trim()} onClick={start}>
               <Play className="mr-2 size-4" /> Start Season
             </Button>
           </div>
         </div>
       </div>
+      <ChairmanStudio open={studioOpen} onOpenChange={setStudioOpen} />
     </div>
   );
 }
