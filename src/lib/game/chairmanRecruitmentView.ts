@@ -1,9 +1,11 @@
-import type { GameState, Position } from "./types";
+import type { GameState, Position, TacticalPosition } from "./types";
 import { knownPlayerIdentity } from "./playerLifecycle";
 import { knownPlayerDetail } from "./knownPlayerDetail";
 import { chairmanShortlistIds, isChairmanShortlisted } from "./recruitmentKnowledge";
 import { discoveredPlayerIds } from "./scoutingDiscovery";
 import { scoutingAssignment, scoutingReportById, type AttributeKnowledge } from "./scouting";
+import { tacticalPositionProfile } from "./positions";
+import { playerAttributeIdentity, type PlayerAttributeIdentity } from "./playerAttributeIdentity";
 
 export interface ChairmanRecruitmentPlayerView {
   playerId: string;
@@ -18,6 +20,8 @@ export interface ChairmanRecruitmentPlayerView {
   valueRange?: [number, number];
   wageRange?: [number, number];
   personalityKnown: boolean;
+  tacticalPosition?: TacticalPosition;
+  attributeIdentity?: PlayerAttributeIdentity;
 }
 
 function ageFromBirthYear(state: GameState, year: number): number {
@@ -58,6 +62,9 @@ export function chairmanRecruitmentPlayerView(
   const assignment = scoutingAssignment(state, playerId);
   const report = scoutingReportById(state, playerId);
   const birthYear = detail?.dateOfBirth.year ?? known!.dateOfBirth.year;
+  const tacticalPosition = detail ? tacticalPositionProfile(detail).primary : undefined;
+  const attributeIdentity =
+    report && tacticalPosition ? playerAttributeIdentity(tacticalPosition, report.attributes) ?? undefined : undefined;
   return {
     playerId,
     name: detail ? `${detail.firstName} ${detail.lastName}` : `${known!.firstName} ${known!.lastName}`,
@@ -71,6 +78,8 @@ export function chairmanRecruitmentPlayerView(
     valueRange: report?.valueRange,
     wageRange: report?.wageRange,
     personalityKnown: report?.personalityKnown ?? false,
+    tacticalPosition,
+    attributeIdentity,
   };
 }
 
