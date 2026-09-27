@@ -144,7 +144,7 @@ export function SquadSelectionTab({
         </section>
         {professionalisation.currentModel === "PartTime" && <section className="rounded-xl border bg-card p-3 shadow-sm lg:col-start-1"><div className="flex items-start justify-between gap-3"><div><div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Employment model</div><div className="font-display text-xl">Move to full-time football</div></div><Shield className="size-5 text-primary" /></div><p className="mt-2 text-sm text-muted-foreground">Full-time status improves access to stronger players, but future signings and renewals expect professional wages. Existing player contracts stay exactly as signed.</p><div className="mt-3 grid grid-cols-3 gap-2 text-center"><div className="rounded-lg border bg-muted/30 p-2"><div className="text-xs font-semibold">{professionalisation.trainingLabel}</div><div className="text-[10px] text-muted-foreground">Training ground</div></div><div className="rounded-lg border bg-muted/30 p-2"><div className="text-xs font-semibold">{professionalisation.recruitmentReputationBonus > 0 ? `+${professionalisation.recruitmentReputationBonus} appeal` : "Professional level"}</div><div className="text-[10px] text-muted-foreground">Player interest</div></div><div className="rounded-lg border bg-muted/30 p-2"><div className="text-xs font-semibold">{professionalisation.futureWageFactor > 1 ? `~+${Math.round((professionalisation.futureWageFactor - 1) * 100)}%` : "Level baseline"}</div><div className="text-[10px] text-muted-foreground">Future wages</div></div></div>{!professionalisation.allowed ? <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">{professionalisation.reason}</div> : professionalisationReview ? <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 p-3"><div className="text-sm font-semibold">Confirm permanent transition?</div><div className="mt-1 text-xs text-muted-foreground">The club will operate full-time from now on. Existing part-time contracts remain part-time until each player signs new terms.</div><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" onClick={professionalise}>Confirm full-time transition</Button><Button size="sm" variant="outline" onClick={() => setProfessionalisationReview(false)}>Keep part-time</Button></div></div> : <Button className="mt-3" size="sm" variant="outline" onClick={() => setProfessionalisationReview(true)}>Review full-time transition</Button>}{employmentNote && <div className="mt-3 text-xs text-muted-foreground">{employmentNote}</div>}</section>}
         <section className="rounded-xl border bg-card p-3 shadow-sm lg:col-start-1"><div className="mb-3 flex items-center justify-between gap-3"><div><div className="font-display text-xl">Chairman&apos;s preference</div><div className="text-xs text-muted-foreground">The manager retains final team selection unless ownership rules say otherwise.</div></div><Sparkles className="size-5 text-primary" /></div><div className="grid grid-cols-3 gap-2"><PresetButton active={preset === "strongest"} onClick={() => choose("strongest")} title="Strongest" sub="Best XI" /><PresetButton active={preset === "rested"} onClick={() => choose("rested")} title="Rested" sub="Rotate depth" /><PresetButton active={preset === "youth"} onClick={() => choose("youth")} title="Youth" sub="Favour U23s" /></div></section>
-        {view === "pitch" ? <section className="lf-pitch-card overflow-hidden rounded-xl border border-emerald-900/40 bg-[#06251c] text-white shadow-sm lg:col-start-1"><div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-3"><div><div className="text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-200/55">{matchPrep.managerId ? "Manager selection" : "Caretaker selection"}</div><div className="mt-0.5 flex items-end gap-2"><div className="font-display text-2xl">First XI</div><span className="mb-0.5 rounded-md border border-white/10 bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold text-white/75">{formation}</span></div></div><div className="grid grid-cols-2 gap-1.5 text-right"><div className="rounded-lg border border-white/10 bg-black/15 px-2 py-1"><div className="font-display text-base">{averageAbility(xi).toFixed(1)}</div><div className="text-[7px] uppercase tracking-wide text-white/40">Avg OVR</div></div><div className="rounded-lg border border-white/10 bg-black/15 px-2 py-1"><div className="font-display text-base">{Math.round(xi.reduce((sum, player) => sum + playerFitness(player), 0) / Math.max(1, xi.length))}%</div><div className="text-[7px] uppercase tracking-wide text-white/40">Avg fit</div></div></div></div><div className="border-b border-white/10 px-3 py-2">
+        {view === "pitch" ? <section className={cn("lf-pitch-card overflow-hidden rounded-xl border border-emerald-900/40 bg-[#06251c] text-white shadow-sm lg:col-start-1", planner && "lg:col-span-2")}><div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-3"><div><div className="text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-200/55">{matchPrep.managerId ? "Manager selection" : "Caretaker selection"}</div><div className="mt-0.5 flex items-end gap-2"><div className="font-display text-2xl">First XI</div><span className="mb-0.5 rounded-md border border-white/10 bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold text-white/75">{formation}</span></div></div><div className="grid grid-cols-2 gap-1.5 text-right"><div className="rounded-lg border border-white/10 bg-black/15 px-2 py-1"><div className="font-display text-base">{averageAbility(xi).toFixed(1)}</div><div className="text-[7px] uppercase tracking-wide text-white/40">Avg OVR</div></div><div className="rounded-lg border border-white/10 bg-black/15 px-2 py-1"><div className="font-display text-base">{Math.round(xi.reduce((sum, player) => sum + playerFitness(player), 0) / Math.max(1, xi.length))}%</div><div className="text-[7px] uppercase tracking-wide text-white/40">Avg fit</div></div></div></div><div className="border-b border-white/10 px-3 py-2">
   {!planner ? (
     <button type="button" onClick={startPlanner} className="w-full rounded-lg border border-white/15 bg-white/[0.06] px-3 py-2 text-left text-xs font-semibold text-white/90">
       Try a lineup <span className="ml-1 font-normal text-white/50">Sandbox only · does not affect the manager&apos;s XI</span>
@@ -155,13 +155,13 @@ export function SquadSelectionTab({
       <select value={formation} onChange={(event) => changePlannerFormation(event.target.value as ManagerFormation)} className="min-h-9 rounded-md border border-white/15 bg-black/30 px-2 text-xs font-semibold text-white">
         {Object.keys(MANAGER_FORMATION_SLOTS).map((shape) => <option key={shape} value={shape}>{shape}</option>)}
       </select>
-      <span className="text-[10px] text-white/45">Tap a pitch player, then choose who replaces them.</span>
+      <span className="text-[10px] text-white/45">Drag players onto each other to swap · tap still works on mobile.</span>
       <button type="button" onClick={() => setPlanner(null)} className="ml-auto min-h-9 rounded-md border border-white/15 px-2 text-[10px] font-bold text-white/70">Exit sandbox</button>
     </div>
   )}
 </div>
 <Pitch state={state} xi={xi} formation={formation} planner={Boolean(planner)} onSwap={swapPlannerPlayer} squad={squad} /></section> : <section className="overflow-hidden rounded-xl border bg-card shadow-sm lg:col-start-1"><div className="border-b px-3 py-3"><div className="font-display text-xl">Season performance</div><div className="text-xs text-muted-foreground">Recorded appearances from watched and simulated matches.</div></div><div className="grid grid-cols-3 divide-x border-b text-center"><Summary label="Avg fitness" value={`${averageFitness}%`} /><Summary label="Medical" value={medical.label} /><Summary label="Fixtures this week" value={String(fixtureLoad)} /></div><div className="grid grid-cols-2 gap-2 border-b p-3 text-xs sm:grid-cols-4"><Leader label="Top scorer" name={leaders.topScorer?.name} value={leaders.topScorer ? `${leaders.topScorer.goals} goals` : "—"} /><Leader label="Top assists" name={leaders.topAssister?.name} value={leaders.topAssister ? `${leaders.topAssister.assists} assists` : "—"} /><Leader label="Top rated" name={leaders.topRated?.name} value={leaders.topRated ? leaders.topRated.averageRating.toFixed(2) : "—"} /><Leader label="Most used" name={leaders.mostUsed?.name} value={leaders.mostUsed ? `${leaders.mostUsed.minutes} min` : "—"} /></div><div className="overflow-x-auto"><table className="w-full text-xs"><thead className="border-b bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground"><tr><th className="px-3 py-2 text-left">Player</th><th className="px-2 py-2 text-right">Apps</th><th className="px-2 py-2 text-right">Starts</th><th className="px-2 py-2 text-right">Sub</th><th className="px-2 py-2 text-right">Min</th><th className="px-2 py-2 text-right">G</th><th className="px-2 py-2 text-right">A</th><th className="px-2 py-2 text-right">Rat</th><th className="px-2 py-2 text-right">Form</th></tr></thead><tbody>{seasonStats.map((row) => <tr key={row.playerId} className="border-b last:border-b-0"><td className="px-3 py-2 font-semibold">{row.name}</td><td className="px-2 py-2 text-right">{row.appearances}</td><td className="px-2 py-2 text-right">{row.starts}</td><td className="px-2 py-2 text-right">{row.substituteAppearances}</td><td className="px-2 py-2 text-right">{row.minutes}</td><td className="px-2 py-2 text-right">{row.goals}</td><td className="px-2 py-2 text-right">{row.assists}</td><td className="px-2 py-2 text-right">{row.averageRating.toFixed(2)}</td><td className="px-2 py-2 text-right">{playerRecentForm(state, row.playerId).appearances ? `${playerRecentForm(state, row.playerId).band} ${playerRecentForm(state, row.playerId).averageRating.toFixed(2)}` : "—"}</td></tr>)}{seasonStats.length === 0 && <tr><td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">No player match records yet.</td></tr>}</tbody></table></div><div className="border-t bg-muted/20 px-3 py-2 text-[10px] text-muted-foreground">Medical score {medical.score}/100 · weekly fitness recovery +{medical.recoveryPerWeek} · injury-risk factor {medical.injuryRiskMultiplier.toFixed(2)}×</div></section>}
-        <section className="lf-squad-list flex min-h-0 flex-col rounded-xl border bg-card shadow-sm lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:overflow-hidden"><div className="border-b px-4 py-3"><div className="font-display text-xl">Substitutes</div><div className="text-xs text-muted-foreground">Players outside the starting XI and available from the bench.</div></div><div className="min-h-0 flex-1 divide-y lg:overflow-auto lg:overscroll-contain lg:[scrollbar-gutter:stable]">{bench.map((player) => <PlayerRow key={player.id} state={state} player={player} />)}</div></section>
+        {!(planner && view === "pitch") && <section className="lf-squad-list flex min-h-0 flex-col rounded-xl border bg-card shadow-sm lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:overflow-hidden"><div className="border-b px-4 py-3"><div className="font-display text-xl">Substitutes</div><div className="text-xs text-muted-foreground">Players outside the starting XI and available from the bench.</div></div><div className="min-h-0 flex-1 divide-y lg:overflow-auto lg:overscroll-contain lg:[scrollbar-gutter:stable]">{bench.map((player) => <PlayerRow key={player.id} state={state} player={player} />)}</div></section>}
       </div>
     </div>
   );
@@ -204,6 +204,32 @@ function Pitch({
 }) {
   const slots = MANAGER_FORMATION_SLOTS[formation];
   const [swapSlot, setSwapSlot] = useState<number | null>(null);
+  const [draggedPlayerId, setDraggedPlayerId] = useState<string | null>(null);
+  const [dragOverKey, setDragOverKey] = useState<string | null>(null);
+  const selectedIds = new Set(xi.map((player) => player.id));
+  const sandboxBench = squad
+    .filter((player) => !selectedIds.has(player.id))
+    .sort((a, b) => b.currentAbility - a.currentAbility);
+
+  const swapPlayers = (draggedId: string, targetId: string) => {
+    if (!onSwap || draggedId === targetId) return;
+    const draggedSlot = xi.findIndex((player) => player.id === draggedId);
+    const targetSlot = xi.findIndex((player) => player.id === targetId);
+    if (targetSlot >= 0) {
+      onSwap(targetSlot, draggedId);
+    } else if (draggedSlot >= 0) {
+      onSwap(draggedSlot, targetId);
+    }
+  };
+
+  const finishPointerDrag = (event: React.PointerEvent, draggedId: string) => {
+    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-planner-player]");
+    const targetId = target?.dataset.plannerPlayer;
+    if (targetId) swapPlayers(draggedId, targetId);
+    setDraggedPlayerId(null);
+    setDragOverKey(null);
+  };
+
   const rows = MANAGER_FORMATION_ROWS[formation]
     .map((indices) => indices.map((index) => ({ player: xi[index], slot: slots[index], index })))
     .map((row) => row.filter((entry): entry is { player: FootballPlayer; slot: TacticalPosition; index: number } => Boolean(entry.player)));
@@ -239,9 +265,45 @@ function Pitch({
                 <button
                   key={player.id}
                   type="button"
+                  data-planner-player={planner ? player.id : undefined}
+                  draggable={planner}
+                  onDragStart={(event) => {
+                    if (!planner) return;
+                    event.dataTransfer.setData("text/plain", player.id);
+                    event.dataTransfer.effectAllowed = "move";
+                    setDraggedPlayerId(player.id);
+                  }}
+                  onDragEnd={() => { setDraggedPlayerId(null); setDragOverKey(null); }}
+                  onDragOver={(event) => {
+                    if (!planner || !draggedPlayerId || draggedPlayerId === player.id) return;
+                    event.preventDefault();
+                    setDragOverKey(player.id);
+                  }}
+                  onDrop={(event) => {
+                    if (!planner) return;
+                    event.preventDefault();
+                    const draggedId = event.dataTransfer.getData("text/plain") || draggedPlayerId;
+                    if (draggedId) swapPlayers(draggedId, player.id);
+                    setDraggedPlayerId(null);
+                    setDragOverKey(null);
+                  }}
+                  onPointerDown={(event) => {
+                    if (!planner || event.pointerType === "mouse") return;
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                    setDraggedPlayerId(player.id);
+                  }}
+                  onPointerUp={(event) => {
+                    if (!planner || event.pointerType === "mouse" || !draggedPlayerId) return;
+                    finishPointerDrag(event, player.id);
+                  }}
                   onClick={() => planner ? setSwapSlot(index) : openPlayerProfile(player.id)}
-                  className="group w-[4.4rem] rounded-xl text-center transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 sm:w-[5.4rem]"
-                  aria-label={`Open ${playerName(player)} profile`}
+                  className={cn(
+                    "group w-[4.4rem] rounded-xl text-center transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 sm:w-[5.4rem]",
+                    planner && "cursor-grab active:cursor-grabbing",
+                    draggedPlayerId === player.id && "scale-95 opacity-55",
+                    dragOverKey === player.id && "ring-2 ring-white/90 ring-offset-2 ring-offset-emerald-900",
+                  )}
+                  aria-label={planner ? `Move ${playerName(player)}` : `Open ${playerName(player)} profile`}
                 >
                   <div className={cn(
                     "relative mx-auto grid size-11 place-items-center rounded-full border-2 font-display text-base shadow-lg sm:size-12",
@@ -266,10 +328,83 @@ function Pitch({
       </div>
 
       <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-black/25 px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.14em] text-white/45">
-        {planner ? "Tap a player to swap" : "Tap a player for profile"}
+        {planner ? "Drag to swap · tap for player list" : "Tap a player for profile"}
       </div>
       {planner && swapSlot !== null && onSwap && <div className="absolute inset-x-2 bottom-8 z-20 max-h-44 overflow-auto rounded-xl border border-white/15 bg-[#071713]/95 p-2 shadow-xl"><div className="mb-1 flex items-center justify-between"><div className="text-[9px] font-bold uppercase tracking-wider text-white/55">Replace {xi[swapSlot]?.lastName ?? "player"} · {slots[swapSlot]}</div><button type="button" onClick={() => setSwapSlot(null)} className="rounded px-2 py-1 text-xs text-white/60">Close</button></div>{squad.filter((candidate) => candidate.id !== xi[swapSlot]?.id).sort((a,b) => b.currentAbility-a.currentAbility).map((candidate) => <button type="button" key={candidate.id} onClick={() => { onSwap(swapSlot, candidate.id); setSwapSlot(null); }} className="flex min-h-10 w-full items-center justify-between border-t border-white/10 px-2 text-left text-xs"><span><b>{candidate.lastName}</b> <span className="text-white/45">{tacticalPositionProfile(candidate).primary}</span></span><span className="font-display text-base">{candidate.currentAbility}</span></button>)}</div>}
     </div>
+      {planner && (
+        <div className="border-t border-white/10 bg-[#071713] px-3 py-3">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <div>
+              <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-white/45">Bench & squad</div>
+              <div className="text-[10px] text-white/60">Side-scroll · drag a player onto anyone in the XI or bench to swap.</div>
+            </div>
+            <div className="shrink-0 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[9px] font-bold text-white/50">{sandboxBench.length} players</div>
+          </div>
+          <div className="flex snap-x gap-2 overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:thin]">
+            {sandboxBench.map((player) => {
+              const tactical = tacticalPositionProfile(player);
+              const fitness = playerFitness(player);
+              const dragging = draggedPlayerId === player.id;
+              const over = dragOverKey === player.id;
+              return (
+                <button
+                  key={player.id}
+                  type="button"
+                  data-planner-player={player.id}
+                  draggable
+                  onDragStart={(event) => {
+                    event.dataTransfer.setData("text/plain", player.id);
+                    event.dataTransfer.effectAllowed = "move";
+                    setDraggedPlayerId(player.id);
+                  }}
+                  onDragEnd={() => { setDraggedPlayerId(null); setDragOverKey(null); }}
+                  onDragOver={(event) => {
+                    if (!draggedPlayerId || draggedPlayerId === player.id) return;
+                    event.preventDefault();
+                    setDragOverKey(player.id);
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    const draggedId = event.dataTransfer.getData("text/plain") || draggedPlayerId;
+                    if (draggedId) swapPlayers(draggedId, player.id);
+                    setDraggedPlayerId(null);
+                    setDragOverKey(null);
+                  }}
+                  onPointerDown={(event) => {
+                    if (event.pointerType === "mouse") return;
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                    setDraggedPlayerId(player.id);
+                  }}
+                  onPointerUp={(event) => {
+                    if (event.pointerType === "mouse" || !draggedPlayerId) return;
+                    finishPointerDrag(event, player.id);
+                  }}
+                  onClick={() => {
+                    if (swapSlot !== null && onSwap) {
+                      onSwap(swapSlot, player.id);
+                      setSwapSlot(null);
+                    } else {
+                      openPlayerProfile(player.id);
+                    }
+                  }}
+                  className={cn(
+                    "min-w-[5.2rem] snap-start rounded-xl border border-white/10 bg-white/[0.045] px-2 py-2 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80",
+                    "cursor-grab active:cursor-grabbing",
+                    dragging && "scale-95 opacity-55",
+                    over && "ring-2 ring-white/90",
+                  )}
+                  aria-label={`Move ${playerName(player)}`}
+                >
+                  <div className="mx-auto grid size-10 place-items-center rounded-full border border-white/15 bg-black/25 font-display text-base">{player.currentAbility}</div>
+                  <div className="mt-1 max-w-[4.7rem] truncate font-display text-[11px]">{player.lastName}</div>
+                  <div className="mt-0.5 text-[8px] font-bold text-white/45">{tactical.primary} · {fitness}%</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
   );
 }
 
