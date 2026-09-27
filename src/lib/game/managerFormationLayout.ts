@@ -15,7 +15,7 @@ export const MANAGER_FORMATION_SLOTS: Record<ManagerFormation, readonly Tactical
   "4-3-3": ["GK", "LB", "CB", "CB", "RB", "CM", "CM", "CM", "LW", "ST", "RW"],
   "4-2-3-1": ["GK", "LB", "CB", "CB", "RB", "CDM", "CDM", "LW", "CAM", "RW", "ST"],
   "3-4-3": ["GK", "CB", "CB", "CB", "LWB", "CM", "CM", "RWB", "LW", "ST", "RW"],
-  "3-5-2": ["GK", "CB", "CB", "CB", "LWB", "CDM", "CAM", "CDM", "RWB", "ST", "ST"],
+  "3-5-2": ["GK", "CB", "CB", "CB", "LM", "CDM", "CAM", "CDM", "RM", "ST", "ST"],
   "5-3-2": ["GK", "LWB", "CB", "CB", "CB", "RWB", "CM", "CM", "CM", "ST", "ST"],
 };
 
