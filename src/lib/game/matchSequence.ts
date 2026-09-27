@@ -150,18 +150,17 @@ export function activeMatchLineupAtMinute(
   side: Side,
   minute: number,
 ): MatchLineupPlayer[] {
-  const active = new Map(starters.map((player) => [player.playerId, player]));
+  const active = starters.map((player) => ({ ...player }));
   for (const sub of substitutions
     .filter((item) => item.side === side && item.minute <= minute)
     .sort((a, b) => a.minute - b.minute)) {
-    const outgoing = active.get(sub.playerOffId);
-    active.delete(sub.playerOffId);
+    const index = active.findIndex((player) => player.playerId === sub.playerOffId);
+    if (index < 0) continue;
     const incoming = bench.find((player) => player.playerId === sub.playerOnId);
-    if (incoming) {
-      active.set(incoming.playerId, outgoing ? { ...incoming, role: outgoing.role } : incoming);
-    }
+    if (!incoming) continue;
+    active[index] = { ...incoming, role: active[index].role };
   }
-  return [...active.values()];
+  return active;
 }
 
 function chanceOutcome(event: MatchEvent): "save" | "wide" | "blocked" | "over" {
