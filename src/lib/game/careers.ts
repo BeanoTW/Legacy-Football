@@ -141,6 +141,7 @@ export function progressPlayerForSeason(s: GameState, player: FootballPlayer): n
     ? playerReputationForAbility(
         player.currentAbility,
         footballLevelOfClub(s, reputationClub),
+        clubReputation(s, reputationClub),
       )
     : player.reputation;
   player.reputation = clamp(
@@ -570,7 +571,7 @@ function makeYouth(s: GameState, club: string, index: number): FootballPlayer {
     primaryPosition: POSITIONS[rngInt(rng, 0, POSITIONS.length - 1)],
     secondaryPositions: [],
     currentClubId: club,
-    reputation: playerReputationForAbility(ability, level, -4),
+    reputation: playerReputationForAbility(ability, level, rep, -4),
     currentAbility: ability,
     potentialAbility: potential,
     marketValue: recruitmentPlayerValue(ability, potential, age, level),
