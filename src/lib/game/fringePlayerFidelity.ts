@@ -6,6 +6,7 @@ import {
   recruitmentPlayerValue,
   recruitmentWageForClub,
 } from "./recruitmentEconomy";
+import { playerReputationForAbility } from "./playerOverall";
 
 const BASE_YEAR = 2000;
 
@@ -41,7 +42,7 @@ export function hydrateCompactFringePlayer(
     primaryPosition: compact.primaryPosition,
     secondaryPositions: [...presentation.secondaryPositions],
     currentClubId: compact.currentClubId,
-    reputation: Math.max(5, Math.min(98, Math.round(compact.currentAbility * 0.85))),
+    reputation: playerReputationForAbility(compact.currentAbility, level),
     currentAbility: compact.currentAbility,
     potentialAbility: compact.potentialAbility,
     marketValue: recruitmentPlayerValue(
