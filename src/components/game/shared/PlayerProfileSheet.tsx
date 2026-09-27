@@ -32,6 +32,7 @@ import { fromAbsoluteWeek } from "@/lib/game/time";
 import { playerCareerTotals, playerSeasonByPlayer, playerSeasonStats } from "@/lib/game/playerSeasonStats";
 import { playerRecentForm } from "@/lib/game/playerForm";
 import { dynamicOverall } from "@/lib/game/playerOverall";
+import { playerAttributeIdentity } from "@/lib/game/playerAttributeIdentity";
 
 const PLAYER_PROFILE_EVENT = "legacy-football:open-player-profile";
 
@@ -107,6 +108,7 @@ export function PlayerProfileSheet({
   const recentForm = owned ? playerRecentForm(state, player.id) : null;
   const career = owned ? playerCareerTotals(state, player.id) : null;
   const seasonHistory = owned ? playerSeasonByPlayer(state, player.id) : [];
+  const attributeIdentity = report ? playerAttributeIdentity(tactical.primary, report.attributes) : null;
 
   const approach = () => {
     if (!estimate || owned) return;
@@ -418,6 +420,15 @@ export function PlayerProfileSheet({
               </div>
               <div className="font-display text-xl">{knowledge}%</div>
             </div>
+            {attributeIdentity && (
+              <div className="mb-2 rounded-lg border bg-muted/30 px-2.5 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="font-semibold text-sm">{attributeIdentity.label}</div>
+                  <div className="truncate text-[9px] uppercase tracking-wider text-muted-foreground">{attributeIdentity.strengths.join(" · ")}</div>
+                </div>
+                <div className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">{attributeIdentity.summary}</div>
+              </div>
+            )}
 
             {report ? (
               <div className="flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
