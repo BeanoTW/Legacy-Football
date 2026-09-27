@@ -359,15 +359,38 @@ function completeAiCareerTransfer(
   buyer: string,
   rng: () => number,
 ): boolean {
+  // Price the deal and verify affordability before mutating a contract, player
+  // or history row. A rejected AI purchase must be a genuine no-op.
+  const buyerRep = clubReputation(s, buyer);
+  const buyerLevel = footballLevelOfClub(s, buyer);
+  const age = ageOf(player, s.season);
+  const fee = recruitmentNormaliseTransferFeeForClub(
+    s,
+    seller,
+    player.marketValue * rngRange(rng, 0.82, 1.14),
+    "asking",
+  );
+  const rawWage = recruitmentWageForLevel(
+    buyerLevel,
+    player.currentAbility,
+    buyerRep,
+    age,
+    player.potentialAbility,
+  );
+  const wageStep = buyerLevel >= 7 && rawWage < 500 ? 10 : 25;
+  const wageFloor = buyerLevel >= 7 ? 25 : 150;
+  const wage = Math.max(wageFloor, Math.round(rawWage / wageStep) * wageStep);
+  if (!aiCanAffordCareerTransfer(s, buyer, fee, wage)) return false;
+
   const oldContract = s.football.contracts.find(
     (contract) =>
       contract.playerId === player.id &&
-      contract.clubId === seller &&
+      sameClubReference(s, contract.clubId, seller) &&
       (contract.status === "Active" || contract.status === "Expiring"),
   );
 
   // Dense-world saves can contain more than one legacy live contract for a
-  // player. A transfer closes every previous deal before the new one starts.
+  // player. A completed transfer closes every previous deal before the new one starts.
   for (const contract of s.football.contracts) {
     if (
       contract.playerId === player.id &&
@@ -393,28 +416,6 @@ function completeAiCareerTransfer(
       week: s.week,
     });
   }
-
-  const buyerRep = clubReputation(s, buyer);
-  const buyerLevel = footballLevelOfClub(s, buyer);
-  const age = ageOf(player, s.season);
-  const fee = recruitmentNormaliseTransferFeeForClub(
-    s,
-    seller,
-    player.marketValue * rngRange(rng, 0.82, 1.14),
-    "asking",
-  );
-  const rawWage = recruitmentWageForLevel(
-    buyerLevel,
-    player.currentAbility,
-    buyerRep,
-    age,
-    player.potentialAbility,
-  );
-  const wageStep = buyerLevel >= 7 && rawWage < 500 ? 10 : 25;
-  const wageFloor = buyerLevel >= 7 ? 25 : 150;
-  const wage = Math.max(wageFloor, Math.round(rawWage / wageStep) * wageStep);
-
-  if (!aiCanAffordCareerTransfer(s, buyer, fee, wage)) return false;
 
   const newContract: PlayerContract = {
     id: `PC-${String(s.football.nextContractId++).padStart(6, "0")}`,
