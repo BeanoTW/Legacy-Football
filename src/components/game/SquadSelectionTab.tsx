@@ -235,6 +235,7 @@ function Pitch({
     .map((row) => row.filter((entry): entry is { player: FootballPlayer; slot: TacticalPosition; index: number } => Boolean(entry.player)));
 
   return (
+    <>
     <div className="relative min-h-[24rem] overflow-hidden bg-[linear-gradient(90deg,rgba(16,112,74,.96)_0%,rgba(16,112,74,.96)_12.5%,rgba(19,122,81,.96)_12.5%,rgba(19,122,81,.96)_25%,rgba(16,112,74,.96)_25%,rgba(16,112,74,.96)_37.5%,rgba(19,122,81,.96)_37.5%,rgba(19,122,81,.96)_50%,rgba(16,112,74,.96)_50%,rgba(16,112,74,.96)_62.5%,rgba(19,122,81,.96)_62.5%,rgba(19,122,81,.96)_75%,rgba(16,112,74,.96)_75%,rgba(16,112,74,.96)_87.5%,rgba(19,122,81,.96)_87.5%,rgba(19,122,81,.96)_100%)] px-2 py-4 sm:min-h-[27rem] sm:px-4">
       <div className="pointer-events-none absolute inset-3 rounded-xl border border-white/35" />
       <div className="pointer-events-none absolute inset-y-3 left-1/2 w-px bg-white/35" />
@@ -299,7 +300,7 @@ function Pitch({
                   onClick={() => planner ? setSwapSlot(index) : openPlayerProfile(player.id)}
                   className={cn(
                     "group w-[4.4rem] rounded-xl text-center transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 sm:w-[5.4rem]",
-                    planner && "cursor-grab active:cursor-grabbing",
+                    planner && "cursor-grab touch-none active:cursor-grabbing",
                     draggedPlayerId === player.id && "scale-95 opacity-55",
                     dragOverKey === player.id && "ring-2 ring-white/90 ring-offset-2 ring-offset-emerald-900",
                   )}
@@ -390,7 +391,7 @@ function Pitch({
                   }}
                   className={cn(
                     "min-w-[5.2rem] snap-start rounded-xl border border-white/10 bg-white/[0.045] px-2 py-2 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80",
-                    "cursor-grab active:cursor-grabbing",
+                    "cursor-grab touch-pan-x active:cursor-grabbing",
                     dragging && "scale-95 opacity-55",
                     over && "ring-2 ring-white/90",
                   )}
@@ -405,6 +406,7 @@ function Pitch({
           </div>
         </div>
       )}
+    </>
   );
 }
 
