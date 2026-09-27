@@ -59,6 +59,7 @@ function fresh(seed = "REP_SEED_1"): GameState {
     .sort((a, b) => a.week - b.week);
   // Re-seed the identity layer under the fixed test seed.
   g.clubReputations = initClubReputations(g.leagues, seed);
+  g.clubReputations[userClubReference(g)] = g.reputation;
   g.seasonPredictions = [];
   storePredictions(g, 1);
   return g;
@@ -133,6 +134,7 @@ console.log("\n[R1b] Opaque club identity gateway");
     displayName === userId || !(displayName in g.clubReputations),
   );
   check("display-name reputation reads remain canonical after mutation", clubReputation(g, displayName) === 42.5);
+  check("legacy user reputation mirrors canonical mutations", g.reputation === 42.5);
 }
 
 console.log("\n[R2] Promotion raises reputation, relegation lowers it");
