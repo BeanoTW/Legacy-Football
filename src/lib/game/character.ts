@@ -1,4 +1,11 @@
 import type { FootballPlayer, GameState } from "./types";
+
+declare module "./types" {
+  interface GameState {
+    /** Optional player-authored club nickname. Falls back to the stable generated nickname. */
+    customClubNickname?: string;
+  }
+}
 import { activeContract, weeksLeftOnContract } from "./recruitment";
 import { isUserClubReference, userClubReference } from "./clubReference";
 import { clubSimulationSeedKey } from "./clubIdentity";
@@ -21,11 +28,29 @@ function stableIndex(value: string, length: number): number {
 }
 
 /** Stable presentation identity: no save migration and no gameplay randomness. */
+export function cleanClubNickname(value: string): string {
+  return value
+    .replace(/[^A-Za-z0-9\s&'.-]/g, "")
+    .replace(/\s+/g, " ")
+    .trimStart()
+    .slice(0, 28);
+}
+
 export function clubNickname(
-  state: Pick<GameState, "clubName" | "saveSeed" | "clubIdentity">,
+  state: Pick<GameState, "clubName" | "saveSeed" | "clubIdentity" | "customClubNickname">,
 ): string {
+  const custom = cleanClubNickname(state.customClubNickname ?? "").trim();
+  if (custom) return custom;
   const seedKey = clubSimulationSeedKey(state, userClubReference(state));
   return NICKNAMES[stableIndex(`${state.saveSeed}|${seedKey}|nickname`, NICKNAMES.length)];
+}
+
+export function setClubNickname(state: GameState, nickname: string): GameState {
+  const cleaned = cleanClubNickname(nickname).trim();
+  return {
+    ...state,
+    customClubNickname: cleaned || undefined,
+  };
 }
 
 export function chairmanStyle(state: GameState): { label: string; detail: string } {
