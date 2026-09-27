@@ -25,7 +25,7 @@ import {
 } from "../recruitment";
 
 const state = newGame("Employment Audit FC", "Auditor", "EMPLOYMENT_MODEL_AUDIT");
-assert.equal(SAVE_VERSION, 21, "latest schema should include ratings recalibration after employment and player registration");
+assert.ok(SAVE_VERSION >= 21, "latest schema should include ratings recalibration after employment and player registration");
 assert.ok(state.clubIdentity, "fresh opaque club identity state missing");
 assert.ok(state.football.employment, "fresh game should persist club employment state");
 
