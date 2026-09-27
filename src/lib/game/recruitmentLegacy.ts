@@ -365,6 +365,7 @@ function makePlayerFor(
   const reputation = playerReputationForAbility(
     currentAbility,
     level,
+    clubId === null ? undefined : clubRep,
     rngRange(rng, -4, 6),
   );
   const secondary: Position[] =
