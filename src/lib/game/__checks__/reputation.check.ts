@@ -31,6 +31,8 @@ import {
 import { DIVISION_ONE, DIVISION_TWO, makePyramidSchedule } from "../pyramid";
 import type { GameState, ExpectationLevel } from "../types";
 import { clubFootballStrength } from "../footballStrength";
+import { footballLevelOfClub } from "../footballLevel";
+import { playerReputationForAbility } from "../playerOverall";
 import { isUserClubReference, userClubReference } from "../clubReference";
 
 let passed = 0;
@@ -151,6 +153,30 @@ console.log("\n[R1c] v21 user reputation unification");
     "v21 migration preserves the reputation the chairman actually played under",
     migrated.reputation === 37 && migrated.clubReputations[migratedUser] === 37,
     `${migrated.reputation} / ${migrated.clubReputations[migratedUser]}`,
+  );
+}
+
+console.log("\n[R1d] v22 player reputation calibration");
+{
+  const legacy = newGame("Legacy Player Rep FC", "Migration Tester", "PLAYER_REP_V22") as unknown as Record<string, unknown>;
+  const typed = legacy as unknown as GameState;
+  const player = typed.football.players.find((candidate) => candidate.currentClubId);
+  if (!player?.currentClubId) throw new Error("migration fixture needs a contracted player");
+  legacy.version = 22;
+  player.reputation = 98;
+  const clubId = player.currentClubId;
+  const ability = player.currentAbility;
+  const migrated = migrateSave(structuredClone(legacy));
+  const migratedPlayer = migrated.football.players.find((candidate) => candidate.id === player.id)!;
+  const expectedBase = playerReputationForAbility(
+    ability,
+    footballLevelOfClub(migrated, clubId),
+    clubReputation(migrated, clubId),
+  );
+  check(
+    "v22 migration moves legacy player fame onto the level-aware scale",
+    migratedPlayer.reputation !== 98 && Math.abs(migratedPlayer.reputation - expectedBase) <= 3,
+    `${migratedPlayer.reputation} vs ${expectedBase}`,
   );
 }
 
