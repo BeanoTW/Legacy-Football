@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { DetailScreen } from "./shared/layout";
 import { POSITION_BADGE_CLASS } from "./playerPosition";
 import { positionUnit, tacticalPositionProfile } from "@/lib/game/positions";
+import { playerAttributeIdentity } from "@/lib/game/playerAttributeIdentity";
 import { TacticalPlayerCard } from "./shared/TacticalPlayerCard";
 
 export function ScoutingReports({
@@ -73,6 +74,8 @@ export function ScoutingReports({
         const player = transferTargetPlayer(state, assignment.playerId);
         if (!player) return null;
         const report = scoutingReport(state, player);
+        const tactical = tacticalPositionProfile(player);
+        const identity = playerAttributeIdentity(tactical.primary, report.attributes);
         const interest = playerInterestAssessment(state, player);
         const watched = isChairmanShortlisted(state, player.id);
         const freeAgent = player.currentClubId === null;
@@ -97,6 +100,13 @@ export function ScoutingReports({
             mode="recruitment"
             actions={
               <div className="space-y-2">
+                {identity && (
+                  <div className="rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2">
+                    <div className="text-[11px] font-semibold text-white/90">{identity.label}</div>
+                    <div className="mt-0.5 text-[10px] leading-relaxed text-white/55">{identity.summary}</div>
+                    <div className="mt-1 text-[9px] uppercase tracking-wide text-white/40">Strengths · {identity.strengths.join(" · ")}</div>
+                  </div>
+                )}
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-white/60">
                   <span>Interest <strong className="text-white/85">{interest.label}</strong></span>
                   <span>{report.complete ? "Full report" : `Scouting · ${report.knowledgePct}%`}</span>
