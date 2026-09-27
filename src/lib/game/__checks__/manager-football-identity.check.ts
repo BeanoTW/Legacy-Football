@@ -41,6 +41,15 @@ const defensive = managerFootballIdentity(manager({ attack: 55, defense: 82, tac
 check(defensive.preferredFormation === "5-3-2", "strong defensive manager should prefer 5-3-2");
 check(defensive.philosophy === "Defensive", "defense-first manager should expose defensive philosophy");
 
+
+const attackingBackThree = managerFootballIdentity(
+  manager({ attack: 78, defense: 70, tactics: 76, development: 74, motivation: 72 }),
+);
+check(
+  ["3-4-3", "3-5-2", "4-3-3"].includes(attackingBackThree.preferredFormation),
+  "modern attacking profiles should be able to land on a three-back shape",
+);
+
 const adaptable = managerFootballIdentity(manager({ tactics: 88, development: 82 }));
 check(adaptable.adaptability === "High", "elite tactical/development profile should be highly adaptable");
 check(adaptable.summary.includes(adaptable.preferredFormation), "summary should include preferred formation");
@@ -56,6 +65,8 @@ const openingManagers = openingStaffPool("MANAGER_FORMATION_VARIETY")
 const openingShapes = new Set(openingManagers);
 const fourFourTwoCount = openingManagers.filter((formation) => formation === "4-4-2").length;
 check(openingShapes.size >= 4, "opening manager market should offer at least four distinct formations");
+check(openingShapes.has("3-5-2"), "opening manager market should include a 3-5-2 option");
+check(openingShapes.has("3-4-3"), "opening manager market should include a 3-4-3 option");
 check(
   fourFourTwoCount <= Math.ceil(openingManagers.length * 0.45),
   "4-4-2 should not dominate the opening manager market",
