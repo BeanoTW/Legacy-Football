@@ -1141,9 +1141,11 @@ export function wageDemand(
   const ambitionGap = clamp(1 + (clubReputation(s, userClubReference(s)) - p.reputation) / 240, 0.85, 1.2);
   const personality = p.personality === "Mercenary" ? 1.15 : p.personality === "Loyal" ? 0.92 : 1;
   // Canonical infrastructure signal: good training/medical/pitch facilities
-  // shave a little off wage demands, poor ones add to them. Capped at +/-6%.
+  // shave a little off wage demands, poor ones add to them. The effect stays
+  // secondary to reputation, but is large enough to survive £10 semi-pro wage
+  // rounding at the bottom of the pyramid. Capped at +/-7%.
   const attraction = clamp(facilityModifiers(s).recruitmentAttraction, -15, 15);
-  const facilityFactor = clamp(1 - attraction / 250, 0.94, 1.06);
+  const facilityFactor = clamp(1 - attraction / 180, 0.93, 1.07);
   const growth = clubGrowthFactor(s);
   const employmentFactor = employmentNegotiationWageFactorFor(
     clubOperatingModel(s, userClubReference(s)),
