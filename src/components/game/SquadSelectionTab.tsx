@@ -3,7 +3,7 @@ import { ArrowLeft, Shield, Sparkles, Users } from "lucide-react";
 import type { FootballPlayer, GameState, TacticalPosition } from "@/lib/game/types";
 import type { ManagerFormation } from "@/lib/game/managerIdentity";
 import { managerMatchPrep } from "@/lib/game/managerMatchPrep";
-import { MANAGER_FORMATION_ROWS, MANAGER_FORMATION_SLOTS } from "@/lib/game/managerFormationLayout";
+import { MANAGER_FORMATION_POINTS, MANAGER_FORMATION_SLOTS } from "@/lib/game/managerFormationLayout";
 import {
   activeContract,
   ageOf,
@@ -242,9 +242,16 @@ function Pitch({
     setDragOverKey(null);
   };
 
-  const rows = MANAGER_FORMATION_ROWS[formation]
-    .map((indices) => indices.map((index) => ({ player: xi[index], slot: slots[index], index })))
-    .map((row) => row.filter((entry): entry is { player: FootballPlayer; slot: TacticalPosition; index: number } => Boolean(entry.player)));
+  const pitchPlayers = xi
+    .map((player, index) => ({
+      player,
+      slot: slots[index],
+      point: MANAGER_FORMATION_POINTS[formation][index],
+      index,
+    }))
+    .filter((entry): entry is { player: FootballPlayer; slot: TacticalPosition; point: { x: number; y: number }; index: number } =>
+      Boolean(entry.player && entry.slot && entry.point),
+    );
 
   return (
     <>
@@ -258,88 +265,84 @@ function Pitch({
       <div className="pointer-events-none absolute inset-x-[27%] bottom-3 h-[14%] border-x border-t border-white/35" />
       <div className="pointer-events-none absolute inset-x-[39%] bottom-3 h-[6%] border-x border-t border-white/35" />
 
-      <div className="relative flex min-h-[22rem] flex-col justify-between gap-2 py-3 sm:min-h-[25rem]">
-        {rows.map((row, rowIndex) => (
-          <div key={rowIndex} className="flex items-center justify-evenly gap-1 px-1 sm:gap-2 sm:px-3">
-            {row.map(({ player, slot, index }) => {
-              const fitness = playerFitness(player);
-              const familiarity = positionFamiliarity(player, slot);
-              const form = playerRecentForm(state, player.id);
-              const fitnessTone =
-                fitness >= 90 ? "bg-emerald-300" : fitness >= 75 ? "bg-amber-300" : "bg-rose-300";
-              const familiarityTone =
-                familiarity === "Natural"
-                  ? "border-white/35"
-                  : familiarity === "Accomplished"
-                    ? "border-amber-200/60"
-                    : "border-rose-200/70";
+      <div className="relative min-h-[22rem] sm:min-h-[25rem]">
+        {pitchPlayers.map(({ player, slot, point, index }) => {
+          const fitness = playerFitness(player);
+          const familiarity = positionFamiliarity(player, slot);
+          const form = playerRecentForm(state, player.id);
+          const fitnessTone =
+            fitness >= 90 ? "bg-emerald-300" : fitness >= 75 ? "bg-amber-300" : "bg-rose-300";
+          const familiarityTone =
+            familiarity === "Natural"
+              ? "border-white/35"
+              : familiarity === "Accomplished"
+                ? "border-amber-200/60"
+                : "border-rose-200/70";
 
-              return (
-                <button
-                  key={player.id}
-                  type="button"
-                  data-planner-player={planner ? player.id : undefined}
-                  draggable={planner}
-                  onDragStart={(event) => {
-                    if (!planner) return;
-                    event.dataTransfer.setData("text/plain", player.id);
-                    event.dataTransfer.effectAllowed = "move";
-                    setDraggedPlayerId(player.id);
-                  }}
-                  onDragEnd={() => { setDraggedPlayerId(null); setDragOverKey(null); }}
-                  onDragOver={(event) => {
-                    if (!planner || !draggedPlayerId || draggedPlayerId === player.id) return;
-                    event.preventDefault();
-                    setDragOverKey(player.id);
-                  }}
-                  onDrop={(event) => {
-                    if (!planner) return;
-                    event.preventDefault();
-                    const draggedId = event.dataTransfer.getData("text/plain") || draggedPlayerId;
-                    if (draggedId) swapPlayers(draggedId, player.id);
-                    setDraggedPlayerId(null);
-                    setDragOverKey(null);
-                  }}
-                  onPointerDown={(event) => {
-                    if (!planner || event.pointerType === "mouse") return;
-                    event.currentTarget.setPointerCapture(event.pointerId);
-                    setDraggedPlayerId(player.id);
-                  }}
-                  onPointerUp={(event) => {
-                    if (!planner || event.pointerType === "mouse" || !draggedPlayerId) return;
-                    finishPointerDrag(event, player.id);
-                  }}
-                  onClick={() => planner ? setSwapSlot(index) : openPlayerProfile(player.id)}
-                  className={cn(
-                    "group w-[4.4rem] rounded-xl text-center transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 sm:w-[5.4rem]",
-                    planner && "cursor-grab touch-none active:cursor-grabbing",
-                    draggedPlayerId === player.id && "scale-95 opacity-55",
-                    dragOverKey === player.id && "ring-2 ring-white/90 ring-offset-2 ring-offset-emerald-900",
-                  )}
-                  aria-label={planner ? `Move ${playerName(player)}` : `Open ${playerName(player)} profile`}
-                >
-                  <div className={cn(
-                    "relative mx-auto grid size-11 place-items-center rounded-full border-2 font-display text-base shadow-lg sm:size-12",
-                    POSITION_PITCH_CLASS[positionUnit(slot)],
-                    familiarityTone,
-                  )}>
-                    {player.currentAbility}
-                    <span className={cn("absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border border-emerald-950", fitnessTone)} />
-                  </div>
-                  <div className="mt-1 rounded-lg border border-white/10 bg-black/30 px-1.5 py-1 backdrop-blur-[1px]">
-                    <div className="truncate font-display text-[11px] leading-none sm:text-xs">{player.lastName}</div>
-                    <div className="mt-0.5 flex items-center justify-center gap-1 text-[8px] font-bold text-white/60">
-                      <span>{slot}</span>
-                      {form.appearances > 0 && <span>· {form.averageRating.toFixed(1)}</span>}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        ))}
+          return (
+            <button
+              key={player.id}
+              type="button"
+              data-planner-player={planner ? player.id : undefined}
+              draggable={planner}
+              style={{ left: `${point.x}%`, top: `${point.y}%` }}
+              onDragStart={(event) => {
+                if (!planner) return;
+                event.dataTransfer.setData("text/plain", player.id);
+                event.dataTransfer.effectAllowed = "move";
+                setDraggedPlayerId(player.id);
+              }}
+              onDragEnd={() => { setDraggedPlayerId(null); setDragOverKey(null); }}
+              onDragOver={(event) => {
+                if (!planner || !draggedPlayerId || draggedPlayerId === player.id) return;
+                event.preventDefault();
+                setDragOverKey(player.id);
+              }}
+              onDrop={(event) => {
+                if (!planner) return;
+                event.preventDefault();
+                const draggedId = event.dataTransfer.getData("text/plain") || draggedPlayerId;
+                if (draggedId) swapPlayers(draggedId, player.id);
+                setDraggedPlayerId(null);
+                setDragOverKey(null);
+              }}
+              onPointerDown={(event) => {
+                if (!planner || event.pointerType === "mouse") return;
+                event.currentTarget.setPointerCapture(event.pointerId);
+                setDraggedPlayerId(player.id);
+              }}
+              onPointerUp={(event) => {
+                if (!planner || event.pointerType === "mouse" || !draggedPlayerId) return;
+                finishPointerDrag(event, player.id);
+              }}
+              onClick={() => planner ? setSwapSlot(index) : openPlayerProfile(player.id)}
+              className={cn(
+                "group absolute w-[4.4rem] -translate-x-1/2 -translate-y-1/2 rounded-xl text-center transition-[transform,opacity,filter] duration-150 hover:z-10 hover:-translate-y-[54%] focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 sm:w-[5.4rem]",
+                planner && "cursor-grab touch-none active:cursor-grabbing",
+                draggedPlayerId === player.id && "scale-95 opacity-55",
+                dragOverKey === player.id && "z-20 ring-2 ring-white/90 ring-offset-2 ring-offset-emerald-900",
+              )}
+              aria-label={planner ? `Move ${playerName(player)}` : `Open ${playerName(player)} profile`}
+            >
+              <div className={cn(
+                "relative mx-auto grid size-11 place-items-center rounded-full border-2 font-display text-base shadow-lg sm:size-12",
+                POSITION_PITCH_CLASS[positionUnit(slot)],
+                familiarityTone,
+              )}>
+                {player.currentAbility}
+                <span className={cn("absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border border-emerald-950", fitnessTone)} />
+              </div>
+              <div className="mt-1 rounded-lg border border-white/10 bg-black/35 px-1.5 py-1 shadow-sm backdrop-blur-[1px]">
+                <div className="truncate font-display text-[11px] leading-none sm:text-xs">{player.lastName}</div>
+                <div className="mt-0.5 flex items-center justify-center gap-1 text-[8px] font-bold text-white/60">
+                  <span>{slot}</span>
+                  {form.appearances > 0 && <span>· {form.averageRating.toFixed(1)}</span>}
+                </div>
+              </div>
+            </button>
+          );
+        })}
       </div>
-
       <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-black/25 px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.14em] text-white/45">
         {planner ? "Drag to swap · tap for player list" : "Tap a player for profile"}
       </div>
