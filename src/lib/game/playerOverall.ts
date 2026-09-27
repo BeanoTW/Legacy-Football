@@ -124,7 +124,10 @@ export function clubOverallProfile(
   );
   const [repLo, repHi] = league?.reputationRange ?? [0, 100];
   const rep = clubReputation(state, clubRef);
-  const percentile = repHi > repLo ? clamp((rep - repLo) / (repHi - repLo), 0, 1) : 0.5;
+  const percentile =
+    repHi > repLo && rep >= repLo && rep <= repHi
+      ? (rep - repLo) / (repHi - repLo)
+      : 0.5;
   const reputationAdjustment = (percentile - 0.5) * 6;
   const average = clamp(
     Math.round((band.squadAverage + reputationAdjustment) * 10) / 10,
