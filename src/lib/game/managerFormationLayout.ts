@@ -69,7 +69,7 @@ export const MANAGER_FORMATION_POINTS: Record<ManagerFormation, readonly Formati
   ],
   "3-5-2": [
     { x: 50, y: 91 },
-    { x: 28, y: 70 }, { x: 50, y: 74 }, { x: 72, y: 70 },
+    { x: 24, y: 70 }, { x: 50, y: 74 }, { x: 76, y: 70 },
     { x: 13, y: 40 }, { x: 37, y: 57 }, { x: 50, y: 30 }, { x: 63, y: 57 }, { x: 87, y: 40 },
     { x: 37, y: 13 }, { x: 63, y: 13 },
   ],
