@@ -805,7 +805,7 @@ export function scoutingView(s: GameState, player: FootballPlayer): ScoutingView
   const elapsed = report
     ? Math.max(0, absoluteWeek(s.season, s.week) - report.assignedAbsoluteWeek)
     : 0;
-  const weeklyGain = 10 + Math.round(rating / 10);
+  const weeklyGain = Math.max(13, 10 + Math.round(rating / 10));
   const knowledge = clamp(baseKnowledge + elapsed * weeklyGain, baseKnowledge, 100);
   const abilityRadius = knowledge >= 90 ? 0 : knowledge >= 65 ? 2 : knowledge >= 40 ? 5 : 9;
   const potentialRadius = knowledge >= 90 ? 0 : knowledge >= 65 ? 4 : knowledge >= 40 ? 8 : 13;
