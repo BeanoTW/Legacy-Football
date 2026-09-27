@@ -11,6 +11,7 @@ import {
 import { progressSemanticScoutingDiscoveryDayInPlace } from "./semanticScoutingSelection";
 import { knownPlayerDetail } from "./knownPlayerDetail";
 import { isUserClubReference } from "./clubReference";
+import { tacticalPositionProfile } from "./positions";
 
 export type PlayerAttributeCategory = "Technical" | "Mental" | "Physical";
 
@@ -127,68 +128,72 @@ function absoluteDay(state: GameState): number {
   return absoluteWeek(state.season, state.week) * 7 + calendarDay(state);
 }
 
+const CATEGORY_FOR_ATTRIBUTE: Record<PlayerAttributeKey, PlayerAttributeCategory> = Object.fromEntries(
+  (Object.entries(PLAYER_ATTRIBUTE_GROUPS) as [PlayerAttributeCategory, readonly PlayerAttributeKey[]][])
+    .flatMap(([category, keys]) => keys.map((key) => [key, category])),
+) as Record<PlayerAttributeKey, PlayerAttributeCategory>;
+
+const DETAILED_POSITION_MODS: Partial<Record<ReturnType<typeof tacticalPositionProfile>["primary"], Partial<Record<PlayerAttributeKey, number>>>> = {
+  GK: { goalkeeping: 10, positioning: 4, decisions: 3, composure: 3, jumping: 4 },
+  CB: { tackling: 8, positioning: 7, strength: 6, jumping: 6, aggression: 3, pace: -3, crossing: -8, dribbling: -4 },
+  LB: { crossing: 6, pace: 4, acceleration: 3, stamina: 4, workRate: 4, tackling: 3 },
+  RB: { crossing: 6, pace: 4, acceleration: 3, stamina: 4, workRate: 4, tackling: 3 },
+  LWB: { crossing: 8, pace: 5, acceleration: 4, stamina: 7, workRate: 5, dribbling: 3, tackling: 1 },
+  RWB: { crossing: 8, pace: 5, acceleration: 4, stamina: 7, workRate: 5, dribbling: 3, tackling: 1 },
+  CDM: { tackling: 7, positioning: 7, decisions: 5, shortPassing: 5, strength: 3, workRate: 4, finishing: -7 },
+  CM: { shortPassing: 7, longPassing: 5, firstTouch: 4, vision: 4, decisions: 3, stamina: 4 },
+  CAM: { shortPassing: 6, firstTouch: 7, vision: 8, dribbling: 5, decisions: 4, finishing: 4, tackling: -5 },
+  LM: { crossing: 8, pace: 4, stamina: 4, dribbling: 4, workRate: 3 },
+  RM: { crossing: 8, pace: 4, stamina: 4, dribbling: 4, workRate: 3 },
+  LW: { dribbling: 8, pace: 6, acceleration: 6, agility: 5, crossing: 6, finishing: 3, tackling: -4 },
+  RW: { dribbling: 8, pace: 6, acceleration: 6, agility: 5, crossing: 6, finishing: 3, tackling: -4 },
+  ST: { finishing: 9, composure: 7, positioning: 7, strength: 4, jumping: 3, firstTouch: 3, crossing: -5, tackling: -6 },
+};
+
+function categoryBias(player: FootballPlayer, category: PlayerAttributeCategory): number {
+  // Gives equal-OVR players different identities without changing their stored
+  // ability. Bias is deliberately small enough that role remains the main signal.
+  return (unsignedHash(`${player.id}|attribute-category|${category}`) % 9) - 4;
+}
+
 export function playerAttributes(player: FootballPlayer): PlayerAttributes {
   const ca = player.currentAbility;
   const positional: Record<Position, Partial<Record<PlayerAttributeKey, number>>> = {
     GK: {
-      goalkeeping: 15,
-      positioning: 7,
-      decisions: 5,
-      composure: 5,
-      jumping: 5,
-      strength: 3,
-      shortPassing: -3,
-      longPassing: 2,
-      firstTouch: -4,
-      crossing: -18,
-      dribbling: -12,
-      finishing: -24,
-      tackling: -10,
+      goalkeeping: 10, positioning: 5, decisions: 4, composure: 4, jumping: 3,
+      shortPassing: -3, crossing: -16, dribbling: -10, finishing: -22, tackling: -8,
     },
     DEF: {
-      tackling: 11,
-      positioning: 9,
-      strength: 7,
-      jumping: 7,
-      aggression: 5,
-      workRate: 4,
-      shortPassing: 1,
-      longPassing: -1,
-      crossing: -1,
-      dribbling: -5,
-      finishing: -12,
-      goalkeeping: -28,
+      tackling: 6, positioning: 5, strength: 4, jumping: 4, aggression: 3, workRate: 2,
+      finishing: -8, goalkeeping: -25,
     },
     MID: {
-      shortPassing: 10,
-      longPassing: 7,
-      firstTouch: 8,
-      vision: 8,
-      decisions: 5,
-      dribbling: 6,
-      stamina: 6,
-      workRate: 5,
-      positioning: 3,
-      finishing: -2,
-      goalkeeping: -28,
+      shortPassing: 5, longPassing: 3, firstTouch: 4, vision: 4, decisions: 3,
+      dribbling: 3, stamina: 3, workRate: 3, goalkeeping: -25,
     },
     FWD: {
-      finishing: 12,
-      composure: 7,
-      positioning: 7,
-      pace: 7,
-      acceleration: 7,
-      dribbling: 7,
-      firstTouch: 5,
-      agility: 5,
-      crossing: 3,
-      tackling: -13,
-      goalkeeping: -28,
+      finishing: 5, composure: 4, positioning: 4, pace: 3, acceleration: 3,
+      dribbling: 3, firstTouch: 3, tackling: -8, goalkeeping: -25,
     },
   };
-  const mods = positional[player.primaryPosition];
+  const broadMods = positional[player.primaryPosition];
+  const tactical = tacticalPositionProfile(player).primary;
+  const roleMods = DETAILED_POSITION_MODS[tactical] ?? {};
+
   return Object.fromEntries(
-    KEYS.map((key) => [key, clamp(ca + (mods[key] ?? 0) + noise(player, key, 9))]),
+    KEYS.map((key) => {
+      const category = CATEGORY_FOR_ATTRIBUTE[key];
+      return [
+        key,
+        clamp(
+          ca +
+          (broadMods[key] ?? 0) +
+          (roleMods[key] ?? 0) +
+          categoryBias(player, category) +
+          noise(player, key, 7),
+        ),
+      ];
+    }),
   ) as PlayerAttributes;
 }
 
@@ -343,9 +348,9 @@ export function scoutingReport(state: GameState, player: FootballPlayer): Scouti
   const visible = new Set(order.slice(0, revealedCount));
   const attributes = KEYS.map((key): AttributeKnowledge => {
     if (!visible.has(key)) return { key, label: PLAYER_ATTRIBUTE_LABELS[key], known: false };
-    if (width === 0) return { key, label: LABELS[key], known: true, exact: attrs[key] };
+    if (width === 0) return { key, label: PLAYER_ATTRIBUTE_LABELS[key], known: true, exact: attrs[key] };
     const [min, max] = rangeAround(attrs[key], width);
-    return { key, label: LABELS[key], known: true, min, max };
+    return { key, label: PLAYER_ATTRIBUTE_LABELS[key], known: true, min, max };
   });
   const baseMoneyWidth =
     days >= FULL_REPORT_DAYS ? 0.05 : days >= PARTIAL_REPORT_DAYS ? 0.18 : days >= 3 ? 0.28 : 0.5;
