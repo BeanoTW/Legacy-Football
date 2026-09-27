@@ -88,6 +88,20 @@ const sortSubsByPosition = (players: FootballPlayer[]): FootballPlayer[] =>
     );
   });
 
+const SUB_CARD_TONE: Record<ReturnType<typeof positionUnit>, string> = {
+  GK: "border-amber-300/35 bg-amber-400/[0.09]",
+  DEF: "border-emerald-300/35 bg-emerald-400/[0.09]",
+  MID: "border-blue-300/35 bg-blue-400/[0.09]",
+  FWD: "border-rose-300/35 bg-rose-400/[0.09]",
+};
+
+const SUB_TEXT_TONE: Record<ReturnType<typeof positionUnit>, string> = {
+  GK: "text-amber-200/80",
+  DEF: "text-emerald-200/80",
+  MID: "text-blue-200/80",
+  FWD: "text-rose-200/80",
+};
+
 export function SquadSelectionTab({
   state,
   update,
@@ -392,7 +406,7 @@ function Pitch({
               }}
               onClick={() => planner ? setSwapSlot(index) : openPlayerProfile(player.id)}
               className={cn(
-                "group absolute w-[4.4rem] -translate-x-1/2 -translate-y-1/2 rounded-xl text-center transition-[transform,opacity,filter] duration-150 hover:z-10 hover:-translate-y-[54%] focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 sm:w-[5.4rem]",
+                "group absolute w-[4.1rem] -translate-x-1/2 -translate-y-1/2 rounded-xl text-center transition-[transform,opacity,filter] duration-150 hover:z-10 hover:-translate-y-[54%] focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 sm:w-[5rem]",
                 planner && "cursor-grab touch-none active:cursor-grabbing",
                 draggedPlayerId === player.id && "scale-95 opacity-55",
                 dragOverKey === player.id && "z-20 ring-2 ring-white/90 ring-offset-2 ring-offset-emerald-900",
@@ -412,9 +426,9 @@ function Pitch({
                 )}
                 <span className={cn("absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border border-emerald-950", fitnessTone)} />
               </div>
-              <div className="mt-1 rounded-lg border border-white/10 bg-black/35 px-1.5 py-1 shadow-sm backdrop-blur-[1px]">
-                <div className="truncate font-display text-[11px] leading-none sm:text-xs">{player.lastName}</div>
-                <div className="mt-0.5 flex items-center justify-center gap-1 text-[8px] font-bold text-white/60">
+              <div className="mt-0.5 rounded-md border border-white/10 bg-black/35 px-1 py-0.5 shadow-sm backdrop-blur-[1px]">
+                <div className="truncate font-display text-[10px] leading-none sm:text-[11px]">{player.lastName}</div>
+                <div className="mt-0.5 flex items-center justify-center gap-1 text-[7px] font-bold leading-none text-white/60">
                   <span>{slot}</span>
                   {planner && tactical.primary !== slot && <span>· NAT {tactical.primary}</span>}
                   {!planner && form.appearances > 0 && <span>· {form.averageRating.toFixed(1)}</span>}
@@ -424,9 +438,11 @@ function Pitch({
           );
         })}
       </div>
-      <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-black/25 px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.14em] text-white/45">
-        {planner ? "Drag to swap · tap for player list" : "Tap a player for profile"}
-      </div>
+      {!planner && (
+        <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-black/25 px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.14em] text-white/45">
+          Tap a player for profile
+        </div>
+      )}
       {planner && swapSlot !== null && onSwap && <div className="absolute inset-x-2 bottom-8 z-20 max-h-44 overflow-auto rounded-xl border border-white/15 bg-[#071713]/95 p-2 shadow-xl"><div className="mb-1 flex items-center justify-between"><div className="text-[9px] font-bold uppercase tracking-wider text-white/55">Replace {xi[swapSlot]?.lastName ?? "player"} · {slots[swapSlot]}</div><button type="button" onClick={() => setSwapSlot(null)} className="rounded px-2 py-1 text-xs text-white/60">Close</button></div>{squad.filter((candidate) => candidate.id !== xi[swapSlot]?.id).sort((a,b) => sandboxPositionOverall(b, slots[swapSlot]) - sandboxPositionOverall(a, slots[swapSlot])).map((candidate) => {
   const natural = tacticalPositionProfile(candidate).primary;
   const effective = sandboxPositionOverall(candidate, slots[swapSlot]);
@@ -445,6 +461,7 @@ function Pitch({
           <div className="flex snap-x gap-2 overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:thin]">
             {sandboxBench.map((player) => {
               const tactical = tacticalPositionProfile(player);
+              const unit = positionUnit(tactical.primary);
               const fitness = playerFitness(player);
               const dragging = draggedPlayerId === player.id;
               const over = dragOverKey === player.id;
@@ -490,16 +507,20 @@ function Pitch({
                     }
                   }}
                   className={cn(
-                    "min-w-[5.2rem] snap-start rounded-xl border border-white/10 bg-white/[0.045] px-2 py-2 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80",
+                    "min-w-[5.2rem] snap-start rounded-xl border px-2 py-2 text-center transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80",
+                    SUB_CARD_TONE[unit],
                     "cursor-grab touch-pan-x active:cursor-grabbing",
                     dragging && "scale-95 opacity-55",
                     over && "ring-2 ring-white/90",
                   )}
                   aria-label={`Move ${playerName(player)}`}
                 >
-                  <div className="mx-auto grid size-10 place-items-center rounded-full border border-white/15 bg-black/25 font-display text-base">{player.currentAbility}</div>
-                  <div className="mt-1 max-w-[4.7rem] truncate font-display text-[11px]">{player.lastName}</div>
-                  <div className="mt-0.5 text-[8px] font-bold text-white/45">NAT {tactical.primary} · {fitness}%</div>
+                  <div className={cn(
+                    "mx-auto grid size-10 place-items-center rounded-full border-2 font-display text-base shadow-sm",
+                    POSITION_PITCH_CLASS[unit],
+                  )}>{player.currentAbility}</div>
+                  <div className="mt-1 max-w-[4.7rem] truncate font-display text-[11px] text-white/95">{player.lastName}</div>
+                  <div className={cn("mt-0.5 text-[8px] font-bold", SUB_TEXT_TONE[unit])}>NAT {tactical.primary} · {fitness}%</div>
                 </button>
               );
             })}
