@@ -181,7 +181,7 @@ export function ScoutingBrowser({
       subtitle={`${rows.length} ${levelLabel.toLowerCase()} options brought to your attention by the football staff`}
       actions={<Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="mr-2 size-4" /> Back</Button>}
       toolbar={toolbar}
-      className="touch-pan-y grid gap-2 xl:grid-cols-2 xl:items-start"
+      className="touch-pan-y grid auto-rows-max content-start gap-2 xl:grid-cols-2 xl:items-start"
     >
       <div className="xl:col-span-2 flex justify-end">
         <Button variant="outline" size="sm" onClick={onNewBrief}><RefreshCw className="mr-2 size-4" /> Set new brief</Button>
