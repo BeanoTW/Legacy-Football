@@ -393,6 +393,7 @@ export type SaveSlotId = (typeof SAVE_SLOT_IDS)[number];
 export interface SaveSlotSummary {
   id: SaveSlotId;
   state: GameState | null;
+  status: "empty" | "ready" | "unreadable";
 }
 
 const slotStores = new Map<SaveSlotId, SaveStore>();
@@ -463,9 +464,11 @@ export function clearGame(slot: SaveSlotId = "slot-1"): Promise<void> {
 export async function listSaveSlots(): Promise<SaveSlotSummary[]> {
   return Promise.all(
     SAVE_SLOT_IDS.map(async (id) => {
+      await pendingSaveWrites.get(id)?.catch(() => undefined);
       const { state, diagnostics } = await storeFor(id).load();
       reportDiagnostics(diagnostics);
-      return { id, state };
+      const unreadable = !state && diagnostics.some((d) => d.level === "error" || d.code === "save/preserved");
+      return { id, state, status: unreadable ? "unreadable" as const : state ? "ready" as const : "empty" as const };
     }),
   );
 }
