@@ -23,10 +23,25 @@ export type HairStyle =
   | "long"
   | "ponytail"
   | "bun"
-  | "waves";
+  | "waves"
+  | "fade"
+  | "textured"
+  | "slickBack"
+  | "curtains"
+  | "spiky"
+  | "mullet"
+  | "manBun"
+  | "waves360"
+  | "afroShort"
+  | "afroFade"
+  | "highTop"
+  | "twists"
+  | "cornrows"
+  | "afroLong"
+  | "locs";
 
 export type FacialHair = "none" | "stubble" | "moustache" | "goatee" | "short" | "full";
-export type Outfit = "suit" | "openCollar" | "quarterZip" | "knit" | "overcoat";
+export type Outfit = "suit" | "openCollar" | "quarterZip" | "knit" | "overcoat" | "waistcoat" | "shirtTie" | "turtleneck" | "polo" | "tracksuit" | "puffer";
 export type Eyewear = "none" | "round" | "rectangle";
 
 export interface ChairmanAvatar {
@@ -83,21 +98,60 @@ export const ACCENT_COLOURS = [
   { id: "#15171a", label: "Black" },
 ] as const;
 
-export const HAIR_STYLES: { id: HairStyle; label: string; for: ChairmanSex[] }[] = [
-  { id: "crop", label: "Crop", for: ["male", "female"] },
-  { id: "sidePart", label: "Side parting", for: ["male", "female"] },
-  { id: "quiff", label: "Quiff", for: ["male"] },
-  { id: "swept", label: "Swept back", for: ["male", "female"] },
-  { id: "curly", label: "Curly", for: ["male", "female"] },
-  { id: "buzz", label: "Buzz cut", for: ["male", "female"] },
-  { id: "receding", label: "Receding", for: ["male"] },
-  { id: "bald", label: "Bald", for: ["male", "female"] },
-  { id: "pixie", label: "Pixie", for: ["female", "male"] },
-  { id: "bob", label: "Bob", for: ["female", "male"] },
-  { id: "long", label: "Long", for: ["female", "male"] },
-  { id: "waves", label: "Waves", for: ["female", "male"] },
-  { id: "ponytail", label: "Ponytail", for: ["female", "male"] },
-  { id: "bun", label: "Bun", for: ["female", "male"] },
+/* Studio-only palette additions: the original four lists are frozen so
+   existing deterministic portraits retain their original colours. */
+export const SKIN_TONES_EXTRA = ["#fbe3d3", "#d69c78", "#b98059", "#3a2117"] as const;
+export const HAIR_COLOURS_EXTRA = [
+  { id: "#0e0d12", label: "Jet black" }, { id: "#d9a97a", label: "Strawberry blonde" },
+  { id: "#f4efe6", label: "White" }, { id: "#f0dfb8", label: "Platinum" },
+] as const;
+export const OUTFIT_COLOURS_EXTRA = [
+  { id: "#2b4f8a", label: "Royal" }, { id: "#7fa9d6", label: "Sky" },
+  { id: "#6d2233", label: "Claret" }, { id: "#e9e3d4", label: "Cream" },
+  { id: "#3f5b3a", label: "Olive" }, { id: "#a24a1f", label: "Rust" },
+] as const;
+export const ACCENT_COLOURS_EXTRA = [
+  { id: "#e3762b", label: "Orange" }, { id: "#62b6e4", label: "Sky blue" },
+  { id: "#d9608f", label: "Pink" }, { id: "#1a9a9a", label: "Teal" },
+  { id: "#7a1f2c", label: "Claret" },
+] as const;
+export const SKIN_TONES_ALL: readonly string[] = [...SKIN_TONES.slice(0,1), SKIN_TONES_EXTRA[0], ...SKIN_TONES.slice(1,3), SKIN_TONES_EXTRA[1], SKIN_TONES[3], SKIN_TONES_EXTRA[2], ...SKIN_TONES.slice(4), SKIN_TONES_EXTRA[3]];
+export const HAIR_COLOURS_ALL: readonly {id:string;label:string}[] = [HAIR_COLOURS_EXTRA[0], ...HAIR_COLOURS.slice(0,6), HAIR_COLOURS_EXTRA[1], ...HAIR_COLOURS.slice(6), HAIR_COLOURS_EXTRA[3], HAIR_COLOURS_EXTRA[2]];
+export const OUTFIT_COLOURS_ALL: readonly {id:string;label:string}[] = [...OUTFIT_COLOURS, ...OUTFIT_COLOURS_EXTRA];
+export const ACCENT_COLOURS_ALL: readonly {id:string;label:string}[] = [...ACCENT_COLOURS, ...ACCENT_COLOURS_EXTRA];
+
+export type HairGroup = "Classic" | "Modern" | "Afro & textured" | "Longer";
+export const HAIR_GROUPS: readonly HairGroup[] = ["Classic", "Modern", "Afro & textured", "Longer"];
+export const HAIR_STYLES: { id: HairStyle; label: string; for: ChairmanSex[]; group: HairGroup }[] = [
+  { id: "crop", label: "Crop", for: ["male","female"], group: "Classic" },
+  { id: "sidePart", label: "Side parting", for: ["male","female"], group: "Classic" },
+  { id: "quiff", label: "Quiff", for: ["male"], group: "Classic" },
+  { id: "swept", label: "Swept back", for: ["male","female"], group: "Classic" },
+  { id: "curly", label: "Curly", for: ["male","female"], group: "Classic" },
+  { id: "buzz", label: "Buzz cut", for: ["male","female"], group: "Classic" },
+  { id: "receding", label: "Receding", for: ["male"], group: "Classic" },
+  { id: "bald", label: "Bald", for: ["male","female"], group: "Classic" },
+  { id: "pixie", label: "Pixie", for: ["female","male"], group: "Classic" },
+  { id: "bob", label: "Bob", for: ["female","male"], group: "Longer" },
+  { id: "long", label: "Long", for: ["female","male"], group: "Longer" },
+  { id: "waves", label: "Waves", for: ["female","male"], group: "Longer" },
+  { id: "ponytail", label: "Ponytail", for: ["female","male"], group: "Longer" },
+  { id: "bun", label: "Bun", for: ["female","male"], group: "Longer" },
+  { id: "fade", label: "Skin fade", for: ["male","female"], group: "Modern" },
+  { id: "textured", label: "Textured fringe", for: ["male","female"], group: "Modern" },
+  { id: "slickBack", label: "Slicked back", for: ["male","female"], group: "Modern" },
+  { id: "curtains", label: "Curtains", for: ["male","female"], group: "Modern" },
+  { id: "spiky", label: "Spiky", for: ["male"], group: "Modern" },
+  { id: "mullet", label: "Mullet", for: ["male","female"], group: "Modern" },
+  { id: "manBun", label: "Top knot", for: ["male","female"], group: "Modern" },
+  { id: "waves360", label: "360 waves", for: ["male","female"], group: "Afro & textured" },
+  { id: "afroShort", label: "Short afro", for: ["male","female"], group: "Afro & textured" },
+  { id: "afroFade", label: "Afro fade", for: ["male","female"], group: "Afro & textured" },
+  { id: "highTop", label: "High-top", for: ["male","female"], group: "Afro & textured" },
+  { id: "twists", label: "Twists", for: ["male","female"], group: "Afro & textured" },
+  { id: "cornrows", label: "Cornrows", for: ["male","female"], group: "Afro & textured" },
+  { id: "afroLong", label: "Big afro", for: ["female","male"], group: "Afro & textured" },
+  { id: "locs", label: "Locs", for: ["male","female"], group: "Afro & textured" },
 ];
 
 export const FACIAL_HAIR: { id: FacialHair; label: string }[] = [
@@ -111,9 +165,15 @@ export const FACIAL_HAIR: { id: FacialHair; label: string }[] = [
 
 export const OUTFITS: { id: Outfit; label: string }[] = [
   { id: "suit", label: "Suit & tie" },
+  { id: "waistcoat", label: "Three-piece" },
   { id: "openCollar", label: "Blazer, open collar" },
+  { id: "turtleneck", label: "Blazer & roll-neck" },
+  { id: "shirtTie", label: "Shirt & tie" },
   { id: "overcoat", label: "Overcoat & scarf" },
+  { id: "puffer", label: "Touchline coat" },
   { id: "quarterZip", label: "Club quarter-zip" },
+  { id: "tracksuit", label: "Club tracksuit" },
+  { id: "polo", label: "Club polo" },
   { id: "knit", label: "Knitted jumper" },
 ];
 

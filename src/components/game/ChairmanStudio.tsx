@@ -6,14 +6,15 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { cn } from "@/lib/utils";
 import { hashString } from "@/lib/game/rng";
 import {
-  ACCENT_COLOURS,
+  ACCENT_COLOURS_ALL,
   EYEWEAR,
   FACIAL_HAIR,
-  HAIR_COLOURS,
+  HAIR_COLOURS_ALL,
   HAIR_STYLES,
+  HAIR_GROUPS,
   OUTFITS,
-  OUTFIT_COLOURS,
-  SKIN_TONES,
+  OUTFIT_COLOURS_ALL,
+  SKIN_TONES_ALL,
   loadChairmanProfile,
   onChairmanProfileChange,
   saveChairmanProfile,
@@ -86,18 +87,18 @@ export function randomAvatar(current: ChairmanAvatar, nonce: number): ChairmanAv
   const pick = <T,>(label: string, items: readonly T[]) =>
     items[(hashString(`${base}|${nonce}|${label}`) >>> 0) % items.length];
   // Deterministic per click: varied without introducing uncontrolled UI randomness.
-  const shortMaleStyles = new Set(["buzz", "crop", "sidePart", "swept", "curly", "receding", "bald"]);
+  const shortMaleStyles = new Set(["buzz", "crop", "sidePart", "swept", "curly", "receding", "bald", "fade", "textured", "slickBack", "curtains", "waves360", "afroShort", "afroFade", "twists", "cornrows"]);
   const hairOptions = HAIR_STYLES.filter((style) => style.for[0] === current.sex && (current.sex !== "male" || shortMaleStyles.has(style.id)));
   const eyewearRoll = (hashString(`${base}|${nonce}|eyewear-roll`) >>> 0) % 4;
   return {
     ...current,
-    skin: pick("skin", SKIN_TONES),
+    skin: pick("skin", SKIN_TONES_ALL),
     hair: pick("hair", hairOptions).id,
-    hairColour: pick("hair-colour", HAIR_COLOURS).id,
+    hairColour: pick("hair-colour", HAIR_COLOURS_ALL).id,
     facialHair: current.sex === "female" ? "none" : pick("facial-hair", FACIAL_HAIR).id,
     outfit: pick("outfit", OUTFITS).id,
-    outfitColour: pick("outfit-colour", OUTFIT_COLOURS).id,
-    accentColour: pick("accent-colour", ACCENT_COLOURS).id,
+    outfitColour: pick("outfit-colour", OUTFIT_COLOURS_ALL).id,
+    accentColour: pick("accent-colour", ACCENT_COLOURS_ALL).id,
     eyewear: eyewearRoll === 0 ? pick("eyewear", EYEWEAR.slice(1)).id : "none",
   };
 }
@@ -106,16 +107,29 @@ export function AvatarAppearanceOptions({ avatar, onChange }: {
   avatar: ChairmanAvatar;
   onChange: (patch: Partial<ChairmanAvatar>) => void;
 }) {
-  const hairStyles = [...HAIR_STYLES].sort((a, b) => Number(b.for[0] === avatar.sex) - Number(a.for[0] === avatar.sex));
+  const hairFor = (group: (typeof HAIR_GROUPS)[number]) =>
+    HAIR_STYLES.filter((style) => style.group === group).sort(
+      (a,b) => Number(b.for[0] === avatar.sex) - Number(a.for[0] === avatar.sex),
+    );
   return (
     <div className="lf-studio-options">
-      <StudioRow title="Skin"><Swatches label="Skin tone" colours={SKIN_TONES} value={avatar.skin} onChange={(skin) => onChange({ skin })} /></StudioRow>
-      <StudioRow title="Hair"><Chips label="Hair style" options={hairStyles} value={avatar.hair} onChange={(hair) => onChange({ hair })} /></StudioRow>
-      <StudioRow title="Hair colour"><Swatches label="Hair colour" colours={HAIR_COLOURS.map((item) => item.id)} value={avatar.hairColour} onChange={(hairColour) => onChange({ hairColour })} /></StudioRow>
+      <StudioRow title="Skin"><Swatches label="Skin tone" colours={SKIN_TONES_ALL} value={avatar.skin} onChange={(skin) => onChange({ skin })} /></StudioRow>
+      <StudioRow title="Hair">
+        <div className="space-y-2">
+          {HAIR_GROUPS.map((group) => (
+            <div key={group}>
+              <div className="mb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{group}</div>
+              <Chips label={`${group} hair styles`} options={hairFor(group)}
+                value={avatar.hair} onChange={(hair) => onChange({ hair })} />
+            </div>
+          ))}
+        </div>
+      </StudioRow>
+      <StudioRow title="Hair colour"><Swatches label="Hair colour" colours={HAIR_COLOURS_ALL.map((item) => item.id)} value={avatar.hairColour} onChange={(hairColour) => onChange({ hairColour })} /></StudioRow>
       <StudioRow title="Facial hair"><Chips label="Facial hair" options={FACIAL_HAIR} value={avatar.facialHair} onChange={(facialHair) => onChange({ facialHair })} /></StudioRow>
       <StudioRow title="Outfit"><Chips label="Outfit" options={OUTFITS} value={avatar.outfit} onChange={(outfit) => onChange({ outfit })} /></StudioRow>
-      <StudioRow title="Outfit colour"><Swatches label="Outfit colour" colours={OUTFIT_COLOURS.map((item) => item.id)} value={avatar.outfitColour} onChange={(outfitColour) => onChange({ outfitColour })} /></StudioRow>
-      <StudioRow title="Tie, scarf & trim"><Swatches label="Accent colour" colours={ACCENT_COLOURS.map((item) => item.id)} value={avatar.accentColour} onChange={(accentColour) => onChange({ accentColour })} /></StudioRow>
+      <StudioRow title="Outfit colour"><Swatches label="Outfit colour" colours={OUTFIT_COLOURS_ALL.map((item) => item.id)} value={avatar.outfitColour} onChange={(outfitColour) => onChange({ outfitColour })} /></StudioRow>
+      <StudioRow title="Tie, scarf & trim"><Swatches label="Accent colour" colours={ACCENT_COLOURS_ALL.map((item) => item.id)} value={avatar.accentColour} onChange={(accentColour) => onChange({ accentColour })} /></StudioRow>
       <StudioRow title="Glasses"><Chips label="Glasses" options={EYEWEAR} value={avatar.eyewear} onChange={(eyewear) => onChange({ eyewear })} /></StudioRow>
     </div>
   );
