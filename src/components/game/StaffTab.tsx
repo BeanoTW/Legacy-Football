@@ -148,7 +148,7 @@ function StaffCard({state,staff,terms,onAction,onRenew,action,affordable=true}: 
   onAction:()=>void;onRenew?:()=>void;action:"hire"|"release";affordable?:boolean;
 }) {
   const [portraitEditing,setPortraitEditing] = useState(false);
-  const displayName = useCharacterName(staff.id, displayName);
+  const displayName = useCharacterName(staff.id, staff.name);
   const manager = staff.role === "Manager";
   const contractLabel = staff.contractWeeks <= 52 ? "Final season" : `${Math.ceil(staff.contractWeeks / 52)} seasons left`;
   const identity = manager ? managerFootballIdentity(staff) : null;
@@ -208,7 +208,7 @@ function StaffCard({state,staff,terms,onAction,onRenew,action,affordable=true}: 
         {onRenew && staff.contractWeeks <= 52 && <Button size="sm" onClick={onRenew} className="h-8 flex-1">Renew</Button>}
       </>}
     </div>
-    <CharacterPortraitStudio identity={{id:staff.id,subject:manager?"manager":"staff"}} name={displayName}
+    <CharacterPortraitStudio identity={{id:staff.id,subject:manager?"manager":"staff"}} name={staff.name}
       open={portraitEditing} onOpenChange={setPortraitEditing} />
   </div>;
 }
