@@ -3,6 +3,7 @@ import { Inbox as InboxIcon, Newspaper, Pencil } from "lucide-react";
 import type { GameState } from "@/lib/game/types";
 import { unreadCount, requiresInboxDecision } from "@/lib/game/inbox";
 import { newsFeed } from "@/lib/game/newsFeed";
+import type { InboxDestination } from "@/lib/game/inboxNavigation";
 import { cn } from "@/lib/utils";
 import { InboxTab } from "./InboxTab";
 import { NewsFeed } from "./NewsFeed";
@@ -16,11 +17,13 @@ export function ChairmansOffice({
   update,
   decisionQueue = false,
   onDecisionQueueCleared,
+  onNavigate,
 }: {
   state: GameState;
   update: (fn: (s: GameState) => GameState) => void;
   decisionQueue?: boolean;
   onDecisionQueueCleared?: () => void;
+  onNavigate?: (destination: InboxDestination) => void;
 }) {
   const [view, setView] = useState<OfficeView>("desk");
   const [studioOpen, setStudioOpen] = useState(false);
@@ -104,6 +107,7 @@ export function ChairmansOffice({
             update={update}
             decisionQueue={decisionQueue}
             onDecisionQueueCleared={onDecisionQueueCleared}
+            onNavigate={onNavigate}
           />
         </div>
       ) : (
