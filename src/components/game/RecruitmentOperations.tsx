@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import type { GameState } from "@/lib/game/types";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { fmtMoney, fmtMoneyExact } from "@/lib/game/engine";
 import { playerAttributes } from "@/lib/game/scouting";
 import {
@@ -22,6 +23,8 @@ import { clubOperatingModel, contractEmploymentType } from "@/lib/game/employmen
 import { tacticalPositionProfile } from "@/lib/game/positions";
 import { TransferNegotiationDesk } from "./TransferNegotiationDesk";
 import { TacticalPlayerCard } from "./shared/TacticalPlayerCard";
+
+const POSITION_TITLE = { GK: "Goalkeepers", DEF: "Defenders", MID: "Midfielders", FWD: "Forwards" } as const;
 
 const employmentLabel = (value: "PartTime" | "FullTime") =>
   value === "PartTime" ? "Part-time" : "Full-time";
@@ -93,20 +96,12 @@ export function RecruitmentOperations({
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
-      <div className="grid shrink-0 grid-cols-2 gap-2" aria-label="Recruitment view">
-        <Button variant={view === "squad" ? "default" : "outline"} onClick={() => setView("squad")}>
-          Your squad
-        </Button>
-        <Button variant={view === "deals" ? "default" : "outline"} onClick={() => setView("deals")}>
-          Negotiations ({deals.length})
-        </Button>
+    <div className="lf-recruitment-ops flex h-full min-h-0 flex-col gap-2 overflow-hidden">
+      <div className="lf-segmented grid shrink-0 grid-cols-2" role="tablist" aria-label="Recruitment view">
+        <button type="button" role="tab" aria-selected={view === "squad"} className={cn(view === "squad" && "is-active")} onClick={() => setView("squad")}>Your squad</button>
+        <button type="button" role="tab" aria-selected={view === "deals"} className={cn(view === "deals" && "is-active")} onClick={() => setView("deals")}>Negotiations {deals.length > 0 && <b>{deals.length}</b>}</button>
       </div>
-      {actionNote && (
-        <div className="shrink-0 truncate rounded-xl border bg-muted/40 px-4 py-2 text-sm">
-          {actionNote}
-        </div>
-      )}
+      {actionNote && <div className="shrink-0 truncate rounded-lg border bg-muted/40 px-3 py-1.5 text-xs">{actionNote}</div>}
       <div
         className={
           view === "deals"
@@ -121,58 +116,37 @@ export function RecruitmentOperations({
             onBack={() => setSelectedPlayerId(null)}
           />
         ) : view === "squad" ? (
-          <div className="space-y-3">
-            <div className="rounded-xl border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-              Select a player to view abilities, profile and contract details.
-            </div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="space-y-2">
+            <div className="lf-metric-strip grid grid-cols-4 divide-x overflow-hidden rounded-xl border bg-card text-center">
               <PlanningMetric label="Squad" value={String(squad.length)} />
-              <PlanningMetric
-                label="Expiring"
-                value={String(expiringCount)}
-                urgent={expiringCount > 0}
-              />
+              <PlanningMetric label="Expiring" value={String(expiringCount)} urgent={expiringCount > 0} />
               <PlanningMetric label="Wages" value={`${fmtMoney(userWageBill(state))}/wk`} />
-              <PlanningMetric label="Club model" value={clubEmployment} />
+              <PlanningMetric label="Model" value={clubEmployment} />
             </div>
-            {positionNeeds.length > 0 && (
-              <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
-                <strong>Depth warning:</strong> recruitment cover recommended at{" "}
-                {positionNeeds.join(", ")}.
-              </div>
-            )}
-            <div className="grid grid-cols-3 gap-2">
+            {positionNeeds.length > 0 && <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs"><strong>Depth:</strong> cover recommended at {positionNeeds.join(", ")}.</div>}
+            <div className="flex items-center gap-1.5" role="group" aria-label="Sort squad">
+              <span className="mr-0.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Sort</span>
               {(["position", "contracts", "wages"] as const).map((lens) => (
-                <Button
-                  key={lens}
-                  size="sm"
-                  variant={squadLens === lens ? "default" : "outline"}
-                  onClick={() => setSquadLens(lens)}
-                  className="capitalize"
-                >
-                  {lens}
-                </Button>
+                <button key={lens} type="button" onClick={() => setSquadLens(lens)}
+                  className={cn("lf-chip capitalize", squadLens === lens && "is-active")}>{lens}</button>
               ))}
             </div>
-            {squadLens === "position" ? (
-              positionGroups.map(({ position, players }) =>
-                players.length ? (
-                  <section key={position} className="overflow-hidden rounded-2xl border bg-card">
-                    <div className="border-b bg-muted/40 px-4 py-2 text-xs font-bold uppercase tracking-wider">
-                      {position} · {players.length}
-                    </div>
-                    <div className="divide-y">{players.map(playerRow)}</div>
-                  </section>
-                ) : null,
-              )
-            ) : (
-              <section className="overflow-hidden rounded-2xl border bg-card">
-                <div className="border-b bg-muted/40 px-4 py-2 text-xs font-bold uppercase tracking-wider">
-                  {squadLens === "contracts" ? "Shortest contracts first" : "Highest wages first"}
+            <section className="overflow-hidden rounded-xl border bg-card">
+              {squadLens === "position" ? positionGroups.map(({ position, players }) => players.length ? (
+                <div key={position}>
+                  <div className="lf-group-heading"><span>{POSITION_TITLE[position]}</span><span>{players.length}</span></div>
+                  <div className="divide-y">{players.map(playerRow)}</div>
                 </div>
-                <div className="divide-y">{lensPlayers.map(({ player }) => playerRow(player))}</div>
-              </section>
-            )}
+              ) : null) : (
+                <>
+                  <div className="lf-group-heading">
+                    <span>{squadLens === "contracts" ? "Shortest contracts first" : "Highest wages first"}</span>
+                    <span>{lensPlayers.length}</span>
+                  </div>
+                  <div className="divide-y">{lensPlayers.map(({ player }) => playerRow(player))}</div>
+                </>
+              )}
+            </section>
           </div>
         ) : (
           <TransferNegotiationDesk state={state} deals={deals} act={act} />
@@ -204,30 +178,30 @@ function PlayerProfile({
     ? Math.max(0, loan.endAbsoluteWeek - absoluteWeek(state.season, state.week))
     : null;
   return (
-    <div className="space-y-4">
-      <Button variant="ghost" onClick={onBack}>
-        <ArrowLeft className="mr-2 size-4" /> Back to squad
+    <div className="space-y-2">
+      <Button variant="ghost" size="sm" className="-ml-2" onClick={onBack}>
+        <ArrowLeft className="mr-1.5 size-4" /> Squad
       </Button>
-      <section className="overflow-hidden rounded-2xl border bg-card">
-        <div className="panel-strip p-5">
-          <div className="flex items-start justify-between gap-4">
+      <section className="overflow-hidden rounded-xl border bg-card">
+        <div className="panel-strip px-3 py-2.5">
+          <div className="flex items-center justify-between gap-3">
             <div>
-              <div className="font-display text-3xl">{playerName(player)}</div>
-              <div className="mt-1 text-sm opacity-80">
+              <div className="truncate font-display text-2xl leading-tight">{playerName(player)}</div>
+              <div className="text-xs opacity-80">
                 {tacticalPositionProfile(player).primary} · Age {ageOf(player, state.season)} · {player.nationality}
               </div>
             </div>
-            <div className="rounded-xl bg-black/20 px-3 py-2 text-center">
-              <div className="text-[10px] uppercase opacity-70">Overall</div>
-              <div className="font-display text-3xl">{player.currentAbility}</div>
+            <div className="shrink-0 rounded-lg bg-black/20 px-2.5 py-1 text-center">
+              <div className="text-[8px] uppercase tracking-wider opacity-70">Overall</div>
+              <div className="font-display text-2xl leading-none">{player.currentAbility}</div>
             </div>
           </div>
         </div>
-        <div className="p-5">
-          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4 lg:grid-cols-7">
+        <div className="p-2.5">
+          <div className="grid grid-cols-3 gap-1.5 text-xs sm:grid-cols-4 lg:grid-cols-7">
             <ProfileFact label="Value" value={fmtMoney(player.marketValue)} />
             <ProfileFact
-              label={loan ? "Our wage share" : "Wage"}
+              label={loan ? "Our share" : "Wage"}
               value={contract ? `${fmtMoneyExact(displayedWage)}/wk` : "—"}
             />
             <ProfileFact
@@ -236,23 +210,23 @@ function PlayerProfile({
             />
             {loan ? (
               <ProfileFact
-                label="Loan status"
-                value={`From ${clubDisplayName(state, loan.parentClubId)} · ${loanWeeks}w left`}
+                label="Loan"
+                value={`${clubDisplayName(state, loan.parentClubId)} · ${loanWeeks}w`}
               />
             ) : (
               <ProfileFact label="Employment" value={employment} />
             )}
-            <ProfileFact label="Preferred foot" value={player.preferredFoot} />
+            <ProfileFact label="Foot" value={player.preferredFoot} />
             <ProfileFact label="Personality" value={player.personality} />
             <ProfileFact label="Mood" value={mood.label} />
           </div>
-          <div className={`mt-3 rounded-xl px-3 py-2 text-xs ${MOOD_TONE_CLASS[mood.tone]}`}>{mood.detail}</div>
-          <h3 className="mt-6 font-display text-xl">Abilities</h3>
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <div className={`mt-2 rounded-lg px-2.5 py-1.5 text-[11px] ${MOOD_TONE_CLASS[mood.tone]}`}>{mood.detail}</div>
+          <h3 className="mt-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Abilities</h3>
+          <div className="mt-1.5 grid grid-cols-3 gap-1.5 sm:grid-cols-5">
             {Object.entries(attrs).map(([key, value]) => (
-              <div key={key} className="rounded-xl bg-muted/50 p-3">
-                <div className="text-[10px] uppercase text-muted-foreground">{key}</div>
-                <div className="font-display text-2xl tabular-nums">{value}</div>
+              <div key={key} className="rounded-lg bg-muted/50 px-2 py-1.5">
+                <div className="truncate text-[9px] uppercase text-muted-foreground">{key}</div>
+                <div className="font-display text-xl leading-tight tabular-nums">{value}</div>
               </div>
             ))}
           </div>
@@ -263,29 +237,14 @@ function PlayerProfile({
 }
 
 function ProfileFact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl bg-muted/40 p-3">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="mt-1 font-semibold">{value}</div>
-    </div>
-  );
+  return <div className="min-w-0 rounded-lg bg-muted/40 px-2 py-1.5">
+    <div className="truncate text-[9px] uppercase tracking-wide text-muted-foreground">{label}</div>
+    <div className="truncate font-semibold">{value}</div>
+  </div>;
 }
-
-function PlanningMetric({
-  label,
-  value,
-  urgent = false,
-}: {
-  label: string;
-  value: string;
-  urgent?: boolean;
-}) {
-  return (
-    <div className="rounded-xl border bg-card p-3 text-center">
-      <div className={urgent ? "font-display text-xl text-amber-600" : "font-display text-xl"}>
-        {value}
-      </div>
-      <div className="text-xs text-muted-foreground">{label}</div>
-    </div>
-  );
+function PlanningMetric({ label, value, urgent = false }: { label: string; value: string; urgent?: boolean }) {
+  return <div className="min-w-0 px-1 py-1.5">
+    <div className={cn("truncate font-display text-base leading-tight", urgent && "text-amber-600 dark:text-amber-300")}>{value}</div>
+    <div className="truncate text-[9px] uppercase tracking-wider text-muted-foreground">{label}</div>
+  </div>;
 }

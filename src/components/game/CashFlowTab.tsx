@@ -16,7 +16,7 @@ import { financialHealth, recommendedReserve } from "@/lib/game/sustainability";
 import { Button } from "@/components/ui/button";
 import { Section } from "./shared/primitives";
 import { DetailScreen, OverviewScreen, WorkflowTile } from "./shared/layout";
-import { FinancialHealthPanel } from "./DashboardTab";
+import { FinancialHealthPanel } from "./FinancialHealthPanel";
 
 type FinanceView = "home" | "health" | "income" | "expenses";
 
@@ -162,36 +162,6 @@ export function CashFlowTab({ state }: { state: GameState }) {
         />
       </div>
     </OverviewScreen>
-  );
-}
-
-function FinanceAction({
-  icon,
-  title,
-  value,
-  sub,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  value: string;
-  sub: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="min-h-32 rounded-2xl border bg-card p-4 text-left flex flex-col justify-between hover:border-primary/50 transition-colors"
-    >
-      <div className="size-11 rounded-xl bg-primary/10 text-primary grid place-items-center">
-        {icon}
-      </div>
-      <div className="mt-4">
-        <div className="text-sm font-semibold text-muted-foreground">{title}</div>
-        <div className="font-display text-2xl leading-tight mt-0.5">{value}</div>
-        <div className="text-xs text-muted-foreground mt-1">{sub}</div>
-      </div>
-    </button>
   );
 }
 
