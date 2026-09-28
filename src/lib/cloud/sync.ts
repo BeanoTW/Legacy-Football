@@ -136,7 +136,8 @@ export async function syncAllCareers(resolution: SyncConflictResolution = "auto"
   }
   if (conflicts.length && resolution === "auto") throw new CareerSyncConflict(conflicts);
 
-  // Reject incompatible cloud data before any local or remote write begins.
+  // Validate and migrate every incoming cloud career before any write begins.
+  const preparedDownloads = new Map<SaveSlotId, GameState>();
   for (const { slot, cloud, action } of plan) {
     const effective = action === "conflict"
       ? resolution === "keep-cloud" ? "download" : "upload"
@@ -146,7 +147,7 @@ export async function syncAllCareers(resolution: SyncConflictResolution = "auto"
       throw new Error(`Cloud career ${slot} requires a newer or valid game version. No careers were overwritten.`);
     }
     try {
-      migrateSave(structuredClone(cloud.state) as unknown as Record<string, unknown>);
+      preparedDownloads.set(slot, migrateSave(structuredClone(cloud.state) as unknown as Record<string, unknown>));
     } catch (error) {
       throw new Error(`Cloud career ${slot} failed validation: ${(error as Error).message}. No careers were overwritten.`);
     }
@@ -165,7 +166,9 @@ export async function syncAllCareers(resolution: SyncConflictResolution = "auto"
       continue;
     }
     if (effective === "download" && cloud) {
-      await saveGame(cloud.state, slot);
+      const migrated = preparedDownloads.get(slot);
+      if (!migrated) throw new Error(`Cloud career ${slot} has not passed validation.`);
+      await saveGame(migrated, slot);
       localStorage.setItem(`${MODIFIED_PREFIX}${slot}`, cloud.state_updated_at);
       downloaded++;
       continue;
