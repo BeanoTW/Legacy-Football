@@ -1,11 +1,13 @@
 import type { FootballPlayer, GameState, MatchLineupPlayer, TacticalPosition } from "./types";
 import { managerFootballIdentity, type ManagerFormation } from "./managerIdentity";
-import { MANAGER_FORMATION_SLOTS } from "./managerFormationLayout";
-import { positionFamiliarity, positionUnit } from "./positions";
+import { MANAGER_FORMATION_SLOTS, resolveManagerFormation } from "./managerFormationLayout";
+import { POSITION_EFFECTIVENESS, positionFamiliarity, positionUnit } from "./positions";
 import { isUserClubReference, sameClubReference } from "./clubReference";
 import { playerRegisteredClubId } from "./playerRegistration";
 import { playerFitness, playerIsAvailable } from "./playerHealth";
 import { playerRecentForm } from "./playerForm";
+import { aiClubManagerSetup } from "./aiClubManager";
+import "./formationTactics";
 
 const playerName = (player: FootballPlayer) => `${player.firstName} ${player.lastName}`;
 
@@ -94,11 +96,18 @@ export function userMatchLineup(
   );
 }
 
-export function opponentMatchLineup(state: GameState, opponent: string): MatchLineupPlayer[] {
+export function opponentMatchLineup(
+  state: GameState,
+  opponent: string,
+  formation?: ManagerFormation | string,
+): MatchLineupPlayer[] {
   const players = state.football.players.filter((player) =>
     sameClubReference(state, playerRegisteredClubId(player), opponent),
   );
-  return selectForRoles(state, players, MANAGER_FORMATION_SLOTS["4-4-2"], [], 0.16);
+  const setup = aiClubManagerSetup(state, opponent);
+  const shape = formation ? resolveManagerFormation(formation) : setup.formation;
+  const fitnessWeight = setup.identity.rotation === "High" ? 0.28 : setup.identity.rotation === "Low" ? 0.08 : 0.16;
+  return selectForRoles(state, players, MANAGER_FORMATION_SLOTS[shape], [], fitnessWeight);
 }
 
 
@@ -146,4 +155,17 @@ export function opponentMatchBench(
     sameClubReference(state, playerRegisteredClubId(player), opponent),
   );
   return benchFromPlayers(state, players, lineup);
+}
+
+
+/** Mean positional effectiveness of an XI in its assigned tactical slots. */
+export function lineupShapeSuitability(state: GameState, lineup: MatchLineupPlayer[]): number {
+  const byId = new Map(state.football.players.map((player) => [player.id, player]));
+  const outfield = lineup.filter((player) => player.role !== "GK");
+  if (!outfield.length) return 0.85;
+  const total = outfield.reduce((sum, slot) => {
+    const player = byId.get(slot.playerId);
+    return sum + (player ? POSITION_EFFECTIVENESS[positionFamiliarity(player, slot.role)] : 0.85);
+  }, 0);
+  return total / outfield.length;
 }

@@ -144,6 +144,8 @@ export function kickoff(s: GameState): GameState {
     userBench: lm.engine?.userBench,
     opponentBench: lm.engine?.opponentBench,
     substitutions: lm.engine?.substitutions,
+    userPlan: lm.engine?.userPlan,
+    opponentPlan: lm.engine?.opponentPlan,
   });
   const { usGoals, themGoals } = half.snapshot;
   lm.events = half.events;
@@ -230,6 +232,8 @@ export function applyHalfTimeChoice(s: GameState, choiceId: string): GameState {
     userBench: lm.engine?.userBench,
     opponentBench: lm.engine?.opponentBench,
     substitutions: lm.engine?.substitutions,
+    userPlan: lm.engine?.userPlan,
+    opponentPlan: lm.engine?.opponentPlan,
   });
   const { usGoals, themGoals } = half.snapshot;
   lm.events = [...lm.events, ...managementEvents, ...half.events].sort(
