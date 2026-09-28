@@ -35,7 +35,7 @@ import { dynamicOverall } from "@/lib/game/playerOverall";
 import { playerAttributeIdentity } from "@/lib/game/playerAttributeIdentity";
 import { CharacterPortrait } from "../CharacterPortrait";
 import { CharacterPortraitStudio } from "../CharacterPortraitStudio";
-import { useCharacterName } from "../useCharacterName";
+import { useCharacterName } from "@/hooks/useCharacterName";
 
 const PLAYER_PROFILE_EVENT = "legacy-football:open-player-profile";
 
