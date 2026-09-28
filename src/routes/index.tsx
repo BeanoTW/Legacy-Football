@@ -79,7 +79,7 @@ function Page() {
         </div>
       )}
       {game.cloudError && (
-        <div role="status" className="fixed inset-x-3 bottom-[calc(5.25rem+env(safe-area-inset-bottom))] z-[99] mx-auto max-w-xl rounded-xl border border-amber-500 bg-amber-950 p-3 text-sm font-semibold text-amber-50 shadow-xl">
+        <div role="status" className={cn("fixed inset-x-3 z-[99] mx-auto max-w-xl rounded-xl border border-amber-500 bg-amber-950 p-3 text-sm font-semibold text-amber-50 shadow-xl", game.saveError ? "bottom-[calc(10rem+env(safe-area-inset-bottom))]" : "bottom-[calc(5.25rem+env(safe-area-inset-bottom))]")}> 
           {game.cloudError} Your local career is saved on this device; use Settings to retry sync.
         </div>
       )}
