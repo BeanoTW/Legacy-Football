@@ -27,6 +27,7 @@ import {
   X,
 } from "lucide-react";
 import type { GameState, InboxItem, InboxCategory, InboxDepartment } from "@/lib/game/types";
+import { inboxDestination, type InboxDestination } from "@/lib/game/inboxNavigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -243,11 +244,13 @@ export function InboxTab({
   update,
   decisionQueue = false,
   onDecisionQueueCleared,
+  onNavigate,
 }: {
   state: GameState;
   update: (fn: (s: GameState) => GameState) => void;
   decisionQueue?: boolean;
   onDecisionQueueCleared?: () => void;
+  onNavigate?: (destination: InboxDestination) => void;
 }) {
   const [filter, setFilter] = useState<InboxFilter>("all");
   const [category, setCategory] = useState<InboxCategory | "any">("any");
@@ -407,6 +410,7 @@ export function InboxTab({
           onChoose={(choiceId) => { update((current) => handleInboxChoice(current, open.id, choiceId)); setOpenId(null); }}
           onDismiss={() => { update((current) => dismissInboxItem(current, open.id)); setOpenId(null); }}
           onDelete={() => { update((current) => deleteInboxItem(current, open.id)); setOpenId(null); }}
+          onNavigate={onNavigate ? (destination) => { setOpenId(null); onNavigate(destination); } : undefined}
         />
       )}
     </div>
@@ -449,7 +453,7 @@ function InboxRow({ item, state, onOpen, conversationCount }: { item: InboxItem;
   );
 }
 
-export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelete }: { item: InboxItem; state: GameState; onClose: () => void; onChoose: (choiceId: string) => void; onDismiss: () => void; onDelete: () => void }) {
+export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelete, onNavigate }: { item: InboxItem; state: GameState; onClose: () => void; onChoose: (choiceId: string) => void; onDismiss: () => void; onDelete: () => void; onNavigate?: (destination: InboxDestination) => void }) {
   const decision = requiresInboxDecision(item);
   const conversation = inboxConversationItems(state.inbox, item);
   const hasConversation = conversation.length > 1;
@@ -459,6 +463,7 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
   const DepartmentIcon = department.icon;
   const currentMessage = conversation.find((message) => message.id === item.id) ?? item;
   const earlierConversation = conversation.filter((message) => message.id !== item.id);
+  const destination = inboxDestination(state, item);
 
   return (
     <Sheet open onOpenChange={(value) => !value && onClose()}>
@@ -500,6 +505,12 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
               <div className="lf-briefing-section-title"><Megaphone /> Club briefing</div>
               <BriefingBody body={item.body} department={item.department} />
             </article>
+          )}
+
+          {destination && onNavigate && (
+            <Button type="button" variant="outline" className="mb-3 w-full justify-between" onClick={() => onNavigate(destination)}>
+              {destination.label} <ChevronRight className="size-4" />
+            </Button>
           )}
 
           {item.reward && (

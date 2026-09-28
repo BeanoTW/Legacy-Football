@@ -58,11 +58,13 @@ export function ScoutingBrowser({
   update,
   onBack,
   onNewBrief,
+  initialBriefId,
 }: {
   state: GameState;
   update: (fn: (s: GameState) => GameState) => void;
   onBack: () => void;
   onNewBrief: () => void;
+  initialBriefId?: string;
 }) {
   const [note, setNote] = useState<string | null>(null);
   const [loanTargetId, setLoanTargetId] = useState<string | null>(null);
@@ -70,7 +72,7 @@ export function ScoutingBrowser({
   const [loanContribution, setLoanContribution] = useState(50);
   const [loanRole, setLoanRole] = useState<LoanPlayingTimeExpectation>("Regular");
 
-  const brief = newestBrief(state);
+  const brief = (initialBriefId ? state.football?.scoutingDiscovery?.briefs.find((candidate) => candidate.id === initialBriefId) : null) ?? newestBrief(state);
   const loanWindowOpen = isTransferWindowOpen(state);
   const loanWindow = windowStatus(state);
 
