@@ -174,7 +174,7 @@ export function NewsFeed({ state }: { state: GameState }) {
           </button>
         ))}
       </div>
-      <div className="lf-news-stream contained-scroll touch-pan-y">
+      <div className="lf-news-stream touch-pan-y">
         {visible.length === 0 ? (
           <div className="lf-inbox-empty">
             <Newspaper />
