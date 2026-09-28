@@ -132,7 +132,7 @@ function Directors({ state }: { state: GameState }) {
 
 function DirectorCard({ state, d }: { state: GameState; d: Director }) {
   const [portraitEditing, setPortraitEditing] = useState(false);
-  const displayName = useCharacterName(d.id, displayName);
+  const displayName = useCharacterName(d.id, d.name);
   const satisfaction = directorSatisfaction(state, d);
   const concern = directorConcern(state, d);
   const band = confidenceBand(d.confidence);
@@ -182,7 +182,7 @@ function DirectorCard({ state, d }: { state: GameState; d: Director }) {
         <summary className="cursor-pointer text-[11px] font-semibold text-primary">Background</summary>
         <p className="mt-1 text-[11px] leading-snug text-muted-foreground">{d.bio}</p>
       </details>
-      <CharacterPortraitStudio identity={{ id: d.id, subject: "board" }} name={displayName}
+      <CharacterPortraitStudio identity={{ id: d.id, subject: "board" }} name={d.name}
         open={portraitEditing} onOpenChange={setPortraitEditing} />
     </div>
   );
