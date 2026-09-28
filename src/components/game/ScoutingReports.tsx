@@ -69,7 +69,7 @@ export function ScoutingReports({
           <ArrowLeft className="mr-2 size-4" /> Back
         </Button>
       }
-      className="touch-pan-y grid gap-1.5 xl:grid-cols-2 xl:items-start"
+      className="touch-pan-y grid auto-rows-max content-start gap-1.5 xl:grid-cols-2 xl:items-start"
     >
       {assignments.length === 0 && (
         <div className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">

@@ -508,7 +508,7 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
           )}
 
           {destination && onNavigate && (
-            <Button type="button" variant="outline" className="mb-3 w-full justify-between" onClick={() => onNavigate(destination)}>
+            <Button type="button" className="mb-3 w-full justify-between bg-emerald-300 text-emerald-950 hover:bg-emerald-200 hover:text-emerald-950" onClick={() => onNavigate(destination)}>
               {destination.label} <ChevronRight className="size-4" />
             </Button>
           )}
