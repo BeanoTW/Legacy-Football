@@ -393,6 +393,7 @@ export type SaveSlotId = (typeof SAVE_SLOT_IDS)[number];
 export interface SaveSlotSummary {
   id: SaveSlotId;
   state: GameState | null;
+  status: "empty" | "ready" | "unreadable";
 }
 
 const slotStores = new Map<SaveSlotId, SaveStore>();
@@ -420,26 +421,54 @@ function reportDiagnostics(diags: Diagnostic[]) {
   }
 }
 
+const pendingSaveWrites = new Map<SaveSlotId, Promise<void>>();
+
+/** Serialize operations per career slot, so a slow earlier write cannot replace
+ * a newer save or re-create a career after the player deletes it. */
+function enqueueSlotOperation(slot: SaveSlotId, operation: () => Promise<void>): Promise<void> {
+  const previous = pendingSaveWrites.get(slot) ?? Promise.resolve();
+  const next = previous.catch(() => undefined).then(operation);
+  pendingSaveWrites.set(slot, next);
+  void next.finally(() => {
+    if (pendingSaveWrites.get(slot) === next) pendingSaveWrites.delete(slot);
+  }).catch(() => undefined);
+  return next;
+}
+
 export async function loadGame(slot: SaveSlotId = "slot-1"): Promise<GameState | null> {
+  await pendingSaveWrites.get(slot)?.catch(() => undefined);
   const { state, diagnostics } = await storeFor(slot).load();
   reportDiagnostics(diagnostics);
+  // Never present a corrupt, unreadable or future-version career as an empty
+  // slot. The storage layer preserves the original until an explicit clear.
+  if (!state) {
+    const failure = diagnostics.find((d) => d.level === "error" || d.code === "save/preserved");
+    if (failure) throw new Error(failure.detail ?? failure.code);
+  }
   return state;
 }
 
-export async function saveGame(state: GameState, slot: SaveSlotId = "slot-1"): Promise<void> {
-  reportDiagnostics(await storeFor(slot).save(state));
+export function saveGame(state: GameState, slot: SaveSlotId = "slot-1"): Promise<void> {
+  return enqueueSlotOperation(slot, async () => {
+    const diagnostics = await storeFor(slot).save(state);
+    reportDiagnostics(diagnostics);
+    const failure = diagnostics.find((diagnostic) => diagnostic.level === "error");
+    if (failure) throw new Error(`Career could not be saved: ${failure.detail ?? failure.code}`);
+  });
 }
 
-export async function clearGame(slot: SaveSlotId = "slot-1"): Promise<void> {
-  await storeFor(slot).clear();
+export function clearGame(slot: SaveSlotId = "slot-1"): Promise<void> {
+  return enqueueSlotOperation(slot, () => storeFor(slot).clear());
 }
 
 export async function listSaveSlots(): Promise<SaveSlotSummary[]> {
   return Promise.all(
     SAVE_SLOT_IDS.map(async (id) => {
+      await pendingSaveWrites.get(id)?.catch(() => undefined);
       const { state, diagnostics } = await storeFor(id).load();
       reportDiagnostics(diagnostics);
-      return { id, state };
+      const unreadable = !state && diagnostics.some((d) => d.level === "error" || d.code === "save/preserved");
+      return { id, state, status: unreadable ? "unreadable" as const : state ? "ready" as const : "empty" as const };
     }),
   );
 }

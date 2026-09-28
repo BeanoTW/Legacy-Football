@@ -46,6 +46,8 @@ export function useGame() {
   const [continueSpeed, setContinueSpeedState] = useState<ContinueSpeed>(initialSpeed);
   const [activeSlot, setActiveSlot] = useState<SaveSlotId>(initialSlot);
   const [saveSlots, setSaveSlots] = useState<SaveSlotSummary[]>([]);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [cloudError, setCloudError] = useState<string | null>(null);
   const writeSeq = useRef(0);
   const cloudTimer = useRef<number | null>(null);
   const skipCloudWrite = useRef(true);
@@ -54,12 +56,21 @@ export function useGame() {
   useEffect(() => {
     let cancelled = false;
     setHydrated(false);
+    setSaveError(null);
     void loadGame(activeSlot).then((loaded) => {
       if (cancelled) return;
       skipCloudWrite.current = true;
       setState(loaded);
       setHydrated(true);
-      void listSaveSlots().then(setSaveSlots);
+      void listSaveSlots().then((slots) => { if (!cancelled) setSaveSlots(slots); }).catch((error: unknown) => {
+        if (!cancelled) setSaveError(`Could not read save slots: ${(error as Error).message}`);
+      });
+    }).catch((error: unknown) => {
+      if (cancelled) return;
+      setSaveError(`Could not load your career: ${(error as Error).message}`);
+      setState(null);
+      setHydrated(true);
+      void listSaveSlots().then((slots) => { if (!cancelled) setSaveSlots(slots); }).catch(() => undefined);
     });
     return () => {
       cancelled = true;
@@ -74,10 +85,19 @@ export function useGame() {
     if (!localOnly) markLocalSaveModified(activeSlot);
     void saveGame(state, activeSlot).then(() => {
       if (seq !== writeSeq.current) return;
-      void listSaveSlots().then(setSaveSlots);
+      setSaveError(null);
+      void listSaveSlots().then(setSaveSlots).catch((error: unknown) =>
+        setSaveError(`Could not refresh save slots: ${(error as Error).message}`),
+      );
       if (localOnly) return;
       if (cloudTimer.current) window.clearTimeout(cloudTimer.current);
-      cloudTimer.current = window.setTimeout(() => void uploadCareer(activeSlot, state), 2_000);
+      cloudTimer.current = window.setTimeout(() => {
+        void uploadCareer(activeSlot, state).then(() => setCloudError(null)).catch((error: unknown) =>
+          setCloudError(`Cloud sync failed: ${(error as Error).message}`),
+        );
+      }, 2_000);
+    }).catch((error: unknown) => {
+      if (seq === writeSeq.current) setSaveError((error as Error).message);
     });
     return () => {
       if (cloudTimer.current) window.clearTimeout(cloudTimer.current);
@@ -86,6 +106,7 @@ export function useGame() {
 
   const start = useCallback((clubName: string, managerName: string, startingDivisionId?: string) => {
     skipCloudWrite.current = false;
+    setSaveError(null);
     setState(newGame(clubName, managerName, undefined, startingDivisionId));
   }, []);
 
@@ -172,11 +193,15 @@ export function useGame() {
   }, []);
 
   const reset = useCallback(() => {
-    void clearGame(activeSlot).then(() => listSaveSlots().then(setSaveSlots));
     setIsContinuing(false);
     setContinueReason(null);
     clearTarget();
-    setState(null);
+    if (cloudTimer.current) window.clearTimeout(cloudTimer.current);
+    void deleteCloudCareer(activeSlot)
+      .then(() => clearGame(activeSlot))
+      .then(() => listSaveSlots())
+      .then((slots) => { setSaveSlots(slots); setState(null); })
+      .catch((error: unknown) => setSaveError(`Could not clear career: ${(error as Error).message}`));
   }, [activeSlot, clearTarget]);
 
   const switchSlot = useCallback((slot: SaveSlotId) => {
@@ -190,8 +215,12 @@ export function useGame() {
   }, [clearTarget]);
 
   const deleteSlot = useCallback(async (slot: SaveSlotId) => {
-    await clearGame(slot);
+    if (slot === activeSlot && cloudTimer.current) {
+      window.clearTimeout(cloudTimer.current);
+      cloudTimer.current = null;
+    }
     await deleteCloudCareer(slot);
+    await clearGame(slot);
     if (slot === activeSlot) setState(null);
     setSaveSlots(await listSaveSlots());
   }, [activeSlot]);
@@ -213,6 +242,8 @@ export function useGame() {
     skipDeadlineDay,
     activeSlot,
     saveSlots,
+    saveError,
+    cloudError,
     switchSlot,
     deleteSlot,
   };

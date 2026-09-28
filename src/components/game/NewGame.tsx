@@ -17,6 +17,7 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
   const [club, setClub] = useState("Dalton Town");
   const [manager, setManager] = useState(profile.name);
   const [studioOpen, setStudioOpen] = useState(false);
+  const activeSlotUnreadable = slots.some((slot) => slot.id === activeSlot && slot.status === "unreadable");
   const [startingDivisionId, setStartingDivisionId] = useState(
     STARTING_REGIONAL_DIVISIONS[0]?.id ?? "regional-premier-central",
   );
@@ -28,6 +29,7 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
   }, [profile.name]);
 
   const start = () => {
+    if (activeSlotUnreadable) return;
     const name = manager.trim() || "Chairman";
     saveChairmanProfile({ ...profile, name });
     onStart(club.trim(), name, startingDivisionId);
@@ -41,7 +43,7 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
           <div className="banner-strip px-4 py-2 text-sm">New Club Setup</div>
           <div className="p-6 space-y-5">
             <div className="grid grid-cols-3 gap-2">
-              {slots.map(({ id, state }, index) => (
+              {slots.map(({ id, state, status }, index) => (
                 <button
                   key={id}
                   onClick={() => onSelectSlot(id)}
@@ -51,7 +53,7 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
                   )}
                 >
                   <span className="block text-[10px] font-bold uppercase text-muted-foreground">Career {index + 1}</span>
-                  <span className="block truncate text-xs font-semibold">{state?.clubName ?? "Empty"}</span>
+                  <span className="block truncate text-xs font-semibold">{status === "unreadable" ? "Save needs recovery" : state?.clubName ?? "Empty"}</span>
                 </button>
               ))}
             </div>
@@ -103,7 +105,8 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
                 ))}
               </div>
             </div>
-            <Button className="w-full" disabled={!club.trim()} onClick={start}>
+            {activeSlotUnreadable && <p role="alert" className="rounded-lg border border-amber-500 bg-amber-500/10 p-3 text-xs">This career could not be read. Its original save is protected. Select a different slot; do not clear this slot or browser data.</p>}
+            <Button className="w-full" disabled={!club.trim() || activeSlotUnreadable} onClick={start}>
               <Play className="mr-2 size-4" /> Start Season
             </Button>
           </div>

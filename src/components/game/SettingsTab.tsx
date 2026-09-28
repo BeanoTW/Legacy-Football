@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DetailScreen } from "./shared/layout";
 import { cn } from "@/lib/utils";
-import { cloudClient, cloudConfigured, syncAllCareers } from "@/lib/cloud/sync";
+import { CareerSyncConflict, cloudClient, cloudConfigured, syncAllCareers, type SyncConflictResolution } from "@/lib/cloud/sync";
 
 type Theme = "club" | "heritage" | "floodlights";
 const THEME_KEY = "chairman.colour-theme";
@@ -32,6 +32,8 @@ export function SettingsTab({
   const [email, setEmail] = useState("");
   const [cloudMessage, setCloudMessage] = useState<string | null>(null);
   const [cloudBusy, setCloudBusy] = useState(false);
+  const [conflictingSlots, setConflictingSlots] = useState<SaveSlotId[]>([]);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState<string | null>(() => typeof localStorage === "undefined" ? null : localStorage.getItem("chairman.cloud-last-sync"));
 
   useEffect(() => {
@@ -54,25 +56,47 @@ export function SettingsTab({
     if (!client || !email.trim()) return;
     setCloudBusy(true);
     setCloudMessage(null);
-    const { error } = await client.auth.signInWithOtp({
-      email: email.trim(),
-      options: { emailRedirectTo: `${window.location.origin}${window.location.pathname}` },
-    });
-    setCloudBusy(false);
-    setCloudMessage(error ? error.message : "Sign-in link sent. Open it on this device to connect your careers.");
+    try {
+      const { error } = await client.auth.signInWithOtp({
+        email: email.trim(),
+        options: { emailRedirectTo: `${window.location.origin}${window.location.pathname}` },
+      });
+      setCloudMessage(error ? error.message : "Sign-in link sent. Open it on this device, then use Sync now to connect your existing careers.");
+    } catch (error) {
+      setCloudMessage(`Could not send sign-in link: ${(error as Error).message}`);
+    } finally {
+      setCloudBusy(false);
+    }
   }
 
-  async function syncNow() {
+  async function syncNow(resolution: SyncConflictResolution = "auto") {
     setCloudBusy(true);
     setCloudMessage(null);
     try {
-      const result = await syncAllCareers();
+      const result = await syncAllCareers(resolution);
       const now = new Date().toISOString();
       setLastSync(now);
+      setConflictingSlots([]);
       setCloudMessage(`Synced: ${result.uploaded} uploaded, ${result.downloaded} downloaded.`);
       if (result.downloaded) window.location.reload();
     } catch (error) {
+      if (error instanceof CareerSyncConflict) setConflictingSlots(error.slots);
       setCloudMessage((error as Error).message);
+    } finally {
+      setCloudBusy(false);
+    }
+  }
+
+  async function signOut() {
+    const client = cloudClient();
+    if (!client) return;
+    setCloudBusy(true);
+    try {
+      const { error } = await client.auth.signOut();
+      if (error) throw error;
+      setCloudMessage("Signed out. Careers saved on this device remain accessible locally.");
+    } catch (error) {
+      setCloudMessage(`Could not sign out: ${(error as Error).message}`);
     } finally {
       setCloudBusy(false);
     }
@@ -88,8 +112,9 @@ export function SettingsTab({
         <div className="panel-strip flex items-center gap-2 px-3 py-2 text-sm font-semibold">
           <HardDrive className="size-4" /> Save manager
         </div>
+        {deleteError && <p role="alert" className="m-3 rounded-lg border border-rose-500 bg-rose-500/10 p-2 text-xs">{deleteError}</p>}
         <div className="grid gap-2 p-3 lg:grid-cols-3">
-          {slots.map(({ id, state }, index) => {
+          {slots.map(({ id, state, status }, index) => {
             const active = id === activeSlot;
             return (
               <article
@@ -104,7 +129,7 @@ export function SettingsTab({
                     <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                       Career {index + 1}
                     </div>
-                    <div className="font-display text-xl">{state?.clubName ?? "Empty slot"}</div>
+                    <div className="font-display text-xl">{status === "unreadable" ? "Save needs recovery" : state?.clubName ?? "Empty slot"}</div>
                   </div>
                   {active && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-1 text-[10px] font-bold text-primary-foreground">
@@ -119,7 +144,7 @@ export function SettingsTab({
                     <SaveFact label="Balance" value={`£${(state.cash / 1_000_000).toFixed(1)}m`} />
                   </div>
                 ) : (
-                  <p className="mt-2 text-xs text-muted-foreground">Start a new chairman career here.</p>
+                  <p className="mt-2 text-xs text-muted-foreground">{status === "unreadable" ? "An existing save is protected. Do not clear this slot or browser data." : "Start a new chairman career here."}</p>
                 )}
                 <div className="mt-3 flex gap-2">
                   {!active && (
@@ -134,7 +159,10 @@ export function SettingsTab({
                       aria-label={`Delete Career ${index + 1}`}
                       onClick={() => {
                         if (window.confirm(`Delete ${state.clubName} from Career ${index + 1}? This cannot be undone.`)) {
-                          void onDelete(id);
+                          setDeleteError(null);
+                          void onDelete(id).catch((error: unknown) =>
+                            setDeleteError(`Could not delete career: ${(error as Error).message}`),
+                          );
                         }
                       }}
                     >
@@ -186,15 +214,28 @@ export function SettingsTab({
               </>
             ) : session ? (
               <div className="space-y-3">
-                <p className="truncate text-xs text-muted-foreground sm:text-sm">Connected as {session.user.email}. New progress uploads automatically.</p>
+                <p className="truncate text-xs text-muted-foreground sm:text-sm">Connected as {session.user.email}. Use Sync now to transfer existing careers; subsequent progress uploads automatically.</p>
                 <div className="flex flex-wrap gap-2">
                   <Button size="sm" onClick={() => void syncNow()} disabled={cloudBusy}>
                     <RefreshCw className={cn("size-4", cloudBusy && "animate-spin")} /> Sync now
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => void cloudClient()?.auth.signOut()}>
+                  <Button size="sm" variant="outline" onClick={() => void signOut()} disabled={cloudBusy}>
                     <LogOut className="size-4" /> Sign out
                   </Button>
                 </div>
+                {conflictingSlots.length > 0 && (
+                  <div className="rounded-lg border border-amber-500/60 bg-amber-500/10 p-3 text-xs">
+                    <p className="mb-2">Conflicting careers: {conflictingSlots.join(", ")}. Choose which copy to keep for these slots. Other slots follow their normal sync plan.</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button size="sm" variant="outline" disabled={cloudBusy} onClick={() => {
+                        if (window.confirm("Replace the CLOUD copies of the conflicting careers with this device’s copies?")) void syncNow("keep-device");
+                      }}>Keep device copies</Button>
+                      <Button size="sm" variant="outline" disabled={cloudBusy} onClick={() => {
+                        if (window.confirm("Replace the DEVICE copies of the conflicting careers with the cloud copies? Unsynced local progress will be lost.")) void syncNow("keep-cloud");
+                      }}>Keep cloud copies</Button>
+                    </div>
+                  </div>
+                )}
                 <CloudStatus tone="green">Connected{lastSync ? ` · synced ${new Date(lastSync).toLocaleString()}` : ""}</CloudStatus>
               </div>
             ) : (

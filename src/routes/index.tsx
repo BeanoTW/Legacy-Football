@@ -66,8 +66,25 @@ function Page() {
     if (theme) document.documentElement.dataset.clubTheme = theme;
   }, []);
   if (!game.hydrated) return <div className="h-dvh grid place-items-center text-muted-foreground">Loading…</div>;
-  if (!game.state) return <NewGame onStart={game.start} activeSlot={game.activeSlot} slots={game.saveSlots} onSelectSlot={game.switchSlot} />;
-  return <Game {...game} state={game.state} />;
+  return (
+    <>
+      {game.state ? (
+        <Game {...game} state={game.state} />
+      ) : (
+        <NewGame onStart={game.start} activeSlot={game.activeSlot} slots={game.saveSlots} onSelectSlot={game.switchSlot} />
+      )}
+      {game.saveError && (
+        <div role="alert" className="fixed inset-x-3 bottom-[calc(5.25rem+env(safe-area-inset-bottom))] z-[100] mx-auto max-w-xl rounded-xl border border-rose-400 bg-rose-950 p-3 text-sm font-semibold text-rose-50 shadow-xl">
+          {game.saveError} Do not delete the slot or clear browser data until this is resolved.
+        </div>
+      )}
+      {game.cloudError && (
+        <div role="status" className={cn("fixed inset-x-3 z-[99] mx-auto max-w-xl rounded-xl border border-amber-500 bg-amber-950 p-3 text-sm font-semibold text-amber-50 shadow-xl", game.saveError ? "bottom-[calc(10rem+env(safe-area-inset-bottom))]" : "bottom-[calc(5.25rem+env(safe-area-inset-bottom))]")}> 
+          {game.cloudError} Your local career is saved on this device; use Settings to retry sync.
+        </div>
+      )}
+    </>
+  );
 }
 
 /** Five-star reputation read-out: one star per 20 reputation points. */
