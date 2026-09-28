@@ -70,6 +70,7 @@ export function useGame() {
       setSaveError(`Could not load your career: ${(error as Error).message}`);
       setState(null);
       setHydrated(true);
+      void listSaveSlots().then((slots) => { if (!cancelled) setSaveSlots(slots); }).catch(() => undefined);
     });
     return () => {
       cancelled = true;
