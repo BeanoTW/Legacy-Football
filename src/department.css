@@ -107,8 +107,8 @@
 .lf-masthead .lf-masthead-avatar {
   display:block;
   flex:0 0 auto;
-  width:2.7rem;
-  height:3.2rem;
+  width:5.4rem;
+  height:6.4rem;
   padding:0;
   overflow:hidden;
   border:1px solid rgb(126 214 200 / 35%);
@@ -129,8 +129,8 @@
 @media (max-width:767px) {
   .lf-masthead .lf-masthead-persona { gap:.26rem; }
   .lf-masthead .lf-masthead-avatar {
-    width:2.1rem;
-    height:2.55rem;
+    width:4.2rem;
+    height:5.1rem;
     border-radius:.5rem;
   }
   .lf-masthead .lf-masthead-persona .lf-chairman-badge {
