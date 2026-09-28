@@ -55,8 +55,8 @@ const stageIndex = (stage: TransferNegotiation["stage"]) => {
   return found === -1 ? STEPS.length - 1 : found;
 };
 
-export function TransferNegotiationDesk({ state, deals, act }: { state: GameState; deals: TransferNegotiation[]; act: Act }) {
-  const [selectedId, setSelectedId] = useState<string | null>(deals[0]?.id ?? null);
+export function TransferNegotiationDesk({ state, deals, act, initialNegotiationId }: { state: GameState; deals: TransferNegotiation[]; act: Act; initialNegotiationId?: string }) {
+  const [selectedId, setSelectedId] = useState<string | null>(deals.find((deal) => deal.id === initialNegotiationId)?.id ?? deals[0]?.id ?? null);
   useEffect(() => {
     if (selectedId && deals.some((d) => d.id === selectedId)) return;
     setSelectedId(deals[0]?.id ?? null);
