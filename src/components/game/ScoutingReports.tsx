@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { ArrowLeft, Binoculars, CheckCircle2, Handshake, Star } from "lucide-react";
 import type { GameState } from "@/lib/game/types";
 import {
@@ -30,11 +31,17 @@ export function ScoutingReports({
   state,
   update,
   onBack,
+  focusPlayerId,
 }: {
   state: GameState;
   update: (fn: (s: GameState) => GameState) => void;
   onBack: () => void;
+  focusPlayerId?: string;
 }) {
+  const focusRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (focusPlayerId) focusRef.current?.scrollIntoView({ block: "center", behavior: "instant" });
+  }, [focusPlayerId]);
   const assignments = [...(state.football?.scouting?.assignments ?? [])].sort((a, b) => {
     if (a.status !== b.status) return a.status === "active" ? -1 : 1;
     return b.startedAtAbsoluteWeek - a.startedAtAbsoluteWeek;
@@ -93,8 +100,8 @@ export function ScoutingReports({
         if (!estimate) return null;
 
         return (
+          <div key={player.id} ref={player.id === focusPlayerId ? focusRef : undefined} className={cn(player.id === focusPlayerId && "rounded-xl ring-2 ring-primary ring-offset-2 ring-offset-background")}>
           <TacticalPlayerCard
-            key={player.id}
             state={state}
             player={player}
             mode="recruitment"
@@ -146,6 +153,7 @@ export function ScoutingReports({
               </div>
             }
           />
+          </div>
         );
       })}
     </DetailScreen>
