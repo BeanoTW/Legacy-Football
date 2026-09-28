@@ -1043,3 +1043,112 @@
     z-index:2;
   }
 }
+
+/* One suggested action + at most one chairman decision: two compact mobile
+   dashboard cards instead of two full-width stacked panels. */
+.lf-home-dashboard .lf-home-bottom-pair { display:contents; }
+@media (max-width:767px) {
+  .lf-home-dashboard .lf-home-bottom-pair {
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    gap:.38rem;
+    min-width:0;
+  }
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact:has(.lf-suggested-next) {
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    align-items:stretch;
+  }
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact > .lf-suggested-next,
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact > .lf-home-desk,
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact > .lf-home-desk > .lf-home-panel {
+    min-width:0;
+    min-height:0;
+    height:100%;
+  }
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact > .lf-suggested-next,
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact > .lf-home-desk > .lf-home-panel {
+    display:flex;
+    flex-direction:column;
+    border-radius:.85rem;
+  }
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact .lf-home-panel-heading {
+    min-height:1.9rem;
+    padding:.42rem .48rem .3rem;
+    border-bottom:0;
+    background:transparent;
+  }
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact .lf-heading-label {
+    gap:.25rem;
+    font-size:.55rem;
+    letter-spacing:.035em;
+    line-height:1.12;
+  }
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact .lf-heading-label svg {
+    width:.76rem;
+    height:.76rem;
+    flex:0 0 auto;
+  }
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact .lf-home-panel-heading > small,
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact .lf-home-panel-heading button {
+    display:none;
+  }
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact .lf-suggested-list,
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact .lf-task-list {
+    display:block;
+    flex:1;
+    padding:0 .38rem .38rem;
+  }
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact .lf-suggested-row,
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact .lf-task-row {
+    display:flex;
+    align-items:flex-start;
+    gap:.35rem;
+    width:100%;
+    min-height:4.9rem;
+    height:100%;
+    padding:.5rem .4rem;
+    border-radius:.65rem;
+    overflow:hidden;
+  }
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact .lf-task-row.is-clear {
+    align-items:flex-start;
+  }
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact .lf-task-icon,
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact .lf-suggested-row .lf-task-icon {
+    width:1.55rem;
+    height:1.55rem;
+    flex:0 0 1.55rem;
+    border-radius:.48rem;
+  }
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact .lf-task-icon svg,
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact .lf-suggested-row .lf-task-icon svg {
+    width:.85rem;
+    height:.85rem;
+  }
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact .lf-suggested-row > span:nth-child(2),
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact .lf-task-row > span:nth-child(2) {
+    min-width:0;
+    flex:1;
+  }
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact .lf-suggested-row strong,
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact .lf-task-row strong {
+    display:block;
+    font-size:.68rem;
+    line-height:1.13;
+    white-space:normal;
+    overflow-wrap:break-word;
+  }
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact .lf-suggested-row small,
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact .lf-task-row small {
+    display:block;
+    margin-top:.18rem;
+    font-size:.51rem;
+    line-height:1.16;
+    white-space:normal;
+    overflow-wrap:break-word;
+  }
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact .lf-suggested-row > svg,
+  .lf-home-dashboard .lf-home-bottom-pair.is-compact .lf-task-row > svg {
+    display:none;
+  }
+}
