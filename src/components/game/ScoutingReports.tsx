@@ -40,7 +40,7 @@ export function ScoutingReports({
 }) {
   const focusRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (focusPlayerId) focusRef.current?.scrollIntoView({ block: "center", behavior: "instant" });
+    if (focusPlayerId) focusRef.current?.scrollIntoView({ block: "center", behavior: "auto" });
   }, [focusPlayerId]);
   const assignments = [...(state.football?.scouting?.assignments ?? [])].sort((a, b) => {
     if (a.status !== b.status) return a.status === "active" ? -1 : 1;
