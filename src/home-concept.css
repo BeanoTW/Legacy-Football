@@ -1152,3 +1152,13 @@
     display:none;
   }
 }
+
+/* Give the doubled chairman portrait room without cropping it in the compact masthead. */
+@media (min-width:768px) {
+  .lf-masthead .panel-strip { min-height:6.65rem; }
+}
+@media (max-width:767px) {
+  .lf-masthead { min-height:6.1rem; }
+  .lf-masthead .panel-strip { min-height:5.35rem; }
+  .lf-masthead .panel-strip > div { min-height:5.35rem; }
+}
