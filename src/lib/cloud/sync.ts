@@ -224,9 +224,19 @@ export function uploadCareer(slot: SaveSlotId, state: GameState): Promise<void> 
 
 export async function deleteCloudCareer(slot: SaveSlotId): Promise<void> {
   const client = cloudClient();
-  if (!client) return;
-  const { data } = await client.auth.getSession();
-  if (!data.session) return;
+  if (!client) {
+    localStorage.removeItem(`${MODIFIED_PREFIX}${slot}`);
+    return;
+  }
+  const { data, error: sessionError } = await client.auth.getSession();
+  if (sessionError) throw sessionError;
+  if (!data.session) {
+    if (localStorage.getItem(CLOUD_OWNER_KEY)) {
+      throw new Error("Sign in to the linked account before deleting this career so the cloud copy cannot reappear.");
+    }
+    localStorage.removeItem(`${MODIFIED_PREFIX}${slot}`);
+    return;
+  }
   assertAccountOwnership(data.session.user.id);
   await pendingUploads.get(slot)?.catch(() => undefined);
   const { error } = await client
