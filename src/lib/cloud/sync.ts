@@ -63,6 +63,39 @@ async function requireSession(client: SupabaseClient): Promise<Session> {
   return data.session;
 }
 
+/** Optimistic write: refuse to replace a cloud career that changed after
+ * we read it. An insert never upserts over an existing career.
+ */
+async function writeCloudCareer(
+  client: SupabaseClient,
+  userId: string,
+  slot: SaveSlotId,
+  state: GameState,
+  updatedAt: string,
+  expectedCloudAt: string | null,
+): Promise<void> {
+  if (expectedCloudAt) {
+    const { data, error } = await client.from("career_saves")
+      .update({ state, state_updated_at: updatedAt })
+      .eq("user_id", userId)
+      .eq("slot_id", slot)
+      .eq("state_updated_at", expectedCloudAt)
+      .select("slot_id");
+    if (error) throw error;
+    if (!data?.length) {
+      throw new Error(`Cloud career ${slot} changed during sync. Retry Sync now; neither copy was overwritten by this request.`);
+    }
+    return;
+  }
+  const { error } = await client.from("career_saves").insert({
+    user_id: userId,
+    slot_id: slot,
+    state,
+    state_updated_at: updatedAt,
+  });
+  if (error) throw new Error(`Could not create cloud career ${slot}: ${error.message}. The slot may have changed on another device; retry Sync now.`);
+}
+
 export async function syncAllCareers(resolution: SyncConflictResolution = "auto"): Promise<SyncResult> {
   const client = cloudClient();
   if (!client) throw new Error("Cloud sync has not been connected to a backend yet.");
@@ -139,13 +172,7 @@ export async function syncAllCareers(resolution: SyncConflictResolution = "auto"
     }
     if (effective === "upload" && local) {
       const stateUpdatedAt = localModifiedAt(slot) ?? new Date().toISOString();
-      const { error: uploadError } = await client.from("career_saves").upsert({
-        user_id: session.user.id,
-        slot_id: slot,
-        state: local,
-        state_updated_at: stateUpdatedAt,
-      }, { onConflict: "user_id,slot_id" });
-      if (uploadError) throw uploadError;
+      await writeCloudCareer(client, session.user.id, slot, local, stateUpdatedAt, cloud?.state_updated_at ?? null);
       localStorage.setItem(`${MODIFIED_PREFIX}${slot}`, stateUpdatedAt);
       uploaded++;
     }
@@ -156,6 +183,9 @@ export async function syncAllCareers(resolution: SyncConflictResolution = "auto"
 }
 
 export function uploadCareer(slot: SaveSlotId, state: GameState): Promise<void> {
+  // Capture the version timestamp alongside this snapshot, before earlier
+  // uploads complete and more gameplay can change the local modified date.
+  const capturedModifiedAt = localModifiedAt(slot) ?? new Date().toISOString();
   const previous = pendingUploads.get(slot) ?? Promise.resolve();
   const next = previous.catch(() => undefined).then(async () => {
     const client = cloudClient();
@@ -164,14 +194,21 @@ export function uploadCareer(slot: SaveSlotId, state: GameState): Promise<void> 
     if (sessionError) throw sessionError;
     if (!data.session) return;
     assertAccountOwnership(data.session.user.id);
-    const stateUpdatedAt = localModifiedAt(slot) ?? new Date().toISOString();
-    const { error } = await client.from("career_saves").upsert({
-      user_id: data.session.user.id,
-      slot_id: slot,
-      state,
-      state_updated_at: stateUpdatedAt,
-    }, { onConflict: "user_id,slot_id" });
-    if (error) throw error;
+    const { data: existing, error: readError } = await client.from("career_saves")
+      .select("state,state_updated_at")
+      .eq("user_id", data.session.user.id)
+      .eq("slot_id", slot)
+      .maybeSingle();
+    if (readError) throw readError;
+    if (existing && JSON.stringify(existing.state) === JSON.stringify(state)) {
+      localStorage.setItem(CLOUD_OWNER_KEY, data.session.user.id);
+      localStorage.setItem("chairman.cloud-last-sync", new Date().toISOString());
+      return;
+    }
+    if (existing && Date.parse(existing.state_updated_at) >= Date.parse(capturedModifiedAt)) {
+      throw new Error(`Cloud career ${slot} has different progress at least as new as this device. Use Sync now in Settings to resolve it.`);
+    }
+    await writeCloudCareer(client, data.session.user.id, slot, state, capturedModifiedAt, existing?.state_updated_at ?? null);
     localStorage.setItem(CLOUD_OWNER_KEY, data.session.user.id);
     localStorage.setItem("chairman.cloud-last-sync", new Date().toISOString());
   });
@@ -188,7 +225,7 @@ export async function deleteCloudCareer(slot: SaveSlotId): Promise<void> {
   const { data } = await client.auth.getSession();
   if (!data.session) return;
   assertAccountOwnership(data.session.user.id);
-  await pendingUploads.get(slot);
+  await pendingUploads.get(slot)?.catch(() => undefined);
   const { error } = await client
     .from("career_saves")
     .delete()
