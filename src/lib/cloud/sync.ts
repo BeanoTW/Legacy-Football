@@ -1,11 +1,14 @@
 import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
 import type { GameState } from "@/lib/game/types";
-import { loadGame, saveGame, SAVE_SLOT_IDS, type SaveSlotId } from "@/lib/game/engine";
+import { loadGame, migrateSave, saveGame, SAVE_VERSION, SAVE_SLOT_IDS, type SaveSlotId } from "@/lib/game/engine";
+import { planCareerSync, type CareerSyncAction } from "./syncPlan";
 
 const URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? "https://uctylgwwqeqrycjekeor.supabase.co";
 const KEY = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY) as string | undefined
   ?? "sb_publishable_LaJwXU-Q1yLUT0wwCUhlaQ_Lko8HA1q";
 const MODIFIED_PREFIX = "chairman.save-modified.";
+const CLOUD_OWNER_KEY = "chairman.cloud-owner";
+const pendingUploads = new Map<SaveSlotId, Promise<void>>();
 
 export const cloudConfigured = Boolean(URL && KEY);
 
@@ -22,9 +25,25 @@ export function markLocalSaveModified(slot: SaveSlotId, at = new Date()): void {
   if (typeof localStorage !== "undefined") localStorage.setItem(`${MODIFIED_PREFIX}${slot}`, at.toISOString());
 }
 
-function localModifiedAt(slot: SaveSlotId): string {
-  return localStorage.getItem(`${MODIFIED_PREFIX}${slot}`) ?? "1970-01-01T00:00:00.000Z";
+function localModifiedAt(slot: SaveSlotId): string | null {
+  return localStorage.getItem(`${MODIFIED_PREFIX}${slot}`);
 }
+
+function assertAccountOwnership(userId: string): void {
+  const owner = localStorage.getItem(CLOUD_OWNER_KEY);
+  if (owner && owner !== userId) {
+    throw new Error("These local careers are linked to another account. Sign in to that account before synchronising or deleting them.");
+  }
+}
+
+export class CareerSyncConflict extends Error {
+  constructor(readonly slots: SaveSlotId[]) {
+    super(`Different device and cloud careers exist in ${slots.join(", ")}. Choose which copy to keep; neither has been overwritten.`);
+    this.name = "CareerSyncConflict";
+  }
+}
+
+export type SyncConflictResolution = "auto" | "keep-device" | "keep-cloud";
 
 interface CloudSaveRow {
   slot_id: SaveSlotId;
@@ -44,10 +63,14 @@ async function requireSession(client: SupabaseClient): Promise<Session> {
   return data.session;
 }
 
-export async function syncAllCareers(): Promise<SyncResult> {
+export async function syncAllCareers(resolution: SyncConflictResolution = "auto"): Promise<SyncResult> {
   const client = cloudClient();
   if (!client) throw new Error("Cloud sync has not been connected to a backend yet.");
   const session = await requireSession(client);
+  assertAccountOwnership(session.user.id);
+  // An automatic upload already in flight must finish before a manual merge.
+  await Promise.all([...pendingUploads.values()]);
+
   const { data, error } = await client
     .from("career_saves")
     .select("slot_id,state,state_updated_at")
@@ -55,24 +78,67 @@ export async function syncAllCareers(): Promise<SyncResult> {
   if (error) throw error;
 
   const remote = new Map((data as CloudSaveRow[] | null)?.map((row) => [row.slot_id, row]) ?? []);
-  let uploaded = 0;
-  let downloaded = 0;
+  const plan: {
+    slot: SaveSlotId;
+    local: GameState | null;
+    cloud: CloudSaveRow | undefined;
+    action: CareerSyncAction;
+  }[] = [];
+  const conflicts: SaveSlotId[] = [];
 
+  // Plan all slots before touching any copy, so a conflict in career 3 cannot
+  // silently overwrite career 1 before the player is asked what to do.
   for (const slot of SAVE_SLOT_IDS) {
     const local = await loadGame(slot);
     const cloud = remote.get(slot);
-    if (!local && !cloud) continue;
+    const action = planCareerSync({
+      localExists: Boolean(local),
+      cloudExists: Boolean(cloud),
+      localModifiedAt: localModifiedAt(slot),
+      cloudModifiedAt: cloud?.state_updated_at ?? null,
+      identical: Boolean(local && cloud && JSON.stringify(local) === JSON.stringify(cloud.state)),
+    });
+    if (action === "conflict") conflicts.push(slot);
+    plan.push({ slot, local, cloud, action });
+  }
+  if (conflicts.length && resolution === "auto") throw new CareerSyncConflict(conflicts);
 
-    const localDate = localModifiedAt(slot);
-    if (cloud && (!local || cloud.state_updated_at > localDate)) {
+  // Reject incompatible cloud data before any local or remote write begins.
+  for (const { slot, cloud, action } of plan) {
+    const effective = action === "conflict"
+      ? resolution === "keep-cloud" ? "download" : "upload"
+      : action;
+    if (effective !== "download" || !cloud) continue;
+    if (!cloud.state || typeof cloud.state.version !== "number" || cloud.state.version > SAVE_VERSION) {
+      throw new Error(`Cloud career ${slot} requires a newer or valid game version. No careers were overwritten.`);
+    }
+    try {
+      migrateSave(structuredClone(cloud.state) as unknown as Record<string, unknown>);
+    } catch (error) {
+      throw new Error(`Cloud career ${slot} failed validation: ${(error as Error).message}. No careers were overwritten.`);
+    }
+  }
+
+  // Bind this browser's careers to the first account which explicitly syncs.
+  localStorage.setItem(CLOUD_OWNER_KEY, session.user.id);
+  let uploaded = 0;
+  let downloaded = 0;
+  for (const { slot, local, cloud, action } of plan) {
+    const effective = action === "conflict"
+      ? resolution === "keep-cloud" ? "download" : "upload"
+      : action;
+    if (effective === "none") {
+      if (cloud) localStorage.setItem(`${MODIFIED_PREFIX}${slot}`, cloud.state_updated_at);
+      continue;
+    }
+    if (effective === "download" && cloud) {
       await saveGame(cloud.state, slot);
       localStorage.setItem(`${MODIFIED_PREFIX}${slot}`, cloud.state_updated_at);
       downloaded++;
       continue;
     }
-
-    if (local) {
-      const stateUpdatedAt = localDate.startsWith("1970-") ? new Date().toISOString() : localDate;
+    if (effective === "upload" && local) {
+      const stateUpdatedAt = localModifiedAt(slot) ?? new Date().toISOString();
       const { error: uploadError } = await client.from("career_saves").upsert({
         user_id: session.user.id,
         slot_id: slot,
@@ -89,21 +155,31 @@ export async function syncAllCareers(): Promise<SyncResult> {
   return { uploaded, downloaded };
 }
 
-export async function uploadCareer(slot: SaveSlotId, state: GameState): Promise<void> {
-  const client = cloudClient();
-  if (!client) return;
-  const { data } = await client.auth.getSession();
-  if (!data.session) return;
-  const stateUpdatedAt = new Date().toISOString();
-  markLocalSaveModified(slot, new Date(stateUpdatedAt));
-  const { error } = await client.from("career_saves").upsert({
-    user_id: data.session.user.id,
-    slot_id: slot,
-    state,
-    state_updated_at: stateUpdatedAt,
-  }, { onConflict: "user_id,slot_id" });
-  if (error) console.warn(`[cloud] ${error.message}`);
-  else localStorage.setItem("chairman.cloud-last-sync", new Date().toISOString());
+export function uploadCareer(slot: SaveSlotId, state: GameState): Promise<void> {
+  const previous = pendingUploads.get(slot) ?? Promise.resolve();
+  const next = previous.catch(() => undefined).then(async () => {
+    const client = cloudClient();
+    if (!client) return;
+    const { data, error: sessionError } = await client.auth.getSession();
+    if (sessionError) throw sessionError;
+    if (!data.session) return;
+    assertAccountOwnership(data.session.user.id);
+    const stateUpdatedAt = localModifiedAt(slot) ?? new Date().toISOString();
+    const { error } = await client.from("career_saves").upsert({
+      user_id: data.session.user.id,
+      slot_id: slot,
+      state,
+      state_updated_at: stateUpdatedAt,
+    }, { onConflict: "user_id,slot_id" });
+    if (error) throw error;
+    localStorage.setItem(CLOUD_OWNER_KEY, data.session.user.id);
+    localStorage.setItem("chairman.cloud-last-sync", new Date().toISOString());
+  });
+  pendingUploads.set(slot, next);
+  void next.finally(() => {
+    if (pendingUploads.get(slot) === next) pendingUploads.delete(slot);
+  }).catch(() => undefined);
+  return next;
 }
 
 export async function deleteCloudCareer(slot: SaveSlotId): Promise<void> {
@@ -111,6 +187,8 @@ export async function deleteCloudCareer(slot: SaveSlotId): Promise<void> {
   if (!client) return;
   const { data } = await client.auth.getSession();
   if (!data.session) return;
+  assertAccountOwnership(data.session.user.id);
+  await pendingUploads.get(slot);
   const { error } = await client
     .from("career_saves")
     .delete()
