@@ -38,41 +38,22 @@ const ROLES: StaffRole[] = ["Manager", "Assistant Manager", "Head Coach", "Goalk
 const FOOTBALL_ROLES: StaffRole[] = ["Manager", "Assistant Manager", "Head Coach", "Goalkeeping Coach", "Fitness Coach"];
 const QUICK_ROLES: ("All" | StaffRole)[] = ["All", "Manager", "Head Coach", "Assistant Manager", "Head of Transfers", "Head Physio", "Chief Scout"];
 
-function ManagerIdentityPanel({ staff }: { staff: Staff }) {
+function ManagerIdentityPanel({ staff, compact = false }: { staff: Staff; compact?: boolean }) {
   if (staff.role !== "Manager") return null;
   const identity = managerFootballIdentity(staff);
-  return <div className="mt-1.5 rounded-lg border border-primary/15 bg-primary/[0.04] p-2.5">
-    <div className="text-xs leading-relaxed text-muted-foreground">{identity.summary}</div>
-    <div className="mt-2 grid grid-cols-3 gap-1.5 text-[10px]">
-      <div className="rounded-md bg-background/70 px-2 py-1"><span className="text-muted-foreground">Adaptability</span><div className="font-semibold">{identity.adaptability}</div></div>
-      <div className="rounded-md bg-background/70 px-2 py-1"><span className="text-muted-foreground">Rotation</span><div className="font-semibold">{identity.rotation}</div></div>
-      <div className="rounded-md bg-background/70 px-2 py-1"><span className="text-muted-foreground">Youth</span><div className="font-semibold">{identity.youthWillingness}</div></div>
-    </div>
-    <div className="mt-1.5 text-[10px] leading-relaxed"><span className="font-semibold">Other shapes: </span><span className="text-muted-foreground">{identity.alternativeFormations.join(" · ") || "None — committed to preferred shape"}</span></div>
-  </div>;
+  return <div className={cn("rounded-xl border border-primary/15 bg-primary/[0.04]", compact ? "mt-2 p-2.5" : "mt-3 p-3")}><div className="flex flex-wrap items-center gap-1.5"><span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground">{identity.preferredFormation}</span><span className="rounded-full border bg-background/70 px-2 py-0.5 text-[10px] font-semibold">{identity.philosophy}</span><span className="rounded-full border bg-background/70 px-2 py-0.5 text-[10px]">{identity.pressing} press</span><span className="rounded-full border bg-background/70 px-2 py-0.5 text-[10px]">{identity.tempo} tempo</span><span className="rounded-full border bg-background/70 px-2 py-0.5 text-[10px]">{identity.directness} directness</span></div><div className="mt-2 text-xs leading-relaxed text-muted-foreground">{identity.summary}</div>{!compact&&<><div className="mt-2 grid grid-cols-3 gap-1.5 text-[10px]"><div className="rounded-lg bg-background/70 px-2 py-1.5"><span className="text-muted-foreground">Adaptability</span><div className="font-semibold">{identity.adaptability}</div></div><div className="rounded-lg bg-background/70 px-2 py-1.5"><span className="text-muted-foreground">Rotation</span><div className="font-semibold">{identity.rotation}</div></div><div className="rounded-lg bg-background/70 px-2 py-1.5"><span className="text-muted-foreground">Youth</span><div className="font-semibold">{identity.youthWillingness}</div></div></div><div className="mt-2 rounded-lg bg-background/55 px-2.5 py-2 text-[10px] leading-relaxed"><span className="font-semibold text-foreground">Other shapes: </span><span className="text-muted-foreground">{identity.alternativeFormations.join(" · ")||"None — strongly committed to his preferred shape"}</span></div></>}</div>;
 }
-function fitTone(band: string) {
-  return band === "Excellent" ? "text-emerald-700 bg-emerald-500/10 border-emerald-500/25"
-    : band === "Good" ? "text-lime-700 bg-lime-500/10 border-lime-500/25"
-      : band === "Workable" ? "text-amber-700 bg-amber-500/10 border-amber-500/25"
-        : "text-rose-700 bg-rose-500/10 border-rose-500/25";
-}
-function ManagerSquadFitPanel({ state, staff }: { state: GameState; staff: Staff }) {
+
+function ManagerSquadFitPanel({ state, staff, compact = false }: { state: GameState; staff: Staff; compact?: boolean }) {
   if (staff.role !== "Manager") return null;
-  const fit = managerSquadFit(state, staff);
-  return <div className={cn("mt-1.5 rounded-lg border p-2", fitTone(fit.band))}>
-    <div className="text-xs leading-relaxed opacity-90">{fit.summary}</div>
-    {(fit.strengths.length > 0 || fit.gaps.length > 0) && <div className="mt-1.5 grid gap-1 text-[10px] sm:grid-cols-2">
-      {fit.strengths.map(item => <div key={item} className="rounded bg-background/55 px-2 py-0.5">✓ {item}</div>)}
-      {fit.gaps.map(item => <div key={item} className="rounded bg-background/55 px-2 py-0.5">• {item}</div>)}
-    </div>}
-  </div>;
+  const fit=managerSquadFit(state,staff); const tone=fit.band==="Excellent"?"text-emerald-700 bg-emerald-500/10 border-emerald-500/25":fit.band==="Good"?"text-lime-700 bg-lime-500/10 border-lime-500/25":fit.band==="Workable"?"text-amber-700 bg-amber-500/10 border-amber-500/25":"text-rose-700 bg-rose-500/10 border-rose-500/25";
+  return <div className={cn("mt-2 rounded-xl border",tone,compact?"p-2.5":"p-3")}><div className="flex items-center justify-between gap-3"><div><div className="text-[10px] font-bold uppercase tracking-wider opacity-70">Squad fit</div><div className="font-display text-lg leading-tight">{fit.band}</div></div><div className="text-right"><div className="font-display text-2xl leading-none">{fit.score}</div><div className="text-[10px] opacity-70">/ 100</div></div></div><div className="mt-1.5 text-xs leading-relaxed opacity-90">{fit.summary}</div>{!compact&&(fit.strengths.length>0||fit.gaps.length>0)&&<div className="mt-2 grid gap-1 text-[10px] sm:grid-cols-2">{fit.strengths.map(item=><div key={item} className="rounded bg-background/55 px-2 py-1">✓ {item}</div>)}{fit.gaps.map(item=><div key={item} className="rounded bg-background/55 px-2 py-1">• {item}</div>)}</div>}</div>;
 }
 
 export function StaffTab({ state, update }: { state: GameState; update: (fn: (s: GameState) => GameState) => void }) {
   const [view,setView]=useState<StaffView>("home"); const [filter,setFilter]=useState<"All"|StaffRole>("All"); const [minRating,setMinRating]=useState(0); const [maxWage,setMaxWage]=useState(0); const [willingOnly,setWillingOnly]=useState(true); const [sortBy,setSortBy]=useState<"rating"|"wage"|"age"|"fit">("fit");
   const [managerNegotiationId,setManagerNegotiationId]=useState<string|null>(null); const [managerOffer,setManagerOffer]=useState<ManagerOffer|null>(null); const [managerPosition,setManagerPosition]=useState<ManagerOffer|null>(null); const [managerCounter,setManagerCounter]=useState<ManagerOffer|null>(null); const [managerAcceptedOffer,setManagerAcceptedOffer]=useState<ManagerOffer|null>(null); const [managerRound,setManagerRound]=useState(1); const [managerMessage,setManagerMessage]=useState("");
-  const manager=state.hiredStaff.find(s=>s.role==="Manager"); const medical=medicalSupport(state); const weeklyStaffCost=hiredStaffWagesWeekly(state); const enriched=state.staffCandidates.map(c=>({staff:c,terms:staffJoinTermsForState(state,c)})); const willingCount=enriched.filter(e=>e.terms.willing).length; const footballStaffCount=state.hiredStaff.filter(s=>FOOTBALL_ROLES.includes(s.role)).length; const expiringCount=state.hiredStaff.filter(s=>s.contractWeeks<=24).length;
+  const manager=state.hiredStaff.find(s=>s.role==="Manager"); const medical=medicalSupport(state); const weeklyStaffCost=hiredStaffWagesWeekly(state); const enriched=state.staffCandidates.map(c=>({staff:c,terms:staffJoinTermsForState(state,c)})); const willingCount=enriched.filter(e=>e.terms.willing).length; const footballStaffCount=state.hiredStaff.filter(s=>FOOTBALL_ROLES.includes(s.role)).length; const specialistCount=state.hiredStaff.filter(s=>!FOOTBALL_ROLES.includes(s.role)).length; const expiringCount=state.hiredStaff.filter(s=>s.contractWeeks<=24).length;
   const closeManagerTalks=()=>{setManagerNegotiationId(null);setManagerOffer(null);setManagerPosition(null);setManagerCounter(null);setManagerAcceptedOffer(null);setManagerRound(1);setManagerMessage("");};
   const hire=(id:string)=>{const candidate=state.staffCandidates.find(c=>c.id===id);if(candidate?.role==="Manager"){const terms=staffJoinTermsForState(state,candidate);const opening=managerOpeningPosition(state,candidate,terms);setManagerNegotiationId(id);setManagerOffer(opening);setManagerPosition(opening);setManagerCounter(null);setManagerAcceptedOffer(null);setManagerRound(1);setManagerMessage(`${terms.note}. His agent has set out an opening position.`);return;}const res=hireStaffMember(state,id);if(!res.ok)return alert(res.reason??"Unable to hire.");update(()=>res.state);};
   const submitManagerOffer=()=>{if(!managerNegotiationId||!managerOffer||!managerPosition)return;const candidate=state.staffCandidates.find(c=>c.id===managerNegotiationId);if(!candidate)return;const terms=staffJoinTermsForState(state,candidate);const evaluation=evaluateManagerBargainingOffer(state,candidate,terms,managerOffer,managerPosition,managerRound);setManagerMessage(evaluation.message);if(evaluation.outcome==="counter"&&evaluation.counterOffer){setManagerCounter(evaluation.counterOffer);setManagerPosition(evaluation.counterOffer);setManagerRound(r=>r+1);return;}setManagerCounter(null);if(evaluation.outcome!=="accepted")return;setManagerAcceptedOffer({...managerOffer});};
@@ -80,22 +61,25 @@ export function StaffTab({ state, update }: { state: GameState; update: (fn: (s:
   const release=(id:string)=>{const st=state.hiredStaff.find(h=>h.id===id);if(!st)return;if(!confirm(`Release ${st.name}? Severance of ${fmtMoneyExact(severanceFor(st))} due.`))return;const res=sackStaffMember(state,id);if(!res.ok)return alert(res.reason??"Unable to release.");update(()=>res.state);}; const renew=(id:string)=>{const st=state.hiredStaff.find(h=>h.id===id);if(!st)return;const bonus=st.wage*2;if(!confirm(`Renew ${st.name} for 2 seasons? Renewal bonus: ${fmtMoneyExact(bonus)}.`))return;const res=renewStaffContract(state,id,2);if(!res.ok)return alert(res.reason??"Unable to renew contract.");update(()=>res.state);};
   const filtered=enriched.filter(({staff,terms})=>(filter==="All"||staff.role===filter)&&staff.rating>=minRating&&(maxWage<=0||terms.wageDemand<=maxWage)&&(!willingOnly||terms.willing)).sort((a,b)=>{if(sortBy==="rating")return b.staff.rating-a.staff.rating;if(sortBy==="wage")return a.terms.wageDemand-b.terms.wageDemand;if(sortBy==="age")return a.staff.age-b.staff.age;const aw=a.terms.willing?0:1,bw=b.terms.willing?0:1;if(aw!==bw)return aw-bw;if(a.staff.role==="Manager"&&b.staff.role==="Manager")return managerSquadFit(state,b.staff).score-managerSquadFit(state,a.staff).score;return b.staff.rating-a.staff.rating;});
 
-  if (view === "team") {
-    return <div className="lf-staff-view space-y-2">
+  if (view === "team") return (
+    <div className="lf-staff-view space-y-2">
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" className="-ml-2" onClick={() => setView("home")}><ArrowLeft className="mr-1.5 size-4" /> Staff</Button>
         <h1 className="min-w-0 flex-1 truncate font-display text-xl">Your staff · {state.hiredStaff.length}</h1>
       </div>
-      {expiringCount > 0 && <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-3 py-1.5 text-xs"><strong>{expiringCount} contract{expiringCount === 1 ? "" : "s"} ending soon.</strong> Renew from the card.</div>}
+      {expiringCount > 0 && <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-3 py-1.5 text-xs">
+        <strong>{expiringCount} contract{expiringCount === 1 ? "" : "s"} need attention.</strong> Renew from their card.
+      </div>}
       {state.hiredStaff.length === 0
         ? <div className="rounded-xl border bg-card p-5 text-center text-sm text-muted-foreground">Nobody hired yet.</div>
         : <div className="lf-staff-grid grid gap-2 md:grid-cols-2">
-          {state.hiredStaff.map(s => <StaffCard key={s.id} state={state} staff={s} onAction={() => release(s.id)} onRenew={() => renew(s.id)} action="release" />)}
-        </div>}
-    </div>;
-  }
-  if (view === "market") {
-    return <div className="lf-staff-view space-y-2">
+            {state.hiredStaff.map((staff) => <StaffCard key={staff.id} state={state} staff={staff}
+              onAction={() => release(staff.id)} onRenew={() => renew(staff.id)} action="release" />)}
+          </div>}
+    </div>
+  );
+  if (view === "market") return (
+    <div className="lf-staff-view space-y-2">
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" className="-ml-2" onClick={() => setView("home")}><ArrowLeft className="mr-1.5 size-4" /> Staff</Button>
         <h1 className="min-w-0 flex-1 truncate font-display text-xl">Hire staff · {filtered.length}</h1>
@@ -106,33 +90,41 @@ export function StaffTab({ state, update }: { state: GameState; update: (fn: (s:
             <div className="mt-5 space-y-5">
               <div className="grid grid-cols-2 gap-2">
                 <Button variant={filter === "All" ? "default" : "outline"} onClick={() => setFilter("All")}>All roles</Button>
-                {ROLES.map(role => <Button key={role} variant={filter === role ? "default" : "outline"} onClick={() => setFilter(role)}>{role}</Button>)}
+                {ROLES.map((role) => <Button key={role} variant={filter === role ? "default" : "outline"} onClick={() => setFilter(role)}>{role}</Button>)}
               </div>
-              <div><Label>Minimum rating: {minRating}</Label><Slider value={[minRating]} min={0} max={95} step={5} onValueChange={value => setMinRating(value[0])} className="mt-3" /></div>
-              <div><Label>Maximum wage per week</Label><Input type="number" value={maxWage} min={0} step={500} onChange={event => setMaxWage(Number(event.target.value) || 0)} className="mt-2 h-12" /></div>
-              <label className="flex min-h-12 items-center gap-3"><input type="checkbox" checked={willingOnly} onChange={event => setWillingOnly(event.target.checked)} /><span>Only show people willing to join</span></label>
-              <label className="block"><span className="text-sm font-medium">Sort by</span><select value={sortBy} onChange={event => setSortBy(event.target.value as typeof sortBy)} className="mt-2 h-12 w-full rounded-xl border bg-background px-3"><option value="fit">Best fit</option><option value="rating">Highest rated</option><option value="wage">Cheapest</option><option value="age">Youngest</option></select></label>
+              <div><Label>Minimum rating: {minRating}</Label><Slider value={[minRating]} min={0} max={95} step={5} onValueChange={(value) => setMinRating(value[0])} className="mt-3" /></div>
+              <div><Label>Maximum wage per week</Label><Input type="number" value={maxWage} min={0} step={500} onChange={(event) => setMaxWage(Number(event.target.value) || 0)} className="mt-2 h-12" /></div>
+              <label className="flex min-h-12 items-center gap-3"><input type="checkbox" checked={willingOnly} onChange={(event) => setWillingOnly(event.target.checked)} /><span>Only show people willing to join</span></label>
+              <label className="block"><span className="text-sm font-medium">Sort by</span><select value={sortBy} onChange={(event) => setSortBy(event.target.value as typeof sortBy)} className="mt-2 h-12 w-full rounded-xl border bg-background px-3">
+                <option value="fit">Best fit</option><option value="rating">Highest rated</option><option value="wage">Cheapest</option><option value="age">Youngest</option>
+              </select></label>
             </div>
           </SheetContent>
         </Sheet>
       </div>
       <div className="lf-chip-row -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5" role="group" aria-label="Filter by role">
-        {QUICK_ROLES.map(role => <button key={role} type="button" onClick={() => setFilter(role)}
+        {QUICK_ROLES.map((role) => <button key={role} type="button" onClick={() => setFilter(role)}
           className={cn("lf-chip shrink-0 whitespace-nowrap", filter === role && "is-active")}>{role === "All" ? "All roles" : role}</button>)}
       </div>
       <div className="grid gap-2 md:grid-cols-2">
-        {filtered.map(({ staff, terms }) => <StaffCard key={staff.id} state={state} staff={staff} terms={terms} onAction={() => hire(staff.id)} action="hire" affordable={state.cash >= terms.signingBonus} />)}
+        {filtered.map(({staff,terms}) => <StaffCard key={staff.id} state={state} staff={staff} terms={terms}
+          onAction={() => hire(staff.id)} action="hire" affordable={state.cash >= terms.signingBonus} />)}
         {filtered.length === 0 && <div className="rounded-xl border bg-card p-5 text-center text-sm text-muted-foreground md:col-span-2">No candidates match. Open Filters to widen the search.</div>}
       </div>
-      <ManagerNegotiationDialog state={state} open={Boolean(managerNegotiationId)} candidate={state.staffCandidates.find(candidate => candidate.id === managerNegotiationId) ?? null} offer={managerOffer} acceptedOffer={managerAcceptedOffer} counter={managerCounter} message={managerMessage} cash={state.cash} onOpenChange={open => { if (!open) closeManagerTalks(); }} onOfferChange={setManagerOffer} onSubmit={submitManagerOffer} onConfirmAppointment={confirmManagerAppointment} onUseCounter={() => { if (!managerCounter) return; setManagerOffer(managerCounter); setManagerMessage("Counter-offer loaded. Meeting these terms will secure the agreement; you can still negotiate below them."); }} />
-    </div>;
-  }
+      <ManagerNegotiationDialog state={state} open={Boolean(managerNegotiationId)}
+        candidate={state.staffCandidates.find((candidate) => candidate.id === managerNegotiationId) ?? null}
+        offer={managerOffer} acceptedOffer={managerAcceptedOffer} counter={managerCounter}
+        message={managerMessage} cash={state.cash} onOpenChange={(open) => { if (!open) closeManagerTalks(); }}
+        onOfferChange={setManagerOffer} onSubmit={submitManagerOffer} onConfirmAppointment={confirmManagerAppointment}
+        onUseCounter={() => { if (!managerCounter) return; setManagerOffer(managerCounter); setManagerMessage("Counter-offer loaded. Meeting these terms will secure the agreement; you can still negotiate below them."); }} />
+    </div>
+  );
   return <OverviewScreen title="Staff" subtitle="Build the football operation around the manager, coaches and specialists who run it."
     metrics={[
-      { label: "Staff cost", value: `${fmtMoneyExact(weeklyStaffCost)}/wk` },
-      { label: "Football staff", value: String(footballStaffCount) },
-      { label: "Medical", value: `${medical.label} · ${medical.score}` },
-      { label: "Expiring", value: String(expiringCount) },
+      {label:"Staff cost",value:`${fmtMoneyExact(weeklyStaffCost)}/wk`},
+      {label:"Football staff",value:String(footballStaffCount)},
+      {label:"Medical",value:`${medical.label} · ${medical.score}`},
+      {label:"Expiring",value:String(expiringCount)},
     ]}>
     <div className="mb-2 flex items-center justify-between gap-2 rounded-lg border bg-card px-3 py-1.5 text-[11px]">
       <span className="font-semibold">Medical effect</span>
@@ -143,27 +135,28 @@ export function StaffTab({ state, update }: { state: GameState; update: (fn: (s:
         description={manager ? `${manager.name} leads the football side. ${managerFootballIdentity(manager).summary}` : "No manager appointed. The football side is being run on a caretaker basis."}
         meta={manager ? `${state.hiredStaff.length} hired · ${fmtMoneyExact(weeklyStaffCost)}/wk` : "Manager vacancy"}
         urgent={!manager} onClick={() => setView("team")} />
-      <WorkflowTile icon={Search} title="Hire staff" description="Search the market. Manager candidates come with a football identity and a live read on how their system fits your squad."
+      <WorkflowTile icon={Search} title="Hire staff"
+        description="Search the market. Managers come with a football identity and a live read on how their system fits your squad."
         meta={`${willingCount} willing candidates`} onClick={() => setView("market")} />
     </div>
   </OverviewScreen>;
 }
 
-function StaffCard({ state, staff, terms, onAction, onRenew, action, affordable = true }: {
-  state: GameState; staff: Staff; terms?: ReturnType<typeof staffJoinTermsForState>;
-  onAction: () => void; onRenew?: () => void; action: "hire" | "release"; affordable?: boolean;
+function StaffCard({state,staff,terms,onAction,onRenew,action,affordable=true}: {
+  state:GameState;staff:Staff;terms?:ReturnType<typeof staffJoinTermsForState>;
+  onAction:()=>void;onRenew?:()=>void;action:"hire"|"release";affordable?:boolean;
 }) {
-  const [portraitEditing, setPortraitEditing] = useState(false);
+  const [portraitEditing,setPortraitEditing] = useState(false);
   const manager = staff.role === "Manager";
   const contractLabel = staff.contractWeeks <= 52 ? "Final season" : `${Math.ceil(staff.contractWeeks / 52)} seasons left`;
   const identity = manager ? managerFootballIdentity(staff) : null;
-  const fit = manager ? managerSquadFit(state, staff) : null;
+  const fit = manager ? managerSquadFit(state,staff) : null;
   return <div className="lf-staff-card rounded-xl border bg-card p-2.5">
-    <div className="flex items-center gap-2.5">
+    <div className="flex items-center gap-2">
       <button type="button" onClick={() => setPortraitEditing(true)}
         className="relative shrink-0 overflow-hidden rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-500"
         aria-label={`Edit ${staff.name} appearance`}>
-        <CharacterPortrait identity={{ id: staff.id, subject: manager ? "manager" : "staff" }} size={40} title={`${staff.name} portrait`} />
+        <CharacterPortrait identity={{id:staff.id,subject:manager?"manager":"staff"}} size={40} title={`${staff.name} portrait`} />
         <Pencil className="absolute bottom-0 right-0 size-3 rounded-tl bg-black/70 p-0.5 text-white" aria-hidden="true" />
       </button>
       <div className="min-w-0 flex-1">
@@ -176,7 +169,7 @@ function StaffCard({ state, staff, terms, onAction, onRenew, action, affordable 
       </div>
     </div>
     <div className="mt-2 grid grid-cols-8 gap-0.5 rounded-lg bg-muted/40 p-0.5 text-center">
-      {STAT_KEYS.map(key => <div key={key} className="min-w-0 rounded-md py-0.5">
+      {STAT_KEYS.map((key) => <div key={key} className="min-w-0 rounded-md py-0.5">
         <div className="text-[8px] uppercase tracking-wide text-muted-foreground">{STAT_LABEL[key]}</div>
         <div className="font-display text-sm leading-tight tnum">{staff.stats[key]}</div>
       </div>)}
@@ -187,7 +180,12 @@ function StaffCard({ state, staff, terms, onAction, onRenew, action, affordable 
         <span className="rounded-full border px-2 py-0.5 text-[10px] font-semibold">{identity.philosophy}</span>
         <span className="rounded-full border px-2 py-0.5 text-[10px]">{identity.pressing} press</span>
         <span className="rounded-full border px-2 py-0.5 text-[10px]">{identity.tempo} tempo</span>
-        <span className={cn("ml-auto rounded-full border px-2 py-0.5 text-[10px] font-bold", fitTone(fit.band))}>{fit.band} fit · {fit.score}</span>
+        <span className={cn("ml-auto rounded-full border px-2 py-0.5 text-[10px] font-bold",
+          fit.band === "Excellent" ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-700" :
+          fit.band === "Good" ? "border-lime-500/25 bg-lime-500/10 text-lime-700" :
+          fit.band === "Workable" ? "border-amber-500/25 bg-amber-500/10 text-amber-700" :
+          "border-rose-500/25 bg-rose-500/10 text-rose-700"
+        )}>{fit.band} fit · {fit.score}</span>
       </div>
       <details className="lf-staff-more mt-1">
         <summary className="cursor-pointer text-[11px] font-semibold text-primary">Manager profile</summary>
@@ -195,19 +193,21 @@ function StaffCard({ state, staff, terms, onAction, onRenew, action, affordable 
         <ManagerSquadFitPanel state={state} staff={staff} />
       </details>
     </>}
-    {terms && <p className={cn("mt-1.5 line-clamp-2 text-[11px]", terms.willing ? "text-muted-foreground" : "text-rose-700 dark:text-rose-300")}>
-      <strong className="text-foreground">{terms.willing ? "Open to talks." : "Not interested."}</strong> {terms.note}
+    {terms && <p className={cn("mt-1.5 line-clamp-2 text-[11px]",terms.willing?"text-muted-foreground":"text-rose-700 dark:text-rose-300")}>
+      <strong className="text-foreground">{terms.willing?"Open to talks.":"Not interested."}</strong> {terms.note}
     </p>}
     <div className="mt-2 flex gap-1.5">
       {action === "hire" ? <Button size="sm" onClick={onAction} disabled={!terms?.willing || !affordable} className="h-8 flex-1">
-        <UserPlus className="mr-1.5 size-4" /> {manager ? "Open talks" : "Hire"}
+        <UserPlus className="mr-1.5 size-4" /> {manager?"Open talks":"Hire"}
       </Button> : <>
-        <Button size="sm" variant="outline" onClick={onAction} className="h-8 flex-1 text-rose-700 dark:text-rose-300"><UserMinus className="mr-1.5 size-4" /> Release</Button>
+        <Button size="sm" variant="outline" onClick={onAction} className="h-8 flex-1 text-rose-700 dark:text-rose-300">
+          <UserMinus className="mr-1.5 size-4" /> Release
+        </Button>
         {onRenew && staff.contractWeeks <= 52 && <Button size="sm" onClick={onRenew} className="h-8 flex-1">Renew</Button>}
       </>}
     </div>
-    <CharacterPortraitStudio identity={{ id: staff.id, subject: manager ? "manager" : "staff" }}
-      name={staff.name} open={portraitEditing} onOpenChange={setPortraitEditing} />
+    <CharacterPortraitStudio identity={{id:staff.id,subject:manager?"manager":"staff"}} name={staff.name}
+      open={portraitEditing} onOpenChange={setPortraitEditing} />
   </div>;
 }
 
