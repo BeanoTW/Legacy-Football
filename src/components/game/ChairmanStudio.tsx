@@ -86,7 +86,8 @@ export function randomAvatar(current: ChairmanAvatar, nonce: number): ChairmanAv
   const pick = <T,>(label: string, items: readonly T[]) =>
     items[(hashString(`${base}|${nonce}|${label}`) >>> 0) % items.length];
   // Deterministic per click: varied without introducing uncontrolled UI randomness.
-  const hairOptions = HAIR_STYLES.filter((style) => style.for[0] === current.sex);
+  const shortMaleStyles = new Set(["buzz", "crop", "sidePart", "swept", "curly", "receding", "bald"]);
+  const hairOptions = HAIR_STYLES.filter((style) => style.for[0] === current.sex && (current.sex !== "male" || shortMaleStyles.has(style.id)));
   const eyewearRoll = (hashString(`${base}|${nonce}|eyewear-roll`) >>> 0) % 4;
   return {
     ...current,
