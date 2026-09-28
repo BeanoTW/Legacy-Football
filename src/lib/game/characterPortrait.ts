@@ -115,3 +115,56 @@ export function onPortraitOverrideChange(listener: () => void): () => void {
     window.removeEventListener("storage", onStorage);
   };
 }
+
+/** Display-only character aliases. Stable IDs remain authoritative for all
+ * simulation data, contracts, inbox references and save migration. */
+const NAME_OVERRIDES_KEY = "legacy-football.character-names.v1";
+const NAME_OVERRIDES_EVENT = "legacy-football:character-names";
+function readNameOverrides(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(NAME_OVERRIDES_KEY);
+    const value: unknown = raw ? JSON.parse(raw) : {};
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    return Object.fromEntries(
+      Object.entries(value).filter(([id, name]) =>
+        Boolean(id) && typeof name === "string" && name.trim().length > 0,
+      ).map(([id, name]) => [id, (name as string).trim().slice(0, 60)]),
+    );
+  } catch { return {}; }
+}
+export function characterDisplayName(id: string, originalName: string): string {
+  return readNameOverrides()[id] ?? originalName;
+}
+export function saveCharacterName(id: string, name: string): boolean {
+  if (typeof window === "undefined" || !id || !name.trim()) return false;
+  try {
+    const names = readNameOverrides();
+    names[id] = name.trim().slice(0, 60);
+    window.localStorage.setItem(NAME_OVERRIDES_KEY, JSON.stringify(names));
+    window.dispatchEvent(new Event(NAME_OVERRIDES_EVENT));
+    return true;
+  } catch { return false; }
+}
+export function clearCharacterName(id: string): boolean {
+  if (typeof window === "undefined" || !id) return false;
+  try {
+    const names = readNameOverrides();
+    delete names[id];
+    window.localStorage.setItem(NAME_OVERRIDES_KEY, JSON.stringify(names));
+    window.dispatchEvent(new Event(NAME_OVERRIDES_EVENT));
+    return true;
+  } catch { return false; }
+}
+export function onCharacterNameChange(listener: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === NAME_OVERRIDES_KEY || event.key === null) listener();
+  };
+  window.addEventListener(NAME_OVERRIDES_EVENT, listener);
+  window.addEventListener("storage", onStorage);
+  return () => {
+    window.removeEventListener(NAME_OVERRIDES_EVENT, listener);
+    window.removeEventListener("storage", onStorage);
+  };
+}
