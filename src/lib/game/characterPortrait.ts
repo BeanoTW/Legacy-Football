@@ -42,7 +42,8 @@ const isHex = (value: string | undefined): value is string =>
 
 /** A person's face is stable across transfers, birthdays and save reloads. */
 export function generatedPortrait(identity: PortraitIdentity): ChairmanAvatar {
-  const key = `portrait-v1|${identity.subject}|${identity.id}`;
+  // Do not seed facial features with role: a promoted coach remains the same person.
+  const key = `portrait-v1|${identity.id}`;
   const pick = <T,>(salt: string, options: readonly T[]): T =>
     options[(hashString(`${key}|${salt}`) >>> 0) % options.length];
   const sex = identity.sex ?? "male";
@@ -55,7 +56,7 @@ export function generatedPortrait(identity: PortraitIdentity): ChairmanAvatar {
     hair,
     hairColour,
     facialHair: sex === "female" ? "none" : pick("facial-hair", facialHair),
-    outfit: pick("outfit", outfits[identity.subject]),
+    outfit: pick(`outfit|${identity.subject}`, outfits[identity.subject]),
     outfitColour: isHex(identity.outfitColour) ? identity.outfitColour : pick("outfit-colour", OUTFIT_COLOURS).id,
     accentColour: isHex(identity.accentColour) ? identity.accentColour : pick("accent-colour", ACCENT_COLOURS).id,
     eyewear: glasses ? pick("glasses", ["round", "rectangle"] as const) : "none",
