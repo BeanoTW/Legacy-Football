@@ -236,10 +236,13 @@
 .lf-paper-tags { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: 1rem; }
 .lf-paper-tags span { color: #1f5fb8; font-size: .76rem; font-weight: 700; }
 
-.lf-studio-sheet { max-height: 92dvh; overflow-y: auto; border-radius: 1.2rem 1.2rem 0 0; padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); }
+.lf-studio-sheet { height: min(92dvh, 58rem); max-height: 92dvh; display: flex; flex-direction: column; gap: 0; overflow: hidden; border-radius: 1.2rem 1.2rem 0 0; padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); }
+.lf-studio-sheet > .lf-studio-title, .lf-studio-sheet > [data-slot='sheet-header'] { flex-shrink: 0; }
+.lf-studio-sheet > .lf-studio-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; touch-action: pan-y pinch-zoom; scrollbar-gutter: stable; }
+.lf-studio-sheet > .lf-studio-footer { flex: 0 0 auto; }
 .lf-studio-title { font: 800 1.5rem var(--nr-display) !important; }
 .lf-studio-sub { margin: 0; color: var(--nr-soft); font-size: .8rem; }
-.lf-studio-stage { display: flex; align-items: center; gap: 1rem; margin: .9rem 0 .6rem; padding: .8rem; border-radius: 1rem; background: linear-gradient(135deg, #134851, var(--nr-deep)); }
+.lf-studio-stage { display: flex; flex: 0 0 auto; align-items: center; gap: 1rem; margin: .65rem 0 .6rem; padding: .65rem; border-radius: 1rem; background: linear-gradient(135deg, #134851, var(--nr-deep)); }
 .lf-studio-portrait { flex: 0 0 auto; line-height: 0; filter: drop-shadow(0 8px 16px rgb(0 0 0 / 35%)); }
 .lf-studio-stage-actions { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: .55rem; }
 .lf-studio-name span { display: block; margin-bottom: .2rem; color: #9fe7da; font-size: .62rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
@@ -256,7 +259,19 @@
 .lf-studio-swatch.is-selected { border-color: white; box-shadow: 0 0 0 2.5px var(--nr-teal), inset 0 -3px 6px rgb(0 0 0 / 15%); }
 .lf-studio-chip { padding: .42rem .75rem; border: 1px solid var(--nr-line); border-radius: 999px; background: var(--nr-card); color: var(--nr-ink); font-size: .78rem; font-weight: 600; }
 .lf-studio-chip.is-selected { border-color: var(--nr-teal); background: var(--nr-teal); color: white; }
-.lf-studio-footer { position: sticky; bottom: calc(-1rem - env(safe-area-inset-bottom, 0px)); display: flex; justify-content: flex-end; gap: .5rem; padding: .75rem 0 calc(.2rem + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--nr-line); background: var(--color-background, white); }
+.lf-studio-footer { display: flex; justify-content: flex-end; gap: .5rem; padding: .65rem 0 calc(.2rem + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--nr-line); background: var(--color-background, white); }
+@media (max-width: 767px) {
+  .lf-studio-sheet { padding: 1rem 1rem calc(.35rem + env(safe-area-inset-bottom, 0px)); }
+  .lf-studio-sheet .lf-studio-title { font-size: 1.2rem !important; }
+  .lf-studio-sheet .lf-studio-sub { font-size: .72rem; }
+  .lf-studio-sheet .lf-studio-stage { gap: .65rem; margin: .5rem 0; padding: .45rem .6rem; }
+  .lf-studio-sheet .lf-studio-portrait svg { width: clamp(76px, 24vw, 106px); height: auto; }
+  .lf-studio-sheet .lf-studio-stage-actions { gap: .3rem; }
+  .lf-studio-sheet .lf-studio-stage-actions > button { min-height: 2rem; padding: .25rem .55rem; font-size: .75rem; }
+  .lf-studio-sheet .lf-studio-sex button { min-height: 1.85rem; }
+  .lf-studio-sheet .lf-studio-name input { height: 2rem; }
+  .lf-studio-sheet .lf-studio-footer { padding-top: .45rem; }
+}
 
 .lf-newgame-chairman { display: flex; align-items: center; gap: .9rem; padding: .8rem; border-radius: 1rem; background: color-mix(in oklab, var(--nr-teal) 8%, transparent); }
 .lf-newgame-edit-look { display: inline-flex; align-items: center; gap: .3rem; border: 0; background: none; color: var(--nr-teal); font-size: .78rem; font-weight: 800; }
