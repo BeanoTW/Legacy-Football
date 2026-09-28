@@ -33,6 +33,7 @@ import { playerCareerTotals, playerSeasonByPlayer, playerSeasonStats } from "@/l
 import { playerRecentForm } from "@/lib/game/playerForm";
 import { dynamicOverall } from "@/lib/game/playerOverall";
 import { playerAttributeIdentity } from "@/lib/game/playerAttributeIdentity";
+import { CharacterPortrait } from "../CharacterPortrait";
 
 const PLAYER_PROFILE_EVENT = "legacy-football:open-player-profile";
 
@@ -153,11 +154,8 @@ export function PlayerProfileSheet({
           <SheetHeader className="relative text-left">
             <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-200/55">Player profile</div>
             <div className="mt-1 flex items-start gap-2.5">
-              <div className="grid size-13 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/[0.05]">
-                <div className="text-center">
-                  <div className="font-display text-xl leading-none">{tactical.primary}</div>
-                  <div className="mt-0.5 text-[7px] uppercase tracking-wider text-white/35">Position</div>
-                </div>
+              <div className="shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white/[0.05]">
+                <CharacterPortrait identity={{ id: player.id, subject: "player" }} size={48} title={`${playerName(player)} portrait`} />
               </div>
               <div className="min-w-0 flex-1">
                 <SheetTitle className="truncate font-display text-[1.35rem] leading-none text-white">

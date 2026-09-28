@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { newsAge, newsFeed, type NewsArticle, type NewsKind } from "@/lib/game/newsFeed";
-import { ChairmanPortrait } from "./ChairmanPortrait";
+import { CharacterPortrait } from "./CharacterPortrait";
 import { useChairmanProfile } from "./ChairmanStudio";
 
 type NewsFilter = "all" | "club" | "matches" | "transfers" | "league";
@@ -82,7 +82,7 @@ function QuoteBlock({ article }: { article: NewsArticle }) {
   if (!quote) return null;
   return (
     <figure className="lf-news-quote">
-      {quote.chairman && <ChairmanPortrait avatar={profile.avatar} size={46} className="lf-news-quote-portrait" />}
+      {quote.chairman && <CharacterPortrait avatar={profile.avatar} size={46} className="lf-news-quote-portrait" />}
       <blockquote>
         <p>“{quote.text}”</p>
         <figcaption>{quote.speaker} · {quote.role}</figcaption>
