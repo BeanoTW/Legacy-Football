@@ -24,7 +24,8 @@ assert.equal(
 
 const samples = Array.from({ length: 500 }, (_, index) => playerPortrait(`player-${index}`));
 assert.ok(new Set(samples.map((avatar) => avatar.skin)).size >= 6, "skin tone variety");
-assert.ok(new Set(samples.map((avatar) => avatar.hair)).size >= 8, "hairstyle variety");
+assert.ok(new Set(samples.map((avatar) => avatar.hair)).size >= 6, "hairstyle variety");
+for (const avatar of samples) assert.ok(!(["quiff", "pixie", "bob", "long", "waves", "ponytail", "bun"] as string[]).includes(avatar.hair), "default male portraits use the short-hair pool");
 assert.ok(new Set(samples.map((avatar) => avatar.hairColour)).size >= 7, "hair colour variety");
 assert.ok(new Set(samples.map((avatar) =>
   [avatar.skin, avatar.hair, avatar.hairColour, avatar.facialHair, avatar.eyewear].join("|")

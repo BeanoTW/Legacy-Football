@@ -21,8 +21,7 @@ export interface PortraitIdentity {
   accentColour?: string;
 }
 const maleHair: readonly HairStyle[] = [
-  "buzz", "crop", "sidePart", "quiff", "swept", "curly", "receding",
-  "bald", "bob", "long", "waves",
+  "buzz", "crop", "sidePart", "swept", "curly", "receding", "bald",
 ];
 const femaleHair: readonly HairStyle[] = [
   "pixie", "bob", "long", "waves", "ponytail", "bun", "curly",
@@ -67,3 +66,52 @@ export const playerPortrait = (id: string) => generatedPortrait({ id, subject: "
 export const staffPortrait = (id: string, isManager = false) =>
   generatedPortrait({ id, subject: isManager ? "manager" : "staff" });
 export const boardPortrait = (id: string) => generatedPortrait({ id, subject: "board" });
+
+/** Manual portraits are a presentation preference, not part of the simulation.
+ * ID-only keys survive transfers and staff role changes. */
+const OVERRIDES_KEY = "legacy-football.character-portraits.v1";
+const OVERRIDES_EVENT = "legacy-football:character-portraits";
+function readOverrides(): Record<string, ChairmanAvatar> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(OVERRIDES_KEY);
+    const value: unknown = raw ? JSON.parse(raw) : {};
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    return value as Record<string, ChairmanAvatar>;
+  } catch { return {}; }
+}
+export function portraitOverride(id: string): ChairmanAvatar | null {
+  return readOverrides()[id] ?? null;
+}
+export function savePortraitOverride(id: string, avatar: ChairmanAvatar): boolean {
+  if (typeof window === "undefined" || !id) return false;
+  try {
+    const overrides = readOverrides();
+    overrides[id] = avatar;
+    window.localStorage.setItem(OVERRIDES_KEY, JSON.stringify(overrides));
+    window.dispatchEvent(new Event(OVERRIDES_EVENT));
+    return true;
+  } catch { return false; }
+}
+export function clearPortraitOverride(id: string): boolean {
+  if (typeof window === "undefined" || !id) return false;
+  try {
+    const overrides = readOverrides();
+    delete overrides[id];
+    window.localStorage.setItem(OVERRIDES_KEY, JSON.stringify(overrides));
+    window.dispatchEvent(new Event(OVERRIDES_EVENT));
+    return true;
+  } catch { return false; }
+}
+export function onPortraitOverrideChange(listener: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === OVERRIDES_KEY || event.key === null) listener();
+  };
+  window.addEventListener(OVERRIDES_EVENT, listener);
+  window.addEventListener("storage", onStorage);
+  return () => {
+    window.removeEventListener(OVERRIDES_EVENT, listener);
+    window.removeEventListener("storage", onStorage);
+  };
+}

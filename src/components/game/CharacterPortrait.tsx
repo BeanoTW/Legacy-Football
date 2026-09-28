@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ChairmanAvatar } from "@/lib/game/chairmanProfile";
-import { generatedPortrait, type PortraitIdentity } from "@/lib/game/characterPortrait";
+import { generatedPortrait, onPortraitOverrideChange, portraitOverride, type PortraitIdentity } from "@/lib/game/characterPortrait";
 import { ChairmanPortrait } from "./ChairmanPortrait";
 
 /** One renderer for chairman, players and football staff. The existing
@@ -24,7 +24,13 @@ export function CharacterPortrait({
     () => identity ? generatedPortrait(identity) : undefined,
     [identity?.id, identity?.subject, identity?.sex, identity?.outfitColour, identity?.accentColour],
   );
-  const appearance = avatar ?? generated;
+  const [override, setOverride] = useState<ChairmanAvatar | null>(() => identity ? portraitOverride(identity.id) : null);
+  useEffect(() => {
+    const refresh = () => setOverride(identity ? portraitOverride(identity.id) : null);
+    refresh();
+    return onPortraitOverrideChange(refresh);
+  }, [identity?.id]);
+  const appearance = avatar ?? override ?? generated;
   if (!appearance) return null;
   return (
     <ChairmanPortrait
