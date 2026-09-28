@@ -47,6 +47,7 @@ export function useGame() {
   const [activeSlot, setActiveSlot] = useState<SaveSlotId>(initialSlot);
   const [saveSlots, setSaveSlots] = useState<SaveSlotSummary[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [cloudError, setCloudError] = useState<string | null>(null);
   const writeSeq = useRef(0);
   const cloudTimer = useRef<number | null>(null);
   const skipCloudWrite = useRef(true);
@@ -89,7 +90,11 @@ export function useGame() {
       );
       if (localOnly) return;
       if (cloudTimer.current) window.clearTimeout(cloudTimer.current);
-      cloudTimer.current = window.setTimeout(() => void uploadCareer(activeSlot, state), 2_000);
+      cloudTimer.current = window.setTimeout(() => {
+        void uploadCareer(activeSlot, state).then(() => setCloudError(null)).catch((error: unknown) =>
+          setCloudError(`Cloud sync failed: ${(error as Error).message}`),
+        );
+      }, 2_000);
     }).catch((error: unknown) => {
       if (seq === writeSeq.current) setSaveError((error as Error).message);
     });
@@ -231,6 +236,7 @@ export function useGame() {
     activeSlot,
     saveSlots,
     saveError,
+    cloudError,
     switchSlot,
     deleteSlot,
   };
