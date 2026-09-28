@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { Pencil } from "lucide-react";
 import { CharacterPortrait } from "./game/CharacterPortrait";
 import { CharacterPortraitStudio } from "./game/CharacterPortraitStudio";
-import { useCharacterName } from "./game/useCharacterName";
+import { useCharacterName } from "@/hooks/useCharacterName";
 import type { Director, GameState } from "@/lib/game/types";
 import {
   BAND_CLASS,
