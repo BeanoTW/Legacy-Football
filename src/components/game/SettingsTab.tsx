@@ -112,7 +112,7 @@ export function SettingsTab({
           <HardDrive className="size-4" /> Save manager
         </div>
         <div className="grid gap-2 p-3 lg:grid-cols-3">
-          {slots.map(({ id, state }, index) => {
+          {slots.map(({ id, state, status }, index) => {
             const active = id === activeSlot;
             return (
               <article
@@ -127,7 +127,7 @@ export function SettingsTab({
                     <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                       Career {index + 1}
                     </div>
-                    <div className="font-display text-xl">{state?.clubName ?? "Empty slot"}</div>
+                    <div className="font-display text-xl">{status === "unreadable" ? "Save needs recovery" : state?.clubName ?? "Empty slot"}</div>
                   </div>
                   {active && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-1 text-[10px] font-bold text-primary-foreground">
@@ -142,7 +142,7 @@ export function SettingsTab({
                     <SaveFact label="Balance" value={`£${(state.cash / 1_000_000).toFixed(1)}m`} />
                   </div>
                 ) : (
-                  <p className="mt-2 text-xs text-muted-foreground">Start a new chairman career here.</p>
+                  <p className="mt-2 text-xs text-muted-foreground">{status === "unreadable" ? "An existing save is protected. Do not clear this slot or browser data." : "Start a new chairman career here."}</p>
                 )}
                 <div className="mt-3 flex gap-2">
                   {!active && (
