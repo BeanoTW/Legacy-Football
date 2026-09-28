@@ -30,6 +30,7 @@ import { OverviewScreen, WorkflowTile } from "./shared/layout";
 import { medicalSupport } from "@/lib/game/playerHealth";
 import { CharacterPortrait } from "./CharacterPortrait";
 import { CharacterPortraitStudio } from "./CharacterPortraitStudio";
+import { useCharacterName } from "./useCharacterName";
 
 const STAT_KEYS: (keyof Staff["stats"])[] = ["tactics", "attack", "defense", "development", "scouting", "negotiation", "medical", "motivation"];
 const STAT_LABEL: Record<keyof Staff["stats"], string> = { tactics: "Tac", attack: "Att", defense: "Def", development: "Dev", scouting: "Sct", negotiation: "Neg", medical: "Med", motivation: "Mot" };
@@ -147,6 +148,7 @@ function StaffCard({state,staff,terms,onAction,onRenew,action,affordable=true}: 
   onAction:()=>void;onRenew?:()=>void;action:"hire"|"release";affordable?:boolean;
 }) {
   const [portraitEditing,setPortraitEditing] = useState(false);
+  const displayName = useCharacterName(staff.id, displayName);
   const manager = staff.role === "Manager";
   const contractLabel = staff.contractWeeks <= 52 ? "Final season" : `${Math.ceil(staff.contractWeeks / 52)} seasons left`;
   const identity = manager ? managerFootballIdentity(staff) : null;
@@ -155,12 +157,12 @@ function StaffCard({state,staff,terms,onAction,onRenew,action,affordable=true}: 
     <div className="flex items-center gap-2">
       <button type="button" onClick={() => setPortraitEditing(true)}
         className="relative shrink-0 overflow-hidden rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-500"
-        aria-label={`Edit ${staff.name} appearance`}>
-        <CharacterPortrait identity={{id:staff.id,subject:manager?"manager":"staff"}} size={40} title={`${staff.name} portrait`} />
+        aria-label={`Edit ${displayName} appearance`}>
+        <CharacterPortrait identity={{id:staff.id,subject:manager?"manager":"staff"}} size={40} title={`${displayName} portrait`} />
         <Pencil className="absolute bottom-0 right-0 size-3 rounded-tl bg-black/70 p-0.5 text-white" aria-hidden="true" />
       </button>
       <div className="min-w-0 flex-1">
-        <div className="truncate font-display text-base leading-tight">{staff.name}</div>
+        <div className="truncate font-display text-base leading-tight">{displayName}</div>
         <div className="truncate text-[11px] text-muted-foreground">{staff.role} · {staff.age} · Rating {staff.rating}</div>
       </div>
       <div className="shrink-0 text-right text-[11px]">
@@ -206,7 +208,7 @@ function StaffCard({state,staff,terms,onAction,onRenew,action,affordable=true}: 
         {onRenew && staff.contractWeeks <= 52 && <Button size="sm" onClick={onRenew} className="h-8 flex-1">Renew</Button>}
       </>}
     </div>
-    <CharacterPortraitStudio identity={{id:staff.id,subject:manager?"manager":"staff"}} name={staff.name}
+    <CharacterPortraitStudio identity={{id:staff.id,subject:manager?"manager":"staff"}} name={displayName}
       open={portraitEditing} onOpenChange={setPortraitEditing} />
   </div>;
 }
