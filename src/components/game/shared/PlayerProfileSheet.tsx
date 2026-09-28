@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Binoculars, CheckCircle2, Handshake, Repeat2, Star, X } from "lucide-react";
+import { Binoculars, CheckCircle2, Handshake, Pencil, Repeat2, Star, X } from "lucide-react";
 import type { GameState, LoanPlayingTimeExpectation, TacticalPosition } from "@/lib/game/types";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,7 @@ import { playerRecentForm } from "@/lib/game/playerForm";
 import { dynamicOverall } from "@/lib/game/playerOverall";
 import { playerAttributeIdentity } from "@/lib/game/playerAttributeIdentity";
 import { CharacterPortrait } from "../CharacterPortrait";
+import { CharacterPortraitStudio } from "../CharacterPortraitStudio";
 
 const PLAYER_PROFILE_EVENT = "legacy-football:open-player-profile";
 
@@ -55,6 +56,7 @@ export function PlayerProfileSheet({
   update: (fn: (s: GameState) => GameState) => void;
 }) {
   const [playerId, setPlayerId] = useState<string | null>(null);
+  const [portraitEditing, setPortraitEditing] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [showLoan, setShowLoan] = useState(false);
   const [loanDuration, setLoanDuration] = useState(12);
@@ -66,6 +68,7 @@ export function PlayerProfileSheet({
       const detail = (event as CustomEvent<{ playerId?: string }>).detail;
       if (detail?.playerId) {
         setPlayerId(detail.playerId);
+        setPortraitEditing(false);
         setNote(null);
         setShowLoan(false);
       }
@@ -139,6 +142,7 @@ export function PlayerProfileSheet({
   return (
     <Sheet open onOpenChange={(open) => !open && setPlayerId(null)}>
       <SheetContent side="right" hideClose className="w-[94vw] overflow-y-auto p-0 sm:max-w-md">
+        <CharacterPortraitStudio identity={{ id: player.id, subject: "player" }} name={playerName(player)} open={portraitEditing} onOpenChange={setPortraitEditing} />
         <Button
           type="button"
           variant="ghost"
@@ -154,9 +158,12 @@ export function PlayerProfileSheet({
           <SheetHeader className="relative text-left">
             <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-200/55">Player profile</div>
             <div className="mt-1 flex items-start gap-2.5">
-              <div className="shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white/[0.05]">
+              <button type="button" onClick={() => setPortraitEditing(true)}
+                className="relative shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300"
+                aria-label={`Edit ${playerName(player)} appearance`}>
                 <CharacterPortrait identity={{ id: player.id, subject: "player" }} size={48} title={`${playerName(player)} portrait`} />
-              </div>
+                <Pencil className="absolute bottom-0 right-0 size-3 rounded-tl bg-black/70 p-0.5 text-white" aria-hidden="true" />
+              </button>
               <div className="min-w-0 flex-1">
                 <SheetTitle className="truncate font-display text-[1.35rem] leading-none text-white">
                   {playerName(player)}
