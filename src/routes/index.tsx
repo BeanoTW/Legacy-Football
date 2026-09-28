@@ -41,6 +41,8 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { PlayerProfileSheet } from "@/components/game/shared/PlayerProfileSheet";
+import { CharacterPortrait } from "@/components/game/CharacterPortrait";
+import { ChairmanStudio, useChairmanProfile } from "@/components/game/ChairmanStudio";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -96,6 +98,8 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
   deleteSlot: (slot: SaveSlotId) => Promise<void>;
 }) {
   const [tab, setTab] = useState<Tab>("hub");
+  const [chairmanStudioOpen, setChairmanStudioOpen] = useState(false);
+  const chairmanProfile = useChairmanProfile();
   const [decisionQueue, setDecisionQueue] = useState(false);
   const [showAdvancePreview, setShowAdvancePreview] = useState(false);
   const [advanceStart, setAdvanceStart] = useState<GameState | null>(null);
@@ -134,6 +138,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
   return (
     <div className="game-shell">
       <PlayerProfileSheet state={state} update={update} />
+      <ChairmanStudio open={chairmanStudioOpen} onOpenChange={setChairmanStudioOpen} showName={false} />
       <div className="lf-masthead shrink-0">
         <TopBar
           title={state.clubName}
@@ -141,11 +146,17 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
           detail={`Season ${state.season} · Week ${state.week}/${CALENDAR.seasonEnd} · ${phaseLabel}`}
           crest={<ClubBadge design={crestDesign} clubName={state.clubName} size={56} />}
           right={
-            <div className="lf-chairman-badge" title={chairman.detail}>
-              <span>{chairman.label}</span>
-              <strong>{Math.round(userReputation)}</strong>
-              <small>Reputation</small>
-              <ReputationStars value={userReputation} />
+            <div className="lf-masthead-persona">
+              <button type="button" className="lf-masthead-avatar" title="Edit chairman appearance"
+                aria-label="Edit chairman appearance" onClick={() => setChairmanStudioOpen(true)}>
+                <CharacterPortrait avatar={chairmanProfile.avatar} size={43} title={`${state.managerName} portrait`} />
+              </button>
+              <div className="lf-chairman-badge" title={chairman.detail}>
+                <span>{chairman.label}</span>
+                <strong>{Math.round(userReputation)}</strong>
+                <small>Reputation</small>
+                <ReputationStars value={userReputation} />
+              </div>
             </div>
           }
         />
