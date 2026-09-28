@@ -163,7 +163,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
             <div className="lf-masthead-persona">
               <button type="button" className="lf-masthead-avatar" title="Edit chairman appearance"
                 aria-label="Edit chairman appearance" onClick={() => setChairmanStudioOpen(true)}>
-                <CharacterPortrait avatar={chairmanProfile.avatar} size={43} title={`${state.managerName} portrait`} />
+                <CharacterPortrait avatar={chairmanProfile.avatar} size={86} title={`${state.managerName} portrait`} />
               </button>
               <div className="lf-chairman-badge" title={chairman.detail}>
                 <span>{chairman.label}</span>
