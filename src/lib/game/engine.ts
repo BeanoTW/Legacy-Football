@@ -438,6 +438,12 @@ export async function loadGame(slot: SaveSlotId = "slot-1"): Promise<GameState |
   await pendingSaveWrites.get(slot)?.catch(() => undefined);
   const { state, diagnostics } = await storeFor(slot).load();
   reportDiagnostics(diagnostics);
+  // Never present a corrupt, unreadable or future-version career as an empty
+  // slot. The storage layer preserves the original until an explicit clear.
+  if (!state) {
+    const failure = diagnostics.find((d) => d.level === "error" || d.code === "save/preserved");
+    if (failure) throw new Error(failure.detail ?? failure.code);
+  }
   return state;
 }
 
