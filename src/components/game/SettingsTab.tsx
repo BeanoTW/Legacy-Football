@@ -157,7 +157,9 @@ export function SettingsTab({
                       aria-label={`Delete Career ${index + 1}`}
                       onClick={() => {
                         if (window.confirm(`Delete ${state.clubName} from Career ${index + 1}? This cannot be undone.`)) {
-                          void onDelete(id);
+                          void onDelete(id).catch((error: unknown) =>
+                            setCloudMessage(`Could not delete career: ${(error as Error).message}`),
+                          );
                         }
                       }}
                     >
