@@ -33,6 +33,7 @@ export function SettingsTab({
   const [cloudMessage, setCloudMessage] = useState<string | null>(null);
   const [cloudBusy, setCloudBusy] = useState(false);
   const [conflictingSlots, setConflictingSlots] = useState<SaveSlotId[]>([]);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState<string | null>(() => typeof localStorage === "undefined" ? null : localStorage.getItem("chairman.cloud-last-sync"));
 
   useEffect(() => {
@@ -111,6 +112,7 @@ export function SettingsTab({
         <div className="panel-strip flex items-center gap-2 px-3 py-2 text-sm font-semibold">
           <HardDrive className="size-4" /> Save manager
         </div>
+        {deleteError && <p role="alert" className="m-3 rounded-lg border border-rose-500 bg-rose-500/10 p-2 text-xs">{deleteError}</p>}
         <div className="grid gap-2 p-3 lg:grid-cols-3">
           {slots.map(({ id, state, status }, index) => {
             const active = id === activeSlot;
@@ -157,8 +159,9 @@ export function SettingsTab({
                       aria-label={`Delete Career ${index + 1}`}
                       onClick={() => {
                         if (window.confirm(`Delete ${state.clubName} from Career ${index + 1}? This cannot be undone.`)) {
+                          setDeleteError(null);
                           void onDelete(id).catch((error: unknown) =>
-                            setCloudMessage(`Could not delete career: ${(error as Error).message}`),
+                            setDeleteError(`Could not delete career: ${(error as Error).message}`),
                           );
                         }
                       }}
