@@ -18,6 +18,7 @@ import inboxOverhaulCss from "../inbox-overhaul.css?url";
 import facilitiesGroundCss from "../facilities-ground.css?url";
 import homeConceptCss from "../home-concept.css?url";
 import newsroomCss from "../newsroom.css?url";
+import departmentCss from "../department.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
 function NotFoundComponent() {
@@ -75,6 +76,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: homeConceptCss },
       // Chairman's office, newsroom and chairman studio.
       { rel: "stylesheet", href: newsroomCss },
+      { rel: "stylesheet", href: departmentCss },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },

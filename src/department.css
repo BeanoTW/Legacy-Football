@@ -1,0 +1,95 @@
+/* Department consistency and phone-density pass.
+   Intentionally loaded after newsroom.css; Home and Office stay untouched. */
+
+/* Reputation icons must not inherit masthead badge box styling. */
+.lf-masthead .lf-chairman-badge svg.lf-rep-star {
+  width: .68rem;
+  height: .68rem;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  display: inline-block;
+}
+@media (min-width: 768px) {
+  .lf-masthead .lf-chairman-badge svg.lf-rep-star { width: .78rem; height: .78rem; }
+}
+
+.game-screen .lf-screen-header { padding: 0 0 .3rem; }
+.game-screen .lf-screen-header h1 { font-size: 1.3rem; }
+.game-screen .lf-screen-header button { height: 2rem; padding-inline: .5rem; }
+
+.game-screen .lf-workflow-tile {
+  min-height: 0;
+  background: var(--color-card);
+  box-shadow: 0 2px 8px rgb(8 18 28 / 5%);
+}
+.game-screen .lf-workflow-tile::after,
+.game-screen .lf-transfer-budget::after { display: none; }
+.game-screen .lf-workflow-tile.is-urgent {
+  border-color: rgb(245 154 42 / 70%);
+  background: rgb(245 154 42 / 6%);
+}
+.game-screen .lf-workflow-sub {
+  display: -webkit-box;
+  margin-top: .1rem;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.game-screen section > .banner-strip {
+  min-height: 2rem;
+  padding: .45rem .75rem;
+  background: color-mix(in oklab, var(--color-panel, #0f3a40) 92%, black);
+  color: var(--color-panel-foreground, white);
+  font-family: var(--font-display, inherit);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.game-screen section > .banner-strip + .p-4 { padding: .75rem; }
+.game-screen section.mb-4 { margin-bottom: .6rem; }
+
+.lf-sales-summary > div + div { border-left-width: 1px; }
+.lf-sale-row.is-listed { background: rgb(245 154 42 / 5%); }
+.lf-sale-row input { font-variant-numeric: tabular-nums; }
+
+/* Three compact shortcuts in the More club areas sheet. */
+[data-slot="sheet-content"] .grid.grid-cols-2:has(> button.min-h-20) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .45rem;
+  margin-top: .9rem;
+}
+[data-slot="sheet-content"] .grid.grid-cols-2 > button.min-h-20 {
+  min-height: 4.4rem;
+  justify-content: center;
+  align-items: center;
+  gap: .35rem;
+  padding: .55rem .35rem;
+  border-radius: .9rem;
+  text-align: center;
+  font-size: .78rem;
+}
+[data-slot="sheet-content"] .grid.grid-cols-2 > button.min-h-20 svg {
+  width: 1.3rem;
+  height: 1.3rem;
+}
+
+@media (max-width: 767px) {
+  .game-screen :is(.lf-overview-screen, .lf-detail-screen, .lf-sales-desk) :is(.p-4, .p-5) { padding: .7rem; }
+  .game-screen :is(.lf-overview-screen, .lf-detail-screen, .lf-sales-desk) .p-3 { padding: .6rem; }
+  .game-screen :is(.lf-overview-screen, .lf-detail-screen, .lf-sales-desk) :is(.gap-3, .gap-4) { gap: .5rem; }
+  .game-screen :is(.lf-overview-screen, .lf-detail-screen) .space-y-4 > :not(:last-child) { margin-bottom: .6rem; }
+  .game-screen :is(.lf-overview-screen, .lf-detail-screen) .space-y-3 > :not(:last-child) { margin-bottom: .45rem; }
+  .game-screen .lf-overview-screen section .text-xs.text-muted-foreground { font-size: .68rem; }
+  .game-screen .lf-workflow-tile { padding: .55rem .6rem; gap: .5rem; border-radius: .8rem; }
+  .game-screen .lf-workflow-icon { width: 1.9rem; height: 1.9rem; border-radius: .55rem; }
+  .game-screen .lf-workflow-title { font-size: .88rem; }
+  .game-screen .lf-workflow-value { font-size: .72rem; }
+  .game-screen .lf-workflow-sub { font-size: .64rem; }
+  .game-screen .lf-screen-metrics > div { padding: .35rem .45rem; }
+}

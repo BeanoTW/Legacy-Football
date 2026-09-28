@@ -50,13 +50,13 @@ export function OverviewScreen({
   children: ReactNode;
 }) {
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2 md:gap-3">
+    <div className="lf-overview-screen flex h-full min-h-0 flex-col gap-2 md:gap-3">
       <ScreenHeader title={title} subtitle={subtitle} actions={actions} />
       {metrics && metrics.length > 0 && (
-        <div className="grid shrink-0 grid-cols-2 gap-1.5 md:grid-cols-4">
+        <div className="lf-screen-metrics grid shrink-0 grid-cols-4 gap-1.5">
           {metrics.map((metric) => (
-            <div key={metric.label} className="rounded-lg border bg-card px-2.5 py-2">
-              <div className="truncate text-[10px] uppercase tracking-wide text-muted-foreground">{metric.label}</div>
+            <div key={metric.label} className="rounded-lg border bg-card px-2 py-1.5">
+              <div className="truncate text-[9px] uppercase tracking-wide text-muted-foreground">{metric.label}</div>
               <div className="truncate font-display text-sm md:text-base">{metric.value}</div>
             </div>
           ))}
@@ -83,7 +83,7 @@ export function DetailScreen({
   children: ReactNode;
 }) {
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2 md:gap-3">
+    <div className="lf-detail-screen flex h-full min-h-0 flex-col gap-2 md:gap-3">
       <ScreenHeader title={title} subtitle={subtitle} actions={actions} />
       {toolbar && <div className="shrink-0">{toolbar}</div>}
       <div className={cn("contained-scroll min-h-0 flex-1 pr-0.5", className)}>{children}</div>
@@ -128,32 +128,18 @@ export function WorkflowTile({
   const supporting = sub ?? description;
 
   return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "lf-workflow-tile flex min-h-[4.25rem] w-full flex-col justify-center gap-1.5 rounded-xl border bg-card p-2.5 text-left shadow-sm transition-colors hover:border-primary/50 md:min-h-[5.5rem] md:p-3",
-        urgent && "border-amber-500/70 bg-amber-500/5",
-      )}
-    >
-      <div className="flex min-w-0 items-center gap-2">
-        <span
-          className={cn(
-            "grid size-8 shrink-0 place-items-center rounded-lg md:size-10",
-            urgent ? "bg-amber-500 text-white" : "bg-primary/10 text-primary",
-          )}
-        >
-          {iconNode}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate font-display text-sm leading-tight md:text-base xl:text-lg">
-            {title}
-          </span>
-          {detail && (
-            <span className="block truncate text-xs text-muted-foreground md:text-sm">{detail}</span>
-          )}
-        </span>
-      </div>
-      {supporting && <span className="hidden truncate text-xs text-muted-foreground xl:block">{supporting}</span>}
+    <button onClick={onClick} className={cn(
+      "lf-workflow-tile flex w-full items-start gap-2.5 rounded-xl border bg-card p-2.5 text-left shadow-sm transition-colors hover:border-primary/50 md:p-3",
+      urgent && "is-urgent border-amber-500/70 bg-amber-500/5",
+    )}>
+      <span className={cn("lf-workflow-icon grid size-8 shrink-0 place-items-center rounded-lg md:size-10", urgent ? "bg-amber-500 text-white" : "bg-primary/10 text-primary")}>
+        {iconNode}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="lf-workflow-title block truncate font-display text-sm leading-tight md:text-base xl:text-lg">{title}</span>
+        {detail && <span className="lf-workflow-value block truncate text-xs font-semibold md:text-sm">{detail}</span>}
+        {supporting && <span className="lf-workflow-sub line-clamp-2 text-[11px] leading-snug text-muted-foreground md:text-xs">{supporting}</span>}
+      </span>
     </button>
   );
 }
