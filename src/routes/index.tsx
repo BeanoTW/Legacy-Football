@@ -66,8 +66,20 @@ function Page() {
     if (theme) document.documentElement.dataset.clubTheme = theme;
   }, []);
   if (!game.hydrated) return <div className="h-dvh grid place-items-center text-muted-foreground">Loading…</div>;
-  if (!game.state) return <NewGame onStart={game.start} activeSlot={game.activeSlot} slots={game.saveSlots} onSelectSlot={game.switchSlot} />;
-  return <Game {...game} state={game.state} />;
+  return (
+    <>
+      {game.state ? (
+        <Game {...game} state={game.state} />
+      ) : (
+        <NewGame onStart={game.start} activeSlot={game.activeSlot} slots={game.saveSlots} onSelectSlot={game.switchSlot} />
+      )}
+      {game.saveError && (
+        <div role="alert" className="fixed inset-x-3 bottom-[calc(5.25rem+env(safe-area-inset-bottom))] z-[100] mx-auto max-w-xl rounded-xl border border-rose-400 bg-rose-950 p-3 text-sm font-semibold text-rose-50 shadow-xl">
+          {game.saveError} Your latest progress may not be stored. Keep this tab open and check your device storage.
+        </div>
+      )}
+    </>
+  );
 }
 
 /** Five-star reputation read-out: one star per 20 reputation points. */
