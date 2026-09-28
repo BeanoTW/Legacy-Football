@@ -113,6 +113,7 @@ export function ClubHub({ state, update, setTab, isContinuing, onAdvanceTo }: { 
         <VitalCard variant="board" icon={<Handshake className="size-4" />} label="Board confidence" value={`${boardConf}%`} detail={strategic.pressure.headline} tone={boardConf >= 65 ? "text-emerald-600" : "text-amber-600"} meter={boardConf} onClick={() => setTab("board")} />
         <VitalCard variant="fans" icon={<Users className="size-4" />} label="Supporter mood" value={`${state.fanHappiness}%`} detail="Current supporter sentiment" tone={state.fanHappiness >= 60 ? "text-emerald-600" : "text-amber-600"} meter={state.fanHappiness} onClick={() => setTab("tickets")} />
       </section>
+      <div className={cn("lf-home-bottom-pair", suggestedSteps.length === 1 && decisionItems.length <= 1 && "is-compact")}>
       {suggestedSteps.length > 0 && (
         <section className="lf-suggested-next rounded-2xl border bg-card shadow-sm">
           <div className="lf-home-panel-heading"><span className="lf-heading-label"><Target className="size-3.5" />Suggested next steps</span><small>Optional</small></div>
@@ -129,6 +130,7 @@ export function ClubHub({ state, update, setTab, isContinuing, onAdvanceTo }: { 
           )) : <div className="lf-task-row is-clear"><span className="lf-task-icon"><Mail className="size-4" /></span><span><strong className="block">No decisions waiting</strong><small className="block">Nothing needs your attention</small></span></div>}</div>
         </div>
       </section>
+      </div>
       <section className="lf-management-grid grid grid-cols-2 gap-2 md:grid-cols-3">
         <ActionTile onClick={() => setTab("squad")} icon={<SquadIcon className="size-5" />} title="Squad" value={`${squadSize} players`} sub="Selection · contracts" />
         <ActionTile onClick={() => setTab("recruitment")} icon={<TransfersIcon className="size-5" />} title="Transfers" value={activeNegotiations > 0 ? `${activeNegotiations} active` : "Market"} sub="Scouting · shortlist · deals" />
