@@ -105,7 +105,8 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
                 ))}
               </div>
             </div>
-            <Button className="w-full" disabled={!club.trim()} onClick={start}>
+            {activeSlotUnreadable && <p role="alert" className="rounded-lg border border-amber-500 bg-amber-500/10 p-3 text-xs">This career could not be read. Its original save is protected. Select a different slot; do not clear this slot or browser data.</p>}
+            <Button className="w-full" disabled={!club.trim() || activeSlotUnreadable} onClick={start}>
               <Play className="mr-2 size-4" /> Start Season
             </Button>
           </div>
