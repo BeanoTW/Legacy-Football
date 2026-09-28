@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ArrowLeft, Binoculars, Handshake, History, Repeat2, Shield, Star } from "lucide-react";
 import type { GameState } from "@/lib/game/types";
+import type { InboxDestination } from "@/lib/game/inboxNavigation";
 import { RecruitmentOperations } from "./RecruitmentOperations";
 import { ScoutingBrowser } from "./ScoutingBrowser";
 import { ScoutingBriefBuilder } from "./ScoutingBriefBuilder";
@@ -17,22 +18,22 @@ import { OverviewScreen, WorkflowTile } from "./shared/layout";
 
 type View = "home" | "operations" | "find" | "brief" | "reports" | "sales" | "loans" | "history";
 
-export function RecruitmentFlow({ state, update }: { state: GameState; update: (fn: (s: GameState) => GameState) => void }) {
-  const [view, setView] = useState<View>("home");
+export function RecruitmentFlow({ state, update, destination }: { state: GameState; update: (fn: (s: GameState) => GameState) => void; destination?: Extract<InboxDestination, { tab: "recruitment" }> | null }) {
+  const [view, setView] = useState<View>(destination?.view ?? "home");
   const snap = useMemo(() => (state.football ? recruitmentSnapshot(state) : null), [state]);
 
   if (view === "find") {
     const hasBrief = Boolean(state.football?.scoutingDiscovery?.briefs.length);
     if (!hasBrief) return <ScoutingBriefBuilder state={state} update={update} onBack={() => setView("home")} />;
-    return <ScoutingBrowser state={state} update={update} onBack={() => setView("home")} onNewBrief={() => setView("brief")} />;
+    return <ScoutingBrowser state={state} update={update} onBack={() => setView("home")} onNewBrief={() => setView("brief")} initialBriefId={destination?.view === "find" ? destination.briefId : undefined} />;
   }
   if (view === "brief") return <ScoutingBriefBuilder state={state} update={update} onBack={() => setView("find")} />;
-  if (view === "reports") return <ScoutingReports state={state} update={update} onBack={() => setView("home")} />;
+  if (view === "reports") return <ScoutingReports state={state} update={update} onBack={() => setView("home")} focusPlayerId={destination?.view === "reports" ? destination.playerId : undefined} />;
   if (view === "sales") return <OutgoingSalesDesk state={state} update={update} onBack={() => setView("home")} />;
   if (view === "loans") return <LoanDesk state={state} update={update} onBack={() => setView("home")} />;
   if (view === "history") return <TransferHistory state={state} onBack={() => setView("home")} />;
   if (view === "operations") {
-    return <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden"><Button className="w-fit shrink-0" variant="ghost" size="sm" onClick={() => setView("home")}><ArrowLeft className="mr-2 size-4" /> Back to transfers</Button><div className="min-h-0 flex-1 overflow-hidden"><RecruitmentOperations state={state} update={update} /></div></div>;
+    return <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden"><Button className="w-fit shrink-0" variant="ghost" size="sm" onClick={() => setView("home")}><ArrowLeft className="mr-2 size-4" /> Back to transfers</Button><div className="min-h-0 flex-1 overflow-hidden"><RecruitmentOperations state={state} update={update} initialNegotiationId={destination?.view === "operations" && "negotiationId" in destination ? destination.negotiationId : undefined} /></div></div>;
   }
 
   const negotiations = state.football ? openNegotiations(state) : [];
