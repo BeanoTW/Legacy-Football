@@ -205,7 +205,10 @@ export function uploadCareer(slot: SaveSlotId, state: GameState): Promise<void> 
       localStorage.setItem("chairman.cloud-last-sync", new Date().toISOString());
       return;
     }
-    if (existing && Date.parse(existing.state_updated_at) >= Date.parse(capturedModifiedAt)) {
+    if (existing && !localStorage.getItem(CLOUD_OWNER_KEY)) {
+      throw new Error("Connect existing careers with Sync now in Settings before automatic uploads can overwrite a different cloud career.");
+    }
+    if (existing && (!Number.isFinite(Date.parse(existing.state_updated_at)) || !Number.isFinite(Date.parse(capturedModifiedAt)) || Date.parse(existing.state_updated_at) >= Date.parse(capturedModifiedAt))) {
       throw new Error(`Cloud career ${slot} has different progress at least as new as this device. Use Sync now in Settings to resolve it.`);
     }
     await writeCloudCareer(client, data.session.user.id, slot, state, capturedModifiedAt, existing?.state_updated_at ?? null);
