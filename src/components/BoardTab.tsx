@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import type { BoardObjective, Director, GameState } from "@/lib/game/types";
+import type { Director, GameState } from "@/lib/game/types";
 import {
   BAND_CLASS,
   BAND_LABEL,
@@ -12,11 +12,11 @@ import {
   evaluateObjective,
   recomputeConfidence,
 } from "@/lib/game/board";
-import { fmtMoneyExact } from "@/lib/game/engine";
 import { SeasonObjectivesDashboard } from "./game/SeasonObjectivesDashboard";
 
 type View = "overview" | "directors" | "objectives" | "reviews";
 
+const VIEWS = [["overview","Overview"],["directors","Directors"],["objectives","Objectives"],["reviews","Reviews"]] as const;
 const PRIORITY_LABEL: Record<string, string> = {
   results: "Results",
   finance: "Finance",
@@ -42,35 +42,23 @@ export function BoardTab({ state }: { state: GameState }) {
   const band = confidenceBand(confidence);
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-        <div className="banner-strip px-3 py-2 text-xs">Board of Directors</div>
-        <div className="p-4 flex flex-wrap items-center gap-4">
-          <ConfidenceDial value={confidence} />
-          <div className="min-w-40">
-            <div className={cn("text-lg font-semibold", BAND_CLASS[band])}>{BAND_LABEL[band]}</div>
-            <p className="text-xs text-muted-foreground max-w-md">
-              Board confidence is the influence-weighted view of {board.directors.length} directors.
-              They do not agree with each other — each judges you on the part of the club they own.
-            </p>
-          </div>
+    <div className="lf-board space-y-2">
+      <section className="flex items-center gap-3 rounded-xl border bg-card px-3 py-2.5 shadow-sm">
+        <ConfidenceDial value={confidence} />
+        <div className="min-w-0 flex-1">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Board confidence</div>
+          <div className={cn("font-display text-xl leading-tight", BAND_CLASS[band])}>{BAND_LABEL[band]}</div>
+          <p className="text-[11px] leading-snug text-muted-foreground">
+            Weighted view of {board.directors.length} directors, each judging their own part of the club.
+          </p>
         </div>
-        <div className="px-3 pb-3">
-          <Segmented
-            options={
-              [
-                ["overview", "Overview"],
-                ["directors", "Directors"],
-                ["objectives", "Objectives"],
-                ["reviews", "Reviews"],
-              ] as const
-            }
-            value={view}
-            onChange={(v) => setView(v as View)}
-          />
-        </div>
+      </section>
+      <div className="lf-segmented grid grid-cols-4" role="tablist" aria-label="Board view">
+        {VIEWS.map(([id, label]) => (
+          <button key={id} type="button" role="tab" aria-selected={view === id}
+            className={cn(view === id && "is-active")} onClick={() => setView(id)}>{label}</button>
+        ))}
       </div>
-
       {view === "overview" && <Overview state={state} />}
       {view === "directors" && <Directors state={state} />}
       {view === "objectives" && <Objectives state={state} />}
@@ -84,46 +72,44 @@ export function BoardTab({ state }: { state: GameState }) {
 function Overview({ state }: { state: GameState }) {
   const board = state.board;
   const objectives = board.objectives ?? [];
-  const progresses = objectives.map((o) => evaluateObjective(state, o));
-  const onTrack = progresses.filter((p) => p.onTrack).length;
-  const nextReview = state.week < 24 ? `Week 24 (mid-season)` : `Week 46 (end of season)`;
-
-  const split = [...board.directors]
-    .map((d) => ({ d, s: directorSatisfaction(state, d) }))
-    .sort((a, b) => b.s - a.s);
-
+  const onTrack = objectives.map((objective) => evaluateObjective(state, objective)).filter((progress) => progress.onTrack).length;
+  const nextReview = state.week < 24 ? "Week 24" : "Week 46";
+  const split = [...board.directors].map((d) => ({ d, s: directorSatisfaction(state, d) })).sort((a, b) => b.s - a.s);
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <div className="rounded-xl border bg-card p-4 space-y-3">
-        <h3 className="text-sm font-semibold">Season {state.season} at a glance</h3>
-        <Stat label="Objectives on track" value={`${onTrack} of ${objectives.length}`} />
-        <Stat label="Next review" value={nextReview} />
-        <Stat label="Reviews on file" value={String((board.reviews ?? []).length)} />
-        <p className="text-xs text-muted-foreground">
-          Objectives are set from the club's own pre-season projection, then tightened by however
-          much ambition sits around the table. Missing one does not end your tenure; consistently
-          missing the ones your most influential directors care about does.
-        </p>
-      </div>
-
-      <div className="rounded-xl border bg-card p-4 space-y-2">
-        <h3 className="text-sm font-semibold">Where the room stands</h3>
-        {split.map(({ d, s }) => (
-          <div key={d.id} className="flex items-center gap-2 text-xs">
-            <span className="w-36 truncate">{d.name}</span>
-            <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-              <div
-                className={cn("h-full rounded-full", barClass(s))}
-                style={{ width: `${Math.max(3, Math.min(100, s))}%` }}
-              />
+    <div className="grid gap-2 md:grid-cols-2">
+      <section className="overflow-hidden rounded-xl border bg-card">
+        <div className="grid grid-cols-3 divide-x text-center">
+          <Figure label="On track" value={`${onTrack}/${objectives.length}`} />
+          <Figure label="Next review" value={nextReview} />
+          <Figure label="Reviews" value={String((board.reviews ?? []).length)} />
+        </div>
+        <details className="lf-board-how border-t px-3 py-1.5">
+          <summary className="cursor-pointer text-[11px] font-semibold text-primary">How the board judges you</summary>
+          <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+            Objectives are set from the club's own pre-season projection, then tightened by however
+            much ambition sits around the table. Missing one does not end your tenure; consistently
+            missing the ones your most influential directors care about does.
+          </p>
+        </details>
+      </section>
+      <section className="rounded-xl border bg-card px-3 py-2">
+        <div className="mb-1.5 flex items-baseline justify-between">
+          <h3 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Where the room stands</h3>
+          <span className="text-[9px] text-muted-foreground">live satisfaction</span>
+        </div>
+        <div className="space-y-1">
+          {split.map(({ d, s }) => (
+            <div key={d.id} className="flex items-center gap-2 text-[11px]">
+              <span className="w-28 truncate">{d.name}</span>
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                <div className={cn("h-full rounded-full", barClass(s))} style={{ width: `${Math.max(3, Math.min(100, s))}%` }} />
+              </div>
+              <span className="w-8 text-right tabular-nums">{s}%</span>
             </div>
-            <span className="w-9 text-right tabular-nums">{s}%</span>
-          </div>
-        ))}
-        <p className="text-[11px] text-muted-foreground pt-1">
-          Live satisfaction, not stored confidence. Stored confidence only moves at a review.
-        </p>
-      </div>
+          ))}
+        </div>
+        <p className="mt-1.5 text-[10px] text-muted-foreground">Stored confidence only moves at a review.</p>
+      </section>
     </div>
   );
 }
@@ -144,63 +130,46 @@ function DirectorCard({ state, d }: { state: GameState; d: Director }) {
   const satisfaction = directorSatisfaction(state, d);
   const concern = directorConcern(state, d);
   const band = confidenceBand(d.confidence);
-  const top = (Object.entries(d.priorities) as [string, number][])
-    .filter(([, v]) => v > 0)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3);
-
+  const top = (Object.entries(d.priorities) as [string, number][]).filter(([, score]) => score > 0)
+    .sort((a, b) => b[1] - a[1]).slice(0, 3);
   return (
-    <div className="rounded-xl border bg-card p-4 space-y-3">
+    <div className="rounded-xl border bg-card p-2.5">
       <div className="flex items-start justify-between gap-2">
-        <div>
-          <div className="font-semibold text-sm">{d.name}</div>
-          <div className="text-xs text-muted-foreground">
-            {d.role} · age {d.age} · {d.influence}% boardroom influence
-          </div>
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold">{d.name}</div>
+          <div className="truncate text-[11px] text-muted-foreground">{d.role} · {d.age} · {d.influence}% influence</div>
         </div>
-        <div className="text-right">
-          <div className={cn("text-lg font-bold tabular-nums", BAND_CLASS[band])}>
-            {d.confidence}%
-          </div>
-          <div className="text-[10px] text-muted-foreground">confidence</div>
+        <div className="shrink-0 text-right">
+          <div className={cn("font-display text-xl leading-none tabular-nums", BAND_CLASS[band])}>{d.confidence}%</div>
+          <div className="text-[9px] text-muted-foreground">confidence</div>
         </div>
       </div>
-
-      <p className="text-xs text-muted-foreground">{d.bio}</p>
-
-      <div className="flex flex-wrap gap-1">
-        {d.traits.map((t) => (
-          <span
-            key={t}
-            title={TRAIT_DESC[t]}
-            className="px-2 py-0.5 rounded-full border text-[10px] bg-muted/50"
-          >
-            {TRAIT_LABEL[t]}
+      <div className="mt-1.5 flex flex-wrap gap-1">
+        {d.traits.map((trait) => (
+          <span key={trait} title={TRAIT_DESC[trait]} className="rounded-full border bg-muted/50 px-2 py-0.5 text-[10px]">
+            {TRAIT_LABEL[trait]}
           </span>
         ))}
-        <span className="px-2 py-0.5 rounded-full border text-[10px] bg-muted/50">
-          Patience {d.patience}
-        </span>
+        <span className="rounded-full border bg-muted/50 px-2 py-0.5 text-[10px]">Patience {d.patience}</span>
       </div>
-
-      <div className="space-y-1">
-        <div className="text-[11px] font-medium text-muted-foreground">Cares most about</div>
-        {top.map(([k, v]) => (
-          <div key={k} className="flex items-center gap-2 text-[11px]">
-            <span className="w-20">{PRIORITY_LABEL[k] ?? k}</span>
-            <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-              <div className="h-full bg-primary/70" style={{ width: `${Math.min(100, v)}%` }} />
+      <div className="mt-2 grid grid-cols-3 gap-2">
+        {top.map(([key, weight]) => (
+          <div key={key} className="min-w-0">
+            <div className="truncate text-[10px] text-muted-foreground">{PRIORITY_LABEL[key] ?? key}</div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+              <div className="h-full bg-primary/70" style={{ width: `${Math.min(100, weight)}%` }} />
             </div>
           </div>
         ))}
       </div>
-
-      <div className="rounded-lg bg-muted/40 p-2 text-[11px]">
-        <span className="font-medium">Live satisfaction {satisfaction}%.</span>{" "}
-        {concern
-          ? `Biggest concern: ${concern.objective.label} — ${concern.progress.detail}.`
-          : "No outstanding concerns in their portfolio."}
-      </div>
+      <p className="mt-2 line-clamp-2 rounded-md bg-muted/40 px-2 py-1 text-[11px]">
+        <span className="font-medium">Satisfaction {satisfaction}%.</span>{" "}
+        {concern ? `Concern: ${concern.objective.label} — ${concern.progress.detail}.` : "No outstanding concerns."}
+      </p>
+      <details className="mt-1">
+        <summary className="cursor-pointer text-[11px] font-semibold text-primary">Background</summary>
+        <p className="mt-1 text-[11px] leading-snug text-muted-foreground">{d.bio}</p>
+      </details>
     </div>
   );
 }
@@ -299,61 +268,22 @@ function barClass(v: number) {
 function ConfidenceDial({ value }: { value: number }) {
   const band = confidenceBand(value);
   return (
-    <div className="relative size-24 shrink-0">
-      <svg viewBox="0 0 36 36" className="size-24 -rotate-90">
-        <circle cx="18" cy="18" r="15.9" fill="none" strokeWidth="3.4" className="stroke-muted" />
-        <circle
-          cx="18"
-          cy="18"
-          r="15.9"
-          fill="none"
-          strokeWidth="3.4"
-          strokeLinecap="round"
-          className={cn(BAND_CLASS[band], "transition-all")}
-          stroke="currentColor"
-          strokeDasharray={`${Math.max(1, value)} 100`}
-        />
+    <div className="relative size-16 shrink-0">
+      <svg viewBox="0 0 36 36" className="size-16 -rotate-90">
+        <circle cx="18" cy="18" r="15.9" fill="none" strokeWidth="3.6" className="stroke-muted" />
+        <circle cx="18" cy="18" r="15.9" fill="none" strokeWidth="3.6" strokeLinecap="round"
+          className={cn(BAND_CLASS[band], "transition-all")} stroke="currentColor"
+          strokeDasharray={`${Math.max(1, value)} 100`} />
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-xl font-bold tabular-nums">{value}%</span>
-        <span className="text-[9px] uppercase tracking-wide text-muted-foreground">confidence</span>
+      <div className="absolute inset-0 grid place-items-center">
+        <span className="font-display text-lg leading-none tabular-nums">{value}%</span>
       </div>
     </div>
   );
 }
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between text-xs border-b last:border-0 pb-1">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium">{value}</span>
-    </div>
-  );
-}
-
-function Segmented<T extends string>({
-  options,
-  value,
-  onChange,
-}: {
-  options: readonly (readonly [T, string])[];
-  value: string;
-  onChange: (v: T) => void;
-}) {
-  return (
-    <div className="inline-flex rounded-md border overflow-hidden">
-      {options.map(([id, label]) => (
-        <button
-          key={id}
-          onClick={() => onChange(id)}
-          className={cn(
-            "px-2.5 py-1 text-xs whitespace-nowrap",
-            value === id ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted",
-          )}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  );
+function Figure({ label, value }: { label: string; value: string }) {
+  return <div className="min-w-0 px-1 py-1.5">
+    <div className="truncate font-display text-base leading-tight">{value}</div>
+    <div className="truncate text-[9px] uppercase tracking-wider text-muted-foreground">{label}</div>
+  </div>;
 }
