@@ -30,7 +30,7 @@ import { OverviewScreen, WorkflowTile } from "./shared/layout";
 import { medicalSupport } from "@/lib/game/playerHealth";
 import { CharacterPortrait } from "./CharacterPortrait";
 import { CharacterPortraitStudio } from "./CharacterPortraitStudio";
-import { useCharacterName } from "./useCharacterName";
+import { useCharacterName } from "@/hooks/useCharacterName";
 
 const STAT_KEYS: (keyof Staff["stats"])[] = ["tactics", "attack", "defense", "development", "scouting", "negotiation", "medical", "motivation"];
 const STAT_LABEL: Record<keyof Staff["stats"], string> = { tactics: "Tac", attack: "Att", defense: "Def", development: "Dev", scouting: "Sct", negotiation: "Neg", medical: "Med", motivation: "Mot" };
