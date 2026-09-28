@@ -324,6 +324,40 @@ function OutfitLayer({ avatar, skin, uid }: { avatar: ChairmanAvatar; skin: stri
   }
 }
 
+
+/** Fabric details for the five original outfits; existing garment silhouettes
+ * remain stable while gaining shoulder shading, seams and trim. */
+function OriginalOutfitDetails({avatar,uid}: {avatar:ChairmanAvatar;uid:string}) {
+  if (NEW_OUTFITS.has(avatar.outfit)) return null;
+  const dark=shade(avatar.outfitColour,-0.38), light=shade(avatar.outfitColour,0.28), accent=avatar.accentColour;
+  return <g>
+    <ClothShading uid={uid+"-original"} colour={avatar.outfitColour}/>
+    {avatar.outfit === "suit" && <g>
+      <path d="M78 186 L74 190 M122 186 L126 190" stroke={dark} strokeWidth={1.2}/>
+      <path d="M132 196 l10 -3 l1 5 l-10 3Z" fill={accent} opacity={0.9}/>
+      <circle cx={100} cy={216} r={1.8} fill={dark}/>
+    </g>}
+    {avatar.outfit === "openCollar" && <g>
+      <path d="M93 188 L99 174 M107 188 L101 174" stroke="#c9d3de" strokeWidth={0.8}/>
+      <circle cx={100} cy={214} r={1.8} fill={dark}/>
+    </g>}
+    {avatar.outfit === "overcoat" && <g>
+      {[200,212].map(y=><g key={y}><circle cx={90} cy={y} r={1.8} fill={dark}/><circle cx={110} cy={y} r={1.8} fill={dark}/></g>)}
+      <path d="M107 212 l0 4 M110 212 l0 4 M113 212 l0 4 M116 212 l0 4" stroke={accent} strokeWidth={1.2}/>
+    </g>}
+    {avatar.outfit === "quarterZip" && <g>
+      <path d="M100 170 L100 204" stroke={accent} strokeWidth={1.1}/>
+      <path d="M130 190 l8 0 l0 9 l-4 4 l-4 -4Z" fill={accent}/>
+      <path d="M174 212 C160 196 142 188 128 186" stroke={accent} strokeWidth={3} fill="none" opacity={0.8}/>
+    </g>}
+    {avatar.outfit === "knit" && <g>
+      {[56,76,124,144].map(x=><path key={x} d={"M"+x+" 196 c3 3 -3 6 0 9 c3 3 -3 6 0 9"}
+        stroke={dark} strokeWidth={1.4} fill="none" opacity={0.55}/>)}
+      <path d="M20 216 L180 216" stroke={dark} strokeWidth={2} opacity={0.4}/>
+      <path d="M80 169 C90 180 110 180 120 169" stroke={light} strokeWidth={0.8} fill="none" opacity={0.6}/>
+    </g>}
+  </g>;
+}
 function Eyewear({ kind }: { kind: ChairmanAvatar["eyewear"] }) {
   if (kind === "none") return null;
   const frame = "#1b1c1f";
@@ -389,6 +423,7 @@ export function ChairmanPortrait({
         <HairBack style={avatar.hair} colour={avatar.hairColour} uid={id} />
         <path d="M85 136 L85 172 Q100 182 115 172 L115 136Z" fill={skinShadow} />
         <OutfitLayer avatar={avatar} skin={skin} uid={id} />
+        <OriginalOutfitDetails avatar={avatar} uid={id} />
         <ellipse cx={66} cy={106} rx={6} ry={10} fill={skinShadow} />
         <ellipse cx={134} cy={106} rx={6} ry={10} fill={skinShadow} />
         <path d={face} fill={skin} />
