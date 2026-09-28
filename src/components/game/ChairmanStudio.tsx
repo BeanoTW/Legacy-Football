@@ -81,7 +81,7 @@ function StudioRow({ title, children }: { title: string; children: React.ReactNo
   );
 }
 
-function randomAvatar(current: ChairmanAvatar, nonce: number): ChairmanAvatar {
+export function randomAvatar(current: ChairmanAvatar, nonce: number): ChairmanAvatar {
   const base = JSON.stringify(current);
   const pick = <T,>(label: string, items: readonly T[]) =>
     items[(hashString(`${base}|${nonce}|${label}`) >>> 0) % items.length];
@@ -99,6 +99,25 @@ function randomAvatar(current: ChairmanAvatar, nonce: number): ChairmanAvatar {
     accentColour: pick("accent-colour", ACCENT_COLOURS).id,
     eyewear: eyewearRoll === 0 ? pick("eyewear", EYEWEAR.slice(1)).id : "none",
   };
+}
+
+export function AvatarAppearanceOptions({ avatar, onChange }: {
+  avatar: ChairmanAvatar;
+  onChange: (patch: Partial<ChairmanAvatar>) => void;
+}) {
+  const hairStyles = [...HAIR_STYLES].sort((a, b) => Number(b.for[0] === avatar.sex) - Number(a.for[0] === avatar.sex));
+  return (
+    <div className="lf-studio-options">
+      <StudioRow title="Skin"><Swatches label="Skin tone" colours={SKIN_TONES} value={avatar.skin} onChange={(skin) => onChange({ skin })} /></StudioRow>
+      <StudioRow title="Hair"><Chips label="Hair style" options={hairStyles} value={avatar.hair} onChange={(hair) => onChange({ hair })} /></StudioRow>
+      <StudioRow title="Hair colour"><Swatches label="Hair colour" colours={HAIR_COLOURS.map((item) => item.id)} value={avatar.hairColour} onChange={(hairColour) => onChange({ hairColour })} /></StudioRow>
+      <StudioRow title="Facial hair"><Chips label="Facial hair" options={FACIAL_HAIR} value={avatar.facialHair} onChange={(facialHair) => onChange({ facialHair })} /></StudioRow>
+      <StudioRow title="Outfit"><Chips label="Outfit" options={OUTFITS} value={avatar.outfit} onChange={(outfit) => onChange({ outfit })} /></StudioRow>
+      <StudioRow title="Outfit colour"><Swatches label="Outfit colour" colours={OUTFIT_COLOURS.map((item) => item.id)} value={avatar.outfitColour} onChange={(outfitColour) => onChange({ outfitColour })} /></StudioRow>
+      <StudioRow title="Tie, scarf & trim"><Swatches label="Accent colour" colours={ACCENT_COLOURS.map((item) => item.id)} value={avatar.accentColour} onChange={(accentColour) => onChange({ accentColour })} /></StudioRow>
+      <StudioRow title="Glasses"><Chips label="Glasses" options={EYEWEAR} value={avatar.eyewear} onChange={(eyewear) => onChange({ eyewear })} /></StudioRow>
+    </div>
+  );
 }
 
 /**
@@ -123,7 +142,6 @@ export function ChairmanStudio({
   const avatar = draft.avatar;
   const set = (patch: Partial<ChairmanAvatar>) => setDraft((current) => ({ ...current, avatar: { ...current.avatar, ...patch } }));
   // Every style is available to everyone; the sex choice only orders them.
-  const hairStyles = [...HAIR_STYLES].sort((a, b) => Number(b.for[0] === avatar.sex) - Number(a.for[0] === avatar.sex));
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -158,18 +176,9 @@ export function ChairmanStudio({
         </div>
 
         <div className="lf-studio-options">
-          <StudioRow title="Skin"><Swatches label="Skin tone" colours={SKIN_TONES} value={avatar.skin} onChange={(skin) => set({ skin })} /></StudioRow>
-          <StudioRow title="Hair"><Chips label="Hair style" options={hairStyles} value={avatar.hair} onChange={(hair) => set({ hair })} /></StudioRow>
-          <StudioRow title="Hair colour"><Swatches label="Hair colour" colours={HAIR_COLOURS.map((c) => c.id)} value={avatar.hairColour} onChange={(hairColour) => set({ hairColour })} /></StudioRow>
-          <StudioRow title="Facial hair"><Chips label="Facial hair" options={FACIAL_HAIR} value={avatar.facialHair} onChange={(facialHair) => set({ facialHair })} /></StudioRow>
-          <StudioRow title="Outfit"><Chips label="Outfit" options={OUTFITS} value={avatar.outfit} onChange={(outfit) => set({ outfit })} /></StudioRow>
-          <StudioRow title="Outfit colour"><Swatches label="Outfit colour" colours={OUTFIT_COLOURS.map((c) => c.id)} value={avatar.outfitColour} onChange={(outfitColour) => set({ outfitColour })} /></StudioRow>
-          <StudioRow title="Tie, scarf & trim"><Swatches label="Accent colour" colours={ACCENT_COLOURS.map((c) => c.id)} value={avatar.accentColour} onChange={(accentColour) => set({ accentColour })} /></StudioRow>
-          <StudioRow title="Glasses"><Chips label="Glasses" options={EYEWEAR} value={avatar.eyewear} onChange={(eyewear) => set({ eyewear })} /></StudioRow>
-        </div>
+          <StudioRow title="Skin"><Swatches label="Skin tone" colours={SKIN_T        <AvatarAppearanceOptions avatar={avatar} onChange={set} />
 
-        <div className="lf-studio-footer">
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+Button>
           <Button onClick={() => { saveChairmanProfile(draft); onOpenChange(false); }}>
             <Check /> Save chairman
           </Button>
