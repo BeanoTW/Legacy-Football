@@ -420,18 +420,38 @@ function reportDiagnostics(diags: Diagnostic[]) {
   }
 }
 
+const pendingSaveWrites = new Map<SaveSlotId, Promise<void>>();
+
+/** Serialize operations per career slot, so a slow earlier write cannot replace
+ * a newer save or re-create a career after the player deletes it. */
+function enqueueSlotOperation(slot: SaveSlotId, operation: () => Promise<void>): Promise<void> {
+  const previous = pendingSaveWrites.get(slot) ?? Promise.resolve();
+  const next = previous.catch(() => undefined).then(operation);
+  pendingSaveWrites.set(slot, next);
+  void next.finally(() => {
+    if (pendingSaveWrites.get(slot) === next) pendingSaveWrites.delete(slot);
+  }).catch(() => undefined);
+  return next;
+}
+
 export async function loadGame(slot: SaveSlotId = "slot-1"): Promise<GameState | null> {
+  await pendingSaveWrites.get(slot)?.catch(() => undefined);
   const { state, diagnostics } = await storeFor(slot).load();
   reportDiagnostics(diagnostics);
   return state;
 }
 
-export async function saveGame(state: GameState, slot: SaveSlotId = "slot-1"): Promise<void> {
-  reportDiagnostics(await storeFor(slot).save(state));
+export function saveGame(state: GameState, slot: SaveSlotId = "slot-1"): Promise<void> {
+  return enqueueSlotOperation(slot, async () => {
+    const diagnostics = await storeFor(slot).save(state);
+    reportDiagnostics(diagnostics);
+    const failure = diagnostics.find((diagnostic) => diagnostic.level === "error");
+    if (failure) throw new Error(`Career could not be saved: ${failure.detail ?? failure.code}`);
+  });
 }
 
-export async function clearGame(slot: SaveSlotId = "slot-1"): Promise<void> {
-  await storeFor(slot).clear();
+export function clearGame(slot: SaveSlotId = "slot-1"): Promise<void> {
+  return enqueueSlotOperation(slot, () => storeFor(slot).clear());
 }
 
 export async function listSaveSlots(): Promise<SaveSlotSummary[]> {
