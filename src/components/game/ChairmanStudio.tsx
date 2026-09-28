@@ -175,10 +175,10 @@ export function ChairmanStudio({
           </div>
         </div>
 
-        <div className="lf-studio-options">
-          <StudioRow title="Skin"><Swatches label="Skin tone" colours={SKIN_T        <AvatarAppearanceOptions avatar={avatar} onChange={set} />
+        <AvatarAppearanceOptions avatar={avatar} onChange={set} />
 
-Button>
+        <div className="lf-studio-footer">
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={() => { saveChairmanProfile(draft); onOpenChange(false); }}>
             <Check /> Save chairman
           </Button>
