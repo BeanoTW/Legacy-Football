@@ -36,6 +36,7 @@ import { clubKpi } from "@/lib/game/selectors/club";
 import { clubReputation } from "@/lib/game/reputation";
 import { unreadCount } from "@/lib/game/inbox";
 import { actionableInbox } from "@/lib/game/attention";
+import type { InboxDestination } from "@/lib/game/inboxNavigation";
 import { advanceTargets, type AdvanceTarget } from "@/lib/game/advancePlanner";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -101,6 +102,8 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
   const [chairmanStudioOpen, setChairmanStudioOpen] = useState(false);
   const chairmanProfile = useChairmanProfile();
   const [decisionQueue, setDecisionQueue] = useState(false);
+  const [recruitmentDestination, setRecruitmentDestination] = useState<Extract<InboxDestination, { tab: "recruitment" }> | null>(null);
+  const [recruitmentNavigationKey, setRecruitmentNavigationKey] = useState(0);
   const [showAdvancePreview, setShowAdvancePreview] = useState(false);
   const [advanceStart, setAdvanceStart] = useState<GameState | null>(null);
   const [lastTarget, setLastTarget] = useState<AdvanceTarget | null>(null);
@@ -121,6 +124,17 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
     setDecisionQueue(true);
     setTab("inbox");
   }, [blockingDecisions.length, continueReason, isContinuing, stopContinue]);
+
+  const navigateFromInbox = (destination: InboxDestination) => {
+    setDecisionQueue(false);
+    if (destination.tab === "recruitment") {
+      setRecruitmentDestination(destination);
+      setRecruitmentNavigationKey((key) => key + 1);
+    } else {
+      setRecruitmentDestination(null);
+    }
+    setTab(destination.tab);
+  };
 
   const requestContinue = (target?: AdvanceTarget | null) => {
     if (blockingDecisions.length > 0) {
@@ -201,13 +215,13 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
       <main className="game-main">
         <div className="game-screen">
           <ScreenBoundary name={ALL_TABS.find(([id]) => id === tab)?.[1] ?? tab}>
-            {tab === "inbox" && <ChairmansOffice state={state} update={update} decisionQueue={decisionQueue} onDecisionQueueCleared={() => { setDecisionQueue(false); setTab("hub"); }} />}
+            {tab === "inbox" && <ChairmansOffice state={state} update={update} decisionQueue={decisionQueue} onDecisionQueueCleared={() => { setDecisionQueue(false); setTab("hub"); }} onNavigate={navigateFromInbox} />}
             {tab === "hub" && <ClubHub state={state} update={update} setTab={setTab} isContinuing={isContinuing} onAdvanceTo={requestContinue} />}
             {tab === "squad" && <SquadSelectionTab state={state} update={update} />}
             {tab === "dashboard" && <DashboardTab state={state} />}
             {tab === "cashflow" && <CashFlowTab state={state} />}
             {tab === "tickets" && <TicketsTab state={state} update={update} />}
-            {tab === "recruitment" && <RecruitmentFlow state={state} update={update} />}
+            {tab === "recruitment" && <RecruitmentFlow key={recruitmentNavigationKey} state={state} update={update} destination={recruitmentDestination} />}
             {tab === "staff" && <StaffTab state={state} update={update} />}
             {tab === "stadium" && <FacilitiesFlow state={state} update={update} />}
             {tab === "fixtures" && <FixturesTab state={state} update={update} />}
