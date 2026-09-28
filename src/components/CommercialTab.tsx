@@ -25,7 +25,7 @@ import {
   sponsorName,
   weeksRemaining,
 } from "@/lib/game/commercial";
-import { fmtMoneyExact } from "@/lib/game/engine";
+import { fmtMoney, fmtMoneyExact } from "@/lib/game/engine";
 
 type View = "partnerships" | "vacancies" | "negotiations" | "history";
 
@@ -59,58 +59,33 @@ export function CommercialTab({
     });
   };
 
+  const tabs: [View, string, number | null][] = [
+    ["partnerships", "Deals", snap.activePartners],
+    ["vacancies", "Open", snap.openCategories.length],
+    ["negotiations", "Talks", snap.pendingOffers],
+    ["history", "History", null],
+  ];
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-        <div className="banner-strip px-3 py-2 text-xs">Commercial Department</div>
-        <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Stat label="Commercial power" value={String(Math.round(snap.power))} hint="0–100" />
-          <Stat
-            label="Commercial reputation"
-            value={snap.commercialReputation.toFixed(1)}
-            hint="Brand standing"
-          />
-          <Stat label="Weekly income" value={money(snap.weeklyIncome)} hint="From live deals" />
-          <Stat
-            label="Season to date"
-            value={money(snap.seasonIncome)}
-            hint={`${snap.activePartners} partner(s)`}
-          />
-        </div>
-        <div className="px-3 pb-3 flex flex-wrap gap-1">
-          {(
-            [
-              ["partnerships", `Partnerships (${snap.activePartners})`],
-              ["vacancies", `Vacancies (${snap.openCategories.length})`],
-              ["negotiations", `Negotiations (${snap.pendingOffers})`],
-              ["history", "History"],
-            ] as [View, string][]
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              onClick={() => setView(id)}
-              className={cn(
-                "rounded-md px-3 py-1.5 text-xs font-medium border transition-colors",
-                view === id
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-card hover:bg-muted",
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+    <div className="lf-commercial space-y-2">
+      <div className="flex items-baseline justify-between gap-2">
+        <h1 className="font-display text-xl">Commercial</h1>
+        <span className="text-[11px] text-muted-foreground">Brand standing {snap.commercialReputation.toFixed(1)}</span>
       </div>
-
-      {note && (
-        <div className="rounded-lg border bg-muted/50 px-3 py-2 text-xs">
-          {note}
-          <button className="ml-2 underline text-muted-foreground" onClick={() => setNote(null)}>
-            dismiss
-          </button>
-        </div>
-      )}
-
+      <section className="grid grid-cols-3 divide-x overflow-hidden rounded-xl border bg-card text-center shadow-sm">
+        <Stat label="Power / 100" value={String(Math.round(snap.power))} />
+        <Stat label="Weekly" value={fmtMoney(snap.weeklyIncome)} tone="good" />
+        <Stat label={`Season · ${snap.activePartners} partner${snap.activePartners === 1 ? "" : "s"}`} value={fmtMoney(snap.seasonIncome)} />
+      </section>
+      <div className="lf-segmented grid grid-cols-4" role="tablist" aria-label="Commercial view">
+        {tabs.map(([id, label, count]) => <button key={id} type="button" role="tab" aria-selected={view === id}
+          className={cn(view === id && "is-active")} onClick={() => setView(id)}>
+          {label}{count != null && count > 0 && <b className={cn(id !== "negotiations" && "is-neutral")}>{count}</b>}
+        </button>)}
+      </div>
+      {note && <div className="flex items-center gap-2 rounded-lg border bg-muted/50 px-2.5 py-1.5 text-[11px]">
+        <span className="min-w-0 flex-1">{note}</span>
+        <button type="button" className="shrink-0 text-muted-foreground underline" onClick={() => setNote(null)}>dismiss</button>
+      </div>}
       {view === "partnerships" && <Partnerships state={state} />}
       {view === "vacancies" && <Vacancies state={state} />}
       {view === "negotiations" && <Negotiations state={state} act={act} />}
@@ -119,103 +94,75 @@ export function CommercialTab({
   );
 }
 
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <div className="rounded-lg border bg-background p-3">
-      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="text-lg font-semibold tnum">{value}</div>
-      {hint && <div className="text-[11px] text-muted-foreground">{hint}</div>}
-    </div>
-  );
+function Stat({ label, value, tone }: { label: string; value: string; tone?: "good" }) {
+  return <div className="min-w-0 px-1 py-1.5">
+    <div className={cn("truncate font-display text-base leading-tight tnum",
+      tone === "good" && "text-[color:var(--color-income)]")}>{value}</div>
+    <div className="truncate text-[9px] uppercase tracking-wider text-muted-foreground">{label}</div>
+  </div>;
 }
-
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-      <div className="panel-strip px-3 py-2 text-xs font-semibold uppercase tracking-wide">
-        {title}
-      </div>
-      <div className="p-3 space-y-3">{children}</div>
+function Panel({ title, aside, children }: { title: string; aside?: string; children: React.ReactNode }) {
+  return <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
+    <div className="flex items-baseline justify-between gap-2 border-b px-3 py-1.5">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{title}</span>
+      {aside && <span className="text-[10px] text-muted-foreground">{aside}</span>}
     </div>
-  );
+    <div className="divide-y">{children}</div>
+  </section>;
+}
+function Empty({ children }: { children: React.ReactNode }) {
+  return <p className="px-3 py-2.5 text-xs text-muted-foreground">{children}</p>;
 }
 
 /* ---------------- Partnerships ---------------- */
 
 function Partnerships({ state }: { state: GameState }) {
   const live = activeContracts(state);
-  if (!live.length) {
-    return (
-      <Panel title="Active partnerships">
-        <p className="text-sm text-muted-foreground">
-          No live agreements. Every open category is money left on the table.
-        </p>
-      </Panel>
-    );
-  }
-  return (
-    <Panel title="Active partnerships">
-      {live
-        .slice()
-        .sort((a, b) => b.weeklyPayment - a.weeklyPayment)
-        .map((c) => (
-          <ContractCard key={c.id} state={state} contract={c} />
-        ))}
-    </Panel>
-  );
+  return <Panel title="Active partnerships" aside={live.length ? `${live.length} live` : undefined}>
+    {live.length === 0 ? <Empty>No live agreements. Every open category is money left on the table.</Empty> :
+      live.slice().sort((a, b) => b.weeklyPayment - a.weeklyPayment).map((contract) =>
+        <ContractCard key={contract.id} state={state} contract={contract} />)}
+  </Panel>;
 }
-
 function ContractCard({ state, contract }: { state: GameState; contract: CommercialContract }) {
-  const sp = sponsorById(state, contract.sponsorId);
+  const sponsor = sponsorById(state, contract.sponsorId);
   const left = weeksRemaining(state, contract);
   const total = contract.durationSeasons * SEASON_WEEKS;
   const elapsed = Math.max(0, Math.min(total, total - left));
   const paid = contractPaidToDate(state, contract.id);
-  return (
-    <div className="rounded-lg border bg-background p-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <div>
-          <div className="font-semibold">{sponsorName(state, contract.sponsorId)}</div>
-          <div className="text-xs text-muted-foreground">
-            {contract.category} · {sp ? relationshipLabel(sp.relationshipScore) : "—"}
-          </div>
-        </div>
-        <div className="text-right">
-          <div className="font-semibold tnum">{money(contract.weeklyPayment)}/wk</div>
-          <div className="text-xs text-muted-foreground tnum">{money(paid)} paid to date</div>
-        </div>
+  const renewal = left <= contract.renewalWindowWeeks;
+  return <div className="px-3 py-2">
+    <div className="flex items-baseline justify-between gap-2">
+      <div className="min-w-0">
+        <div className="truncate text-sm font-semibold">{sponsorName(state, contract.sponsorId)}</div>
+        <div className="truncate text-[11px] text-muted-foreground">{contract.category} · {sponsor ? relationshipLabel(sponsor.relationshipScore) : "—"}</div>
       </div>
-      <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
-        <div
-          className={cn(
-            "h-full",
-            left <= contract.renewalWindowWeeks ? "bg-amber-500" : "bg-primary",
-          )}
-          style={{ width: `${total ? (elapsed / total) * 100 : 0}%` }}
-        />
+      <div className="shrink-0 text-right">
+        <div className="text-sm font-semibold tnum">{money(contract.weeklyPayment)}/wk</div>
+        <div className="text-[10px] text-muted-foreground tnum">{fmtMoney(paid)} paid</div>
       </div>
-      <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
-        <span>
-          {contract.durationSeasons} season deal · signed s{contract.startSeason}
-        </span>
-        <span>
-          {left} week(s) left{left <= contract.renewalWindowWeeks ? " — renewal window open" : ""}
-        </span>
-      </div>
-      {contract.objectives.length > 0 && (
-        <ul className="mt-2 space-y-0.5 text-xs">
-          {contract.objectives.map((o) => (
-            <li key={o.id} className="flex justify-between gap-2">
-              <span className="text-muted-foreground">{o.label}</span>
-              <span className="tnum">
-                {money(o.bonus)} · {o.status}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
-  );
+    <div className="mt-1.5 flex items-center gap-2">
+      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+        <div className={cn("h-full", renewal ? "bg-amber-500" : "bg-primary")}
+          style={{ width: `${total ? (elapsed / total) * 100 : 0}%` }} />
+      </div>
+      <span className={cn("shrink-0 text-[10px] tnum", renewal ? "font-semibold text-amber-600" : "text-muted-foreground")}>
+        {left}w left{renewal ? " · renewal open" : ""}
+      </span>
+    </div>
+    {contract.objectives.length > 0 && <details className="mt-1">
+      <summary className="cursor-pointer text-[11px] font-semibold text-primary">
+        {contract.objectives.length} bonus objective{contract.objectives.length === 1 ? "" : "s"} · {contract.durationSeasons}-season deal from S{contract.startSeason}
+      </summary>
+      <ul className="mt-1 space-y-0.5 text-[11px]">
+        {contract.objectives.map((objective) => <li key={objective.id} className="flex justify-between gap-2">
+          <span className="text-muted-foreground">{objective.label}</span>
+          <span className="tnum">{money(objective.bonus)} · {objective.status}</span>
+        </li>)}
+      </ul>
+    </details>}
+  </div>;
 }
 
 /* ---------------- Vacancies ---------------- */
@@ -223,164 +170,84 @@ function ContractCard({ state, contract }: { state: GameState; contract: Commerc
 function Vacancies({ state }: { state: GameState }) {
   const live = activeContracts(state);
   const power = commercialPower(state);
-  const open = SPONSORSHIP_CATEGORIES.filter(
-    (c) => !live.some((x) => x.category === c),
-  ) as SponsorshipCategory[];
-  return (
-    <Panel title="Open categories">
-      <p className="text-xs text-muted-foreground">
-        Offers arrive on their own — the department works the market each week and everything lands
-        in your inbox. Raising commercial power unlocks the bigger categories.
-      </p>
-      {open.length === 0 && (
-        <p className="text-sm text-muted-foreground">
-          Every category is contracted. Excellent work.
-        </p>
-      )}
-      {open.map((cat) => {
-        const min = CATEGORY_MIN_POWER[cat];
-        const reachable = power >= min;
-        const pool = reachable ? eligibleSponsors(state, cat).length : 0;
-        return (
-          <div
-            key={cat}
-            className="rounded-lg border bg-background p-3 flex flex-wrap justify-between gap-2"
-          >
-            <div>
-              <div className="font-medium">{cat}</div>
-              <div className="text-xs text-muted-foreground">
-                {reachable
-                  ? `${pool} sponsor(s) within reach`
-                  : `Needs commercial power ${min} — currently ${Math.round(power)}`}
-              </div>
-            </div>
-            <span
-              className={cn(
-                "self-center rounded-full px-2 py-0.5 text-[11px] font-medium",
-                reachable ? "bg-emerald-500/15 text-emerald-700" : "bg-muted text-muted-foreground",
-              )}
-            >
-              {reachable ? "Marketable" : "Out of reach"}
-            </span>
+  const open = SPONSORSHIP_CATEGORIES.filter((category) => !live.some((contract) => contract.category === category)) as SponsorshipCategory[];
+  return <Panel title="Open categories" aside="Offers arrive in your inbox">
+    {open.length === 0 && <Empty>Every category is contracted.</Empty>}
+    {open.map((category) => {
+      const min = CATEGORY_MIN_POWER[category];
+      const reachable = power >= min;
+      const count = reachable ? eligibleSponsors(state, category).length : 0;
+      return <div key={category} className="flex items-center justify-between gap-2 px-3 py-2">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-medium">{category}</div>
+          <div className="truncate text-[11px] text-muted-foreground">
+            {reachable ? `${count} sponsors within reach` : `Needs power ${min} (now ${Math.round(power)})`}
           </div>
-        );
-      })}
-    </Panel>
-  );
+        </div>
+        <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
+          reachable ? "bg-emerald-500/15 text-emerald-700" : "bg-muted text-muted-foreground")}>
+          {reachable ? "Marketable" : "Out of reach"}
+        </span>
+      </div>;
+    })}
+  </Panel>;
 }
 
 /* ---------------- Negotiations ---------------- */
 
-function Negotiations({
-  state,
-  act,
-}: {
+function Negotiations({ state, act }: {
   state: GameState;
   act: (fn: (s: GameState) => { state: GameState; message: string }) => void;
 }) {
-  const open = pendingOffers(state);
-  return (
-    <Panel title="Live negotiations">
-      {open.length === 0 && (
-        <p className="text-sm text-muted-foreground">
-          Nothing on the table this week. New approaches appear here and in your inbox.
-        </p>
-      )}
-      {open.map((o) => (
-        <OfferCard key={o.id} state={state} offer={o} act={act} />
-      ))}
-    </Panel>
-  );
+  const offers = pendingOffers(state);
+  return <Panel title="Live negotiations" aside="Push twice and they may walk">
+    {offers.length === 0 && <Empty>Nothing on the table this week. New approaches appear here and in your inbox.</Empty>}
+    {offers.map((offer) => <OfferCard key={offer.id} state={state} offer={offer} act={act} />)}
+  </Panel>;
 }
-
-function OfferCard({
-  state,
-  offer,
-  act,
-}: {
+function OfferCard({ state, offer, act }: {
   state: GameState;
   offer: CommercialOffer;
   act: (fn: (s: GameState) => { state: GameState; message: string }) => void;
 }) {
   const total = offer.weeklyPayment * SEASON_WEEKS * offer.durationSeasons + offer.signingBonus;
   const canCounter = offer.negotiationRounds < 2;
-  return (
-    <div className="rounded-lg border bg-background p-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <div>
-          <div className="font-semibold">{sponsorName(state, offer.sponsorId)}</div>
-          <div className="text-xs text-muted-foreground">
-            {offer.category} · {offer.renewalOfContractId ? "Renewal" : "New approach"}
-          </div>
-        </div>
-        <div className="text-right">
-          <div className="font-semibold tnum">{money(offer.weeklyPayment)}/wk</div>
-          <div className="text-xs text-muted-foreground tnum">{money(total)} headline</div>
-        </div>
+  return <div className="px-3 py-2">
+    <div className="flex items-baseline justify-between gap-2">
+      <div className="min-w-0">
+        <div className="truncate text-sm font-semibold">{sponsorName(state, offer.sponsorId)}</div>
+        <div className="truncate text-[11px] text-muted-foreground">{offer.category} · {offer.renewalOfContractId ? "Renewal" : "New approach"}</div>
       </div>
-      <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
-        <KV k="Term" v={`${offer.durationSeasons} season(s)`} />
-        <KV k="Signing bonus" v={money(offer.signingBonus)} />
-        <KV k="Counters used" v={`${offer.negotiationRounds} / 2`} />
+      <div className="shrink-0 text-right">
+        <div className="text-sm font-semibold tnum">{money(offer.weeklyPayment)}/wk</div>
+        <div className="text-[10px] text-muted-foreground tnum">{fmtMoney(total)} headline</div>
       </div>
-      {offer.objectives.length > 0 && (
-        <ul className="mt-2 space-y-0.5 text-xs">
-          {offer.objectives.map((o) => (
-            <li key={o.id} className="flex justify-between gap-2">
-              <span className="text-muted-foreground">{o.label}</span>
-              <span className="tnum">{money(o.bonus)}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-      {offer.outcomes.length > 0 && (
-        <ul className="mt-2 space-y-0.5 text-[11px] text-muted-foreground">
-          {offer.outcomes.map((o) => (
-            <li key={o.round}>
-              Round {o.round} ({o.counter}): {o.note}
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Btn tone="primary" onClick={() => act((s) => acceptOffer(s, offer.id))}>
-          Accept
-        </Btn>
-        {canCounter && (
-          <>
-            <Btn onClick={() => act((s) => wrap(counterOffer(s, offer.id, "payment")))}>
-              Push fee
-            </Btn>
-            <Btn onClick={() => act((s) => wrap(counterOffer(s, offer.id, "duration")))}>
-              Push term
-            </Btn>
-            <Btn onClick={() => act((s) => wrap(counterOffer(s, offer.id, "bonus")))}>
-              Push bonus
-            </Btn>
-          </>
-        )}
-        <Btn tone="danger" onClick={() => act((s) => rejectOffer(s, offer.id))}>
-          Reject
-        </Btn>
-      </div>
-      <p className="mt-2 text-[11px] text-muted-foreground">
-        Push twice and they are liable to walk away entirely.
-      </p>
     </div>
-  );
+    <div className="mt-1 text-[11px] text-muted-foreground tnum">
+      {offer.durationSeasons} season{offer.durationSeasons === 1 ? "" : "s"} · {money(offer.signingBonus)} bonus · counters {offer.negotiationRounds}/2
+    </div>
+    {offer.objectives.length > 0 && <ul className="mt-1 space-y-0.5 text-[11px]">
+      {offer.objectives.map((objective) => <li key={objective.id} className="flex justify-between gap-2">
+        <span className="text-muted-foreground">{objective.label}</span><span className="tnum">{money(objective.bonus)}</span>
+      </li>)}
+    </ul>}
+    {offer.outcomes.length > 0 && <ul className="mt-1 space-y-0.5 text-[10px] text-muted-foreground">
+      {offer.outcomes.map((outcome) => <li key={outcome.round}>Round {outcome.round} ({outcome.counter}): {outcome.note}</li>)}
+    </ul>}
+    <div className="mt-2 flex flex-wrap gap-1">
+      <Btn tone="primary" onClick={() => act((s) => acceptOffer(s, offer.id))}>Accept</Btn>
+      {canCounter && <>
+        <Btn onClick={() => act((s) => wrap(counterOffer(s, offer.id, "payment")))}>Push fee</Btn>
+        <Btn onClick={() => act((s) => wrap(counterOffer(s, offer.id, "duration")))}>Push term</Btn>
+        <Btn onClick={() => act((s) => wrap(counterOffer(s, offer.id, "bonus")))}>Push bonus</Btn>
+      </>}
+      <Btn tone="danger" onClick={() => act((s) => rejectOffer(s, offer.id))}>Reject</Btn>
+    </div>
+  </div>;
 }
 
 function wrap(r: { state: GameState; result: { note: string } }) {
   return { state: r.state, message: r.result.note };
-}
-
-function KV({ k, v }: { k: string; v: string }) {
-  return (
-    <div className="rounded border bg-card px-2 py-1">
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{k}</div>
-      <div className="tnum font-medium">{v}</div>
-    </div>
-  );
 }
 
 function Btn({
@@ -396,7 +263,7 @@ function Btn({
     <button
       onClick={onClick}
       className={cn(
-        "rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
+        "h-7 rounded-md border px-2.5 text-[11px] font-semibold transition-colors",
         tone === "primary" && "bg-primary text-primary-foreground border-primary",
         tone === "danger" && "border-destructive text-destructive hover:bg-destructive/10",
         !tone && "bg-card hover:bg-muted",
@@ -413,18 +280,18 @@ function History({ state }: { state: GameState }) {
   const c = state.commercial!;
   const records = [...c.history].reverse();
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       <Panel title="Season summaries">
         {c.seasonHistory.length === 0 && (
           <p className="text-sm text-muted-foreground">No completed seasons yet.</p>
         )}
         {[...c.seasonHistory].reverse().map((h) => (
-          <div key={h.season} className="rounded-lg border bg-background p-3 text-sm">
+          <div key={h.season} className="px-3 py-2 text-sm">
             <div className="flex justify-between font-medium">
               <span>Season {h.season}</span>
               <span className="tnum">{money(h.totalIncome)}</span>
             </div>
-            <div className="mt-1 text-xs text-muted-foreground">
+            <div className="text-[11px] text-muted-foreground">
               {h.newSponsors} new · {h.renewals} renewed · {h.lostSponsors} lost ·{" "}
               {h.activePartnersAtClose} partners at close · reputation{" "}
               {h.commercialReputationAtClose.toFixed(1)}

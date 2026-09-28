@@ -1,9 +1,9 @@
-import { Ticket, TriangleAlert } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 import type { GameState, Stand } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
 import { Slider } from "@/components/ui/slider";
-import { avgTicketPrice, fmtMoney, fmtMoneyExact, totalCapacity } from "@/lib/game/engine";
-import { InfoTip, Section } from "./shared/primitives";
+import { avgTicketPrice, fmtMoney, totalCapacity } from "@/lib/game/engine";
+import { InfoTip } from "./shared/primitives";
 import { DetailScreen } from "./shared/layout";
 
 export function TicketsTab({
@@ -44,6 +44,11 @@ export function TicketsTab({
   const totalRev = rows.reduce((a, r) => a + r.revenue, 0);
   const avgPrice = avgTicketPrice(state);
   const overRatio = avgPrice / refPrice;
+  const allRecommended = rows.every((row) => row.delta === 0);
+  const setAllRecommended = () => update((s) => ({
+    ...s,
+    stands: s.stands.map((st) => ({ ...st, ticketPrice: Math.max(5, Math.min(120, recFor(st))) })),
+  }));
 
   const backlash =
     overRatio > 1.5
@@ -67,191 +72,88 @@ export function TicketsTab({
           : null;
 
   return (
-    <DetailScreen title="Ticket pricing" subtitle="Set prices per stand and watch demand respond.">
-      <Section
-        title="Ticket pricing model"
-        info={
-          <>
-            Fans compare each stand's price against a market reference of{" "}
-            <strong>£{refPrice.toFixed(2)}</strong>, driven by your reputation (
-            {state.reputation.toFixed(0)}). Recommended prices per stand also factor in that stand's
-            condition. Push far above and demand collapses; push much further and fan happiness —
-            then reputation — start to slide.
-          </>
-        }
-      >
-        <div className="mb-3 grid gap-2 sm:grid-cols-3 text-xs">
-          <div className="rounded-md border bg-background/40 p-2">
-            <div className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
-              Market reference
-              <InfoTip label="Market reference">
-                What fans consider a fair average price at your level. Grows with reputation (base
-                £15 + 0.4 × rep).
-              </InfoTip>
-            </div>
-            <div className="font-display text-lg tnum">£{refPrice.toFixed(2)}</div>
+    <DetailScreen title="Ticket pricing" subtitle="Set stand prices and watch demand respond."
+      actions={<InfoTip label="How ticket pricing works">
+        Fans compare prices with a market reference of <strong>£{refPrice.toFixed(2)}</strong>, based on reputation ({state.reputation.toFixed(0)}).
+        Stand recommendations also reflect condition. High prices reduce demand and can affect fan happiness and reputation.
+        League average is approximately £{leagueAvg.toFixed(2)}.
+      </InfoTip>}>
+      <div className="lf-tickets space-y-2">
+        <section className="grid grid-cols-4 divide-x overflow-hidden rounded-xl border bg-card text-center shadow-sm">
+          <TicketFigure label="Market" value={`£${refPrice.toFixed(2)}`} />
+          <TicketFigure label={`Yours ${overRatio >= 1 ? "+" : ""}${((overRatio - 1) * 100).toFixed(0)}%`}
+            value={`£${avgPrice.toFixed(2)}`} tone={overRatio > 1.25 ? "bad" : overRatio < 0.9 ? "good" : undefined} />
+          <TicketFigure label="Est. crowd" value={`${totalEstAtt.toLocaleString()}/${totalCapacity(state).toLocaleString()}`} />
+          <TicketFigure label="Next gate" value={fmtMoney(totalRev)} tone="good" />
+        </section>
+        {backlash && <div className={cn(
+          "flex items-start gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px]",
+          backlash.tone === "bad" && "border-rose-500/40 bg-rose-500/10",
+          backlash.tone === "warn" && "border-amber-500/40 bg-amber-500/10",
+          backlash.tone === "good" && "border-emerald-500/40 bg-emerald-500/10",
+        )}>
+          <TriangleAlert className="mt-px size-3.5 shrink-0" />
+          <span><strong>{backlash.title}.</strong> <span className="text-muted-foreground">{backlash.body}</span></span>
+        </div>}
+        <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
+          <div className="flex items-center justify-between gap-2 border-b px-3 py-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Stands</span>
+            <button type="button" disabled={allRecommended} onClick={setAllRecommended}
+              className="text-[11px] font-semibold text-primary disabled:text-muted-foreground">
+              {allRecommended ? "All at recommended" : "Set all to recommended"}
+            </button>
           </div>
-          <div className="rounded-md border bg-background/40 p-2">
-            <div className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
-              League average
-              <InfoTip label="League average">
-                Roughly what other clubs in your division are charging on average.
-              </InfoTip>
-            </div>
-            <div className="font-display text-lg tnum">£{leagueAvg.toFixed(2)}</div>
-          </div>
-          <div className="rounded-md border bg-background/40 p-2">
-            <div className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
-              Your average
-              <InfoTip label="Your average">Capacity-weighted average of your four stands.</InfoTip>
-            </div>
-            <div
-              className={cn(
-                "font-display text-lg tnum",
-                overRatio > 1.25 && "text-[color:var(--color-expense)]",
-                overRatio < 0.9 && "text-[color:var(--color-income)]",
-              )}
-            >
-              £{avgPrice.toFixed(2)}
-              <span className="ml-1 text-[11px] text-muted-foreground">
-                ({overRatio >= 1 ? "+" : ""}
-                {((overRatio - 1) * 100).toFixed(0)}% vs market)
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {backlash && (
-          <div
-            className={cn(
-              "mb-3 rounded-md border p-3 flex gap-2 text-xs",
-              backlash.tone === "bad" &&
-                "border-[color:var(--color-expense)]/40 bg-[color:var(--color-expense)]/10",
-              backlash.tone === "warn" && "border-amber-500/40 bg-amber-500/10",
-              backlash.tone === "good" &&
-                "border-[color:var(--color-income)]/40 bg-[color:var(--color-income)]/10",
-            )}
-          >
-            <TriangleAlert
-              className={cn(
-                "size-4 mt-0.5 shrink-0",
-                backlash.tone === "bad" && "text-[color:var(--color-expense)]",
-                backlash.tone === "warn" && "text-amber-600",
-                backlash.tone === "good" && "text-[color:var(--color-income)]",
-              )}
-            />
-            <div>
-              <div className="font-semibold">{backlash.title}</div>
-              <div className="text-muted-foreground">{backlash.body}</div>
-            </div>
-          </div>
-        )}
-
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {rows.map(({ st, estAtt, revenue, priceFactor, rec, delta }) => {
-            const overStand = st.ticketPrice / rec;
-            const deltaTone =
-              overStand > 1.25
-                ? "bad"
-                : overStand > 1.08
-                  ? "warn"
-                  : overStand < 0.9
-                    ? "under"
-                    : "ok";
-            return (
-              <div key={st.key} className="rounded-lg border bg-background/40 p-3">
-                <div className="flex items-baseline justify-between">
-                  <div className="font-display text-lg flex items-center gap-1">
-                    {st.name}
-                    <InfoTip label={st.name}>
-                      Recommended reflects the market reference adjusted for this stand's condition
-                      ({st.condition}%). Better stands can charge a small premium without upsetting
-                      fans.
-                    </InfoTip>
+          <div className="divide-y md:grid md:grid-cols-2 md:divide-y-0">
+            {rows.map(({ st, estAtt, revenue, priceFactor, rec, delta }) => {
+              const ratio = st.ticketPrice / rec;
+              const tone = ratio > 1.25 ? "bad" : ratio > 1.08 ? "warn" : ratio < 0.9 ? "under" : "ok";
+              return <div key={st.key} className="lf-stand-row px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-display text-base leading-tight">{st.name}</div>
+                    <div className="text-[10px] text-muted-foreground tnum">{st.capacity.toLocaleString()} seats · condition {st.condition}%</div>
                   </div>
-                  <div className="text-xs text-muted-foreground tnum">
-                    Cap {st.capacity.toLocaleString()}
-                  </div>
+                  <span className="font-display text-2xl leading-none tnum">£{st.ticketPrice}</span>
                 </div>
-                <div className="mt-2 flex items-center gap-3">
-                  <div className="font-display text-3xl tnum">£{st.ticketPrice}</div>
-                  <div className="text-xs text-muted-foreground">
-                    demand{" "}
-                    <span
-                      className={cn(
-                        "font-semibold",
-                        priceFactor > 0.75 && "text-[color:var(--color-income)]",
-                        priceFactor > 0.4 && priceFactor <= 0.75 && "text-amber-600",
-                        priceFactor <= 0.4 && "text-[color:var(--color-expense)]",
-                      )}
-                    >
-                      {(priceFactor * 100).toFixed(0)}%
-                    </span>
-                  </div>
-                </div>
-                <div className="mt-1 text-[11px] flex items-center gap-1">
-                  <span className="text-muted-foreground">Recommended £{rec}</span>
-                  <span
-                    className={cn(
-                      "font-semibold tnum",
-                      deltaTone === "bad" && "text-[color:var(--color-expense)]",
-                      deltaTone === "warn" && "text-amber-600",
-                      deltaTone === "under" && "text-[color:var(--color-income)]",
-                      deltaTone === "ok" && "text-muted-foreground",
-                    )}
-                  >
-                    ({delta >= 0 ? "+" : ""}£{delta})
+                <Slider className="mt-2" min={5} max={80} step={1} value={[st.ticketPrice]}
+                  onValueChange={([value]) => setPrice(st.key, value)} aria-label={`${st.name} ticket price`} />
+                <div className="mt-1.5 flex items-center gap-2 text-[11px] tnum">
+                  <span className="text-muted-foreground">Demand{" "}
+                    <span className={cn("font-semibold",
+                      priceFactor > 0.75 && "text-[color:var(--color-income)]",
+                      priceFactor > 0.4 && priceFactor <= 0.75 && "text-amber-600",
+                      priceFactor <= 0.4 && "text-[color:var(--color-expense)]",
+                    )}>{(priceFactor * 100).toFixed(0)}%</span>
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setPrice(st.key, rec)}
-                    className="ml-auto text-[11px] underline underline-offset-2 text-muted-foreground hover:text-foreground"
-                  >
-                    Set to recommended
+                  <button type="button" onClick={() => setPrice(st.key, rec)}
+                    title="Set to recommended"
+                    className={cn("rounded-full border px-1.5 py-px font-semibold",
+                      tone === "bad" && "border-rose-500/40 text-rose-600",
+                      tone === "warn" && "border-amber-500/40 text-amber-600",
+                      tone === "under" && "border-emerald-500/40 text-emerald-600",
+                      tone === "ok" && "text-muted-foreground",
+                    )}>
+                    Rec £{rec}{delta !== 0 && ` (${delta > 0 ? "+" : ""}${delta})`}
                   </button>
+                  <span className="ml-auto whitespace-nowrap text-muted-foreground">
+                    {estAtt.toLocaleString()} · <span className="text-[color:var(--color-income)]">{fmtMoney(revenue)}</span>
+                  </span>
                 </div>
-                <Slider
-                  className="mt-3"
-                  min={5}
-                  max={80}
-                  step={1}
-                  value={[st.ticketPrice]}
-                  onValueChange={([v]) => setPrice(st.key, v)}
-                />
-                <div className="mt-3 grid grid-cols-2 gap-2 text-sm tnum">
-                  <div>
-                    <div className="text-[10px] uppercase text-muted-foreground">
-                      Est. attendance
-                    </div>
-                    <div>{estAtt.toLocaleString()}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] uppercase text-muted-foreground">Est. gate</div>
-                    <div className="text-[color:var(--color-income)]">{fmtMoneyExact(revenue)}</div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="mt-4 rounded-lg border bg-secondary p-3 grid grid-cols-3 gap-2 text-sm tnum">
-          <div>
-            <div className="text-[10px] uppercase text-muted-foreground">Total capacity</div>
-            <div className="font-display text-lg">{totalCapacity(state).toLocaleString()}</div>
+              </div>;
+            })}
           </div>
-          <div>
-            <div className="text-[10px] uppercase text-muted-foreground">Est. next home att.</div>
-            <div className="font-display text-lg">{totalEstAtt.toLocaleString()}</div>
-          </div>
-          <div>
-            <div className="text-[10px] uppercase text-muted-foreground">Est. next home gate</div>
-            <div className="font-display text-lg text-[color:var(--color-income)]">
-              {fmtMoney(totalRev)}
-            </div>
-          </div>
-        </div>
-      </Section>
+        </section>
+      </div>
     </DetailScreen>
   );
+}
+
+function TicketFigure({ label, value, tone }: { label: string; value: string; tone?: "good" | "bad" }) {
+  return <div className="min-w-0 px-1 py-1.5">
+    <div className={cn("truncate font-display text-base leading-tight tnum",
+      tone === "good" && "text-[color:var(--color-income)]",
+      tone === "bad" && "text-[color:var(--color-expense)]",
+    )}>{value}</div>
+    <div className="truncate text-[9px] uppercase tracking-wider text-muted-foreground">{label}</div>
+  </div>;
 }
