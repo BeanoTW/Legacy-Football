@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, BriefcaseBusiness, CheckCircle2, MessageCircle, Search, UserMinus, UserPlus, Users } from "lucide-react";
+import { ArrowLeft, BriefcaseBusiness, CheckCircle2, MessageCircle, Pencil, Search, SlidersHorizontal, UserMinus, UserPlus, Users } from "lucide-react";
 import type { GameState, Staff, StaffRole } from "@/lib/game/types";
 import type { ManagerOffer } from "@/lib/game/staff";
 import { cn } from "@/lib/utils";
@@ -29,29 +29,50 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { OverviewScreen, WorkflowTile } from "./shared/layout";
 import { medicalSupport } from "@/lib/game/playerHealth";
 import { CharacterPortrait } from "./CharacterPortrait";
+import { CharacterPortraitStudio } from "./CharacterPortraitStudio";
 
 const STAT_KEYS: (keyof Staff["stats"])[] = ["tactics", "attack", "defense", "development", "scouting", "negotiation", "medical", "motivation"];
 const STAT_LABEL: Record<keyof Staff["stats"], string> = { tactics: "Tac", attack: "Att", defense: "Def", development: "Dev", scouting: "Sct", negotiation: "Neg", medical: "Med", motivation: "Mot" };
 type StaffView = "home" | "team" | "market";
 const ROLES: StaffRole[] = ["Manager", "Assistant Manager", "Head Coach", "Goalkeeping Coach", "Fitness Coach", "Head of Youth", "Head of Transfers", "Chief Scout", "Scout", "Head Physio", "Sports Scientist"];
 const FOOTBALL_ROLES: StaffRole[] = ["Manager", "Assistant Manager", "Head Coach", "Goalkeeping Coach", "Fitness Coach"];
+const QUICK_ROLES: ("All" | StaffRole)[] = ["All", "Manager", "Head Coach", "Assistant Manager", "Head of Transfers", "Head Physio", "Chief Scout"];
 
-function ManagerIdentityPanel({ staff, compact = false }: { staff: Staff; compact?: boolean }) {
+function ManagerIdentityPanel({ staff }: { staff: Staff }) {
   if (staff.role !== "Manager") return null;
   const identity = managerFootballIdentity(staff);
-  return <div className={cn("rounded-xl border border-primary/15 bg-primary/[0.04]", compact ? "mt-2 p-2.5" : "mt-3 p-3")}><div className="flex flex-wrap items-center gap-1.5"><span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground">{identity.preferredFormation}</span><span className="rounded-full border bg-background/70 px-2 py-0.5 text-[10px] font-semibold">{identity.philosophy}</span><span className="rounded-full border bg-background/70 px-2 py-0.5 text-[10px]">{identity.pressing} press</span><span className="rounded-full border bg-background/70 px-2 py-0.5 text-[10px]">{identity.tempo} tempo</span><span className="rounded-full border bg-background/70 px-2 py-0.5 text-[10px]">{identity.directness} directness</span></div><div className="mt-2 text-xs leading-relaxed text-muted-foreground">{identity.summary}</div>{!compact&&<><div className="mt-2 grid grid-cols-3 gap-1.5 text-[10px]"><div className="rounded-lg bg-background/70 px-2 py-1.5"><span className="text-muted-foreground">Adaptability</span><div className="font-semibold">{identity.adaptability}</div></div><div className="rounded-lg bg-background/70 px-2 py-1.5"><span className="text-muted-foreground">Rotation</span><div className="font-semibold">{identity.rotation}</div></div><div className="rounded-lg bg-background/70 px-2 py-1.5"><span className="text-muted-foreground">Youth</span><div className="font-semibold">{identity.youthWillingness}</div></div></div><div className="mt-2 rounded-lg bg-background/55 px-2.5 py-2 text-[10px] leading-relaxed"><span className="font-semibold text-foreground">Other shapes: </span><span className="text-muted-foreground">{identity.alternativeFormations.join(" · ")||"None — strongly committed to his preferred shape"}</span></div></>}</div>;
+  return <div className="mt-1.5 rounded-lg border border-primary/15 bg-primary/[0.04] p-2.5">
+    <div className="text-xs leading-relaxed text-muted-foreground">{identity.summary}</div>
+    <div className="mt-2 grid grid-cols-3 gap-1.5 text-[10px]">
+      <div className="rounded-md bg-background/70 px-2 py-1"><span className="text-muted-foreground">Adaptability</span><div className="font-semibold">{identity.adaptability}</div></div>
+      <div className="rounded-md bg-background/70 px-2 py-1"><span className="text-muted-foreground">Rotation</span><div className="font-semibold">{identity.rotation}</div></div>
+      <div className="rounded-md bg-background/70 px-2 py-1"><span className="text-muted-foreground">Youth</span><div className="font-semibold">{identity.youthWillingness}</div></div>
+    </div>
+    <div className="mt-1.5 text-[10px] leading-relaxed"><span className="font-semibold">Other shapes: </span><span className="text-muted-foreground">{identity.alternativeFormations.join(" · ") || "None — committed to preferred shape"}</span></div>
+  </div>;
 }
-
-function ManagerSquadFitPanel({ state, staff, compact = false }: { state: GameState; staff: Staff; compact?: boolean }) {
+function fitTone(band: string) {
+  return band === "Excellent" ? "text-emerald-700 bg-emerald-500/10 border-emerald-500/25"
+    : band === "Good" ? "text-lime-700 bg-lime-500/10 border-lime-500/25"
+      : band === "Workable" ? "text-amber-700 bg-amber-500/10 border-amber-500/25"
+        : "text-rose-700 bg-rose-500/10 border-rose-500/25";
+}
+function ManagerSquadFitPanel({ state, staff }: { state: GameState; staff: Staff }) {
   if (staff.role !== "Manager") return null;
-  const fit=managerSquadFit(state,staff); const tone=fit.band==="Excellent"?"text-emerald-700 bg-emerald-500/10 border-emerald-500/25":fit.band==="Good"?"text-lime-700 bg-lime-500/10 border-lime-500/25":fit.band==="Workable"?"text-amber-700 bg-amber-500/10 border-amber-500/25":"text-rose-700 bg-rose-500/10 border-rose-500/25";
-  return <div className={cn("mt-2 rounded-xl border",tone,compact?"p-2.5":"p-3")}><div className="flex items-center justify-between gap-3"><div><div className="text-[10px] font-bold uppercase tracking-wider opacity-70">Squad fit</div><div className="font-display text-lg leading-tight">{fit.band}</div></div><div className="text-right"><div className="font-display text-2xl leading-none">{fit.score}</div><div className="text-[10px] opacity-70">/ 100</div></div></div><div className="mt-1.5 text-xs leading-relaxed opacity-90">{fit.summary}</div>{!compact&&(fit.strengths.length>0||fit.gaps.length>0)&&<div className="mt-2 grid gap-1 text-[10px] sm:grid-cols-2">{fit.strengths.map(item=><div key={item} className="rounded bg-background/55 px-2 py-1">✓ {item}</div>)}{fit.gaps.map(item=><div key={item} className="rounded bg-background/55 px-2 py-1">• {item}</div>)}</div>}</div>;
+  const fit = managerSquadFit(state, staff);
+  return <div className={cn("mt-1.5 rounded-lg border p-2", fitTone(fit.band))}>
+    <div className="text-xs leading-relaxed opacity-90">{fit.summary}</div>
+    {(fit.strengths.length > 0 || fit.gaps.length > 0) && <div className="mt-1.5 grid gap-1 text-[10px] sm:grid-cols-2">
+      {fit.strengths.map(item => <div key={item} className="rounded bg-background/55 px-2 py-0.5">✓ {item}</div>)}
+      {fit.gaps.map(item => <div key={item} className="rounded bg-background/55 px-2 py-0.5">• {item}</div>)}
+    </div>}
+  </div>;
 }
 
 export function StaffTab({ state, update }: { state: GameState; update: (fn: (s: GameState) => GameState) => void }) {
   const [view,setView]=useState<StaffView>("home"); const [filter,setFilter]=useState<"All"|StaffRole>("All"); const [minRating,setMinRating]=useState(0); const [maxWage,setMaxWage]=useState(0); const [willingOnly,setWillingOnly]=useState(true); const [sortBy,setSortBy]=useState<"rating"|"wage"|"age"|"fit">("fit");
   const [managerNegotiationId,setManagerNegotiationId]=useState<string|null>(null); const [managerOffer,setManagerOffer]=useState<ManagerOffer|null>(null); const [managerPosition,setManagerPosition]=useState<ManagerOffer|null>(null); const [managerCounter,setManagerCounter]=useState<ManagerOffer|null>(null); const [managerAcceptedOffer,setManagerAcceptedOffer]=useState<ManagerOffer|null>(null); const [managerRound,setManagerRound]=useState(1); const [managerMessage,setManagerMessage]=useState("");
-  const manager=state.hiredStaff.find(s=>s.role==="Manager"); const medical=medicalSupport(state); const weeklyStaffCost=hiredStaffWagesWeekly(state); const enriched=state.staffCandidates.map(c=>({staff:c,terms:staffJoinTermsForState(state,c)})); const willingCount=enriched.filter(e=>e.terms.willing).length; const footballStaffCount=state.hiredStaff.filter(s=>FOOTBALL_ROLES.includes(s.role)).length; const specialistCount=state.hiredStaff.filter(s=>!FOOTBALL_ROLES.includes(s.role)).length; const expiringCount=state.hiredStaff.filter(s=>s.contractWeeks<=24).length;
+  const manager=state.hiredStaff.find(s=>s.role==="Manager"); const medical=medicalSupport(state); const weeklyStaffCost=hiredStaffWagesWeekly(state); const enriched=state.staffCandidates.map(c=>({staff:c,terms:staffJoinTermsForState(state,c)})); const willingCount=enriched.filter(e=>e.terms.willing).length; const footballStaffCount=state.hiredStaff.filter(s=>FOOTBALL_ROLES.includes(s.role)).length; const expiringCount=state.hiredStaff.filter(s=>s.contractWeeks<=24).length;
   const closeManagerTalks=()=>{setManagerNegotiationId(null);setManagerOffer(null);setManagerPosition(null);setManagerCounter(null);setManagerAcceptedOffer(null);setManagerRound(1);setManagerMessage("");};
   const hire=(id:string)=>{const candidate=state.staffCandidates.find(c=>c.id===id);if(candidate?.role==="Manager"){const terms=staffJoinTermsForState(state,candidate);const opening=managerOpeningPosition(state,candidate,terms);setManagerNegotiationId(id);setManagerOffer(opening);setManagerPosition(opening);setManagerCounter(null);setManagerAcceptedOffer(null);setManagerRound(1);setManagerMessage(`${terms.note}. His agent has set out an opening position.`);return;}const res=hireStaffMember(state,id);if(!res.ok)return alert(res.reason??"Unable to hire.");update(()=>res.state);};
   const submitManagerOffer=()=>{if(!managerNegotiationId||!managerOffer||!managerPosition)return;const candidate=state.staffCandidates.find(c=>c.id===managerNegotiationId);if(!candidate)return;const terms=staffJoinTermsForState(state,candidate);const evaluation=evaluateManagerBargainingOffer(state,candidate,terms,managerOffer,managerPosition,managerRound);setManagerMessage(evaluation.message);if(evaluation.outcome==="counter"&&evaluation.counterOffer){setManagerCounter(evaluation.counterOffer);setManagerPosition(evaluation.counterOffer);setManagerRound(r=>r+1);return;}setManagerCounter(null);if(evaluation.outcome!=="accepted")return;setManagerAcceptedOffer({...managerOffer});};
@@ -59,12 +80,136 @@ export function StaffTab({ state, update }: { state: GameState; update: (fn: (s:
   const release=(id:string)=>{const st=state.hiredStaff.find(h=>h.id===id);if(!st)return;if(!confirm(`Release ${st.name}? Severance of ${fmtMoneyExact(severanceFor(st))} due.`))return;const res=sackStaffMember(state,id);if(!res.ok)return alert(res.reason??"Unable to release.");update(()=>res.state);}; const renew=(id:string)=>{const st=state.hiredStaff.find(h=>h.id===id);if(!st)return;const bonus=st.wage*2;if(!confirm(`Renew ${st.name} for 2 seasons? Renewal bonus: ${fmtMoneyExact(bonus)}.`))return;const res=renewStaffContract(state,id,2);if(!res.ok)return alert(res.reason??"Unable to renew contract.");update(()=>res.state);};
   const filtered=enriched.filter(({staff,terms})=>(filter==="All"||staff.role===filter)&&staff.rating>=minRating&&(maxWage<=0||terms.wageDemand<=maxWage)&&(!willingOnly||terms.willing)).sort((a,b)=>{if(sortBy==="rating")return b.staff.rating-a.staff.rating;if(sortBy==="wage")return a.terms.wageDemand-b.terms.wageDemand;if(sortBy==="age")return a.staff.age-b.staff.age;const aw=a.terms.willing?0:1,bw=b.terms.willing?0:1;if(aw!==bw)return aw-bw;if(a.staff.role==="Manager"&&b.staff.role==="Manager")return managerSquadFit(state,b.staff).score-managerSquadFit(state,a.staff).score;return b.staff.rating-a.staff.rating;});
 
-  if(view==="team")return <div className="space-y-4"><Button variant="ghost" onClick={()=>setView("home")}><ArrowLeft className="size-4 mr-2"/> Back to staff</Button><div><h1 className="font-display text-3xl">Your staff</h1><p className="text-sm text-muted-foreground mt-1">Contracts now matter. Renew key people before they expire.</p></div>{expiringCount>0&&<div className="rounded-2xl border border-amber-500/60 bg-amber-500/5 p-4"><div className="font-semibold">{expiringCount} contract{expiringCount===1?"":"s"} need attention</div><div className="text-sm text-muted-foreground mt-1">Staff in the final half-season can be renewed from their card.</div></div>}{state.hiredStaff.length===0?<div className="rounded-2xl border bg-card p-8 text-center text-muted-foreground">Nobody hired yet.</div>:<div className="lf-staff-grid grid gap-3 md:grid-cols-2">{state.hiredStaff.map(s=><StaffCard key={s.id} state={state} staff={s} onAction={()=>release(s.id)} onRenew={()=>renew(s.id)} action="release"/>)}</div>}</div>;
-  if(view==="market")return <div className="space-y-4"><div className="flex items-center justify-between gap-3"><Button variant="ghost" onClick={()=>setView("home")}><ArrowLeft className="size-4 mr-2"/> Back to staff</Button><Sheet><SheetTrigger asChild><Button variant="outline">Advanced filters</Button></SheetTrigger><SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto"><SheetHeader><SheetTitle>Filter candidates</SheetTitle></SheetHeader><div className="space-y-5 mt-5"><div className="grid grid-cols-2 gap-2"><Button variant={filter==="All"?"default":"outline"} onClick={()=>setFilter("All")}>All roles</Button>{ROLES.map(role=><Button key={role} variant={filter===role?"default":"outline"} onClick={()=>setFilter(role)}>{role}</Button>)}</div><div><Label>Minimum rating: {minRating}</Label><Slider value={[minRating]} min={0} max={95} step={5} onValueChange={v=>setMinRating(v[0])} className="mt-3"/></div><div><Label>Maximum wage per week</Label><Input type="number" value={maxWage} min={0} step={500} onChange={e=>setMaxWage(Number(e.target.value)||0)} className="mt-2 h-12"/></div><label className="flex items-center gap-3 min-h-12"><input type="checkbox" checked={willingOnly} onChange={e=>setWillingOnly(e.target.checked)}/><span>Only show people willing to join</span></label><label className="block"><span className="text-sm font-medium">Sort by</span><select value={sortBy} onChange={e=>setSortBy(e.target.value as typeof sortBy)} className="mt-2 h-12 w-full rounded-xl border bg-background px-3"><option value="fit">Best fit</option><option value="rating">Highest rated</option><option value="wage">Cheapest</option><option value="age">Youngest</option></select></label></div></SheetContent></Sheet></div><div><h1 className="font-display text-3xl">Hire staff</h1><p className="text-sm text-muted-foreground mt-1">Showing {filtered.length} candidates. Managers are judged on football identity and how well their system fits your current squad.</p></div><div className="grid grid-cols-2 md:grid-cols-4 gap-2">{["Manager","Head Coach","Head of Transfers","Head Physio"].map(role=><button key={role} onClick={()=>setFilter(role as StaffRole)} className={cn("min-h-20 rounded-2xl border p-3 text-left font-semibold",filter===role?"bg-primary text-primary-foreground border-primary":"bg-card hover:border-primary/50")}>{role}</button>)}</div><div className="grid gap-3 md:grid-cols-2">{filtered.map(({staff,terms})=><StaffCard key={staff.id} state={state} staff={staff} terms={terms} onAction={()=>hire(staff.id)} action="hire" affordable={state.cash>=terms.signingBonus}/>)}{filtered.length===0&&<div className="rounded-2xl border bg-card p-8 text-center text-muted-foreground md:col-span-2">No candidates match. Open Advanced filters to widen the search.</div>}</div><ManagerNegotiationDialog state={state} open={Boolean(managerNegotiationId)} candidate={state.staffCandidates.find(c=>c.id===managerNegotiationId)??null} offer={managerOffer} acceptedOffer={managerAcceptedOffer} counter={managerCounter} message={managerMessage} cash={state.cash} onOpenChange={open=>{if(!open)closeManagerTalks();}} onOfferChange={setManagerOffer} onSubmit={submitManagerOffer} onConfirmAppointment={confirmManagerAppointment} onUseCounter={()=>{if(!managerCounter)return;setManagerOffer(managerCounter);setManagerMessage("Counter-offer loaded. Meeting these terms will secure the agreement; you can still negotiate below them.");}}/></div>;
-  return <OverviewScreen title="Staff" subtitle="Build the football operation around the manager, coaches and specialists who run it." metrics={[{label:"Weekly staff cost",value:fmtMoneyExact(weeklyStaffCost)},{label:"Football staff",value:String(footballStaffCount)},{label:"Medical",value:`${medical.label} · ${medical.score}`},{label:"Contracts expiring",value:String(expiringCount)}]}><div className="mb-3 grid grid-cols-3 gap-2 rounded-2xl border bg-card p-3 text-center"><div><div className="font-display text-xl">{medical.score}</div><div className="text-[10px] uppercase text-muted-foreground">Medical score</div></div><div><div className="font-display text-xl">+{medical.recoveryPerWeek}</div><div className="text-[10px] uppercase text-muted-foreground">Fitness / week</div></div><div><div className="font-display text-xl">{medical.injuryRiskMultiplier.toFixed(2)}×</div><div className="text-[10px] uppercase text-muted-foreground">Injury risk</div></div></div><div className="grid gap-3 md:grid-cols-2"><WorkflowTile icon={Users} title="Your staff" description={manager?`${manager.name} leads the football side. ${managerFootballIdentity(manager).summary}`:"No manager appointed. The football side is being run on a caretaker basis."} meta={manager?`${state.hiredStaff.length} hired · ${fmtMoneyExact(weeklyStaffCost)}/wk`:"Manager vacancy"} onClick={()=>setView("team")}/><WorkflowTile icon={Search} title="Hire staff" description="Search the market. Manager candidates now come with a football identity and a live read on how their system fits your squad." meta={`${willingCount} willing candidates`} onClick={()=>setView("market")}/></div></OverviewScreen>;
+  if (view === "team") {
+    return <div className="lf-staff-view space-y-2">
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="sm" className="-ml-2" onClick={() => setView("home")}><ArrowLeft className="mr-1.5 size-4" /> Staff</Button>
+        <h1 className="min-w-0 flex-1 truncate font-display text-xl">Your staff · {state.hiredStaff.length}</h1>
+      </div>
+      {expiringCount > 0 && <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 px-3 py-1.5 text-xs"><strong>{expiringCount} contract{expiringCount === 1 ? "" : "s"} ending soon.</strong> Renew from the card.</div>}
+      {state.hiredStaff.length === 0
+        ? <div className="rounded-xl border bg-card p-5 text-center text-sm text-muted-foreground">Nobody hired yet.</div>
+        : <div className="lf-staff-grid grid gap-2 md:grid-cols-2">
+          {state.hiredStaff.map(s => <StaffCard key={s.id} state={state} staff={s} onAction={() => release(s.id)} onRenew={() => renew(s.id)} action="release" />)}
+        </div>}
+    </div>;
+  }
+  if (view === "market") {
+    return <div className="lf-staff-view space-y-2">
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="sm" className="-ml-2" onClick={() => setView("home")}><ArrowLeft className="mr-1.5 size-4" /> Staff</Button>
+        <h1 className="min-w-0 flex-1 truncate font-display text-xl">Hire staff · {filtered.length}</h1>
+        <Sheet>
+          <SheetTrigger asChild><Button variant="outline" size="sm" className="h-8"><SlidersHorizontal className="mr-1.5 size-4" /> Filters</Button></SheetTrigger>
+          <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-3xl">
+            <SheetHeader><SheetTitle>Filter candidates</SheetTitle></SheetHeader>
+            <div className="mt-5 space-y-5">
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant={filter === "All" ? "default" : "outline"} onClick={() => setFilter("All")}>All roles</Button>
+                {ROLES.map(role => <Button key={role} variant={filter === role ? "default" : "outline"} onClick={() => setFilter(role)}>{role}</Button>)}
+              </div>
+              <div><Label>Minimum rating: {minRating}</Label><Slider value={[minRating]} min={0} max={95} step={5} onValueChange={value => setMinRating(value[0])} className="mt-3" /></div>
+              <div><Label>Maximum wage per week</Label><Input type="number" value={maxWage} min={0} step={500} onChange={event => setMaxWage(Number(event.target.value) || 0)} className="mt-2 h-12" /></div>
+              <label className="flex min-h-12 items-center gap-3"><input type="checkbox" checked={willingOnly} onChange={event => setWillingOnly(event.target.checked)} /><span>Only show people willing to join</span></label>
+              <label className="block"><span className="text-sm font-medium">Sort by</span><select value={sortBy} onChange={event => setSortBy(event.target.value as typeof sortBy)} className="mt-2 h-12 w-full rounded-xl border bg-background px-3"><option value="fit">Best fit</option><option value="rating">Highest rated</option><option value="wage">Cheapest</option><option value="age">Youngest</option></select></label>
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+      <div className="lf-chip-row -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5" role="group" aria-label="Filter by role">
+        {QUICK_ROLES.map(role => <button key={role} type="button" onClick={() => setFilter(role)}
+          className={cn("lf-chip shrink-0 whitespace-nowrap", filter === role && "is-active")}>{role === "All" ? "All roles" : role}</button>)}
+      </div>
+      <div className="grid gap-2 md:grid-cols-2">
+        {filtered.map(({ staff, terms }) => <StaffCard key={staff.id} state={state} staff={staff} terms={terms} onAction={() => hire(staff.id)} action="hire" affordable={state.cash >= terms.signingBonus} />)}
+        {filtered.length === 0 && <div className="rounded-xl border bg-card p-5 text-center text-sm text-muted-foreground md:col-span-2">No candidates match. Open Filters to widen the search.</div>}
+      </div>
+      <ManagerNegotiationDialog state={state} open={Boolean(managerNegotiationId)} candidate={state.staffCandidates.find(candidate => candidate.id === managerNegotiationId) ?? null} offer={managerOffer} acceptedOffer={managerAcceptedOffer} counter={managerCounter} message={managerMessage} cash={state.cash} onOpenChange={open => { if (!open) closeManagerTalks(); }} onOfferChange={setManagerOffer} onSubmit={submitManagerOffer} onConfirmAppointment={confirmManagerAppointment} onUseCounter={() => { if (!managerCounter) return; setManagerOffer(managerCounter); setManagerMessage("Counter-offer loaded. Meeting these terms will secure the agreement; you can still negotiate below them."); }} />
+    </div>;
+  }
+  return <OverviewScreen title="Staff" subtitle="Build the football operation around the manager, coaches and specialists who run it."
+    metrics={[
+      { label: "Staff cost", value: `${fmtMoneyExact(weeklyStaffCost)}/wk` },
+      { label: "Football staff", value: String(footballStaffCount) },
+      { label: "Medical", value: `${medical.label} · ${medical.score}` },
+      { label: "Expiring", value: String(expiringCount) },
+    ]}>
+    <div className="mb-2 flex items-center justify-between gap-2 rounded-lg border bg-card px-3 py-1.5 text-[11px]">
+      <span className="font-semibold">Medical effect</span>
+      <span className="text-muted-foreground tnum">+{medical.recoveryPerWeek} fitness/wk · injury risk {medical.injuryRiskMultiplier.toFixed(2)}×</span>
+    </div>
+    <div className="grid gap-2 md:grid-cols-2">
+      <WorkflowTile icon={Users} title="Your staff"
+        description={manager ? `${manager.name} leads the football side. ${managerFootballIdentity(manager).summary}` : "No manager appointed. The football side is being run on a caretaker basis."}
+        meta={manager ? `${state.hiredStaff.length} hired · ${fmtMoneyExact(weeklyStaffCost)}/wk` : "Manager vacancy"}
+        urgent={!manager} onClick={() => setView("team")} />
+      <WorkflowTile icon={Search} title="Hire staff" description="Search the market. Manager candidates come with a football identity and a live read on how their system fits your squad."
+        meta={`${willingCount} willing candidates`} onClick={() => setView("market")} />
+    </div>
+  </OverviewScreen>;
 }
 
-function StaffCard({state,staff,terms,onAction,onRenew,action,affordable=true}:{state:GameState;staff:Staff;terms?:ReturnType<typeof staffJoinTermsForState>;onAction:()=>void;onRenew?:()=>void;action:"hire"|"release";affordable?:boolean}){const manager=staff.role==="Manager";const contractLabel=staff.contractWeeks<=52?"Final season":`${Math.ceil(staff.contractWeeks/52)} seasons left`;return <div className="lf-staff-card rounded-2xl border bg-card p-4"><div className="flex items-start justify-between gap-3"><div className="flex min-w-0 items-start gap-2.5"><div className="shrink-0 overflow-hidden rounded-lg"><CharacterPortrait identity={{id:staff.id,subject:manager?"manager":"staff"}} size={48} title={`${staff.name} portrait`}/></div><div className="min-w-0"><div className="font-display text-xl">{staff.name}</div><div className="text-xs text-muted-foreground">{staff.role} · Age {staff.age} · Rating {staff.rating}</div></div></div><div className="text-right text-xs"><div className="font-semibold">{fmtMoneyExact(terms?.wageDemand??staff.wage)}/wk</div><div className="text-muted-foreground">{terms?`${fmtMoneyExact(terms.signingBonus)} sign-on`:contractLabel}</div></div></div><div className="mt-3 grid grid-cols-4 gap-1.5">{STAT_KEYS.map(k=><div key={k} className="rounded-lg border bg-background/50 p-2 text-center"><div className="text-[9px] uppercase tracking-wider text-muted-foreground">{STAT_LABEL[k]}</div><div className="font-display text-lg">{staff.stats[k]}</div></div>)}</div>{manager&&<><ManagerIdentityPanel staff={staff}/><ManagerSquadFitPanel state={state} staff={staff}/></>}{terms&&<div className="mt-3 rounded-xl bg-muted/50 p-3 text-xs"><div className="font-semibold">{terms.willing?"Open to talks":"Not currently interested"}</div><div className="mt-1 text-muted-foreground">{terms.note}</div></div>}<div className="mt-3 flex gap-2">{action==="hire"?<Button onClick={onAction} disabled={!terms?.willing||!affordable} className="flex-1"><UserPlus className="size-4 mr-2"/> {manager?"Open talks":"Hire"}</Button>:<><Button variant="destructive" onClick={onAction} className="flex-1"><UserMinus className="size-4 mr-2"/> Release</Button>{onRenew&&staff.contractWeeks<=52&&<Button variant="outline" onClick={onRenew}>Renew</Button>}</>}</div></div>;}
+function StaffCard({ state, staff, terms, onAction, onRenew, action, affordable = true }: {
+  state: GameState; staff: Staff; terms?: ReturnType<typeof staffJoinTermsForState>;
+  onAction: () => void; onRenew?: () => void; action: "hire" | "release"; affordable?: boolean;
+}) {
+  const [portraitEditing, setPortraitEditing] = useState(false);
+  const manager = staff.role === "Manager";
+  const contractLabel = staff.contractWeeks <= 52 ? "Final season" : `${Math.ceil(staff.contractWeeks / 52)} seasons left`;
+  const identity = manager ? managerFootballIdentity(staff) : null;
+  const fit = manager ? managerSquadFit(state, staff) : null;
+  return <div className="lf-staff-card rounded-xl border bg-card p-2.5">
+    <div className="flex items-center gap-2.5">
+      <button type="button" onClick={() => setPortraitEditing(true)}
+        className="relative shrink-0 overflow-hidden rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-500"
+        aria-label={`Edit ${staff.name} appearance`}>
+        <CharacterPortrait identity={{ id: staff.id, subject: manager ? "manager" : "staff" }} size={40} title={`${staff.name} portrait`} />
+        <Pencil className="absolute bottom-0 right-0 size-3 rounded-tl bg-black/70 p-0.5 text-white" aria-hidden="true" />
+      </button>
+      <div className="min-w-0 flex-1">
+        <div className="truncate font-display text-base leading-tight">{staff.name}</div>
+        <div className="truncate text-[11px] text-muted-foreground">{staff.role} · {staff.age} · Rating {staff.rating}</div>
+      </div>
+      <div className="shrink-0 text-right text-[11px]">
+        <div className="font-semibold tnum">{fmtMoneyExact(terms?.wageDemand ?? staff.wage)}/wk</div>
+        <div className="text-muted-foreground">{terms ? `${fmtMoneyExact(terms.signingBonus)} sign-on` : contractLabel}</div>
+      </div>
+    </div>
+    <div className="mt-2 grid grid-cols-8 gap-0.5 rounded-lg bg-muted/40 p-0.5 text-center">
+      {STAT_KEYS.map(key => <div key={key} className="min-w-0 rounded-md py-0.5">
+        <div className="text-[8px] uppercase tracking-wide text-muted-foreground">{STAT_LABEL[key]}</div>
+        <div className="font-display text-sm leading-tight tnum">{staff.stats[key]}</div>
+      </div>)}
+    </div>
+    {identity && fit && <>
+      <div className="mt-2 flex flex-wrap items-center gap-1">
+        <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground">{identity.preferredFormation}</span>
+        <span className="rounded-full border px-2 py-0.5 text-[10px] font-semibold">{identity.philosophy}</span>
+        <span className="rounded-full border px-2 py-0.5 text-[10px]">{identity.pressing} press</span>
+        <span className="rounded-full border px-2 py-0.5 text-[10px]">{identity.tempo} tempo</span>
+        <span className={cn("ml-auto rounded-full border px-2 py-0.5 text-[10px] font-bold", fitTone(fit.band))}>{fit.band} fit · {fit.score}</span>
+      </div>
+      <details className="lf-staff-more mt-1">
+        <summary className="cursor-pointer text-[11px] font-semibold text-primary">Manager profile</summary>
+        <ManagerIdentityPanel staff={staff} />
+        <ManagerSquadFitPanel state={state} staff={staff} />
+      </details>
+    </>}
+    {terms && <p className={cn("mt-1.5 line-clamp-2 text-[11px]", terms.willing ? "text-muted-foreground" : "text-rose-700 dark:text-rose-300")}>
+      <strong className="text-foreground">{terms.willing ? "Open to talks." : "Not interested."}</strong> {terms.note}
+    </p>}
+    <div className="mt-2 flex gap-1.5">
+      {action === "hire" ? <Button size="sm" onClick={onAction} disabled={!terms?.willing || !affordable} className="h-8 flex-1">
+        <UserPlus className="mr-1.5 size-4" /> {manager ? "Open talks" : "Hire"}
+      </Button> : <>
+        <Button size="sm" variant="outline" onClick={onAction} className="h-8 flex-1 text-rose-700 dark:text-rose-300"><UserMinus className="mr-1.5 size-4" /> Release</Button>
+        {onRenew && staff.contractWeeks <= 52 && <Button size="sm" onClick={onRenew} className="h-8 flex-1">Renew</Button>}
+      </>}
+    </div>
+    <CharacterPortraitStudio identity={{ id: staff.id, subject: manager ? "manager" : "staff" }}
+      name={staff.name} open={portraitEditing} onOpenChange={setPortraitEditing} />
+  </div>;
+}
 
 function ManagerNegotiationDialog({
   state,
