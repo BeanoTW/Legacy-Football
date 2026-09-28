@@ -32,11 +32,13 @@ const employmentLabel = (value: "PartTime" | "FullTime") =>
 export function RecruitmentOperations({
   state,
   update,
+  initialNegotiationId,
 }: {
   state: GameState;
   update: (fn: (s: GameState) => GameState) => void;
+  initialNegotiationId?: string;
 }) {
-  const [view, setView] = useState<"squad" | "deals">("squad");
+  const [view, setView] = useState<"squad" | "deals">(initialNegotiationId ? "deals" : "squad");
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [squadLens, setSquadLens] = useState<"position" | "contracts" | "wages">("position");
   const [actionNote, setActionNote] = useState<string | null>(null);
@@ -149,7 +151,7 @@ export function RecruitmentOperations({
             </section>
           </div>
         ) : (
-          <TransferNegotiationDesk state={state} deals={deals} act={act} />
+          <TransferNegotiationDesk state={state} deals={deals} act={act} initialNegotiationId={initialNegotiationId} />
         )}
       </div>
     </div>
