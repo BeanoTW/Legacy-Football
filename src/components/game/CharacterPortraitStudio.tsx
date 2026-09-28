@@ -68,8 +68,10 @@ export function CharacterPortraitStudio({
             }}><Shuffle /> Randomise</Button>
           </div>
         </div>
-        <AvatarAppearanceOptions avatar={draft} onChange={patch} />
-        {error && <p role="alert" className="px-4 text-xs text-rose-500">{error}</p>}
+        <div className="lf-studio-scroll touch-pan-y">
+          <AvatarAppearanceOptions avatar={draft} onChange={patch} />
+          {error && <p role="alert" className="px-4 text-xs text-rose-500">{error}</p>}
+        </div>
         <div className="lf-studio-footer">
           <Button type="button" variant="ghost" onClick={() => {
             if (!clearPortraitOverride(identity.id)) { setError("Unable to reset appearance on this device."); return; }
