@@ -190,7 +190,9 @@ export function ChairmanStudio({
           </div>
         </div>
 
-        <AvatarAppearanceOptions avatar={avatar} onChange={set} />
+        <div className="lf-studio-scroll touch-pan-y">
+          <AvatarAppearanceOptions avatar={avatar} onChange={set} />
+        </div>
 
         <div className="lf-studio-footer">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
