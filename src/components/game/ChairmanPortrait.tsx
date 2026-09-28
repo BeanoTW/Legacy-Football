@@ -202,7 +202,66 @@ function FacialHairLayer({ avatar }: { avatar: ChairmanAvatar }) {
   }
 }
 
-function OutfitLayer({ avatar, skin }: { avatar: ChairmanAvatar; skin: string }) {
+
+const TORSO = "M18 220 C20 190 48 172 84 168 L116 168 C152 172 180 190 182 220Z";
+function ClothShading({ uid, colour }: { uid: string; colour: string }) {
+  const id = "cloth-" + uid;
+  return <g pointerEvents="none">
+    <defs><linearGradient id={id} x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stopColor="#000" stopOpacity={0.28} />
+      <stop offset="0.22" stopColor="#000" stopOpacity={0.04} />
+      <stop offset="0.5" stopColor="#fff" stopOpacity={0.06} />
+      <stop offset="0.78" stopColor="#000" stopOpacity={0.04} />
+      <stop offset="1" stopColor="#000" stopOpacity={0.3} />
+    </linearGradient></defs>
+    <path d={TORSO} fill={"url(#"+id+")"} />
+    <path d="M50 182 C44 196 40 208 38 220 M150 182 C156 196 160 208 162 220"
+      stroke={shade(colour,-0.35)} strokeWidth={1.4} fill="none" opacity={0.6} />
+  </g>;
+}
+function NewOutfit({avatar, uid}: {avatar:ChairmanAvatar;uid:string}) {
+  const main=avatar.outfitColour, dark=shade(main,-0.3), light=shade(main,0.14), accent=avatar.accentColour;
+  const trim=shade(main,main === "#e9e3d4" ? -0.35 : 0.3);
+  const base=<><path d={TORSO} fill={main}/><ClothShading uid={uid} colour={main}/></>;
+  const tie=<><path d="M95 171 L100 179 L105 171Z" fill={shade(accent,-0.2)}/><path d="M96 178 L104 178 L107 206 L100 216 L93 206Z" fill={accent}/></>;
+  const crest=<><path d="M130 190 l9 0 l0 8 l-4.5 6 l-4.5 -6Z" fill={accent}/><path d="M132 193 l5 0" stroke={trim} strokeWidth={1}/></>;
+  switch(avatar.outfit){
+    case "waistcoat": return <g>{base}<path d="M84 168 L100 206 L116 168Z" fill="#f4f4f1"/>
+      <path d="M84 166 L94 186 L100 172Z M116 166 L106 186 L100 172Z" fill="#fff"/>{tie}
+      <path d="M84 176 L96 206 L100 220 L68 220 L74 186Z M116 176 L104 206 L100 220 L132 220 L126 186Z" fill={light}/>
+      {[204,212].map(y=><circle key={y} cx={100} cy={y} r={1.5} fill={dark}/>)}
+      <path d="M84 168 L70 178 L76 186 L70 192 L80 220 L86 220Z M116 168 L130 178 L124 186 L130 192 L120 220 L114 220Z" fill={dark}/></g>;
+    case "turtleneck": return <g>{base}<path d="M82 160 C90 166 110 166 118 160 L120 176 C110 182 90 182 80 176Z" fill={accent}/>
+      <path d="M82 166 C92 172 108 172 118 166 M81 171 C92 177 108 177 119 171" stroke={shade(accent,-0.25)} strokeWidth={1} fill="none"/>
+      <path d="M86 176 L100 180 L114 176 L110 220 L90 220Z" fill={accent}/>
+      <path d="M84 170 L70 180 L76 188 L70 194 L88 220 L92 220 L90 190Z M116 170 L130 180 L124 188 L130 194 L112 220 L108 220 L110 190Z" fill={dark}/></g>;
+    case "shirtTie": return <g><path d={TORSO} fill="#eef2f6"/><ClothShading uid={uid} colour="#eef2f6"/>
+      <path d="M84 166 L94 186 L100 172Z M116 166 L106 186 L100 172Z" fill="#fff" stroke="#c9d3de" strokeWidth={0.8}/>{tie}
+      <path d="M100 179 L100 220" stroke="#c9d3de" strokeWidth={0.8}/>
+      <rect x={126} y={192} width={12} height={12} stroke="#c9d3de" fill="none"/>
+      <path d="M78 172 L84 220 M122 172 L116 220" stroke={main} strokeWidth={4.5}/></g>;
+    case "puffer": return <g><path d="M16 220 C18 188 46 170 82 164 L118 164 C154 170 182 188 184 220Z" fill={main}/>
+      <ClothShading uid={uid} colour={main}/>
+      {[182,194,206].map(y=><path key={y} d={"M34 "+(y+2)+" C70 "+(y-4)+" 130 "+(y-4)+" 166 "+(y+2)} stroke={dark} strokeWidth={1.6} fill="none"/>)}
+      <path d="M80 154 C90 160 110 160 120 154 L122 172 C112 178 88 178 78 172Z" fill={light}/>
+      <path d="M100 160 L100 220" stroke={dark} strokeWidth={2}/><rect x={98} y={166} width={4} height={7} rx={1.4} fill={trim}/>{crest}</g>;
+    case "tracksuit": return <g>{base}
+      <path d="M22 206 C30 190 50 176 76 170 L80 178 C58 184 40 196 30 212Z M178 206 C170 190 150 176 124 170 L120 178 C142 184 160 196 170 212Z" fill={accent}/>
+      <path d="M26 214 C36 198 54 186 78 180 M174 214 C164 198 146 186 122 180" stroke={trim} strokeWidth={1.4} fill="none"/>
+      <path d="M80 158 C90 166 110 166 120 158 L121 170 C112 176 88 176 79 170Z" fill={accent}/>
+      <path d="M100 164 L100 220" stroke={trim} strokeWidth={1.8}/><rect x={98} y={170} width={4} height={7} rx={1.4} fill={trim}/>{crest}</g>;
+    case "polo": return <g>{base}
+      <path d="M82 164 L96 184 L100 172Z M118 164 L104 184 L100 172Z" fill={light}/>
+      <path d="M84 166 L96 183 M116 166 L104 183" stroke={accent} strokeWidth={1.6}/>
+      <path d="M96 172 L104 172 L104 198 L96 198Z" fill={dark}/>
+      {[178,186,194].map(y=><circle key={y} cx={100} cy={y} r={1.4} fill={trim}/>)}
+      {crest}<path d="M36 214 C44 206 50 200 56 196 M164 214 C156 206 150 200 144 196" stroke={accent} strokeWidth={2.4} fill="none"/></g>;
+    default: return null;
+  }
+}
+const NEW_OUTFITS=new Set<ChairmanAvatar["outfit"]>(["waistcoat","turtleneck","shirtTie","puffer","tracksuit","polo"]);
+function OutfitLayer({ avatar, skin, uid }: { avatar: ChairmanAvatar; skin: string; uid: string }) {
+  if (NEW_OUTFITS.has(avatar.outfit)) return <NewOutfit avatar={avatar} uid={uid} />;
   const main = avatar.outfitColour;
   const dark = shade(main, -0.28);
   const light = shade(main, 0.12);
@@ -329,7 +388,7 @@ export function ChairmanPortrait({
         {framed && <rect width="200" height="220" fill={`url(#bg-${id})`} />}
         <HairBack style={avatar.hair} colour={avatar.hairColour} uid={id} />
         <path d="M85 136 L85 172 Q100 182 115 172 L115 136Z" fill={skinShadow} />
-        <OutfitLayer avatar={avatar} skin={skin} />
+        <OutfitLayer avatar={avatar} skin={skin} uid={id} />
         <ellipse cx={66} cy={106} rx={6} ry={10} fill={skinShadow} />
         <ellipse cx={134} cy={106} rx={6} ry={10} fill={skinShadow} />
         <path d={face} fill={skin} />
