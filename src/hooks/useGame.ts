@@ -192,13 +192,15 @@ export function useGame() {
   }, []);
 
   const reset = useCallback(() => {
-    void clearGame(activeSlot).then(() => listSaveSlots().then(setSaveSlots)).catch((error: unknown) =>
-      setSaveError(`Could not clear career: ${(error as Error).message}`),
-    );
     setIsContinuing(false);
     setContinueReason(null);
     clearTarget();
-    setState(null);
+    if (cloudTimer.current) window.clearTimeout(cloudTimer.current);
+    void deleteCloudCareer(activeSlot)
+      .then(() => clearGame(activeSlot))
+      .then(() => listSaveSlots())
+      .then((slots) => { setSaveSlots(slots); setState(null); })
+      .catch((error: unknown) => setSaveError(`Could not clear career: ${(error as Error).message}`));
   }, [activeSlot, clearTarget]);
 
   const switchSlot = useCallback((slot: SaveSlotId) => {
@@ -212,6 +214,10 @@ export function useGame() {
   }, [clearTarget]);
 
   const deleteSlot = useCallback(async (slot: SaveSlotId) => {
+    if (slot === activeSlot && cloudTimer.current) {
+      window.clearTimeout(cloudTimer.current);
+      cloudTimer.current = null;
+    }
     await deleteCloudCareer(slot);
     await clearGame(slot);
     if (slot === activeSlot) setState(null);
