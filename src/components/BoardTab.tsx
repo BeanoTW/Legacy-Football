@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import { Pencil } from "lucide-react";
 import { CharacterPortrait } from "./game/CharacterPortrait";
 import { CharacterPortraitStudio } from "./game/CharacterPortraitStudio";
+import { useCharacterName } from "@/hooks/useCharacterName";
 import type { Director, GameState } from "@/lib/game/types";
 import {
   BAND_CLASS,
@@ -131,6 +132,7 @@ function Directors({ state }: { state: GameState }) {
 
 function DirectorCard({ state, d }: { state: GameState; d: Director }) {
   const [portraitEditing, setPortraitEditing] = useState(false);
+  const displayName = useCharacterName(d.id, d.name);
   const satisfaction = directorSatisfaction(state, d);
   const concern = directorConcern(state, d);
   const band = confidenceBand(d.confidence);
@@ -141,12 +143,12 @@ function DirectorCard({ state, d }: { state: GameState; d: Director }) {
       <div className="flex items-start justify-between gap-2">
         <button type="button" onClick={() => setPortraitEditing(true)}
           className="relative shrink-0 overflow-hidden rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-500"
-          aria-label={`Edit ${d.name} appearance`}>
-          <CharacterPortrait identity={{ id: d.id, subject: "board" }} size={40} title={`${d.name} portrait`} />
+          aria-label={`Edit ${displayName} appearance`}>
+          <CharacterPortrait identity={{ id: d.id, subject: "board" }} size={40} title={`${displayName} portrait`} />
           <Pencil className="absolute bottom-0 right-0 size-3 rounded-tl bg-black/70 p-0.5 text-white" aria-hidden="true" />
         </button>
         <div className="min-w-0">
-          <div className="truncate text-sm font-semibold">{d.name}</div>
+          <div className="truncate text-sm font-semibold">{displayName}</div>
           <div className="truncate text-[11px] text-muted-foreground">{d.role} · {d.age} · {d.influence}% influence</div>
         </div>
         <div className="shrink-0 text-right">
