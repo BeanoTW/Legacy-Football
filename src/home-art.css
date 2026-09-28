@@ -1,0 +1,107 @@
+/* ==========================================================================
+   Home art: football graphics for the home screen.
+   Loaded last (see __root.tsx). Artwork only: no layout, no behaviour.
+   - Fixture card: elevated view from inside a packed, floodlit stadium.
+   - Masthead: floodlit stadium at night (replaces the Highland loch).
+   - Dark cards: a faint football motif in each corner, drawn BEHIND the
+     card's content (isolation + z-index -1), so nothing gets harder to
+     read or tap.
+   ========================================================================== */
+
+/* Masthead: keep the readable left-side darkening, swap the scenery. */
+.game-shell .lf-masthead.lf-masthead {
+  background-image:
+    linear-gradient(90deg, rgb(4 14 20 / 86%) 0%, rgb(6 20 28 / 52%) 42%, rgb(4 16 22 / 30%) 70%, rgb(4 14 20 / 55%) 100%),
+    linear-gradient(180deg, rgb(0 0 0 / 0%) 45%, rgb(3 12 18 / 55%) 100%),
+    url("/masthead-stadium.svg");
+  background-size: cover;
+  background-position: center 62%;
+}
+
+/* Fixture card: from high in the stand, looking down on the pitch. */
+.lf-home-dashboard .lf-match-card {
+  background-image:
+    linear-gradient(90deg, rgb(4 12 18 / 92%) 0%, rgb(5 16 22 / 72%) 38%, rgb(5 16 22 / 28%) 72%, rgb(4 12 18 / 42%) 100%),
+    linear-gradient(180deg, rgb(0 0 0 / 0%) 40%, rgb(3 10 14 / 70%) 100%),
+    url("/stadium-crowd.svg") !important;
+  /* The existing home concept sets background: ... !important on this card. */
+  background-size: cover !important;
+  background-position: center 30% !important;
+}
+
+/* Shared motif layer. */
+.lf-home-dashboard :is(.lf-pulse-block, .lf-pulse-manager, .lf-pulse-news, .lf-vital-card, .lf-suggested-next, .lf-home-panel) {
+  position: relative;
+  isolation: isolate;
+}
+
+.lf-home-dashboard :is(.lf-pulse-block, .lf-pulse-manager, .lf-pulse-news, .lf-vital-card, .lf-suggested-next, .lf-home-panel)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  opacity: .1;
+  border-radius: inherit;
+}
+
+.lf-home-dashboard .lf-pulse-block::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Cg stroke=%22%23ffffff%22 stroke-width=%222.2%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M30 14 H70 V34 C70 50 60 60 50 60 C40 60 30 50 30 34 Z%22/%3E%3Cpath d=%22M30 20 H18 C18 34 24 40 32 42 M70 20 H82 C82 34 76 40 68 42%22/%3E%3Cpath d=%22M50 60 V74 M38 86 H62 M42 74 H58 V86 H42 Z%22/%3E%3Cpath d=%22M42 26 L46 22 M40 34 L50 24%22 opacity=%22.6%22/%3E%3C/g%3E%3C/svg%3E");
+  background-position: right -6px bottom -8px;
+  background-size: 86px auto;
+  opacity: 0.12;
+}
+
+.lf-home-dashboard .lf-pulse-manager::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 120 90%22%3E%3Cg stroke=%22%23ffffff%22 stroke-width=%222.2%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%224%22 y=%224%22 width=%22112%22 height=%2282%22 rx=%224%22 opacity=%22.7%22/%3E%3Cpath d=%22M60 4 V86%22 opacity=%22.5%22/%3E%3Ccircle cx=%2260%22 cy=%2245%22 r=%2212%22 opacity=%22.5%22/%3E%3Ccircle cx=%2230%22 cy=%2228%22 r=%225%22/%3E%3Ccircle cx=%2234%22 cy=%2262%22 r=%225%22/%3E%3Cpath d=%22M84 24 l8 8 m0 -8 l-8 8 M90 58 l8 8 m0 -8 l-8 8%22/%3E%3Cpath d=%22M36 30 C52 20 70 22 82 30%22 stroke-dasharray=%224 4%22/%3E%3Cpath d=%22M78 26 L84 30 L77 33%22/%3E%3C/g%3E%3C/svg%3E");
+  background-position: right 26px center;
+  background-size: 74px auto;
+  opacity: 0.1;
+}
+
+.lf-home-dashboard .lf-pulse-news::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Cg stroke=%22%23ffffff%22 stroke-width=%222.2%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2240%22/%3E%3Cpath d=%22M50 32 L64 42 L59 58 L41 58 L36 42 Z%22/%3E%3Cpath d=%22M50 32 V12 M64 42 L82 36 M59 58 L70 76 M41 58 L30 76 M36 42 L18 36%22/%3E%3C/g%3E%3C/svg%3E");
+  background-position: right 22px center;
+  background-size: 54px auto;
+  opacity: 0.1;
+}
+
+.lf-home-dashboard .lf-vital-card.is-finance::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Cg stroke=%22%23ffffff%22 stroke-width=%222.2%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cellipse cx=%2242%22 cy=%2226%22 rx=%2224%22 ry=%228%22/%3E%3Cpath d=%22M18 26 V66 C18 71 29 74 42 74 C55 74 66 71 66 66 V26%22/%3E%3Cpath d=%22M18 40 C18 45 29 48 42 48 C55 48 66 45 66 40 M18 53 C18 58 29 61 42 61 C55 61 66 58 66 53%22/%3E%3Cellipse cx=%2270%22 cy=%2272%22 rx=%2216%22 ry=%226%22/%3E%3Cpath d=%22M54 72 V84 C54 88 61 90 70 90 C79 90 86 88 86 84 V72%22/%3E%3C/g%3E%3C/svg%3E");
+  background-position: right -4px bottom -6px;
+  background-size: 64px auto;
+  opacity: 0.11;
+}
+
+.lf-home-dashboard .lf-vital-card.is-board::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 120 80%22%3E%3Cg stroke=%22%23ffffff%22 stroke-width=%222.2%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cellipse cx=%2260%22 cy=%2246%22 rx=%2242%22 ry=%2216%22/%3E%3Ccircle cx=%2222%22 cy=%2224%22 r=%226%22/%3E%3Ccircle cx=%2246%22 cy=%2216%22 r=%226%22/%3E%3Ccircle cx=%2274%22 cy=%2216%22 r=%226%22/%3E%3Ccircle cx=%2298%22 cy=%2224%22 r=%226%22/%3E%3Ccircle cx=%2260%22 cy=%2274%22 r=%226%22/%3E%3Cpath d=%22M52 44 H68%22 opacity=%22.6%22/%3E%3C/g%3E%3C/svg%3E");
+  background-position: right -6px bottom -2px;
+  background-size: 78px auto;
+  opacity: 0.13;
+}
+
+.lf-home-dashboard .lf-vital-card.is-fans::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 160 60%22%3E%3Cg fill=%22%23ffffff%22%3E%3Ccircle cx=%2210%22 cy=%2226%22 r=%227%22/%3E%3Cpath d=%22M0 60 C0 44 20 44 20 60 Z%22/%3E%3Ccircle cx=%2230%22 cy=%2230%22 r=%227%22/%3E%3Cpath d=%22M20 60 C20 48 40 48 40 60 Z%22/%3E%3Ccircle cx=%2250%22 cy=%2226%22 r=%227%22/%3E%3Cpath d=%22M40 60 C40 44 60 44 60 60 Z%22/%3E%3Ccircle cx=%2270%22 cy=%2230%22 r=%227%22/%3E%3Cpath d=%22M60 60 C60 48 80 48 80 60 Z%22/%3E%3Ccircle cx=%2290%22 cy=%2226%22 r=%227%22/%3E%3Cpath d=%22M80 60 C80 44 100 44 100 60 Z%22/%3E%3Ccircle cx=%22110%22 cy=%2230%22 r=%227%22/%3E%3Cpath d=%22M100 60 C100 48 120 48 120 60 Z%22/%3E%3Ccircle cx=%22130%22 cy=%2226%22 r=%227%22/%3E%3Cpath d=%22M120 60 C120 44 140 44 140 60 Z%22/%3E%3Ccircle cx=%22150%22 cy=%2230%22 r=%227%22/%3E%3Cpath d=%22M140 60 C140 48 160 48 160 60 Z%22/%3E%3C/g%3E%3Cpath d=%22M40 20 L100 10 L101 17 L41 27 Z%22 fill=%22%23ffffff%22 opacity=%22.85%22/%3E%3C/svg%3E");
+  background-position: center bottom -2px;
+  background-size: 100% auto;
+  opacity: 0.09;
+}
+
+.lf-home-dashboard .lf-suggested-next::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 120 80%22%3E%3Cg stroke=%22%23ffffff%22 stroke-width=%222.2%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M14 66 L22 44 L30 66 Z M50 50 L58 28 L66 50 Z M92 66 L100 44 L108 66 Z%22/%3E%3Cpath d=%22M26 60 C40 40 50 38 56 44%22 stroke-dasharray=%224 4%22/%3E%3Cpath d=%22M62 44 C76 40 88 46 96 58%22 stroke-dasharray=%224 4%22/%3E%3Cpath d=%22M90 52 L96 58 L88 60%22/%3E%3Ccircle cx=%2218%22 cy=%2272%22 r=%224%22/%3E%3C/g%3E%3C/svg%3E");
+  background-position: right 8px bottom 6px;
+  background-size: 108px auto;
+  opacity: 0.1;
+}
+
+.lf-home-dashboard .lf-home-panel::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 90 110%22%3E%3Cg stroke=%22%23ffffff%22 stroke-width=%222.2%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect x=%228%22 y=%2212%22 width=%2274%22 height=%2292%22 rx=%226%22/%3E%3Crect x=%2230%22 y=%226%22 width=%2230%22 height=%2212%22 rx=%223%22/%3E%3Crect x=%2218%22 y=%2228%22 width=%2254%22 height=%2266%22 rx=%222%22 opacity=%22.7%22/%3E%3Cpath d=%22M18 61 H72%22 opacity=%22.6%22/%3E%3Ccircle cx=%2245%22 cy=%2261%22 r=%229%22 opacity=%22.6%22/%3E%3Cpath d=%22M34 28 V38 H56 V28 M34 94 V84 H56 V94%22 opacity=%22.6%22/%3E%3C/g%3E%3C/svg%3E");
+  background-position: right 10px bottom 4px;
+  background-size: 64px auto;
+  opacity: 0.1;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .lf-home-dashboard :is(.lf-pulse-block, .lf-pulse-manager, .lf-pulse-news, .lf-vital-card, .lf-suggested-next, .lf-home-panel)::before { display: none; }
+}
