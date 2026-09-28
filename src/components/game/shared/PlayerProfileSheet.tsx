@@ -35,6 +35,7 @@ import { dynamicOverall } from "@/lib/game/playerOverall";
 import { playerAttributeIdentity } from "@/lib/game/playerAttributeIdentity";
 import { CharacterPortrait } from "../CharacterPortrait";
 import { CharacterPortraitStudio } from "../CharacterPortraitStudio";
+import { useCharacterName } from "../useCharacterName";
 
 const PLAYER_PROFILE_EVENT = "legacy-football:open-player-profile";
 
@@ -81,6 +82,7 @@ export function PlayerProfileSheet({
     () => (playerId ? knownPlayerDetail(state, playerId) : null),
     [playerId, state],
   );
+  const displayName = useCharacterName(player?.id ?? "", player ? playerName(player) : "");
 
   if (!player) {
     return (
@@ -142,7 +144,7 @@ export function PlayerProfileSheet({
   return (
     <Sheet open onOpenChange={(open) => !open && setPlayerId(null)}>
       <SheetContent side="right" hideClose className="w-[94vw] overflow-y-auto p-0 sm:max-w-md">
-        <CharacterPortraitStudio identity={{ id: player.id, subject: "player" }} name={playerName(player)} open={portraitEditing} onOpenChange={setPortraitEditing} />
+        <CharacterPortraitStudio identity={{ id: player.id, subject: "player" }} name={displayName} open={portraitEditing} onOpenChange={setPortraitEditing} />
         <Button
           type="button"
           variant="ghost"
@@ -160,13 +162,13 @@ export function PlayerProfileSheet({
             <div className="mt-1 flex items-start gap-2.5">
               <button type="button" onClick={() => setPortraitEditing(true)}
                 className="relative shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300"
-                aria-label={`Edit ${playerName(player)} appearance`}>
-                <CharacterPortrait identity={{ id: player.id, subject: "player" }} size={48} title={`${playerName(player)} portrait`} />
+                aria-label={`Edit ${displayName} appearance`}>
+                <CharacterPortrait identity={{ id: player.id, subject: "player" }} size={48} title={`${displayName} portrait`} />
                 <Pencil className="absolute bottom-0 right-0 size-3 rounded-tl bg-black/70 p-0.5 text-white" aria-hidden="true" />
               </button>
               <div className="min-w-0 flex-1">
                 <SheetTitle className="truncate font-display text-[1.35rem] leading-none text-white">
-                  {playerName(player)}
+                  {displayName}
                 </SheetTitle>
                 <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] leading-tight text-white/50">
                   <span>{player.nationality}</span>
