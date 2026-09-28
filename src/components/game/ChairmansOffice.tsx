@@ -6,7 +6,7 @@ import { newsFeed } from "@/lib/game/newsFeed";
 import { cn } from "@/lib/utils";
 import { InboxTab } from "./InboxTab";
 import { NewsFeed } from "./NewsFeed";
-import { ChairmanPortrait } from "./ChairmanPortrait";
+import { CharacterPortrait } from "./CharacterPortrait";
 import { ChairmanStudio, useChairmanProfile } from "./ChairmanStudio";
 
 type OfficeView = "desk" | "news";
@@ -60,7 +60,7 @@ export function ChairmansOffice({
           onClick={() => setStudioOpen(true)}
           aria-label="Edit chairman appearance"
         >
-          <ChairmanPortrait avatar={profile.avatar} size={60} />
+          <CharacterPortrait avatar={profile.avatar} size={60} />
           <span className="lf-office-edit"><Pencil /></span>
         </button>
         <div className="min-w-0 flex-1">
