@@ -32,7 +32,6 @@ import type {
   InboxCategory,
   InboxPriority,
   ScheduledGenerator,
-  Sponsor,
   FinanceCategory,
   CommercialOffer,
   TransferNegotiation,
@@ -234,14 +233,9 @@ function applyEffectInPlace(s: GameState, e: InboxEffect, src: EffectSource): vo
       if (st) st.condition = Math.max(20, Math.min(100, st.condition + e.delta));
       break;
     }
-    case "sponsorExtend": {
-      const sp = s.sponsors.find((x: Sponsor) => x.name === e.sponsorName);
-      if (sp) {
-        sp.weeksLeft += e.addWeeks;
-        if (e.newWeekly != null) sp.weekly = e.newWeekly;
-      }
+    case "sponsorExtend":
+      // Retired legacy effect. Sponsorship is owned by Commercial contracts.
       break;
-    }
     case "flag":
       s.inboxFlags[e.key] = e.value;
       break;
@@ -827,187 +821,11 @@ const G_FAN_WARN: Generator = {
   },
 };
 
-/* -- 5. Sponsor renewal opportunity when a sponsor is nearly out --
- * Deterministic uplift and bonus (seeded rng), stable eventKey per
- * (sponsor, season). Once emitted, the eventKey dedup in the runner
- * prevents duplicates in any state — the offer stays pending as long
- * as the item is unread/awaiting/expired for that (sponsor, season).
+/* -- Legacy sponsor-renewal generators retired.
+ * The Commercial Department below owns approaches, negotiation and renewals.
  */
-const G_SPONSOR_RENEW: Generator = {
-  id: "commercial-sponsor-renewal",
-  run: (s) => {
-    const items: InboxItem[] = [];
-    for (const sp of s.sponsors) {
-      if (sp.weeksLeft <= 0 || sp.weeksLeft > 6) continue;
-      const eventKey = `commercial-sponsor-renewal:${sponsorId(sp.name)}:s${s.season}`;
-      const rng = seededRng(s.saveSeed, "commercial-sponsor-renewal", sp.name, s.season);
-      const uplift = Math.round(sp.weekly * (0.95 + rng() * 0.25));
-      const bonus = Math.round(sp.weekly * 8);
-      items.push(
-        mk(s, "commercial-sponsor-renewal", {
-          eventKey,
-          sender: "Sam Iyer",
-          department: "Commercial",
-          category: "opportunity",
-          priority: "normal",
-          subject: `Renewal offer — ${sp.name}`,
-          body:
-            `${sp.name} are ready to extend. Their proposal: ${money(uplift)}/week ` +
-            `for 2 seasons, plus a ${money(bonus)} signing bonus.\n\n` +
-            `We can push for more — they may walk.`,
-          reward: `+${money(bonus)} now, +${money(uplift)}/wk`,
-          expiresInWeeks: 4,
-          consequenceOnExpire: [
-            { kind: "flag", key: `sponsorOffered-${sp.name}-s${s.season}`, value: "expired" },
-          ],
-          choices: [
-            {
-              id: "accept",
-              label: `Accept — ${money(bonus)} + ${money(uplift)}/wk`,
-              effects: [
-                { kind: "cash", amount: bonus, note: "Sponsor bonus" },
-                { kind: "sponsorExtend", sponsorName: sp.name, addWeeks: 76, newWeekly: uplift },
-                { kind: "flag", key: `sponsorOffered-${sp.name}-s${s.season}`, value: "accepted" },
-              ],
-            },
-            {
-              id: "push",
-              label: "Push for +15% (risk)",
-              hint: "50/50: better deal, or they walk.",
-              effects: [
-                { kind: "flag", key: `sponsorOffered-${sp.name}-s${s.season}`, value: "pushed" },
-                {
-                  kind: "scheduleGenerator",
-                  generatorId: "commercial-sponsor-pushback",
-                  inWeeks: 1,
-                  payload: { sponsorName: sp.name, currentWeekly: sp.weekly, offered: uplift },
-                },
-              ],
-            },
-            {
-              id: "decline",
-              label: "Decline",
-              hint: "Sponsor lapses when weeks run out.",
-              effects: [
-                { kind: "flag", key: `sponsorOffered-${sp.name}-s${s.season}`, value: "declined" },
-              ],
-            },
-          ],
-        }),
-      );
-    }
-    return items;
-  },
-};
-
-/* -- 5b. Sponsor pushback follow-up --
- * Deterministic outcome from (saveSeed, sponsorName, season). Head of
- * Transfers negotiation nudges the odds. Two outcomes:
- *   - success: sponsor accepts +15%; player may accept or reject.
- *   - failure: sponsor withdraws; the original terms are gone too.
- */
-const G_SPONSOR_PUSHBACK: Generator = {
-  id: "commercial-sponsor-pushback",
-  run: (s, due) => {
-    const items: InboxItem[] = [];
-    for (const entry of due) {
-      const p = entry.payload ?? {};
-      const sponsorName = String(p.sponsorName ?? "");
-      const offered = Number(p.offered ?? 0);
-      if (!sponsorName || offered <= 0) continue;
-
-      const hot = s.hiredStaff.find((x) => x.role === "Head of Transfers");
-      const negotiation = hot?.stats.negotiation ?? 40;
-      // Deterministic 0..1 draw seeded from stable inputs.
-      const rng = seededRng(s.saveSeed, "commercial-sponsor-pushback", sponsorName, s.season);
-      const draw = rng();
-      // 50% baseline + up to +30% swing from negotiator quality.
-      const successThreshold = 0.5 + Math.min(0.3, (negotiation - 40) / 200);
-      const success = draw < successThreshold;
-
-      const eventKey = `commercial-sponsor-pushback:${sponsorId(sponsorName)}:s${s.season}`;
-
-      if (success) {
-        const bumped = Math.round(offered * 1.15);
-        const bonus = Math.round(bumped * 8);
-        items.push(
-          mk(s, "commercial-sponsor-pushback", {
-            eventKey,
-            sender: "Sam Iyer",
-            department: "Commercial",
-            category: "opportunity",
-            priority: "high",
-            subject: `${sponsorName} blinked — improved offer`,
-            body:
-              `They came back with the +15%. New terms: ${money(bumped)}/week ` +
-              `for 2 seasons plus a ${money(bonus)} signing bonus. Your call.`,
-            reward: `+${money(bonus)} now, +${money(bumped)}/wk`,
-            expiresInWeeks: 3,
-            consequenceOnExpire: [
-              { kind: "flag", key: `sponsorPushback-${sponsorName}-s${s.season}`, value: "lapsed" },
-            ],
-            choices: [
-              {
-                id: "accept",
-                label: `Accept improved — ${money(bonus)} + ${money(bumped)}/wk`,
-                effects: [
-                  { kind: "cash", amount: bonus, note: "Sponsor bonus (improved)" },
-                  { kind: "sponsorExtend", sponsorName, addWeeks: 76, newWeekly: bumped },
-                  {
-                    kind: "flag",
-                    key: `sponsorPushback-${sponsorName}-s${s.season}`,
-                    value: "accepted",
-                  },
-                ],
-              },
-              {
-                id: "reject",
-                label: "Reject — walk away",
-                hint: "No deal. Sponsor lapses when weeks run out.",
-                effects: [
-                  {
-                    kind: "flag",
-                    key: `sponsorPushback-${sponsorName}-s${s.season}`,
-                    value: "rejected",
-                  },
-                ],
-              },
-            ],
-          }),
-        );
-      } else {
-        items.push(
-          mk(s, "commercial-sponsor-pushback", {
-            eventKey,
-            sender: "Sam Iyer",
-            department: "Commercial",
-            category: "warning",
-            priority: "normal",
-            subject: `${sponsorName} walked away`,
-            body:
-              `They wouldn't budge. When we pushed for +15% they pulled the ` +
-              `original offer off the table entirely. The contract will now ` +
-              `lapse at the end of its current term.`,
-            choices: [
-              {
-                id: "ack",
-                label: "Noted",
-                effects: [
-                  {
-                    kind: "flag",
-                    key: `sponsorPushback-${sponsorName}-s${s.season}`,
-                    value: "withdrawn",
-                  },
-                ],
-              },
-            ],
-          }),
-        );
-      }
-    }
-    return items;
-  },
-};
+const G_SPONSOR_RENEW: Generator = { id: "commercial-sponsor-renewal", run: () => [] };
+const G_SPONSOR_PUSHBACK: Generator = { id: "commercial-sponsor-pushback", run: () => [] };
 
 /* -- 6. Post-match media reaction -- */
 const G_MEDIA_MATCH: Generator = {
