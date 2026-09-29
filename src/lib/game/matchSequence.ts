@@ -397,7 +397,8 @@ function distanceToLane(p: MatchPitchPoint, a: MatchPitchPoint, b: MatchPitchPoi
 
 const LEFT_ROLES = new Set<TacticalPosition>(["LB", "LWB", "LM", "LW"]);
 const RIGHT_ROLES = new Set<TacticalPosition>(["RB", "RWB", "RM", "RW"]);
-const FULL_BACKS = new Set<TacticalPosition>(["LB", "RB", "LWB", "RWB"]);const FORWARD_ROLES = new Set<TacticalPosition>(["ST", "LW", "RW", "CAM", "LM", "RM"]);
+const FULL_BACKS = new Set<TacticalPosition>(["LB", "RB", "LWB", "RWB"]);
+const FORWARD_ROLES = new Set<TacticalPosition>(["ST", "LW", "RW", "CAM", "LM", "RM"]);
 const DEEP_ROLES = new Set<TacticalPosition>(["GK", "CB"]);
 
 /** Neutral depth used only for the canonical touch points of scorer/creator. */
@@ -796,7 +797,8 @@ class Possession {
 
         const progress = (point.x - this.ball.x) * this.dir * XM;
         const lane = this.laneSafety(this.ball, point);
-        const room = this.space(point);        let score = progressWeight[pattern] * progress;
+        const room = this.space(point);
+        let score = progressWeight[pattern] * progress;
         score += Math.min(room, 12) * 0.13;
         score -= lane < 2 ? 2.4 : lane < 4.5 ? 0.9 : 0;
         const comfortable = pattern === "wide" || pattern === "patient" ? 28 : 24;
@@ -1195,7 +1197,8 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
       possession.maybeCarry(pattern === "counter" || pattern === "highPress" || metres(possession.ball, spot) > 28);
     }
     const from = possession.ball;
-    const wideDelivery = (from.y < 26 || from.y > 74) && possession.depth(from) > 66;    const byline = possession.depth(from) > 86;
+    const wideDelivery = (from.y < 26 || from.y > 74) && possession.depth(from) > 66;
+    const byline = possession.depth(from) > 86;
     let kind: FootballActionKind;
     const vertical = pattern === "direct" || pattern === "counter" || pattern === "highPress";
     const behindLine = possession.depth(spot) > possession.lastLineDepth() - 2;
@@ -1594,7 +1597,8 @@ function buildFlowOnce(input: MatchFlowSequenceInput, gap: number, userShare: nu
             if (distance < best) {
               best = distance;
               collector = player;
-            }          }
+            }
+          }
         }
         push({
           kind: "recovery",
