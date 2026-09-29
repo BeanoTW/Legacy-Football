@@ -22,8 +22,6 @@ function check(label: string, cond: boolean, extra?: string) {
 function fixture(): GameState {
   const g = newGame("Testville FC", "Test Manager");
   g.saveSeed = "TEST_SEED_1";
-  // Nudge a sponsor into the renewal window immediately.
-  g.sponsors[2].weeksLeft = 3;
   // Ensure prev-week ledger lookup has something to find.
   return g;
 }
@@ -47,70 +45,21 @@ console.log("\n[2] Deterministic generation — same input, same output");
   const b = fixture();
   const ra = runWeeklyGenerators(a);
   const rb = runWeeklyGenerators(b);
-  const keysA = ra.inbox
-    .map((i) => i.eventKey)
-    .sort()
-    .join("|");
-  const keysB = rb.inbox
-    .map((i) => i.eventKey)
-    .sort()
-    .join("|");
-  check("identical eventKey set", keysA === keysB, `A=${keysA}\n     B=${keysB}`);
-  const sponsA = ra.inbox.find((i) => i.generatorId === "commercial-sponsor-renewal");
-  const sponsB = rb.inbox.find((i) => i.generatorId === "commercial-sponsor-renewal");
-  check("sponsor renewal body identical", sponsA?.body === sponsB?.body);
-  check("sponsor renewal id identical (stable, not Date.now)", sponsA?.id === sponsB?.id);
+  const keysA = ra.inbox.map((i) => i.eventKey).sort().join("|");
+  const keysB = rb.inbox.map((i) => i.eventKey).sort().join("|");
+  check("identical eventKey set", keysA === keysB, `A=${keysA}\\n     B=${keysB}`);
 }
 
-console.log("\n[3] Duplicate prevention — unresolved sponsor renewal");
+console.log("\n[3] Legacy sponsorship generators stay retired");
 {
-  let s = fixture();
-  s = runWeeklyGenerators(s);
-  const before = s.inbox.filter((i) => i.generatorId === "commercial-sponsor-renewal").length;
-  // Advance a few weeks without answering the offer.
-  for (let i = 0; i < 3; i++) s = runWeeklyGenerators({ ...s, week: s.week + 1 });
-  const after = s.inbox.filter((i) => i.generatorId === "commercial-sponsor-renewal").length;
-  check(
-    "only one unresolved sponsor renewal after 3 weeks",
-    before === 1 && after === 1,
-    `before=${before} after=${after}`,
-  );
+  const s = runWeeklyGenerators(fixture());
+  check("legacy sponsor renewal is not emitted", !s.inbox.some((i) => i.generatorId === "commercial-sponsor-renewal"));
 }
 
-console.log("\n[4] Follow-up integrity — sponsor pushback");
-{
-  let s = fixture();
-  s = runWeeklyGenerators(s);
-  const offer = s.inbox.find((i) => i.generatorId === "commercial-sponsor-renewal");
-  check("renewal offer emitted", !!offer);
-  if (offer) {
-    s = handleInboxChoice(s, offer.id, "push");
-    check(
-      "push scheduled a follow-up",
-      s.scheduledGenerators.some((g) => g.generatorId === "commercial-sponsor-pushback"),
-    );
-    // Advance one week — follow-up should be due.
-    s.week += 1;
-    s = runWeeklyGenerators(s);
-    const followup = s.inbox.find((i) => i.generatorId === "commercial-sponsor-pushback");
-    check("pushback follow-up emitted next week", !!followup);
-    // Determinism check: same starting state → same outcome
-    let s2 = fixture();
-    s2 = runWeeklyGenerators(s2);
-    const offer2 = s2.inbox.find((i) => i.generatorId === "commercial-sponsor-renewal")!;
-    s2 = handleInboxChoice(s2, offer2.id, "push");
-    s2.week += 1;
-    s2 = runWeeklyGenerators(s2);
-    const followup2 = s2.inbox.find((i) => i.generatorId === "commercial-sponsor-pushback");
-    check("pushback outcome is deterministic", followup?.subject === followup2?.subject);
-  }
-}
-
-console.log("\n[5] Registry validation");
-check("all known generators listed", isKnownGeneratorId("commercial-sponsor-pushback"));
+console.log("\n[4] Registry validation");
 check("unknown generator rejected", !isKnownGeneratorId("does-not-exist"));
 
-console.log("\n[6] Season-safe timing — cross-season follow-up");
+console.log("\n[5] Season-safe timing — cross-season follow-up");
 {
   let s = fixture();
   // Move to end of season and schedule 4 weeks out via engine.
@@ -133,7 +82,7 @@ console.log("\n[6] Season-safe timing — cross-season follow-up");
   );
 }
 
-console.log("\n[7] Cooldown safe across rollover");
+console.log("\n[6] Cooldown safe across rollover");
 {
   let s = fixture();
   s.season = 1;
@@ -151,7 +100,7 @@ console.log("\n[7] Cooldown safe across rollover");
   check("cooldown expires correctly after rollover", emittedAfter);
 }
 
-console.log("\n[8] Previous-week finance lookup across rollover");
+console.log("\n[7] Previous-week finance lookup across rollover");
 {
   let s = fixture();
   s.season = 2;
@@ -183,7 +132,7 @@ console.log("\n[8] Previous-week finance lookup across rollover");
   );
 }
 
-console.log("\n[9] Full advanceWeek round-trip determinism");
+console.log("\n[8] Full advanceWeek round-trip determinism");
 {
   const a = fixture();
   const b = structuredClone(a);
