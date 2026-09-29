@@ -29,8 +29,8 @@ assert(migrated.version === 24, "save did not reach v24");
 assert(migrated.sponsors.length === 0, "legacy sponsor array was not retired");
 const contracts = migrated.commercial.contracts.slice(existing);
 assert(contracts.length === legacy.length, "active legacy agreements were dropped or duplicated");
-assert(commercialWeeklyIncome(migrated) === 1_625, "remaining sponsorship value was not preserved");
-assert(sponsorWeeklyIncome(migrated) === 1_625, "finance reader diverges from Commercial");
+assert(commercialWeeklyIncome(migrated) === 2_525 + 1_625, "remaining sponsorship value was not preserved");
+assert(sponsorWeeklyIncome(migrated) === 2_525 + 1_625, "finance reader diverges from Commercial");
 assert(migrated.cash === beforeCash, "migration improperly booked income");
 const now = absoluteWeek(source.season, source.week);
 for (let i = 0; i < legacy.length; i++) {
@@ -58,4 +58,6 @@ console.log("  ✓ weekly payouts are deduplicated");
 
 const clean = newGame("New FC", "N. Auditor", "COMMERCIAL|NEW|24");
 assert(clean.version === 24 && clean.sponsors.length === 0, "new game still seeds legacy sponsorship");
+assert(clean.commercial.contracts.length === 3 && commercialWeeklyIncome(clean) === 2_525,
+  "opening sponsor commitments were not preserved as Commercial contracts");
 console.log("  ✓ new careers use the canonical sponsorship state");
