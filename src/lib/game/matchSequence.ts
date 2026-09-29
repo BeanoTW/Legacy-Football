@@ -5,6 +5,11 @@ import type {
   MatchTeamPlan,
   TacticalPosition,
 } from "./types";
+import {
+  formationPitchShape,
+  resolveManagerFormation,
+  wideDefenderMovement,
+} from "./managerFormationLayout";
 
 export interface MatchPitchPoint {
   x: number;
@@ -33,6 +38,8 @@ export type FootballActionKind =
   | "block"
   | "miss"
   | "goal";
+
+export type SetPieceKind = "corner" | "freeKick" | "penalty";
 
 export type MatchSequencePattern =
   | "patient"
@@ -69,6 +76,10 @@ export interface MatchSequence {
   sourceType: MatchEvent["type"];
   sourceText: string;
   pattern: MatchSequencePattern;
+  /** Which dead ball a set-piece sequence is, so play before it can earn it. */
+  setPiece?: SetPieceKind;
+  /** How an open-play clip restarts the game, so the viewer can signpost the cut. */
+  restart?: "kickoff" | "keeper" | "goalKick" | "loose" | "open";
   styleLabel: string;
   actions: MatchSequenceAction[];
   participantIds: string[];
@@ -143,6 +154,10 @@ function otherSide(side: Side): Side {
   return side === "us" ? "them" : "us";
 }
 
+/**
+ * Who is on the pitch at a minute. A substitute takes over the role of the
+ * player he replaced, so the viewer shows the same formation after changes.
+ */
 export function activeMatchLineupAtMinute(
   starters: MatchLineupPlayer[],
   bench: MatchLineupPlayer[],
@@ -150,15 +165,20 @@ export function activeMatchLineupAtMinute(
   side: Side,
   minute: number,
 ): MatchLineupPlayer[] {
-  const active = starters.map((player) => ({ ...player }));
+  // Replace in place so the substitute also inherits the outgoing player's
+  // slot (left-sided centre-back stays left-sided) as well as his role.
+  const active = [...starters];
   for (const sub of substitutions
     .filter((item) => item.side === side && item.minute <= minute)
     .sort((a, b) => a.minute - b.minute)) {
     const index = active.findIndex((player) => player.playerId === sub.playerOffId);
-    if (index < 0) continue;
     const incoming = bench.find((player) => player.playerId === sub.playerOnId);
-    if (!incoming) continue;
-    active[index] = { ...incoming, role: active[index].role };
+    if (index >= 0) {
+      if (incoming) active[index] = { ...incoming, role: active[index].role };
+      else active.splice(index, 1);
+    } else if (incoming) {
+      active.push(incoming);
+    }
   }
   return active;
 }
@@ -166,7 +186,7 @@ export function activeMatchLineupAtMinute(
 function chanceOutcome(event: MatchEvent): "save" | "wide" | "blocked" | "over" {
   const text = event.text.toLowerCase();
   if (text.includes("save") || text.includes("smother")) return "save";
-  if (text.includes("block") || text.includes("turned behind")) return "blocked";
+  if (text.includes("block") || text.includes("turned behind") || text.includes("cleared")) return "blocked";
   if (text.includes("over")) return "over";
   if (text.includes("wide") || text.includes("dragged")) return "wide";
   return ["save", "wide", "blocked", "over"][seedOf(event, "outcome") % 4] as
@@ -202,8 +222,20 @@ function shotDestination(event: MatchEvent): MatchPitchPoint {
   };
 }
 
+/** Which dead ball the commentary describes. Appeals ("penalty shouts") are open play. */
+function setPieceKind(event: MatchEvent): SetPieceKind {
+  const text = event.text.toLowerCase();
+  if (text.includes("penalty") && !text.includes("shouts")) return "penalty";
+  if (text.includes("free-kick")) return "freeKick";
+  return "corner";
+}
+
+function isPenaltyAppeal(event: MatchEvent): boolean {
+  return /penalty shouts/i.test(event.text);
+}
+
 function sequencePattern(event: MatchEvent, plan: MatchTeamPlan): MatchSequencePattern {
-  if (event.phase === "setPiece") return "setPiece";
+  if (event.phase === "setPiece" && !isPenaltyAppeal(event)) return "setPiece";
   if (event.phase === "transition") {
     if (plan.pressing === "High") return "highPress";
     return "counter";
@@ -365,12 +397,11 @@ function distanceToLane(p: MatchPitchPoint, a: MatchPitchPoint, b: MatchPitchPoi
 
 const LEFT_ROLES = new Set<TacticalPosition>(["LB", "LWB", "LM", "LW"]);
 const RIGHT_ROLES = new Set<TacticalPosition>(["RB", "RWB", "RM", "RW"]);
-const FULL_BACKS = new Set<TacticalPosition>(["LB", "RB", "LWB", "RWB"]);
-const FORWARD_ROLES = new Set<TacticalPosition>(["ST", "LW", "RW", "CAM", "LM", "RM"]);
+const FULL_BACKS = new Set<TacticalPosition>(["LB", "RB", "LWB", "RWB"]);const FORWARD_ROLES = new Set<TacticalPosition>(["ST", "LW", "RW", "CAM", "LM", "RM"]);
 const DEEP_ROLES = new Set<TacticalPosition>(["GK", "CB"]);
 
-/** Neutral formation depth (0 = own goal line, 100 = opponent's). */
-const ROLE_DEPTH: Record<TacticalPosition, number> = {
+/** Neutral depth used only for the canonical touch points of scorer/creator. */
+const TOUCH_DEPTH: Record<TacticalPosition, number> = {
   GK: 6,
   CB: 22,
   LB: 26,
@@ -411,23 +442,13 @@ function rolePitchPoint(
   occurrence = 0,
   count = 1,
 ): MatchPitchPoint {
-  const depth = ROLE_DEPTH[role];
+  const depth = TOUCH_DEPTH[role];
   return { x: side === "us" ? depth : 100 - depth, y: roleLane(role, occurrence, count) };
 }
 
-function baseShape(lineup: MatchLineupPlayer[], side: Side): Map<string, MatchPitchPoint> {
-  const totals = new Map<TacticalPosition, number>();
-  for (const player of lineup) totals.set(player.role, (totals.get(player.role) ?? 0) + 1);
-  const seen = new Map<TacticalPosition, number>();
-  const result = new Map<string, MatchPitchPoint>();
-  const sorted = [...lineup].sort((a, b) => a.playerId.localeCompare(b.playerId));
-  for (const player of sorted) {
-    const occurrence = seen.get(player.role) ?? 0;
-    seen.set(player.role, occurrence + 1);
-    const count = totals.get(player.role) ?? 1;
-    result.set(player.playerId, rolePitchPoint(player.role, side, occurrence, count));
-  }
-  return result;
+/** The side's formation shape: shared with off-ball motion so both agree. */
+function baseShape(lineup: MatchLineupPlayer[], side: Side, formation: string): Map<string, MatchPitchPoint> {
+  return formationPitchShape(lineup, resolveManagerFormation(formation), side);
 }
 
 /** Team shape around the ball: in possession the block pushes up and spreads, out of it the block drops and narrows. */
@@ -440,6 +461,8 @@ function teamShape(
   plan: MatchTeamPlan,
 ): Map<string, MatchPitchPoint> {
   const dir = side === "us" ? 1 : -1;
+  const formation = resolveManagerFormation(plan.formation);
+  const possessionMinded = plan.philosophy === "Possession" || plan.directness === "Low";
   const result = new Map<string, MatchPitchPoint>();
   for (const player of lineup) {
     const home = base.get(player.playerId) ?? { x: 50, y: 50 };
@@ -447,20 +470,17 @@ function teamShape(
       result.set(player.playerId, { x: side === "us" ? 6 : 94, y: 50 });
       continue;
     }
+    const wide = wideDefenderMovement(player.role, formation, possessionMinded);
     let x: number;
     let y: number;
     if (inPossession) {
       const push = plan.directness === "High" ? 5 : 7;
-      const fullBackPush = FULL_BACKS.has(player.role)
-        ? plan.philosophy === "Possession" || plan.directness === "Low"
-          ? 12
-          : 8
-        : 0;
-      x = home.x * 0.35 + (ball.x + (home.x - 50) * 0.75) * 0.65 + dir * (push + fullBackPush);
+      x = home.x * 0.35 + (ball.x + (home.x - 50) * 0.75) * 0.65 + dir * (push + wide.push);
       y = 50 + (home.y - 50) * 1.1 + (ball.y - 50) * 0.14;
     } else {
       const drop = plan.pressing === "High" ? 1 : plan.pressing === "Low" ? 7 : 4;
-      x = home.x * 0.35 + (ball.x + (home.x - 50) * 0.6) * 0.65 - dir * drop;
+      // Wing-backs in a back three drop in to make a back five without the ball.
+      x = home.x * 0.35 + (ball.x + (home.x - 50) * 0.6) * 0.65 - dir * (drop + wide.recover);
       y = 50 + (home.y - 50) * 0.8 + (ball.y - 50) * 0.32;
     }
     result.set(player.playerId, { x: clamp(x, 4, 96), y: clamp(y, 6, 94) });
@@ -548,8 +568,8 @@ class Possession {
     this.dir = cfg.side === "us" ? 1 : -1;
     this.rand = rng(seedOf(cfg.event, `possession:${cfg.salt}`));
     this.tempo = tempoScale(cfg.plan);
-    this.attackBase = baseShape(cfg.attackers, cfg.side);
-    this.defenceBase = baseShape(cfg.defenders, otherSide(cfg.side));
+    this.attackBase = baseShape(cfg.attackers, cfg.side, cfg.plan.formation);
+    this.defenceBase = baseShape(cfg.defenders, otherSide(cfg.side), cfg.opponentPlan.formation);
     this.holder = holder;
     this.ball = { ...ball };
     this.flank = seedOf(cfg.event, `flank:${cfg.salt}`) % 2 === 0 ? "left" : "right";
@@ -776,8 +796,7 @@ class Possession {
 
         const progress = (point.x - this.ball.x) * this.dir * XM;
         const lane = this.laneSafety(this.ball, point);
-        const room = this.space(point);
-        let score = progressWeight[pattern] * progress;
+        const room = this.space(point);        let score = progressWeight[pattern] * progress;
         score += Math.min(room, 12) * 0.13;
         score -= lane < 2 ? 2.4 : lane < 4.5 ? 0.9 : 0;
         const comfortable = pattern === "wide" || pattern === "patient" ? 28 : 24;
@@ -953,7 +972,7 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
   const counter = { next: 0 };
   const tempo = tempoScale(attackingPlan);
   const exclude = new Set([scorer.playerId]);
-  const base = baseShape(attackingLineup, side);
+  const base = baseShape(attackingLineup, side, attackingPlan.formation);
   const shape = (ball: MatchPitchPoint) => teamShape(attackingLineup, base, side, ball, true, attackingPlan);
 
   const cfg: PossessionConfig = {
@@ -976,7 +995,26 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
   canonicalTouches.set(scorer.playerId, spot);
   let possession: Possession;
 
-  if (pattern === "setPiece") {
+  const setPiece = pattern === "setPiece" ? setPieceKind(event) : undefined;
+  if (setPiece === "penalty") {
+    // Penalty: the scorer places the ball on the spot and takes it himself.
+    possession = new Possession(cfg, scorer, { x: dir > 0 ? 89.5 : 10.5, y: 50 });
+    possession.start("receive", `${surname(scorer.name)} places the ball on the spot.`, 1.1);
+  } else if (setPiece === "freeKick") {
+    // Free-kick 25-30 yards out. With a creator it is delivered into the box;
+    // without one the scorer goes for goal himself.
+    const depth = 70 + (seedOf(event, "fk-depth") % 7);
+    const fkSpot = { x: dir > 0 ? depth : 100 - depth, y: 34 + (seedOf(event, "fk-y") % 33) };
+    if (creator) {
+      possession = new Possession(cfg, creator, fkSpot);
+      possession.start("receive", `${surname(creator.name)} stands over the free-kick.`, 0.8);
+      const landing = { x: dir > 0 ? 88 + (seedOf(event, "fk-landing") % 4) : 12 - (seedOf(event, "fk-landing") % 4), y: 40 + (seedOf(event, "fk-landing-y") % 21) };
+      possession.pass(scorer, landing, "cross");
+    } else {
+      possession = new Possession(cfg, scorer, fkSpot);
+      possession.start("receive", `${surname(scorer.name)} lines up the free-kick.`, 0.9);
+    }
+  } else if (setPiece === "corner") {
     // Corner routine: taker at the flag, delivery onto the scorer's run.
     const taker =
       (creator && creator.playerId !== scorer.playerId ? creator : undefined) ??
@@ -1040,7 +1078,8 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
     const [minPasses, maxPasses] = passRange[pattern];
     const plannedPasses = minPasses + (seedOf(event, "pass-count") % (maxPasses - minPasses + 1));
     const secondPhase = defensiveSecondPhase(event, plannedPasses + 2, defendingPlan);
-    const interventionAt = Math.max(0, plannedPasses - 2);    const intervener = secondPhase !== "none" ? possession.nearestDefender(possession.ball) : undefined;
+    const interventionAt = Math.max(0, plannedPasses - 2);
+    const intervener = secondPhase !== "none" ? possession.nearestDefender(possession.ball) : undefined;
 
     // Where the move is heading: down the flank for a wide overload, into the
     // pocket in front of the box otherwise.
@@ -1156,8 +1195,7 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
       possession.maybeCarry(pattern === "counter" || pattern === "highPress" || metres(possession.ball, spot) > 28);
     }
     const from = possession.ball;
-    const wideDelivery = (from.y < 26 || from.y > 74) && possession.depth(from) > 66;
-    const byline = possession.depth(from) > 86;
+    const wideDelivery = (from.y < 26 || from.y > 74) && possession.depth(from) > 66;    const byline = possession.depth(from) > 86;
     let kind: FootballActionKind;
     const vertical = pattern === "direct" || pattern === "counter" || pattern === "highPress";
     const behindLine = possession.depth(spot) > possession.lastLineDepth() - 2;
@@ -1239,7 +1277,9 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
     sourceType: event.type,
     sourceText: event.text,
     pattern,
-    styleLabel: styleLabel(pattern),
+    setPiece,
+    styleLabel:
+      setPiece === "penalty" ? "Penalty" : setPiece === "freeKick" ? "Free-kick" : setPiece === "corner" ? "Corner" : styleLabel(pattern),
     actions,
     participantIds,
     totalWeight: actions.reduce((sum, item) => sum + item.weight, 0),
@@ -1249,7 +1289,7 @@ export function buildMatchSequence(input: MatchSequenceInput): MatchSequence | n
 export interface MatchFlowSequenceInput {
   nextEvent: MatchEvent;
   previousEvent?: MatchEvent;
-  /** Canonical next highlight sequence. Used only to land open play on its first touch smoothly. */
+  /** Canonical next highlight sequence. Open play lands on its first touch; set pieces are earned before it. */
   nextSequence?: MatchSequence;
   userLineup: MatchLineupPlayer[];
   opponentLineup: MatchLineupPlayer[];
@@ -1258,47 +1298,109 @@ export interface MatchFlowSequenceInput {
   substitutions?: MatchSubstitution[];
   userPlan?: MatchTeamPlan;
   opponentPlan?: MatchTeamPlan;
+  /**
+   * The user's real possession share for the match (0-100), from the engine's
+   * team stats. Flow play is budgeted so that highlights plus quiet play show
+   * the ball roughly this often. Defaults to an even 50.
+   */
+  userPossession?: number;
+  /**
+   * Visible possession already shown earlier in the match (milliseconds of
+   * playback per side). Lets each quiet spell repay any drift so the whole
+   * match, not just this gap, matches the possession stat.
+   */
+  possessionLedger?: PossessionLedger;
+  /**
+   * How much open play to show between moments. 1 = condensed (default),
+   * 2 = extended (twice the passing). Presentation only.
+   */
+  detail?: number;
 }
 
-function quietPossessionSide(input: MatchFlowSequenceInput): Side {
-  const { nextEvent, previousEvent } = input;
-  if (
-    previousEvent?.side !== "neutral" &&
-    nextEvent.side !== "neutral" &&
-    previousEvent?.side === nextEvent.side
-  ) {
-    return nextEvent.side;
+export interface PossessionLedger {
+  us: number;
+  them: number;
+}
+
+/** Playback time each side has the ball in a sequence played over `durationMs`. */
+export function visiblePossessionMs(sequence: MatchSequence | null, durationMs: number): PossessionLedger {
+  const out = { us: 0, them: 0 };
+  if (!sequence || sequence.totalWeight <= 0) return out;
+  for (const item of sequence.actions) {
+    const share = (item.weight / sequence.totalWeight) * durationMs;
+    if ((item.possessionSide ?? item.side) === "us") out.us += share;
+    else out.them += share;
   }
-  if (nextEvent.side !== "neutral" && seedOf(nextEvent, "flow-possession") % 3 !== 0) {
-    return nextEvent.side;
+  return out;
+}
+
+type RestartKind = "kickoff" | "keeper" | "goalKick" | "loose" | "open";
+
+/** Who restarts after the previous moment, and how. */
+function restartAfter(previous: MatchEvent | undefined): { side: Side | null; kind: RestartKind } {
+  if (!previous) return { side: null, kind: "kickoff" };
+  if (previous.side === "neutral") return { side: null, kind: "open" };
+  if (previous.type === "goal") return { side: otherSide(previous.side), kind: "kickoff" };
+  if (previous.type === "chance") {
+    const outcome = chanceOutcome(previous);
+    const kind: RestartKind = outcome === "save" ? "keeper" : outcome === "blocked" ? "loose" : "goalKick";
+    return { side: otherSide(previous.side), kind };
   }
-  return nextEvent.side === "us" ? "them" : "us";
+  return { side: null, kind: "open" };
+}
+
+/** Rough playback time of a flow before it is built, for possession budgeting. */
+function estimatedFlowMs(gap: number): number {
+  return clamp(4_200 + gap * 420, 5_500, 22_000);
+}
+
+/** Share of this flow the user should have the ball, so the match overall lands on its possession stat. */
+function flowUserShare(input: MatchFlowSequenceInput, gap: number): number {
+  const target = clamp((input.userPossession ?? 50) / 100, 0.2, 0.8);
+  const flow = estimatedFlowMs(gap);
+  // The next highlight is (almost entirely) its attacking side's possession.
+  const highlight = input.nextSequence ? visiblePossessionMs(input.nextSequence, sequenceDurationMs(input.nextSequence)) : { us: 0, them: 0 };
+  const shown = input.possessionLedger ?? { us: 0, them: 0 };
+  // Aim for the stat across everything shown so far, this flow and the highlight after it.
+  const total = shown.us + shown.them + highlight.us + highlight.them + flow;
+  return clamp((target * total - shown.us - highlight.us) / flow, 0.05, 0.95);
 }
 
 /**
- * Lightweight open-play possession shown between canonical highlights.
- * It never creates a shot or result; its sole job is to keep the match visually
- * alive while the written commentary and match clock bridge quiet minutes.
+ * Open play between canonical highlights. It never creates a shot or changes
+ * a result. It restarts the game the way the previous moment demands, shares
+ * the ball between the teams in line with the match's real possession, and
+ * earns any set piece that follows (a corner is won, a foul is given) so the
+ * next highlight never appears from nowhere.
  */
 export function buildMatchFlowSequence(input: MatchFlowSequenceInput): MatchSequence | null {
   const gap = input.nextEvent.minute - (input.previousEvent?.minute ?? 0);
   if (gap <= 1) return null;
+  const desired = flowUserShare(input, gap);
+  const first = buildFlowOnce(input, gap, desired);
+  if (!first) return null;
+  // Spells are sized in passes, but carries, restarts and turnovers take time
+  // too. Measure the real split and, if it clearly misses, rebuild once with a
+  // corrected budget. Deterministic: same inputs, same two attempts.
+  const measured = visiblePossessionMs(first, estimatedFlowMs(gap));
+  const actual = measured.us / Math.max(1, measured.us + measured.them);
+  if (Math.abs(actual - desired) < 0.12) return first;
+  const corrected = clamp(desired + (desired - actual), 0.05, 0.95);
+  const second = buildFlowOnce(input, gap, corrected);
+  if (!second) return first;
+  const secondMeasured = visiblePossessionMs(second, estimatedFlowMs(gap));
+  const secondActual = secondMeasured.us / Math.max(1, secondMeasured.us + secondMeasured.them);
+  return Math.abs(secondActual - desired) < Math.abs(actual - desired) ? second : first;
+}
+
+function buildFlowOnce(input: MatchFlowSequenceInput, gap: number, userShare: number): MatchSequence | null {
 
   const substitutions = input.substitutions ?? [];
-  const nextSide = input.nextEvent.side === "neutral" ? null : input.nextEvent.side;
-  const includeTurnover =
-    nextSide !== null &&
-    gap >= 7 &&
-    seedOf(input.nextEvent, "flow-turnover") % 3 === 0;
-  const includeClearance =
-    !includeTurnover &&
-    gap >= 6 &&
-    seedOf(input.nextEvent, "flow-clearance") % 3 === 0;
-  const initialSide = includeTurnover && nextSide ? otherSide(nextSide) : quietPossessionSide(input);
   const sequenceId =
     `flow:${input.previousEvent?.sequenceId ?? "kickoff"}:${input.nextEvent.sequenceId ?? input.nextEvent.minute}`;
   const actions: MatchSequenceAction[] = [];
   const counter = { next: 0 };
+  const seedEvent = input.nextEvent;
 
   const lineupFor = (side: Side) =>
     activeMatchLineupAtMinute(
@@ -1318,22 +1420,41 @@ export function buildMatchFlowSequence(input: MatchFlowSequenceInput): MatchSequ
         : seedOf(event, "flow-pattern") % 3 === 0
           ? "wide"
           : "circulation";
+  const push = (values: Omit<MatchSequenceAction, "id">) => actions.push(action(sequenceId, counter.next++, values));
 
-  const initialLineup = lineupFor(initialSide);
-  if (initialLineup.length < 2) return null;
-  const initialEvent: MatchEvent = {
-    minute: input.nextEvent.minute,
-    type: "info",
-    side: initialSide,
-    text: "Open play",
-    phase: "buildUp",
-    zone: "middleThird",
-    sequenceId,
-  };
-  const initialPattern = flowPattern(initialEvent, planFor(initialSide));
+  /* ---------------- possession plan ---------------- */
+  const shareOf = (side: Side) => (side === "us" ? userShare : 1 - userShare);
+  const restart = restartAfter(input.previousEvent);
+  const nextSequence = input.nextSequence;
+  const nextSide: Side | null = nextSequence?.side ?? (input.nextEvent.side === "neutral" ? null : input.nextEvent.side);
+  const startSide: Side = restart.side ?? (seedOf(seedEvent, "flow-start-side") % 1000 < userShare * 1000 ? "us" : "them");
+  const endSide: Side = nextSide ?? (seedOf(seedEvent, "flow-end-side") % 1000 < userShare * 1000 ? "us" : "them");
+  const detail = clamp(input.detail ?? 1, 1, 3);
+  const totalPasses = clamp(Math.round((Math.ceil(gap / 4) + 2) * detail), 3, 9 * detail);
 
-  const possessionFor = (side: Side, event: MatchEvent, pattern: MatchSequencePattern, salt: string, holder: MatchLineupPlayer, ball: MatchPitchPoint) =>
-    new Possession(
+  const spells: { side: Side; passes: number }[] = [];
+  if (startSide === endSide) {
+    const otherShare = shareOf(otherSide(startSide));
+    if (otherShare >= 0.28 && totalPasses >= 4) {
+      const middle = Math.max(1, Math.round(totalPasses * otherShare));
+      const first = Math.max(1, Math.floor((totalPasses - middle) / 2));
+      spells.push(
+        { side: startSide, passes: first },
+        { side: otherSide(startSide), passes: middle },
+        { side: endSide, passes: Math.max(1, totalPasses - middle - first) },
+      );
+    } else {
+      spells.push({ side: startSide, passes: totalPasses });
+    }
+  } else {
+    const first = clamp(Math.round(totalPasses * shareOf(startSide)), 1, totalPasses - 1);
+    spells.push({ side: startSide, passes: first }, { side: endSide, passes: totalPasses - first });
+  }
+
+  const setPiece = nextSequence?.setPiece;
+  const makePossession = (side: Side, salt: string, holder: MatchLineupPlayer, ball: MatchPitchPoint, finalSpell: boolean) => {
+    const event: MatchEvent = { minute: input.nextEvent.minute, type: "info", side, text: "Open play", phase: "buildUp", zone: "middleThird", sequenceId: `${sequenceId}:${salt}` };
+    return new Possession(
       {
         event,
         salt,
@@ -1342,164 +1463,246 @@ export function buildMatchFlowSequence(input: MatchFlowSequenceInput): MatchSequ
         opponentPlan: planFor(otherSide(side)),
         attackers: lineupFor(side),
         defenders: lineupFor(otherSide(side)),
-        pattern,
+        pattern: flowPattern(event, planFor(side)),
         sequenceId,
         actions,
         counter,
-        maxDepth: 70,
+        // Quiet play stays out of the final third, unless it is about to win a set piece.
+        maxDepth: finalSpell && setPiece ? 84 : 70,
       },
       holder,
       ball,
     );
-
-  // Quiet play starts at the back and works the ball through the thirds.
-  const startDepth = 18 + (seedOf(input.nextEvent, "flow-start") % 12);
-  const startPoint = {
-    x: initialSide === "us" ? startDepth : 100 - startDepth,
-    y: 30 + (seedOf(input.nextEvent, "flow-start-y") % 41),
   };
-  const shapeAtStart = teamShape(initialLineup, baseShape(initialLineup, initialSide), initialSide, startPoint, true, planFor(initialSide));
-  let starter = initialLineup[0];
-  let starterDistance = Infinity;
-  for (const player of initialLineup) {
-    if (player.role === "GK") continue;
-    const position = shapeAtStart.get(player.playerId);
-    if (!position) continue;
-    const distance = metres(position, startPoint);
-    if (distance < starterDistance) {
-      starterDistance = distance;
-      starter = player;
-    }
-  }
-  const starterPoint = flankClamp(starter.role, shapeAtStart.get(starter.playerId) ?? startPoint);
-  let possession = possessionFor(initialSide, initialEvent, initialPattern, "flow-initial", starter, starterPoint);
-  possession.start("receive", `${surname(starter.name)} has it in open play.`, 0.34);
 
-  const cycleCount =
-    includeTurnover || includeClearance ? 3 : clamp(Math.ceil(gap / 4) + 2, 3, 8);
-  for (let i = 0; i < cycleCount; i += 1) {
-    const moved = possession.step({
-      exclude: new Set(),
-      preferBackward: initialPattern === "patient" && i === 2,
-    });
-    if (!moved) break;
-  }
-
-  if (includeTurnover && nextSide) {
-    const tackler = possession.nearestDefender(possession.ball);
-    const dispossessed = possession.holder;
-    if (tackler) {
-      const turnoverPoint = { ...possession.ball };
-      actions.push(
-        action(sequenceId, counter.next++, {
-          kind: "tackle",
-          side: nextSide,
-          possessionSide: nextSide,
-          playerId: tackler.playerId,
-          playerName: tackler.name,
-          targetPlayerId: dispossessed.playerId,
-          targetPlayerName: dispossessed.name,
-          start: turnoverPoint,
-          end: turnoverPoint,
-          weight: 0.5,
-          commentary: `${surname(tackler.name)} steps in and wins it from ${surname(dispossessed.name)}.`,
-        }),
-      );
-      const turnoverEvent: MatchEvent = { ...initialEvent, side: nextSide, sequenceId: `${sequenceId}:turnover` };
-      possession = possessionFor(nextSide, turnoverEvent, flowPattern(turnoverEvent, planFor(nextSide)), "flow-turnover", tackler, turnoverPoint);
-      const follow = gap >= 14 ? 4 : 3;
-      for (let i = 0; i < follow; i += 1) if (!possession.step({ exclude: new Set() })) break;
-    }
-  } else if (includeClearance) {
-    const defendingSide = otherSide(possession.cfg.side);
-    const defender = possession.nearestDefender(possession.ball);
-    const attacker = possession.holder;
-    if (defender) {
-      const dangerPoint = { ...possession.ball };
-      if (seedOf(input.nextEvent, "flow-failed-challenge") % 2 === 0) {
-        actions.push(
-          action(sequenceId, counter.next++, {
-            kind: "challenge",
-            side: defendingSide,
-            possessionSide: possession.cfg.side,
-            playerId: defender.playerId,
-            playerName: defender.name,
-            targetPlayerId: attacker.playerId,
-            targetPlayerName: attacker.name,
-            start: dangerPoint,
-            end: dangerPoint,
-            weight: 0.42,
-            commentary: `${surname(defender.name)} makes the challenge, but the ball stays alive.`,
-          }),
-        );
+  /* ---------------- restart ---------------- */
+  const firstLineup = lineupFor(startSide);
+  if (firstLineup.length < 2) return null;
+  const firstDir = startSide === "us" ? 1 : -1;
+  const at = (depth: number, y: number): MatchPitchPoint => ({ x: firstDir > 0 ? depth : 100 - depth, y });
+  const keeper = firstLineup.find((player) => player.role === "GK");
+  const byRole = (roles: TacticalPosition[]) => firstLineup.find((player) => roles.includes(player.role));
+  let holder: MatchLineupPlayer;
+  let ball: MatchPitchPoint;
+  let opening: string;
+  let openingKind: "receive" | "recovery" = "receive";
+  switch (restart.kind) {
+    case "kickoff":
+      holder = byRole(["ST", "CAM", "CM"]) ?? firstLineup[0];
+      ball = { x: 50, y: 50 };
+      opening = input.previousEvent ? `${surname(holder.name)} gets the game going again.` : `${surname(holder.name)} gets us under way.`;
+      break;
+    case "keeper":
+      holder = keeper ?? firstLineup[0];
+      ball = at(8, 50);
+      opening = `${surname(holder.name)} gathers and looks to distribute.`;
+      break;
+    case "goalKick":
+      holder = keeper ?? firstLineup[0];
+      ball = at(5.5, seedOf(seedEvent, "goal-kick-side") % 2 === 0 ? 42 : 58);
+      opening = "Goal kick.";
+      break;
+    case "loose":
+      holder = byRole(["CB", "CDM", "LB", "RB"]) ?? firstLineup[0];
+      ball = at(19, 34 + (seedOf(seedEvent, "loose-y") % 33));
+      opening = `${surname(holder.name)} mops up the loose ball.`;
+      openingKind = "recovery";
+      break;
+    default: {
+      const startPoint = at(18 + (seedOf(seedEvent, "flow-start") % 12), 30 + (seedOf(seedEvent, "flow-start-y") % 41));
+      const plan = planFor(startSide);
+      const shape = teamShape(firstLineup, baseShape(firstLineup, startSide, plan.formation), startSide, startPoint, true, plan);
+      let best = firstLineup[0];
+      let bestDistance = Infinity;
+      for (const player of firstLineup) {
+        if (player.role === "GK") continue;
+        const position = shape.get(player.playerId);
+        if (!position) continue;
+        const distance = metres(position, startPoint);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          best = player;
+        }
       }
-      const clearedTo = clearanceDestination(dangerPoint, defendingSide, input.nextEvent, "flow-clearance-destination");
-      actions.push(
-        action(sequenceId, counter.next++, {
-          kind: "clearance",
-          side: defendingSide,
-          possessionSide: defendingSide,
+      holder = best;
+      ball = flankClamp(best.role, shape.get(best.playerId) ?? startPoint);
+      opening = `${surname(holder.name)} has it in open play.`;
+    }
+  }
+
+  let possession = makePossession(startSide, "flow-0", holder, ball, spells.length === 1);
+  possession.start(openingKind, opening, restart.kind === "goalKick" || restart.kind === "kickoff" ? 0.55 : 0.4);
+
+  /* ---------------- spells and turnovers ---------------- */
+  spells.forEach((spell, index) => {
+    if (index > 0) {
+      // Change of possession: a tackle, an intercepted pass or a clearance.
+      const winner = spell.side;
+      const loser = possession.holder;
+      const from = { ...possession.ball };
+      const deep = possession.depth(from) > 55;
+      const style = deep ? "clearance" : seedOf(seedEvent, `turnover-${index}`) % 2 === 0 ? "tackle" : "interception";
+      const defender = possession.nearestDefender(from);
+      if (!defender) return;
+      if (style === "tackle") {
+        push({
+          kind: "tackle",
+          side: winner,
+          possessionSide: winner,
           playerId: defender.playerId,
           playerName: defender.name,
-          targetPlayerId: attacker.playerId,
-          targetPlayerName: attacker.name,
-          start: dangerPoint,
-          end: clearedTo,
-          weight: 0.78,
-          commentary: `${surname(defender.name)} gets it away.`,
-        }),
-      );
-
-      const recoverySide = seedOf(input.nextEvent, "flow-second-ball-side") % 2 === 0 ? possession.cfg.side : defendingSide;
-      const recoveryLineup = lineupFor(recoverySide);
-      const recoveryEvent: MatchEvent = { ...initialEvent, side: recoverySide, sequenceId: `${sequenceId}:second-ball` };
-      const recoveryShape = teamShape(recoveryLineup, baseShape(recoveryLineup, recoverySide), recoverySide, clearedTo, recoverySide === possession.cfg.side, planFor(recoverySide));
-      let recoverer: MatchLineupPlayer | undefined;
-      let recoverDistance = Infinity;
-      for (const player of recoveryLineup) {
-        if (player.role === "GK" || player.playerId === defender.playerId || player.playerId === attacker.playerId) continue;
-        const position = recoveryShape.get(player.playerId);
-        if (!position) continue;
-        const distance = metres(position, clearedTo);
-        if (distance < recoverDistance) {
-          recoverDistance = distance;
-          recoverer = player;
+          targetPlayerId: loser.playerId,
+          targetPlayerName: loser.name,
+          start: from,
+          end: from,
+          weight: 0.5,
+          commentary: `${surname(defender.name)} steps in and wins it from ${surname(loser.name)}.`,
+        });
+        possession = makePossession(winner, `flow-${index}`, defender, from, index === spells.length - 1);
+      } else {
+        const loose =
+          style === "clearance"
+            ? clearanceDestination(from, winner, seedEvent, `flow-clear-${index}`)
+            : { x: clamp(from.x + possession.dir * 7, 6, 94), y: clamp(from.y + (seedOf(seedEvent, `cut-${index}`) % 2 === 0 ? -6 : 6), 8, 92) };
+        push({
+          kind: style === "clearance" ? "clearance" : "blockPass",
+          side: winner,
+          possessionSide: winner,
+          playerId: defender.playerId,
+          playerName: defender.name,
+          targetPlayerId: loser.playerId,
+          targetPlayerName: loser.name,
+          start: from,
+          end: loose,
+          weight: style === "clearance" ? 0.72 : 0.5,
+          commentary:
+            style === "clearance"
+              ? `${surname(defender.name)} heads it clear.`
+              : `${surname(defender.name)} reads it and cuts out the pass.`,
+        });
+        const winnerLineup = lineupFor(winner);
+        const winnerPlan = planFor(winner);
+        const shape = teamShape(winnerLineup, baseShape(winnerLineup, winner, winnerPlan.formation), winner, loose, true, winnerPlan);
+        let collector = style === "interception" ? defender : winnerLineup[0];
+        if (style === "clearance") {
+          let best = Infinity;
+          for (const player of winnerLineup) {
+            if (player.role === "GK" || player.playerId === defender.playerId) continue;
+            const position = shape.get(player.playerId);
+            if (!position) continue;
+            const distance = metres(position, loose);
+            if (distance < best) {
+              best = distance;
+              collector = player;
+            }          }
         }
-      }
-      if (recoverer) {
-        actions.push(
-          action(sequenceId, counter.next++, {
-            kind: "recovery",
-            side: recoverySide,
-            possessionSide: recoverySide,
-            playerId: recoverer.playerId,
-            playerName: recoverer.name,
-            start: clearedTo,
-            end: clearedTo,
-            weight: 0.5,
-            commentary:
-              recoverySide === possession.cfg.side
-                ? `${surname(recoverer.name)} wins the second ball and keeps the attack alive.`
-                : `${surname(recoverer.name)} collects the second ball and the danger passes.`,
-          }),
-        );
-        if (gap >= 10) {
-          possession = possessionFor(recoverySide, recoveryEvent, flowPattern(recoveryEvent, planFor(recoverySide)), "flow-second-ball", recoverer, clearedTo);
-          for (let i = 0; i < 2; i += 1) if (!possession.step({ exclude: new Set() })) break;
-        }
+        push({
+          kind: "recovery",
+          side: winner,
+          possessionSide: winner,
+          playerId: collector.playerId,
+          playerName: collector.name,
+          start: loose,
+          end: loose,
+          weight: 0.42,
+          commentary:
+            style === "clearance"
+              ? `${surname(collector.name)} picks up the second ball.`
+              : `${surname(collector.name)} takes it away.`,
+        });
+        possession = makePossession(winner, `flow-${index}`, collector, loose, index === spells.length - 1);
       }
     }
-  }
+    const patient = possession.cfg.pattern === "patient";
+    for (let i = 0; i < spell.passes; i += 1) {
+      const moved = possession.step({
+        exclude: new Set(),
+        // A kick-off goes backwards first; keepers play short to defenders.
+        preferBackward: (index === 0 && i === 0 && restart.kind === "kickoff") || (patient && i === 2),
+      });
+      if (!moved) break;
+    }
+  });
 
-  // Land exactly on the first touch of the next canonical highlight.
-  const nextAction = input.nextSequence?.actions[0];
-  if (nextAction?.playerId && actions.length > 0) {
+  /* ---------------- earn the set piece / land on the next highlight ---------------- */
+  const nextAction = nextSequence?.actions[0];
+  const finalSide = possession.cfg.side;
+  if (setPiece && nextAction && finalSide === nextSequence.side) {
+    const attacker = possession.holder;
+    const attackDir = finalSide === "us" ? 1 : -1;
+    const carryTo = (to: MatchPitchPoint, commentary: string) => {
+      if (metres(possession.ball, to) < 1) return;
+      push({
+        kind: "carry",
+        side: finalSide,
+        possessionSide: finalSide,
+        playerId: attacker.playerId,
+        playerName: attacker.name,
+        start: { ...possession.ball },
+        end: to,
+        weight: (0.35 + metres(possession.ball, to) * 0.028) * possession.tempo,
+        commentary,
+      });
+      possession.ball = to;
+    };
+    const defender = possession.nearestDefender(nextAction.start) ?? possession.nearestDefender(possession.ball);
+    if (setPiece === "corner") {
+      // Work it wide, cross, and a defender turns it behind.
+      const cornerTop = nextAction.start.y < 50;
+      const wide = { x: attackDir > 0 ? 84 : 16, y: cornerTop ? 12 : 88 };
+      carryTo(wide, `${surname(attacker.name)} drives down the flank.`);
+      const box = { x: attackDir > 0 ? 92 : 8, y: 50 + (cornerTop ? -6 : 6) };
+      if (defender) {
+        push({
+          kind: "cross",
+          side: finalSide,
+          possessionSide: finalSide,
+          playerId: attacker.playerId,
+          playerName: attacker.name,
+          start: wide,
+          end: box,
+          weight: 0.9 * possession.tempo,
+          commentary: `${surname(attacker.name)} whips a cross in.`,
+        });
+        push({
+          kind: "clearance",
+          side: otherSide(finalSide),
+          possessionSide: finalSide,
+          playerId: defender.playerId,
+          playerName: defender.name,
+          start: box,
+          end: { x: attackDir > 0 ? 99.6 : 0.4, y: cornerTop ? 5 : 95 },
+          weight: 0.6,
+          commentary: `${surname(defender.name)} heads it behind. Corner.`,
+        });
+      }
+    } else if (defender) {
+      // Carry to where the foul happens; the defender brings him down.
+      carryTo(nextAction.start, setPiece === "penalty" ? `${surname(attacker.name)} darts into the box.` : `${surname(attacker.name)} drives at the defence.`);
+      push({
+        kind: "challenge",
+        side: otherSide(finalSide),
+        possessionSide: finalSide,
+        playerId: defender.playerId,
+        playerName: defender.name,
+        targetPlayerId: attacker.playerId,
+        targetPlayerName: attacker.name,
+        start: nextAction.start,
+        end: nextAction.start,
+        weight: 0.75,
+        commentary:
+          setPiece === "penalty"
+            ? `${surname(defender.name)} brings down ${surname(attacker.name)} in the box. Penalty!`
+            : `${surname(defender.name)} brings down ${surname(attacker.name)}. Free-kick in a dangerous area.`,
+      });
+    }
+  } else if (nextAction?.playerId && actions.length > 0) {
+    // Open play: land exactly on the first touch of the next highlight.
     const finalAction = actions[actions.length - 1];
     const currentPoint = finalAction.end;
     const desiredSide = nextAction.side;
     const desiredLineup = lineupFor(desiredSide);
     const receiver = desiredLineup.find((player) => player.playerId === nextAction.playerId);
-
     if (receiver) {
       const passKinds: FootballActionKind[] = ["pass", "recycle", "switch", "throughBall", "overlap", "cutback", "cross"];
       const currentHolderId = passKinds.includes(finalAction.kind)
@@ -1508,59 +1711,50 @@ export function buildMatchFlowSequence(input: MatchFlowSequenceInput): MatchSequ
           ? finalAction.playerId
           : undefined;
       const currentHolderSide = finalAction.possessionSide ?? finalAction.side;
-      const holder =
+      const current =
         currentHolderSide === desiredSide
           ? desiredLineup.find((player) => player.playerId === currentHolderId)
           : undefined;
-
-      if (!holder) {
-        actions.push(
-          action(sequenceId, counter.next++, {
-            kind: "recovery",
-            side: desiredSide,
-            possessionSide: desiredSide,
-            playerId: receiver.playerId,
-            playerName: receiver.name,
-            start: currentPoint,
-            end: currentPoint,
-            weight: 0.45,
-            commentary: `${surname(receiver.name)} gathers the loose ball.`,
-          }),
-        );
-      } else if (holder.playerId !== receiver.playerId) {
-        actions.push(
-          action(sequenceId, counter.next++, {
-            kind: "pass",
-            side: desiredSide,
-            possessionSide: desiredSide,
-            playerId: holder.playerId,
-            playerName: holder.name,
-            targetPlayerId: receiver.playerId,
-            targetPlayerName: receiver.name,
-            start: currentPoint,
-            end: nextAction.start,
-            weight: (0.38 + metres(currentPoint, nextAction.start) * 0.012) * tempoScale(planFor(desiredSide)),
-            commentary: `${surname(holder.name)} works it on to ${surname(receiver.name)}.`,
-          }),
-        );
+      if (!current) {
+        push({
+          kind: "recovery",
+          side: desiredSide,
+          possessionSide: desiredSide,
+          playerId: receiver.playerId,
+          playerName: receiver.name,
+          start: currentPoint,
+          end: currentPoint,
+          weight: 0.45,
+          commentary: `${surname(receiver.name)} gathers the loose ball.`,
+        });
+      } else if (current.playerId !== receiver.playerId) {
+        push({
+          kind: "pass",
+          side: desiredSide,
+          possessionSide: desiredSide,
+          playerId: current.playerId,
+          playerName: current.name,
+          targetPlayerId: receiver.playerId,
+          targetPlayerName: receiver.name,
+          start: currentPoint,
+          end: nextAction.start,
+          weight: (0.38 + metres(currentPoint, nextAction.start) * 0.012) * tempoScale(planFor(desiredSide)),
+          commentary: `${surname(current.name)} works it on to ${surname(receiver.name)}.`,
+        });
       }
-
-      const landingStart = !holder || holder.playerId === receiver.playerId ? currentPoint : nextAction.start;
-      const landingDistance = Math.abs(nextAction.start.x - landingStart.x) + Math.abs(nextAction.start.y - landingStart.y);
-      if (landingDistance > 0.001) {
-        actions.push(
-          action(sequenceId, counter.next++, {
-            kind: "carry",
-            side: desiredSide,
-            possessionSide: desiredSide,
-            playerId: receiver.playerId,
-            playerName: receiver.name,
-            start: landingStart,
-            end: nextAction.start,
-            weight: (0.3 + metres(landingStart, nextAction.start) * 0.03) * tempoScale(planFor(desiredSide)),
-            commentary: `${surname(receiver.name)} carries into the next phase.`,
-          }),
-        );
+      const landingStart = !current || current.playerId === receiver.playerId ? currentPoint : nextAction.start;
+      if (Math.abs(nextAction.start.x - landingStart.x) + Math.abs(nextAction.start.y - landingStart.y) > 0.001) {
+        push({
+          kind: "carry",
+          side: desiredSide,
+          possessionSide: desiredSide,
+          playerId: receiver.playerId,
+          playerName: receiver.name,
+          start: landingStart,
+          end: nextAction.start,
+          weight: (0.3 + metres(landingStart, nextAction.start) * 0.03) * tempoScale(planFor(desiredSide)),
+          commentary: `${surname(receiver.name)} carries into the next phase.`,
+        });
       }
     }
   }
@@ -1568,33 +1762,40 @@ export function buildMatchFlowSequence(input: MatchFlowSequenceInput): MatchSequ
   const participantIds = [
     ...new Set(actions.flatMap((item) => [item.playerId, item.targetPlayerId]).filter(Boolean) as string[]),
   ];
+  const changes = spells.length - 1;
   return {
     id: sequenceId,
     minute: input.nextEvent.minute,
-    side: initialSide,
+    side: startSide,
     phase: "buildUp",
     sourceType: "info",
     sourceText: "Open play",
-    pattern: includeTurnover || includeClearance ? "circulation" : initialPattern,
-    styleLabel: includeTurnover
-      ? "Turnover & transition"
-      : includeClearance
-        ? "Clearance & second ball"
-        : initialPattern === "circulation"
-          ? "Open play"
-          : styleLabel(initialPattern),
+    pattern: "circulation",
+    restart: restart.kind,
+    styleLabel:
+      restart.kind === "kickoff" && input.previousEvent
+        ? "Kick-off"
+        : setPiece === "corner"
+          ? "Pressure builds"
+          : setPiece
+            ? "Foul"
+            : changes > 0
+              ? "Open play · turnovers"
+              : "Open play",
     actions,
     participantIds,
     totalWeight: actions.reduce((sum, item) => sum + item.weight, 0),
   };
 }
 
-export function flowSequenceDurationMs(sequence: MatchSequence, gapMinutes: number): number {
+export function flowSequenceDurationMs(sequence: MatchSequence, gapMinutes: number, detail = 1): number {
   const gap = Math.max(0, gapMinutes);
+  // Extended viewing shows more play, so its longest quiet spells run longer.
+  const scale = clamp(detail, 1, 3);
   return clamp(
-    Math.round(sequence.totalWeight * 1_650 + Math.max(0, gap - 4) * 220),
+    Math.round(sequence.totalWeight * 1_650 + Math.max(0, gap - 4) * 220 * scale),
     5_500,
-    22_000,
+    22_000 * scale,
   );
 }
 
