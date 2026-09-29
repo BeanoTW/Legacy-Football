@@ -26,7 +26,7 @@ import { ensureLoanStateInPlace } from "./loans";
 import { initialiseSeasonCups } from "./cupEntry";
 import { syncUserCupFixtures } from "./cupFixtures";
 import { initialisePreseasonFixtures } from "./preseason";
-import { WEEKS_PER_SEASON } from "./time";
+
 
 /**
  * Canonical save schema version. Single source of truth: `newGame` stamps it,
@@ -146,11 +146,9 @@ function _newGameSeed(
     maintenanceWeekly: 460,
     // Canonical squad lives in GameState.football; this is a rebuilt projection.
     squad: [],
-    sponsors: [
-      { name: "Main Shirt Sponsor", weekly: 1_550, weeksLeft: WEEKS_PER_SEASON * 2 },
-      { name: "Local Stadium Partner", weekly: 650, weeksLeft: 38 * 2 },
-      { name: "Training Wear", weekly: 325, weeksLeft: 20 },
-    ],
+    // Retained as an empty compatibility projection. Sponsorship now lives
+    // exclusively in the Commercial Department contract portfolio.
+    sponsors: [],
     fixtures: fixturesForClub(leagueSchedule, clubName),
     leagues,
     playerLeagueId: playerLeague.id,
