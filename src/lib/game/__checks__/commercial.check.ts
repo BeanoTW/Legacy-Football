@@ -45,6 +45,10 @@ function fixture(seed = "COMM_SEED_1"): GameState {
   const g = newGame("Testville FC", "Test Manager");
   g.saveSeed = seed;
   ensureCommercial(g);
+  // Isolate offer/contract behaviour from the canonical opening portfolio.
+  // Fresh games legitimately begin with three already-signed sponsors.
+  g.commercial.contracts = [];
+  for (const sponsor of g.commercial.sponsors) sponsor.contractHistory = [];
   return g;
 }
 

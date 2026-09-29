@@ -8,7 +8,7 @@ import { runWeeklyGenerators } from "./inbox";
 import { ensureRecruitment } from "./recruitment";
 import { ensureInfrastructure } from "./infrastructure";
 import { ensureSustainability } from "./sustainability";
-import { ensureCommercial } from "./commercial";
+import { ensureCommercial, seedOpeningCommercialContracts } from "./commercial";
 import { initClubReputations, storePredictions } from "./reputation";
 import { makePyramidSchedule, makeClubRecords } from "./pyramid";
 import { makeExpandedLeagues } from "./worldPyramid";
@@ -26,7 +26,7 @@ import { ensureLoanStateInPlace } from "./loans";
 import { initialiseSeasonCups } from "./cupEntry";
 import { syncUserCupFixtures } from "./cupFixtures";
 import { initialisePreseasonFixtures } from "./preseason";
-import { WEEKS_PER_SEASON } from "./time";
+
 
 /**
  * Canonical save schema version. Single source of truth: `newGame` stamps it,
@@ -36,7 +36,7 @@ import { WEEKS_PER_SEASON } from "./time";
  * (src/lib/game/migrations) — no module holds per-version field knowledge
  * outside that registry.
  */
-export const SAVE_VERSION = 23;
+export const SAVE_VERSION = 24;
 
 export function newGame(
   clubName: string,
@@ -51,6 +51,7 @@ export function newGame(
   storePredictions(base, base.season);
   ensureBoard(base);
   ensureCommercial(base);
+  seedOpeningCommercialContracts(base);
   // Opening cash is booked as a real ledger entry, so the books reconcile
   // from the very first week.
   initFinance(base);
@@ -146,11 +147,9 @@ function _newGameSeed(
     maintenanceWeekly: 460,
     // Canonical squad lives in GameState.football; this is a rebuilt projection.
     squad: [],
-    sponsors: [
-      { name: "Main Shirt Sponsor", weekly: 1_550, weeksLeft: WEEKS_PER_SEASON * 2 },
-      { name: "Local Stadium Partner", weekly: 650, weeksLeft: 38 * 2 },
-      { name: "Training Wear", weekly: 325, weeksLeft: 20 },
-    ],
+    // Retained as an empty compatibility projection. Sponsorship now lives
+    // exclusively in the Commercial Department contract portfolio.
+    sponsors: [],
     fixtures: fixturesForClub(leagueSchedule, clubName),
     leagues,
     playerLeagueId: playerLeague.id,

@@ -22,6 +22,8 @@ import {
   weeklyWageForLevel,
 } from "../levelEconomy";
 import type { FootballLevel } from "../footballLevel";
+import { newGame } from "../newGame";
+import { playerWageBill, staffWageBill } from "../finance";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -157,6 +159,32 @@ console.log("\n[E] Transfer-market realism");
     const share = value / revenue;
     assert(share <= maxRevenueShare[level],
       `Level ${level} representative star is implausibly large versus turnover: ${fmt(value)} / ${fmt(revenue)}`);
+  }
+}
+
+console.log("\n[F] Opening Level 7 payroll includes structural and hired staff");
+{
+  const opening = newGame("Wage Audit FC", "W. Auditor", "WAGE|ALL-IN|7");
+  const playerWeekly = playerWageBill(opening);
+  const structuralWeekly = opening.staffWagesWeekly;
+  const hiredWeekly = opening.hiredStaff.reduce((sum, staff) => sum + staff.wage, 0);
+  const allInWeekly = playerWeekly + staffWageBill(opening);
+  const revenue = revenueBaselineForLevel(7, opening.reputation).totalSeason;
+  const ratio = (allInWeekly * 46) / revenue;
+  console.log(
+    `  L7 opening: players=${fmt(playerWeekly)}/wk structural staff=${fmt(structuralWeekly)}/wk hired staff=${fmt(hiredWeekly)}/wk total=${fmt(allInWeekly)}/wk revenue=${fmt(revenue)}/season payroll=${Math.round(ratio * 100)}%`,
+  );
+  assert(staffWageBill(opening) === structuralWeekly + hiredWeekly,
+    "Staff payroll omits or duplicates a staffing layer");
+  assert(ratio <= 0.8,
+    `Opening L7 payroll consumes too much of calibrated revenue: ${Math.round(ratio * 100)}%`);
+
+  const candidate = opening.staffCandidates[0];
+  if (candidate) {
+    const hired = structuredClone(opening);
+    hired.hiredStaff.push(candidate);
+    assert(staffWageBill(hired) - staffWageBill(opening) === candidate.wage,
+      "Hiring one staff member does not increase weekly payroll by exactly one wage");
   }
 }
 

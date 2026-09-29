@@ -624,6 +624,8 @@ export interface FacilityModifiers {
   concessionSpend: number;
   parkingIncome: number;
   attendanceConvenience: number;
+  /** Persistent supporter-demand multiplier created by the quality of the ground. */
+  supporterDemand: number;
   matchdayOperatingCost: number;
   /** Additive points. */
   fanHappiness: number;
@@ -665,6 +667,18 @@ export function facilityModifiers(s: GameState): FacilityModifiers {
     concessionSpend: clamp(scoreMult(conc, 0.55), 0.3, 1.7),
     parkingIncome: clamp(scoreMult(park, 0.7), 0.2, 1.8),
     attendanceConvenience: clamp(1 + (park - 50) * 0.0012 + (zone - 50) * 0.0008, 0.9, 1.12),
+    // Unlike capacity, this creates demand. Better stands and supporter-facing
+    // facilities make the club more attractive even when seats are not scarce.
+    supporterDemand: clamp(
+      1 +
+        (standAvg - 50) * 0.0022 +
+        (san - 50) * 0.0008 +
+        (zone - 50) * 0.0012 +
+        (conc - 50) * 0.0006 +
+        (hosp - 50) * 0.0004,
+      0.82,
+      1.28,
+    ),
     matchdayOperatingCost: clamp(1 + (50 - standAvg) * 0.0022, 0.85, 1.3),
     fanHappiness:
       Math.round(

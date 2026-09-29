@@ -20,6 +20,7 @@ import { LOAN_MIGRATIONS } from "./v19-v20";
 import { PLAYER_OVERALL_MIGRATIONS } from "./v20-v21";
 import { USER_REPUTATION_MIGRATIONS } from "./v21-v22";
 import { PLAYER_REPUTATION_MIGRATIONS } from "./v22-v23";
+import { COMMERCIAL_UNIFICATION_MIGRATIONS } from "./v23-v24";
 import type { GameState } from "../types";
 
 export * from "./types";
@@ -38,6 +39,7 @@ export const MIGRATIONS: Migration[] = [
   ...PLAYER_OVERALL_MIGRATIONS,
   ...USER_REPUTATION_MIGRATIONS,
   ...PLAYER_REPUTATION_MIGRATIONS,
+  ...COMMERCIAL_UNIFICATION_MIGRATIONS,
 ];
 
 /** Highest version any registered step can produce. */

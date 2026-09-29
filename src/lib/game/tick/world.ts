@@ -55,9 +55,8 @@ function staffContractMessage(s: GameState, st: Staff, kind: "warning" | "expire
   });
 }
 
-/** Legacy sponsor clock, staff contract lifecycle + 4-weekly staff market refresh. */
+/** Staff contract lifecycle + 4-weekly staff market refresh. */
 export function tickContractsAndMarkets(s: GameState): void {
-  for (const sp of s.sponsors) sp.weeksLeft = Math.max(0, sp.weeksLeft - 1);
   const retained: Staff[] = [];
   for (const st of s.hiredStaff) {
     st.contractWeeks = Math.max(0, st.contractWeeks - 1);

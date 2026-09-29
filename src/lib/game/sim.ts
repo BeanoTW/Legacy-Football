@@ -8,6 +8,7 @@ import type { GameState } from "./types";
 import { clubSizeFactor } from "./economy";
 import { economicProfileForLevel } from "./levelEconomy";
 import { ticketReferencePrice, priceDemandFactor } from "./ticketPricing";
+import { commercialWeeklyIncome } from "./commercial";
 import { footballLevelOfUser } from "./footballLevel";
 import { detailedSquadStrength } from "./footballStrength";
 import { stadiumCapacity, stadiumUsableCapacity, facilityModifiers } from "./infrastructure";
@@ -48,8 +49,8 @@ export const totalWeeklyExpenses = (s: GameState) =>
   s.maintenanceWeekly +
   s.trainingWeeklyCost;
 
-export const weeklySponsorIncome = (s: GameState) =>
-  s.sponsors.reduce((a, sp) => a + (sp.weeksLeft > 0 ? sp.weekly : 0), 0);
+/** Compatibility export: sponsorship now comes only from Commercial contracts. */
+export const weeklySponsorIncome = (s: GameState) => commercialWeeklyIncome(s);
 
 /* ---------- Match simulation primitives ---------- */
 
@@ -76,8 +77,15 @@ export function simAttendance(
   const opponentFactor = 0.9 + opponentStrength / 600;
   const noise = 0.93 + rng() * 0.12;
   // Parking and fan-zone quality make coming to the ground easier.
-  const convenience = facilityModifiers(s).attendanceConvenience;
-  const raw = demandBase * priceFactor * happinessFactor * opponentFactor * noise * convenience;
+  const facilities = facilityModifiers(s);
+  const raw =
+    demandBase *
+    priceFactor *
+    happinessFactor *
+    opponentFactor *
+    noise *
+    facilities.attendanceConvenience *
+    facilities.supporterDemand;
   return Math.max(0, Math.min(cap, Math.round(raw)));
 }
 
