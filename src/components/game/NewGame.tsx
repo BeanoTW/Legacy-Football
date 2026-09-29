@@ -36,20 +36,20 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-dvh min-h-0 overflow-y-auto overscroll-contain bg-background [touch-action:pan-y] [-webkit-overflow-scrolling:touch]">
       <TopBar title="Legacy Football" subtitle="Build a club legacy from non-league to the top" />
-      <div className="mx-auto max-w-xl px-4 py-10">
+      <div className="mx-auto max-w-xl px-3 py-5 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-4 sm:py-8">
         <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
           <div className="banner-strip px-4 py-2 text-sm">New Club Setup</div>
-          <div className="p-6 space-y-5">
+          <div className="space-y-4 p-4 sm:p-6">
             <div className="grid grid-cols-3 gap-2">
               {slots.map(({ id, state, status }, index) => (
                 <button
                   key={id}
                   onClick={() => onSelectSlot(id)}
                   className={cn(
-                    "rounded-xl border p-2 text-left",
-                    id === activeSlot && "border-primary bg-primary/10",
+                    "rounded-xl border-2 border-border bg-muted/60 p-2 text-left text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                    id === activeSlot && "border-primary bg-primary/15",
                   )}
                 >
                   <span className="block text-[10px] font-bold uppercase text-muted-foreground">Career {index + 1}</span>
@@ -69,7 +69,7 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
               </button>
               <div className="min-w-0 flex-1 space-y-2">
                 <Label htmlFor="mgr">Chairman name</Label>
-                <Input id="mgr" value={manager} maxLength={40} onChange={(e) => setManager(e.target.value)} />
+                <Input id="mgr" value={manager} maxLength={40} onChange={(e) => setManager(e.target.value)} className="border-2 border-border bg-muted/65 text-foreground placeholder:text-muted-foreground" />
                 <button type="button" className="lf-newgame-edit-look" onClick={() => setStudioOpen(true)}>
                   <Pencil /> Edit look
                 </button>
@@ -78,7 +78,7 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
 
             <div className="space-y-2">
               <Label htmlFor="club">Club name</Label>
-              <Input id="club" value={club} onChange={(e) => setClub(e.target.value)} />
+              <Input id="club" value={club} onChange={(e) => setClub(e.target.value)} className="border-2 border-border bg-muted/65 text-foreground placeholder:text-muted-foreground" />
             </div>
             <div className="space-y-2">
               <Label>Starting regional league</Label>
@@ -88,11 +88,12 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
                     key={division.id}
                     type="button"
                     onClick={() => setStartingDivisionId(division.id)}
+                    aria-pressed={division.id === startingDivisionId}
                     className={cn(
-                      "rounded-xl border p-3 text-left transition-colors",
+                      "rounded-xl border-2 p-3 text-left text-foreground transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
                       division.id === startingDivisionId
-                        ? "border-primary bg-primary/10"
-                        : "bg-background hover:bg-muted/60",
+                        ? "border-primary bg-primary/15"
+                        : "border-border bg-muted/65 hover:bg-muted",
                     )}
                   >
                     <span className="block text-xs font-semibold">
@@ -106,7 +107,7 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
               </div>
             </div>
             {activeSlotUnreadable && <p role="alert" className="rounded-lg border border-amber-500 bg-amber-500/10 p-3 text-xs">This career could not be read. Its original save is protected. Select a different slot; do not clear this slot or browser data.</p>}
-            <Button className="w-full" disabled={!club.trim() || activeSlotUnreadable} onClick={start}>
+            <Button type="button" className="min-h-11 w-full" disabled={!club.trim() || activeSlotUnreadable} onClick={start}>
               <Play className="mr-2 size-4" /> Start Season
             </Button>
           </div>
