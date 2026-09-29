@@ -53,6 +53,7 @@ import { footballLevelOfLeague, footballLevelOfUser } from "./footballLevel";
 import { clubReputation } from "./reputation";
 import { priceDemandFactor, ticketReferencePrice } from "./ticketPricing";
 import { facilityModifiers } from "./infrastructure";
+import { commercialWeeklyIncome } from "./commercial";
 import { archivedFinanceGuard, archivedNet, archivedTrailingLossWeeks } from "./archive";
 
 export const SEASON_WEEKS = 46;
@@ -419,8 +420,8 @@ export function leagueTierOf(s: GameState): number {
   return l?.tier ?? 1;
 }
 
-export const sponsorWeeklyIncome = (s: GameState) =>
-  int((s.sponsors ?? []).reduce((a, sp) => a + (sp.weeksLeft > 0 ? sp.weekly : 0), 0));
+/** Canonical sponsorship income. Legacy GameState.sponsors is no longer economic. */
+export const sponsorWeeklyIncome = (s: GameState) => int(commercialWeeklyIncome(s));
 
 /**
  * Retail and non-contracted commercial takings. Anchored to the level's
@@ -434,7 +435,7 @@ export const merchandiseWeeklyIncome = (s: GameState) => {
 };
 
 export const recurringWeeklyIncome = (s: GameState) =>
-  sponsorWeeklyIncome(s) + merchandiseWeeklyIncome(s) + leagueDistributionWeekly(s);
+  commercialWeeklyIncome(s) + merchandiseWeeklyIncome(s) + leagueDistributionWeekly(s);
 
 export const recurringWeeklyExpenditure = (s: GameState) =>
   playerWageBill(s) +
@@ -503,14 +504,6 @@ export function postRecurringWeek(s: GameState): void {
     });
 
   // Income
-  post(
-    "Commercial",
-    "Sponsorship",
-    "Contracted sponsorship income",
-    sponsorWeeklyIncome(s),
-    "income",
-    "sponsor",
-  );
   post(
     "Commercial",
     "Merchandise",
