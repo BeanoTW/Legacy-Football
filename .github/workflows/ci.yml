@@ -12,6 +12,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  snapshot-refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Generate revised deterministic economy snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          bun src/lib/game/__checks__/snapshot.check.ts --write > /tmp/snapshot-write.log
+          base64 -w0 src/lib/game/__checks__/snapshot.baseline.ts |
+            fold -w 1600 |
+            awk '{print "SNAPSHOT_BASE64|" NR-1 "|" $0}'
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
