@@ -16,7 +16,8 @@ export function unpricedDemand(s: GameState, opponentStrength = 60): number {
   const base = profile.typicalAttendance * clubSizeFactor(s.reputation ?? 50);
   const mood = 0.6 + (s.fanHappiness ?? 60) / 165;
   const opposition = 0.9 + opponentStrength / 600;
-  return base * mood * opposition * NEUTRAL_NOISE * facilityModifiers(s).attendanceConvenience;
+  const facilities = facilityModifiers(s);
+  return base * mood * opposition * NEUTRAL_NOISE * facilities.attendanceConvenience * facilities.supporterDemand;
 }
 
 export function expectedAttendanceAt(s: GameState, averagePrice: number, opponentStrength = 60): number {
