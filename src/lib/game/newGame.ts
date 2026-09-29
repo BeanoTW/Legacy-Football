@@ -8,7 +8,7 @@ import { runWeeklyGenerators } from "./inbox";
 import { ensureRecruitment } from "./recruitment";
 import { ensureInfrastructure } from "./infrastructure";
 import { ensureSustainability } from "./sustainability";
-import { ensureCommercial } from "./commercial";
+import { ensureCommercial, seedOpeningCommercialContracts } from "./commercial";
 import { initClubReputations, storePredictions } from "./reputation";
 import { makePyramidSchedule, makeClubRecords } from "./pyramid";
 import { makeExpandedLeagues } from "./worldPyramid";
@@ -51,6 +51,7 @@ export function newGame(
   storePredictions(base, base.season);
   ensureBoard(base);
   ensureCommercial(base);
+  seedOpeningCommercialContracts(base);
   // Opening cash is booked as a real ledger entry, so the books reconcile
   // from the very first week.
   initFinance(base);
