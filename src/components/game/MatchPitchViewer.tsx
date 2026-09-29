@@ -397,7 +397,8 @@ function planAt(
   return plan;
 }
 
-interface PlanSample {  inBridge: boolean;
+interface PlanSample {
+  inBridge: boolean;
   frame: MatchSequenceFrame | null;
   renderSequence: MatchSequence | null;
   entrySequences: Array<MatchSequence | null>;
@@ -796,7 +797,8 @@ function createEngine(deps: EngineDeps) {
     if (deps.playback.current.playing || !settled) {
       raf = window.requestAnimationFrame(tick);
     } else {
-      raf = null;      lastTs = null;
+      raf = null;
+      lastTs = null;
       // Make sure the slider reflects the exact resting position.
       renderFrame(0, false, true);
     }
@@ -1195,7 +1197,8 @@ export function MatchPitchViewer({
         : nonPlay.type === "sub"
           ? "🔁 Substitution"
           : nonPlay.type === "injury"
-            ? "✚ Injury"            : null
+            ? "✚ Injury"
+            : null
       : plan.sequence
         ? "Key moment"
         : null;
