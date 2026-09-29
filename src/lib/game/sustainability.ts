@@ -34,6 +34,9 @@ import {
   leagueDistributionWeekly,
   staffWageBill,
   playerWageBill,
+  weeklyRevenueEstimate,
+  sponsorWeeklyIncome,
+  merchandiseWeeklyIncome,
 } from "./finance";
 import {
   activeProjects,
@@ -102,7 +105,7 @@ export function ensureSustainability(s: GameState): void {
    season it liquidated its future.
 ========================================================================= */
 
-const NON_OPERATING = new Set(["Transfers", "Capital"]);
+const NON_OPERATING = new Set(["Transfers", "Capital", "Prize Money"]);
 
 export interface OperatingPicture {
   weeksSampled: number;
@@ -123,7 +126,12 @@ function trailingEntries(s: GameState, weeks = TRAILING_WEEKS) {
   const from = now - weeks;
   return (s.financeLedger ?? []).filter((e) => {
     const abs = absoluteWeek(e.season, e.week);
-    return abs > from && abs <= now && !NON_OPERATING.has(e.category);
+    return (
+      abs > from &&
+      abs <= now &&
+      !NON_OPERATING.has(e.category) &&
+      e.sourceSystem !== "engine.opening"
+    );
   });
 }
 
@@ -148,7 +156,7 @@ export function operatingPicture(s: GameState, weeks = TRAILING_WEEKS): Operatin
   // rate rather than reporting an infinitely healthy club with no costs.
   if (!es.length) {
     const wkExp = structuralWeeklyExpenditure(s);
-    const wkInc = structuralWeeklyIncome(s);
+    const wkInc = Math.max(structuralWeeklyIncome(s), weeklyRevenueEstimate(s));
     return {
       weeksSampled: 0,
       income: int(wkInc * weeks),
@@ -182,7 +190,12 @@ export function structuralWeeklyExpenditure(s: GameState): number {
 
 /** Run-rate weekly income excluding matchday spikes and one-off windfalls. */
 export function structuralWeeklyIncome(s: GameState): number {
-  return int(commercialWeeklyIncome(s) + leagueDistributionWeekly(s));
+  return int(
+    commercialWeeklyIncome(s) +
+      sponsorWeeklyIncome(s) +
+      merchandiseWeeklyIncome(s) +
+      leagueDistributionWeekly(s),
+  );
 }
 
 /* =========================================================================
