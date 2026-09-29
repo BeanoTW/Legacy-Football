@@ -121,9 +121,9 @@ export function ScoutingBrowser({
   const levelLabel = scoutingPlayerLevelLabel(brief?.playerLevel);
 
   const toolbar = (
-    <div className="space-y-1.5">
+    <div className="space-y-1">
       {note && <div className="rounded-lg border bg-muted/40 px-3 py-1.5 text-xs">{note}</div>}
-      <div className="flex flex-wrap items-center gap-1 text-[11px]">
+      <div className="flex flex-wrap items-center gap-1 text-[11px] text-foreground">
         <span className="rounded-md bg-muted px-2 py-1 font-semibold">Cash {fmtMoney(state.cash)}</span>
         <span className="rounded-md bg-muted px-2 py-1 font-semibold">
           Wages {fmtMoney(wageBill)}/wk
@@ -212,37 +212,37 @@ export function ScoutingBrowser({
             actions={
               <div>
                 {identity && report.knowledgePct >= 60 && (
-                  <div className="mb-1.5 rounded-lg border border-white/15 bg-white/[0.06] px-2 py-1.5">
+                  <div className="mb-1 rounded-lg border border-white/15 bg-white/[0.06] px-2 py-1">
                     <div className="text-[11px] font-semibold text-white/90">{identity.label}</div>
                     <div className="mt-0.5 text-[10px] leading-relaxed text-white/55">{identity.summary}</div>
                     <div className="mt-1 text-[9px] uppercase tracking-wide text-white/40">Strengths · {identity.strengths.join(" · ")}</div>
                   </div>
                 )}
-                <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-white/75">
+                <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] leading-snug text-white/85">
                   <span>Interest: <strong className="text-white" title={interest.reason}>{interest.label}</strong></span>
                   <span className={budgetComfortable ? "text-emerald-300" : "text-rose-300"}>
                     {budgetComfortable ? "Within authority" : "Budget risk"}
                   </span>
                   <span>{assignment ? report.complete ? "Full report" : "Scout following up" : initialReport ? "Initial staff report" : "Basic knowledge"}</span>
                 </div>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <Button size="sm" variant="outline" className={cn("h-9 min-w-9 border-white/25 bg-white/[0.08] px-2 text-xs text-white hover:bg-white/20 hover:text-white", watched && "border-amber-300 text-amber-200")} aria-label={watched ? "Remove from shortlist" : "Add to shortlist"} title={watched ? "Shortlisted" : "Shortlist"} onClick={() => update((s) => toggleChairmanShortlist(s, player.id))}>
+                <div className="flex flex-wrap items-center gap-1">
+                  <Button size="sm" variant="outline" className={cn("h-8 min-w-8 border-white/40 bg-white/[0.08] px-2 text-xs text-white hover:bg-white/20 hover:text-white", watched && "border-amber-300 text-amber-200")} aria-label={watched ? "Remove from shortlist" : "Add to shortlist"} title={watched ? "Shortlisted" : "Shortlist"} onClick={() => update((s) => toggleChairmanShortlist(s, player.id))}>
                     <Star className={cn("size-4", watched && "fill-current")} />
                   </Button>
                   {!assignment ? (
-                    <Button size="sm" className="h-9 flex-1 bg-teal-700 px-2 text-xs text-white hover:bg-teal-600" onClick={() => update((s) => startScouting(s, player.id))}>
+                    <Button size="sm" className="h-8 flex-1 bg-teal-600 px-2 text-xs font-semibold text-white hover:bg-teal-500" onClick={() => update((s) => startScouting(s, player.id))}>
                       <Binoculars className="mr-1 size-3.5" />{initialReport ? "Scout further" : "Scout"}
                     </Button>
                   ) : report.complete ? (
-                    <span className="inline-flex h-9 flex-1 items-center justify-center px-1 text-xs font-semibold text-emerald-200"><CheckCircle2 className="mr-1 size-3.5" /> Full report</span>
+                    <span className="inline-flex h-8 flex-1 items-center justify-center px-1 text-xs font-semibold text-emerald-200"><CheckCircle2 className="mr-1 size-3.5" /> Full report</span>
                   ) : (
-                    <span className="inline-flex h-9 flex-1 items-center justify-center px-1 text-xs text-white/75"><Binoculars className="mr-1 size-3.5" /> Scouting</span>
+                    <span className="inline-flex h-8 flex-1 items-center justify-center px-1 text-xs text-white/85"><Binoculars className="mr-1 size-3.5" /> Scouting</span>
                   )}
-                  <Button size="sm" variant="secondary" className="h-9 flex-1 px-2 text-xs" onClick={() => approach(player.id, freeAgent, estimate.openingWeeklyWage)}>
+                  <Button size="sm" variant="secondary" className="h-8 flex-1 bg-[#d9ebe6] px-2 text-xs font-semibold text-[#12312c] hover:bg-white hover:text-[#12312c]" onClick={() => approach(player.id, freeAgent, estimate.openingWeeklyWage)}>
                     <Handshake className="mr-1 size-3.5" />{freeAgent ? "Approach player" : "Approach club"}
                   </Button>
                   {!freeAgent && loanWindowOpen && !loanUnavailable && (
-                    <Button size="sm" variant="outline" className="h-9 border-white/25 bg-white/[0.08] px-2 text-xs text-white hover:bg-white/20 hover:text-white" title={!loanWindowOpen ? `${loanWindow.label} · ${loanWindow.detail}` : loanUnavailable ?? "Request a temporary loan"} onClick={() => setLoanTargetId((current) => (current === player.id ? null : player.id))}>
+                    <Button size="sm" variant="outline" className="h-8 border-white/40 bg-white/[0.08] px-2 text-xs text-white hover:bg-white/20 hover:text-white" title={!loanWindowOpen ? `${loanWindow.label} · ${loanWindow.detail}` : loanUnavailable ?? "Request a temporary loan"} onClick={() => setLoanTargetId((current) => (current === player.id ? null : player.id))}>
                       <Repeat2 className="size-4" /><span className="sr-only">Loan</span>
                     </Button>
                   )}

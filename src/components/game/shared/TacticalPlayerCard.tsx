@@ -129,14 +129,14 @@ export function TacticalPlayerCard({
         onClick={() => onOpen ? onOpen() : openPlayerProfile(player.id)}
         className={cn(
           "relative z-10 w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-300",
-          compact || recruitment ? "p-2.5" : "p-3.5",
+          compact || recruitment ? "px-2.5 py-2" : "p-3.5",
         )}
         aria-label={`Open ${playerName(player)} profile`}
       >
-        <div className={cn("flex items-start", recruitment ? "gap-2" : "gap-3")}>
+        <div className={cn("flex items-start", recruitment ? "gap-1.5" : "gap-3")}>
           <div className={cn(
             "relative grid shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/[0.06]",
-            compact || recruitment ? "size-11" : "size-16",
+            compact || recruitment ? "size-10" : "size-16",
           )}>
             <UserRound className={cn("text-emerald-200/70", compact || recruitment ? "size-6" : "size-9")} />
             <span className="absolute bottom-1 left-1 rounded bg-black/45 px-1.5 py-0.5 font-display text-[10px] text-white/85">
@@ -148,7 +148,7 @@ export function TacticalPlayerCard({
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <h3 className={cn("truncate font-display leading-none", compact || recruitment ? "text-lg" : "text-2xl")}>
+                  <h3 className={cn("truncate font-display leading-none", compact || recruitment ? "text-[17px]" : "text-2xl")}>
                     {playerName(player)}
                   </h3>
                   {selected && <span className="rounded bg-emerald-400/15 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-300">XI</span>}
@@ -172,7 +172,7 @@ export function TacticalPlayerCard({
             </div>
 
             {!compact && (
-              <div className={cn("flex flex-wrap gap-1", recruitment ? "mt-1.5" : "mt-2")}>
+              <div className={cn("flex flex-wrap gap-1", recruitment ? "mt-1" : "mt-2")}>
                 <span className={cn("rounded-md border px-1.5 py-0.5 text-[9px] font-bold", POSITION_BADGE_CLASS[positionUnit(tactical.primary)])}>
                   {tactical.primary}
                 </span>
@@ -210,7 +210,7 @@ export function TacticalPlayerCard({
       </button>
 
       {actions && (
-        <div className={cn("relative z-20 border-t border-white/10 bg-black/10", recruitment ? "px-2.5 py-2" : "p-2.5")}>
+        <div className={cn("relative z-20 border-t border-white/10 bg-black/10", recruitment ? "px-2.5 py-1.5" : "p-2.5")}>
           {actions}
         </div>
       )}
@@ -313,17 +313,17 @@ function RecruitmentPlayerData({
 
   if (recruitment) {
     return (
-      <div className="relative z-10 mt-2 grid grid-cols-2 gap-x-3 gap-y-1 border-t border-white/10 pt-2 text-[11px]">
+      <div className="relative z-10 mt-1.5 grid grid-cols-2 gap-x-2 gap-y-1 border-t border-white/10 pt-1.5 text-[11px]">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-white/65">Scouted</span>
+          <span className="text-white/75">Scouted</span>
           <span className="font-semibold text-cyan-200">{knowledge}%</span>
         </div>
         <div className="flex items-center justify-between gap-2">
-          <span className="text-white/65">Report</span>
+          <span className="text-white/75">Report</span>
           <span className="font-semibold text-white/95">{report?.complete ? "Full" : knowledge > 0 ? "Initial" : "Unknown"}</span>
         </div>
-        <div className="min-w-0 truncate"><span className="text-white/65">Value </span><strong className="text-white/95">{value}</strong></div>
-        <div className="min-w-0 truncate"><span className="text-white/65">Wage </span><strong className="text-white/95">{wage}</strong></div>
+        <div className="min-w-0 truncate"><span className="text-white/75">Value </span><strong className="text-white/95">{value}</strong></div>
+        <div className="min-w-0 truncate"><span className="text-white/75">Wage </span><strong className="text-white/95">{wage}</strong></div>
       </div>
     );
   }
