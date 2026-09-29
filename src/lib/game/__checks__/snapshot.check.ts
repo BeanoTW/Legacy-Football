@@ -78,6 +78,7 @@ for (const p of points) {
       if (basisParts) {
         const drift = Object.keys(parts).filter((k) => parts[k] !== basisParts[k]);
         console.log(`     drifted keys: ${drift.join(", ") || "(structure changed)"}`);
+        console.log(`     actual parts: ${JSON.stringify(parts)}`);
       }
     }
   }
