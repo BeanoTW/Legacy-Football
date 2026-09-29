@@ -211,39 +211,39 @@ export function ScoutingBrowser({
             mode="recruitment"
             actions={
               <div>
-                {identity && (
-                  <div className="mb-2 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2">
+                {identity && report.knowledgePct >= 60 && (
+                  <div className="mb-1.5 rounded-lg border border-white/15 bg-white/[0.06] px-2 py-1.5">
                     <div className="text-[11px] font-semibold text-white/90">{identity.label}</div>
                     <div className="mt-0.5 text-[10px] leading-relaxed text-white/55">{identity.summary}</div>
                     <div className="mt-1 text-[9px] uppercase tracking-wide text-white/40">Strengths · {identity.strengths.join(" · ")}</div>
                   </div>
                 )}
-                <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-white/60">
-                  <span>Interest <strong className="text-white/85" title={interest.reason}>{interest.label}</strong></span>
+                <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-white/75">
+                  <span>Interest: <strong className="text-white" title={interest.reason}>{interest.label}</strong></span>
                   <span className={budgetComfortable ? "text-emerald-300" : "text-rose-300"}>
                     {budgetComfortable ? "Within authority" : "Budget risk"}
                   </span>
                   <span>{assignment ? report.complete ? "Full report" : "Scout following up" : initialReport ? "Initial staff report" : "Basic knowledge"}</span>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
-                  <Button size="sm" variant={watched ? "default" : "outline"} className="h-8 px-2 text-[10px]" onClick={() => update((s) => toggleChairmanShortlist(s, player.id))}>
-                    <Star className={cn("mr-1 size-3", watched && "fill-current")} />{watched ? "Shortlisted" : "Shortlist"}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <Button size="sm" variant="outline" className={cn("h-9 min-w-9 border-white/25 bg-white/[0.08] px-2 text-xs text-white hover:bg-white/20 hover:text-white", watched && "border-amber-300 text-amber-200")} aria-label={watched ? "Remove from shortlist" : "Add to shortlist"} title={watched ? "Shortlisted" : "Shortlist"} onClick={() => update((s) => toggleChairmanShortlist(s, player.id))}>
+                    <Star className={cn("size-4", watched && "fill-current")} />
                   </Button>
                   {!assignment ? (
-                    <Button size="sm" className="h-8 px-2 text-[10px]" onClick={() => update((s) => startScouting(s, player.id))}>
-                      <Binoculars className="mr-1 size-3" />{initialReport ? "Scout further" : "Scout"}
+                    <Button size="sm" className="h-9 flex-1 bg-teal-700 px-2 text-xs text-white hover:bg-teal-600" onClick={() => update((s) => startScouting(s, player.id))}>
+                      <Binoculars className="mr-1 size-3.5" />{initialReport ? "Scout further" : "Scout"}
                     </Button>
                   ) : report.complete ? (
-                    <span className="inline-flex items-center px-1 text-[10px] font-semibold text-emerald-300"><CheckCircle2 className="mr-1 size-3" /> Full report</span>
+                    <span className="inline-flex h-9 flex-1 items-center justify-center px-1 text-xs font-semibold text-emerald-200"><CheckCircle2 className="mr-1 size-3.5" /> Full report</span>
                   ) : (
-                    <span className="px-1 text-[10px] text-white/55"><Binoculars className="mr-1 inline size-3" /> Scouting</span>
+                    <span className="inline-flex h-9 flex-1 items-center justify-center px-1 text-xs text-white/75"><Binoculars className="mr-1 size-3.5" /> Scouting</span>
                   )}
-                  <Button size="sm" variant="secondary" className="h-8 px-2 text-[10px]" onClick={() => approach(player.id, freeAgent, estimate.openingWeeklyWage)}>
-                    <Handshake className="mr-1 size-3" />{freeAgent ? "Approach player" : "Approach club"}
+                  <Button size="sm" variant="secondary" className="h-9 flex-1 px-2 text-xs" onClick={() => approach(player.id, freeAgent, estimate.openingWeeklyWage)}>
+                    <Handshake className="mr-1 size-3.5" />{freeAgent ? "Approach player" : "Approach club"}
                   </Button>
-                  {!freeAgent && (
-                    <Button size="sm" variant="outline" className="h-8 px-2 text-[10px]" disabled={!loanWindowOpen || Boolean(loanUnavailable)} title={!loanWindowOpen ? `${loanWindow.label} · ${loanWindow.detail}` : loanUnavailable ?? "Request a temporary loan"} onClick={() => setLoanTargetId((current) => (current === player.id ? null : player.id))}>
-                      <Repeat2 className="mr-1 size-3" /> Loan
+                  {!freeAgent && loanWindowOpen && !loanUnavailable && (
+                    <Button size="sm" variant="outline" className="h-9 border-white/25 bg-white/[0.08] px-2 text-xs text-white hover:bg-white/20 hover:text-white" title={!loanWindowOpen ? `${loanWindow.label} · ${loanWindow.detail}` : loanUnavailable ?? "Request a temporary loan"} onClick={() => setLoanTargetId((current) => (current === player.id ? null : player.id))}>
+                      <Repeat2 className="size-4" /><span className="sr-only">Loan</span>
                     </Button>
                   )}
                 </div>

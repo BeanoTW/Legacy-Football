@@ -49,6 +49,7 @@ export function TacticalPlayerCard({
   const season = owned ? playerSeasonStats(state).find((row) => row.playerId === player.id) : undefined;
   const shortlisted = !owned && isChairmanShortlisted(state, player.id);
   const compact = mode === "compact";
+  const recruitment = mode === "recruitment";
 
   const clubLabel = player.currentClubId
     ? clubDisplayName(state, player.currentClubId)
@@ -119,7 +120,7 @@ export function TacticalPlayerCard({
         "group relative overflow-hidden rounded-2xl border border-emerald-950/15 bg-[#081b18] text-white shadow-sm",
         "before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_82%_10%,rgba(45,212,191,.14),transparent_33%),linear-gradient(135deg,rgba(255,255,255,.03),transparent_45%)]",
         selected && "ring-2 ring-emerald-400/70",
-        compact && "rounded-xl",
+        (compact || recruitment) && "rounded-xl",
         className,
       )}
     >
@@ -128,16 +129,16 @@ export function TacticalPlayerCard({
         onClick={() => onOpen ? onOpen() : openPlayerProfile(player.id)}
         className={cn(
           "relative z-10 w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-300",
-          compact ? "p-2.5" : "p-3.5",
+          compact || recruitment ? "p-2.5" : "p-3.5",
         )}
         aria-label={`Open ${playerName(player)} profile`}
       >
-        <div className="flex items-start gap-3">
+        <div className={cn("flex items-start", recruitment ? "gap-2" : "gap-3")}>
           <div className={cn(
             "relative grid shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-white/[0.06]",
-            compact ? "size-12" : "size-16",
+            compact || recruitment ? "size-11" : "size-16",
           )}>
-            <UserRound className={cn("text-emerald-200/55", compact ? "size-7" : "size-9")} />
+            <UserRound className={cn("text-emerald-200/70", compact || recruitment ? "size-6" : "size-9")} />
             <span className="absolute bottom-1 left-1 rounded bg-black/45 px-1.5 py-0.5 font-display text-[10px] text-white/85">
               {tactical.primary}
             </span>
@@ -147,13 +148,13 @@ export function TacticalPlayerCard({
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <h3 className={cn("truncate font-display leading-none", compact ? "text-lg" : "text-2xl")}>
+                  <h3 className={cn("truncate font-display leading-none", compact || recruitment ? "text-lg" : "text-2xl")}>
                     {playerName(player)}
                   </h3>
                   {selected && <span className="rounded bg-emerald-400/15 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-emerald-300">XI</span>}
                   {shortlisted && <Star className="size-3.5 fill-amber-300 text-amber-300" />}
                 </div>
-                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-white/55">
+                <div className={cn("mt-1 flex flex-wrap items-center gap-x-1.5 text-white/75", recruitment ? "text-[11px]" : "gap-y-1 text-[10px]")}>
                   <span>{ageOf(player, state.season)}y</span>
                   <span>{player.nationality}</span>
                   <span className="truncate">{clubLabel}</span>
@@ -161,17 +162,17 @@ export function TacticalPlayerCard({
               </div>
 
               <div className="shrink-0 text-right">
-                <div className={cn("font-display leading-none", overall.label.length > 3 ? "text-xl" : compact ? "text-2xl" : "text-3xl")}>
+                <div className={cn("font-display leading-none", overall.label.length > 3 || recruitment ? "text-xl" : compact ? "text-2xl" : "text-3xl")}>
                   {overall.label}
                 </div>
-                <div className="mt-1 text-[8px] font-bold uppercase tracking-[0.14em] text-emerald-200/55">
+                <div className="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-100/80">
                   {overall.exact ? "Ability" : overall.known ? "Est. ability" : "Unknown"}
                 </div>
               </div>
             </div>
 
             {!compact && (
-              <div className="mt-2 flex flex-wrap gap-1">
+              <div className={cn("flex flex-wrap gap-1", recruitment ? "mt-1.5" : "mt-2")}>
                 <span className={cn("rounded-md border px-1.5 py-0.5 text-[9px] font-bold", POSITION_BADGE_CLASS[positionUnit(tactical.primary)])}>
                   {tactical.primary}
                 </span>
@@ -203,12 +204,13 @@ export function TacticalPlayerCard({
             report={report}
             estimate={estimate}
             compact={compact}
+            recruitment={recruitment}
           />
         )}
       </button>
 
       {actions && (
-        <div className="relative z-20 border-t border-white/10 bg-black/10 p-2.5">
+        <div className={cn("relative z-20 border-t border-white/10 bg-black/10", recruitment ? "px-2.5 py-2" : "p-2.5")}>
           {actions}
         </div>
       )}
@@ -294,31 +296,57 @@ function RecruitmentPlayerData({
   report,
   estimate,
   compact,
+  recruitment = false,
 }: {
   report: ReturnType<typeof scoutingReport> | null;
   estimate: ReturnType<typeof chairmanRecruitmentEstimate>;
   compact: boolean;
+  recruitment?: boolean;
 }) {
   const knowledge = report?.knowledgePct ?? 0;
+  const value = report?.valueRange && knowledge > 0
+    ? `${fmtMoney(report.valueRange[0])}–${fmtMoney(report.valueRange[1])}`
+    : "Unknown";
+  const wage = report?.wageRange && knowledge > 0
+    ? `${fmtMoney(report.wageRange[0])}–${fmtMoney(report.wageRange[1])}/wk`
+    : "Unknown";
+
+  if (recruitment) {
+    return (
+      <div className="relative z-10 mt-2 grid grid-cols-2 gap-x-3 gap-y-1 border-t border-white/10 pt-2 text-[11px]">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-white/65">Scouted</span>
+          <span className="font-semibold text-cyan-200">{knowledge}%</span>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-white/65">Report</span>
+          <span className="font-semibold text-white/95">{report?.complete ? "Full" : knowledge > 0 ? "Initial" : "Unknown"}</span>
+        </div>
+        <div className="min-w-0 truncate"><span className="text-white/65">Value </span><strong className="text-white/95">{value}</strong></div>
+        <div className="min-w-0 truncate"><span className="text-white/65">Wage </span><strong className="text-white/95">{wage}</strong></div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn("relative z-10", compact ? "mt-2" : "mt-3")}>
       <div className="grid grid-cols-2 gap-2">
         <DataCell label="Scouting" value={knowledge > 0 ? `${knowledge}%` : "Unknown"} meter={knowledge} tone={knowledge >= 60 ? "good" : "neutral"} />
         <DataCell
-          label="Potential"
-          value={report?.complete ? "Assessed" : knowledge > 0 ? "Est." : "?"}
+          label="Report"
+          value={report?.complete ? "Full report" : knowledge > 0 ? "Initial" : "Not scouted"}
           tone="neutral"
         />
       </div>
 
       {!compact && (
         <div className="mt-2 grid grid-cols-2 gap-2 text-[10px]">
-          <Info label="Value" value={report?.valueRange && knowledge > 0 ? `${fmtMoney(report.valueRange[0])}–${fmtMoney(report.valueRange[1])}` : "Unknown"} />
-          <Info label="Wage" value={report?.wageRange && knowledge > 0 ? `${fmtMoney(report.wageRange[0])}–${fmtMoney(report.wageRange[1])}/wk` : "Unknown"} />
+          <Info label="Value" value={value} />
+          <Info label="Wage" value={wage} />
         </div>
       )}
 
-      <div className="mt-2 text-[9px] text-white/45">
+      <div className="mt-2 text-[9px] text-white/60">
         {report?.complete
           ? "Full report"
           : knowledge > 0
