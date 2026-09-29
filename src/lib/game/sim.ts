@@ -7,6 +7,7 @@
 import type { GameState } from "./types";
 import { clubSizeFactor } from "./economy";
 import { economicProfileForLevel } from "./levelEconomy";
+import { ticketReferencePrice, priceDemandFactor } from "./ticketPricing";
 import { footballLevelOfUser } from "./footballLevel";
 import { detailedSquadStrength } from "./footballStrength";
 import { stadiumCapacity, stadiumUsableCapacity, facilityModifiers } from "./infrastructure";
@@ -68,12 +69,8 @@ export function simAttendance(
 
   const avgPrice = avgTicketPrice(s);
   // Supporters judge the price against what the level normally charges.
-  const refPrice =
-    profile.ticketPriceReference * (0.85 + clubSizeFactor(s.reputation ?? 50) * 0.15);
-  const priceFactor =
-    avgPrice <= refPrice
-      ? Math.min(1.12, 1 + ((refPrice - avgPrice) / refPrice) * 0.28)
-      : Math.max(0.18, 1 - Math.pow((avgPrice - refPrice) / refPrice, 1.25) * 0.85);
+  const refPrice = ticketReferencePrice(profile, s.reputation ?? 50);
+  const priceFactor = priceDemandFactor(avgPrice, refPrice);
 
   const happinessFactor = 0.6 + (s.fanHappiness ?? 60) / 165; // 0.6 - 1.21
   const opponentFactor = 0.9 + opponentStrength / 600;
