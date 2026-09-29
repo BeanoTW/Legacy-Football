@@ -6,6 +6,7 @@
 import type { GameState, Staff } from "../types";
 import { hasFullSchedule } from "../league";
 import { avgTicketPrice } from "../sim";
+import { ticketPriceReference } from "../ticketForecast";
 import { hashString } from "../rng";
 import { staffPoolFor } from "../staff";
 import { ensureAttainableStaffMarket } from "../staffMarketAttainability";
@@ -73,7 +74,7 @@ export function tickContractsAndMarkets(s: GameState): void {
 
 /** Ticket-price backlash against the club's reputation-driven market reference. */
 export function tickTicketBacklash(s: GameState): void {
-  const refPriceNow = 15 + s.reputation * 0.4;
+  const refPriceNow = ticketPriceReference(s);
   const avgPriceNow = avgTicketPrice(s);
   const overRatio = avgPriceNow / refPriceNow;
   if (overRatio > 1.25) {
