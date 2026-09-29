@@ -246,6 +246,49 @@ export function defaultCommercialDepartment(s: GameState): CommercialDepartment 
   };
 }
 
+/**
+ * Fresh-career legacy sponsorship is now represented solely in Commercial.
+ * Retains the original opening weekly commitments and expiry horizons, without
+ * posting a signing bonus or making a second economic sponsor projection.
+ */
+export function seedOpeningCommercialContracts(s: GameState): void {
+  ensureCommercial(s);
+  const opening: { category: SponsorshipCategory; weekly: number; weeks: number }[] = [
+    { category: "Shirt Front", weekly: 1_550, weeks: SEASON_WEEKS * 2 },
+    { category: "Stadium Advertising", weekly: 650, weeks: 38 * 2 },
+    { category: "Training Kit", weekly: 325, weeks: 20 },
+  ];
+  const now = absoluteWeek(s.season, s.week);
+  const clubId = userClubReference(s);
+  const used = new Set(s.commercial.contracts.map((contract) => contract.sponsorId));
+  for (const [index, plan] of opening.entries()) {
+    const id = `opening-commercial-${hashString(`${s.saveSeed}|opening|${index}`).toString(36)}`;
+    if (s.commercial.contracts.some((contract) => contract.id === id)) continue;
+    const sponsor = s.commercial.sponsors.find(
+      (candidate) => !used.has(candidate.id) && candidate.reputation < 45,
+    );
+    if (!sponsor) throw new Error("Opening commercial sponsor pool is incomplete");
+    used.add(sponsor.id);
+    sponsor.contractHistory.push(id);
+    s.commercial.contracts.push({
+      id,
+      sponsorId: sponsor.id,
+      category: plan.category,
+      clubId,
+      startSeason: s.season,
+      startAbsoluteWeek: now,
+      durationSeasons: Math.max(1, Math.ceil(plan.weeks / SEASON_WEEKS)),
+      endAbsoluteWeek: now + plan.weeks,
+      weeklyPayment: plan.weekly,
+      signingBonus: 0,
+      renewalWindowWeeks: 8,
+      objectives: [],
+      relationshipScore: sponsor.relationshipScore,
+      status: "Active",
+    });
+  }
+}
+
 /** Idempotent. Safe to call on every load, migration and week. */
 export function ensureCommercial(s: GameState): void {
   if (!s.commercial || typeof s.commercial !== "object") {
