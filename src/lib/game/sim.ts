@@ -8,6 +8,7 @@ import type { GameState } from "./types";
 import { clubSizeFactor } from "./economy";
 import { economicProfileForLevel } from "./levelEconomy";
 import { ticketReferencePrice, priceDemandFactor } from "./ticketPricing";
+import { commercialWeeklyIncome } from "./commercial";
 import { footballLevelOfUser } from "./footballLevel";
 import { detailedSquadStrength } from "./footballStrength";
 import { stadiumCapacity, stadiumUsableCapacity, facilityModifiers } from "./infrastructure";
@@ -48,8 +49,8 @@ export const totalWeeklyExpenses = (s: GameState) =>
   s.maintenanceWeekly +
   s.trainingWeeklyCost;
 
-export const weeklySponsorIncome = (s: GameState) =>
-  s.sponsors.reduce((a, sp) => a + (sp.weeksLeft > 0 ? sp.weekly : 0), 0);
+/** Compatibility export: sponsorship now comes only from Commercial contracts. */
+export const weeklySponsorIncome = (s: GameState) => commercialWeeklyIncome(s);
 
 /* ---------- Match simulation primitives ---------- */
 
