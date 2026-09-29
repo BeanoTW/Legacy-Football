@@ -76,8 +76,15 @@ export function simAttendance(
   const opponentFactor = 0.9 + opponentStrength / 600;
   const noise = 0.93 + rng() * 0.12;
   // Parking and fan-zone quality make coming to the ground easier.
-  const convenience = facilityModifiers(s).attendanceConvenience;
-  const raw = demandBase * priceFactor * happinessFactor * opponentFactor * noise * convenience;
+  const facilities = facilityModifiers(s);
+  const raw =
+    demandBase *
+    priceFactor *
+    happinessFactor *
+    opponentFactor *
+    noise *
+    facilities.attendanceConvenience *
+    facilities.supporterDemand;
   return Math.max(0, Math.min(cap, Math.round(raw)));
 }
 
