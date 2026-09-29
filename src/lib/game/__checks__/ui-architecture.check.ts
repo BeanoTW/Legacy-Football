@@ -471,8 +471,7 @@ console.log("\n[U15] Match centre identity and competition context");
     "2D highlights derive structured football actions and persistent player motion without UI randomness",
     /buildMatchSequence/.test(viewer) &&
       /motionFrameForSequence/.test(viewer) &&
-      !/<svg/.test(viewer) &&
-      !/<line/.test(viewer) &&
+      /showPassLine && activeAction/.test(viewer) &&
       !/Math\.random/.test(viewer),
   );
   check(
@@ -716,7 +715,8 @@ console.log("\n[U26] Match commentary flow");
     "viewer inserts deterministic written commentary between separated highlights",
     /commentaryBridge/.test(viewer) &&
       /bridgeMinute/.test(viewer) &&
-      /Match flow/.test(viewer) &&
+      /bridgeSequence/.test(viewer) &&
+      /sample\.frame\?\.action/.test(viewer) &&
       !/Math\.random/.test(flow),
   );
   check(
@@ -776,8 +776,9 @@ console.log("\n[U28] Continuous open-play match flow");
   check(
     "open-play sequences cannot invent terminal match outcomes",
     /sourceType: "info"/.test(sequence) &&
-      /quiet possession must|never creates a shot or result/.test(sequence) &&
-      /buildMatchFlowSequence/.test(sequence),
+      /It never creates a shot or changes/.test(sequence) &&
+      /buildMatchFlowSequence/.test(sequence) &&
+      /function buildFlowOnce/.test(sequence),
   );
 }
 
@@ -787,15 +788,17 @@ console.log("\n[U29] Matchday breathing room");
   const sequence = read("src/lib/game/matchSequence.ts");
   check(
     "quiet spells scale their possession length and real-time playback",
-    /cycleCount/.test(sequence) &&
+    /totalPasses/.test(sequence) &&
       /flowSequenceDurationMs/.test(sequence) &&
-      /22_000/.test(sequence) &&
-      /bridgeDuration/.test(viewer),
+      /22_000 \* scale/.test(sequence) &&
+      /bridgeDuration/.test(viewer) &&
+      /mode === "extended" \? 2 : 1/.test(viewer),
   );
   check(
     "playback speed still scales one canonical match flow rather than resimulating it",
-    /pb\.progress \+= \(dt \* pb\.speed\) \/ Math\.max\(1, plan\.duration\)/.test(viewer) &&
-      /PLAYBACK_SPEEDS = \[1, 2, 4\]/.test(viewer),
+    /pb\.progress \+= \(dt \* pb\.speed \* rate\) \/ Math\.max\(1, plan\.duration\)/.test(viewer) &&
+      /PLAYBACK_SPEEDS = \[1, 2, 4\]/.test(viewer) &&
+      /SLOW_MOTION/.test(viewer),
   );
 }
 
@@ -811,9 +814,10 @@ console.log("\n[U30] Open-play possession changes");
   );
   check(
     "quiet match flow can include a deterministic tackle and continuation by the new team",
-    /includeTurnover/.test(sequence) &&
+    /spells\.forEach/.test(sequence) &&
       /kind: "tackle"/.test(sequence) &&
-      /Turnover & transition/.test(sequence),
+      /possession = makePossession\(winner/.test(sequence) &&
+      /Open play · turnovers/.test(sequence),
   );
   check(
     "defensive pressure closes the ball without falsely changing possession",
@@ -848,9 +852,11 @@ console.log("\n[U32] Defensive phases and second balls");
   );
   check(
     "quiet open play can end in a clearance and second-ball contest without inventing a chance",
-    /includeClearance/.test(sequence) &&
-      /Clearance & second ball/.test(sequence) &&
-      /flow-second-ball-side/.test(sequence),
+    /style === "clearance"/.test(sequence) &&
+      /flow-clear-/.test(sequence) &&
+      /picks up the second ball/.test(sequence) &&
+      /kind: "recovery"/.test(sequence) &&
+      /sourceType: "info"/.test(sequence),
   );
   check(
     "defensive lines retreat and track dangerous runners in persistent motion state",
@@ -876,10 +882,10 @@ console.log("\n[U33] Smooth replay continuity and played-time timeline");
   );
   check(
     "canonical receiving positions are derived from tactical roles",
-    /ROLE_DEPTH/.test(sequence) &&
-      /roleLane/.test(sequence) &&
+    /roleLane/.test(sequence) &&
       /rolePitchPoint/.test(sequence) &&
-      /touchPoints\(event, participants, pattern\)/.test(sequence),
+      /touchPoints\(event, participants, pattern\)/.test(sequence) &&
+      /player\.role/.test(sequence),
   );
   check(
     "timeline exposes only the furthest match position actually played",
@@ -903,14 +909,14 @@ console.log("\n[U34] Fluid match-view handoff");
   const motion = read("src/lib/game/matchMotion.ts");
   check(
     "predictive pitch trails are removed from the viewer",
-    !/<svg/.test(viewer) &&
-      !/<line/.test(viewer) &&
+    !/\btrailPoints\b/.test(viewer) &&
+      /showPassLine && activeAction/.test(viewer) &&
       /motionFrameForSequence/.test(viewer),
   );
   check(
     "open play connects to the exact start of the next canonical highlight",
     /nextSequence: sequence/.test(viewer) &&
-      /const nextAction = input\.nextSequence\?\.actions\[0\]/.test(sequence) &&
+      /const nextAction = nextSequence\?\.actions\[0\]/.test(sequence) &&
       /nextAction\.start/.test(sequence),
   );
   check(

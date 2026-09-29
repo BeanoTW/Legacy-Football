@@ -24,10 +24,12 @@ import {
   frameForSequence,
   sequenceDurationMs,
   sequenceResultVisible,
+  visiblePossessionMs,
   type MatchPitchPoint,
   type MatchSequence,
   type MatchSequenceAction,
   type MatchSequenceFrame,
+  type PossessionLedger,
 } from "@/lib/game/matchSequence";
 import { motionFrameForSequence } from "@/lib/game/matchMotion";
 import { cn } from "@/lib/utils";
@@ -52,6 +54,9 @@ import { cn } from "@/lib/utils";
  *     dead between passes. We feed it the inverse of smoothStep so its
  *     interpolation comes out linear, then the follow smoothing adds natural
  *     acceleration on top.
+ *  5. Plans are built in playback order and carry a possession ledger, so
+ *     quiet play shares the ball in line with the match's real possession
+ *     stat across the whole game, not just gap by gap.
  */
 
 const PLAYBACK_SPEEDS = [1, 2, 4] as const;
@@ -70,8 +75,39 @@ const MAX_FRAME_MS = 64;
 const TIMELINE_PUSH_MS = 100;
 const SETTLE_EPSILON = 0.02;
 
+/** How much of the match the viewer shows between key moments. */
+export type ViewMode = "moments" | "condensed" | "extended";
+const VIEW_MODES: { id: ViewMode; label: string }[] = [
+  { id: "moments", label: "Key moments" },
+  { id: "condensed", label: "Condensed" },
+  { id: "extended", label: "Extended" },
+];
+/** A restart card stays up this long while the teams reset underneath it. */
+const CUT_CARD_MS = 900;
+/** Shots, saves and goals play at this fraction of normal speed. */
+const SLOW_MOTION = 0.5;
+const SLOW_KINDS = new Set<MatchSequenceAction["kind"]>(["shot", "save", "goal", "block", "miss"]);
+const LOFTED_KINDS = new Set<MatchSequenceAction["kind"]>(["cross", "switch", "clearance"]);
+const RESTART_LABEL: Partial<Record<NonNullable<MatchSequence["restart"]>, string>> = {
+  kickoff: "Kick-off",
+  keeper: "Keeper's ball",
+  goalKick: "Goal kick",
+};
+const SET_PIECE_LABEL: Record<NonNullable<MatchSequence["setPiece"]>, string> = {
+  corner: "Corner",
+  freeKick: "Free-kick",
+  penalty: "Penalty",
+};
+/** Camera zoom used on phones, where the whole pitch is otherwise tiny. */
+const PHONE_ZOOM = 1.35;
+const CAMERA_FOLLOW_MS = 450;
+
+const pitchMetres = (a: MatchPitchPoint, b: MatchPitchPoint) =>
+  Math.hypot((a.x - b.x) * 1.05, (a.y - b.y) * 0.68);
+
 const EMPTY_LINEUP: MatchLineupPlayer[] = [];
 const EMPTY_SUBS: MatchSubstitution[] = [];
+const EMPTY_LEDGER: PossessionLedger = { us: 0, them: 0 };
 /** Nodes start hidden until the engine has placed them once. */
 const HIDDEN_STYLE = { visibility: "hidden" } as const;
 
@@ -118,6 +154,7 @@ function roleY(role: TacticalPosition, occurrence: number, count: number): numbe
   return low + ((high - low) * occurrence) / Math.max(1, count - 1);
 }
 
+/** Fallback resting shape only; with plans, matchMotion uses the formation's own shape. */
 function formationPositions(
   lineup: MatchLineupPlayer[],
   ours: boolean,
@@ -166,7 +203,8 @@ function fallbackEventPosition(event: MatchEvent | undefined): MatchPitchPoint {
 function eventDurationMs(event: MatchEvent | undefined, sequence: MatchSequence | null): number {
   if (sequence) return sequenceDurationMs(sequence);
   if (!event) return BASE_EVENT_MS;
-  if (event.type === "sub" || event.type === "injury" || event.type === "card") return 3_200;
+  // Cards, substitutions and injuries are shown as an overlay, not a pause.
+  if (event.type === "sub" || event.type === "injury" || event.type === "card") return 1_600;
   return BASE_EVENT_MS;
 }
 
@@ -240,6 +278,16 @@ interface MatchContext {
   substitutions: MatchSubstitution[];
   userPlan?: MatchTeamPlan;
   opponentPlan?: MatchTeamPlan;
+  /** Real possession share (0-100) that quiet play is budgeted towards. */
+  userPossession?: number;
+  /** How much open play to show between moments. */
+  viewMode?: ViewMode;
+}
+
+interface PlanCut {
+  /** Plan progress (0-1) at which the picture cuts. */
+  at: number;
+  label: string;
 }
 
 interface EventPlan {
@@ -251,6 +299,10 @@ interface EventPlan {
   bridgeSequence: MatchSequence | null;
   duration: number;
   bridgeFraction: number;
+  /** Visible possession shown up to the end of this event. */
+  ledgerAfter: PossessionLedger;
+  /** Dead-ball cuts inside this plan: the teams reset under a restart card. */
+  cuts: PlanCut[];
 }
 
 function buildEventPlan(
@@ -259,25 +311,40 @@ function buildEventPlan(
   ctx: MatchContext,
   usName: string,
   themName: string,
+  ledgerBefore: PossessionLedger,
 ): EventPlan {
   const sequence = buildMatchSequence({ event: active, ...ctx });
   const previousSequence = previousEvent ? buildMatchSequence({ event: previousEvent, ...ctx }) : null;
-  const bridge = commentaryBridge(previousEvent, active, usName, themName);
+  const mode = ctx.viewMode ?? "condensed";
+  // Key-moments mode shows only the moments themselves, cut together.
+  const bridge = mode === "moments" ? null : commentaryBridge(previousEvent, active, usName, themName);
   const bridgeSequence = bridge
     ? buildMatchFlowSequence({
         nextEvent: active,
         previousEvent,
         nextSequence: sequence ?? undefined,
         ...ctx,
+        possessionLedger: ledgerBefore,
+        detail: mode === "extended" ? 2 : 1,
       })
     : null;
   const sequenceBaseDuration = eventDurationMs(active, sequence);
   const bridgeGap = bridge ? Math.max(0, bridge.toMinute - bridge.fromMinute) : 0;
   const bridgeDuration =
     bridge && bridgeSequence
-      ? Math.max(bridge.durationMs, flowSequenceDurationMs(bridgeSequence, bridgeGap))
+      ? Math.max(bridge.durationMs, flowSequenceDurationMs(bridgeSequence, bridgeGap, mode === "extended" ? 2 : 1))
       : (bridge?.durationMs ?? 0);
   const duration = sequenceBaseDuration + bridgeDuration;
+  const flowShown = visiblePossessionMs(bridgeSequence, bridgeDuration);
+  const highlightShown = visiblePossessionMs(sequence, sequenceBaseDuration);
+  const bridgeFraction = bridgeDuration > 0 ? bridgeDuration / Math.max(1, duration) : 0;
+  const cuts: PlanCut[] = [];
+  const restartLabel = bridgeSequence?.restart ? RESTART_LABEL[bridgeSequence.restart] : undefined;
+  if (restartLabel) cuts.push({ at: 0, label: restartLabel });
+  else if (!bridgeSequence && sequence) {
+    cuts.push({ at: 0, label: sequence.setPiece ? SET_PIECE_LABEL[sequence.setPiece] : "Key moment" });
+  }
+  if (bridgeSequence && sequence?.setPiece) cuts.push({ at: bridgeFraction, label: SET_PIECE_LABEL[sequence.setPiece] });
   return {
     active,
     previousEvent,
@@ -286,7 +353,12 @@ function buildEventPlan(
     bridge,
     bridgeSequence,
     duration,
-    bridgeFraction: bridgeDuration > 0 ? bridgeDuration / Math.max(1, duration) : 0,
+    bridgeFraction,
+    cuts,
+    ledgerAfter: {
+      us: ledgerBefore.us + flowShown.us + highlightShown.us,
+      them: ledgerBefore.them + flowShown.them + highlightShown.them,
+    },
   };
 }
 
@@ -298,13 +370,30 @@ function planAt(
   usName: string,
   themName: string,
 ): EventPlan | null {
-  const active = events[index];
-  if (!active) return null;
-  const previousEvent = index > 0 ? events[index - 1] : undefined;
-  const cached = cache.get(index);
-  if (cached && cached.active === active && cached.previousEvent === previousEvent) return cached;
-  const plan = buildEventPlan(active, previousEvent, ctx, usName, themName);
-  cache.set(index, plan);
+  if (!events[index]) return null;
+  // Plans depend on everything shown before them (the possession ledger), so
+  // build forward from the last valid cached plan. Replays are deterministic.
+  let start = index;
+  while (start > 0) {
+    const cached = cache.get(start - 1);
+    if (cached && cached.active === events[start - 1] && cached.previousEvent === (start > 1 ? events[start - 2] : undefined)) break;
+    start -= 1;
+  }
+  let plan: EventPlan | null = null;
+  for (let i = start; i <= index; i += 1) {
+    const active = events[i];
+    const previousEvent = i > 0 ? events[i - 1] : undefined;
+    const cached = cache.get(i);
+    const ledgerBefore = i > 0 ? cache.get(i - 1)?.ledgerAfter ?? EMPTY_LEDGER : EMPTY_LEDGER;
+    if (cached && cached.active === active && cached.previousEvent === previousEvent) {
+      plan = cached;
+      continue;
+    }
+    plan = buildEventPlan(active, previousEvent, ctx, usName, themName, ledgerBefore);
+    cache.set(i, plan);
+    // Anything cached after a rebuilt plan was built on an older ledger.
+    for (const key of [...cache.keys()]) if (key > i) cache.delete(key);
+  }
   return plan;
 }
 
@@ -316,6 +405,10 @@ interface PlanSample {
   minute: number;
   ball: MatchPitchPoint;
   resultVisible: boolean;
+  /** 0-1 height of a lofted ball (crosses, switches, long balls). */
+  lift: number;
+  /** A shot is in flight: play it slower. */
+  slow: boolean;
 }
 
 function samplePlan(plan: EventPlan, progress: number): PlanSample {
@@ -332,9 +425,16 @@ function samplePlan(plan: EventPlan, progress: number): PlanSample {
       : sequence && !inBridge
         ? frameForSequence(sequence, contentProgress)
         : null;
+  const act = frame?.action;
+  const travel = act ? pitchMetres(act.start, act.end) : 0;
+  const lofted =
+    !!act &&
+    (LOFTED_KINDS.has(act.kind) || ((act.kind === "pass" || act.kind === "throughBall") && travel > 30));
   return {
     inBridge,
     frame,
+    lift: lofted && frame ? Math.sin(Math.PI * frame.localProgress) * Math.min(1, travel / 40) : 0,
+    slow: !inBridge && !!act && SLOW_KINDS.has(act.kind),
     renderSequence: inBridge ? bridgeSequence : sequence,
     entrySequences: inBridge ? [plan.previousSequence] : [plan.previousSequence, bridgeSequence],
     minute: inBridge && bridge ? bridgeMinute(bridge, bridgeProgress) : plan.active.minute,
@@ -357,10 +457,18 @@ interface Hud {
   badge: boolean;
   resultVisible: boolean;
   minute: number;
+  /** Restart card being shown, if any. */
+  cutLabel: string | null;
 }
 
-function hudFor(cursor: number, sample: PlanSample): Hud {
+function hudFor(cursor: number, sample: PlanSample, plan?: EventPlan, progress = 0): Hud {
+  let cutLabel: string | null = null;
+  for (const cut of plan?.cuts ?? []) {
+    const elapsed = (progress - cut.at) * (plan?.duration ?? 0);
+    if (elapsed >= 0 && elapsed < CUT_CARD_MS) cutLabel = cut.label;
+  }
   return {
+    cutLabel,
     cursor,
     inBridge: sample.inBridge,
     actionIndex: sample.frame?.actionIndex ?? -1,
@@ -377,7 +485,8 @@ function sameHud(a: Hud, b: Hud): boolean {
     a.actionIndex === b.actionIndex &&
     a.badge === b.badge &&
     a.resultVisible === b.resultVisible &&
-    a.minute === b.minute
+    a.minute === b.minute &&
+    a.cutLabel === b.cutLabel
   );
 }
 
@@ -487,6 +596,27 @@ function createEngine(deps: EngineDeps) {
   let width = 0;
   let height = 0;
   let observer: ResizeObserver | null = null;
+  // Ball height for lofted passes, a pending hard cut, and the camera.
+  let ballLift = 0;
+  let snapNext = false;
+  let zoom = 1;
+  let camX = 50;
+  let camY = 50;
+  let layer: HTMLElement | null = null;
+
+  function applyCamera() {
+    if (!layer) return;
+    if (zoom <= 1 || width <= 0) {
+      layer.style.transform = "";
+      return;
+    }
+    const cx = (camX / 100) * width;
+    const cy = (camY / 100) * height;
+    const tx = Math.min(0, Math.max(width - width * zoom, width / 2 - cx * zoom));
+    const ty = Math.min(0, Math.max(height - height * zoom, height / 2 - cy * zoom));
+    layer.style.transformOrigin = "0 0";
+    layer.style.transform = `translate3d(${tx.toFixed(1)}px, ${ty.toFixed(1)}px, 0) scale(${zoom})`;
+  }
 
   function currentPlan(): EventPlan | null {
     const { events, cache, ctx, usName, themName } = deps.latest.current;
@@ -500,12 +630,13 @@ function createEngine(deps: EngineDeps) {
     const x = ((body.rx * width) / 100).toFixed(2);
     const y = ((body.ry * height) / 100).toFixed(2);
     node.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    if (key === "ball") node.style.setProperty("--lift", `${(ballLift * Math.min(width, height) * 0.08).toFixed(1)}px`);
     if (node.style.visibility) node.style.visibility = "";
   }
 
   function publish(sample: PlanSample, force: boolean) {
     const pb = deps.playback.current;
-    const nextHud = hudFor(pb.cursor, sample);
+    const nextHud = hudFor(pb.cursor, sample, currentPlan() ?? undefined, pb.progress);
     if (!deps.hudRef.current || !sameHud(deps.hudRef.current, nextHud)) {
       deps.hudRef.current = nextHud;
       deps.setHud(nextHud);
@@ -611,7 +742,14 @@ function createEngine(deps: EngineDeps) {
         PLAYER_FOLLOW_MS,
       );
     }
+    ballLift = sample.lift;
     place("ball", sample.ball, BALL_FOLLOW_MS);
+
+    // The camera drifts after the ball; a cut moves it instantly.
+    const follow = snap ? 1 : 1 - Math.exp(-dt / CAMERA_FOLLOW_MS);
+    camX += (sample.ball.x - camX) * follow;
+    camY += (sample.ball.y - camY) * follow;
+    applyCamera();
 
     publish(sample, force);
     return settled;
@@ -623,7 +761,17 @@ function createEngine(deps: EngineDeps) {
     const plan = currentPlan();
     if (!plan) return;
     const length = deps.latest.current.events.length;
-    pb.progress += (dt * pb.speed) / Math.max(1, plan.duration);
+    // Shots, saves and goals play in slow motion. A restart card holds for
+    // the same real time at every playback speed (the reset happens under it).
+    const elapsedSinceCut = Math.min(
+      ...plan.cuts.map((cut) => (pb.progress - cut.at) * plan.duration).filter((ms) => ms >= 0),
+      Number.POSITIVE_INFINITY,
+    );
+    const underCard = elapsedSinceCut < CUT_CARD_MS;
+    const rate = (underCard ? 1 / pb.speed : 1) * (samplePlan(plan, pb.progress).slow ? SLOW_MOTION : 1);
+    const before = pb.progress;
+    pb.progress += (dt * pb.speed * rate) / Math.max(1, plan.duration);
+    if (plan.cuts.some((cut) => cut.at > before && cut.at <= pb.progress)) snapNext = true;
     if (pb.progress >= 1) {
       if (pb.cursor >= length - 1) {
         pb.progress = 1;
@@ -631,6 +779,7 @@ function createEngine(deps: EngineDeps) {
       } else {
         pb.cursor += 1;
         pb.progress = 0;
+        if (currentPlan()?.cuts.some((cut) => cut.at === 0)) snapNext = true;
       }
     }
     const position = pb.cursor + pb.progress;
@@ -641,7 +790,10 @@ function createEngine(deps: EngineDeps) {
     const dt = lastTs === null ? 16.7 : Math.min(MAX_FRAME_MS, Math.max(0, now - lastTs));
     lastTs = now;
     advance(dt);
-    const settled = renderFrame(dt, false, false);
+    // A dead-ball cut happens under the restart card: snap, don't slide.
+    const snap = snapNext;
+    snapNext = false;
+    const settled = renderFrame(dt, snap, false);
     if (deps.playback.current.playing || !settled) {
       raf = window.requestAnimationFrame(tick);
     } else {
@@ -735,6 +887,17 @@ function createEngine(deps: EngineDeps) {
         refCallbacks.set(key, callback);
       }
       return callback;
+    },
+
+    /** 1 = whole pitch; above 1 the camera follows the ball. */
+    setZoom(next: number) {
+      zoom = next;
+      applyCamera();
+    },
+
+    layerRef(node: HTMLElement | null) {
+      layer = node;
+      applyCamera();
     },
 
     pitchRef(node: HTMLElement | null) {
@@ -892,6 +1055,7 @@ export function MatchPitchViewer({
   substitutions = EMPTY_SUBS,
   userPlan,
   opponentPlan,
+  userPossession,
   onReplayProgress,
   onReplayClock,
   expanded = false,
@@ -908,6 +1072,8 @@ export function MatchPitchViewer({
   substitutions?: MatchSubstitution[];
   userPlan?: MatchTeamPlan;
   opponentPlan?: MatchTeamPlan;
+  /** The match's real possession share for the user (0-100). Defaults to an even split. */
+  userPossession?: number;
   onReplayProgress?: (revealedEvents: number, complete: boolean) => void;
   onReplayClock?: (minute: number) => void;
   expanded?: boolean;
@@ -915,6 +1081,9 @@ export function MatchPitchViewer({
   userColours?: DotColours;
   opponentColours?: DotColours;
 }) {
+  const [viewMode, setViewMode] = useState<ViewMode>("condensed");
+  // Phones follow the ball; the expanded (large) view shows the whole pitch.
+  const [zoomed, setZoomed] = useState(!expanded);
   const { ctx, cache } = useMemo(
     () => ({
       ctx: {
@@ -925,10 +1094,12 @@ export function MatchPitchViewer({
         substitutions,
         userPlan,
         opponentPlan,
+        userPossession,
+        viewMode,
       } satisfies MatchContext,
       cache: new Map<number, EventPlan>(),
     }),
-    [opponentBench, opponentLineup, opponentPlan, substitutions, userBench, userLineup, userPlan],
+    [opponentBench, opponentLineup, opponentPlan, substitutions, userBench, userLineup, userPlan, userPossession, viewMode],
   );
 
   const latest = useRef<Latest>({ events, cache, ctx, usName, themName, onReplayProgress, onReplayClock });
@@ -963,6 +1134,10 @@ export function MatchPitchViewer({
     engine.refresh();
   }, [engine, ctx, usName, themName]);
 
+  useEffect(() => {
+    engine.setZoom(zoomed ? PHONE_ZOOM : 1);
+  }, [engine, zoomed]);
+
   useEffect(() => () => engine.dispose(), [engine]);
 
   const cursor = hud?.cursor ?? 0;
@@ -970,7 +1145,7 @@ export function MatchPitchViewer({
     () => planAt(cursor, events, cache, ctx, usName, themName),
     [cache, ctx, cursor, events, themName, usName],
   );
-  const view = hud ?? (plan ? hudFor(0, samplePlan(plan, 0)) : null);
+  const view = hud ?? (plan ? hudFor(0, samplePlan(plan, 0), plan, 0) : null);
   const minute = view?.minute ?? 0;
 
   const activeUserLineup = useMemo(
@@ -1002,7 +1177,7 @@ export function MatchPitchViewer({
   const passLabel =
     activeAction?.targetPlayerName && activeAction.playerName && PASS_KINDS.has(activeAction.kind)
       ? `${playerSurname(activeAction.playerName)} → ${playerSurname(activeAction.targetPlayerName)}`
-: null;
+      : null;
   const actionCommentary =
     activeAction?.commentary ??
     (view.inBridge && bridge
@@ -1013,6 +1188,25 @@ export function MatchPitchViewer({
     activeAction && ["save", "block", "miss"].includes(activeAction.kind) && view.badge;
   const showGoal = activeAction?.kind === "goal" && view.badge;
   const atLiveEdge = timeline.position >= timeline.frontier - 0.02;
+  const nonPlay = !plan.sequence && !view.inBridge ? plan.active : null;
+  const modeBadge = view.inBridge && bridge
+    ? `▶▶ ${bridge.fromMinute}′ → ${bridge.toMinute}′`
+    : nonPlay
+      ? nonPlay.type === "card"
+        ? "🟨 Booking"
+        : nonPlay.type === "sub"
+          ? "🔁 Substitution"
+          : nonPlay.type === "injury"
+            ? "✚ Injury"
+            : null
+      : plan.sequence
+        ? "Key moment"
+        : null;
+  const showPassLine = !!activeAction && PASS_KINDS.has(activeAction.kind);
+  const markers = events
+    .map((event, index) => ({ event, index }))
+    .filter(({ event, index }) => (event.type === "goal" || event.type === "chance" || event.type === "card") && index + 0.95 <= timeline.frontier);
+  const sliderMax = Math.max(0.001, timeline.frontier);
 
   return (
     <div
@@ -1021,17 +1215,30 @@ export function MatchPitchViewer({
         expanded ? "h-full flex-1 p-3 sm:p-4" : "border-b p-2.5 sm:p-3",
       )}
     >
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="min-w-0 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-300">
-          Live match simulation
-          {renderSequence && <span className="ml-2 text-white/45">· {renderSequence.styleLabel}</span>}
-        </div>
-        <div className="flex items-center gap-2 text-xs font-semibold tnum">
-          <span className="max-w-24 truncate">{usName}</span>
-          <strong className="rounded bg-black/25 px-2 py-0.5 font-display text-base">
-            {replayScore.us}–{replayScore.them}
-          </strong>
-          <span className="max-w-24 truncate text-white/65">{themName}</span>
+      <div className="mb-1.5 flex items-center justify-between gap-2 text-xs font-semibold tnum">
+        <span className="min-w-0 flex-1 truncate">{usName}</span>
+        <strong className="shrink-0 rounded bg-black/25 px-2 py-0.5 font-display text-base">
+          {replayScore.us}–{replayScore.them}
+        </strong>
+        <span className="min-w-0 flex-1 truncate text-right text-white/65">{themName}</span>
+      </div>
+      <div className="mb-2">
+        <div className="grid grid-cols-3 overflow-hidden rounded-lg border border-white/10 bg-white/5" role="radiogroup" aria-label="How much of the match to show">
+          {VIEW_MODES.map((mode) => (
+            <button
+              key={mode.id}
+              type="button"
+              role="radio"
+              aria-checked={viewMode === mode.id}
+              onClick={() => setViewMode(mode.id)}
+              className={cn(
+                "whitespace-nowrap px-1 py-1.5 text-[9px] font-bold uppercase tracking-wide",
+                viewMode === mode.id ? "bg-emerald-400 text-[#07130f]" : "text-white/60 hover:bg-white/10",
+              )}
+            >
+              {mode.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -1042,7 +1249,24 @@ export function MatchPitchViewer({
           expanded ? "aspect-[1.58/1] max-h-[calc(100dvh-17rem)] flex-1" : "aspect-[1.62/1] max-h-52",
         )}
       >
+        <div ref={engine.layerRef} className="absolute inset-0 will-change-transform">
         <PitchMarkings />
+
+        {showPassLine && activeAction && (
+          <svg className="pointer-events-none absolute inset-0 z-[5] h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <line
+              x1={activeAction.start.x}
+              y1={activeAction.start.y}
+              x2={activeAction.end.x}
+              y2={activeAction.end.y}
+              stroke="white"
+              strokeOpacity={0.4}
+              strokeWidth={1.5}
+              strokeDasharray="4 4"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
+        )}
 
         {renderSide(engine, activeUserLineup, "us", activeAction, expanded, userColours)}
         {renderSide(engine, activeOpponentLineup, "them", activeAction, expanded, opponentColours)}
@@ -1057,13 +1281,38 @@ export function MatchPitchViewer({
               <span className="block size-10 animate-ping rounded-full border-2 border-amber-300" />
             </span>
           )}
-          <span
-            className={cn(
-              "relative block -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-black/50 bg-white shadow-[0_0_0_3px_rgba(255,255,255,.18),0_1px_9px_rgba(0,0,0,.9)]",
-              expanded ? "size-3.5" : "size-3",
-            )}
-          />
+          {/* Ground shadow stays put; the ball rises above it on lofted passes. */}
+          <span className="absolute left-0 top-0 block h-1.5 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/40 blur-[1px]" />
+          <span className="block" style={{ transform: "translateY(calc(-1 * var(--lift, 0px)))" }}>
+            <span
+              className={cn(
+                "relative block -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-black/50 bg-white shadow-[0_0_0_3px_rgba(255,255,255,.18),0_1px_9px_rgba(0,0,0,.9)]",
+                expanded ? "size-3.5" : "size-3",
+              )}
+            />
+          </span>
         </div>
+        </div>
+
+        {modeBadge && (
+          <div
+            className={cn(
+              "absolute left-2 top-2 z-30 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wide shadow-sm",
+              view.inBridge ? "bg-black/55 text-white/80" : nonPlay ? "bg-amber-300 text-amber-950" : "bg-emerald-400 text-[#07130f]",
+            )}
+          >
+            {modeBadge}
+          </div>
+        )}
+
+        {view.cutLabel && (
+          <div className="absolute inset-0 z-50 grid place-items-center bg-[#07130f]/75 backdrop-blur-[2px]" aria-live="polite">
+            <div className="rounded-xl border border-white/15 bg-black/60 px-4 py-2 text-center">
+              <div className="font-display text-2xl leading-none tnum">{view.minute}′</div>
+              <div className="mt-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300">{view.cutLabel}</div>
+            </div>
+          </div>
+        )}
 
         {passLabel && (
           <div className="absolute left-1/2 top-3 z-30 -translate-x-1/2 rounded-full border border-white/15 bg-black/60 px-3 py-1 text-[10px] font-bold text-white/85 shadow-sm backdrop-blur-sm">
@@ -1082,11 +1331,19 @@ export function MatchPitchViewer({
           </div>
         )}
 
-        <div className="absolute bottom-2 left-2 rounded bg-black/45 px-2 py-1 text-[10px] font-bold tnum backdrop-blur-sm">
-          {view.minute}'
+        <div className="absolute bottom-2 left-2 flex items-center gap-1">
+          <span className="rounded bg-black/45 px-2 py-1 text-[10px] font-bold tnum backdrop-blur-sm">{view.minute}'</span>
+          <button
+            type="button"
+            onClick={() => setZoomed((value) => !value)}
+            className="rounded bg-black/45 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-white/75 backdrop-blur-sm"
+            aria-pressed={zoomed}
+          >
+            {zoomed ? "Whole pitch" : "Follow ball"}
+          </button>
         </div>
         <div className="absolute bottom-2 right-2 rounded bg-black/45 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-white/75 backdrop-blur-sm">
-          {view.inBridge ? "Match flow" : actionStage(activeAction, plan.active)}
+          {view.inBridge ? "Condensed play" : actionStage(activeAction, plan.active)}
         </div>
       </div>
 
@@ -1121,8 +1378,30 @@ export function MatchPitchViewer({
           >
             {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
           </button>
+          <div className="relative min-w-0 flex-1">
+          <div className="pointer-events-none absolute inset-x-0 -top-3 h-2.5">
+            {markers.map(({ event, index }) => (
+              <button
+                key={`${index}-${event.minute}`}
+                type="button"
+                title={`${event.minute}′ ${event.text}`}
+                onClick={() => engine.seek(index, 0, { snap: true, play: false })}
+                className={cn(
+                  "pointer-events-auto absolute top-0 -translate-x-1/2 rounded-full",
+                  event.type === "goal"
+                    ? "size-2.5 bg-amber-300 ring-1 ring-black/40"
+                    : event.type === "card"
+                      ? "h-2 w-1.5 rounded-[1px] bg-yellow-300"
+                      : "size-1.5 bg-white/55",
+                  event.side === "them" && event.type !== "card" && "opacity-60",
+                )}
+                style={{ left: `${((index + 0.95) / sliderMax) * 100}%` }}
+                aria-label={`Replay ${event.minute}′ ${event.type}`}
+              />
+            ))}
+          </div>
           <input
-            className="h-1.5 min-w-0 flex-1 cursor-pointer accent-emerald-400"
+            className="h-1.5 w-full cursor-pointer accent-emerald-400"
             type="range"
             min={0}
             max={Math.max(0.001, timeline.frontier)}
@@ -1142,6 +1421,7 @@ export function MatchPitchViewer({
             }}
             aria-label="Rewind through the portion of the match already played"
           />
+          </div>
           <div className="flex shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white/5">
             {PLAYBACK_SPEEDS.map((option) => (
               <button
