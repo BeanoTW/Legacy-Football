@@ -3,6 +3,8 @@ import type { GameState, Stand } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
 import { Slider } from "@/components/ui/slider";
 import { avgTicketPrice, fmtMoney, totalCapacity } from "@/lib/game/engine";
+import { expectedHomeAttendance, recommendedAveragePrice, ticketPriceReference } from "@/lib/game/ticketForecast";
+import { priceDemandFactor } from "@/lib/game/ticketPricing";
 import { InfoTip } from "./shared/primitives";
 import { DetailScreen } from "./shared/layout";
 
@@ -21,24 +23,18 @@ export function TicketsTab({
       ),
     }));
 
-  const refPrice = 15 + state.reputation * 0.4;
-  // Each stand's recommendation nudges around the market ref based on its
-  // condition (better stand → fans tolerate slightly higher prices).
-  const recFor = (st: Stand) => Math.max(5, Math.round(refPrice * (0.85 + st.condition / 400)));
-  // A rough "league average" — slight variance around the market ref.
-  const leagueAvg = refPrice * 0.98;
-
+  // Match the reference price and demand curve used by the real simulation.
+  const refPrice = ticketPriceReference(state);
+  const recommended = recommendedAveragePrice(state);
+  const recFor = (st: Stand) => Math.max(5, Math.round(recommended * (0.86 + st.condition / 500)));
+  const totalStandCap = state.stands.reduce((a, st) => a + st.capacity, 0);
+  const crowd = expectedHomeAttendance(state);
   const rows = state.stands.map((st) => {
-    const priceFactor = Math.max(
-      0.15,
-      1 - Math.pow(Math.max(0, st.ticketPrice - refPrice) / refPrice, 1.4),
-    );
-    const happiness = 0.55 + state.fanHappiness / 200;
-    const estAtt = Math.round(st.capacity * priceFactor * happiness);
+    const estAtt = totalStandCap > 0 ? Math.round(crowd * st.capacity / totalStandCap) : 0;
     const revenue = estAtt * st.ticketPrice;
     const rec = recFor(st);
     const delta = st.ticketPrice - rec;
-    return { st, estAtt, revenue, priceFactor, rec, delta };
+    return { st, estAtt, revenue, rec, delta };
   });
   const totalEstAtt = rows.reduce((a, r) => a + r.estAtt, 0);
   const totalRev = rows.reduce((a, r) => a + r.revenue, 0);
@@ -74,9 +70,9 @@ export function TicketsTab({
   return (
     <DetailScreen title="Ticket pricing" subtitle="Set stand prices and watch demand respond."
       actions={<InfoTip label="How ticket pricing works">
-        Fans compare prices with a market reference of <strong>£{refPrice.toFixed(2)}</strong>, based on reputation ({state.reputation.toFixed(0)}).
-        Stand recommendations also reflect condition. High prices reduce demand and can affect fan happiness and reputation.
-        League average is approximately £{leagueAvg.toFixed(2)}.
+        Fans compare your average ticket price with the reference for your level and reputation:
+        <strong> £{refPrice.toFixed(2)}</strong>. The gate-maximising average is around
+        <strong> £{recommended.toFixed(2)}</strong>. Higher prices reduce demand and can affect fan happiness.
       </InfoTip>}>
       <div className="lf-tickets space-y-2">
         <section className="grid grid-cols-4 divide-x overflow-hidden rounded-xl border bg-card text-center shadow-sm">
@@ -104,7 +100,7 @@ export function TicketsTab({
             </button>
           </div>
           <div className="divide-y md:grid md:grid-cols-2 md:divide-y-0">
-            {rows.map(({ st, estAtt, revenue, priceFactor, rec, delta }) => {
+            {rows.map(({ st, estAtt, revenue, rec, delta }) => {
               const ratio = st.ticketPrice / rec;
               const tone = ratio > 1.25 ? "bad" : ratio > 1.08 ? "warn" : ratio < 0.9 ? "under" : "ok";
               return <div key={st.key} className="lf-stand-row px-3 py-2">
@@ -118,12 +114,8 @@ export function TicketsTab({
                 <Slider className="mt-2" min={5} max={80} step={1} value={[st.ticketPrice]}
                   onValueChange={([value]) => setPrice(st.key, value)} aria-label={`${st.name} ticket price`} />
                 <div className="mt-1.5 flex items-center gap-2 text-[11px] tnum">
-                  <span className="text-muted-foreground">Demand{" "}
-                    <span className={cn("font-semibold",
-                      priceFactor > 0.75 && "text-[color:var(--color-income)]",
-                      priceFactor > 0.4 && priceFactor <= 0.75 && "text-amber-600",
-                      priceFactor <= 0.4 && "text-[color:var(--color-expense)]",
-                    )}>{(priceFactor * 100).toFixed(0)}%</span>
+                  <span className="text-muted-foreground">Average price demand{" "}
+                    <span className="font-semibold">{Math.round(priceDemandFactor(avgPrice, refPrice) * 100)}%</span>
                   </span>
                   <button type="button" onClick={() => setPrice(st.key, rec)}
                     title="Set to recommended"
