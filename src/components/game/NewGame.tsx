@@ -36,9 +36,10 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
   };
 
   return (
-    <div className="h-dvh min-h-0 overflow-y-auto overscroll-contain bg-background [touch-action:pan-y] [-webkit-overflow-scrolling:touch]">
+    <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-background">
       <TopBar title="Legacy Football" subtitle="Build a club legacy from non-league to the top" />
-      <div className="mx-auto max-w-xl px-3 py-5 pb-[calc(2rem+env(safe-area-inset-bottom))] sm:px-4 sm:py-8">
+      <div data-testid="new-career-scroll" className="min-h-0 w-full flex-1 overflow-y-auto overscroll-contain [touch-action:pan-y] [-webkit-overflow-scrolling:touch]">
+      <div className="mx-auto max-w-xl px-3 py-4 pb-6 sm:px-4 sm:py-8">
         <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
           <div className="banner-strip px-4 py-2 text-sm">New Club Setup</div>
           <div className="space-y-4 p-4 sm:p-6">
@@ -107,10 +108,16 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
               </div>
             </div>
             {activeSlotUnreadable && <p role="alert" className="rounded-lg border border-amber-500 bg-amber-500/10 p-3 text-xs">This career could not be read. Its original save is protected. Select a different slot; do not clear this slot or browser data.</p>}
-            <Button type="button" className="min-h-11 w-full" disabled={!club.trim() || activeSlotUnreadable} onClick={start}>
-              <Play className="mr-2 size-4" /> Start Season
-            </Button>
+
           </div>
+        </div>
+      </div>
+      </div>
+      <div className="z-10 shrink-0 border-t border-border bg-card/95 px-3 py-2 shadow-[0_-4px_16px_rgba(0,0,0,.08)] [padding-bottom:calc(.5rem+env(safe-area-inset-bottom))]">
+        <div className="mx-auto max-w-xl">
+          <Button type="button" className="min-h-11 w-full text-sm font-bold" disabled={!club.trim() || activeSlotUnreadable} onClick={start}>
+            <Play className="mr-2 size-4" /> Start Season
+          </Button>
         </div>
       </div>
       <ChairmanStudio open={studioOpen} onOpenChange={setStudioOpen} />
