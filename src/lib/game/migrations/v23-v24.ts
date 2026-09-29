@@ -24,7 +24,7 @@ export const COMMERCIAL_UNIFICATION_MIGRATIONS: Migration[] = [
     from: 23,
     to: 24,
     describe: "Move remaining legacy sponsorship into Commercial contracts",
-    up(save) {
+    up(save, ctx) {
       const state = save as unknown as GameState;
       ensureCommercial(state);
 
@@ -45,8 +45,13 @@ export const COMMERCIAL_UNIFICATION_MIGRATIONS: Migration[] = [
         ).toString(36)}`;
         if (state.commercial.contracts.some((contract) => contract.id === contractId)) continue;
 
-        const category = CATEGORIES.find((candidate) => !occupied.has(candidate));
-        if (!category) break;
+        const freeCategory = CATEGORIES.find((candidate) => !occupied.has(candidate));
+        // Existing v23 saves can already hold a full Commercial portfolio.
+        // Preserve every paid legacy agreement even when no slot is vacant;
+        // report the category collision instead of silently dropping income.
+        const category = freeCategory ?? CATEGORIES[index % CATEGORIES.length];
+        if (!freeCategory) ctx.warn("commercial/category-collision",
+          `Preserved legacy sponsor ${sponsor.name} in an occupied ${category} category`);
 
         const sponsorId = `legacy-sponsor-${hashString(
           `${state.saveSeed}|v24-sponsor|${index}|${sponsor.name}`,
