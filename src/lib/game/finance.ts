@@ -1061,7 +1061,8 @@ export function projectedHomeMatchIncome(s: GameState): number {
     (0.6 + (s.fanHappiness ?? 60) / 165) *
     0.99 *
     (0.9 + 60 / 600) *
-    facilityModifiers(s).attendanceConvenience;
+    facilityModifiers(s).attendanceConvenience *
+    facilityModifiers(s).supporterDemand;
   const priceEffect = priceDemandFactor(avgPrice, ticketReferencePrice(profile, s.reputation ?? 50));
   const attendance = Math.max(0, Math.min(capacity, int(demand * priceEffect)));
   const spend = profile.ticketPriceReference / 20;
