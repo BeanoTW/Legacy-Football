@@ -32,6 +32,7 @@ import {
   liveOpponentStrength,
 } from "../matchday";
 import { reconcile, matchdayKey } from "../finance";
+import { matchdayBroadcastFee } from "../matchdayEconomy";
 import { fixtureId as makeFixtureId, tableFor, playerLeagueId } from "../league";
 import type { GameState } from "../types";
 
@@ -387,7 +388,7 @@ console.log("\n[F] Full-time");
   );
   check(
     "F23c. tv income comes from the finance stream",
-    ft.liveMatch!.tvIncome === liveTvIncome(seedOf(ft.liveMatch!)),
+    ft.liveMatch!.tvIncome === matchdayBroadcastFee(ft, matchStream(seedOf(ft.liveMatch!), "finance")()),
   );
   check(
     "F24. full-time state survives reload",

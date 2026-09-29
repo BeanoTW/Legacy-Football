@@ -79,7 +79,7 @@ export function FinancialHealthPanel({ state }: { state: GameState }) {
         <div className="mt-2 grid grid-cols-3 divide-x rounded-lg bg-muted/40 text-center">
           <Mini label="Committed wages" value={fmtMoney(snap.committedWages)} />
           <Mini label="Capital" value={fmtMoney(snap.capitalCommitments)} />
-          <Mini label="Ground use" value={`${capacity.occupancy}%`} />
+          <Mini label="Ground use" value={`${Math.round(capacity.occupancy * 100)}%`} />
         </div>
       </section>
     </div>

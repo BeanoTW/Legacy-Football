@@ -39,7 +39,7 @@ const NATIVE_LOWER_LEVEL_PROFILES: Partial<Record<FootballLevel, LeagueEconomicP
     },
     staffCostFactor: 0.19,
     matchdayCostFactor: 0.2,
-    infrastructureCostFactor: 0.25,
+    infrastructureCostFactor: 0.09,
     expectedWageRevenueRatio: 0.44,
     transferMarketScale: 0.035,
     prize: {
@@ -68,7 +68,7 @@ const NATIVE_LOWER_LEVEL_PROFILES: Partial<Record<FootballLevel, LeagueEconomicP
     },
     staffCostFactor: 0.12,
     matchdayCostFactor: 0.13,
-    infrastructureCostFactor: 0.17,
+    infrastructureCostFactor: 0.06,
     expectedWageRevenueRatio: 0.4,
     transferMarketScale: 0.015,
     prize: {

@@ -19,9 +19,9 @@ import {
   matchStream,
   seedOf,
   weatherFor,
-  liveTvIncome,
   liveOpponentStrength,
 } from "./matchday";
+import { matchdayBroadcastFee, matchdayOperatingCost } from "./matchdayEconomy";
 import { avgTicketPrice, simAttendance } from "./sim";
 import { clubMatchStrength, userMatchStrength } from "./matchStrength";
 import { advancePlayerClubPerformanceWeekInPlace } from "./playerClubPerformance";
@@ -247,8 +247,8 @@ export function applyHalfTimeChoice(s: GameState, choiceId: string): GameState {
   lm.theirGoals += themGoals;
   lm.attendance = lm.fixture.home ? lm.projectedAttendance : 0;
   lm.gateReceipts = Math.round(lm.attendance * avgTicketPrice(ns));
-  lm.tvIncome = liveTvIncome(seedBase);
-  lm.matchdayOps = lm.fixture.home ? Math.round(6_500 + lm.attendance * 0.4) : 3_200;
+  lm.tvIncome = matchdayBroadcastFee(ns, matchStream(seedBase, "finance")());
+  lm.matchdayOps = matchdayOperatingCost(ns, lm.fixture.home, lm.attendance);
   const result: "W" | "D" | "L" =
     lm.ourGoals > lm.theirGoals ? "W" : lm.ourGoals === lm.theirGoals ? "D" : "L";
   lm.winBonus = result === "W" ? opt.winBonusCost : 0;

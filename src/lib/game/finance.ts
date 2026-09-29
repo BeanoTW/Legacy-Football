@@ -51,6 +51,8 @@ import {
 } from "./levelEconomy";
 import { footballLevelOfLeague, footballLevelOfUser } from "./footballLevel";
 import { clubReputation } from "./reputation";
+import { priceDemandFactor, ticketReferencePrice } from "./ticketPricing";
+import { facilityModifiers } from "./infrastructure";
 import { archivedFinanceGuard, archivedNet, archivedTrailingLossWeeks } from "./archive";
 
 export const SEASON_WEEKS = 46;
@@ -444,8 +446,14 @@ export const recurringWeeklyExpenditure = (s: GameState) =>
 
 /** Recurring revenue used for wage-ratio and forecasting denominators. */
 export function weeklyRevenueEstimate(s: GameState): number {
+  // Opening deposits, prize money and transfer fees are not recurring revenue.
   const banked = (s.financeLedger ?? []).filter(
-    (e) => e.direction === "income" && e.absoluteWeek < absoluteWeek(s.season, s.week),
+    (e) =>
+      e.direction === "income" &&
+      e.absoluteWeek < absoluteWeek(s.season, s.week) &&
+      e.sourceSystem !== "engine.opening" &&
+      e.category !== "Prize Money" &&
+      e.category !== "Transfers",
   );
   if (banked.length) {
     const weeks = new Set(banked.map((e) => e.absoluteWeek)).size;
@@ -1047,15 +1055,31 @@ export function remainingHomeFixtures(s: GameState): number {
 
 /** Averaged, deterministic projection of one home gate. */
 export function projectedHomeMatchIncome(s: GameState): number {
+  const level = footballLevelOfUser(s);
+  const profile = economicProfileForLevel(level);
   const capacity = (s.stands ?? []).reduce((a, b) => a + b.capacity, 0);
   const avgPrice = capacity
     ? (s.stands ?? []).reduce((a, b) => a + b.ticketPrice * b.capacity, 0) / capacity
     : 0;
-  const occupancy = clamp(0.35 + (s.fanHappiness ?? 60) / 250, 0.3, 0.95);
-  const attendance = int(capacity * occupancy);
-  const tickets = int(attendance * avgPrice);
-  const ops = int(6_500 + attendance * 0.4);
-  return tickets + hospitalityFor(attendance) + concessionsFor(attendance) - ops;
+  // Match the simulation's demand-led crowd rather than treating empty seats as fans.
+  const demand =
+    profile.typicalAttendance *
+    clubSizeFactor(s.reputation ?? 50) *
+    (0.6 + (s.fanHappiness ?? 60) / 165) *
+    0.99 *
+    (0.9 + 60 / 600) *
+    facilityModifiers(s).attendanceConvenience;
+  const priceEffect = priceDemandFactor(avgPrice, ticketReferencePrice(profile, s.reputation ?? 50));
+  const attendance = Math.max(0, Math.min(capacity, int(demand * priceEffect)));
+  const spend = profile.ticketPriceReference / 20;
+  const ops = int((4_200 + attendance * 1.35) * profile.matchdayCostFactor);
+  return (
+    int(attendance * avgPrice) +
+    hospitalityFor(attendance, 1, spend) +
+    concessionsFor(attendance, 1, spend) +
+    parkingFor(attendance, 1, spend) -
+    ops
+  );
 }
 
 /** Payments the club already knows about: expiring inbox commitments. */
