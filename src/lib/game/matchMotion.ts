@@ -397,7 +397,8 @@ function sideTargets(
       }
       if (PASS_ACTIONS.has(action.kind) || action.kind === "shot" || DEFENSIVE_ACTIONS.has(action.kind)) {
         next.set(id, { ...action.start });
-        continue;      }
+        continue;
+      }
     }
     if (target) {
       if (PASS_ACTIONS.has(action.kind)) {
