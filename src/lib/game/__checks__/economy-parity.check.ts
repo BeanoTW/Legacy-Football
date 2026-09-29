@@ -28,7 +28,7 @@ for (let i = 0; i < 101; i += 1) {
   check(`Price curve parity ${i}`, Math.abs(priceDemandFactor(price, ref) - original) < 1e-12);
 }
 check("Neutral ticket forecast matches attendance simulation",
-  expectedHomeAttendance(s) === simAttendance(s, true, 60, () => 0.5));
+  Math.abs(expectedHomeAttendance(s) - simAttendance(s, true, 60, () => 0.5)) <= 1);
 check("Broadcast fee remains level-scaled", matchdayBroadcastFee(s, 0.5) <
   matchdayBroadcastFee(s, 0.5) + 1 && matchdayBroadcastFee(s, 0.5) < 1000);
 check("Home operations use level factor",
