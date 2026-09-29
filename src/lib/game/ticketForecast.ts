@@ -29,4 +29,3 @@ export const expectedHomeAttendance = (s: GameState, opponentStrength = 60): num
 
 export const recommendedAveragePrice = (s: GameState): number =>
   gateMaximisingPrice(unpricedDemand(s), usableCapacity(s), ticketPriceReference(s));
-}
