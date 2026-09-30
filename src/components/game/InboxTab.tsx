@@ -41,11 +41,13 @@ import {
   handleInboxChoice,
   markInboxRead,
   requiresInboxDecision,
+  resolvePressConference,
   unreadCount,
 } from "@/lib/game/inbox";
 import { absoluteWeek, fromAbsoluteWeek } from "@/lib/game/time";
 import { inboxConversationCount, inboxConversationItems } from "@/lib/game/inboxCommunication";
 import { SeasonObjectivesDashboard } from "./SeasonObjectivesDashboard";
+import { PressConferenceOverlay } from "./PressConferenceOverlay";
 
 export type InboxFilter = "all" | "unread" | "decisions" | "archive";
 
@@ -459,15 +461,26 @@ export function InboxTab({
       </div>
 
       {open && (
-        <InboxDetail
-          item={open}
-          state={state}
-          onClose={() => !decisionQueue && setOpenId(null)}
-          onChoose={(choiceId) => { update((current) => handleInboxChoice(current, open.id, choiceId)); setOpenId(null); }}
-          onDismiss={() => { update((current) => dismissInboxItem(current, open.id)); setOpenId(null); }}
-          onDelete={() => { update((current) => deleteInboxItem(current, open.id)); setOpenId(null); }}
-          onNavigate={onNavigate ? (destination) => { setOpenId(null); onNavigate(destination); } : undefined}
-        />
+        open.generatorId === "random-incident-press" && requiresInboxDecision(open) ? (
+          <PressConferenceOverlay
+            item={open}
+            state={state}
+            onComplete={(firstChoiceId, laterEffects) => {
+              update((current) => resolvePressConference(current, open.id, firstChoiceId, laterEffects));
+              setOpenId(null);
+            }}
+          />
+        ) : (
+          <InboxDetail
+            item={open}
+            state={state}
+            onClose={() => !decisionQueue && setOpenId(null)}
+            onChoose={(choiceId) => { update((current) => handleInboxChoice(current, open.id, choiceId)); setOpenId(null); }}
+            onDismiss={() => { update((current) => dismissInboxItem(current, open.id)); setOpenId(null); }}
+            onDelete={() => { update((current) => deleteInboxItem(current, open.id)); setOpenId(null); }}
+            onNavigate={onNavigate ? (destination) => { setOpenId(null); onNavigate(destination); } : undefined}
+          />
+        )
       )}
     </div>
   );
