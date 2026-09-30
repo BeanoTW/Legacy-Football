@@ -189,6 +189,11 @@ export interface InboxItem {
   consequenceApplied?: boolean;
   /** Absolute week the player's choice was applied. Guards against double-apply. */
   resolvedAtAbsoluteWeek?: number;
+  /** Persisted transcript/outcome for interactive chairman press conferences. */
+  pressConference?: {
+    outcome: string;
+    exchanges: { question: string; answer: string }[];
+  };
 }
 
 export interface ScheduledGenerator {
