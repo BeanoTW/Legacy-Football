@@ -190,6 +190,23 @@ function DecisionSummaryGrid({ items }: { items: DecisionSummaryItem[] }) {
   );
 }
 
+function financeRowTone(label: string, value: string): "income" | "expense" | "positive" | "negative" | "neutral" {
+  const lower = label.trim().toLowerCase();
+
+  if (/closing balance|balance|bank/.test(lower)) return "neutral";
+  if (/income|gate|tv|sponsor|commercial|merch|prize|grant|transfer income|player sales|sale proceeds/.test(lower)) {
+    return "income";
+  }
+  if (/outgoings|expense|player wages|staff wages|wages|stadium ops|stadium costs|training|maintenance|matchday|facilit|scouting|medical|travel|transfer spend|transfer fees|signing bonus/.test(lower)) {
+    return "expense";
+  }
+  if (/net|profit|loss|surplus|deficit/.test(lower)) {
+    const numeric = Number(value.replace(/[£,\s]/g, "").replace(/[kK]$/, "000").replace(/[mM]$/, "000000"));
+    return Number.isFinite(numeric) && numeric < 0 ? "negative" : "positive";
+  }
+  return "neutral";
+}
+
 function BriefingBody({ body, department }: { body: string; department?: InboxDepartment }) {
   const financial = department === "Finance" ? financeRows(body) : null;
   const objectives = department === "Board of Directors" ? boardObjectiveRows(body) : null;
@@ -199,11 +216,24 @@ function BriefingBody({ body, department }: { body: string; department?: InboxDe
   if (financial) {
     return (
       <div className="lf-finance-summary">
-        {financial.map((row) => (
-          <div className={cn("lf-finance-row", /^(income|outgoings|closing balance)$/i.test(row.label) && "is-total")} key={row.label}>
-            <span>{row.label}</span><strong>{row.value}</strong>
-          </div>
-        ))}
+        {financial.map((row) => {
+          const tone = financeRowTone(row.label, row.value);
+          return (
+            <div
+              className={cn(
+                "lf-finance-row",
+                /^(income|outgoings|closing balance|net|weekly net)$/i.test(row.label) && "is-total",
+                tone === "income" && "is-income",
+                tone === "expense" && "is-expense",
+                tone === "positive" && "is-positive",
+                tone === "negative" && "is-negative",
+              )}
+              key={row.label}
+            >
+              <span>{row.label}</span><strong>{row.value}</strong>
+            </div>
+          );
+        })}
       </div>
     );
   }
