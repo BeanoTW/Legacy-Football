@@ -250,3 +250,120 @@
   .dense-panel { border-radius: 0.75rem; }
   .dense-panel-row { padding-block: 0.375rem; }
 }
+
+
+/* Chairman inbox: compact, tappable response tiles.
+   Keep the existing decision handlers and availability logic in InboxTab. */
+.lf-decision-grid {
+  display: grid;
+  gap: 0.625rem;
+}
+
+button.lf-decision-card.lf-choice-tile {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: 5.25rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.875rem;
+  overflow: hidden;
+  padding: 1rem 1.125rem 1rem 1.375rem;
+  border: 1px solid rgb(110 196 179 / 29%);
+  border-radius: 0.875rem;
+  background: linear-gradient(115deg, rgb(23 75 70 / 93%), rgb(11 48 47 / 94%));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 6%), 0 3px 12px rgb(0 0 0 / 12%);
+  color: #f4f4e9;
+  text-align: left;
+  white-space: normal;
+  transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+button.lf-decision-card.lf-choice-tile::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: #d3ae72;
+  content: "";
+}
+
+button.lf-decision-card.lf-choice-tile .lf-choice-tile-copy {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+}
+
+button.lf-decision-card.lf-choice-tile .lf-choice-tile-copy strong {
+  color: #f6f1e5;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.25rem;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+button.lf-decision-card.lf-choice-tile .lf-choice-tile-copy small {
+  color: #b4cbc4;
+  font-size: 0.825rem;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+button.lf-decision-card.lf-choice-tile .lf-choice-tile-copy em {
+  color: #e8b5a5;
+  font-size: 0.78rem;
+  font-style: normal;
+  line-height: 1.4;
+}
+
+button.lf-decision-card.lf-choice-tile .lf-choice-tile-arrow {
+  display: grid;
+  flex: 0 0 2rem;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 1px solid rgb(218 190 137 / 30%);
+  border-radius: 0.625rem;
+  background: rgb(218 190 137 / 9%);
+  color: #d9b87e;
+}
+
+button.lf-decision-card.lf-choice-tile .lf-choice-tile-arrow svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+@media (hover: hover) {
+  button.lf-decision-card.lf-choice-tile:not(:disabled):hover {
+    border-color: rgb(150 225 203 / 65%);
+    background: linear-gradient(115deg, rgb(28 94 82 / 98%), rgb(15 64 58 / 98%));
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 10%), 0 5px 18px rgb(0 0 0 / 18%);
+    transform: translateY(-1px);
+  }
+}
+
+button.lf-decision-card.lf-choice-tile:not(:disabled):active {
+  transform: scale(0.99);
+  background: linear-gradient(115deg, rgb(31 106 89 / 98%), rgb(19 78 67 / 98%));
+}
+
+button.lf-decision-card.lf-choice-tile:focus-visible {
+  outline: 2px solid #a0e7cb;
+  outline-offset: 3px;
+}
+
+button.lf-decision-card.lf-choice-tile:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button.lf-decision-card.lf-choice-tile {
+    transition: none;
+  }
+}
