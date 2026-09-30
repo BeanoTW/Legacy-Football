@@ -78,7 +78,6 @@ export function HistoryTab({ state }: { state: GameState }) {
                     <th>Apps</th>
                     <th>Starts</th>
                     <th>Sub</th>
-                    <th>Min</th>
                     <th>Goals</th>
                     <th>Assists</th>
                     <th>Rating</th>
@@ -91,7 +90,6 @@ export function HistoryTab({ state }: { state: GameState }) {
                       <td className="text-center">{player.appearances}</td>
                       <td className="text-center">{player.starts}</td>
                       <td className="text-center">{player.substituteAppearances}</td>
-                      <td className="text-center">{player.minutes}</td>
                       <td className="text-center">{player.goals}</td>
                       <td className="text-center">{player.assists}</td>
                       <td className="text-center">{player.averageRating.toFixed(2)}</td>
