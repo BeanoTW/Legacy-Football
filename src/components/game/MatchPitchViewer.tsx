@@ -7,7 +7,7 @@ import {
   useState,
   type MutableRefObject,
 } from "react";
-import { Pause, Play, RotateCcw } from "lucide-react";
+import { Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import type {
   MatchEvent,
   MatchLineupPlayer,
@@ -33,6 +33,18 @@ import {
 } from "@/lib/game/matchSequence";
 import { motionFrameForSequence } from "@/lib/game/matchMotion";
 import { cn } from "@/lib/utils";
+import {
+  enterMatch,
+  exitMatch,
+  onSoundSettingsChange,
+  playKick,
+  playReaction,
+  playWhistle,
+  setCrowdIntensity,
+  soundSettings,
+  unlockAudio,
+  updateSoundSettings,
+} from "@/lib/audio/soundscape";
 
 /*
  * Rendering architecture
@@ -1140,6 +1152,31 @@ export function MatchPitchViewer({
 
   useEffect(() => () => engine.dispose(), [engine]);
 
+  useEffect(() => {
+    enterMatch();
+    return () => exitMatch();
+  }, []);
+  const [soundOn, setSoundOn] = useState(() => {
+    const settings = soundSettings();
+    return settings.effects || settings.crowd;
+  });
+  useEffect(
+    () =>
+      onSoundSettingsChange(() => {
+        const settings = soundSettings();
+        setSoundOn(settings.effects || settings.crowd);
+      }),
+    [],
+  );
+  const [celebrate, setCelebrate] = useState(0);
+  const [celebrating, setCelebrating] = useState(false);
+  useEffect(() => {
+    if (!celebrate) return;
+    setCelebrating(true);
+    const timer = window.setTimeout(() => setCelebrating(false), 2_600);
+    return () => window.clearTimeout(timer);
+  }, [celebrate]);
+
   const cursor = hud?.cursor ?? 0;
   const plan = useMemo(
     () => planAt(cursor, events, cache, ctx, usName, themName),
@@ -1207,6 +1244,10 @@ export function MatchPitchViewer({
     .map((event, index) => ({ event, index }))
     .filter(({ event, index }) => (event.type === "goal" || event.type === "chance" || event.type === "card") && index + 0.95 <= timeline.frontier);
   const sliderMax = Math.max(0.001, timeline.frontier);
+  const live = playing && atLiveEdge;
+  const cueKey = `${view.cursor}:${view.inBridge ? "b" : "c"}:${view.actionIndex}`;
+  const reachedEnd = !playing && atLiveEdge && view.cursor === events.length - 1 && view.minute >= 45;
+  const confettiColours = [userColours?.fill ?? "#34d399", userColours?.edge ?? "#fbbf24", "#ffffff"];
 
   return (
     <div
@@ -1245,6 +1286,7 @@ export function MatchPitchViewer({
       <div
         ref={engine.pitchRef}
         className={cn(
+          celebrating && "lf-shake",
           "relative w-full overflow-hidden rounded-2xl border border-white/25 bg-[linear-gradient(90deg,#17764f_0%,#17764f_12.5%,#1b8056_12.5%,#1b8056_25%,#17764f_25%,#17764f_37.5%,#1b8056_37.5%,#1b8056_50%,#17764f_50%,#17764f_62.5%,#1b8056_62.5%,#1b8056_75%,#17764f_75%,#17764f_87.5%,#1b8056_87.5%,#1b8056_100%)] shadow-inner",
           expanded ? "aspect-[1.58/1] max-h-[calc(100dvh-17rem)] flex-1" : "aspect-[1.62/1] max-h-52",
         )}
@@ -1293,6 +1335,39 @@ export function MatchPitchViewer({
           </span>
         </div>
         </div>
+
+        <MatchSoundCues
+          live={live}
+          cueKey={cueKey}
+          action={activeAction}
+          inBridge={view.inBridge}
+          booking={nonPlay?.type === "card"}
+          cutLabel={view.cutLabel}
+          cursor={view.cursor}
+          reachedEnd={reachedEnd}
+          eventCount={events.length}
+          minute={view.minute}
+          onOurGoal={() => setCelebrate((value) => value + 1)}
+        />
+
+        {celebrating && (
+          <div className="lf-confetti-layer pointer-events-none absolute inset-0 z-[60] overflow-hidden" aria-hidden="true">
+            {Array.from({ length: 36 }, (_, index) => (
+              <span
+                key={`${celebrate}-${index}`}
+                className="lf-confetti"
+                style={{
+                  left: `${((index * 61) % 97) + ((index * 13) % 3)}%`,
+                  background: confettiColours[index % confettiColours.length],
+                  animationDelay: `${((index * 7) % 13) * 70}ms`,
+                  animationDuration: `${2000 + ((index * 11) % 7) * 120}ms`,
+                  ["--drift" as string]: `${((index * 53) % 60) - 30}px`,
+                  ["--spin" as string]: `${((index * 97) % 720) - 360}deg`,
+                }}
+              />
+            ))}
+          </div>
+        )}
 
         {modeBadge && (
           <div
@@ -1422,6 +1497,18 @@ export function MatchPitchViewer({
             aria-label="Rewind through the portion of the match already played"
           />
           </div>
+          <button
+            type="button"
+            className="grid size-9 shrink-0 place-items-center rounded-lg bg-white/10 hover:bg-white/20"
+            onClick={() => {
+              unlockAudio();
+              updateSoundSettings({ effects: !soundOn, crowd: !soundOn });
+            }}
+            aria-label={soundOn ? "Mute match sound" : "Turn match sound on"}
+            aria-pressed={soundOn}
+          >
+            {soundOn ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
+          </button>
           <div className="flex shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white/5">
             {PLAYBACK_SPEEDS.map((option) => (
               <button
@@ -1479,3 +1566,102 @@ export function MatchPitchViewer({
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/* Sound cues                                                          */
+/* ------------------------------------------------------------------ */
+
+function MatchSoundCues({
+  live,
+  cueKey,
+  action,
+  inBridge,
+  booking,
+  cutLabel,
+  cursor,
+  reachedEnd,
+  eventCount,
+  minute,
+  onOurGoal,
+}: {
+  live: boolean;
+  cueKey: string;
+  action: MatchSequenceAction | undefined;
+  inBridge: boolean;
+  booking: boolean;
+  cutLabel: string | null;
+  cursor: number;
+  reachedEnd: boolean;
+  eventCount: number;
+  minute: number;
+  onOurGoal: () => void;
+}) {
+  const firedCue = useRef("");
+  const firedCut = useRef("");
+  const firedBreak = useRef("");
+
+  useEffect(() => {
+    if (!live || firedCue.current === cueKey) return;
+    firedCue.current = cueKey;
+    if (booking) playWhistle("short");
+    if (!action) {
+      setCrowdIntensity(inBridge ? 0.25 : 0.3);
+      return;
+    }
+    const attacking = action.possessionSide ?? action.side;
+    const towardsGoal = attacking === "us" ? action.end.x / 100 : 1 - action.end.x / 100;
+    let intensity = 0.15 + 0.6 * Math.pow(Math.max(0, (towardsGoal - 0.45) / 0.55), 1.3);
+    if (inBridge) intensity = Math.min(intensity, 0.45);
+
+    switch (action.kind) {
+      case "shot":
+        playKick(1);
+        intensity = 0.95;
+        break;
+      case "goal":
+        if (action.side === "us") {
+          playReaction("goal");
+          onOurGoal();
+        } else {
+          playReaction("concede");
+        }
+        window.setTimeout(() => playWhistle("short"), 1_400);
+        intensity = action.side === "us" ? 0.9 : 0.2;
+        break;
+      case "save":
+      case "miss":
+      case "block":
+        playReaction(attacking === "us" ? "ooh" : "applause");
+        intensity = 0.55;
+        break;
+      case "cross":
+      case "throughBall":
+      case "cutback":
+        intensity = Math.max(intensity, 0.7);
+        break;
+    }
+    setCrowdIntensity(intensity);
+    // Cue identity intentionally controls firing; other values describe that cue.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cueKey, live]);
+
+  useEffect(() => {
+    if (!live || !cutLabel || firedCut.current === `${cursor}:${cutLabel}`) return;
+    firedCut.current = `${cursor}:${cutLabel}`;
+    if (cutLabel === "Kick-off") playWhistle("kickoff");
+    else if (cutLabel === "Corner" || cutLabel === "Free-kick" || cutLabel === "Penalty") playWhistle("short");
+    if (cutLabel === "Penalty") setCrowdIntensity(0.05);
+  }, [cutLabel, cursor, live]);
+
+  useEffect(() => {
+    if (!reachedEnd) return;
+    const key = `${eventCount}:${minute >= 90 ? "ft" : "ht"}`;
+    if (firedBreak.current === key) return;
+    firedBreak.current = key;
+    playWhistle(minute >= 90 ? "fulltime" : "halftime");
+    setCrowdIntensity(minute >= 90 ? 0.6 : 0.3);
+  }, [reachedEnd, eventCount, minute]);
+
+  return null;
+}
+
