@@ -101,14 +101,40 @@ function bodySections(body: string) {
     .filter(Boolean);
 }
 
-function financeRows(body: string) {
+type FinanceRow = {
+  label: string;
+  value: string;
+  flow: "income" | "expense" | "neutral";
+};
+
+function financeRows(body: string): FinanceRow[] | null {
   const lines = body.split("\n").map((line) => line.trim()).filter(Boolean);
-  const parsed = lines.map((line) => {
-    const match = line.match(/^[-•]?\s*([^:]+):\s*(£?-?[£\\d,.]+[kKmM]?)\.?$/);
-    return match ? { label: match[1].trim(), value: match[2].replace(/\.$/, "") } : null;
-  });
-  const rows = parsed.filter((row): row is { label: string; value: string } => row !== null);
-  return rows.length >= 6 ? rows : null;
+  const rows: FinanceRow[] = [];
+  let flow: FinanceRow["flow"] = "neutral";
+
+  for (const line of lines) {
+    const heading = line.match(/^(Income|Outgoings|Closing balance):\s*((?:[+-]?£?|£[+-]?)[\d,.]+[kKmM]?)\.?$/i);
+    if (heading) {
+      const label = heading[1];
+      flow = /^income$/i.test(label) ? "income" : /^outgoings$/i.test(label) ? "expense" : "neutral";
+      rows.push({ label, value: heading[2].replace(/\.$/, ""), flow });
+      if (/^closing balance$/i.test(label)) flow = "neutral";
+      continue;
+    }
+
+    const dotted = line.match(/^([^:]+?)\s*\.{2,}\s*((?:[+-]?£?|£[+-]?)[\d,.]+[kKmM]?)\.?$/);
+    if (dotted && flow !== "neutral") {
+      rows.push({ label: dotted[1].trim(), value: dotted[2].replace(/\.$/, ""), flow });
+      continue;
+    }
+
+    const colon = line.match(/^[-•]?\s*([^:]+):\s*((?:[+-]?£?|£[+-]?)[\d,.]+[kKmM]?)\.?$/);
+    if (colon) {
+      rows.push({ label: colon[1].trim(), value: colon[2].replace(/\.$/, ""), flow });
+    }
+  }
+
+  return rows.length >= 3 ? rows : null;
 }
 
 function boardObjectiveRows(body: string) {
@@ -217,7 +243,7 @@ function BriefingBody({ body, department }: { body: string; department?: InboxDe
     return (
       <div className="lf-finance-summary">
         {financial.map((row) => {
-          const tone = financeRowTone(row.label, row.value);
+          const tone = row.flow === "income" ? "income" : row.flow === "expense" ? "expense" : financeRowTone(row.label, row.value);
           return (
             <div
               className={cn(

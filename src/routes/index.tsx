@@ -148,6 +148,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
   const blockingDecisions = actionableInbox(state);
   const phaseLabel = ({ preseason: "Pre-season", firstHalf: "League — 1st half", midseason: "Mid-season break", secondHalf: "League — 2nd half" } as const)[phaseOf(state.week)];
   const transferWindow = transferWindowMasthead(state);
+  const transferWindowOpen = isTransferWindowOpen(state);
   const chairman = chairmanStyle(state);
   const userReputation = clubReputation(state, state.clubName);
   const crestDesign = clubKitFor(state).badge;
@@ -273,7 +274,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
         isContinuing={isContinuing}
         startContinue={() => requestContinue()}
         stopContinue={stopContinue}
-        label={`W${state.week} · ${phaseLabel}`}
+        label={`W${state.week} · ${phaseLabel} · Window ${transferWindowOpen ? "open" : "closed"}`}
         targets={targets}
         onAdvanceTo={requestContinue}
       />
