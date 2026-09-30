@@ -104,6 +104,10 @@ import {
   transferTargetAvailabilityReason,
   transferTargetPlayer,
 } from "./recruitmentTargetBridge";
+import {
+  managerTransferContext,
+  recordCompletedTransferManagerReactionInPlace,
+} from "./managerRelationship";
 
 const int = (n: number) => Math.round(n) || 0;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -2093,6 +2097,8 @@ export function completeTransferInPlace(s: GameState, negotiationId: string): Ne
   if (activeLoanForPlayer(s, n.playerId))
     return { ok: false, reason: "End the active loan before completing a permanent transfer" };
   const abs = nowAbs(s);
+  const managerContext = managerTransferContext(s);
+  const previousRole = n.direction === "out" ? activeContract(s, p.id)?.squadRole : undefined;
 
   if (n.direction === "in") {
     const readiness = transferRegistrationReadiness(s, negotiationId);
@@ -2218,6 +2224,14 @@ export function completeTransferInPlace(s: GameState, negotiationId: string): Ne
   syncTransferTargetNegotiationInPlace(s, n);
 
   syncLegacySquad(s);
+  recordCompletedTransferManagerReactionInPlace(s, {
+    direction: n.direction,
+    player: p,
+    playerName: playerName(p),
+    fee: n.fee,
+    previousRole,
+    context: managerContext,
+  });
   return { ok: true, reason: "Transfer completed", negotiation: n };
 }
 
