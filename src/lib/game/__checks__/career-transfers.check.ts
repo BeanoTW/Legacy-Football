@@ -1,6 +1,7 @@
 import { newGame } from "../engine";
-import { runAiCareerTransfers } from "../careers";
+import { aiCanAffordCareerTransfer, aiCareerTransferAffordability, runAiCareerTransfers } from "../careers";
 import { clubOverallProfile } from "../playerOverall";
+import { footballLevelOfClub } from "../footballLevel";
 import { recruitmentSustainableWageBill } from "../recruitmentEconomy";
 import { buildWorldSimulationPlan } from "../world";
 import { SQUAD_SIZE } from "../recruitment";
@@ -146,6 +147,16 @@ console.log("\n[CT2] Transfer records and squad safety");
     }),
   );
   check(
+    "completed transfer fees fit the buyer's audited revenue-based limit",
+    newTransfers.every((r) => !!r.toClubId &&
+      r.fee <= aiCareerTransferAffordability(s, r.toClubId).maxSingleFee),
+  );
+  check(
+    "completed transfer wages fit the buyer's single-player limit",
+    newTransfers.every((r) => !!r.toClubId &&
+      r.weeklyWage <= aiCareerTransferAffordability(s, r.toClubId).maxSingleWage),
+  );
+  check(
     "AI destination payrolls stay close to sustainable club scale",
     [...new Set(newTransfers.map((r) => r.toClubId).filter(Boolean) as string[])].every((club) => {
       const payroll = s.football.contracts
@@ -160,5 +171,25 @@ console.log("\n[CT2] Transfer records and squad safety");
   );
 }
 
-console.log(`\nPASS — ${passed} passed, ${failed} failed`);
+console.log("\\n[CT3] Affordability reflects club scale");
+{
+  const s = seedState();
+  const allClubs = s.leagues.flatMap((league) => league.clubIds);
+  const top = allClubs.find((club) => !isUserClubReference(s, club) && footballLevelOfClub(s, club) === 1);
+  const lower = allClubs.find((club) => !isUserClubReference(s, club) && footballLevelOfClub(s, club) === 7);
+  if (!top || !lower) throw new Error("Expected clubs at levels 1 and 7");
+  const premier = aiCareerTransferAffordability(s, top);
+  const semiPro = aiCareerTransferAffordability(s, lower);
+  check("club revenue drives differentiated transfer budgets",
+    premier.annualRevenue > semiPro.annualRevenue && premier.maxSingleFee > semiPro.maxSingleFee);
+  check("club scale drives differentiated individual wages",
+    premier.maxSingleWage > semiPro.maxSingleWage);
+  check("semi-pro club rejects elite-sized deals",
+    !aiCanAffordCareerTransfer(s, lower, 100_000_000, 100_000));
+  check("invalid or negative deal prices are rejected",
+    !aiCanAffordCareerTransfer(s, top, Number.NaN, 1) &&
+    !aiCanAffordCareerTransfer(s, top, -1, 1));
+}
+
+console.log(`\\nPASS — ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
