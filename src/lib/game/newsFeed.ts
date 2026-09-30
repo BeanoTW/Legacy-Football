@@ -463,6 +463,42 @@ function livingClubArticles(state: GameState): NewsArticle[] {
       continue;
     }
 
+    if (item.generatorId === "fans-ticket-price-pressure" && (item.status === "completed" || item.status === "expired")) {
+      const key = `ticket-pressure|${item.eventKey}`;
+      const choice = item.choices?.find((candidate) => candidate.id === item.chosenChoiceId);
+      const decision = choice?.label ?? "No chairman response before the deadline";
+      articles.push({
+        id: key,
+        kind: "clubIncident",
+        season: item.season,
+        week: item.week,
+        publication: PUBLICATIONS.local,
+        byline: pick(`${key}|byline`, REPORTERS),
+        headline:
+          item.status === "expired"
+            ? `Supporters accuse ${us} board of ignoring ticket-price row`
+            : `${us} chairman responds to ticket-price pressure`,
+        standfirst:
+          item.status === "expired"
+            ? "The Supporters' Trust says its challenge went unanswered."
+            : `Chairman decision: ${decision}`,
+        body: [
+          firstParagraph(item.body),
+          item.status === "expired"
+            ? "The club did not announce a response before the deadline passed."
+            : `The chairman's recorded response was: ${decision}.`,
+        ],
+        facts: [
+          { label: "Issue", value: "Ticket prices" },
+          { label: "Decision", value: decision },
+        ],
+        tags: [us, "Supporters", "Ticket prices"],
+        involvesUser: true,
+        reactions: reactions(key, item.status === "expired" || item.chosenChoiceId === "hold" ? 2.3 : 1.7),
+      });
+      continue;
+    }
+
     if (item.generatorId === "random-incident-press" && item.status === "completed" && item.pressConference) {
       const key = `press-conference|${item.eventKey}`;
       const subject = item.subject.replace(/^Press conference\s*[—-]\s*/i, "").replace(/[.!?]+$/, "");
