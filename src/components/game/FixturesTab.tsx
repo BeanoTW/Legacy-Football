@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Play } from "lucide-react";
 import type { GameState } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
@@ -9,6 +10,7 @@ import { ClubBadge } from "./ClubKitArt";
 import { domesticCupName, domesticCupRoundLabel } from "@/lib/game/cupNarrative";
 import { cupSlot } from "@/lib/game/cupSchedule";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { medicalSupport, squadAverageFitness } from "@/lib/game/playerHealth";
 import {
   PRESEASON_COMPETITION_NAME,
@@ -31,6 +33,20 @@ export function FixturesTab({
   state: GameState;
   update: (fn: (s: GameState) => GameState) => void;
 }) {
+  const [pendingSimKey, setPendingSimKey] = useState<string | null>(null);
+  const [simSummary, setSimSummary] = useState<{ fixture: GameState["fixtures"][number]; result: GameState["results"][number] } | null>(null);
+
+  // Resolve the summary from the committed state, never from a predicted score.
+  useEffect(() => {
+    if (!pendingSimKey) return;
+    const fixture = state.fixtures.find((candidate) => fixtureKey(candidate) === pendingSimKey);
+    if (!fixture) { setPendingSimKey(null); return; }
+    const result = resultForFixture(state, fixture);
+    if (!result) return;
+    setSimSummary({ fixture, result });
+    setPendingSimKey(null);
+  }, [pendingSimKey, state]);
+
   const preseasonRows = preseasonTable(state);
   const showPreseason = state.fixtures.some((fixture) => fixture.competition === "preseason");
   const currentWeekFixtures = state.fixtures.filter((fixture) => fixture.week === state.week);
@@ -104,7 +120,7 @@ export function FixturesTab({
                             <Button size="sm" onClick={() => update((s) => startMatchDay(s, fixture))}>
                               <Play /> Play
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => update((s) => simulateFixture(s, fixture))}>
+                            <Button size="sm" variant="outline" onClick={() => { setPendingSimKey(fixtureKey(fixture)); update((s) => simulateFixture(s, fixture)); }}>
                               Sim
                             </Button>
                           </div>
@@ -221,6 +237,66 @@ export function FixturesTab({
         </div>
       </Section>
       </div>
+      <Dialog open={Boolean(simSummary)} onOpenChange={(open) => { if (!open) setSimSummary(null); }}>
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-md rounded-2xl border border-teal-700/25 p-0 overflow-hidden">
+          {simSummary && (() => {
+            const { fixture, result } = simSummary;
+            const us = clubDisplayName(state, state.clubName);
+            const them = clubDisplayName(state, fixture.opponent);
+            const home = fixture.home ? us : them;
+            const away = fixture.home ? them : us;
+            const homeGoals = fixture.home ? result.goalsFor : result.goalsAgainst;
+            const awayGoals = fixture.home ? result.goalsAgainst : result.goalsFor;
+            const outcome = result.result === "W" ? "Victory" : result.result === "D" ? "Draw" : "Defeat";
+            const performance = Object.values(state.playerMatchHistory ?? {}).find(
+              (entry) => entry.season === state.season && entry.week === fixture.week && entry.opponent === fixture.opponent,
+            );
+            const contributors = (performance?.players ?? []).filter((p) => p.goals > 0 || p.assists > 0);
+            return (
+              <>
+                <div className="bg-gradient-to-br from-teal-950 to-teal-800 px-5 py-6 text-center text-white">
+                  <DialogHeader>
+                    <DialogTitle className="text-center font-display text-sm uppercase tracking-[0.16em] text-teal-100">Full time · {competitionLabel(fixtureCompetition(fixture))}</DialogTitle>
+                  </DialogHeader>
+                  <div className="mt-2 text-xs text-teal-100/75">Season {state.season} · Week {fixture.week} · {fixtureDate(fixture).dayName}</div>
+                  <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+                    <div className="flex min-w-0 flex-col items-center gap-2">
+                      <ClubBadge design={clubKitForReference(state, fixture.home ? state.clubName : fixture.opponent).badge} clubName={home} size={42} />
+                      <span className="text-sm font-semibold leading-tight">{home}</span>
+                    </div>
+                    <strong className="font-display text-4xl tabular-nums">{homeGoals}–{awayGoals}</strong>
+                    <div className="flex min-w-0 flex-col items-center gap-2">
+                      <ClubBadge design={clubKitForReference(state, fixture.home ? fixture.opponent : state.clubName).badge} clubName={away} size={42} />
+                      <span className="text-sm font-semibold leading-tight">{away}</span>
+                    </div>
+                  </div>
+                  <span className="mt-5 inline-block rounded-full border border-white/20 bg-white/10 px-4 py-1 text-xs font-bold uppercase tracking-wider">{outcome}</span>
+                </div>
+                <div className="space-y-4 px-5 pb-5 pt-1">
+                  {contributors.length > 0 && (
+                    <div>
+                      <div className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">Player contributions</div>
+                      <div className="space-y-1 text-sm">
+                        {contributors.map((p) => (
+                          <div key={p.playerId} className="flex justify-between gap-3 border-b border-border/60 py-1.5">
+                            <span className="min-w-0 truncate">{p.name}</span>
+                            <span className="shrink-0 text-muted-foreground">{[p.goals ? `${p.goals} G` : "", p.assists ? `${p.assists} A` : ""].filter(Boolean).join(" · ")}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-2 text-center text-xs">
+                    <div className="rounded-lg bg-muted/50 p-3"><span className="block text-muted-foreground">Attendance</span><strong className="mt-1 block text-base tabular-nums">{result.attendance.toLocaleString()}</strong></div>
+                    <div className="rounded-lg bg-muted/50 p-3"><span className="block text-muted-foreground">Gate receipts</span><strong className="mt-1 block text-base tabular-nums">{fmtMoney(result.gateReceipts)}</strong></div>
+                  </div>
+                  <Button className="w-full" onClick={() => setSimSummary(null)}>Continue</Button>
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
