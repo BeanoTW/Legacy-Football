@@ -326,18 +326,16 @@ function completeAiCareerTransfer(
   const fee = recruitmentNormaliseTransferFeeForClub(
     s, seller, player.marketValue * rngRange(rng, 0.82, 1.14), "asking",
   );
-  const wage = Math.max(
-    150,
-    Math.round(
-      recruitmentWageForLevel(
-        buyerLevel,
-        player.currentAbility,
-        buyerRep,
-        age,
-        player.potentialAbility,
-      ) / 25,
-    ) * 25,
+  const rawWage = recruitmentWageForLevel(
+    buyerLevel,
+    player.currentAbility,
+    buyerRep,
+    age,
+    player.potentialAbility,
   );
+  const wageStep = buyerLevel >= 7 && rawWage < 500 ? 10 : 25;
+  const wageFloor = buyerLevel >= 7 ? 25 : 150;
+  const wage = Math.max(wageFloor, Math.round(rawWage / wageStep) * wageStep);
   // Recheck the realised fee and wage before any transfer-side mutation.
   if (!aiCanAffordCareerTransfer(s, buyer, fee, wage)) return false;
 
