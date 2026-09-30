@@ -39,6 +39,7 @@ import {
 import { postEntry, reconcile } from "../finance";
 import { commercialPower } from "../commercial";
 import { wageDemand } from "../recruitment";
+import { recruitmentUserNegotiationWageStep } from "../recruitmentEconomy";
 import { runWeeklyGenerators, handleInboxChoice, isKnownGeneratorId } from "../inbox";
 import { absoluteWeek } from "../time";
 import type { CapitalProjectType, GameState } from "../types";
@@ -646,7 +647,17 @@ console.log("\n[H] Cross-system modifiers");
     dGood < dBad,
     `${dGood} vs ${dBad}`,
   );
-  check("51b. reputation still matters more than bricks", Math.abs(dGood - dBad) / dBad < 0.15);
+  const wageStep = recruitmentUserNegotiationWageStep(recBad, dBad);
+  const facilityDelta = Math.abs(dGood - dBad);
+  // At semi-pro levels a £10 wage step can make a deliberately small raw
+  // facilities effect look >15% after rounding. Allow at most one canonical
+  // rounding step; above that granularity the 15% secondary-effect ceiling
+  // remains the invariant.
+  check(
+    "51b. reputation still matters more than bricks",
+    facilityDelta <= Math.max(dBad * 0.15, wageStep),
+    `${dGood} vs ${dBad} (step £${wageStep})`,
+  );
 
   const staff = {
     role: "Head Coach",
