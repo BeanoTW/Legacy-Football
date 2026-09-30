@@ -469,7 +469,12 @@ export function markInboxRead(s: GameState, id: string): GameState {
   return ns;
 }
 
-export function handleInboxChoice(s: GameState, itemId: string, choiceId: string): GameState {
+function resolveInboxChoice(
+  s: GameState,
+  itemId: string,
+  choiceId: string,
+  extraEffects: InboxEffect[] = [],
+): GameState {
   const item = s.inbox.find((i) => i.id === itemId);
   if (!item || !item.choices) return s;
   // Exactly-once: a resolved or expired item can never be re-applied, no
@@ -482,7 +487,7 @@ export function handleInboxChoice(s: GameState, itemId: string, choiceId: string
 
   const ns = structuredClone(s);
   const target = ns.inbox.find((i) => i.id === itemId)!;
-  applyEffectsInPlace(ns, choice.effects, {
+  applyEffectsInPlace(ns, [...choice.effects, ...extraEffects], {
     sourceItemId: item.id,
     sourceEventKey: item.eventKey,
   });
@@ -490,6 +495,25 @@ export function handleInboxChoice(s: GameState, itemId: string, choiceId: string
   target.chosenChoiceId = choiceId;
   target.resolvedAtAbsoluteWeek = absoluteWeek(ns.season, ns.week);
   return ns;
+}
+
+export function handleInboxChoice(s: GameState, itemId: string, choiceId: string): GameState {
+  return resolveInboxChoice(s, itemId, choiceId);
+}
+
+/**
+ * Complete a multi-turn press conference as one atomic inbox decision.
+ * The first answer uses the persisted InboxChoice; later rounds contribute
+ * extra public-reaction effects without creating partial state if the user
+ * reloads halfway through the interview.
+ */
+export function resolvePressConference(
+  s: GameState,
+  itemId: string,
+  firstChoiceId: string,
+  laterEffects: InboxEffect[],
+): GameState {
+  return resolveInboxChoice(s, itemId, firstChoiceId, laterEffects);
 }
 
 export function dismissInboxItem(s: GameState, id: string): GameState {
