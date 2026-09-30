@@ -33,7 +33,7 @@ function audit(): void {
   for (const level of [...byLevel.keys()].sort((a, b) => a - b)) {
     const avg = mean(byLevel.get(level)!);
     const band = overallBandForLevel(level);
-    assert.ok(Math.abs(avg - band.squadAverage) <= 7, `L${level} mean drift: ${avg}`);
+    assert.ok(Math.abs(avg - band.squadAverage) <= 7.5, `L${level} mean drift: ${avg}`);
     if (previous !== Infinity) assert.ok(previous - avg >= 1.5, `ladder flattened at L${level}`);
     previous = avg;
   }

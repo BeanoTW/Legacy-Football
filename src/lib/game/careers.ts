@@ -9,12 +9,14 @@ import {
 } from "./recruitment";
 import { buildWorldSimulationPlan } from "./world";
 import { clubReputation } from "./reputation";
-import { footballLevelOfClub } from "./footballLevel";
+import { footballLevelOfClub, type FootballLevel } from "./footballLevel";
 import {
+  recruitmentNormaliseTransferFeeForClub,
   recruitmentPlayerValue,
   recruitmentSustainableWageBill,
   recruitmentWageForLevel,
 } from "./recruitmentEconomy";
+import { clubFinancialProfile } from "./clubFinanceProfile";
 import { clubOverallProfile, playerReputationForAbility } from "./playerOverall";
 import { WEEKS_PER_SEASON } from "./time";
 import { activeLoanForPlayer } from "./loans";
@@ -181,7 +183,7 @@ export function runAiCareerTransfers(s: GameState, focusOverride?: Set<string>):
     const rng = seededRng(s.saveSeed, "aiCareerTransfer", buyer, candidate.id, s.season);
     if (rng() > 0.72) continue;
 
-    completeAiCareerTransfer(s, candidate, seller, buyer, rng);
+    if (!completeAiCareerTransfer(s, candidate, seller, buyer, rng)) continue;
     movedPlayerIds.add(candidate.id);
     completed++;
   }
@@ -205,39 +207,50 @@ function liveClubWageBill(s: GameState, club: string): number {
     .reduce((sum, contract) => sum + contract.weeklyWage, 0);
 }
 
+const AI_SINGLE_TRANSFER_REVENUE_SHARE: Record<FootballLevel, number> = {
+  1: 0.22, 2: 0.18, 3: 0.14, 4: 0.11,
+  5: 0.075, 6: 0.05, 7: 0.04, 8: 0.025,
+};
+
+/** Derived from the same club financial profile as the audited economy.
+ * No shadow cash account or additional persisted financial state.
+ */
+export function aiCareerTransferAffordability(s: GameState, buyer: string) {
+  const level = footballLevelOfClub(s, buyer);
+  const financial = clubFinancialProfile(s, buyer, level === 1 ? 19 : 23);
+  const sustainableWeeklyWageBill = recruitmentSustainableWageBill(s, buyer, level === 1 ? 19 : 23);
+  const currentWeeklyWages = liveClubWageBill(s, buyer);
+  const availableWeeklyWages = Math.max(0, sustainableWeeklyWageBill * 1.08 - currentWeeklyWages);
+  const maxSingleWage = Math.max(level >= 7 ? 75 : 250, Math.round(sustainableWeeklyWageBill * (level <= 2 ? 0.16 : 0.14)));
+  const maxSingleFee = Math.max(level >= 7 ? 1_000 : 20_000, Math.round(financial.annualRevenue * AI_SINGLE_TRANSFER_REVENUE_SHARE[level]));
+  return { level, annualRevenue: financial.annualRevenue, sustainableWeeklyWageBill, currentWeeklyWages, availableWeeklyWages, maxSingleWage, maxSingleFee };
+}
+
+/** Call before mutating any live contract, player identity, or history. */
+export function aiCanAffordCareerTransfer(s: GameState, buyer: string, fee: number, wage: number): boolean {
+  const budget = aiCareerTransferAffordability(s, buyer);
+  return Number.isFinite(fee) && Number.isFinite(wage) && fee >= 0 && wage >= 0 &&
+    fee <= budget.maxSingleFee && wage <= budget.maxSingleWage && wage <= budget.availableWeeklyWages;
+}
+
+/** Retain the existing public candidate-screening contract. */
 export function aiTransferAffordability(
   s: GameState,
   buyer: string,
   player: FootballPlayer,
 ): { allowed: boolean; projectedWage: number; wageCeiling: number; feeCeiling: number } {
   const level = footballLevelOfClub(s, buyer);
-  const rep = clubReputation(s, buyer);
-  const age = ageOf(player, s.season);
-  const projectedWage = recruitmentWageForLevel(
-    level,
-    player.currentAbility,
-    rep,
-    age,
-    player.potentialAbility,
-  );
-  const wageCeiling = recruitmentSustainableWageBill(s, buyer);
-  const currentWages = liveClubWageBill(s, buyer);
-  // One signing should not consume an absurd share of the whole payroll, and
-  // the post-deal squad should remain close to the club's sustainable bill.
-  const individualCap = Math.max(150, wageCeiling * 0.18);
-  const payrollFits = currentWages + projectedWage <= wageCeiling * 1.08;
-  const wageFits = projectedWage <= individualCap;
-
-  // AI clubs do not persist a second hidden cash account. Use annual wage
-  // capacity as a deterministic transfer-market proxy instead.
-  const feeCeiling = Math.max(1_000, wageCeiling * 52 * (level <= 4 ? 1.25 : level <= 6 ? 0.85 : 0.55));
-  const feeFits = player.marketValue <= feeCeiling;
-
+  const projectedWage = recruitmentWageForLevel(level, player.currentAbility, clubReputation(s, buyer), ageOf(player, s.season), player.potentialAbility);
+  const seller = playerOwnerClubId(player);
+  const projectedFee = seller
+    ? recruitmentNormaliseTransferFeeForClub(s, seller, player.marketValue, "asking")
+    : player.marketValue;
+  const budget = aiCareerTransferAffordability(s, buyer);
   return {
-    allowed: payrollFits && wageFits && feeFits,
+    allowed: aiCanAffordCareerTransfer(s, buyer, projectedFee, projectedWage),
     projectedWage,
-    wageCeiling,
-    feeCeiling,
+    wageCeiling: budget.sustainableWeeklyWageBill,
+    feeCeiling: budget.maxSingleFee,
   };
 }
 
@@ -306,7 +319,26 @@ function completeAiCareerTransfer(
   seller: string,
   buyer: string,
   rng: () => number,
-): void {
+): boolean {
+  const buyerRep = clubReputation(s, buyer);
+  const buyerLevel = footballLevelOfClub(s, buyer);
+  const age = ageOf(player, s.season);
+  const fee = recruitmentNormaliseTransferFeeForClub(
+    s, seller, player.marketValue * rngRange(rng, 0.82, 1.14), "asking",
+  );
+  const rawWage = recruitmentWageForLevel(
+    buyerLevel,
+    player.currentAbility,
+    buyerRep,
+    age,
+    player.potentialAbility,
+  );
+  const wageStep = buyerLevel >= 7 && rawWage < 500 ? 10 : 25;
+  const wageFloor = buyerLevel >= 7 ? 25 : 150;
+  const wage = Math.max(wageFloor, Math.round(rawWage / wageStep) * wageStep);
+  // Recheck the realised fee and wage before any transfer-side mutation.
+  if (!aiCanAffordCareerTransfer(s, buyer, fee, wage)) return false;
+
   const oldContract = s.football.contracts.find(
     (contract) =>
       contract.playerId === player.id &&
@@ -342,25 +374,6 @@ function completeAiCareerTransfer(
     });
   }
 
-  const buyerRep = clubReputation(s, buyer);
-  const buyerLevel = footballLevelOfClub(s, buyer);
-  const age = ageOf(player, s.season);
-  const fee = Math.max(
-    0,
-    Math.round((player.marketValue * rngRange(rng, 0.82, 1.14)) / 1_000) * 1_000,
-  );
-  const wage = Math.max(
-    150,
-    Math.round(
-      recruitmentWageForLevel(
-        buyerLevel,
-        player.currentAbility,
-        buyerRep,
-        age,
-        player.potentialAbility,
-      ) / 25,
-    ) * 25,
-  );
   const newContract: PlayerContract = {
     id: `PC-${String(s.football.nextContractId++).padStart(6, "0")}`,
     playerId: player.id,
@@ -403,6 +416,7 @@ function completeAiCareerTransfer(
     absoluteWeek: (s.season - 1) * WEEKS_PER_SEASON + s.week,
     type: "transfer",
   });
+  return true;
 }
 
 function roleForAiSigning(s: GameState, buyer: string, player: FootballPlayer): SquadRole {
