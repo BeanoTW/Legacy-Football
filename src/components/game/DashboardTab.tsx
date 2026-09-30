@@ -4,8 +4,8 @@ import {
   AreaChart,
   Bar,
   BarChart,
-  CartesianGrid,
-  Legend,
+  Cell,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip as RTooltip,
   XAxis,
@@ -17,19 +17,30 @@ import { fmtMoney, fmtMoneyExact, hiredStaffWagesWeekly } from "@/lib/game/engin
 import { canonicalPlayerWagesWeekly, clubKpi } from "@/lib/game/selectors/club";
 import { commitmentProgress, sustainabilitySnapshot } from "@/lib/game/sustainability";
 import { WEEKS_PER_SEASON } from "@/lib/game/time";
-import { HEALTH_TONE, Meter, Row, Section, Stat, ord, sum } from "./shared/primitives";
+import { HEALTH_TONE, Meter, Row, ord, sum } from "./shared/primitives";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { medicalSupport, playerFitness, playerIsAvailable, squadAverageFitness } from "@/lib/game/playerHealth";
 import { userSquad } from "@/lib/game/recruitment";
 import { inFormPlayers } from "@/lib/game/playerForm";
+
+/** Charts need a few points before they say anything; until then, a summary reads better. */
+const MIN_CHART_WEEKS = 3;
+
+const TOOLTIP_STYLE = {
+  background: "var(--color-card)",
+  border: "1px solid var(--color-border)",
+  borderRadius: 8,
+  fontSize: 11,
+  padding: "4px 8px",
+} as const;
+
+const signed = (value: number) => `${value >= 0 ? "+" : "−"}${fmtMoney(Math.abs(value))}`;
 
 export function DashboardTab({ state }: { state: GameState }) {
   const last12 = state.ledger.slice(-12);
   const chartData = last12.map((l) => ({
     w: `W${l.week}`,
     balance: l.balance,
-    income: Object.values(l.income).reduce((a, b) => a + b, 0),
-    expenses: -Object.values(l.expenses).reduce((a, b) => a + b, 0),
     net: l.net,
   }));
 
@@ -51,114 +62,145 @@ export function DashboardTab({ state }: { state: GameState }) {
     },
     { income: 0, expenses: 0 },
   );
+  const seasonNet = seasonTotals.income - seasonTotals.expenses;
 
   const leagueSorted = [...state.league].sort(
     (a, b) => b.pts - a.pts || b.gf - b.ga - (a.gf - a.ga) || b.gf - a.gf,
   );
   const myPos = leagueSorted.findIndex((r) => isUserClubReference(state, r.team)) + 1;
 
+  // Scale the balance chart to its own range so real movement is visible.
+  const balanceDomain = useMemo(() => {
+    if (!chartData.length) return [0, 1] as [number, number];
+    const values = chartData.map((d) => d.balance);
+    const lo = Math.min(...values);
+    const hi = Math.max(...values);
+    const pad = Math.max(1_000, (hi - lo) * 0.15);
+    return [Math.floor((lo - pad) / 1_000) * 1_000, Math.ceil((hi + pad) / 1_000) * 1_000] as [number, number];
+  }, [chartData]);
+
+  const showCharts = chartData.length >= MIN_CHART_WEEKS;
+  const weekIncome = lastLedger ? sum(lastLedger.income) : 0;
+  const weekExpenses = lastLedger ? sum(lastLedger.expenses) : 0;
+
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      <div className="lg:col-span-2 space-y-4">
-        <Section title="Season snapshot">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Stat label="Season income" value={fmtMoney(seasonTotals.income)} tone="good" />
-            <Stat label="Season expenses" value={fmtMoney(seasonTotals.expenses)} tone="bad" />
-            <Stat
-              label="Season net"
-              value={fmtMoney(seasonTotals.income - seasonTotals.expenses)}
-              tone={seasonTotals.income - seasonTotals.expenses >= 0 ? "good" : "bad"}
-            />
-            <Stat
-              label="League position"
-              value={myPos ? `${myPos}${ord(myPos)}` : "—"}
-              sub={`of ${state.league.length}`}
-            />
-          </div>
-        </Section>
+    <div className="lf-reports grid gap-2 lg:grid-cols-2 lg:gap-3">
+      <div className="space-y-2 lg:space-y-3">
+        {/* Season at a glance */}
+        <section className="grid grid-cols-4 divide-x overflow-hidden rounded-xl border bg-card text-center shadow-sm">
+          <Figure label="Income" value={fmtMoney(seasonTotals.income)} tone="good" />
+          <Figure label="Expenses" value={fmtMoney(seasonTotals.expenses)} tone="bad" />
+          <Figure label="Season net" value={signed(seasonNet)} tone={seasonNet >= 0 ? "good" : "bad"} />
+          <Figure label={`of ${state.league.length}`} value={myPos ? `${myPos}${ord(myPos)}` : "—"} />
+        </section>
 
-        <Section title="Bank balance — last 12 weeks">
-          <div className="h-56 -mx-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="bal" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.6} />
-                    <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0.05} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                <XAxis dataKey="w" tick={{ fontSize: 11 }} stroke="var(--color-muted-foreground)" />
-                <YAxis
-                  tick={{ fontSize: 11 }}
-                  stroke="var(--color-muted-foreground)"
-                  tickFormatter={(v) => fmtMoney(v as number)}
-                  width={60}
-                />
-                <RTooltip
-                  contentStyle={{
-                    background: "var(--color-card)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                  formatter={(v: number) => fmtMoneyExact(v)}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="balance"
-                  stroke="var(--color-primary)"
-                  fill="url(#bal)"
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </Section>
+        {/* Money */}
+        <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
+          <CardTitle title="Money" aside={lastLedger ? `Week ${lastLedger.week}` : undefined} />
+          <div className="px-3 pb-2.5">
+            <div className="flex items-baseline justify-between gap-2">
+              <div>
+                <div className="text-[10px] text-muted-foreground">In the bank</div>
+                <div className={cn("font-display text-2xl leading-tight tnum", state.cash < 0 && "text-[color:var(--color-expense)]")}>
+                  {fmtMoneyExact(state.cash)}
+                </div>
+              </div>
+              {lastLedger && (
+                <div className="text-right">
+                  <div className="text-[10px] text-muted-foreground">This week</div>
+                  <div className={cn("font-display text-lg leading-tight tnum", lastLedger.net >= 0 ? "text-[color:var(--color-income)]" : "text-[color:var(--color-expense)]")}>
+                    {signed(lastLedger.net)}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground tnum">
+                    in {fmtMoney(weekIncome)} · out {fmtMoney(weekExpenses)}
+                  </div>
+                </div>
+              )}
+            </div>
+            {lastLedger?.matchdayNote && (
+              <p className="mt-1 truncate text-[11px] text-muted-foreground">{lastLedger.matchdayNote}</p>
+            )}
 
-        <Section title="Weekly cash flow">
-          <div className="h-56 -mx-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData} stackOffset="sign">
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                <XAxis dataKey="w" tick={{ fontSize: 11 }} stroke="var(--color-muted-foreground)" />
-                <YAxis
-                  tick={{ fontSize: 11 }}
-                  stroke="var(--color-muted-foreground)"
-                  tickFormatter={(v) => fmtMoney(v as number)}
-                  width={60}
-                />
-                <RTooltip
-                  contentStyle={{
-                    background: "var(--color-card)",
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                  formatter={(v: number) => fmtMoneyExact(v)}
-                />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="income" name="Income" stackId="s" fill="var(--color-income)" />
-                <Bar dataKey="expenses" name="Expenses" stackId="s" fill="var(--color-expense)" />
-              </BarChart>
-            </ResponsiveContainer>
+            {showCharts ? (
+              <>
+                <div className="mt-2 h-28">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="lf-balance" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.45} />
+                          <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0.03} />
+                        </linearGradient>
+                      </defs>
+                      <XAxis dataKey="w" hide />
+                      <YAxis
+                        domain={balanceDomain}
+                        tick={{ fontSize: 9 }}
+                        stroke="var(--color-muted-foreground)"
+                        tickFormatter={(v) => fmtMoney(v as number)}
+                        width={44}
+                        tickCount={3}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <RTooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [fmtMoneyExact(v), "Balance"]} />
+                      <Area type="monotone" dataKey="balance" stroke="var(--color-primary)" fill="url(#lf-balance)" strokeWidth={2} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="h-20">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData} margin={{ top: 2, right: 4, left: 0, bottom: 0 }}>
+                      <XAxis dataKey="w" tick={{ fontSize: 9 }} stroke="var(--color-muted-foreground)" axisLine={false} tickLine={false} interval="preserveStartEnd" />
+                      <YAxis width={44} tick={{ fontSize: 9 }} stroke="var(--color-muted-foreground)" tickFormatter={(v) => fmtMoney(v as number)} tickCount={3} axisLine={false} tickLine={false} />
+                      <ReferenceLine y={0} stroke="var(--color-border)" />
+                      <RTooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => [signed(v), "Week net"]} />
+                      <Bar dataKey="net" radius={[2, 2, 0, 0]}>
+                        {chartData.map((d) => (
+                          <Cell key={d.w} fill={d.net >= 0 ? "var(--color-income)" : "var(--color-expense)"} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex justify-between text-[9px] uppercase tracking-wider text-muted-foreground">
+                  <span>Balance · last {chartData.length} weeks</span>
+                  <span>Weekly net</span>
+                </div>
+              </>
+            ) : (
+              <p className="mt-2 rounded-md bg-muted/40 px-2.5 py-1.5 text-[11px] text-muted-foreground">
+                Balance and weekly trend charts appear after week {MIN_CHART_WEEKS}.
+              </p>
+            )}
           </div>
-        </Section>
+        </section>
+
+        <details className="lf-reports-costs overflow-hidden rounded-xl border bg-card shadow-sm">
+          <summary className="flex cursor-pointer items-baseline justify-between gap-2 px-3 py-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Weekly running costs</span>
+            <RecurringNet state={state} />
+          </summary>
+          <div className="border-t px-3 pb-1">
+            <RecurringBreakdown state={state} />
+          </div>
+        </details>
       </div>
 
-      <div className="space-y-4">
-        <Section title="Last match">
+      <div className="space-y-2 lg:space-y-3">
+        {/* Last match */}
+        <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
+          <CardTitle title="Last match" />
           {lastResult ? (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="font-display text-lg">
+            <div className="px-3 pb-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0 truncate font-display text-lg leading-tight">
                   {lastResult.home ? "H" : "A"} vs {clubDisplayName(state, lastResult.opponent)}
                 </div>
                 <span
                   className={cn(
-                    "px-2 py-0.5 rounded text-xs font-bold",
-                    lastResult.result === "W" &&
-                      "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300",
+                    "shrink-0 rounded px-2 py-0.5 text-xs font-bold tnum",
+                    lastResult.result === "W" && "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300",
                     lastResult.result === "D" && "bg-muted text-muted-foreground",
                     lastResult.result === "L" && "bg-rose-500/20 text-rose-700 dark:text-rose-300",
                   )}
@@ -166,97 +208,112 @@ export function DashboardTab({ state }: { state: GameState }) {
                   {lastResult.result} {lastResult.goalsFor}-{lastResult.goalsAgainst}
                 </span>
               </div>
-              <dl className="grid grid-cols-2 gap-2 text-sm tnum">
-                <div>
-                  <dt className="text-muted-foreground text-xs">Attendance</dt>
-                  <dd>{lastResult.attendance.toLocaleString()}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground text-xs">Gate receipts</dt>
-                  <dd className="text-[color:var(--color-income)]">
-                    {fmtMoneyExact(lastResult.gateReceipts)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground text-xs">TV income</dt>
-                  <dd className="text-[color:var(--color-income)]">
-                    {fmtMoneyExact(lastResult.tvIncome)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground text-xs">Fan happiness</dt>
-                  <dd>{state.fanHappiness}%</dd>
-                </div>
-              </dl>
+              <div className="mt-1.5 grid grid-cols-4 divide-x rounded-lg bg-muted/40 text-center">
+                <Mini label="Crowd" value={lastResult.home ? lastResult.attendance.toLocaleString() : "Away"} />
+                <Mini label="Gate" value={lastResult.home ? fmtMoney(lastResult.gateReceipts) : "—"} tone={lastResult.home ? "good" : undefined} />
+                <Mini label="TV" value={fmtMoney(lastResult.tvIncome)} tone="good" />
+                <Mini label="Fans" value={`${state.fanHappiness}%`} />
+              </div>
             </div>
           ) : (
-            <div className="text-sm text-muted-foreground">
-              No matches yet. Advance a week to play your opener.
-            </div>
+            <p className="px-3 pb-2.5 text-xs text-muted-foreground">No matches yet. Continue to play your opener.</p>
           )}
-        </Section>
+        </section>
 
-        <Section title="Squad health">
-          <div className="grid grid-cols-2 gap-2">
-            <Stat label="Average fitness" value={`${avgFitness}%`} tone={avgFitness >= 80 ? "good" : avgFitness >= 68 ? undefined : "bad"} />
-            <Stat label="Medical support" value={medical.label} sub={`${medical.score}/100`} />
-            <Stat label="Unavailable" value={String(unavailable.length)} tone={unavailable.length === 0 ? "good" : "bad"} />
-            <Stat label="Tired players" value={String(tired.length)} tone={tired.length === 0 ? "good" : undefined} />
-          </div>
-          {injured.length > 0 && (
-            <div className="mt-3 divide-y rounded-lg border">
-              {injured.slice(0, 4).map((player) => (
-                <div key={player.id} className="flex items-center justify-between gap-3 px-2.5 py-2 text-xs">
-                  <span className="truncate font-semibold">{player.firstName} {player.lastName}</span>
-                  <span className="shrink-0 text-muted-foreground">{player.injury?.type}</span>
-                </div>
-              ))}
+        {/* Squad health */}
+        <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
+          <CardTitle title="Squad health" aside={`${medical.label} medical · ${medical.score}/100`} />
+          <div className="px-3 pb-2.5">
+            <div className="grid grid-cols-3 divide-x rounded-lg bg-muted/40 text-center">
+              <Mini label="Fitness" value={`${avgFitness}%`} tone={avgFitness >= 80 ? "good" : avgFitness >= 68 ? undefined : "bad"} />
+              <Mini label="Unavailable" value={String(unavailable.length)} tone={unavailable.length === 0 ? "good" : "bad"} />
+              <Mini label="Tired" value={String(tired.length)} tone={tired.length === 0 ? "good" : undefined} />
             </div>
-          )}
-          {formLeaders.length > 0 && (
-            <div className="mt-3 rounded-lg border">
-              <div className="border-b px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-                In form
-              </div>
-              {formLeaders.map((form) => {
-                const player = squad.find((candidate) => candidate.id === form.playerId);
-                return (
-                  <div key={form.playerId} className="flex items-center justify-between gap-3 border-b px-2.5 py-2 text-xs last:border-b-0">
-                    <span className="truncate font-semibold">{player ? `${player.firstName} ${player.lastName}` : form.playerId}</span>
-                    <span className="shrink-0 text-muted-foreground">{form.band} · {form.averageRating.toFixed(2)}</span>
+            {injured.length > 0 && (
+              <div className="mt-2">
+                <div className="mb-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Injured</div>
+                {injured.slice(0, 4).map((player) => (
+                  <div key={player.id} className="flex items-center justify-between gap-2 py-0.5 text-[11px]">
+                    <span className="truncate font-semibold">{player.firstName} {player.lastName}</span>
+                    <span className="shrink-0 text-muted-foreground">{player.injury?.type}</span>
                   </div>
-                );
-              })}
+                ))}
+              </div>
+            )}
+            {formLeaders.length > 0 && (
+              <div className="mt-2">
+                <div className="mb-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">In form</div>
+                {formLeaders.map((form) => {
+                  const player = squad.find((candidate) => candidate.id === form.playerId);
+                  return (
+                    <div key={form.playerId} className="flex items-center justify-between gap-2 py-0.5 text-[11px]">
+                      <span className="truncate font-semibold">{player ? `${player.firstName} ${player.lastName}` : form.playerId}</span>
+                      <span className="shrink-0 text-muted-foreground tnum">{form.band} · {form.averageRating.toFixed(2)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div className="mt-1.5 text-[10px] text-muted-foreground">
+              Recovery +{medical.recoveryPerWeek}/wk · injury risk {medical.injuryRiskMultiplier.toFixed(2)}×
             </div>
-          )}
-          <div className="mt-2 text-[10px] text-muted-foreground">
-            Weekly recovery +{medical.recoveryPerWeek} · injury-risk factor {medical.injuryRiskMultiplier.toFixed(2)}×
           </div>
-        </Section>
-
-        <Section title="This week (recurring)">
-          <RecurringBreakdown state={state} />
-        </Section>
-
-        {lastLedger && (
-          <Section title={`Week ${lastLedger.week} totals`}>
-            <div className="text-xs text-muted-foreground mb-2">
-              {lastLedger.matchdayNote ?? "No match this week."}
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <Stat label="Income" value={fmtMoney(sum(lastLedger.income))} tone="good" />
-              <Stat label="Expenses" value={fmtMoney(sum(lastLedger.expenses))} tone="bad" />
-              <Stat
-                label="Net"
-                value={fmtMoney(lastLedger.net)}
-                tone={lastLedger.net >= 0 ? "good" : "bad"}
-              />
-              <Stat label="Balance after" value={fmtMoneyExact(lastLedger.balance)} />
-            </div>
-          </Section>
-        )}
+        </section>
       </div>
     </div>
+  );
+}
+
+function CardTitle({ title, aside }: { title: string; aside?: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-2 px-3 pb-1 pt-2">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{title}</span>
+      {aside && <span className="truncate text-[10px] text-muted-foreground">{aside}</span>}
+    </div>
+  );
+}
+
+function Figure({ label, value, tone }: { label: string; value: string; tone?: "good" | "bad" }) {
+  return (
+    <div className="min-w-0 px-1 py-1.5">
+      <div
+        className={cn(
+          "truncate font-display text-base leading-tight tnum",
+          tone === "good" && "text-[color:var(--color-income)]",
+          tone === "bad" && "text-[color:var(--color-expense)]",
+        )}
+      >
+        {value}
+      </div>
+      <div className="truncate text-[9px] uppercase tracking-wider text-muted-foreground">{label}</div>
+    </div>
+  );
+}
+
+function Mini({ label, value, tone }: { label: string; value: string; tone?: "good" | "bad" }) {
+  return (
+    <div className="min-w-0 px-1 py-1.5">
+      <div
+        className={cn(
+          "truncate font-display text-sm leading-tight tnum",
+          tone === "good" && "text-[color:var(--color-income)]",
+          tone === "bad" && "text-[color:var(--color-expense)]",
+        )}
+      >
+        {value}
+      </div>
+      <div className="truncate text-[9px] text-muted-foreground">{label}</div>
+    </div>
+  );
+}
+
+/** Net of the recurring breakdown, for the collapsed summary line. */
+function RecurringNet({ state }: { state: GameState }) {
+  const net = clubKpi(state).weeklyIncome - clubKpi(state).weeklyExpenses;
+  return (
+    <span className={cn("text-xs font-semibold tnum", net >= 0 ? "text-[color:var(--color-income)]" : "text-[color:var(--color-expense)]")}>
+      {signed(net)}/wk before matchday
+    </span>
   );
 }
 
@@ -424,7 +481,7 @@ export function FinancialHealthPanel({ state }: { state: GameState }) {
           <div className="text-[11px] text-muted-foreground pt-1 space-y-1">
             <Row k="Committed wages" v={fmtMoneyExact(snap.committedWages)} />
             <Row k="Capital committed" v={fmtMoneyExact(snap.capitalCommitments)} />
-            <Row k="Ground utilisation" v={`${capacity.occupancy}%`} />
+            <Row k="Ground utilisation" v={`${Math.round(capacity.occupancy * 100)}%`} />
           </div>
         </div>
       </div>
