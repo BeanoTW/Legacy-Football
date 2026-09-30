@@ -26,6 +26,8 @@ const KIND_LABEL: Record<NewsKind, string> = {
   appointment: "Appointment",
   tableWatch: "Table watch",
   season: "Season review",
+  clubIncident: "Club story",
+  pressConference: "Press conference",
 };
 
 function compact(value: number) {
