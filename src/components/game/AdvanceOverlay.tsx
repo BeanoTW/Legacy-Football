@@ -168,7 +168,7 @@ export function AdvanceOverlay({
           {/* Journey to the stop */}
           <div className="mt-3">
             <div className="mb-1 flex items-center justify-between text-[11px] opacity-75">
-              <span>{target ? `Heading to ${target.label.toLowerCase() === "next match" ? "the next match" : target.label}` : "Until something needs you"}</span>
+              {target ? <span>{`Heading to ${target.label.toLowerCase() === "next match" ? "the next match" : target.label}`}</span> : <span />}
               {target?.untilAbsoluteDay !== undefined ? <span>{Math.max(0, target.untilAbsoluteDay - now)} days to go</span> : null}
             </div>
             {rail.length > 1 && rail.length <= 14 ? (
