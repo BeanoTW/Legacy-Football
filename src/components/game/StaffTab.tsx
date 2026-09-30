@@ -23,6 +23,7 @@ import {
 } from "@/lib/game/managerNegotiation";
 import { managerFootballIdentity } from "@/lib/game/managerIdentity";
 import { managerSquadFit } from "@/lib/game/managerSquadFit";
+import { managerPersonality, managerRelationship } from "@/lib/game/managerRelationship";
 import { renewStaffContract } from "@/lib/game/staffCareers";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -49,6 +50,66 @@ function ManagerSquadFitPanel({ state, staff, compact = false }: { state: GameSt
   if (staff.role !== "Manager") return null;
   const fit=managerSquadFit(state,staff); const tone=fit.band==="Excellent"?"text-emerald-700 bg-emerald-500/10 border-emerald-500/25":fit.band==="Good"?"text-lime-700 bg-lime-500/10 border-lime-500/25":fit.band==="Workable"?"text-amber-700 bg-amber-500/10 border-amber-500/25":"text-rose-700 bg-rose-500/10 border-rose-500/25";
   return <div className={cn("mt-2 rounded-xl border",tone,compact?"p-2.5":"p-3")}><div className="flex items-center justify-between gap-3"><div><div className="text-[10px] font-bold uppercase tracking-wider opacity-70">Squad fit</div><div className="font-display text-lg leading-tight">{fit.band}</div></div><div className="text-right"><div className="font-display text-2xl leading-none">{fit.score}</div><div className="text-[10px] opacity-70">/ 100</div></div></div><div className="mt-1.5 text-xs leading-relaxed opacity-90">{fit.summary}</div>{!compact&&(fit.strengths.length>0||fit.gaps.length>0)&&<div className="mt-2 grid gap-1 text-[10px] sm:grid-cols-2">{fit.strengths.map(item=><div key={item} className="rounded bg-background/55 px-2 py-1">✓ {item}</div>)}{fit.gaps.map(item=><div key={item} className="rounded bg-background/55 px-2 py-1">• {item}</div>)}</div>}</div>;
+}
+
+
+function ManagerRelationshipPanel({ state, staff }: { state: GameState; staff: Staff }) {
+  if (staff.role !== "Manager") return null;
+  const personality = managerPersonality(staff);
+  const relationship = managerRelationship(state, staff);
+  const tone =
+    relationship.band === "Excellent" || relationship.band === "Strong"
+      ? "border-emerald-500/25 bg-emerald-500/[0.07]"
+      : relationship.band === "Professional"
+        ? "border-sky-500/20 bg-sky-500/[0.05]"
+        : relationship.band === "Uneasy"
+          ? "border-amber-500/25 bg-amber-500/[0.07]"
+          : "border-rose-500/30 bg-rose-500/[0.08]";
+
+  const metrics = [
+    ["Trust", relationship.trust],
+    ["Backing", relationship.backing],
+    ["Autonomy", relationship.autonomy],
+  ] as const;
+
+  return (
+    <div className={cn("mt-2 rounded-xl border p-3", tone)}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Chairman relationship</div>
+          <div className="font-display text-lg">{relationship.band}</div>
+        </div>
+        <div className="text-right">
+          <div className="font-display text-2xl leading-none tnum">{relationship.overall}</div>
+          <div className="text-[9px] text-muted-foreground">/ 100</div>
+        </div>
+      </div>
+
+      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{relationship.summary}</p>
+
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        {metrics.map(([label, value]) => (
+          <div key={label} className="rounded-lg border bg-background/60 p-2">
+            <div className="flex items-center justify-between gap-1 text-[9px]">
+              <span className="text-muted-foreground">{label}</span>
+              <strong className="tnum">{value}</strong>
+            </div>
+            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full bg-primary" style={{ width: `${value}%` }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-1">
+        <span className="rounded-full border bg-background/70 px-2 py-0.5 text-[10px] font-semibold">{personality.temperament}</span>
+        <span className="rounded-full border bg-background/70 px-2 py-0.5 text-[10px]">{personality.ambition} ambition</span>
+        <span className="rounded-full border bg-background/70 px-2 py-0.5 text-[10px]">{personality.controlStyle} control</span>
+        <span className="rounded-full border bg-background/70 px-2 py-0.5 text-[10px]">{personality.financialPragmatism} financial pragmatism</span>
+      </div>
+      <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">{personality.summary}</p>
+    </div>
+  );
 }
 
 export function StaffTab({ state, update }: { state: GameState; update: (fn: (s: GameState) => GameState) => void }) {
@@ -193,6 +254,7 @@ function StaffCard({state,staff,terms,onAction,onRenew,action,affordable=true}: 
         <summary className="cursor-pointer text-[11px] font-semibold text-primary">Manager profile</summary>
         <ManagerIdentityPanel staff={staff} />
         <ManagerSquadFitPanel state={state} staff={staff} />
+        {action === "release" && <ManagerRelationshipPanel state={state} staff={staff} />}
       </details>
     </>}
     {terms && <p className={cn("mt-1.5 line-clamp-2 text-[11px]",terms.willing?"text-muted-foreground":"text-rose-700 dark:text-rose-300")}>
