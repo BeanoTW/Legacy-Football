@@ -26,7 +26,7 @@ export function PressConferenceOverlay({
 }: {
   state: GameState;
   item: InboxItem;
-  onComplete: (firstChoiceId: string, laterEffects: InboxEffect[]) => void;
+  onComplete: (firstChoiceId: string, laterEffects: InboxEffect[], summary: { outcome: string; exchanges: Exchange[] }) => void;
 }) {
   const profile = useChairmanProfile();
   const conversationKey = inboxConversationKey(item);
@@ -206,7 +206,7 @@ export function PressConferenceOverlay({
               <Button
                 className="mt-5 w-full bg-emerald-300 text-emerald-950 hover:bg-emerald-200"
                 disabled={!firstChoiceId}
-                onClick={() => firstChoiceId && onComplete(firstChoiceId, laterEffects)}
+                onClick={() => firstChoiceId && outcome && onComplete(firstChoiceId, laterEffects, { outcome, exchanges })}
               >
                 Leave the press room
               </Button>
