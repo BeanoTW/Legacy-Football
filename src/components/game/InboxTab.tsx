@@ -530,9 +530,13 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
                     {item.choices.map((choice) => {
                       const availability = evaluateChoice(state, choice);
                       return (
-                        <Button key={choice.id} variant="ghost" onClick={() => availability.available && onChoose(choice.id)} disabled={!availability.available} className="lf-decision-card">
-                          <span><strong>{choice.label}</strong>{choice.hint && <small>{choice.hint}</small>}{!availability.available && <em>{availability.reasons.join(" ")}</em>}</span>
-                          <ChevronRight />
+                        <Button key={choice.id} variant="ghost" onClick={() => availability.available && onChoose(choice.id)} disabled={!availability.available} className="lf-decision-card lf-choice-tile">
+                          <span className="lf-choice-tile-copy">
+                            <strong>{choice.label}</strong>
+                            {choice.hint && <small>{choice.hint}</small>}
+                            {!availability.available && <em>{availability.reasons.join(" ")}</em>}
+                          </span>
+                          <span className="lf-choice-tile-arrow" aria-hidden="true"><ChevronRight /></span>
                         </Button>
                       );
                     })}
