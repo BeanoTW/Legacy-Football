@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DetailScreen } from "./shared/layout";
 import { cn } from "@/lib/utils";
+import { SoundSettingsPanel } from "./SoundSettingsPanel";
 import { CareerSyncConflict, cloudClient, cloudConfigured, syncAllCareers, type SyncConflictResolution } from "@/lib/cloud/sync";
 
 type Theme = "club" | "heritage" | "floodlights";
@@ -199,6 +200,8 @@ export function SettingsTab({
           ))}
         </div>
       </section>
+
+      <SoundSettingsPanel />
 
       <section className="rounded-xl border bg-card p-4 shadow-sm">
         <div className="flex items-start gap-3">
