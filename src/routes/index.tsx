@@ -29,7 +29,7 @@ import { ClubBadge } from "@/components/game/ClubKitArt";
 import { useGame, type ContinueSpeed } from "@/hooks/useGame";
 import type { GameState } from "@/lib/game/types";
 import type { SaveSlotId, SaveSlotSummary } from "@/lib/game/engine";
-import { avgTicketPrice, fmtMoney, fmtMoneyExact, phaseOf, CALENDAR } from "@/lib/game/engine";
+import { avgTicketPrice, calendarDay, fmtMoney, fmtMoneyExact, isTransferWindowOpen, phaseOf, CALENDAR, WINDOW_PRESEASON_END } from "@/lib/game/engine";
 import { chairmanStyle, clubNickname } from "@/lib/game/character";
 import { clubKitFor } from "@/lib/game/clubKit";
 import { clubKpi } from "@/lib/game/selectors/club";
@@ -99,6 +99,23 @@ function ReputationStars({ value }: { value: number }) {
   );
 }
 
+function transferWindowMasthead(state: GameState): string {
+  const day = calendarDay(state);
+  if (isTransferWindowOpen(state)) {
+    const closingWeek = state.week <= WINDOW_PRESEASON_END ? WINDOW_PRESEASON_END : CALENDAR.midSeasonEnd;
+    const daysLeft = Math.max(0, (closingWeek - state.week) * 7 + (6 - day) + 1);
+    return daysLeft <= 1 ? "TRANSFER WINDOW OPEN · closes today" : `TRANSFER WINDOW OPEN · closes in ${daysLeft} days`;
+  }
+
+  const nextOpenWeek = state.week < CALENDAR.midSeasonStart ? CALENDAR.midSeasonStart : CALENDAR.seasonEnd + 1;
+  const daysUntilOpen =
+    nextOpenWeek <= CALENDAR.seasonEnd
+      ? Math.max(1, (nextOpenWeek - state.week) * 7 - day)
+      : Math.max(1, (CALENDAR.seasonEnd - state.week + 1) * 7 - day);
+
+  return `Transfer window closed · reopens in ${daysUntilOpen} days`;
+}
+
 function Game({ state, update, isContinuing, continueReason, continueTarget, continueSpeed, setContinueSpeed, startContinue, stopContinue, activeSlot, saveSlots, switchSlot, deleteSlot }: {
   state: GameState;
   update: (fn: (s: GameState) => GameState) => void;
@@ -130,6 +147,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
   const desktopMore = ALL_TABS.filter(([id]) => !DESKTOP_PRIMARY_TAB_IDS.includes(id));
   const blockingDecisions = actionableInbox(state);
   const phaseLabel = ({ preseason: "Pre-season", firstHalf: "League — 1st half", midseason: "Mid-season break", secondHalf: "League — 2nd half" } as const)[phaseOf(state.week)];
+  const transferWindow = transferWindowMasthead(state);
   const chairman = chairmanStyle(state);
   const userReputation = clubReputation(state, state.clubName);
   const crestDesign = clubKitFor(state).badge;
@@ -174,7 +192,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
         <TopBar
           title={state.clubName}
           subtitle={clubNickname(state)}
-          detail={`Season ${state.season} · Week ${state.week}/${CALENDAR.seasonEnd} · ${phaseLabel}`}
+          detail={`Season ${state.season} · Week ${state.week}/${CALENDAR.seasonEnd} · ${phaseLabel} · ${transferWindow}`}
           crest={<ClubBadge design={crestDesign} clubName={state.clubName} size={56} />}
           right={
             <div className="lf-masthead-persona">

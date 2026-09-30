@@ -155,13 +155,16 @@ function daysAwayLabel(days: number): string {
 export function advanceTargets(state: GameState): AdvanceTarget[] {
   const now = currentAbsoluteDay(state);
   const today = calendarDay(state);
-  const targets: AdvanceTarget[] = [
-    { id: "anything", label: "Continue", detail: "Until something needs you" },
-  ];
-
   const nextMatch = calendarRail(state, 6)
     .filter((day) => day.absoluteDay > now)
     .find((day) => day.fixtures.some((fixture) => !fixture.result));
+  const nextKnownStop = nextMatch
+    ? `No fixed end · next match ${daysAwayLabel(nextMatch.absoluteDay - now)}`
+    : "No fixed end · runs day by day until a decision or event stops it";
+  const targets: AdvanceTarget[] = [
+    { id: "anything", label: "Continue", detail: nextKnownStop },
+  ];
+
   if (nextMatch) {
     const fixture = nextMatch.fixtures.find((item) => !item.result)!;
     const days = nextMatch.absoluteDay - now;
