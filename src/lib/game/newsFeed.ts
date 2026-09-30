@@ -14,7 +14,9 @@ export type NewsKind =
   | "transfer"
   | "appointment"
   | "tableWatch"
-  | "season";
+  | "season"
+  | "clubIncident"
+  | "pressConference";
 
 export interface NewsPublication {
   name: string;
@@ -421,14 +423,97 @@ function seasonVerdicts(state: GameState): NewsArticle[] {
   });
 }
 
+function firstParagraph(text: string): string {
+  return text.split(/\n\s*\n/).map((part) => part.trim()).find(Boolean) ?? text.trim();
+}
+
+function livingClubArticles(state: GameState): NewsArticle[] {
+  const articles: NewsArticle[] = [];
+  const us = clubPresentationName(state.clubName);
+
+  for (const item of state.inbox ?? []) {
+    if (item.generatorId === "random-incident" && (item.status === "completed" || item.status === "expired")) {
+      const key = `club-incident|${item.eventKey}`;
+      const choice = item.choices?.find((candidate) => candidate.id === item.chosenChoiceId);
+      const decision = choice?.label ?? "No decision before the deadline";
+      const subject = item.subject.replace(/[.!?]+$/, "");
+      articles.push({
+        id: key,
+        kind: "clubIncident",
+        season: item.season,
+        week: item.week,
+        publication: PUBLICATIONS.local,
+        byline: pick(`${key}|byline`, REPORTERS),
+        headline: `${us} respond to ${subject.toLowerCase()}`,
+        standfirst: item.status === "expired" ? "The club allowed the decision deadline to pass." : `Chairman decision: ${decision}`,
+        body: [
+          firstParagraph(item.body),
+          item.status === "expired"
+            ? "The club did not announce a course of action before the chairman's deadline expired."
+            : `The chairman's recorded decision was: ${decision}.`,
+        ],
+        facts: [
+          { label: "Department", value: item.department },
+          { label: "Decision", value: decision },
+        ],
+        tags: [us, "Club decision", item.department],
+        involvesUser: true,
+        reactions: reactions(key, item.priority === "urgent" ? 2.5 : item.priority === "high" ? 1.9 : 1.35),
+      });
+      continue;
+    }
+
+    if (item.generatorId === "random-incident-press" && item.status === "completed" && item.pressConference) {
+      const key = `press-conference|${item.eventKey}`;
+      const subject = item.subject.replace(/^Press conference\s*[—-]\s*/i, "").replace(/[.!?]+$/, "");
+      const exchanges = item.pressConference.exchanges;
+      articles.push({
+        id: key,
+        kind: "pressConference",
+        season: item.season,
+        week: item.week,
+        publication: PUBLICATIONS.touchline,
+        byline: pick(`${key}|byline`, REPORTERS),
+        headline: `${us} chairman pressed on ${subject.toLowerCase()}`,
+        standfirst: `Press-room verdict: ${item.pressConference.outcome}.`,
+        body: [
+          `The ${us} chairman faced ${exchanges.length} questions after the club's recent decision became a public talking point.`,
+          ...exchanges.map(
+            (exchange, index) =>
+              `Q${index + 1}: ${exchange.question} Chairman response: ${exchange.answer}.`,
+          ),
+        ],
+        facts: [
+          { label: "Press approach", value: item.pressConference.outcome },
+          { label: "Questions", value: String(exchanges.length) },
+        ],
+        tags: [us, "Press conference", "Chairman"],
+        involvesUser: true,
+        reactions: reactions(
+          key,
+          item.pressConference.outcome === "Combative"
+            ? 2.8
+            : item.pressConference.outcome === "Open and accountable"
+              ? 2.2
+              : 1.7,
+        ),
+      });
+    }
+  }
+
+  return articles;
+}
+
 const KIND_PRIORITY: Record<NewsKind, number> = {
   matchReport: 0,
-  season: 1,
-  upset: 2,
-  appointment: 3,
-  transfer: 4,
-  tableWatch: 5,
-  roundUp: 6,
+  pressConference: 1,
+  clubIncident: 2,
+  season: 3,
+  upset: 4,
+  appointment: 5,
+  transfer: 6,
+  tableWatch: 7,
+  roundUp: 8,
 };
 
 export function newsFeed(state: GameState, limit = 60): NewsArticle[] {
@@ -459,6 +544,7 @@ export function newsFeed(state: GameState, limit = 60): NewsArticle[] {
   }
 
   articles.push(...appointments(state));
+  articles.push(...livingClubArticles(state));
   const table = tableWatch(state);
   if (table) articles.push(table);
   articles.push(...seasonVerdicts(state));
