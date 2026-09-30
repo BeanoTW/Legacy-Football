@@ -1,0 +1,72 @@
+/* Goal celebrations and ambient matchday motion. Loaded last from __root.tsx. */
+@keyframes lf-shake {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  15% { transform: translate3d(-3px, 1px, 0); }
+  30% { transform: translate3d(3px, -1px, 0); }
+  45% { transform: translate3d(-2px, 2px, 0); }
+  60% { transform: translate3d(2px, -1px, 0); }
+  75% { transform: translate3d(-1px, 1px, 0); }
+}
+.lf-shake { animation: lf-shake 480ms ease-out 1; }
+
+@keyframes lf-confetti-fall {
+  0% { top: -12px; transform: translateX(0) rotate(0deg); opacity: 1; }
+  80% { opacity: 1; }
+  100% { top: 104%; transform: translateX(var(--drift, 0px)) rotate(var(--spin, 360deg)); opacity: 0; }
+}
+.lf-confetti {
+  position: absolute;
+  top: -12px;
+  width: 7px;
+  height: 11px;
+  border-radius: 1.5px;
+  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 25%);
+  animation: lf-confetti-fall 2.3s cubic-bezier(0.3, 0.5, 0.45, 1) forwards;
+}
+.lf-confetti:nth-child(3n) { width: 5px; height: 5px; border-radius: 50%; }
+.lf-confetti:nth-child(4n) { width: 9px; height: 5px; }
+
+@keyframes lf-flashes {
+  0%   { background-position: 30% 0, 75% 0, 12% 33%, -20% -20%, 82% 37%, -20% -20%, -20% -20%; }
+  9%   { background-position: 30% 0, 75% 0, -20% -20%, 64% 30%, -20% -20%, -20% -20%, -20% -20%; }
+  21%  { background-position: 30% 0, 75% 0, -20% -20%, -20% -20%, -20% -20%, 38% 36%, -20% -20%; }
+  33%  { background-position: 30% 0, 75% 0, -20% -20%, -20% -20%, -20% -20%, -20% -20%, 90% 28%; }
+  47%  { background-position: 30% 0, 75% 0, 22% 31%, -20% -20%, -20% -20%, -20% -20%, -20% -20%; }
+  58%  { background-position: 30% 0, 75% 0, -20% -20%, 48% 35%, 74% 29%, -20% -20%, -20% -20%; }
+  71%  { background-position: 30% 0, 75% 0, -20% -20%, -20% -20%, -20% -20%, 30% 38%, -20% -20%; }
+  84%  { background-position: 30% 0, 75% 0, -20% -20%, -20% -20%, -20% -20%, -20% -20%, 58% 33%; }
+  100% { background-position: 30% 0, 75% 0, -20% -20%, -20% -20%, -20% -20%, -20% -20%, -20% -20%; }
+}
+
+.lf-home-dashboard .lf-match-card {
+  position: relative;
+  isolation: isolate;
+}
+.lf-home-dashboard .lf-match-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background-image:
+    radial-gradient(closest-side, rgb(255 246 214 / 18%), transparent),
+    radial-gradient(closest-side, rgb(255 246 214 / 15%), transparent),
+    radial-gradient(circle, rgb(255 255 255 / 95%) 0 1px, rgb(255 255 255 / 25%) 2px, transparent 3.5px),
+    radial-gradient(circle, rgb(255 255 255 / 95%) 0 1px, rgb(255 255 255 / 25%) 2px, transparent 3.5px),
+    radial-gradient(circle, rgb(255 255 255 / 95%) 0 1px, rgb(255 255 255 / 25%) 2px, transparent 3.5px),
+    radial-gradient(circle, rgb(255 255 255 / 95%) 0 1px, rgb(255 255 255 / 25%) 2px, transparent 3.5px),
+    radial-gradient(circle, rgb(255 255 255 / 95%) 0 1px, rgb(255 255 255 / 25%) 2px, transparent 3.5px);
+  background-size: 55% 45%, 55% 45%, 9px 9px, 9px 9px, 9px 9px, 9px 9px, 9px 9px;
+  background-repeat: no-repeat;
+  animation: lf-flashes 6.5s steps(1, end) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lf-shake,
+  .lf-confetti,
+  .lf-home-dashboard .lf-match-card::after {
+    animation: none !important;
+  }
+  .lf-confetti { display: none; }
+}
