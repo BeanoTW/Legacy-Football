@@ -172,6 +172,36 @@
 .lf-finance-row strong { flex: 0 0 auto; color: var(--inbox-ink); font-size: 0.76rem; }
 .lf-finance-row.is-total { grid-column: 1 / -1; border-bottom-color: color-mix(in oklab, var(--source-accent) 30%, transparent); color: var(--source-accent); }
 .lf-finance-row.is-total span, .lf-finance-row.is-total strong { color: inherit; font-weight: 700; }
+.lf-finance-row.is-income,
+.lf-finance-row.is-positive {
+  border-bottom-color: color-mix(in oklab, var(--color-income) 30%, transparent);
+  background: color-mix(in oklab, var(--color-income) 7%, transparent);
+}
+.lf-finance-row.is-expense,
+.lf-finance-row.is-negative {
+  border-bottom-color: color-mix(in oklab, var(--color-expense) 30%, transparent);
+  background: color-mix(in oklab, var(--color-expense) 7%, transparent);
+}
+.lf-finance-row.is-income span,
+.lf-finance-row.is-income strong,
+.lf-finance-row.is-positive span,
+.lf-finance-row.is-positive strong {
+  color: color-mix(in oklab, var(--color-income) 82%, white);
+}
+.lf-finance-row.is-expense span,
+.lf-finance-row.is-expense strong,
+.lf-finance-row.is-negative span,
+.lf-finance-row.is-negative strong {
+  color: color-mix(in oklab, var(--color-expense) 84%, white);
+}
+.lf-finance-row.is-income,
+.lf-finance-row.is-expense,
+.lf-finance-row.is-positive,
+.lf-finance-row.is-negative {
+  margin-inline: -0.2rem;
+  padding-inline: 0.3rem;
+  border-radius: 0.35rem;
+}
 @media (max-width: 360px) { .lf-finance-summary { grid-template-columns: 1fr; } .lf-finance-row.is-total { grid-column: auto; } }
 
 
@@ -188,6 +218,14 @@
 .lf-briefing-fact p, .lf-finance-row span, .lf-objective-card p { color: color-mix(in oklab, var(--inbox-paper) 62%, transparent); }
 .lf-finance-row { border-bottom-color: color-mix(in oklab, var(--inbox-paper) 9%, transparent); }
 .lf-finance-row.is-total span, .lf-finance-row.is-total strong { color: var(--source-accent); }
+.lf-finance-row.is-income span,
+.lf-finance-row.is-income strong,
+.lf-finance-row.is-positive span,
+.lf-finance-row.is-positive strong { color: #79e6a4; }
+.lf-finance-row.is-expense span,
+.lf-finance-row.is-expense strong,
+.lf-finance-row.is-negative span,
+.lf-finance-row.is-negative strong { color: #ff8d8d; }
 
 .lf-objective-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
 .lf-objective-card { display: grid; min-width: 0; grid-template-columns: auto minmax(0, 1fr); gap: 0.5rem; border: 1px solid; border-radius: 0.75rem; padding: 0.65rem; }
