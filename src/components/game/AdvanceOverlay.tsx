@@ -17,8 +17,11 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { fmtMoney } from "@/lib/game/engine";
 import {
+  CALENDAR,
+  WINDOW_PRESEASON_END,
   calendarDay,
   isTransferDeadlineDay,
+  isTransferWindowOpen,
   seasonDateForSlot,
   seasonMonthName,
   transferDeadlineHoursRemaining,
@@ -76,6 +79,20 @@ export function AdvanceOverlay({
   const now = currentAbsoluteDay(state);
   const deadline = isTransferDeadlineDay(state);
   const hoursLeft = transferDeadlineHoursRemaining(state);
+  const transferWindowOpen = isTransferWindowOpen(state);
+  const transferWindowDays = transferWindowOpen
+    ? Math.max(0, ((state.week <= WINDOW_PRESEASON_END ? WINDOW_PRESEASON_END : CALENDAR.midSeasonEnd) - state.week) * 7 + (6 - day))
+    : Math.max(
+        1,
+        state.week < CALENDAR.midSeasonStart
+          ? (CALENDAR.midSeasonStart - state.week) * 7 - day
+          : (CALENDAR.seasonEnd - state.week + 1) * 7 - day,
+      );
+  const transferWindowCopy = transferWindowOpen
+    ? transferWindowDays <= 0
+      ? "Transfer window open · closes today"
+      : `Transfer window open · closes in ${transferWindowDays} day${transferWindowDays === 1 ? "" : "s"}`
+    : `Transfer window closed · reopens in ${transferWindowDays} day${transferWindowDays === 1 ? "" : "s"}`;
   const digest = useMemo(() => (startState ? advanceDigest(startState, state) : null), [startState, state]);
   const stopped = !isContinuing;
   const decisions = state.inbox.filter(requiresInboxDecision);
@@ -135,8 +152,21 @@ export function AdvanceOverlay({
             </div>
           </div>
 
+          <div className="mt-3">
+            <span
+              className={cn(
+                "inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+                transferWindowOpen
+                  ? "border-emerald-300/40 bg-emerald-300/15 text-emerald-50"
+                  : "border-white/15 bg-black/20 text-white/75",
+              )}
+            >
+              {transferWindowCopy}
+            </span>
+          </div>
+
           {/* Journey to the stop */}
-          <div className="mt-4">
+          <div className="mt-3">
             <div className="mb-1 flex items-center justify-between text-[11px] opacity-75">
               <span>{target ? `Heading to ${target.label.toLowerCase() === "next match" ? "the next match" : target.label}` : "Until something needs you"}</span>
               {target?.untilAbsoluteDay !== undefined ? <span>{Math.max(0, target.untilAbsoluteDay - now)} days to go</span> : null}
