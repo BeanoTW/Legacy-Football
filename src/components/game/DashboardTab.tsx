@@ -22,6 +22,7 @@ import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { medicalSupport, playerFitness, playerIsAvailable, squadAverageFitness } from "@/lib/game/playerHealth";
 import { userSquad } from "@/lib/game/recruitment";
 import { inFormPlayers } from "@/lib/game/playerForm";
+import { attendanceCausality, weeklyFinanceCausality, type CausalityDriver } from "@/lib/game/causality";
 
 /** Charts need a few points before they say anything; until then, a summary reads better. */
 const MIN_CHART_WEEKS = 3;
@@ -53,6 +54,8 @@ export function DashboardTab({ state }: { state: GameState }) {
   const unavailable = squad.filter((player) => !playerIsAvailable(player, state));
   const tired = squad.filter((player) => playerIsAvailable(player, state) && playerFitness(player) < 72);
   const lastResult = state.results[state.results.length - 1];
+  const financeDrivers = weeklyFinanceCausality(state, 4);
+  const attendanceDrivers = attendanceCausality(state, lastResult).slice(0, 4);
 
   const seasonTotals = state.ledger.reduce(
     (acc, l) => {
@@ -119,6 +122,9 @@ export function DashboardTab({ state }: { state: GameState }) {
             </div>
             {lastLedger?.matchdayNote && (
               <p className="mt-1 truncate text-[11px] text-muted-foreground">{lastLedger.matchdayNote}</p>
+            )}
+            {financeDrivers.length > 0 && (
+              <WhyDetails title="Why this week?" drivers={financeDrivers} />
             )}
 
             {showCharts ? (
@@ -214,6 +220,9 @@ export function DashboardTab({ state }: { state: GameState }) {
                 <Mini label="TV" value={fmtMoney(lastResult.tvIncome)} tone="good" />
                 <Mini label="Fans" value={`${state.fanHappiness}%`} />
               </div>
+              {lastResult.home && attendanceDrivers.length > 0 && (
+                <WhyDetails title="Why this crowd?" drivers={attendanceDrivers} />
+              )}
             </div>
           ) : (
             <p className="px-3 pb-2.5 text-xs text-muted-foreground">No matches yet. Continue to play your opener.</p>
@@ -261,6 +270,35 @@ export function DashboardTab({ state }: { state: GameState }) {
         </section>
       </div>
     </div>
+  );
+}
+
+function WhyDetails({ title, drivers }: { title: string; drivers: CausalityDriver[] }) {
+  return (
+    <details className="mt-2 rounded-lg border bg-muted/20">
+      <summary className="cursor-pointer px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+        {title}
+      </summary>
+      <div className="space-y-1 border-t px-2.5 py-2">
+        {drivers.map((driver) => (
+          <div key={driver.id} className="grid grid-cols-[auto_1fr] gap-2 text-[10px] leading-relaxed">
+            <span
+              className={cn(
+                "mt-1 size-1.5 rounded-full",
+                driver.impact === "positive" && "bg-[color:var(--color-income)]",
+                driver.impact === "negative" && "bg-[color:var(--color-expense)]",
+                driver.impact === "neutral" && "bg-muted-foreground/45",
+              )}
+              aria-hidden="true"
+            />
+            <div>
+              <strong className="text-foreground">{driver.label}</strong>
+              <span className="text-muted-foreground"> · {driver.detail}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </details>
   );
 }
 
