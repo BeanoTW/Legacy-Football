@@ -60,7 +60,10 @@ bench(
 
 bench(
   "full season (46 weeks)",
-  // Keep 12s as the tracked performance target. Shared GitHub runners are too noisy for\n  // a 5-12% wall-clock gate, so only fail on a material regression (>16s). The\n  // measured median is still printed every run and should normally stay near 12s.\n  16000,
+  // Keep 12s as the tracked performance target. Shared GitHub runners are too noisy for
+  // a 5-12% wall-clock gate, so only fail on a material regression (>16s). The
+  // measured median is still printed every run and should normally stay near 12s.
+  16000,
   () => {
     let s = newGame("Perf United", "Bench Marker", SEED);
     for (let i = 0; i < 46; i++) s = advanceWeek(s);
