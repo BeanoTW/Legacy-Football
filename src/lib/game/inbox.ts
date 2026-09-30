@@ -103,6 +103,7 @@ import { hashString, seededRng } from "./rng";
 import { postEntry } from "./finance";
 import { archivedInboxGuardKeys } from "./archive";
 import { postMatchReaction } from "./matchReaction";
+import { RANDOM_INCIDENTS, pressChoicesForIncident, randomIncidentById } from "./randomIncidents";
 
 /* ---------- Helpers ---------- */
 const money = (n: number) => {
@@ -2081,8 +2082,124 @@ const G_SUS_TIER_SHOCK: Generator = {
   },
 };
 
+/* -- Random chairman incidents + press follow-ups ---------------------- */
+const RANDOM_INCIDENT_COOLDOWN_WEEKS = 4;
+const RANDOM_INCIDENT_CHANCE = 0.24;
+const RANDOM_INCIDENT_LAST_FLAG = "randomIncidentLastAbsoluteWeek";
+
+const G_RANDOM_INCIDENT: Generator = {
+  id: "random-incident",
+  run: (s) => {
+    // Keep the opening tutorial stretch clean; the authored roof issue already
+    // teaches the player how incidents and consequences work.
+    if (s.season === 1 && s.week < 5) return [];
+    if (s.inbox.filter(requiresInboxDecision).length >= 2) return [];
+    if (s.inbox.some((item) => item.generatorId === "random-incident" && requiresInboxDecision(item))) return [];
+
+    const nowAbs = absoluteWeek(s.season, s.week);
+    const last = Number(s.inboxFlags[RANDOM_INCIDENT_LAST_FLAG] ?? -999);
+    if (nowAbs - last < RANDOM_INCIDENT_COOLDOWN_WEEKS) return [];
+
+    const rng = seededRng(s.saveSeed, "random-incident", nowAbs);
+    if (rng() >= RANDOM_INCIDENT_CHANCE) return [];
+
+    const available = RANDOM_INCIDENTS.filter(
+      (incident) =>
+        !s.inbox.some(
+          (item) =>
+            item.generatorId === "random-incident" &&
+            item.season === s.season &&
+            item.eventKey.includes(`:${incident.id}:`),
+        ),
+    );
+    const pool = available.length > 0 ? available : RANDOM_INCIDENTS;
+    const incident = pool[Math.floor(rng() * pool.length)] ?? pool[0];
+    if (!incident) return [];
+
+    const eventKey = `random-incident:${incident.id}:s${s.season}:abs${nowAbs}`;
+    const conversationKey = `incident:${incident.id}:s${s.season}:abs${nowAbs}`;
+    const choices = incident.choices(s).map((choice): InboxChoice => {
+      const effects: InboxEffect[] = [
+        ...choice.effects,
+        { kind: "flag", key: RANDOM_INCIDENT_LAST_FLAG, value: nowAbs },
+      ];
+      if (incident.press) {
+        effects.push({
+          kind: "scheduleGenerator",
+          generatorId: "random-incident-press",
+          inWeeks: 1,
+          payload: {
+            incidentId: incident.id,
+            decisionId: choice.id,
+            decisionLabel: choice.label,
+            incidentEventKey: eventKey,
+            conversationKey,
+          },
+        });
+      }
+      return { ...choice, effects };
+    });
+
+    return [
+      mk(s, "random-incident", {
+        eventKey,
+        conversationKey,
+        sender: incident.sender,
+        department: incident.department,
+        category: incident.category,
+        priority: incident.priority,
+        subject: incident.subject(s),
+        body: incident.body(s),
+        expiresInWeeks: 2,
+        consequenceOnExpire: [
+          { kind: "flag", key: RANDOM_INCIDENT_LAST_FLAG, value: nowAbs },
+          { kind: "reputation", delta: -1 },
+        ],
+        choices,
+      }),
+    ];
+  },
+};
+
+const G_RANDOM_INCIDENT_PRESS: Generator = {
+  id: "random-incident-press",
+  run: (s, dueEntries) =>
+    dueEntries.flatMap((entry) => {
+      const incidentId = String(entry.payload?.incidentId ?? "");
+      const decisionId = String(entry.payload?.decisionId ?? "");
+      const decisionLabel = String(entry.payload?.decisionLabel ?? "the decision");
+      const incidentEventKey = String(entry.payload?.incidentEventKey ?? incidentId);
+      const conversationKey = String(entry.payload?.conversationKey ?? `incident:${incidentEventKey}`);
+      const incident = randomIncidentById(incidentId);
+      if (!incident?.press) return [];
+
+      return [
+        mk(s, "random-incident-press", {
+          eventKey: `random-incident-press:${incidentEventKey}`,
+          conversationKey,
+          sender: "Rachel Morgan",
+          department: "Media",
+          category: "media",
+          priority: "normal",
+          subject: `Press conference — ${incident.subject(s)}`,
+          body:
+            `The story has moved beyond the club. Journalists want an explanation from the chairman.\n\n` +
+            incident.press.question(s, decisionLabel),
+          expiresInWeeks: 1,
+          choices: pressChoicesForIncident(incident, decisionId),
+          consequenceOnExpire: [
+            { kind: "reputation", delta: -1 },
+            { kind: "fanHappiness", delta: -1 },
+          ],
+        }),
+      ];
+    }),
+};
+
 const GENERATORS: Generator[] = [
   G_WELCOME,
+  G_RANDOM_INCIDENT,
+  G_RANDOM_INCIDENT_PRESS,
   G_FINANCE_WEEKLY,
   G_ROOF,
   G_ROOF_FOLLOWUP,
