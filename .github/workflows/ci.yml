@@ -60,10 +60,10 @@ jobs:
   game-checks:
     name: game-checks shard ${{ matrix.shard }}
     runs-on: ubuntu-latest
-    # The long-horizon simulation shards can legitimately exceed 15 minutes on
-    # shared GitHub runners. Keep the timeout above their normal worst case so
-    # deterministic game checks fail on assertions rather than runner time.
-    timeout-minutes: 25
+    # The long-horizon simulation shards can legitimately exceed 25 minutes on
+    # shared GitHub runners as the verification suite grows. Keep enough headroom
+    # that deterministic game checks fail on assertions rather than runner time.
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
