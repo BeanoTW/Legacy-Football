@@ -104,6 +104,7 @@ import { postEntry } from "./finance";
 import { archivedInboxGuardKeys } from "./archive";
 import { postMatchReaction } from "./matchReaction";
 import { RANDOM_INCIDENTS, pressChoicesForIncident, randomIncidentById } from "./randomIncidents";
+import { adjustManagerRelationshipInPlace, currentManager, latestManagerRelationshipEvent, managerRelationship } from "./managerRelationship";
 
 /* ---------- Helpers ---------- */
 const money = (n: number) => {
@@ -239,6 +240,13 @@ function applyEffectInPlace(s: GameState, e: InboxEffect, src: EffectSource): vo
       break;
     case "flag":
       s.inboxFlags[e.key] = e.value;
+      break;
+    case "managerRelationship":
+      adjustManagerRelationshipInPlace(s, e.managerId, {
+        trust: e.trust,
+        backing: e.backing,
+        autonomy: e.autonomy,
+      });
       break;
     case "commercialAccept":
       acceptOfferInPlace(s, e.offerId);
@@ -2220,10 +2228,103 @@ const G_RANDOM_INCIDENT_PRESS: Generator = {
     }),
 };
 
+const G_MANAGER_RELATIONSHIP_REACTION: Generator = {
+  id: "manager-relationship-reaction",
+  run: (s) => {
+    const manager = currentManager(s);
+    if (!manager) return [];
+    const event = latestManagerRelationshipEvent(s, manager);
+    if (event.seq <= 0) return [];
+
+    const relationship = managerRelationship(s, manager);
+    const negative =
+      (event.delta.trust ?? 0) <= -3 ||
+      (event.delta.backing ?? 0) <= -4 ||
+      (event.delta.autonomy ?? 0) <= -3 ||
+      relationship.band === "Strained";
+    const positive =
+      (event.delta.trust ?? 0) >= 2 ||
+      (event.delta.backing ?? 0) >= 4 ||
+      (event.delta.autonomy ?? 0) >= 2;
+
+    const body =
+      `${event.message}\n\n` +
+      `Current relationship: ${relationship.band} (${relationship.overall}/100). ` +
+      `Trust ${relationship.trust} · Backing ${relationship.backing} · Autonomy ${relationship.autonomy}.`;
+
+    if (!negative) {
+      return [
+        mk(s, "manager-relationship-reaction", {
+          eventKey: `manager-relationship-reaction:${manager.id}:${event.seq}`,
+          conversationKey: `manager:${manager.id}:relationship`,
+          relatedEntityId: manager.id,
+          sender: manager.name,
+          department: "Manager",
+          category: "staff",
+          priority: positive ? "normal" : "low",
+          subject: positive
+            ? `Manager pleased with the ${event.playerName} decision`
+            : `Manager reaction: ${event.playerName}`,
+          body,
+        }),
+      ];
+    }
+
+    return [
+      mk(s, "manager-relationship-reaction", {
+        eventKey: `manager-relationship-reaction:${manager.id}:${event.seq}`,
+        conversationKey: `manager:${manager.id}:relationship`,
+        relatedEntityId: manager.id,
+        sender: manager.name,
+        department: "Manager",
+        category: "staff",
+        priority: relationship.band === "Strained" ? "urgent" : "high",
+        subject: relationship.band === "Strained"
+          ? `Private meeting requested — relationship under strain`
+          : `Manager wants a word about ${event.playerName}`,
+        body:
+          body +
+          `\n\n${manager.name} wants the disagreement addressed privately before it becomes a recurring problem.`,
+        expiresInWeeks: 2,
+        choices: [
+          {
+            id: "hear-him-out",
+            label: "Hear him out",
+            hint: "Acknowledge his football concerns and give him more room to influence the next decision.",
+            effects: [
+              { kind: "managerRelationship", managerId: manager.id, trust: 3, autonomy: 2 },
+            ],
+          },
+          {
+            id: "stand-by-call",
+            label: "Stand by the decision",
+            hint: "Keep the relationship professional without pretending you agree.",
+            effects: [
+              { kind: "managerRelationship", managerId: manager.id, trust: 0, backing: 0, autonomy: 0 },
+            ],
+          },
+          {
+            id: "set-boundary",
+            label: "Remind him who runs the club",
+            hint: "Assert chairman authority. It may settle the hierarchy, but it will damage trust.",
+            effects: [
+              { kind: "managerRelationship", managerId: manager.id, trust: -3, backing: -1, autonomy: -4 },
+            ],
+          },
+        ],
+        consequenceOnExpire: [
+          { kind: "managerRelationship", managerId: manager.id, trust: -2, backing: -1 },
+        ],
+      }),
+    ];
+  },
+};
+
 const GENERATORS: Generator[] = [
   G_WELCOME,
   G_RANDOM_INCIDENT,
   G_RANDOM_INCIDENT_PRESS,
+  G_MANAGER_RELATIONSHIP_REACTION,
   G_FINANCE_WEEKLY,
   G_ROOF,
   G_ROOF_FOLLOWUP,
