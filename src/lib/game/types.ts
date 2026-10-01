@@ -805,7 +805,8 @@ export type FinanceSource =
   | "board"
   | "facilities"
   | "migration"
-  | "commercial";
+  | "commercial"
+  | "developer-mode";
 
 export interface FinanceEntry {
   id: string;
