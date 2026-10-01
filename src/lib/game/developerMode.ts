@@ -35,7 +35,7 @@ export function developerSetInfiniteMoney(state: GameState): GameState {
   const amount = Math.max(0, DEV_CASH_TARGET - next.cash);
   if (amount > 0) {
     postEntry(next, {
-      category: "Other",
+      category: "Miscellaneous",
       subcategory: "Developer mode",
       description: "Developer mode cash injection",
       amount,
