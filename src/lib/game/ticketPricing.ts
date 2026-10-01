@@ -1,4 +1,5 @@
 import { clubSizeFactor } from "./economy";
+import type { GameState } from "./types";
 
 export interface PriceReferenceProfile {
   ticketPriceReference: number;
@@ -28,4 +29,14 @@ export function gateMaximisingPrice(unpricedDemand: number, capacity: number, re
     }
   }
   return Math.round(best * 4) / 4;
+}
+
+
+/** Scale every stand price together for chairman/supporter decisions. */
+export function scaleTicketPricesInPlace(state: GameState, multiplier: number): void {
+  const factor = Number.isFinite(multiplier) ? Math.max(0.25, Math.min(2, multiplier)) : 1;
+  state.stands = state.stands.map((stand) => ({
+    ...stand,
+    ticketPrice: Math.max(5, Math.min(120, Math.round(stand.ticketPrice * factor))),
+  }));
 }
