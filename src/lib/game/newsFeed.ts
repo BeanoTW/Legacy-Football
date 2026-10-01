@@ -509,7 +509,7 @@ function livingClubArticles(state: GameState): NewsArticle[] {
         season: item.season,
         week: item.week,
         publication: PUBLICATIONS.touchline,
-        byline: pick(`${key}|byline`, REPORTERS),
+        byline: item.pressConference.journalistName ?? pick(`${key}|byline`, REPORTERS),
         headline: `${us} chairman pressed on ${subject.toLowerCase()}`,
         standfirst: `Press-room verdict: ${item.pressConference.outcome}.`,
         body: [
@@ -522,6 +522,9 @@ function livingClubArticles(state: GameState): NewsArticle[] {
         facts: [
           { label: "Press approach", value: item.pressConference.outcome },
           { label: "Questions", value: String(exchanges.length) },
+          ...(item.pressConference.journalistOutlet
+            ? [{ label: "Reporter", value: `${item.pressConference.journalistName ?? "Reporter"} · ${item.pressConference.journalistOutlet}` }]
+            : []),
         ],
         tags: [us, "Press conference", "Chairman"],
         involvesUser: true,
