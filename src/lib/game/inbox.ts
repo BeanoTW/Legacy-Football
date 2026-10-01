@@ -87,7 +87,13 @@ import {
   setMaintenancePolicyInPlace,
 } from "./infrastructure";
 import { absoluteWeek, fromAbsoluteWeek } from "./time";
-import { evaluateObjective, confidenceBand, BAND_LABEL, directorConcern } from "./board";
+import {
+  evaluateObjective,
+  confidenceBand,
+  BAND_LABEL,
+  directorConcern,
+  renegotiateBoardObjectiveInPlace,
+} from "./board";
 import {
   RESERVE_REPORT_WEEKS,
   capacityPicture,
