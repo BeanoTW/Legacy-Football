@@ -265,7 +265,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
             {tab === "commercial" && <CommercialTab state={state} update={update} />}
             {tab === "world" && <WorldInspector state={state} update={update} />}
             {tab === "history" && <HistoryTab state={state} />}
-            {tab === "settings" && <SettingsTab activeSlot={activeSlot} slots={saveSlots} onSwitch={switchSlot} onDelete={deleteSlot} />}
+            {tab === "settings" && <SettingsTab state={state} update={update} activeSlot={activeSlot} slots={saveSlots} onSwitch={switchSlot} onDelete={deleteSlot} />}
           </ScreenBoundary>
         </div>
       </main>
