@@ -5,10 +5,11 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { newsAge, newsFeed, type NewsArticle, type NewsKind } from "@/lib/game/newsFeed";
+import { socialFeed, type SocialPost } from "@/lib/game/socialFeed";
 import { CharacterPortrait } from "./CharacterPortrait";
 import { useChairmanProfile } from "./ChairmanStudio";
 
-type NewsFilter = "all" | "club" | "matches" | "transfers" | "league";
+type NewsFilter = "all" | "club" | "matches" | "transfers" | "league" | "social";
 
 const FILTERS: { id: NewsFilter; label: string; kinds?: NewsKind[] }[] = [
   { id: "all", label: "For you" },
@@ -16,6 +17,7 @@ const FILTERS: { id: NewsFilter; label: string; kinds?: NewsKind[] }[] = [
   { id: "matches", label: "Matches", kinds: ["matchReport", "upset", "roundUp"] },
   { id: "transfers", label: "Transfers", kinds: ["transfer", "appointment"] },
   { id: "league", label: "League", kinds: ["tableWatch", "season", "roundUp", "upset"] },
+  { id: "social", label: "Social" },
 ];
 
 const KIND_LABEL: Record<NewsKind, string> = {
@@ -122,6 +124,32 @@ function NewsCard({ article, state, onOpen }: { article: NewsArticle; state: Gam
   );
 }
 
+function SocialCard({ post, state, onOpen }: { post: SocialPost; state: GameState; onOpen: () => void }) {
+  const ageWeeks = (state.season - post.season) * 46 + (state.week - post.week);
+  const age = ageWeeks <= 0 ? "Today" : ageWeeks === 1 ? "1w" : `${ageWeeks}w`;
+  return (
+    <article className={cn("lf-news-post tone-local", `is-social sentiment-${post.sentiment}`)}>
+      <header className="lf-news-post-head">
+        <span className="lf-news-avatar">{post.displayName.split(/\s+/).map((part) => part[0]).slice(0, 2).join("")}</span>
+        <span className="lf-news-source">
+          <strong>{post.displayName}</strong>
+          <small>{post.handle} · {age}</small>
+        </span>
+        <span className="lf-news-kind">Supporter post</span>
+      </header>
+      <div className="lf-news-post-body">
+        <p className="text-sm leading-relaxed text-foreground">{post.body}</p>
+      </div>
+      <footer className="lf-news-reactions" aria-label="Reactions">
+        <span><Heart /> {compact(post.likes)}</span>
+        <span><MessageCircle /> {compact(post.replies)}</span>
+        <span><Repeat2 /> {compact(post.reposts)}</span>
+        <button type="button" onClick={onOpen}>View story <ArrowRight /></button>
+      </footer>
+    </article>
+  );
+}
+
 function ArticleReader({ article, state, onClose }: { article: NewsArticle; state: GameState; onClose: () => void }) {
   return (
     <Sheet open onOpenChange={(open) => !open && onClose()}>
@@ -160,8 +188,10 @@ export function NewsFeed({ state }: { state: GameState }) {
   const [filter, setFilter] = useState<NewsFilter>("all");
   const [openId, setOpenId] = useState<string | null>(null);
   const articles = useMemo(() => newsFeed(state), [state]);
+  const socialPosts = useMemo(() => socialFeed(state), [state]);
   const visible = useMemo(() => {
     const config = FILTERS.find((entry) => entry.id === filter)!;
+    if (filter === "social") return [];
     if (filter === "club") return articles.filter((article) => article.involvesUser);
     return config.kinds ? articles.filter((article) => config.kinds!.includes(article.kind)) : articles;
   }, [articles, filter]);
@@ -177,7 +207,17 @@ export function NewsFeed({ state }: { state: GameState }) {
         ))}
       </div>
       <div className="lf-news-stream touch-pan-y">
-        {visible.length === 0 ? (
+        {filter === "social" ? (
+          socialPosts.length === 0 ? (
+            <div className="lf-inbox-empty">
+              <MessageCircle />
+              <h2>The timeline is quiet</h2>
+              <p>Supporter reaction will build as matches, chairman decisions and press conferences create talking points.</p>
+            </div>
+          ) : (
+            socialPosts.map((post) => <SocialCard key={post.id} post={post} state={state} onOpen={() => setOpenId(post.sourceArticleId)} />)
+          )
+        ) : visible.length === 0 ? (
           <div className="lf-inbox-empty">
             <Newspaper />
             <h2>The presses are quiet</h2>
