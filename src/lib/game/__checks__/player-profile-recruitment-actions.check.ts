@@ -39,4 +39,25 @@ assert(
   "profile actions reuse recruitment systems rather than mutating player storage directly",
 );
 
-console.log("\n7 passed, 0 failed");
+assert(
+  profile.includes("setTransferStatusInPlace") && profile.includes("Transfer list"),
+  "owned-player profile can add or remove a player from the transfer list",
+);
+assert(
+  profile.includes("renewContractInPlace") && profile.includes("Negotiate contract"),
+  "owned-player profile exposes contract negotiation",
+);
+assert(
+  profile.includes("arrangeUserPlayerLoanOut") && profile.includes("Find loan club"),
+  "owned-player profile can arrange an outgoing loan",
+);
+assert(
+  profile.includes("releasePlayerInPlace") && profile.includes("Confirm release"),
+  "owned-player profile exposes guarded contract termination",
+);
+assert(
+  profile.includes("terminateUserPlayerLoan") && profile.includes("Recall from loan"),
+  "active loans expose the relevant end or recall action",
+);
+
+console.log("\n12 passed, 0 failed");
