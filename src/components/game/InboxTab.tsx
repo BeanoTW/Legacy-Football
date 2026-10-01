@@ -547,6 +547,7 @@ function InboxRow({ item, state, onOpen, conversationCount }: { item: InboxItem;
 }
 
 export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelete, onNavigate }: { item: InboxItem; state: GameState; onClose: () => void; onChoose: (choiceId: string) => void; onDismiss: () => void; onDelete: () => void; onNavigate?: (destination: InboxDestination) => void }) {
+  const [showObjectiveNegotiation, setShowObjectiveNegotiation] = useState(false);
   const decision = requiresInboxDecision(item);
   const conversation = inboxConversationItems(state.inbox, item);
   const hasConversation = conversation.length > 1;
@@ -629,21 +630,76 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
               ) : (
                 <>
                   <div className="lf-decision-heading"><div><span>Managing Director action</span><h2>Choose your response</h2></div>{deadline && <small>{deadline}</small>}</div>
-                  <div className="lf-decision-grid">
-                    {item.choices.map((choice) => {
-                      const availability = evaluateChoice(state, choice);
-                      return (
-                        <Button key={choice.id} variant="ghost" onClick={() => availability.available && onChoose(choice.id)} disabled={!availability.available} className="lf-decision-card lf-choice-tile">
-                          <span className="lf-choice-tile-copy">
-                            <strong>{choice.label}</strong>
-                            {choice.hint && <small>{choice.hint}</small>}
-                            {!availability.available && <em>{availability.reasons.join(" ")}</em>}
-                          </span>
-                          <span className="lf-choice-tile-arrow" aria-hidden="true"><ChevronRight /></span>
-                        </Button>
-                      );
-                    })}
-                  </div>
+                  {item.generatorId === "board-objectives" ? (
+                    <div className="lf-decision-grid">
+                      {item.choices.filter((choice) => choice.id === "accept").map((choice) => {
+                        const availability = evaluateChoice(state, choice);
+                        return (
+                          <Button key={choice.id} variant="ghost" onClick={() => availability.available && onChoose(choice.id)} disabled={!availability.available} className="lf-decision-card lf-choice-tile">
+                            <span className="lf-choice-tile-copy">
+                              <strong>{choice.label}</strong>
+                              {choice.hint && <small>{choice.hint}</small>}
+                            </span>
+                            <span className="lf-choice-tile-arrow" aria-hidden="true"><ChevronRight /></span>
+                          </Button>
+                        );
+                      })}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="lf-decision-card lf-choice-tile"
+                        onClick={() => setShowObjectiveNegotiation((value) => !value)}
+                      >
+                        <span className="lf-choice-tile-copy">
+                          <strong>Negotiate one term</strong>
+                          <small>The board will soften one objective. Choose the target you want changed.</small>
+                        </span>
+                        <span className="lf-choice-tile-arrow" aria-hidden="true"><ChevronRight className={cn("transition-transform", showObjectiveNegotiation && "rotate-90")} /></span>
+                      </Button>
+                      {showObjectiveNegotiation && (
+                        <div className="col-span-full space-y-2 rounded-2xl border bg-muted/30 p-2">
+                          <div className="px-2 py-1">
+                            <strong className="text-sm">Which term do you want to renegotiate?</strong>
+                            <p className="mt-0.5 text-xs text-muted-foreground">You get one concession. The other objectives stay exactly as issued.</p>
+                          </div>
+                          {item.choices.filter((choice) => choice.id.startsWith("negotiate-")).map((choice) => {
+                            const availability = evaluateChoice(state, choice);
+                            return (
+                              <Button
+                                key={choice.id}
+                                variant="outline"
+                                disabled={!availability.available}
+                                onClick={() => availability.available && onChoose(choice.id)}
+                                className="h-auto min-h-14 w-full justify-between px-3 py-2 text-left"
+                              >
+                                <span className="min-w-0 pr-3">
+                                  <strong className="block whitespace-normal text-sm leading-snug">{choice.label.replace(/^Negotiate:\s*/, "")}</strong>
+                                  <small className="mt-1 block whitespace-normal text-muted-foreground">Ask the board to soften this target.</small>
+                                </span>
+                                <ChevronRight className="size-4 shrink-0" />
+                              </Button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="lf-decision-grid">
+                      {item.choices.map((choice) => {
+                        const availability = evaluateChoice(state, choice);
+                        return (
+                          <Button key={choice.id} variant="ghost" onClick={() => availability.available && onChoose(choice.id)} disabled={!availability.available} className="lf-decision-card lf-choice-tile">
+                            <span className="lf-choice-tile-copy">
+                              <strong>{choice.label}</strong>
+                              {choice.hint && <small>{choice.hint}</small>}
+                              {!availability.available && <em>{availability.reasons.join(" ")}</em>}
+                            </span>
+                            <span className="lf-choice-tile-arrow" aria-hidden="true"><ChevronRight /></span>
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </>
               )}
             </section>
