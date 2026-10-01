@@ -41,6 +41,8 @@ export interface DiscoveredCandidateView {
 export interface ScoutingBrief {
   id: string;
   position?: Position;
+  /** Broad positions covered by one search. New briefs use this; position remains for old saves. */
+  positions?: Position[];
   tacticalPosition?: TacticalPosition;
   minAge?: number;
   maxAge?: number;
@@ -85,6 +87,7 @@ declare module "./types" {
 export interface ScoutingBriefInput {
   id: string;
   position?: Position;
+  positions?: Position[];
   tacticalPosition?: TacticalPosition;
   minAge?: number;
   maxAge?: number;
@@ -115,7 +118,7 @@ type DiscoveryCandidate = DetailedCandidate | FringeCandidate;
 const WORLD_POSITIONS: Position[] = ["GK", "DEF", "MID", "FWD"];
 function unsignedHash(value: string): number { return hashString(value) >>> 0; }
 
-export interface ScoutingSearchPlan { quality: number; searchDays: number; initialKnowledgeDays: number; candidateLimit: number; }
+export interface ScoutingSearchPlan { quality: number; searchDays: number; initialKnowledgeDays: number; candidateLimit: number; positionCapacity: number; }
 export function scoutingQuality(state: GameState): number {
   const department = state.football?.department.recruitmentRating ?? 50;
   const chief = state.hiredStaff.find((staff) => staff.role === "Chief Scout");
@@ -131,7 +134,8 @@ export function scoutingSearchPlan(state: GameState): ScoutingSearchPlan {
   const searchDays = quality >= 80 ? 2 : quality >= 55 ? 3 : 4;
   const initialKnowledgeDays = quality >= 80 ? 4 : quality >= 55 ? 3 : 2;
   const candidateLimit = Math.max(10, Math.min(32, 8 + Math.floor(quality / 6) + Math.min(8, scoutCount * 2)));
-  return { quality, searchDays, initialKnowledgeDays, candidateLimit };
+  const positionCapacity = quality >= 80 ? 4 : quality >= 65 ? 3 : quality >= 45 ? 2 : 1;
+  return { quality, searchDays, initialKnowledgeDays, candidateLimit, positionCapacity };
 }
 function absoluteDay(state: GameState): number { return absoluteWeek(state.season, state.week) * 7 + calendarDay(state); }
 function detailedCandidate(state: GameState, player: FootballPlayer): DetailedCandidate {
@@ -154,7 +158,8 @@ function fringeCandidates(state: GameState): FringeCandidate[] {
 }
 function eligible(state: GameState, candidate: DiscoveryCandidate, input: ScoutingBriefInput): boolean {
   if (candidate.source === "detailed" && isUserClubReference(state, candidate.player.currentClubId)) return false;
-  if (input.position && candidate.primaryPosition !== input.position) return false;
+  const requestedPositions = input.positions?.length ? input.positions : input.position ? [input.position] : [];
+  if (requestedPositions.length && !requestedPositions.includes(candidate.primaryPosition)) return false;
   if (input.tacticalPosition && positionFamiliarity(candidate, input.tacticalPosition) === "Unfamiliar") return false;
   if (input.minAge !== undefined && candidate.age < input.minAge) return false;
   if (input.maxAge !== undefined && candidate.age > input.maxAge) return false;
@@ -183,7 +188,7 @@ function ranked(state: GameState, candidates: DiscoveryCandidate[], input: Scout
 }
 function completeScoutingBriefInPlace(state: GameState, brief: ScoutingBrief): void {
   if (!state.football || brief.status === "complete") return;
-  const input: ScoutingBriefInput = { id: brief.id, position: brief.position, tacticalPosition: brief.tacticalPosition, minAge: brief.minAge, maxAge: brief.maxAge, maxMarketValue: brief.maxMarketValue, maxWeeklyWage: brief.maxWeeklyWage, nationality: brief.nationality, clubStatus: brief.clubStatus, minCurrentAbility: brief.minCurrentAbility, playerLevel: brief.playerLevel };
+  const input: ScoutingBriefInput = { id: brief.id, position: brief.position, positions: brief.positions, tacticalPosition: brief.tacticalPosition, minAge: brief.minAge, maxAge: brief.maxAge, maxMarketValue: brief.maxMarketValue, maxWeeklyWage: brief.maxWeeklyWage, nationality: brief.nationality, clubStatus: brief.clubStatus, minCurrentAbility: brief.minCurrentAbility, playerLevel: brief.playerLevel };
   const candidateLimit = brief.candidateLimit ?? scoutingSearchPlan(state).candidateLimit;
   const detailed = ranked(state, state.football.players.map((player) => detailedCandidate(state, player)), input);
   const fringe = ranked(state, fringeCandidates(state), input);
@@ -208,7 +213,23 @@ function completeScoutingBriefInPlace(state: GameState, brief: ScoutingBrief): v
 export function createScoutingBrief(state: GameState, input: ScoutingBriefInput): GameState {
   const next = structuredClone(state); if (!next.football) return next; next.football.scoutingDiscovery ??= { briefs: [] }; if (next.football.scoutingDiscovery.briefs.some((brief) => brief.id === input.id)) return next;
   const plan = scoutingSearchPlan(next); const nowDay = absoluteDay(next);
-  next.football.scoutingDiscovery.briefs.push({ ...input, createdAtAbsoluteWeek: absoluteWeek(next.season, next.week), createdAtDay: nowDay, dueAtDay: nowDay + plan.searchDays, scoutQuality: plan.quality, initialKnowledgeDays: plan.initialKnowledgeDays, candidateLimit: plan.candidateLimit, status: "active", candidateIds: [], candidateSources: {}, candidateProfiles: {} });
+  const requestedPositions = [...new Set(input.positions?.length ? input.positions : input.position ? [input.position] : [])];
+  const positions = requestedPositions.slice(0, plan.positionCapacity);
+  next.football.scoutingDiscovery.briefs.push({
+    ...input,
+    position: positions.length === 1 ? positions[0] : undefined,
+    positions: positions.length ? positions : undefined,
+    createdAtAbsoluteWeek: absoluteWeek(next.season, next.week),
+    createdAtDay: nowDay,
+    dueAtDay: nowDay + plan.searchDays,
+    scoutQuality: plan.quality,
+    initialKnowledgeDays: plan.initialKnowledgeDays,
+    candidateLimit: plan.candidateLimit,
+    status: "active",
+    candidateIds: [],
+    candidateSources: {},
+    candidateProfiles: {},
+  });
   return next;
 }
 export function progressScoutingDiscoveryDayInPlace(state: GameState, targetDay: number): void { const briefs = state.football?.scoutingDiscovery?.briefs; if (!briefs) return; for (const brief of briefs) { if (brief.status !== "active") continue; const dueAtDay = brief.dueAtDay ?? (brief.createdAtAbsoluteWeek * 7 + 4); if (targetDay >= dueAtDay) completeScoutingBriefInPlace(state, brief); } }
