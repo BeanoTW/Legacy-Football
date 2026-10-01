@@ -23,7 +23,7 @@ assert(
   "contracted players can enter the staged club negotiation flow from their profile",
 );
 assert(
-  profile.includes("submitTransferOffer") && profile.includes("Approach player"),
+  profile.includes("submitTransferOffer") && profile.includes('label={freeAgent ? "Approach" : "Approach club"}'),
   "free agents can be approached directly from their profile",
 );
 assert(
@@ -44,7 +44,7 @@ assert(
   "owned-player profile can add or remove a player from the transfer list",
 );
 assert(
-  profile.includes("renewContractInPlace") && profile.includes("Negotiate contract"),
+  profile.includes("renewContractInPlace") && profile.includes('label="Contract"'),
   "owned-player profile exposes contract negotiation",
 );
 assert(
@@ -56,8 +56,25 @@ assert(
   "owned-player profile exposes guarded contract termination",
 );
 assert(
-  profile.includes("terminateUserPlayerLoan") && profile.includes("Recall from loan"),
+  profile.includes("terminateUserPlayerLoan") && profile.includes('label={loanIsOut ? "Recall" : "End loan"}'),
   "active loans expose the relevant end or recall action",
 );
 
-console.log("\n12 passed, 0 failed");
+assert(
+  profile.includes("AttributeRadar") && profile.includes("RADAR_AREAS"),
+  "player profile includes the six-area attribute radar",
+);
+assert(
+  profile.includes('setStatsView') && profile.includes('"Season"') && profile.includes('"Career"'),
+  "player profile combines performance into tabbed views",
+);
+assert(
+  profile.includes("attributeTab") && profile.includes("barTone"),
+  "attribute groups are tappable and quality-coded",
+);
+assert(
+  profile.includes("keyFacts.map"),
+  "player card header carries the compact six-fact strip",
+);
+
+console.log("\n16 passed, 0 failed");
