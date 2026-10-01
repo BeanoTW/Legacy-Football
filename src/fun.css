@@ -1,4 +1,10 @@
-/* Goal celebrations and ambient matchday motion. Loaded last from __root.tsx. */
+/* ==========================================================================
+   Fun bits: celebrations and ambient motion.
+   Loaded last (see __root.tsx). Everything here is decoration and switches
+   off for people who ask their device to reduce motion.
+   ========================================================================== */
+
+/* --- Goal celebration (match viewer) ------------------------------------ */
 @keyframes lf-shake {
   0%, 100% { transform: translate3d(0, 0, 0); }
   15% { transform: translate3d(-3px, 1px, 0); }
@@ -7,13 +13,18 @@
   60% { transform: translate3d(2px, -1px, 0); }
   75% { transform: translate3d(-1px, 1px, 0); }
 }
-.lf-shake { animation: lf-shake 480ms ease-out 1; }
+
+.lf-shake {
+  animation: lf-shake 480ms ease-out 1;
+}
 
 @keyframes lf-confetti-fall {
+  /* `top` is relative to the pitch, so pieces fall its full height. */
   0% { top: -12px; transform: translateX(0) rotate(0deg); opacity: 1; }
   80% { opacity: 1; }
   100% { top: 104%; transform: translateX(var(--drift, 0px)) rotate(var(--spin, 360deg)); opacity: 0; }
 }
+
 .lf-confetti {
   position: absolute;
   top: -12px;
@@ -23,9 +34,14 @@
   box-shadow: 0 0 0 0.5px rgb(0 0 0 / 25%);
   animation: lf-confetti-fall 2.3s cubic-bezier(0.3, 0.5, 0.45, 1) forwards;
 }
+
 .lf-confetti:nth-child(3n) { width: 5px; height: 5px; border-radius: 50%; }
 .lf-confetti:nth-child(4n) { width: 9px; height: 5px; }
 
+/* --- Home fixture card: floodlight glow and camera flashes --------------- */
+/* One overlay on the card itself: two soft floodlight glows that stay put and
+   five camera flashes in the far stand that pop in different spots. "Off"
+   positions park a flash outside the card. */
 @keyframes lf-flashes {
   0%   { background-position: 30% 0, 75% 0, 12% 33%, -20% -20%, 82% 37%, -20% -20%, -20% -20%; }
   9%   { background-position: 30% 0, 75% 0, -20% -20%, 64% 30%, -20% -20%, -20% -20%, -20% -20%; }
@@ -42,10 +58,12 @@
   position: relative;
   isolation: isolate;
 }
+
 .lf-home-dashboard .lf-match-card::after {
   content: "";
   position: absolute;
   inset: 0;
+  /* Behind the card's content, above its background (the card isolates). */
   z-index: -1;
   pointer-events: none;
   border-radius: inherit;
@@ -62,11 +80,227 @@
   animation: lf-flashes 6.5s steps(1, end) infinite;
 }
 
+/* --- Match viewer: facing notch and goalkeeper dives -------------------- */
+/* A small pointer on each player shows which way he is facing (the engine
+   sets --face every frame: running direction, or towards the ball when still). */
+.lf-body .lf-face {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  border-left: 2.5px solid transparent;
+  border-right: 2.5px solid transparent;
+  border-bottom: 4px solid rgb(255 255 255 / 88%);
+  transform: translate(-50%, -50%) rotate(var(--face, 0deg)) translateY(-8.5px);
+  filter: drop-shadow(0 0 1px rgb(0 0 0 / 75%));
+  pointer-events: none;
+}
+
+.lf-body .lf-face.is-large {
+  border-left-width: 3.5px;
+  border-right-width: 3.5px;
+  border-bottom-width: 5px;
+  transform: translate(-50%, -50%) rotate(var(--face, 0deg)) translateY(-12px);
+}
+
+/* Diving keeper: stretched out along the dive, with a streak behind him. */
+.lf-body[data-dive] .lf-dot {
+  transform: scale(0.9, 1.6);
+  transition: transform 120ms ease-out;
+}
+
+.lf-body[data-dive] .lf-face {
+  display: none;
+}
+
+.lf-body[data-dive]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 60%;
+  height: 170%;
+  border-radius: 999px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.lf-body[data-dive="up"]::after {
+  top: 45%;
+  background: linear-gradient(to bottom, rgb(255 255 255 / 40%), transparent);
+}
+
+.lf-body[data-dive="down"]::after {
+  bottom: 45%;
+  background: linear-gradient(to top, rgb(255 255 255 / 40%), transparent);
+}
+
+/* --- Match viewer: stadium frame ---------------------------------------- */
+/* LED advertising board above the pitch. */
+.lf-led {
+  position: relative;
+  height: 16px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #0a0f0d;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 8%);
+}
+
+.lf-led::after {
+  /* Dot-matrix screen texture. */
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, transparent 0.6px, rgb(0 0 0 / 55%) 1.1px);
+  background-size: 3px 3px;
+}
+
+@keyframes lf-led-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.lf-led-track {
+  display: inline-block;
+  white-space: nowrap;
+  padding-left: 100%;
+  color: #7ff0c8;
+  font-family: var(--font-display, "Barlow Condensed", sans-serif);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  line-height: 16px;
+  text-shadow: 0 0 6px rgb(127 240 200 / 70%);
+  animation: lf-led-scroll 26s linear infinite;
+}
+
+@keyframes lf-led-flash {
+  0%, 100% { color: #ffd34d; text-shadow: 0 0 8px rgb(255 211 77 / 90%); }
+  50% { color: #ffffff; text-shadow: 0 0 12px rgb(255 255 255 / 95%); }
+}
+
+.lf-led.is-goal .lf-led-track {
+  animation: lf-led-scroll 6s linear infinite, lf-led-flash 0.45s steps(2) infinite;
+}
+
+/* Goal nets, drawn just behind each goal line. */
+.lf-net {
+  background-image:
+    repeating-linear-gradient(0deg, rgb(255 255 255 / 45%) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(90deg, rgb(255 255 255 / 45%) 0 1px, transparent 1px 4px);
+  border: 1px solid rgb(255 255 255 / 75%);
+  transform-origin: center;
+}
+
+/* The ripple bulges towards the back of the net (away from the pitch). */
+.lf-net.is-left { border-right: 0; transform-origin: right center; }
+.lf-net.is-right { border-left: 0; transform-origin: left center; }
+
+@keyframes lf-net-ripple {
+  0% { scale: 1 1; }
+  18% { scale: 1.55 1.08; }
+  40% { scale: 0.9 1; }
+  62% { scale: 1.2 1.03; }
+  100% { scale: 1 1; }
+}
+
+.lf-net.is-rippling {
+  animation: lf-net-ripple 900ms ease-out 1;
+}
+
+/* Corner flags. */
+@keyframes lf-flag-wave {
+  0%, 100% { transform: skewY(0deg) scaleX(1); }
+  50% { transform: skewY(-12deg) scaleX(0.85); }
+}
+
+.lf-flag {
+  width: 0;
+  height: 0;
+  z-index: 3;
+}
+
+.lf-flag::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -9px;
+  width: 1.5px;
+  height: 11px;
+  background: #f4f4f1;
+}
+
+.lf-flag::after {
+  content: "";
+  position: absolute;
+  left: 1.5px;
+  top: -9px;
+  width: 7px;
+  height: 5px;
+  background: #ffd34d;
+  transform-origin: left center;
+  animation: lf-flag-wave 1.6s ease-in-out infinite;
+}
+
+.lf-flag.is-right::before { left: -1.5px; }
+.lf-flag.is-right::after { left: auto; right: 1.5px; transform-origin: right center; }
+.lf-flag.is-bottom::before { top: -2px; }
+.lf-flag.is-bottom::after { top: -2px; }
+.lf-wx-windy .lf-flag::after { animation-duration: 0.45s; }
+
+/* --- Match viewer: weather ----------------------------------------------- */
+@keyframes lf-rain {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: -40px 160px, -26px 120px; }
+}
+
+.lf-weather.is-wet {
+  background-image:
+    repeating-linear-gradient(105deg, transparent 0 14px, rgb(210 230 255 / 22%) 14px 15px),
+    repeating-linear-gradient(100deg, transparent 0 22px, rgb(210 230 255 / 14%) 22px 23px),
+    radial-gradient(60% 45% at 50% 55%, rgb(255 255 255 / 9%), transparent 70%),
+    linear-gradient(rgb(8 20 30 / 22%), rgb(8 20 30 / 22%));
+  animation: lf-rain 0.7s linear infinite;
+}
+
+.lf-weather.is-overcast {
+  background:
+    radial-gradient(35% 45% at 0% 0%, rgb(255 246 214 / 16%), transparent 70%),
+    radial-gradient(35% 45% at 100% 0%, rgb(255 246 214 / 16%), transparent 70%),
+    radial-gradient(35% 45% at 0% 100%, rgb(255 246 214 / 12%), transparent 70%),
+    radial-gradient(35% 45% at 100% 100%, rgb(255 246 214 / 12%), transparent 70%),
+    linear-gradient(rgb(12 18 24 / 28%), rgb(12 18 24 / 28%));
+}
+
+@keyframes lf-debris {
+  0% { transform: translate3d(-10%, 0, 0) rotate(0deg); opacity: 0; }
+  10% { opacity: 0.8; }
+  90% { opacity: 0.8; }
+  100% { transform: translate3d(420%, -18px, 0) rotate(540deg); opacity: 0; }
+}
+
+.lf-debris {
+  position: absolute;
+  left: 0;
+  width: 4px;
+  height: 2px;
+  border-radius: 1px;
+  background: rgb(235 245 215 / 80%);
+  animation: lf-debris 3.2s linear infinite;
+}
+
+.lf-weather.is-windy .lf-debris:nth-child(2n) { width: 3px; animation-duration: 2.6s; }
+.lf-weather.is-windy .lf-debris:nth-child(3n) { background: rgb(190 150 90 / 80%); }
+
+/* --- Respect reduced motion ---------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   .lf-shake,
   .lf-confetti,
   .lf-home-dashboard .lf-match-card::after {
     animation: none !important;
   }
+  .lf-body[data-dive] .lf-dot { transition: none; }
+  .lf-led-track, .lf-net.is-rippling, .lf-flag::after, .lf-weather.is-wet, .lf-debris { animation: none !important; }
   .lf-confetti { display: none; }
 }

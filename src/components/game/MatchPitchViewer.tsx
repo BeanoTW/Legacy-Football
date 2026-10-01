@@ -11,6 +11,7 @@ import { Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import type {
   MatchEvent,
   MatchLineupPlayer,
+  MatchPlayerStats,
   MatchSubstitution,
   MatchTeamPlan,
   TacticalPosition,
@@ -78,6 +79,14 @@ const BASE_EVENT_MS = 4_800;
 
 /** How quickly a rendered player catches up with its target (ms time constant). */
 const PLAYER_FOLLOW_MS = 70;
+/**
+ * Players move on a critically damped spring: they accelerate away and
+ * decelerate into a stop or a turn, instead of launching at full speed.
+ * The ball keeps the crisp exponential follow.
+ */
+const PLAYER_SPRING_MS = 95;
+/** How quickly a player's facing turns (ms time constant). */
+const FACING_TURN_MS = 140;
 /** The ball is tighter to its path so passes still feel crisp. */
 const BALL_FOLLOW_MS = 28;
 /** How long a detected teleport takes to blend out (ms time constant). */
@@ -112,8 +121,9 @@ const SET_PIECE_LABEL: Record<NonNullable<MatchSequence["setPiece"]>, string> = 
   penalty: "Penalty",
 };
 /** Camera zoom used on phones, where the whole pitch is otherwise tiny. */
-const PHONE_ZOOM = 1.35;
 const CAMERA_FOLLOW_MS = 450;
+/** How quickly the broadcast camera zooms in and out (ms time constant). */
+const CAMERA_ZOOM_MS = 900;
 
 const pitchMetres = (a: MatchPitchPoint, b: MatchPitchPoint) =>
   Math.hypot((a.x - b.x) * 1.05, (a.y - b.y) * 0.68);
@@ -523,6 +533,11 @@ interface Body {
   /** Rendered position. */
   rx: number;
   ry: number;
+  /** Rendered velocity (pitch % per second), for springs and facing. */
+  vx: number;
+  vy: number;
+  /** Facing, radians on screen (0 = towards the right-hand goal). */
+  face: number;
 }
 
 function stepBody(
@@ -534,7 +549,7 @@ function stepBody(
   followMs: number,
 ): Body {
   if (!body || snap) {
-    return { tx: target.x, ty: target.y, ox: 0, oy: 0, rx: target.x, ry: target.y };
+    return { tx: target.x, ty: target.y, ox: 0, oy: 0, rx: target.x, ry: target.y, vx: 0, vy: 0, face: body?.face ?? 0 };
   }
   const jx = target.x - body.tx;
   const jy = target.y - body.ty;
@@ -548,9 +563,33 @@ function stepBody(
   const decay = Math.exp(-dt / JUMP_BLEND_MS);
   body.ox *= decay;
   body.oy *= decay;
+  const goalX = body.tx + body.ox;
+  const goalY = body.ty + body.oy;
+  if (followMs === PLAYER_SPRING_MS) {
+    // Critically damped spring, integrated in small steps for stability.
+    const omega = 2000 / followMs;
+    let remaining = dt / 1000;
+    while (remaining > 0) {
+      const h = Math.min(0.008, remaining);
+      remaining -= h;
+      const ax = omega * omega * (goalX - body.rx) - 2 * omega * body.vx;
+      const ay = omega * omega * (goalY - body.ry) - 2 * omega * body.vy;
+      body.vx += ax * h;
+      body.vy += ay * h;
+      body.rx += body.vx * h;
+      body.ry += body.vy * h;
+    }
+    return body;
+  }
   const follow = 1 - Math.exp(-dt / followMs);
-  body.rx += (body.tx + body.ox - body.rx) * follow;
-  body.ry += (body.ty + body.oy - body.ry) * follow;
+  const px = body.rx;
+  const py = body.ry;
+  body.rx += (goalX - body.rx) * follow;
+  body.ry += (goalY - body.ry) * follow;
+  if (dt > 0) {
+    body.vx = ((body.rx - px) * 1000) / dt;
+    body.vy = ((body.ry - py) * 1000) / dt;
+  }
   return body;
 }
 
@@ -612,9 +651,14 @@ function createEngine(deps: EngineDeps) {
   // Ball height for lofted passes, a pending hard cut, and the camera.
   let ballLift = 0;
   let snapNext = false;
+  // Camera: `broadcast` on = zooms with the play; off = whole pitch.
+  let broadcast = false;
   let zoom = 1;
   let camX = 50;
   let camY = 50;
+  let ballX = 50;
+  let ballY = 50;
+  const dives = new Map<string, string>();
   let layer: HTMLElement | null = null;
 
   function applyCamera() {
@@ -644,6 +688,14 @@ function createEngine(deps: EngineDeps) {
     const y = ((body.ry * height) / 100).toFixed(2);
     node.style.transform = `translate3d(${x}px, ${y}px, 0)`;
     if (key === "ball") node.style.setProperty("--lift", `${(ballLift * Math.min(width, height) * 0.08).toFixed(1)}px`);
+    else {
+      node.style.setProperty("--face", `${((body.face * 180) / Math.PI + 90).toFixed(1)}deg`);
+      const dive = dives.get(key) ?? "";
+      if ((node.dataset.dive ?? "") !== dive) {
+        if (dive) node.dataset.dive = dive;
+        else delete node.dataset.dive;
+      }
+    }
     if (node.style.visibility) node.style.visibility = "";
   }
 
@@ -737,31 +789,89 @@ function createEngine(deps: EngineDeps) {
       const body = stepBody(bodies.get(key), target, dt, jumpLimit, snap, followMs);
       bodies.set(key, body);
       if (!bodySettled(body)) settled = false;
-      paint(key);
+    };
+
+    // Goalkeepers: dive towards a shot and stay down; on a save, gather it.
+    const act = sample.frame?.action;
+    dives.clear();
+    const keeperTarget = (side: "us" | "them", key: string, base: MatchPitchPoint): MatchPitchPoint => {
+      if (!act || sample.inBridge) return base;
+      const shooting = act.possessionSide ?? act.side;
+      if (shooting === side) return base;
+      const shotLike = act.kind === "shot" || act.kind === "save" || act.kind === "goal";
+      if (!shotLike) return base;
+      const aimY = act.end.y;
+      const reach = aimY - base.y;
+      if (Math.abs(reach) < 2.5 && act.kind !== "save") return base;
+      const progress = act.kind === "shot" ? Math.min(1, (sample.frame?.localProgress ?? 0) * 1.6) : 1;
+      const stretch = act.kind === "goal" ? 0.75 : act.kind === "save" ? 1 : 0.9;
+      dives.set(key, reach < 0 ? "up" : "down");
+      return { x: base.x, y: base.y + Math.max(-7, Math.min(7, reach)) * stretch * progress };
     };
 
     for (const player of userActive) {
-      place(
-        `us-${player.playerId}`,
-        motion.user.get(player.playerId) ?? userShape.get(player.playerId) ?? { x: 45, y: 50 },
-        PLAYER_FOLLOW_MS,
-      );
+      const key = `us-${player.playerId}`;
+      let target = motion.user.get(player.playerId) ?? userShape.get(player.playerId) ?? { x: 45, y: 50 };
+      if (player.role === "GK") target = keeperTarget("us", key, target);
+      place(key, target, PLAYER_SPRING_MS);
     }
     for (const player of opponentActive) {
-      place(
-        `them-${player.playerId}`,
-        motion.opponent.get(player.playerId) ??
-          opponentShape.get(player.playerId) ?? { x: 55, y: 50 },
-        PLAYER_FOLLOW_MS,
-      );
+      const key = `them-${player.playerId}`;
+      let target = motion.opponent.get(player.playerId) ?? opponentShape.get(player.playerId) ?? { x: 55, y: 50 };
+      if (player.role === "GK") target = keeperTarget("them", key, target);
+      place(key, target, PLAYER_SPRING_MS);
     }
     ballLift = sample.lift;
     place("ball", sample.ball, BALL_FOLLOW_MS);
+    const ballBody = bodies.get("ball");
+    ballX = ballBody?.rx ?? sample.ball.x;
+    ballY = ballBody?.ry ?? sample.ball.y;
 
-    // The camera drifts after the ball; a cut moves it instantly.
+    // Facing: where a player is running, or towards the ball when still.
+    const turn = snap ? 1 : 1 - Math.exp(-dt / FACING_TURN_MS);
+    for (const [key, body] of bodies) {
+      if (key === "ball") continue;
+      const vxp = (body.vx * width) / 100;
+      const vyp = (body.vy * height) / 100;
+      const want =
+        Math.hypot(vxp, vyp) > 14
+          ? Math.atan2(vyp, vxp)
+          : Math.atan2(((ballY - body.ry) * height) / 100, ((ballX - body.rx) * width) / 100);
+      let delta = want - body.face;
+      while (delta > Math.PI) delta -= Math.PI * 2;
+      while (delta < -Math.PI) delta += Math.PI * 2;
+      body.face += delta * turn;
+      paint(key);
+    }
+    paint("ball");
+
+    // Broadcast camera: wider in midfield, closer towards the box, framing
+    // set pieces, pushing in for shots and pulling back for condensed play.
+    const attackingUs = (act?.possessionSide ?? act?.side ?? "us") === "us";
+    const goalX = attackingUs ? 100 : 0;
+    const toGoal = attackingUs ? 100 - sample.ball.x : sample.ball.x;
+    let zoomTarget = 1.15 + 0.5 * Math.min(1, Math.max(0, (40 - toGoal) / 30));
+    let lookX = sample.ball.x + (goalX - sample.ball.x) * 0.18;
+    let lookY = 50 + (sample.ball.y - 50) * 0.8;
+    const setPiece = !sample.inBridge && sample.renderSequence?.setPiece;
+    if (setPiece) {
+      zoomTarget = 1.6;
+      lookX = (sample.ball.x + goalX) / 2;
+      lookY = (sample.ball.y + 50) / 2;
+    }
+    if (sample.slow) zoomTarget += 0.15;
+    if (sample.inBridge) zoomTarget = Math.min(zoomTarget, 1.3);
+    if (!broadcast) zoomTarget = 1;
     const follow = snap ? 1 : 1 - Math.exp(-dt / CAMERA_FOLLOW_MS);
-    camX += (sample.ball.x - camX) * follow;
-    camY += (sample.ball.y - camY) * follow;
+    const zoomFollow = snap ? 1 : 1 - Math.exp(-dt / CAMERA_ZOOM_MS);
+    zoom += (zoomTarget - zoom) * zoomFollow;
+    camX += (lookX - camX) * follow;
+    camY += (lookY - camY) * follow;
+    // Land exactly on the target, and keep the loop running until the camera
+    // has arrived (otherwise a paused match freezes mid-zoom).
+    if (Math.abs(zoomTarget - zoom) < 0.002) zoom = zoomTarget;
+    else settled = false;
+    if (Math.abs(lookX - camX) > 0.05 || Math.abs(lookY - camY) > 0.05) settled = false;
     applyCamera();
 
     publish(sample, force);
@@ -887,8 +997,7 @@ function createEngine(deps: EngineDeps) {
 
     /** Stable ref callback per body key, so memoised children keep their refs. */
     refFor(key: string) {
-      let callback = refCallbacks.get(key);
-      if (!callback) {
+      let callback = refCallbacks.get(key);      if (!callback) {
         callback = (node: HTMLElement | null) => {
           if (node) {
             nodes.set(key, node);
@@ -902,10 +1011,11 @@ function createEngine(deps: EngineDeps) {
       return callback;
     },
 
-    /** 1 = whole pitch; above 1 the camera follows the ball. */
-    setZoom(next: number) {
-      zoom = next;
-      applyCamera();
+    /** Broadcast camera on (zooms with the play) or off (whole pitch). */
+    setBroadcast(on: boolean) {
+      broadcast = on;
+      renderFrame(0, false, true);
+      ensureLoop();
     },
 
     layerRef(node: HTMLElement | null) {
@@ -974,9 +1084,10 @@ const PlayerDot = memo(function PlayerDot({
       className="relative -translate-x-1/2 -translate-y-1/2"
       title={`${player.shirtNumber}. ${player.name} · ${player.role}`}
     >
+      <span className={cn("lf-face", expanded && "is-large")} aria-hidden="true" />
       <span
         className={cn(
-          "grid place-items-center rounded-full border font-black leading-none shadow-sm transition-transform duration-150",
+          "lf-dot grid place-items-center rounded-full border font-black leading-none shadow-sm transition-transform duration-150",
           expanded
             ? "size-5 text-[8px] sm:size-6 sm:text-[9px]"
             : "size-3.5 text-[6px] sm:size-4 sm:text-[7px]",
@@ -1003,9 +1114,17 @@ const PlayerDot = memo(function PlayerDot({
   );
 });
 
-function PitchMarkings() {
+function PitchMarkings({ ripple }: { ripple: "left" | "right" | null }) {
   return (
     <>
+      {/* Goal nets: they bulge when the ball goes in. */}
+      <div className={cn("lf-net is-left absolute left-0 top-[42%] h-[16%] w-[2.2%]", ripple === "left" && "is-rippling")} />
+      <div className={cn("lf-net is-right absolute right-0 top-[42%] h-[16%] w-[2.2%]", ripple === "right" && "is-rippling")} />
+      {/* Corner flags. */}
+      <span className="lf-flag absolute left-0 top-0" />
+      <span className="lf-flag absolute right-0 top-0 is-right" />
+      <span className="lf-flag absolute bottom-0 left-0 is-bottom" />
+      <span className="lf-flag absolute bottom-0 right-0 is-right is-bottom" />
       <div className="absolute inset-y-0 left-1/2 w-px bg-white/55" />
       <div className="absolute left-1/2 top-1/2 aspect-square h-[34%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/55" />
       <div className="absolute left-1/2 top-1/2 size-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/70" />
@@ -1117,7 +1236,7 @@ function renderSide(
       <div
         key={key}
         ref={engine.refFor(key)}
-        className="pointer-events-none absolute left-0 top-0 z-10 will-change-transform"
+        className="lf-body pointer-events-none absolute left-0 top-0 z-10 will-change-transform"
         style={HIDDEN_STYLE}
       >
         <PlayerDot
@@ -1149,6 +1268,8 @@ export function MatchPitchViewer({
   userPlan,
   opponentPlan,
   userPossession,
+  weather,
+  playerStats,
   onReplayProgress,
   onReplayClock,
   expanded = false,
@@ -1170,6 +1291,10 @@ export function MatchPitchViewer({
   userPossession?: number;
   onReplayProgress?: (revealedEvents: number, complete: boolean) => void;
   onReplayClock?: (minute: number) => void;
+  /** The match's weather (Clear, Overcast, Wet, Windy): drawn on the pitch. */
+  weather?: string;
+  /** Live player ratings for the stats drawer (the engine's playerStats). */
+  playerStats?: MatchPlayerStats[];
   expanded?: boolean;
   /** Kit colours for each side's player dots. Falls back to green and red. */
   userColours?: DotColours;
@@ -1231,27 +1356,30 @@ export function MatchPitchViewer({
   }, [engine, ctx, usName, themName]);
 
   useEffect(() => {
-    engine.setZoom(zoomed ? PHONE_ZOOM : 1);
+    engine.setBroadcast(zoomed);
   }, [engine, zoomed]);
 
   useEffect(() => () => engine.dispose(), [engine]);
 
+  // The crowd comes in while the match is on screen; the theme fades out.
   useEffect(() => {
     enterMatch();
     return () => exitMatch();
   }, []);
   const [soundOn, setSoundOn] = useState(() => {
-    const settings = soundSettings();
-    return settings.effects || settings.crowd;
+    const s = soundSettings();
+    return s.effects || s.crowd;
   });
   useEffect(
     () =>
       onSoundSettingsChange(() => {
-        const settings = soundSettings();
-        setSoundOn(settings.effects || settings.crowd);
+        const s = soundSettings();
+        setSoundOn(s.effects || s.crowd);
       }),
     [],
   );
+  const [statsOpen, setStatsOpen] = useState(false);
+  // Confetti and a little shake when we score.
   const [celebrate, setCelebrate] = useState(0);
   const [celebrating, setCelebrating] = useState(false);
   useEffect(() => {
@@ -1324,10 +1452,19 @@ export function MatchPitchViewer({
         ? "Key moment"
         : null;
   const showPassLine = !!activeAction && PASS_KINDS.has(activeAction.kind);
+  // With the home-ground chip in the top-right, top-centre badges sit below it.
+  const topSlot = ground ? "top-[3.4rem]" : "top-3";
   const markers = events
     .map((event, index) => ({ event, index }))
     .filter(({ event, index }) => (event.type === "goal" || event.type === "chance" || event.type === "card") && index + 0.95 <= timeline.frontier);
   const sliderMax = Math.max(0.001, timeline.frontier);
+  // Momentum and stats count only what has been shown: no spoilers.
+  const shown = events.slice(0, view.cursor + (view.resultVisible ? 1 : 0));
+  const momentum = momentumAt(shown, view.minute, userPossession);
+  const stats = matchStatsFrom(shown);
+  const weatherKind = (weather ?? "Clear").toLowerCase();
+
+  // Sounds only follow live, forward play: scrubbing back never replays a roar.
   const live = playing && atLiveEdge;
   const cueKey = `${view.cursor}:${view.inBridge ? "b" : "c"}:${view.actionIndex}`;
   const reachedEnd = !playing && atLiveEdge && view.cursor === events.length - 1 && view.minute >= 45;
@@ -1346,6 +1483,13 @@ export function MatchPitchViewer({
           {replayScore.us}–{replayScore.them}
         </strong>
         <span className="min-w-0 flex-1 truncate text-right text-white/65">{themName}</span>
+      </div>
+      <div className={cn("lf-led mb-1.5", showGoal && "is-goal")} aria-hidden="true">
+        <div className="lf-led-track">
+          {showGoal
+            ? "GOAL! GOAL! GOAL! GOAL! GOAL! GOAL! GOAL! GOAL!"
+            : `${usName.toUpperCase()} · ${themName.toUpperCase()} · LEGACY FOOTBALL · MATCHDAY LIVE · ${usName.toUpperCase()} · ${themName.toUpperCase()} · LEGACY FOOTBALL · MATCHDAY LIVE ·`}
+        </div>
       </div>
       <div className="mb-2">
         <div className="grid grid-cols-3 overflow-hidden rounded-lg border border-white/10 bg-white/5" role="radiogroup" aria-label="How much of the match to show">
@@ -1367,17 +1511,36 @@ export function MatchPitchViewer({
         </div>
       </div>
 
+      <div className="mb-1.5 flex items-center gap-2">
+        <div className="text-[8px] font-bold uppercase tracking-[0.16em] text-white/45">Momentum</div>
+        <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-white/10" role="meter" aria-label="Momentum" aria-valuemin={-100} aria-valuemax={100} aria-valuenow={Math.round(momentum * 100)}>
+          <div className="absolute inset-y-0 left-1/2 w-px bg-white/40" />
+          <div
+            className={cn("absolute inset-y-0 rounded-full transition-all duration-700", momentum >= 0 ? "left-1/2 bg-emerald-400" : "right-1/2 bg-rose-400")}
+            style={{ width: `${Math.abs(momentum) * 50}%` }}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setStatsOpen((open) => !open)}
+          className={cn("rounded-md px-2 py-0.5 text-[9px] font-black uppercase tracking-wide", statsOpen ? "bg-white text-[#07130f]" : "bg-white/10 text-white/75")}
+          aria-expanded={statsOpen}
+        >
+          Stats
+        </button>
+      </div>
       <div
         ref={engine.pitchRef}
         className={cn(
           celebrating && "lf-shake",
+          `lf-wx-${weatherKind}`,
           "relative w-full overflow-hidden rounded-2xl border border-white/25 bg-[linear-gradient(90deg,#17764f_0%,#17764f_12.5%,#1b8056_12.5%,#1b8056_25%,#17764f_25%,#17764f_37.5%,#1b8056_37.5%,#1b8056_50%,#17764f_50%,#17764f_62.5%,#1b8056_62.5%,#1b8056_75%,#17764f_75%,#17764f_87.5%,#1b8056_87.5%,#1b8056_100%)] shadow-inner",
           expanded ? "aspect-[1.58/1] max-h-[calc(100dvh-17rem)] flex-1" : "aspect-[1.62/1] max-h-52",
         )}
       >
         {ground && <MatchGroundFrame ground={ground} />}
         <div ref={engine.layerRef} className="absolute inset-0 z-10 will-change-transform">
-        <PitchMarkings />
+        <PitchMarkings ripple={showGoal && activeAction ? (activeAction.end.x > 50 ? "right" : "left") : null} />
 
         {showPassLine && activeAction && (
           <svg className="pointer-events-none absolute inset-0 z-[5] h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -1421,6 +1584,58 @@ export function MatchPitchViewer({
         </div>
         </div>
 
+        {weatherKind !== "clear" && (
+          <div className={cn("lf-weather pointer-events-none absolute inset-0 z-20", `is-${weatherKind}`)} aria-hidden="true">
+            {weatherKind === "windy" &&
+              Array.from({ length: 7 }, (_, i) => (
+                <span key={i} className="lf-debris" style={{ top: `${12 + ((i * 29) % 76)}%`, animationDelay: `${(i * 1.3) % 5}s` }} />
+              ))}
+          </div>
+        )}
+        {weather && (
+          <div className={cn("absolute right-2 z-30 rounded-full bg-black/45 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white/80", ground ? "top-[3.4rem]" : "top-2")}>
+            {weatherKind === "wet" ? "🌧 Wet" : weatherKind === "windy" ? "💨 Windy" : weatherKind === "overcast" ? "☁ Overcast" : "☀ Clear"}
+          </div>
+        )}
+
+        {statsOpen && (
+          <div className="absolute inset-x-0 bottom-0 z-[55] max-h-[92%] overflow-y-auto rounded-t-xl border-t border-white/15 bg-[#07130f]/95 px-3 pb-2 pt-2 backdrop-blur-sm">
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300">Match stats · {view.minute}′</span>
+              <button type="button" onClick={() => setStatsOpen(false)} className="text-[10px] font-bold text-white/60">Close</button>
+            </div>
+            <div className="grid grid-cols-[1fr_auto_1fr] gap-x-2 gap-y-1 text-[11px] tnum">
+              {[
+                ["Possession", `${Math.round(userPossession ?? 50)}%`, `${100 - Math.round(userPossession ?? 50)}%`],
+                ["Goals", String(stats.us.goals), String(stats.them.goals)],
+                ["Shots", String(stats.us.shots), String(stats.them.shots)],
+                ["Set pieces", String(stats.us.setPieces), String(stats.them.setPieces)],
+                ["Bookings", String(stats.us.cards), String(stats.them.cards)],
+              ].map(([label, us, them]) => (
+                <div key={label} className="contents">
+                  <span className="text-right font-bold">{us}</span>
+                  <span className="text-center text-[9px] uppercase tracking-wide text-white/50">{label}</span>
+                  <span className="font-bold text-white/75">{them}</span>
+                </div>
+              ))}
+            </div>
+            {playerStats && playerStats.length > 0 && (
+              <div className="mt-2 border-t border-white/10 pt-1.5">
+                <div className="mb-1 text-[9px] font-bold uppercase tracking-wide text-white/50">Top performers</div>
+                {[...playerStats]
+                  .sort((a, b) => b.rating - a.rating)
+                  .slice(0, 3)
+                  .map((p) => (
+                    <div key={p.playerId} className="flex items-center justify-between py-0.5 text-[11px]">
+                      <span className="truncate">{p.name}</span>
+                      <span className="shrink-0 font-bold tnum text-emerald-300">{p.rating.toFixed(1)}</span>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <MatchSoundCues
           live={live}
           cueKey={cueKey}
@@ -1432,22 +1647,23 @@ export function MatchPitchViewer({
           reachedEnd={reachedEnd}
           eventCount={events.length}
           minute={view.minute}
-          onOurGoal={() => setCelebrate((value) => value + 1)}
+          onOurGoal={() => setCelebrate((n) => n + 1)}
         />
 
         {celebrating && (
           <div className="lf-confetti-layer pointer-events-none absolute inset-0 z-[60] overflow-hidden" aria-hidden="true">
-            {Array.from({ length: 36 }, (_, index) => (
+            {Array.from({ length: 36 }, (_, i) => (
               <span
-                key={`${celebrate}-${index}`}
+                key={`${celebrate}-${i}`}
                 className="lf-confetti"
                 style={{
-                  left: `${((index * 61) % 97) + ((index * 13) % 3)}%`,
-                  background: confettiColours[index % confettiColours.length],
-                  animationDelay: `${((index * 7) % 13) * 70}ms`,
-                  animationDuration: `${2000 + ((index * 11) % 7) * 120}ms`,
-                  ["--drift" as string]: `${((index * 53) % 60) - 30}px`,
-                  ["--spin" as string]: `${((index * 97) % 720) - 360}deg`,
+                  // Spread pieces and start times independently so they scatter, not streak.
+                  left: `${((i * 61) % 97) + ((i * 13) % 3)}%`,
+                  background: confettiColours[i % confettiColours.length],
+                  animationDelay: `${((i * 7) % 13) * 70}ms`,
+                  animationDuration: `${2000 + ((i * 11) % 7) * 120}ms`,
+                  ["--drift" as string]: `${((i * 53) % 60) - 30}px`,
+                  ["--spin" as string]: `${((i * 97) % 720) - 360}deg`,
                 }}
               />
             ))}
@@ -1465,8 +1681,9 @@ export function MatchPitchViewer({
           </div>
         )}
 
-        {view.cutLabel && (
-          <div className="absolute inset-0 z-50 grid place-items-center bg-[#07130f]/75 backdrop-blur-[2px]" aria-live="polite">
+        {/* Restart card: never blocks taps, and steps aside while paused. */}
+        {view.cutLabel && playing && (
+          <div className="pointer-events-none absolute inset-0 z-50 grid place-items-center bg-[#07130f]/75 backdrop-blur-[2px]" aria-live="polite">
             <div className="rounded-xl border border-white/15 bg-black/60 px-4 py-2 text-center">
               <div className="font-display text-2xl leading-none tnum">{view.minute}′</div>
               <div className="mt-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300">{view.cutLabel}</div>
@@ -1475,18 +1692,18 @@ export function MatchPitchViewer({
         )}
 
         {passLabel && (
-          <div className="absolute left-1/2 top-3 z-30 -translate-x-1/2 rounded-full border border-white/15 bg-black/60 px-3 py-1 text-[10px] font-bold text-white/85 shadow-sm backdrop-blur-sm">
+          <div className={cn("absolute left-1/2 z-30 -translate-x-1/2 rounded-full border border-white/15 bg-black/60 px-3 py-1 text-[10px] font-bold text-white/85 shadow-sm backdrop-blur-sm", topSlot)}>
             {passLabel}
           </div>
         )}
 
         {showGoal && (
-          <div className="absolute left-1/2 top-3 z-40 -translate-x-1/2 rounded-full border border-amber-200/50 bg-amber-300 px-4 py-1.5 font-display text-lg text-amber-950 shadow-lg">
+          <div className={cn("absolute left-1/2 z-40 -translate-x-1/2 rounded-full border border-amber-200/50 bg-amber-300 px-4 py-1.5 font-display text-lg text-amber-950 shadow-lg", topSlot)}>
             GOAL
           </div>
         )}
         {showResultBadge && (
-          <div className="absolute left-1/2 top-3 z-40 -translate-x-1/2 rounded-full border border-white/20 bg-black/70 px-3 py-1 font-display text-sm uppercase tracking-wide text-white shadow-lg">
+          <div className={cn("absolute left-1/2 z-40 -translate-x-1/2 rounded-full border border-white/20 bg-black/70 px-3 py-1 font-display text-sm uppercase tracking-wide text-white shadow-lg", topSlot)}>
             {activeAction.kind === "save" ? "SAVED" : activeAction.kind === "block" ? "BLOCKED" : "MISSED"}
           </div>
         )}
@@ -1499,7 +1716,7 @@ export function MatchPitchViewer({
             className="rounded bg-black/45 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-white/75 backdrop-blur-sm"
             aria-pressed={zoomed}
           >
-            {zoomed ? "Whole pitch" : "Follow ball"}
+            {zoomed ? "Whole pitch" : "TV camera"}
           </button>
         </div>
         <div className="absolute bottom-2 right-2 rounded bg-black/45 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-white/75 backdrop-blur-sm">
@@ -1656,6 +1873,11 @@ export function MatchPitchViewer({
 /* Sound cues                                                          */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Turns what is on screen into sound: whistles, the crowd following the ball,
+ * and reactions to shots and goals. Renders nothing. Only fires during live,
+ * forward play, so scrubbing back through the timeline stays silent.
+ */
 function MatchSoundCues({
   live,
   cueKey,
@@ -1697,7 +1919,6 @@ function MatchSoundCues({
     const towardsGoal = attacking === "us" ? action.end.x / 100 : 1 - action.end.x / 100;
     let intensity = 0.15 + 0.6 * Math.pow(Math.max(0, (towardsGoal - 0.45) / 0.55), 1.3);
     if (inBridge) intensity = Math.min(intensity, 0.45);
-
     switch (action.kind) {
       case "shot":
         playKick(1);
@@ -1716,6 +1937,7 @@ function MatchSoundCues({
       case "save":
       case "miss":
       case "block":
+        // Our near miss is an "ooh"; theirs is relieved applause.
         playReaction(attacking === "us" ? "ooh" : "applause");
         intensity = 0.55;
         break;
@@ -1726,7 +1948,6 @@ function MatchSoundCues({
         break;
     }
     setCrowdIntensity(intensity);
-    // Cue identity intentionally controls firing; other values describe that cue.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cueKey, live]);
 
@@ -1750,3 +1971,41 @@ function MatchSoundCues({
   return null;
 }
 
+/* ------------------------------------------------------------------ */
+/* Momentum and live stats (from shown events only)                    */
+/* ------------------------------------------------------------------ */
+
+const SET_PIECE_TEXT = /corner|free-kick|penalty/i;
+
+/**
+ * Who is on top right now, -1 (them) to +1 (us). Recent goals and chances
+ * count most (an 8-minute fade); bookings take a little away; possession
+ * sets the baseline.
+ */
+function momentumAt(shown: MatchEvent[], minute: number, userPossession?: number): number {
+  let score = ((userPossession ?? 50) - 50) / 50 * 0.4;
+  for (const event of shown) {
+    if (event.side === "neutral") continue;
+    const sign = event.side === "us" ? 1 : -1;
+    const fade = Math.exp(-Math.max(0, minute - event.minute) / 8);
+    const weight = event.type === "goal" ? 3 : event.type === "chance" ? (SET_PIECE_TEXT.test(event.text) ? 0.8 : 1.2) : event.type === "card" ? -0.3 : 0;
+    score += sign * weight * fade;
+  }
+  return Math.tanh(score / 2.5);
+}
+
+function matchStatsFrom(shown: MatchEvent[]) {
+  const blank = () => ({ goals: 0, shots: 0, setPieces: 0, cards: 0 });
+  const out = { us: blank(), them: blank() };  for (const event of shown) {
+    if (event.side === "neutral") continue;
+    const side = out[event.side];
+    if (event.type === "goal") {
+      side.goals += 1;
+      side.shots += 1;
+    }
+    if (event.type === "chance") side.shots += 1;
+    if ((event.type === "goal" || event.type === "chance") && SET_PIECE_TEXT.test(event.text) && !/shouts/i.test(event.text)) side.setPieces += 1;
+    if (event.type === "card") side.cards += 1;
+  }
+  return out;
+}
