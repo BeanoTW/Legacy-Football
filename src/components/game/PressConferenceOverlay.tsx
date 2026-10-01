@@ -84,12 +84,24 @@ export function PressConferenceOverlay({
 
   const firstAnswers = useMemo<PressAnswer[]>(
     () =>
-      (item.choices ?? []).map((choice) => ({
-        id: choice.id as PressTone,
-        label: choice.label,
-        hint: choice.hint ?? "",
-        effects: choice.effects,
-      })),
+      (item.choices ?? []).map((choice) => {
+        const tone: PressTone =
+          choice.id === "dismiss"
+            ? "dismiss"
+            : choice.id === "reassure" ||
+                choice.id === "rebuilding" ||
+                choice.id === "happy-squad" ||
+                choice.id === "stability"
+              ? "reassure"
+              : "transparent";
+        return {
+          id: choice.id,
+          tone,
+          label: choice.label,
+          hint: choice.hint ?? "",
+          effects: choice.effects,
+        };
+      }),
     [item.choices],
   );
 
@@ -134,7 +146,7 @@ export function PressConferenceOverlay({
     if (round === "complete") return;
 
     setExchanges((current) => [...current, { question: currentQuestion, answer: answer.label }]);
-    setTones((current) => [...current, answer.id]);
+    setTones((current) => [...current, answer.tone]);
 
     if (round === 1) {
       setFirstChoiceId(answer.id);
@@ -211,7 +223,7 @@ export function PressConferenceOverlay({
               </section>
 
               <div className="my-5 flex items-center gap-3">
-                <CharacterPortrait avatar={profile.avatar} size={52} title="Chairman" />
+                <CharacterPortrait avatar={profile.avatar} size={52} title="Managing Director" />
                 <div>
                   <span className="block text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-200/65">Your response</span>
                   <strong className="text-sm">{state.managerName}</strong>
@@ -227,10 +239,7 @@ export function PressConferenceOverlay({
                     onClick={() => choose(answer)}
                   >
                     <span className="min-w-0 pr-3">
-                      <strong className="block whitespace-normal text-sm">{answer.label}</strong>
-                      <small className="mt-1 block whitespace-normal text-xs font-normal leading-relaxed text-white/55">
-                        {answer.hint}
-                      </small>
+                      <strong className="block whitespace-normal text-sm leading-relaxed">“{answer.label}”</strong>
                     </span>
                     <ChevronRight className="size-4 shrink-0 text-emerald-200/70" />
                   </Button>

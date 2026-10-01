@@ -500,10 +500,9 @@ export function pressChoicesForIncident(
   return [
     {
       id: "transparent",
-      label: "Explain the decision openly",
-      hint: risky
-        ? "Own the trade-off rather than pretending there was no risk."
-        : "A calm, accountable explanation should land well.",
+      label: risky
+        ? "There was a risk in the decision and I won't pretend otherwise. We weighed it up and made the call we believed was right."
+        : "We looked at the facts, made the decision and we'll take responsibility for how it turns out.",
       effects: [
         { kind: "reputation", delta: risky ? 2 : 1 },
         { kind: "fanHappiness", delta: 1 },
@@ -511,8 +510,7 @@ export function pressChoicesForIncident(
     },
     {
       id: "reassure",
-      label: "Focus on protecting the club",
-      hint: "Reassure supporters without conceding every criticism.",
+      label: "Every decision we make has to protect the club in the long term. That's what guided us here.",
       effects: [
         { kind: "fanHappiness", delta: risky ? 0 : 1 },
         { kind: "reputation", delta: risky ? 0 : 1 },
@@ -520,10 +518,9 @@ export function pressChoicesForIncident(
     },
     {
       id: "dismiss",
-      label: "Push back on the criticism",
-      hint: risky
-        ? "A combative answer could turn a difficult story into a bigger one."
-        : "Strong language may please some people, but carries reputational risk.",
+      label: risky
+        ? "I think the criticism is overblown. We made the decision and I stand by it."
+        : "I don't think there's much of a story here. We've dealt with it and we're moving on.",
       effects: [
         { kind: "fanHappiness", delta: risky ? -2 : -1 },
         { kind: "reputation", delta: risky ? -3 : -1 },

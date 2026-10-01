@@ -14,7 +14,10 @@ export type CalendarPressContext =
 
 
 export interface PressAnswer {
-  id: PressTone;
+  /** Stable answer id. Calendar conferences can use semantic statement ids. */
+  id: string;
+  /** Behavioural tone used for journalist pressure/outcome calculation. */
+  tone: PressTone;
   label: string;
   hint: string;
   effects: InboxEffect[];
@@ -34,10 +37,11 @@ function answers(round: 2 | 3, risky: boolean): PressAnswer[] {
     return [
       {
         id: "transparent",
-        label: "Acknowledge the trade-off",
-        hint: risky
-          ? "Admit the risk and explain why you still made the call."
-          : "Explain the reasoning without pretending the decision was cost-free.",
+        tone: "transparent",
+        label: risky
+          ? "There was a risk, absolutely. We made the call because we believed it was the right one for the club."
+          : "There are always trade-offs. We made the decision we believed gave the club the best outcome.",
+        hint: "",
         effects: [
           { kind: "reputation", delta: risky ? 1 : 2 },
           { kind: "fanHappiness", delta: 1 },
@@ -45,8 +49,9 @@ function answers(round: 2 | 3, risky: boolean): PressAnswer[] {
       },
       {
         id: "reassure",
-        label: "Stand by the club's plan",
-        hint: "Keep the answer controlled and focused on the longer term.",
+        tone: "reassure",
+        label: "I stand by the plan. We're looking beyond one headline and doing what we believe is right for the club.",
+        hint: "",
         effects: [
           { kind: "reputation", delta: 1 },
           { kind: "fanHappiness", delta: risky ? 0 : 1 },
@@ -54,10 +59,11 @@ function answers(round: 2 | 3, risky: boolean): PressAnswer[] {
       },
       {
         id: "dismiss",
-        label: "Reject the premise",
-        hint: risky
-          ? "A combative answer could make an already difficult story worse."
-          : "Push back hard and risk turning the exchange confrontational.",
+        tone: "dismiss",
+        label: risky
+          ? "I don't accept that characterisation at all. We made a responsible decision and I won't apologise for it."
+          : "I think you're trying to create a controversy where there isn't one. The decision speaks for itself.",
+        hint: "",
         effects: [
           { kind: "reputation", delta: risky ? -2 : -1 },
           { kind: "fanHappiness", delta: risky ? -1 : 0 },
@@ -69,8 +75,9 @@ function answers(round: 2 | 3, risky: boolean): PressAnswer[] {
   return [
     {
       id: "transparent",
-      label: "Give supporters a clear commitment",
-      hint: "End with something concrete the club can be judged against.",
+        tone: "transparent",
+      label: "Supporters can judge us on what we actually deliver. That's the standard I'm setting.",
+      hint: "",
       effects: [
         { kind: "reputation", delta: 1 },
         { kind: "fanHappiness", delta: 1 },
@@ -78,14 +85,16 @@ function answers(round: 2 | 3, risky: boolean): PressAnswer[] {
     },
     {
       id: "reassure",
-      label: "Draw a line under it",
-      hint: "Calmly close the subject and move attention back to football.",
+        tone: "reassure",
+      label: "We've explained our position. Now the important thing is getting back to the football.",
+      hint: "",
       effects: [{ kind: "reputation", delta: risky ? 0 : 1 }],
     },
     {
       id: "dismiss",
-      label: "Tell the press to move on",
-      hint: "Ends the exchange quickly, but rarely wins over critics.",
+        tone: "dismiss",
+      label: "I've answered the question. We're not going to keep going around in circles on it.",
+      hint: "",
       effects: [
         { kind: "reputation", delta: -1 },
         { kind: "fanHappiness", delta: risky ? -1 : 0 },
@@ -172,6 +181,19 @@ export function pressRoundThree(
 }
 
 
+export function seasonPreviewStatement(state: GameState, season = state.season): string | null {
+  const code = String(state.inboxFlags[`press:season-preview:s${season}`] ?? "");
+  const labels: Record<string, string> = {
+    promotion: "Promotion is the target.",
+    rebuilding: "This is a rebuilding season.",
+    "happy-squad": "We're happy with the squad.",
+    reinforcements: "We still need reinforcements.",
+    youth: "Youth development is a priority.",
+    stability: "Financial stability comes first.",
+  };
+  return labels[code] ?? null;
+}
+
 export function calendarPressRound(
   state: GameState,
   context: CalendarPressContext,
@@ -218,6 +240,18 @@ export function calendarPressRound(
       : " I want a concrete answer rather than a general club message.";
   } else if (pressure === "soft") {
     question = "You have built a good working relationship with the local press, so let me ask this plainly: " + question;
+  }
+
+  const remembered = seasonPreviewStatement(state);
+  if (
+    remembered &&
+    round === 2 &&
+    (context === "summer-window-review" ||
+      context === "midseason-checkpoint" ||
+      context === "winter-window-review" ||
+      context === "season-review")
+  ) {
+    question = `Earlier this season you told us, “${remembered}” ${question}`;
   }
 
   return { question, answers: answers(round, false) };
