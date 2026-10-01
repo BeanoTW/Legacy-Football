@@ -17,6 +17,7 @@ import {
   cleanYear,
   clubKitForReference,
   defaultAwayKit,
+  defaultClubKit,
   kitFromBadge,
   randomClubKit,
   setClubKitForReference,
@@ -106,6 +107,180 @@ export function ClubIdentitySheet({
         {open ? <ClubIdentityStudio state={state} update={update} clubRef={clubRef} onDone={() => onOpenChange(false)} /> : null}
       </SheetContent>
     </Sheet>
+  );
+}
+
+
+export function ClubIdentitySetupSheet({
+  open,
+  onOpenChange,
+  clubName,
+  nickname,
+  kit,
+  onSave,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  clubName: string;
+  nickname: string;
+  kit: ClubKitState;
+  onSave: (value: { clubName: string; nickname: string; kit: ClubKitState }) => void;
+}) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" className="flex max-h-[94dvh] flex-col gap-0 overflow-hidden rounded-t-2xl p-0 md:inset-x-auto md:right-4 md:bottom-4 md:w-[34rem] md:rounded-2xl md:border">
+        <SheetTitle className="sr-only">New club identity</SheetTitle>
+        <SheetDescription className="sr-only">Choose your club name, nickname, badge, home kit and away kit before starting the career.</SheetDescription>
+        {open ? (
+          <ClubIdentitySetupStudio
+            clubName={clubName}
+            nickname={nickname}
+            kit={kit}
+            onDone={(value) => {
+              onSave(value);
+              onOpenChange(false);
+            }}
+            onCancel={() => onOpenChange(false)}
+          />
+        ) : null}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function ClubIdentitySetupStudio({
+  clubName,
+  nickname,
+  kit,
+  onDone,
+  onCancel,
+}: {
+  clubName: string;
+  nickname: string;
+  kit: ClubKitState;
+  onDone: (value: { clubName: string; nickname: string; kit: ClubKitState }) => void;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState<ClubKitState>(kit);
+  const [draftName, setDraftName] = useState(clubName);
+  const [draftNickname, setDraftNickname] = useState(nickname);
+  const [section, setSection] = useState<Section>("badge");
+  const cleanName = draftName.trim().replace(/\s+/g, " ").slice(0, 42);
+  const name = cleanName || "New Club";
+
+  const setBadge = (patch: Partial<BadgeDesign>) =>
+    setDraft((current) => ({ ...current, badge: { ...current.badge, ...patch } }));
+  const setKit = (which: "home" | "away", patch: Partial<KitDesign>) =>
+    setDraft((current) => ({ ...current, [which]: { ...current[which], ...patch } }));
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="relative shrink-0 overflow-hidden bg-[radial-gradient(120%_90%_at_50%_0%,#1f5a57_0%,#0e2e2d_55%,#081d1c_100%)] px-4 pb-3 pt-4 text-white">
+        <div className="flex items-baseline justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="truncate font-display text-xl leading-tight">{name}</h2>
+            <p className="text-xs text-white/60">
+              {cleanClubNickname(draftNickname).trim() || "Choose a nickname"}
+              {draft.badge.founded ? ` · Founded ${draft.badge.founded}` : ""}
+            </p>
+          </div>
+          <button type="button" onClick={onCancel} className="shrink-0 rounded-md px-2 py-1 text-xs text-white/70 hover:bg-white/10 hover:text-white">
+            Cancel
+          </button>
+        </div>
+        <div className="mt-3 grid grid-cols-[1fr_1.15fr_1fr] items-end gap-2">
+          <PreviewSlot active={section === "badge"} onClick={() => setSection("badge")} label="Badge">
+            <ClubBadge design={draft.badge} clubName={name} size="100%" className="drop-shadow-[0_6px_10px_rgba(0,0,0,.45)]" />
+          </PreviewSlot>
+          <PreviewSlot active={section === "home"} onClick={() => setSection("home")} label="Home">
+            <ClubShirt kit={draft.home} badge={draft.badge} clubName={name} full size="100%" className="drop-shadow-[0_8px_12px_rgba(0,0,0,.5)]" label="Home kit" />
+          </PreviewSlot>
+          <PreviewSlot active={section === "away"} onClick={() => setSection("away")} label="Away">
+            <ClubShirt kit={draft.away} badge={draft.badge} clubName={name} full size="100%" className="drop-shadow-[0_8px_12px_rgba(0,0,0,.5)]" label="Away kit" />
+          </PreviewSlot>
+        </div>
+      </div>
+
+      <div className="grid shrink-0 grid-cols-3 gap-1 border-b bg-card p-2" role="tablist" aria-label="What to edit">
+        {(["badge", "home", "away"] as const).map((key) => (
+          <Button
+            key={key}
+            role="tab"
+            aria-selected={section === key}
+            variant={section === key ? "default" : "outline"}
+            size="sm"
+            onClick={() => setSection(key)}
+          >
+            {key === "badge" ? "Badge" : key === "home" ? "Home kit" : "Away kit"}
+          </Button>
+        ))}
+      </div>
+
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain bg-card px-4 py-4">
+        {section === "badge" ? (
+          <>
+            <Field title="Club details">
+              <div className="space-y-3">
+                <TextField
+                  label="Club name"
+                  value={draftName}
+                  maxLength={42}
+                  placeholder="Club name"
+                  onChange={setDraftName}
+                />
+                <TextField
+                  label="Nickname"
+                  value={draftNickname}
+                  maxLength={28}
+                  placeholder="The Railwaymen"
+                  onChange={(value) => setDraftNickname(cleanClubNickname(value))}
+                />
+              </div>
+            </Field>
+            <BadgeEditor badge={draft.badge} name={name} onChange={setBadge} />
+          </>
+        ) : (
+          <KitEditor
+            which={section}
+            kit={draft[section]}
+            home={draft.home}
+            badge={draft.badge}
+            name={name}
+            onChange={(patch) => setKit(section, patch)}
+          />
+        )}
+      </div>
+
+      <div className="flex shrink-0 items-center gap-2 border-t bg-card px-4 py-3 pb-[max(.75rem,env(safe-area-inset-bottom))]">
+        <Button variant="ghost" size="sm" onClick={() => setDraft(randomClubKit(name))}>
+          <Shuffle /> Surprise me
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            setDraft(defaultClubKit(name));
+            setDraftNickname("");
+          }}
+        >
+          <RotateCcw /> Reset
+        </Button>
+        <Button
+          className="ml-auto"
+          size="sm"
+          disabled={!cleanName}
+          onClick={() =>
+            onDone({
+              clubName: cleanName,
+              nickname: cleanClubNickname(draftNickname).trim(),
+              kit: draft,
+            })
+          }
+        >
+          <Check /> Use this club
+        </Button>
+      </div>
+    </div>
   );
 }
 
