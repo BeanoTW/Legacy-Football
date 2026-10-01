@@ -19,3 +19,5 @@ Core verification is enforced through build, typecheck, lint and deterministic g
 - TypeScript
 - React
 - Tailwind CSS
+
+<!-- CI probe: verify deterministic snapshot on current main. -->
