@@ -223,7 +223,7 @@ export function PressConferenceOverlay({
               </section>
 
               <div className="my-5 flex items-center gap-3">
-                <CharacterPortrait avatar={profile.avatar} size={52} title="Chairman" />
+                <CharacterPortrait avatar={profile.avatar} size={52} title="Managing Director" />
                 <div>
                   <span className="block text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-200/65">Your response</span>
                   <strong className="text-sm">{state.managerName}</strong>
