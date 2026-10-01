@@ -2401,7 +2401,7 @@ const CALENDAR_PRESS_EVENTS: {
   {
     context: "midseason-checkpoint",
     week: 20,
-    subject: "Mid-season chairman briefing",
+    subject: "Mid-season Managing Director briefing",
     question: (s) => `We are approaching the heart of the season. How do you assess ${s.clubName}'s progress so far?`,
   },
   {
@@ -2419,7 +2419,7 @@ const CALENDAR_PRESS_EVENTS: {
   {
     context: "season-review",
     week: CALENDAR.seasonEnd,
-    subject: "End-of-season chairman review",
+    subject: "End-of-season Managing Director review",
     question: (s) => `The season is reaching its conclusion. How do you judge ${s.clubName}'s year?`,
     priority: "high",
   },
@@ -2431,6 +2431,11 @@ const G_CALENDAR_PRESS: Generator = {
     const event = CALENDAR_PRESS_EVENTS.find((candidate) => candidate.week === s.week);
     if (!event) return [];
 
+    // A brand-new save gets a short runway to learn the club before facing
+    // the media. From season two onward, the window-opening briefing returns
+    // as part of the normal football calendar.
+    if (s.season === 1 && event.context === "summer-window-open") return [];
+
     return [
       mk(s, "calendar-press", {
         eventKey: `calendar-press:${event.context}:s${s.season}`,
@@ -2441,7 +2446,7 @@ const G_CALENDAR_PRESS: Generator = {
         priority: event.priority ?? "normal",
         subject: `Press conference — ${event.subject}`,
         body:
-          `A scheduled media briefing is waiting for the chairman.\n\n` +
+          `A scheduled media briefing is waiting for the Managing Director.\n\n` +
           event.question(s),
         expiresInWeeks: 1,
         choices: calendarPressChoices(s, event.context),
@@ -2551,7 +2556,7 @@ const G_RANDOM_INCIDENT_PRESS: Generator = {
           priority: "normal",
           subject: `Press conference — ${incident.subject(s)}`,
           body:
-            `The story has moved beyond the club. Journalists want an explanation from the chairman.\n\n` +
+            `The story has moved beyond the club. Journalists want an explanation from the Managing Director.\n\n` +
             incident.press.question(s, decisionLabel),
           expiresInWeeks: 1,
           choices: pressChoicesForIncident(incident, decisionId),
