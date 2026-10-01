@@ -38,10 +38,10 @@ function answers(round: 2 | 3, risky: boolean): PressAnswer[] {
       {
         id: "transparent",
         tone: "transparent",
-        label: "Acknowledge the trade-off",
-        hint: risky
-          ? "Admit the risk and explain why you still made the call."
-          : "Explain the reasoning without pretending the decision was cost-free.",
+        label: risky
+          ? "There was a risk, absolutely. We made the call because we believed it was the right one for the club."
+          : "There are always trade-offs. We made the decision we believed gave the club the best outcome.",
+        hint: "",
         effects: [
           { kind: "reputation", delta: risky ? 1 : 2 },
           { kind: "fanHappiness", delta: 1 },
@@ -50,8 +50,8 @@ function answers(round: 2 | 3, risky: boolean): PressAnswer[] {
       {
         id: "reassure",
         tone: "reassure",
-        label: "Stand by the club's plan",
-        hint: "Keep the answer controlled and focused on the longer term.",
+        label: "I stand by the plan. We're looking beyond one headline and doing what we believe is right for the club.",
+        hint: "",
         effects: [
           { kind: "reputation", delta: 1 },
           { kind: "fanHappiness", delta: risky ? 0 : 1 },
@@ -60,10 +60,10 @@ function answers(round: 2 | 3, risky: boolean): PressAnswer[] {
       {
         id: "dismiss",
         tone: "dismiss",
-        label: "Reject the premise",
-        hint: risky
-          ? "A combative answer could make an already difficult story worse."
-          : "Push back hard and risk turning the exchange confrontational.",
+        label: risky
+          ? "I don't accept that characterisation at all. We made a responsible decision and I won't apologise for it."
+          : "I think you're trying to create a controversy where there isn't one. The decision speaks for itself.",
+        hint: "",
         effects: [
           { kind: "reputation", delta: risky ? -2 : -1 },
           { kind: "fanHappiness", delta: risky ? -1 : 0 },
@@ -76,8 +76,8 @@ function answers(round: 2 | 3, risky: boolean): PressAnswer[] {
     {
       id: "transparent",
         tone: "transparent",
-      label: "Give supporters a clear commitment",
-      hint: "End with something concrete the club can be judged against.",
+      label: "Supporters can judge us on what we actually deliver. That's the standard I'm setting.",
+      hint: "",
       effects: [
         { kind: "reputation", delta: 1 },
         { kind: "fanHappiness", delta: 1 },
@@ -86,15 +86,15 @@ function answers(round: 2 | 3, risky: boolean): PressAnswer[] {
     {
       id: "reassure",
         tone: "reassure",
-      label: "Draw a line under it",
-      hint: "Calmly close the subject and move attention back to football.",
+      label: "We've explained our position. Now the important thing is getting back to the football.",
+      hint: "",
       effects: [{ kind: "reputation", delta: risky ? 0 : 1 }],
     },
     {
       id: "dismiss",
         tone: "dismiss",
-      label: "Tell the press to move on",
-      hint: "Ends the exchange quickly, but rarely wins over critics.",
+      label: "I've answered the question. We're not going to keep going around in circles on it.",
+      hint: "",
       effects: [
         { kind: "reputation", delta: -1 },
         { kind: "fanHappiness", delta: risky ? -1 : 0 },
