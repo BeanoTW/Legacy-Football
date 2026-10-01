@@ -3,6 +3,7 @@ import { hashString } from "./rng";
 import { managerFootballIdentity } from "./managerIdentity";
 import { managerRecruitmentBrief } from "./managerRecruitmentBrief";
 import { absoluteWeek } from "./time";
+import { markManagerRecruitmentCommitmentFulfilledInPlace } from "./managerRecruitmentCommitment";
 
 export type ManagerTemperament = "Diplomatic" | "Pragmatic" | "Fiery" | "Reserved";
 export type ManagerAmbition = "Steady" | "Driven" | "Relentless";
@@ -36,6 +37,7 @@ export interface ManagerRelationshipDelta {
 }
 
 export type ManagerRelationshipEventType =
+  | "promise-fulfilled"
   | "priority-signing"
   | "useful-signing"
   | "chairman-signing"
@@ -254,6 +256,22 @@ export function recordCompletedTransferManagerReactionInPlace(
     const matchesNeed = priorities.includes(input.player.primaryPosition);
     const young = (2000 + state.season - 1 - input.player.dateOfBirth.year) <= 21;
     const youthBonus = young && identity.youthWillingness === "High" ? 2 : 0;
+    const fulfilledPromise = markManagerRecruitmentCommitmentFulfilledInPlace(
+      state,
+      manager.id,
+      input.player.primaryPosition,
+      input.playerName,
+    );
+
+    if (fulfilledPromise) {
+      recordEvent(state, manager, {
+        type: "promise-fulfilled",
+        playerName: input.playerName,
+        message: `The chairman promised ${manager.name} reinforcement in this position and delivered ${input.playerName} before the deadline.`,
+        delta: { trust: 6, backing: 12 + youthBonus, autonomy: 3 },
+      });
+      return;
+    }
 
     if (matchesTop) {
       recordEvent(state, manager, {

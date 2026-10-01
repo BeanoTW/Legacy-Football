@@ -24,6 +24,8 @@ import {
 import { managerFootballIdentity } from "@/lib/game/managerIdentity";
 import { managerSquadFit } from "@/lib/game/managerSquadFit";
 import { managerPersonality, managerRelationship } from "@/lib/game/managerRelationship";
+import { managerRecruitmentCommitment } from "@/lib/game/managerRecruitmentCommitment";
+import { absoluteWeek } from "@/lib/game/time";
 import { renewStaffContract } from "@/lib/game/staffCareers";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -57,6 +59,21 @@ function ManagerRelationshipPanel({ state, staff }: { state: GameState; staff: S
   if (staff.role !== "Manager") return null;
   const personality = managerPersonality(staff);
   const relationship = managerRelationship(state, staff);
+  const commitment = managerRecruitmentCommitment(state, staff.id);
+  const commitmentWeeks =
+    commitment?.active
+      ? Math.max(0, commitment.dueAtAbsoluteWeek - absoluteWeek(state.season, state.week))
+      : null;
+  const commitmentPosition =
+    commitment?.position === "GK"
+      ? "Goalkeeper"
+      : commitment?.position === "DEF"
+        ? "Defender"
+        : commitment?.position === "MID"
+          ? "Midfielder"
+          : commitment?.position === "FWD"
+            ? "Forward"
+            : commitment?.position;
   const tone =
     relationship.band === "Excellent" || relationship.band === "Strong"
       ? "border-emerald-500/25 bg-emerald-500/[0.07]"
@@ -107,6 +124,19 @@ function ManagerRelationshipPanel({ state, staff }: { state: GameState; staff: S
         <span className="rounded-full border bg-background/70 px-2 py-0.5 text-[10px]">{personality.controlStyle} control</span>
         <span className="rounded-full border bg-background/70 px-2 py-0.5 text-[10px]">{personality.financialPragmatism} financial pragmatism</span>
       </div>
+      {commitment?.active && (
+        <div className="mt-3 rounded-lg border border-amber-500/25 bg-amber-500/[0.07] p-2.5">
+          <div className="text-[9px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+            Active recruitment promise
+          </div>
+          <div className="mt-0.5 flex items-center justify-between gap-3">
+            <strong className="text-xs">{commitmentPosition}</strong>
+            <span className="text-[10px] text-muted-foreground">
+              {commitmentWeeks === 0 ? "Due now" : commitmentWeeks === 1 ? "1 week left" : `${commitmentWeeks} weeks left`}
+            </span>
+          </div>
+        </div>
+      )}
       <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">{personality.summary}</p>
     </div>
   );
