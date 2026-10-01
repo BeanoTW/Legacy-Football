@@ -355,7 +355,7 @@ export function PlayerProfileSheet({
                       variant="outline"
                       className="h-auto min-h-12 justify-start px-3 py-2"
                       disabled={!transferWindowOpen || Boolean(loan)}
-                      title={!transferWindowOpen ? ${transferWindow.label} · ${transferWindow.detail} : undefined}
+                      title={!transferWindowOpen ? `${transferWindow.label} · ${transferWindow.detail}` : undefined}
                       onClick={() => { setShowLoanOut((value) => !value); setShowContract(false); setReleaseConfirm(false); }}
                     >
                       <Repeat2 className="mr-2 size-4" />
