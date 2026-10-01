@@ -1,14 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
-import { Binoculars, CheckCircle2, Handshake, Pencil, Repeat2, Star, X } from "lucide-react";
-import type { GameState, LoanPlayingTimeExpectation, TacticalPosition } from "@/lib/game/types";
+import { Binoculars, CheckCircle2, Handshake, ListPlus, Pencil, RefreshCcw, Repeat2, ShieldCheck, Star, Trash2, X } from "lucide-react";
+import type { GameState, LoanPlayingTimeExpectation, SquadRole, TacticalPosition } from "@/lib/game/types";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import {
   activeContract,
   ageOf,
   arrangeUserPlayerLoanIn,
+  arrangeUserPlayerLoanOut,
   loanInAvailabilityReason,
   playerName,
+  releasePlayerInPlace,
+  renewalTerms,
+  renewContractInPlace,
+  setTransferStatusInPlace,
   submitTransferEnquiry,
   submitTransferOffer,
 } from "@/lib/game/recruitment";
@@ -19,7 +24,8 @@ import {
 } from "@/lib/game/recruitmentKnowledge";
 import { knownPlayerDetail } from "@/lib/game/knownPlayerDetail";
 import { tacticalPositionProfile, positionFamiliarity, positionUnit } from "@/lib/game/positions";
-import { activeLoanForPlayer } from "@/lib/game/loans";
+import { activeLoanForPlayer, terminateUserPlayerLoan } from "@/lib/game/loans";
+import { playerOwnerClubId } from "@/lib/game/playerRegistration";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { fmtMoneyExact } from "@/lib/game/engine";
 import { PLAYER_ATTRIBUTE_GROUPS, scoutingAssignment, scoutingReportById, startScouting, type PlayerAttributeCategory } from "@/lib/game/scouting";
@@ -63,6 +69,12 @@ export function PlayerProfileSheet({
   const [loanDuration, setLoanDuration] = useState(12);
   const [loanContribution, setLoanContribution] = useState(50);
   const [loanRole, setLoanRole] = useState<LoanPlayingTimeExpectation>("Regular");
+  const [showContract, setShowContract] = useState(false);
+  const [showLoanOut, setShowLoanOut] = useState(false);
+  const [releaseConfirm, setReleaseConfirm] = useState(false);
+  const [renewWage, setRenewWage] = useState(0);
+  const [renewSeasons, setRenewSeasons] = useState(2);
+  const [renewRole, setRenewRole] = useState<SquadRole>("First Team");
 
   useEffect(() => {
     const listener = (event: Event) => {
@@ -72,6 +84,9 @@ export function PlayerProfileSheet({
         setPortraitEditing(false);
         setNote(null);
         setShowLoan(false);
+        setShowContract(false);
+        setShowLoanOut(false);
+        setReleaseConfirm(false);
       }
     };
     window.addEventListener(PLAYER_PROFILE_EVENT, listener);
@@ -96,7 +111,9 @@ export function PlayerProfileSheet({
   const contract = activeContract(state, player.id);
   const loan = activeLoanForPlayer(state, player.id);
   const club = player.currentClubId ? clubDisplayName(state, player.currentClubId) : "Free agent";
-  const owned = isUserClubReference(state, player.currentClubId);
+  const userOwnsPlayer = isUserClubReference(state, playerOwnerClubId(player));
+  const registeredWithUser = isUserClubReference(state, player.currentClubId);
+  const owned = userOwnsPlayer || registeredWithUser;
   const report = scoutingReportById(state, player.id);
   const overall = scoutedOverallPresentation(state, player, report);
   const dynamic = owned ? dynamicOverall(state, player) : null;
@@ -115,6 +132,9 @@ export function PlayerProfileSheet({
   const career = owned ? playerCareerTotals(state, player.id) : null;
   const seasonHistory = owned ? playerSeasonByPlayer(state, player.id) : [];
   const attributeIdentity = report ? playerAttributeIdentity(tactical.primary, report.attributes) : null;
+  const proposedRenewal = userOwnsPlayer ? renewalTerms(state, player.id) : null;
+  const loanIsOut = Boolean(loan && userOwnsPlayer && !registeredWithUser);
+  const loanIsIn = Boolean(loan && registeredWithUser && !userOwnsPlayer);
 
   const approach = () => {
     if (!estimate || owned) return;
@@ -139,6 +159,81 @@ export function PlayerProfileSheet({
       setShowLoan(false);
       update(() => result.state);
     }
+  };
+
+  const toggleTransferList = () => {
+    if (!userOwnsPlayer) return;
+    update((current) => {
+      const next = structuredClone(current);
+      const result = setTransferStatusInPlace(
+        next,
+        player.id,
+        player.transferStatus === "listed" ? "unlisted" : "listed",
+      );
+      setNote(result.reason);
+      return result.ok ? next : current;
+    });
+  };
+
+  const openContractNegotiation = () => {
+    if (!proposedRenewal) return;
+    setRenewWage(proposedRenewal.weeklyWage);
+    setRenewSeasons(proposedRenewal.seasons);
+    setRenewRole(proposedRenewal.role);
+    setShowContract((value) => !value);
+    setShowLoanOut(false);
+    setReleaseConfirm(false);
+  };
+
+  const negotiateContract = () => {
+    if (!userOwnsPlayer || !proposedRenewal) return;
+    update((current) => {
+      const next = structuredClone(current);
+      const result = renewContractInPlace(next, player.id, {
+        weeklyWage: renewWage,
+        seasons: renewSeasons,
+        role: renewRole,
+        signingBonus: proposedRenewal.signingBonus,
+      });
+      setNote(result.reason);
+      if (result.ok) setShowContract(false);
+      return result.ok ? next : current;
+    });
+  };
+
+  const sendLoanOut = () => {
+    if (!userOwnsPlayer) return;
+    const result = arrangeUserPlayerLoanOut(state, player.id, {
+      durationWeeks: loanDuration,
+      loanClubWageContributionPct: loanContribution,
+      playingTimeExpectation: loanRole,
+    });
+    setNote(result.result.reason);
+    if (result.result.ok) {
+      setShowLoanOut(false);
+      update(() => result.state);
+    }
+  };
+
+  const endLoan = () => {
+    if (!loan) return;
+    const result = terminateUserPlayerLoan(state, loan.id);
+    setNote(result.result.reason);
+    if (result.result.ok) update(() => result.state);
+  };
+
+  const releasePlayer = () => {
+    if (!userOwnsPlayer) return;
+    update((current) => {
+      const next = structuredClone(current);
+      const result = releasePlayerInPlace(next, player.id);
+      setNote(result.reason);
+      if (result.ok) {
+        setReleaseConfirm(false);
+        setPlayerId(null);
+      }
+      return result.ok ? next : current;
+    });
   };
 
   return (
