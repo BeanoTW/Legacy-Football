@@ -110,6 +110,7 @@ import { avgTicketPrice } from "./sim";
 import { ticketPriceReference } from "./ticketForecast";
 import { priceDemandFactor, scaleTicketPricesInPlace } from "./ticketPricing";
 import { adjustMediaRelationshipInPlace, mediaRelationshipDeltaForOutcome } from "./mediaRelations";
+import { calendarPressConversationKey, calendarPressDefinition, calendarPressKindsForWeek, calendarPressOpeningChoices } from "./calendarPressConference";
 
 /* ---------- Helpers ---------- */
 const money = (n: number) => {
@@ -2230,6 +2231,33 @@ const G_SUS_TIER_SHOCK: Generator = {
   },
 };
 
+/* -- Calendar press rhythm -------------------------------------------- */
+const G_CALENDAR_PRESS: Generator = {
+  id: "calendar-press",
+  run: (s) =>
+    calendarPressKindsForWeek(s.week).map((kind) => {
+      const def = calendarPressDefinition(s, kind);
+      return mk(s, "calendar-press", {
+        eventKey: "calendar-press:" + kind + ":s" + s.season,
+        conversationKey: calendarPressConversationKey(kind, s.season),
+        sender: "Club Press Office",
+        department: "Media",
+        category: "media",
+        priority: kind === "season-launch" || kind === "season-review" ? "high" : "normal",
+        subject: "Press conference — " + def.subject,
+        body:
+          "The media room is filling up for a scheduled club briefing. Your answers will be on the record and can shape supporter and media reaction.\n\n" +
+          def.openingQuestion,
+        expiresInWeeks: 1,
+        choices: calendarPressOpeningChoices(kind),
+        consequenceOnExpire: [
+          { kind: "reputation", delta: -1 },
+          { kind: "fanHappiness", delta: -1 },
+        ],
+      });
+    }),
+};
+
 /* -- Random chairman incidents + press follow-ups ---------------------- */
 const RANDOM_INCIDENT_COOLDOWN_WEEKS = 4;
 const RANDOM_INCIDENT_CHANCE = 0.24;
@@ -2448,6 +2476,7 @@ const G_MANAGER_RELATIONSHIP_REACTION: Generator = {
 
 const GENERATORS: Generator[] = [
   G_WELCOME,
+  G_CALENDAR_PRESS,
   G_RANDOM_INCIDENT,
   G_RANDOM_INCIDENT_PRESS,
   G_MANAGER_RECRUITMENT_REQUEST,
