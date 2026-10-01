@@ -5,9 +5,11 @@ import { inboxConversationKey } from "@/lib/game/inboxCommunication";
 import { randomIncidentById } from "@/lib/game/randomIncidents";
 import { journalistForConversation, mediaRelationship } from "@/lib/game/mediaRelations";
 import {
+  calendarPressRound,
   pressOutcomeLabel,
   pressRoundThree,
   pressRoundTwo,
+  type CalendarPressContext,
   type PressAnswer,
   type PressTone,
 } from "@/lib/game/pressConference";
@@ -46,6 +48,25 @@ export function PressConferenceOverlay({
   const journalistRelationship = mediaRelationship(state, journalist.id);
   const incidentId = conversationKey.split(":")[1] ?? "";
   const incident = randomIncidentById(incidentId);
+  const calendarContexts: CalendarPressContext[] = [
+    "summer-window-open",
+    "season-preview",
+    "summer-window-review",
+    "midseason-checkpoint",
+    "winter-window-preview",
+    "winter-window-review",
+    "season-review",
+  ];
+  const calendarContextCandidate = item.generatorId === "calendar-press" ? conversationKey.split(":")[1] : undefined;
+  const calendarContext = calendarContexts.includes(calendarContextCandidate as CalendarPressContext)
+    ? (calendarContextCandidate as CalendarPressContext)
+    : undefined;
+  const routineWindowConference =
+    calendarContext === "summer-window-open" ||
+    calendarContext === "summer-window-review" ||
+    calendarContext === "winter-window-preview" ||
+    calendarContext === "winter-window-review";
+  const maxQuestions = routineWindowConference ? 2 : 3;
   const original = state.inbox.find(
     (candidate) =>
       candidate.generatorId === "random-incident" &&
@@ -81,11 +102,15 @@ export function PressConferenceOverlay({
   const roundTwo =
     incident && tones[0]
       ? pressRoundTwo(state, incident, originalDecisionId, tones[0], journalist)
-      : null;
+      : calendarContext && tones[0]
+        ? calendarPressRound(state, calendarContext, 2, tones, journalist)
+        : null;
   const roundThree =
     incident && tones.length >= 2
       ? pressRoundThree(state, incident, originalDecisionId, tones.slice(0, 2), journalist)
-      : null;
+      : calendarContext && tones.length >= 2
+        ? calendarPressRound(state, calendarContext, 3, tones, journalist)
+        : null;
 
   const currentQuestion =
     round === 1
