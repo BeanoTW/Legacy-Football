@@ -239,10 +239,7 @@ export function PressConferenceOverlay({
                     onClick={() => choose(answer)}
                   >
                     <span className="min-w-0 pr-3">
-                      <strong className="block whitespace-normal text-sm">{answer.label}</strong>
-                      <small className="mt-1 block whitespace-normal text-xs font-normal leading-relaxed text-white/55">
-                        {answer.hint}
-                      </small>
+                      <strong className="block whitespace-normal text-sm leading-relaxed">“{answer.label}”</strong>
                     </span>
                     <ChevronRight className="size-4 shrink-0 text-emerald-200/70" />
                   </Button>
