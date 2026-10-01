@@ -13,6 +13,7 @@ import {
   confidenceBand,
   hasReview,
   MID_SEASON_REVIEW_WEEK,
+  renegotiateBoardObjectiveInPlace,
 } from "../board";
 import type { GameState } from "../types";
 
@@ -103,6 +104,20 @@ console.log("\n[B3] Objectives");
   check(
     "weights are positive",
     objs.every((o) => o.weight > 0),
+  );
+  const sales = objs.find((o) => o.kind === "playerSaleIncome")!;
+  check(
+    "lower-league player-sale target is proportionate",
+    sales.target > 0 && sales.target < 100_000,
+    `got £${sales.target.toLocaleString()}`,
+  );
+  const before = sales.target;
+  const negotiated = renegotiateBoardObjectiveInPlace(s, sales.id);
+  check("one objective can be renegotiated", negotiated);
+  check(
+    "negotiating player sales actually softens the stored target",
+    sales.target < before,
+    `£${before.toLocaleString()} → £${sales.target.toLocaleString()}`,
   );
 }
 
