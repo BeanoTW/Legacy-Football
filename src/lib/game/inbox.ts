@@ -110,6 +110,7 @@ import { avgTicketPrice } from "./sim";
 import { ticketPriceReference } from "./ticketForecast";
 import { priceDemandFactor, scaleTicketPricesInPlace } from "./ticketPricing";
 import { adjustMediaRelationshipInPlace, mediaRelationshipDeltaForOutcome } from "./mediaRelations";
+import { CALENDAR, WINDOW_PRESEASON_END } from "./calendar";
 
 /* ---------- Helpers ---------- */
 const money = (n: number) => {
@@ -2230,6 +2231,120 @@ const G_SUS_TIER_SHOCK: Generator = {
   },
 };
 
+/* -- Calendar press conferences ----------------------------------------- */
+type CalendarPressContext =
+  | "summer-window-open"
+  | "season-preview"
+  | "summer-window-review"
+  | "midseason-checkpoint"
+  | "winter-window-preview"
+  | "winter-window-review"
+  | "season-review";
+
+function calendarPressChoices(): InboxChoice[] {
+  return [
+    {
+      id: "transparent",
+      label: "Give a clear, accountable answer",
+      hint: "Set out your position directly and give supporters something concrete to judge.",
+      effects: [
+        { kind: "reputation", delta: 1 },
+        { kind: "fanHappiness", delta: 1 },
+      ],
+    },
+    {
+      id: "reassure",
+      label: "Keep the message measured",
+      hint: "Back the club's plan without over-promising.",
+      effects: [{ kind: "reputation", delta: 1 }],
+    },
+    {
+      id: "dismiss",
+      label: "Keep your cards close",
+      hint: "Give little away. The press may push harder.",
+      effects: [{ kind: "reputation", delta: -1 }],
+    },
+  ];
+}
+
+const CALENDAR_PRESS_EVENTS: {
+  context: CalendarPressContext;
+  week: number;
+  subject: string;
+  question: (s: GameState) => string;
+  priority?: InboxPriority;
+}[] = [
+  {
+    context: "summer-window-open",
+    week: 1,
+    subject: "Summer transfer window — opening briefing",
+    question: (s) => `The summer window is open. What are ${s.clubName}'s priorities before the market closes?`,
+  },
+  {
+    context: "season-preview",
+    week: CALENDAR.preSeasonEnd,
+    subject: "Season curtain-raiser",
+    question: (s) => `Pre-season is almost over. What are your expectations for ${s.clubName} when the competitive season begins?`,
+    priority: "high",
+  },
+  {
+    context: "summer-window-review",
+    week: WINDOW_PRESEASON_END + 1,
+    subject: "Summer transfer window — review",
+    question: (s) => `The summer window has closed. How do you assess ${s.clubName}'s business and the squad you now have?`,
+  },
+  {
+    context: "midseason-checkpoint",
+    week: 20,
+    subject: "Mid-season chairman briefing",
+    question: (s) => `We are approaching the heart of the season. How do you assess ${s.clubName}'s progress so far?`,
+  },
+  {
+    context: "winter-window-preview",
+    week: CALENDAR.midSeasonStart - 1,
+    subject: "Mid-season transfer window — preview",
+    question: (s) => `The mid-season window opens next week. Does ${s.clubName} need to strengthen, and where?`,
+  },
+  {
+    context: "winter-window-review",
+    week: CALENDAR.midSeasonEnd + 1,
+    subject: "Mid-season transfer window — review",
+    question: (s) => `The mid-season window is closed. Are you satisfied with the business ${s.clubName} completed?`,
+  },
+  {
+    context: "season-review",
+    week: CALENDAR.seasonEnd,
+    subject: "End-of-season chairman review",
+    question: (s) => `The season is reaching its conclusion. How do you judge ${s.clubName}'s year?`,
+    priority: "high",
+  },
+];
+
+const G_CALENDAR_PRESS: Generator = {
+  id: "calendar-press",
+  run: (s) => {
+    const event = CALENDAR_PRESS_EVENTS.find((candidate) => candidate.week === s.week);
+    if (!event) return [];
+
+    return [
+      mk(s, "calendar-press", {
+        eventKey: `calendar-press:${event.context}:s${s.season}`,
+        conversationKey: `calendar-press:${event.context}:s${s.season}`,
+        sender: "Local Press Pool",
+        department: "Media",
+        category: "media",
+        priority: event.priority ?? "normal",
+        subject: `Press conference — ${event.subject}`,
+        body:
+          `A scheduled media briefing is waiting for the chairman.\n\n` +
+          event.question(s),
+        expiresInWeeks: 1,
+        choices: calendarPressChoices(),
+        consequenceOnExpire: [{ kind: "reputation", delta: -1 }],
+      }),
+    ];
+  },
+};
 /* -- Random chairman incidents + press follow-ups ---------------------- */
 const RANDOM_INCIDENT_COOLDOWN_WEEKS = 4;
 const RANDOM_INCIDENT_CHANCE = 0.24;
@@ -2448,6 +2563,7 @@ const G_MANAGER_RELATIONSHIP_REACTION: Generator = {
 
 const GENERATORS: Generator[] = [
   G_WELCOME,
+  G_CALENDAR_PRESS,
   G_RANDOM_INCIDENT,
   G_RANDOM_INCIDENT_PRESS,
   G_MANAGER_RECRUITMENT_REQUEST,
