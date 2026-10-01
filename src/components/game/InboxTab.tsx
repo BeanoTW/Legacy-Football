@@ -465,8 +465,10 @@ export function InboxTab({
           <PressConferenceOverlay
             item={open}
             state={state}
-            onComplete={(firstChoiceId, laterEffects) => {
-              update((current) => resolvePressConference(current, open.id, firstChoiceId, laterEffects));
+            onComplete={(firstChoiceId, laterEffects, summary) => {
+              update((current) =>
+                resolvePressConference(current, open.id, firstChoiceId, laterEffects, summary),
+              );
               setOpenId(null);
             }}
           />
