@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pencil, Play } from "lucide-react";
+import { Pencil, Play, Shield, Shirt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,10 +11,18 @@ import { leaguePresentationName } from "@/lib/game/clubPresentation";
 import { saveChairmanProfile } from "@/lib/game/chairmanProfile";
 import { ChairmanPortrait } from "./ChairmanPortrait";
 import { ChairmanStudio, useChairmanProfile } from "./ChairmanStudio";
+import { ClubIdentitySetupSheet } from "./ClubIdentityStudio";
+import { ClubBadge, ClubShirt } from "./ClubKitArt";
+import { defaultClubKit, type ClubKitState } from "@/lib/game/clubKit";
+import { cleanClubNickname } from "@/lib/game/character";
 
-export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart: (club: string, manager: string, startingDivisionId?: string) => void; activeSlot: SaveSlotId; slots: SaveSlotSummary[]; onSelectSlot: (slot: SaveSlotId) => void }) {
+export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart: (club: string, manager: string, startingDivisionId?: string, clubKit?: ClubKitState, clubNickname?: string) => void; activeSlot: SaveSlotId; slots: SaveSlotSummary[]; onSelectSlot: (slot: SaveSlotId) => void }) {
   const profile = useChairmanProfile();
   const [club, setClub] = useState("Dalton Town");
+  const [nickname, setNickname] = useState("");
+  const [clubKit, setClubKit] = useState<ClubKitState>(() => defaultClubKit("Dalton Town"));
+  const [clubIdentityOpen, setClubIdentityOpen] = useState(false);
+  const [clubIdentityTouched, setClubIdentityTouched] = useState(false);
   const [manager, setManager] = useState(profile.name);
   const [studioOpen, setStudioOpen] = useState(false);
   const activeSlotUnreadable = slots.some((slot) => slot.id === activeSlot && slot.status === "unreadable");
@@ -32,7 +40,7 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
     if (activeSlotUnreadable) return;
     const name = manager.trim() || "Chairman";
     saveChairmanProfile({ ...profile, name });
-    onStart(club.trim(), name, startingDivisionId);
+    onStart(club.trim(), name, startingDivisionId, clubKit, cleanClubNickname(nickname).trim());
   };
 
   return (
@@ -79,8 +87,57 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
 
             <div className="space-y-2">
               <Label htmlFor="club">Club name</Label>
-              <Input id="club" value={club} onChange={(e) => setClub(e.target.value)} className="border-2 border-border bg-muted/65 text-foreground placeholder:text-muted-foreground" />
+              <Input
+                id="club"
+                value={club}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setClub(next);
+                  if (!clubIdentityTouched) setClubKit(defaultClubKit(next || "New Club"));
+                }}
+                className="border-2 border-border bg-muted/65 text-foreground placeholder:text-muted-foreground"
+              />
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="nickname">Club nickname</Label>
+              <Input
+                id="nickname"
+                value={nickname}
+                maxLength={28}
+                onChange={(e) => setNickname(cleanClubNickname(e.target.value))}
+                placeholder="e.g. The Railwaymen"
+                className="border-2 border-border bg-muted/65 text-foreground placeholder:text-muted-foreground"
+              />
+              <p className="text-[10px] text-muted-foreground">Leave blank and the game will generate one.</p>
+            </div>
+
+            <section className="overflow-hidden rounded-xl border-2 border-border bg-muted/35">
+              <div className="flex items-center justify-between gap-3 px-3 py-2">
+                <div>
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    <Shield className="size-4 text-primary" /> Club identity
+                  </div>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">Badge, home kit, away kit, colours, sponsor and club details.</p>
+                </div>
+                <Button type="button" size="sm" variant="outline" onClick={() => setClubIdentityOpen(true)}>
+                  <Pencil className="size-3.5" /> Design club
+                </Button>
+              </div>
+              <div className="grid grid-cols-[72px_1fr_1fr] items-center gap-2 border-t px-3 py-3">
+                <div className="flex justify-center">
+                  <ClubBadge design={clubKit.badge} clubName={club || "New Club"} size={56} />
+                </div>
+                <div className="rounded-lg bg-background/65 p-2 text-center">
+                  <ClubShirt kit={clubKit.home} badge={clubKit.badge} clubName={club || "New Club"} size={58} />
+                  <span className="mt-1 flex items-center justify-center gap-1 text-[9px] font-semibold text-muted-foreground"><Shirt className="size-3" /> Home</span>
+                </div>
+                <div className="rounded-lg bg-background/65 p-2 text-center">
+                  <ClubShirt kit={clubKit.away} badge={clubKit.badge} clubName={club || "New Club"} size={58} />
+                  <span className="mt-1 flex items-center justify-center gap-1 text-[9px] font-semibold text-muted-foreground"><Shirt className="size-3" /> Away</span>
+                </div>
+              </div>
+            </section>
             <div className="space-y-2">
               <Label>Starting regional league</Label>
               <div className="grid grid-cols-2 gap-2">
@@ -121,6 +178,19 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
         </div>
       </div>
       <ChairmanStudio open={studioOpen} onOpenChange={setStudioOpen} />
+      <ClubIdentitySetupSheet
+        open={clubIdentityOpen}
+        onOpenChange={setClubIdentityOpen}
+        clubName={club}
+        nickname={nickname}
+        kit={clubKit}
+        onSave={({ clubName, nickname: nextNickname, kit }) => {
+          setClub(clubName);
+          setNickname(nextNickname);
+          setClubKit(kit);
+          setClubIdentityTouched(true);
+        }}
+      />
     </div>
   );
 }

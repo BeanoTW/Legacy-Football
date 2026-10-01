@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { GameState } from "@/lib/game/types";
+import type { ClubKitState } from "@/lib/game/clubKit";
+import { setClubKit } from "@/lib/game/clubKit";
+import { setClubNickname } from "@/lib/game/character";
 import {
   advanceDay,
   advanceWeek,
@@ -104,10 +107,19 @@ export function useGame() {
     };
   }, [activeSlot, hydrated, state]);
 
-  const start = useCallback((clubName: string, managerName: string, startingDivisionId?: string) => {
+  const start = useCallback((
+    clubName: string,
+    managerName: string,
+    startingDivisionId?: string,
+    clubKit?: ClubKitState,
+    clubNickname?: string,
+  ) => {
     skipCloudWrite.current = false;
     setSaveError(null);
-    setState(newGame(clubName, managerName, undefined, startingDivisionId));
+    let next = newGame(clubName, managerName, undefined, startingDivisionId);
+    if (clubKit) next = setClubKit(next, clubKit);
+    if (clubNickname?.trim()) next = setClubNickname(next, clubNickname);
+    setState(next);
   }, []);
 
   const clearTarget = useCallback(() => {
