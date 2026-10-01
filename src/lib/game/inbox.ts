@@ -630,35 +630,111 @@ function mk(s: GameState, generatorId: string, draft: InboxItemDraft): InboxItem
   };
 }
 
-/* -- 1. Welcome from the Board -- */
+/* -- 1. New-save onboarding ------------------------------------------- */
 const G_WELCOME: Generator = {
   id: "board-welcome",
   run: (s) => {
-    if (s.inboxFlags["welcomed"]) return [];
+    if (s.season !== 1 || s.week !== 1 || s.inboxFlags["welcomed"]) return [];
     return [
       mk(s, "board-welcome", {
         eventKey: "board-welcome",
         sender: "Bill Roberts",
         department: "Board of Directors",
-        category: "board",
+        category: "information",
         priority: "normal",
-        subject: `Welcome to ${s.clubName}`,
+        subject: "Welcome to Legacy Football",
         body:
-          `Welcome aboard. As chairman you'll receive every report, decision ` +
-          `and opportunity through this inbox — from finance, the manager, ` +
-          `groundskeeping, sponsors, the league, all of it.\n\n` +
-          `We expect a mid-table finish this season. Keep the books healthy ` +
-          `and the fans on side and we'll leave you to it.`,
-        choices: [
-          {
-            id: "ack",
-            label: "Understood",
-            hint: "Acknowledge and set to work.",
-            effects: [{ kind: "flag", key: "welcomed", value: true }],
-          },
-        ],
+          `Welcome to ${s.clubName}. You are the club's Managing Director: the person ultimately responsible for its long-term direction.\n\n` +
+          `This inbox is where the club comes to you. Reports, opportunities, problems and decisions will arrive here as the football world moves around you.`,
       }),
     ];
+  },
+};
+
+const G_ONBOARDING: Generator = {
+  id: "new-save-onboarding",
+  run: (s) => {
+    if (s.season !== 1 || s.week < 1 || s.week > CALENDAR.preSeasonEnd) return [];
+
+    const items: InboxItem[] = [];
+    const add = (
+      key: string,
+      sender: string,
+      department: InboxDepartment,
+      subject: string,
+      body: string,
+      priority: InboxPriority = "normal",
+    ) => {
+      items.push(
+        mk(s, "new-save-onboarding", {
+          eventKey: `new-save-onboarding:${key}`,
+          sender,
+          department,
+          category: "information",
+          priority,
+          subject,
+          body,
+        }),
+      );
+    };
+
+    if (s.week === 1) {
+      add(
+        "your-role",
+        "Bill Roberts",
+        "Board of Directors",
+        "Your role",
+        "You set the direction of the club rather than picking the team. Your core responsibilities are finances, senior staff, recruitment strategy, facilities, commercial decisions, supporter relations and the working relationship with the manager.",
+      );
+      add(
+        "living-world",
+        "Club Secretary",
+        "Club",
+        "How the world works",
+        "Decisions have consequences here. The club remembers what you do, journalists and supporters react to what you say, managers remember whether you backed them, and the wider football world keeps moving whether you intervene or not.",
+      );
+    }
+
+    if (s.week === 2) {
+      add(
+        "priorities",
+        "Club Secretary",
+        "Club",
+        "Your immediate priorities",
+        "Before the season starts, get a feel for the squad, manager and staff, finances, facilities, upcoming fixtures and recruitment position. You do not need to change everything — understanding the club is a decision in itself.",
+      );
+    }
+
+    if (s.week === 3) {
+      add(
+        "season-approaching",
+        "Media Office",
+        "Media",
+        "The season is approaching",
+        "The first competitive match is getting close. Media interest is building and supporters are beginning to form expectations about the direction you intend to take the club.",
+        "normal",
+      );
+    }
+
+    if (s.week === CALENDAR.preSeasonEnd) {
+      add(
+        "first-press",
+        "Media Office",
+        "Media",
+        "First press conference scheduled",
+        "Your first formal press conference is due before the competitive season begins. Expect questions about ambition, squad readiness, recruitment and what supporters should judge you on. What you say will be remembered.",
+        "high",
+      );
+      add(
+        "good-luck",
+        "Bill Roberts",
+        "Board of Directors",
+        "The club is yours to shape",
+        `Pre-season is nearly done. From here, ${s.clubName}'s story belongs to your decisions. Good luck for the season ahead.`,
+      );
+    }
+
+    return items;
   },
 };
 
@@ -2241,7 +2317,39 @@ type CalendarPressContext =
   | "winter-window-review"
   | "season-review";
 
-function calendarPressChoices(): InboxChoice[] {
+function calendarPressChoices(s: GameState, context: CalendarPressContext): InboxChoice[] {
+  if (context === "season-preview") {
+    const statement = (id: string, label: string, value: string, effects: InboxEffect[] = []): InboxChoice => ({
+      id,
+      label,
+      hint: "A public statement. Journalists can quote this back to you later in the season.",
+      effects: [
+        { kind: "flag", key: `press:season-preview:s${s.season}`, value },
+        ...effects,
+      ],
+    });
+
+    return [
+      statement("promotion", "Promotion is the target.", "promotion", [
+        { kind: "reputation", delta: 1 },
+        { kind: "fanHappiness", delta: 1 },
+      ]),
+      statement("rebuilding", "This is a rebuilding season.", "rebuilding"),
+      statement("happy-squad", "We're happy with the squad.", "happy-squad", [
+        { kind: "reputation", delta: 1 },
+      ]),
+      statement("reinforcements", "We still need reinforcements.", "reinforcements", [
+        { kind: "fanHappiness", delta: 1 },
+      ]),
+      statement("youth", "Youth development is a priority.", "youth", [
+        { kind: "fanHappiness", delta: 1 },
+      ]),
+      statement("stability", "Financial stability comes first.", "stability", [
+        { kind: "reputation", delta: 1 },
+      ]),
+    ];
+  }
+
   return [
     {
       id: "transparent",
@@ -2339,7 +2447,7 @@ const G_CALENDAR_PRESS: Generator = {
           `A scheduled media briefing is waiting for the chairman.\n\n` +
           event.question(s),
         expiresInWeeks: 1,
-        choices: calendarPressChoices(),
+        choices: calendarPressChoices(s, event.context),
         consequenceOnExpire: [{ kind: "reputation", delta: -1 }],
       }),
     ];
@@ -2563,6 +2671,7 @@ const G_MANAGER_RELATIONSHIP_REACTION: Generator = {
 
 const GENERATORS: Generator[] = [
   G_WELCOME,
+  G_ONBOARDING,
   G_CALENDAR_PRESS,
   G_RANDOM_INCIDENT,
   G_RANDOM_INCIDENT_PRESS,
