@@ -4,6 +4,7 @@ import type { GameState, InboxEffect, InboxItem } from "@/lib/game/types";
 import { inboxConversationKey } from "@/lib/game/inboxCommunication";
 import { randomIncidentById } from "@/lib/game/randomIncidents";
 import { journalistForConversation, mediaRelationship } from "@/lib/game/mediaRelations";
+import { calendarPressDefinition, calendarPressKindFromConversationKey, calendarPressRound } from "@/lib/game/calendarPressConference";
 import {
   pressOutcomeLabel,
   pressRoundThree,
@@ -44,6 +45,8 @@ export function PressConferenceOverlay({
   const conversationKey = inboxConversationKey(item);
   const journalist = journalistForConversation(state, conversationKey);
   const journalistRelationship = mediaRelationship(state, journalist.id);
+  const calendarKind = calendarPressKindFromConversationKey(conversationKey);
+  const calendarDefinition = calendarKind ? calendarPressDefinition(state, calendarKind) : null;
   const incidentId = conversationKey.split(":")[1] ?? "";
   const incident = randomIncidentById(incidentId);
   const original = state.inbox.find(
@@ -57,6 +60,7 @@ export function PressConferenceOverlay({
     "the club's response";
 
   const openingQuestion =
+    calendarDefinition?.openingQuestion ??
     incident?.press?.question(state, originalDecisionLabel) ??
     item.body.split(/\n\s*\n/).at(-1) ??
     "Can you explain the club's decision?";
@@ -79,13 +83,22 @@ export function PressConferenceOverlay({
   const [exchanges, setExchanges] = useState<Exchange[]>([]);
 
   const roundTwo =
-    incident && tones[0]
-      ? pressRoundTwo(state, incident, originalDecisionId, tones[0], journalist)
+    tones[0]
+      ? calendarKind
+        ? calendarPressRound(state, calendarKind, 2, tones.slice(0, 1), journalist)
+        : incident
+          ? pressRoundTwo(state, incident, originalDecisionId, tones[0], journalist)
+          : null
       : null;
   const roundThree =
-    incident && tones.length >= 2
-      ? pressRoundThree(state, incident, originalDecisionId, tones.slice(0, 2), journalist)
+    tones.length >= 2
+      ? calendarKind
+        ? calendarPressRound(state, calendarKind, 3, tones.slice(0, 2), journalist)
+        : incident
+          ? pressRoundThree(state, incident, originalDecisionId, tones.slice(0, 2), journalist)
+          : null
       : null;
+  const questionCount = calendarDefinition?.questionCount ?? 3;
 
   const currentQuestion =
     round === 1
@@ -119,6 +132,10 @@ export function PressConferenceOverlay({
 
     setLaterEffects((current) => [...current, ...answer.effects]);
     if (round === 2) {
+      if (questionCount === 2) {
+        setRound("complete");
+        return;
+      }
       setRound(3);
       return;
     }
@@ -126,7 +143,7 @@ export function PressConferenceOverlay({
     setRound("complete");
   };
 
-  const questionNumber = round === "complete" ? 3 : round;
+  const questionNumber = round === "complete" ? questionCount : Math.min(round, questionCount);
   const outcome = round === "complete" ? pressOutcomeLabel(tones) : null;
 
   return (
@@ -139,11 +156,11 @@ export function PressConferenceOverlay({
                 <Mic2 className="size-4" /> Press conference
               </div>
               <h1 className="mt-1 font-display text-2xl leading-tight sm:text-3xl">
-                {incident?.subject(state) ?? item.subject.replace(/^Press conference\s*—\s*/i, "")}
+                {calendarDefinition?.subject ?? incident?.subject(state) ?? item.subject.replace(/^Press conference\s*—\s*/i, "")}
               </h1>
             </div>
             <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold">
-              Question {questionNumber} / 3
+              Question {questionNumber} / {questionCount}
             </span>
           </div>
         </header>
@@ -215,7 +232,7 @@ export function PressConferenceOverlay({
               </span>
               <h2 className="mt-1 font-display text-2xl">{outcome}</h2>
               <p className="mt-2 text-sm leading-relaxed text-white/65">
-                Your answers will now feed into supporter and reputation reaction. The interview remains attached to the original club incident in your communications history.
+                Your answers will now feed into supporter, reputation and media reaction. The interview remains in your communications history for future coverage.
               </p>
               <Button
                 className="mt-5 w-full bg-emerald-300 text-emerald-950 hover:bg-emerald-200"
