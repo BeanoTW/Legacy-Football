@@ -1,5 +1,6 @@
 import type { GameState } from "./types";
 import { clubDisplayName, isUserClubReference } from "./clubReference";
+import { clubIdForState, isOpaqueClubId } from "./clubIdentity";
 import { clubPresentationName } from "./clubPresentation";
 
 /*
@@ -70,6 +71,8 @@ declare module "./types" {
   interface GameState {
     /** Player-designed badge and kits. Absent until first designed; a default is derived from the club name. */
     clubKit?: ClubKitState;
+    /** Presentation-only identity overrides for AI clubs, keyed by immutable canonical club id. */
+    aiClubKits?: Record<string, ClubKitState>;
   }
 }
 
@@ -499,13 +502,30 @@ export function clubKitFor(state: Pick<GameState, "clubKit" | "clubName">): Club
  */
 export function clubKitForReference(state: GameState, clubRef: string): ClubKitState {
   if (isUserClubReference(state, clubRef)) return clubKitFor(state);
+  const canonical = isOpaqueClubId(clubRef) ? clubRef : clubIdForState(state, clubRef);
   const displayName = clubDisplayName(state, clubRef);
+  const overridden = state.aiClubKits?.[canonical];
+  if (overridden) return sanitizeClubKit(overridden, displayName);
   const presentationName = clubPresentationName(displayName);
   return authoredAiClubKit(displayName) ?? defaultClubKit(presentationName);
 }
 
 export function setClubKit(state: GameState, kit: ClubKitState): GameState {
   return { ...state, clubKit: sanitizeClubKit(kit, state.clubName) };
+}
+
+/** Persist a presentation-only badge/kit override for any club without changing simulation identity. */
+export function setClubKitForReference(state: GameState, clubRef: string, kit: ClubKitState): GameState {
+  if (isUserClubReference(state, clubRef)) return setClubKit(state, kit);
+  const canonical = isOpaqueClubId(clubRef) ? clubRef : clubIdForState(state, clubRef);
+  const displayName = clubDisplayName(state, clubRef);
+  return {
+    ...state,
+    aiClubKits: {
+      ...(state.aiClubKits ?? {}),
+      [canonical]: sanitizeClubKit(kit, displayName),
+    },
+  };
 }
 
 /** Kit colours drawn from the badge, for the "use badge colours" shortcut. */
