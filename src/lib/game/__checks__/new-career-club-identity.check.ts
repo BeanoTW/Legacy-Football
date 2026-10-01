@@ -5,7 +5,7 @@ function assert(condition: unknown, message: string): asserts condition {
   console.log("  ✓ " + message);
 }
 
-console.log("\n[NEW-CAREER-CLUB-IDENTITY] Pre-launch club editor");
+// This check intentionally verifies only the new-career wiring; gameplay determinism is covered separately.\nconsole.log("\n[NEW-CAREER-CLUB-IDENTITY] Pre-launch club editor");
 
 const setup = readFileSync("src/components/game/NewGame.tsx", "utf8");
 const studio = readFileSync("src/components/game/ClubIdentityStudio.tsx", "utf8");
