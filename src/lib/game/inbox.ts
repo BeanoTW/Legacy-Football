@@ -105,6 +105,7 @@ import { archivedInboxGuardKeys } from "./archive";
 import { postMatchReaction } from "./matchReaction";
 import { RANDOM_INCIDENTS, pressChoicesForIncident, randomIncidentById } from "./randomIncidents";
 import { adjustManagerRelationshipInPlace, currentManager, latestManagerRelationshipEvent, managerRelationship } from "./managerRelationship";
+import { managerRecruitmentRequestItems, managerRecruitmentPromiseReviewItems } from "./managerRecruitmentPromises";
 import { avgTicketPrice } from "./sim";
 import { ticketPriceReference } from "./ticketForecast";
 import { priceDemandFactor, scaleTicketPricesInPlace } from "./ticketPricing";
@@ -2324,6 +2325,16 @@ const G_RANDOM_INCIDENT_PRESS: Generator = {
     }),
 };
 
+const G_MANAGER_RECRUITMENT_REQUEST: Generator = {
+  id: "manager-recruitment-request",
+  run: (s) => managerRecruitmentRequestItems(s),
+};
+
+const G_MANAGER_RECRUITMENT_PROMISE_REVIEW: Generator = {
+  id: "manager-recruitment-promise-review",
+  run: (s, dueEntries) => managerRecruitmentPromiseReviewItems(s, dueEntries),
+};
+
 const G_MANAGER_RELATIONSHIP_REACTION: Generator = {
   id: "manager-relationship-reaction",
   run: (s) => {
@@ -2420,6 +2431,8 @@ const GENERATORS: Generator[] = [
   G_WELCOME,
   G_RANDOM_INCIDENT,
   G_RANDOM_INCIDENT_PRESS,
+  G_MANAGER_RECRUITMENT_REQUEST,
+  G_MANAGER_RECRUITMENT_PROMISE_REVIEW,
   G_MANAGER_RELATIONSHIP_REACTION,
   G_FINANCE_WEEKLY,
   G_ROOF,
