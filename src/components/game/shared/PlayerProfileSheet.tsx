@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Binoculars, CheckCircle2, Handshake, ListPlus, Pencil, RefreshCcw, Repeat2, ShieldCheck, Star, Trash2, X } from "lucide-react";
+import { Binoculars, CheckCircle2, Handshake, ListMinus, ListPlus, Pencil, RefreshCcw, Repeat2, Star, Trash2, X } from "lucide-react";
 import type { GameState, LoanPlayingTimeExpectation, SquadRole, TacticalPosition } from "@/lib/game/types";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -27,7 +27,7 @@ import { tacticalPositionProfile, positionFamiliarity, positionUnit } from "@/li
 import { activeLoanForPlayer, terminateUserPlayerLoan } from "@/lib/game/loans";
 import { playerOwnerClubId } from "@/lib/game/playerRegistration";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
-import { fmtMoneyExact } from "@/lib/game/engine";
+import { fmtMoney, fmtMoneyExact } from "@/lib/game/engine";
 import { PLAYER_ATTRIBUTE_GROUPS, scoutingAssignment, scoutingReportById, startScouting, type PlayerAttributeCategory } from "@/lib/game/scouting";
 import { scoutedOverallPresentation } from "@/lib/game/scoutingPresentation";
 import { isTransferWindowOpen, windowStatus } from "@/lib/game/calendar";
@@ -55,6 +55,157 @@ function moneyRange(range?: [number, number]) {
   return `${fmtMoneyExact(range[0])}–${fmtMoneyExact(range[1])}`;
 }
 
+type ReportAttribute = {
+  key: string;
+  label: string;
+  known: boolean;
+  exact?: number;
+  min?: number;
+  max?: number;
+};
+
+const RADAR_AREAS: { id: string; label: string; match: RegExp }[] = [
+  { id: "PAC", label: "Pace", match: /pace|acceleration|speed|agility/ },
+  { id: "SHO", label: "Shooting", match: /finishing|shot|shooting|heading/ },
+  { id: "PAS", label: "Passing", match: /pass|vision|crossing/ },
+  { id: "DRI", label: "Dribbling", match: /dribbl|first touch|technique|ball control|flair/ },
+  { id: "DEF", label: "Defending", match: /tackl|marking|positioning|interception|anticipation/ },
+  { id: "PHY", label: "Physical", match: /strength|stamina|jumping|work rate|aggression|balance|fitness/ },
+];
+
+function attributeValue(attribute: ReportAttribute): number | null {
+  if (!attribute.known) return null;
+  if (attribute.exact !== undefined) return attribute.exact;
+  if (attribute.min !== undefined && attribute.max !== undefined) {
+    return Math.round((attribute.min + attribute.max) / 2);
+  }
+  return null;
+}
+
+function radarFrom(attributes: ReportAttribute[]) {
+  return RADAR_AREAS.map((area) => {
+    const values = attributes
+      .filter(
+        (attribute) =>
+          area.match.test(`${attribute.key} ${attribute.label}`.toLowerCase()) &&
+          !/goalkeep/i.test(attribute.label),
+      )
+      .map(attributeValue)
+      .filter((value): value is number => value !== null);
+    return {
+      ...area,
+      value: values.length
+        ? Math.round(values.reduce((total, value) => total + value, 0) / values.length)
+        : null,
+    };
+  });
+}
+
+function AttributeRadar({ areas }: { areas: ReturnType<typeof radarFrom> }) {
+  const size = 132;
+  const centre = size / 2;
+  const radius = 46;
+  const point = (index: number, value: number) => {
+    const angle = -Math.PI / 2 + (index * Math.PI * 2) / areas.length;
+    return [
+      centre + Math.cos(angle) * radius * (value / 100),
+      centre + Math.sin(angle) * radius * (value / 100),
+    ] as const;
+  };
+  const ring = (value: number) => areas.map((_, index) => point(index, value).join(",")).join(" ");
+  const complete = areas.every((area) => area.value !== null);
+  // Unknown scouting dimensions sit at a neutral midpoint rather than zero,
+  // so incomplete knowledge never masquerades as a weakness.
+  const shape = areas
+    .map((area, index) => point(index, area.value ?? 50).join(","))
+    .join(" ");
+
+  return (
+    <div className="shrink-0 text-center">
+      <svg
+        viewBox={`0 0 ${size} ${size}`}
+        className="h-[132px] w-[132px]"
+        role="img"
+        aria-label={`Attribute radar: ${areas.map((area) => `${area.label} ${area.value ?? "unknown"}`).join(", ")}`}
+      >
+        {[25, 50, 75, 100].map((value) => (
+          <polygon
+            key={value}
+            points={ring(value)}
+            fill="none"
+            stroke="currentColor"
+            strokeOpacity={value === 100 ? 0.22 : 0.1}
+          />
+        ))}
+        {areas.map((_, index) => {
+          const [x, y] = point(index, 100);
+          return (
+            <line
+              key={index}
+              x1={centre}
+              y1={centre}
+              x2={x}
+              y2={y}
+              stroke="currentColor"
+              strokeOpacity={0.08}
+            />
+          );
+        })}
+        <polygon
+          points={shape}
+          fill="#10b981"
+          fillOpacity={complete ? 0.28 : 0.15}
+          stroke="#059669"
+          strokeWidth={1.6}
+          strokeDasharray={complete ? undefined : "3 2"}
+        />
+        {areas.map((area, index) => {
+          const [x, y] = point(index, 128);
+          return (
+            <g key={area.id}>
+              <text
+                x={x}
+                y={y - 2}
+                textAnchor="middle"
+                fontSize={8}
+                fontWeight={800}
+                fill="currentColor"
+                fillOpacity={0.55}
+              >
+                {area.id}
+              </text>
+              <text
+                x={x}
+                y={y + 7}
+                textAnchor="middle"
+                fontSize={8.5}
+                fontWeight={800}
+                fill="currentColor"
+              >
+                {area.value ?? "?"}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+      {!complete && (
+        <div className="-mt-1 text-[7px] uppercase tracking-wide text-muted-foreground">
+          ? = not yet known
+        </div>
+      )}
+    </div>
+  );
+}
+
+const barTone = (value: number) =>
+  value >= 70
+    ? "bg-emerald-500"
+    : value >= 55
+      ? "bg-teal-500"
+      : value >= 40
+        ? "bg-amber-500"
+        : "bg-rose-400";
+
 export function PlayerProfileSheet({
   state,
   update,
@@ -75,6 +226,8 @@ export function PlayerProfileSheet({
   const [renewWage, setRenewWage] = useState(0);
   const [renewSeasons, setRenewSeasons] = useState(2);
   const [renewRole, setRenewRole] = useState<SquadRole>("First Team");
+  const [statsView, setStatsView] = useState<"season" | "form" | "career">("season");
+  const [attributeTab, setAttributeTab] = useState<PlayerAttributeCategory | null>(null);
 
   useEffect(() => {
     const listener = (event: Event) => {
@@ -87,6 +240,8 @@ export function PlayerProfileSheet({
         setShowContract(false);
         setShowLoanOut(false);
         setReleaseConfirm(false);
+        setStatsView("season");
+        setAttributeTab(null);
       }
     };
     window.addEventListener(PLAYER_PROFILE_EVENT, listener);
@@ -135,6 +290,89 @@ export function PlayerProfileSheet({
   const proposedRenewal = userOwnsPlayer ? renewalTerms(state, player.id) : null;
   const loanIsOut = Boolean(loan && userOwnsPlayer && !registeredWithUser);
   const loanIsIn = Boolean(loan && registeredWithUser && !userOwnsPlayer);
+  const listed = player.transferStatus === "listed";
+  const radar = report ? radarFrom(report.attributes as ReportAttribute[]) : null;
+  const categories = Object.keys(PLAYER_ATTRIBUTE_GROUPS) as PlayerAttributeCategory[];
+  const activeCategory = attributeTab ?? categories[0];
+  const contractSeasons = contract
+    ? Math.max(1, contract.expirySeason - state.season + 1)
+    : null;
+  const rating = dynamic ? dynamic.effective : overall.label;
+  const ratingCaption = dynamic
+    ? `Base ${dynamic.base}${dynamic.delta === 0 ? "" : dynamic.delta > 0 ? ` +${dynamic.delta}` : ` ${dynamic.delta}`}`
+    : overall.exact
+      ? "Ability"
+      : overall.known
+        ? "Estimate"
+        : "Unknown";
+
+  const keyFacts: { label: string; value: string }[] = owned
+    ? [
+        { label: "Wage", value: contract ? `${fmtMoney(contract.weeklyWage)}/wk` : "—" },
+        {
+          label: "Contract",
+          value: contractSeasons
+            ? `${contractSeasons} season${contractSeasons === 1 ? "" : "s"}`
+            : "—",
+        },
+        { label: "Value", value: fmtMoney(player.marketValue) },
+        { label: "Potential", value: String(player.potentialAbility) },
+        {
+          label: "Role",
+          value: loan?.playingTimeExpectation ?? contract?.squadRole ?? "At club",
+        },
+        { label: "Personality", value: player.personality },
+      ]
+    : [
+        {
+          label: "Value",
+          value: hasScouting ? moneyRange(report?.valueRange).replaceAll("£", "") : "?",
+        },
+        {
+          label: "Wage",
+          value: hasScouting ? `${moneyRange(report?.wageRange).replaceAll("£", "")}/wk` : "?",
+        },
+        {
+          label: "Potential",
+          value: fullKnowledge ? String(player.potentialAbility) : "?",
+        },
+        { label: "Status", value: freeAgent ? "Free agent" : "Under contract" },
+        { label: "Personality", value: fullKnowledge ? player.personality : "?" },
+        { label: "Knowledge", value: `${knowledge}%` },
+      ];
+
+  const statFigures =
+    statsView === "season" && seasonLine
+      ? {
+          figures: [
+            ["Apps", String(seasonLine.appearances)],
+            ["Goals", String(seasonLine.goals)],
+            ["Assists", String(seasonLine.assists)],
+            ["Rating", seasonLine.averageRating.toFixed(2)],
+          ],
+          line: `${seasonLine.starts} starts · ${seasonLine.substituteAppearances} off the bench · ${seasonLine.minutes} min`,
+        }
+      : statsView === "form" && recentForm && recentForm.appearances > 0
+        ? {
+            figures: [
+              ["Form", recentForm.band],
+              ["Rating", recentForm.averageRating.toFixed(2)],
+              ["Goals", String(recentForm.goals)],
+              ["Assists", String(recentForm.assists)],
+            ],
+            line: `Last ${recentForm.appearances} appearance${recentForm.appearances === 1 ? "" : "s"} · ${recentForm.minutes} min`,
+          }
+        : statsView === "career" && career
+          ? {
+              figures: [
+                ["Apps", String(career.appearances)],
+                ["Goals", String(career.goals)],
+                ["Assists", String(career.assists)],
+                ["Rating", career.averageRating.toFixed(2)],
+              ],
+              line: `${career.seasons} season${career.seasons === 1 ? "" : "s"} at the club · ${career.starts} starts`,
+            }
+          : null;
 
   const approach = () => {
     if (!estimate || owned) return;
@@ -250,68 +488,72 @@ export function PlayerProfileSheet({
         >
           <X className="size-5" />
         </Button>
-        <div className="relative overflow-hidden border-b border-emerald-300/10 bg-[#061a15] px-4 pb-4 pt-4 pr-14 text-white">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(52,211,153,.16),transparent_34%),linear-gradient(140deg,rgba(255,255,255,.035),transparent_50%)]" />
+        <div className="relative overflow-hidden border-b border-emerald-300/10 bg-[#061a15] px-3.5 pb-3 pt-3.5 pr-12 text-white">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_82%_12%,rgba(52,211,153,.22),transparent_38%),radial-gradient(circle_at_0%_100%,rgba(16,185,129,.12),transparent_45%)]" />
+          <div className="pointer-events-none absolute -right-5 top-4 font-display text-[7.5rem] font-black leading-none text-white/[0.035]" aria-hidden="true">
+            {tactical.primary}
+          </div>
           <SheetHeader className="relative text-left">
-            <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-200/55">Player profile</div>
-            <div className="mt-1 flex items-start gap-2.5">
-              <button type="button" onClick={() => setPortraitEditing(true)}
-                className="relative shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300"
-                aria-label={`Edit ${displayName} appearance`}>
-                <CharacterPortrait identity={{ id: player.id, subject: "player" }} size={62} title={`${displayName} portrait`} />
-                <Pencil className="absolute bottom-0 right-0 size-3 rounded-tl bg-black/70 p-0.5 text-white" aria-hidden="true" />
+            <div className="flex items-start gap-3 pr-[4.5rem]">
+              <button
+                type="button"
+                onClick={() => setPortraitEditing(true)}
+                className="relative shrink-0 overflow-hidden rounded-xl border border-white/15 bg-gradient-to-b from-emerald-400/20 to-white/[0.03] shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300"
+                aria-label={`Edit ${displayName} appearance`}
+              >
+                <CharacterPortrait identity={{ id: player.id, subject: "player" }} size={76} title={`${displayName} portrait`} />
+                <Pencil className="absolute bottom-0 right-0 size-3.5 rounded-tl bg-black/70 p-0.5 text-white" aria-hidden="true" />
               </button>
-              <div className="min-w-0 flex-1">
-                <SheetTitle className="truncate font-display text-[1.65rem] leading-none text-white">
-                  {displayName}
-                </SheetTitle>
-                <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] leading-tight text-white/50">
-                  <span>{player.nationality}</span>
-                  <span>Age {ageOf(player, state.season)}</span>
-                  <span>{player.preferredFoot} foot</span>
-                  <span>{club}</span>
+              <div className="min-w-0 flex-1 pt-0.5">
+                <SheetTitle className="truncate font-display text-[1.55rem] leading-none text-white">{displayName}</SheetTitle>
+                <div className="mt-1 truncate text-[10.5px] text-white/55">
+                  {player.nationality} · Age {ageOf(player, state.season)} · {player.preferredFoot} foot
                 </div>
-                <div className="mt-1 flex flex-wrap gap-1">
+                <div className="truncate text-[10.5px] text-white/55">{club}</div>
+                <div className="mt-1.5 flex flex-wrap gap-1">
                   <span className={cn("rounded-md border px-1.5 py-0.5 text-[9px] font-bold", POSITION_BADGE_CLASS[positionUnit(tactical.primary)])}>{tactical.primary}</span>
                   {tactical.secondary.slice(0, 3).map((position) => (
-                    <span key={position} className="rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[9px] text-white/55">{position}</span>
+                    <span key={position} className="rounded-md border border-white/10 bg-white/[0.05] px-1.5 py-0.5 text-[9px] text-white/60">{position}</span>
                   ))}
-                  {!owned && <span className="rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[9px] text-white/55">Scouted {knowledge}%</span>}
-                </div>
-              </div>
-              <div className="shrink-0 rounded-lg border border-emerald-300/15 bg-emerald-300/10 px-2 py-1 text-center">
-                <div className="font-display text-xl leading-none text-white">
-                  {dynamic ? dynamic.effective : overall.label}
-                </div>
-                <div className="mt-0.5 text-[6px] font-bold uppercase tracking-wider text-emerald-200/55">
-                  {dynamic
-                    ? `Dynamic · base ${dynamic.base}${dynamic.delta === 0 ? "" : dynamic.delta > 0 ? ` · +${dynamic.delta}` : ` · ${dynamic.delta}`}`
-                    : overall.exact
-                      ? "Ability"
-                      : overall.known
-                        ? "Est. ability"
-                        : "Unknown"}
+                  {listed && <span className="rounded-md bg-amber-400 px-1.5 py-0.5 text-[9px] font-black text-amber-950">LISTED</span>}
+                  {(loanIsOut || loanIsIn) && <span className="rounded-md bg-sky-400 px-1.5 py-0.5 text-[9px] font-black text-sky-950">{loanIsOut ? "ON LOAN" : "LOAN SIGNING"}</span>}
+                  {shortlisted && <span className="rounded-md bg-amber-400 px-1.5 py-0.5 text-[9px] font-black text-amber-950">SHORTLIST</span>}
                 </div>
               </div>
             </div>
+
+            <div className="absolute right-0 top-8 grid size-[3.9rem] place-items-center rounded-full border-2 border-emerald-300/50 bg-[#0b2b23] shadow-[0_0_0_4px_rgba(16,185,129,.12)]">
+              <div className="text-center leading-none">
+                <div className="font-display text-[1.6rem] text-white">{rating}</div>
+                <div className="mt-0.5 text-[6.5px] font-bold uppercase tracking-wider text-emerald-200/70">{ratingCaption}</div>
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-3 gap-px overflow-hidden rounded-xl border border-white/10 bg-white/10">
+              {keyFacts.map((fact) => (
+                <div key={fact.label} className="min-w-0 bg-[#0a241d] px-2 py-1.5">
+                  <div className="truncate text-[7.5px] font-bold uppercase tracking-wider text-white/40">{fact.label}</div>
+                  <div className="truncate text-[12px] font-bold text-white">{fact.value}</div>
+                </div>
+              ))}
+            </div>
+
             {owned && (
-              <div className="mt-2 grid grid-cols-2 divide-x divide-white/10 rounded-lg border border-white/10 bg-white/[0.025]">
-                <div className="px-2 py-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[7px] font-bold uppercase tracking-wider text-white/35">Fitness</span>
-                    <span className="font-display text-sm">{playerFitness(player)}%</span>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <div className="min-w-0">
+                  <div className="flex items-center justify-between text-[8px] font-bold uppercase tracking-wider text-white/40">
+                    <span>Fitness</span><span className="text-[11px] text-white">{playerFitness(player)}%</span>
                   </div>
-                  <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10">
-                    <div className="h-full rounded-full bg-emerald-400" style={{ width: `${playerFitness(player)}%` }} />
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10">
+                    <div className={cn("h-full rounded-full", playerFitness(player) >= 80 ? "bg-emerald-400" : playerFitness(player) >= 65 ? "bg-amber-400" : "bg-rose-400")} style={{ width: `${playerFitness(player)}%` }} />
                   </div>
                 </div>
-                <div className="px-2 py-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[7px] font-bold uppercase tracking-wider text-white/35">Form</span>
-                    <span className="font-display text-sm">{recentForm?.appearances ? recentForm.band : "—"}</span>
+                <div className="min-w-0">
+                  <div className="flex items-center justify-between text-[8px] font-bold uppercase tracking-wider text-white/40">
+                    <span>Form</span><span className="truncate text-[11px] normal-case text-white">{recentForm?.appearances ? `${recentForm.band} · ${recentForm.averageRating.toFixed(2)}` : "No games yet"}</span>
                   </div>
-                  <div className="mt-1 truncate text-[8px] text-white/45">
-                    {recentForm?.appearances ? `${recentForm.averageRating.toFixed(2)} avg · ${recentForm.appearances} apps` : "No appearances yet"}
+                  <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10">
+                    <div className="h-full rounded-full bg-sky-400" style={{ width: `${recentForm?.appearances ? Math.max(4, Math.min(100, ((recentForm.averageRating - 5) / 4) * 100)) : 0}%` }} />
                   </div>
                 </div>
               </div>
@@ -319,421 +561,423 @@ export function PlayerProfileSheet({
           </SheetHeader>
         </div>
 
-        <div className="space-y-3 p-3 pb-8">
-          {owned && (
+        <div className="space-y-2.5 p-2.5 pb-8">
+          {/* Compact management actions */}
+          {owned ? (
             <section className="overflow-hidden rounded-2xl border border-emerald-950/10 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.045]">
-              <div className="flex items-center justify-between border-b border-emerald-950/10 px-3 py-2.5 dark:border-white/10">
-                <div>
-                  <div className="font-display text-lg">Player actions</div>
-                  <div className="text-[10px] text-muted-foreground">
-                    {loanIsOut ? "Your player is currently away on loan." : loanIsIn ? "This player is on loan at your club." : "Manage contract, market status and temporary moves."}
-                  </div>
+              {(loanIsOut || loanIsIn) && (
+                <div className="border-b bg-sky-50 px-3 py-1.5 text-[11px] text-sky-900 dark:bg-sky-950/30 dark:text-sky-200">
+                  {loanIsOut ? "Away on loan" : "On loan at your club"}
+                  {loan ? ` · ${loan.playingTimeExpectation} playing time` : ""}
                 </div>
-                <ShieldCheck className="size-5 text-emerald-600 dark:text-emerald-300" />
-              </div>
-
-              {note && <div className="mx-3 mt-3 rounded-xl border bg-muted/40 px-3 py-2 text-xs">{note}</div>}
-
-              <div className="grid grid-cols-2 gap-2 p-3">
+              )}
+              {note && <div className="mx-2.5 mt-2.5 rounded-lg border bg-muted/40 px-3 py-1.5 text-[11px]">{note}</div>}
+              <div className={cn("grid gap-1.5 p-2.5", userOwnsPlayer && !loanIsOut ? (loan ? "grid-cols-5" : "grid-cols-4") : "grid-cols-1")}>
                 {userOwnsPlayer && !loanIsOut && (
                   <>
-                    <Button variant="outline" className="h-auto min-h-12 justify-start px-3 py-2" onClick={toggleTransferList}>
-                      <ListPlus className="mr-2 size-4" />
-                      <span className="text-left">
-                        <strong className="block text-xs">{player.transferStatus === "listed" ? "Remove from transfer list" : "Transfer list"}</strong>
-                        <small className="block text-[9px] text-muted-foreground">{player.transferStatus === "listed" ? "Stop inviting bids" : "Invite offers from other clubs"}</small>
-                      </span>
-                    </Button>
-                    <Button variant="outline" className="h-auto min-h-12 justify-start px-3 py-2" disabled={!proposedRenewal} onClick={openContractNegotiation}>
-                      <Handshake className="mr-2 size-4" />
-                      <span className="text-left">
-                        <strong className="block text-xs">Negotiate contract</strong>
-                        <small className="block text-[9px] text-muted-foreground">Wage, term and squad role</small>
-                      </span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="h-auto min-h-12 justify-start px-3 py-2"
+                    <ActionTile
+                      icon={listed ? ListMinus : ListPlus}
+                      label={listed ? "Unlist" : "Transfer list"}
+                      active={listed}
+                      onClick={toggleTransferList}
+                    />
+                    <ActionTile
+                      icon={Handshake}
+                      label="Contract"
+                      active={showContract}
+                      disabled={!proposedRenewal}
+                      onClick={openContractNegotiation}
+                    />
+                    <ActionTile
+                      icon={Repeat2}
+                      label="Loan out"
+                      active={showLoanOut}
                       disabled={!transferWindowOpen || Boolean(loan)}
                       title={!transferWindowOpen ? `${transferWindow.label} · ${transferWindow.detail}` : undefined}
-                      onClick={() => { setShowLoanOut((value) => !value); setShowContract(false); setReleaseConfirm(false); }}
-                    >
-                      <Repeat2 className="mr-2 size-4" />
-                      <span className="text-left">
-                        <strong className="block text-xs">Loan out</strong>
-                        <small className="block text-[9px] text-muted-foreground">Find a temporary club</small>
-                      </span>
-                    </Button>
-                    <Button variant="outline" className="h-auto min-h-12 justify-start px-3 py-2 text-rose-700 hover:text-rose-700 dark:text-rose-300" onClick={() => { setReleaseConfirm((value) => !value); setShowContract(false); setShowLoanOut(false); }}>
-                      <Trash2 className="mr-2 size-4" />
-                      <span className="text-left">
-                        <strong className="block text-xs">Release player</strong>
-                        <small className="block text-[9px] text-muted-foreground">Terminate the contract</small>
-                      </span>
-                    </Button>
+                      onClick={() => {
+                        setShowLoanOut((value) => !value);
+                        setShowContract(false);
+                        setReleaseConfirm(false);
+                      }}
+                    />
+                    <ActionTile
+                      icon={Trash2}
+                      label="Release"
+                      danger
+                      active={releaseConfirm}
+                      onClick={() => {
+                        setReleaseConfirm((value) => !value);
+                        setShowContract(false);
+                        setShowLoanOut(false);
+                      }}
+                    />
                   </>
                 )}
                 {loan && (
-                  <Button variant="outline" className="col-span-2 h-auto min-h-12 justify-start px-3 py-2" onClick={endLoan}>
-                    <RefreshCcw className="mr-2 size-4" />
-                    <span className="text-left">
-                      <strong className="block text-xs">{loanIsOut ? "Recall from loan" : "End loan"}</strong>
-                      <small className="block text-[9px] text-muted-foreground">End the active temporary registration</small>
-                    </span>
-                  </Button>
+                  <ActionTile
+                    icon={RefreshCcw}
+                    label={loanIsOut ? "Recall" : "End loan"}
+                    onClick={endLoan}
+                  />
                 )}
               </div>
 
               {showContract && proposedRenewal && (
                 <div className="border-t bg-muted/25 p-3">
-                  <div className="mb-2">
-                    <strong className="text-sm">Contract proposal</strong>
-                    <p className="text-[10px] text-muted-foreground">The player can reject terms below his expectations.</p>
+                  <div className="mb-2 flex items-baseline justify-between gap-2">
+                    <strong className="text-sm">New contract</strong>
+                    <span className="text-[10px] text-muted-foreground">
+                      Asks {fmtMoneyExact(proposedRenewal.weeklyWage)}/wk · bonus {fmtMoneyExact(proposedRenewal.signingBonus)}
+                    </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <label className="text-[10px] font-semibold text-muted-foreground">
-                      Weekly wage
-                      <input type="number" min={0} step={25} value={renewWage} onChange={(event) => setRenewWage(Math.max(0, Number(event.target.value)))} className="mt-1 h-10 w-full rounded-lg border bg-background px-2 text-sm text-foreground" />
+                      Wage /wk
+                      <input
+                        type="number"
+                        min={0}
+                        step={25}
+                        value={renewWage}
+                        onChange={(event) => setRenewWage(Math.max(0, Number(event.target.value)))}
+                        className="mt-1 h-9 w-full rounded-lg border bg-background px-2 text-sm text-foreground"
+                      />
                     </label>
                     <label className="text-[10px] font-semibold text-muted-foreground">
                       Length
-                      <select value={renewSeasons} onChange={(event) => setRenewSeasons(Number(event.target.value))} className="mt-1 h-10 w-full rounded-lg border bg-background px-2 text-sm text-foreground">
-                        {[1, 2, 3, 4].map((years) => <option key={years} value={years}>{years} season{years === 1 ? "" : "s"}</option>)}
+                      <select
+                        value={renewSeasons}
+                        onChange={(event) => setRenewSeasons(Number(event.target.value))}
+                        className="mt-1 h-9 w-full rounded-lg border bg-background px-2 text-sm text-foreground"
+                      >
+                        {[1, 2, 3, 4].map((years) => (
+                          <option key={years} value={years}>
+                            {years} yr{years === 1 ? "" : "s"}
+                          </option>
+                        ))}
                       </select>
                     </label>
-                    <label className="col-span-2 text-[10px] font-semibold text-muted-foreground">
-                      Squad role
-                      <select value={renewRole} onChange={(event) => setRenewRole(event.target.value as SquadRole)} className="mt-1 h-10 w-full rounded-lg border bg-background px-2 text-sm text-foreground">
-                        {(["Key Player", "First Team", "Rotation", "Prospect"] as SquadRole[]).map((role) => <option key={role} value={role}>{role}</option>)}
+                    <label className="text-[10px] font-semibold text-muted-foreground">
+                      Role
+                      <select
+                        value={renewRole}
+                        onChange={(event) => setRenewRole(event.target.value as SquadRole)}
+                        className="mt-1 h-9 w-full rounded-lg border bg-background px-2 text-sm text-foreground"
+                      >
+                        {(["Key Player", "First Team", "Rotation", "Prospect"] as SquadRole[]).map((role) => (
+                          <option key={role} value={role}>{role}</option>
+                        ))}
                       </select>
                     </label>
                   </div>
-                  <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
-                    <span>Requested baseline {fmtMoneyExact(proposedRenewal.weeklyWage)}/wk</span>
-                    <span>Bonus {fmtMoneyExact(proposedRenewal.signingBonus)}</span>
-                  </div>
-                  <Button className="mt-3 w-full" onClick={negotiateContract}>Offer new contract</Button>
+                  <p className="mt-1.5 text-[10px] text-muted-foreground">The player can reject terms below his expectations.</p>
+                  <Button className="mt-2 h-9 w-full" onClick={negotiateContract}>Offer contract</Button>
                 </div>
               )}
 
               {showLoanOut && (
                 <div className="border-t bg-muted/25 p-3">
-                  <div className="mb-2"><strong className="text-sm">Loan terms</strong><p className="text-[10px] text-muted-foreground">Recruitment will look for a simulated club willing to meet these terms.</p></div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="mb-2 flex items-baseline justify-between gap-2">
+                    <strong className="text-sm">Loan terms</strong>
+                    <span className="text-[10px] text-muted-foreground">Recruitment will find a club</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
                     <label className="text-[10px] font-semibold text-muted-foreground">
                       Length
-                      <select value={loanDuration} onChange={(event) => setLoanDuration(Number(event.target.value))} className="mt-1 h-10 w-full rounded-lg border bg-background px-2 text-sm text-foreground">
-                        {[4, 8, 12, 24].map((weeks) => <option key={weeks} value={weeks}>{weeks} weeks</option>)}
+                      <select value={loanDuration} onChange={(event) => setLoanDuration(Number(event.target.value))} className="mt-1 h-9 w-full rounded-lg border bg-background px-2 text-sm text-foreground">
+                        {[4, 8, 12, 24].map((weeks) => <option key={weeks} value={weeks}>{weeks} wks</option>)}
                       </select>
                     </label>
                     <label className="text-[10px] font-semibold text-muted-foreground">
-                      Wage paid by loan club
-                      <select value={loanContribution} onChange={(event) => setLoanContribution(Number(event.target.value))} className="mt-1 h-10 w-full rounded-lg border bg-background px-2 text-sm text-foreground">
+                      They pay
+                      <select value={loanContribution} onChange={(event) => setLoanContribution(Number(event.target.value))} className="mt-1 h-9 w-full rounded-lg border bg-background px-2 text-sm text-foreground">
                         {[20, 35, 50, 65, 80, 100].map((pct) => <option key={pct} value={pct}>{pct}%</option>)}
                       </select>
                     </label>
-                    <label className="col-span-2 text-[10px] font-semibold text-muted-foreground">
-                      Playing-time expectation
-                      <select value={loanRole} onChange={(event) => setLoanRole(event.target.value as LoanPlayingTimeExpectation)} className="mt-1 h-10 w-full rounded-lg border bg-background px-2 text-sm text-foreground">
+                    <label className="text-[10px] font-semibold text-muted-foreground">
+                      Minutes
+                      <select value={loanRole} onChange={(event) => setLoanRole(event.target.value as LoanPlayingTimeExpectation)} className="mt-1 h-9 w-full rounded-lg border bg-background px-2 text-sm text-foreground">
                         {(["Backup", "Rotation", "Regular", "Important"] as const).map((role) => <option key={role} value={role}>{role}</option>)}
                       </select>
                     </label>
                   </div>
-                  <Button className="mt-3 w-full" onClick={sendLoanOut}>Find loan club</Button>
+                  <Button className="mt-2.5 h-9 w-full" onClick={sendLoanOut}>Find loan club</Button>
                 </div>
               )}
 
               {releaseConfirm && contract && (
                 <div className="border-t border-rose-200 bg-rose-50 p-3 dark:border-rose-950 dark:bg-rose-950/20">
                   <strong className="text-sm text-rose-800 dark:text-rose-200">Release {displayName}?</strong>
-                  <p className="mt-1 text-[10px] text-rose-700/80 dark:text-rose-200/70">This terminates his contract immediately. Any settlement required by the recruitment engine will be charged to the club.</p>
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <Button variant="outline" onClick={() => setReleaseConfirm(false)}>Keep player</Button>
-                    <Button className="bg-rose-600 text-white hover:bg-rose-700" onClick={releasePlayer}>Confirm release</Button>
+                  <p className="mt-0.5 text-[10px] text-rose-700/80 dark:text-rose-200/70">
+                    His contract ends immediately and any required settlement is charged to the club.
+                  </p>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <Button variant="outline" className="h-9" onClick={() => setReleaseConfirm(false)}>Keep</Button>
+                    <Button className="h-9 bg-rose-600 text-white hover:bg-rose-700" onClick={releasePlayer}>Confirm release</Button>
                   </div>
                 </div>
               )}
             </section>
-          )}
-
-          {!owned && (
-            <section className="rounded-xl border bg-card p-3 shadow-sm">
-              <div className="mb-2">
-                <div className="font-display text-lg">Recruitment actions</div>
-                <div className="text-[10px] text-muted-foreground">
-                  Target this player directly or ask recruitment staff to investigate first.
-                </div>
-              </div>
-
-              {note && <div className="mb-2 rounded-lg border bg-muted/40 px-3 py-2 text-xs">{note}</div>}
-
-              <div className="flex flex-wrap gap-1.5">
-                <Button
-                  size="sm"
-                  variant={shortlisted ? "default" : "outline"}
-                  onClick={() => update((s) => toggleChairmanShortlist(s, player.id))}
-                >
-                  <Star className={cn("mr-1.5 size-3.5", shortlisted && "fill-current")} />
-                  {shortlisted ? "Shortlisted" : "Shortlist"}
-                </Button>
-
+          ) : (
+            <section className="rounded-2xl border border-emerald-950/10 bg-white p-2.5 shadow-sm dark:border-white/10 dark:bg-white/[0.045]">
+              {note && <div className="mb-2 rounded-lg border bg-muted/40 px-3 py-1.5 text-[11px]">{note}</div>}
+              <div className={cn("grid gap-1.5", freeAgent ? "grid-cols-3" : "grid-cols-4")}>
+                <ActionTile icon={Star} label={shortlisted ? "Shortlisted" : "Shortlist"} active={shortlisted} onClick={() => update((s) => toggleChairmanShortlist(s, player.id))} />
                 {!assignment ? (
-                  <Button size="sm" onClick={() => update((s) => startScouting(s, player.id))}>
-                    <Binoculars className="mr-1.5 size-3.5" />
-                    {hasScouting ? "Scout further" : "Scout"}
-                  </Button>
+                  <ActionTile icon={Binoculars} label={hasScouting ? "Scout more" : "Scout"} onClick={() => update((s) => startScouting(s, player.id))} />
                 ) : report?.complete ? (
-                  <span className="inline-flex h-9 items-center px-2 text-xs font-semibold text-[color:var(--color-income)]">
-                    <CheckCircle2 className="mr-1.5 size-3.5" /> Full report
-                  </span>
+                  <ActionTile icon={CheckCircle2} label="Full report" disabled onClick={() => {}} />
                 ) : (
-                  <span className="inline-flex h-9 items-center px-2 text-xs text-muted-foreground">
-                    <Binoculars className="mr-1.5 size-3.5" /> Scouting
-                  </span>
+                  <ActionTile icon={Binoculars} label="Scouting…" disabled onClick={() => {}} />
                 )}
-
-                <Button size="sm" variant="secondary" disabled={!estimate} onClick={approach}>
-                  <Handshake className="mr-1.5 size-3.5" />
-                  {freeAgent ? "Approach player" : "Approach club"}
-                </Button>
-
+                <ActionTile icon={Handshake} label={freeAgent ? "Approach" : "Approach club"} disabled={!estimate} onClick={approach} />
                 {!freeAgent && (
-                  <Button
-                    size="sm"
-                    variant="outline"
+                  <ActionTile
+                    icon={Repeat2}
+                    label="Loan"
+                    active={showLoan}
                     disabled={!transferWindowOpen || Boolean(loanUnavailable)}
-                    title={
-                      !transferWindowOpen
-                        ? `${transferWindow.label} · ${transferWindow.detail}`
-                        : loanUnavailable ?? "Request a temporary loan"
-                    }
+                    title={!transferWindowOpen ? `${transferWindow.label} · ${transferWindow.detail}` : loanUnavailable ?? "Request a temporary loan"}
                     onClick={() => setShowLoan((current) => !current)}
-                  >
-                    <Repeat2 className="mr-1.5 size-3.5" /> Loan
-                  </Button>
+                  />
                 )}
               </div>
-
               {showLoan && !freeAgent && (
-                <div className="mt-3 grid gap-2 rounded-lg border bg-muted/30 p-2 sm:grid-cols-2">
-                  <label className="text-[10px] font-semibold text-muted-foreground">
-                    Length
-                    <select
-                      value={loanDuration}
-                      onChange={(event) => setLoanDuration(Number(event.target.value))}
-                      className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-xs text-foreground"
-                    >
-                      {[4, 8, 12, 24].map((weeks) => <option key={weeks} value={weeks}>{weeks} weeks</option>)}
-                    </select>
-                  </label>
-                  <label className="text-[10px] font-semibold text-muted-foreground">
-                    Wage share
-                    <select
-                      value={loanContribution}
-                      onChange={(event) => setLoanContribution(Number(event.target.value))}
-                      className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-xs text-foreground"
-                    >
-                      {[20, 35, 50, 65, 80, 100].map((pct) => <option key={pct} value={pct}>{pct}%</option>)}
-                    </select>
-                  </label>
-                  <label className="text-[10px] font-semibold text-muted-foreground">
-                    Squad role
-                    <select
-                      value={loanRole}
-                      onChange={(event) => setLoanRole(event.target.value as LoanPlayingTimeExpectation)}
-                      className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-xs text-foreground"
-                    >
-                      {(["Backup", "Rotation", "Regular", "Important"] as const).map((role) => <option key={role} value={role}>{role}</option>)}
-                    </select>
-                  </label>
-                  <div className="flex items-end">
-                    <Button size="sm" className="h-9 w-full" onClick={requestLoan}>Send loan request</Button>
+                <div className="mt-2.5 rounded-xl border bg-muted/30 p-2.5">
+                  <div className="grid grid-cols-3 gap-2">
+                    <label className="text-[10px] font-semibold text-muted-foreground">
+                      Length
+                      <select value={loanDuration} onChange={(event) => setLoanDuration(Number(event.target.value))} className="mt-1 h-9 w-full rounded-lg border bg-background px-2 text-xs text-foreground">
+                        {[4, 8, 12, 24].map((weeks) => <option key={weeks} value={weeks}>{weeks} wks</option>)}
+                      </select>
+                    </label>
+                    <label className="text-[10px] font-semibold text-muted-foreground">
+                      We pay
+                      <select value={loanContribution} onChange={(event) => setLoanContribution(Number(event.target.value))} className="mt-1 h-9 w-full rounded-lg border bg-background px-2 text-xs text-foreground">
+                        {[20, 35, 50, 65, 80, 100].map((pct) => <option key={pct} value={pct}>{pct}%</option>)}
+                      </select>
+                    </label>
+                    <label className="text-[10px] font-semibold text-muted-foreground">
+                      Minutes
+                      <select value={loanRole} onChange={(event) => setLoanRole(event.target.value as LoanPlayingTimeExpectation)} className="mt-1 h-9 w-full rounded-lg border bg-background px-2 text-xs text-foreground">
+                        {(["Backup", "Rotation", "Regular", "Important"] as const).map((role) => <option key={role} value={role}>{role}</option>)}
+                      </select>
+                    </label>
                   </div>
+                  <Button size="sm" className="mt-2 h-9 w-full" onClick={requestLoan}>Send loan request</Button>
                 </div>
               )}
             </section>
           )}
 
-
-          {owned && seasonLine && (
-            <section className="rounded-xl border bg-card p-3">
-              <div className="font-display text-lg">This season</div>
-              <div className="mt-2 grid grid-cols-4 gap-2 text-center">
-                <Fact label="Apps" value={String(seasonLine.appearances)} />
-                <Fact label="Starts" value={String(seasonLine.starts)} />
-                <Fact label="Goals" value={String(seasonLine.goals)} />
-                <Fact label="Rating" value={seasonLine.averageRating.toFixed(2)} />
-              </div>
-              <div className="mt-2 text-xs text-muted-foreground">
-                {seasonLine.substituteAppearances} substitute appearance{seasonLine.substituteAppearances === 1 ? "" : "s"} · {seasonLine.assists} assist{seasonLine.assists === 1 ? "" : "s"} · {seasonLine.minutes} minutes
-              </div>
-            </section>
-          )}
-
-          {owned && career && (
-            <section className="rounded-xl border bg-card p-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="font-display text-lg">Club career</div>
-                  <div className="text-[10px] text-muted-foreground">{career.seasons} recorded season{career.seasons === 1 ? "" : "s"}</div>
+          {/* One performance card instead of three near-identical sections */}
+          {owned && (seasonLine || career || (recentForm && recentForm.appearances > 0)) && (
+            <section className="overflow-hidden rounded-2xl border border-emerald-950/10 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.045]">
+              <div className="flex items-center justify-between gap-2 px-3 pt-2.5">
+                <div className="font-display text-base">Performance</div>
+                <div className="flex rounded-lg bg-muted/60 p-0.5" role="tablist" aria-label="Performance view">
+                  {([
+                    ["season", "Season", Boolean(seasonLine)],
+                    ["form", "Form", Boolean(recentForm && recentForm.appearances > 0)],
+                    ["career", "Career", Boolean(career)],
+                  ] as const).map(([id, label, available]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      role="tab"
+                      aria-selected={statsView === id}
+                      disabled={!available}
+                      onClick={() => setStatsView(id)}
+                      className={cn(
+                        "rounded-md px-2 py-1 text-[10px] font-bold disabled:opacity-35",
+                        statsView === id
+                          ? "bg-white text-foreground shadow-sm dark:bg-white/15"
+                          : "text-muted-foreground",
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
-                <div className="text-right"><div className="font-display text-2xl">{career.averageRating.toFixed(2)}</div><div className="text-[9px] uppercase text-muted-foreground">Avg rating</div></div>
               </div>
-              <div className="mt-3 grid grid-cols-4 gap-2 text-center">
-                <Fact label="Apps" value={String(career.appearances)} />
-                <Fact label="Starts" value={String(career.starts)} />
-                <Fact label="Goals" value={String(career.goals)} />
-                <Fact label="Assists" value={String(career.assists)} />
-              </div>
-              {seasonHistory.length > 1 && (
-                <div className="mt-3 overflow-hidden rounded-lg border">
-                  <div className="grid grid-cols-[auto_repeat(5,1fr)] bg-muted/30 px-2 py-1.5 text-[9px] uppercase tracking-wider text-muted-foreground"><span>Season</span><span className="text-right">Apps</span><span className="text-right">Min</span><span className="text-right">G</span><span className="text-right">A</span><span className="text-right">Rat</span></div>
-                  {seasonHistory.map(({ season, record }) => <div key={season} className="grid grid-cols-[auto_repeat(5,1fr)] border-t px-2 py-1.5 text-[10px]"><span>S{season}</span><span className="text-right">{record.appearances}</span><span className="text-right">{record.minutes}</span><span className="text-right">{record.goals}</span><span className="text-right">{record.assists}</span><span className="text-right">{record.averageRating.toFixed(2)}</span></div>)}
+              {statFigures ? (
+                <>
+                  <div className="mt-2 grid grid-cols-4 divide-x border-y border-emerald-950/5 bg-emerald-50/40 text-center dark:border-white/5 dark:bg-white/[0.02]">
+                    {statFigures.figures.map(([label, value]) => (
+                      <div key={label} className="min-w-0 px-1 py-2">
+                        <div className="truncate font-display text-xl leading-none">{value}</div>
+                        <div className="mt-1 text-[8px] font-bold uppercase tracking-wider text-muted-foreground">{label}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="px-3 py-1.5 text-[10.5px] text-muted-foreground">{statFigures.line}</div>
+                </>
+              ) : (
+                <div className="px-3 pb-2.5 pt-1.5 text-[11px] text-muted-foreground">No appearances recorded yet.</div>
+              )}
+              {statsView === "career" && seasonHistory.length > 1 && (
+                <div className="mx-3 mb-2.5 overflow-hidden rounded-lg border">
+                  <div className="grid grid-cols-[auto_repeat(5,1fr)] bg-muted/30 px-2 py-1 text-[9px] uppercase tracking-wider text-muted-foreground">
+                    <span>Season</span><span className="text-right">Apps</span><span className="text-right">Min</span><span className="text-right">G</span><span className="text-right">A</span><span className="text-right">Rat</span>
+                  </div>
+                  {seasonHistory.map(({ season, record }) => (
+                    <div key={season} className="grid grid-cols-[auto_repeat(5,1fr)] border-t px-2 py-1 text-[10px]">
+                      <span>S{season}</span><span className="text-right">{record.appearances}</span><span className="text-right">{record.minutes}</span><span className="text-right">{record.goals}</span><span className="text-right">{record.assists}</span><span className="text-right">{record.averageRating.toFixed(2)}</span>
+                    </div>
+                  ))}
                 </div>
               )}
             </section>
           )}
 
-          {owned && recentForm && recentForm.appearances > 0 && (
-            <section className="rounded-xl border bg-card p-3">
-              <div className="font-display text-lg">Recent form</div>
-              <div className="mt-2 grid grid-cols-4 gap-2 text-center">
-                <Fact label="Form" value={recentForm.band} />
-                <Fact label="Rating" value={recentForm.averageRating.toFixed(2)} />
-                <Fact label="Goals" value={String(recentForm.goals)} />
-                <Fact label="Assists" value={String(recentForm.assists)} />
-              </div>
-              <div className="mt-2 text-xs text-muted-foreground">
-                Last {recentForm.appearances} appearance{recentForm.appearances === 1 ? "" : "s"} · {recentForm.minutes} minutes
-              </div>
-            </section>
-          )}
-
-          <section className="grid grid-cols-2 gap-2 rounded-2xl border border-emerald-950/10 bg-white/70 p-2 shadow-sm dark:border-white/10 dark:bg-white/[0.035]">
-            <Fact label="Potential" value={fullKnowledge ? String(player.potentialAbility) : "?"} />
-            <Fact label="Value" value={owned ? fmtMoneyExact(player.marketValue) : hasScouting ? moneyRange(report?.valueRange) : "?"} />
-            <Fact label={owned ? "Wage" : "Expected wage"} value={owned ? contract ? `${fmtMoneyExact(contract.weeklyWage)}/wk` : "—" : hasScouting ? `${moneyRange(report?.wageRange)}/wk` : "?"} />
-            <Fact label="Knowledge" value={owned ? "Full club" : `${knowledge}%`} />
-          </section>
-
-          <section className="overflow-hidden rounded-2xl border border-emerald-950/10 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
-            <div className="border-b border-emerald-950/10 bg-gradient-to-r from-emerald-50 to-white p-3 dark:border-white/10 dark:from-emerald-950/20 dark:to-transparent">
-              <div className="flex items-center justify-between">
+          {/* Scouting / football identity + radar + tappable attribute groups */}
+          <section className="overflow-hidden rounded-2xl border border-emerald-950/10 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.045]">
+            <div className="flex items-center justify-between gap-2 px-3 pt-2.5">
               <div>
-                <div className="font-display text-lg">{owned ? "Player attributes" : "Scouting profile"}</div>
+                <div className="font-display text-base">{owned ? "Attributes" : "Scouting profile"}</div>
                 <div className="text-[10px] text-muted-foreground">
                   {owned
-                    ? "Swipe between Technical, Mental and Physical"
+                    ? "Full club knowledge"
                     : fullKnowledge
-                      ? "Full scouting report · swipe categories"
+                      ? "Full scouting report"
                       : assignment
-                        ? "Scout following up · swipe categories"
+                        ? "Scout following up"
                         : hasScouting
-                          ? "Initial staff assessment · swipe categories"
-                          : "Not scouted"}
+                          ? "Initial staff assessment"
+                          : "Not scouted yet"}
                 </div>
               </div>
-              <div className="font-display text-xl">{knowledge}%</div>
-              </div>
+              {!owned && (
+                <div className="w-20 text-right">
+                  <div className="text-[10px] font-bold">{knowledge}% known</div>
+                  <div className="mt-1 h-1 overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full bg-emerald-500" style={{ width: `${knowledge}%` }} />
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="p-3">
-            {attributeIdentity && (
-              <div className="mb-2 rounded-lg border bg-muted/30 px-2.5 py-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="font-semibold text-sm">{attributeIdentity.label}</div>
-                  <div className="truncate text-[9px] uppercase tracking-wider text-muted-foreground">{attributeIdentity.strengths.join(" · ")}</div>
-                </div>
-                <div className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">{attributeIdentity.summary}</div>
-              </div>
-            )}
 
             {report ? (
-              <div className="flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {(Object.keys(PLAYER_ATTRIBUTE_GROUPS) as PlayerAttributeCategory[]).map((category) => {
-                  const keys = PLAYER_ATTRIBUTE_GROUPS[category];
-                  const attributes = report.attributes.filter((attribute) => keys.includes(attribute.key));
-                  return (
-                    <div key={category} className="w-full shrink-0 snap-start pr-1 last:pr-0">
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-muted-foreground">{category}</div>
-                        <div className="text-[8px] uppercase tracking-wider text-muted-foreground">Swipe ↔</div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-                        {attributes.map((attribute) => {
-                          const value =
-                            !attribute.known
-                              ? "?"
-                              : attribute.exact !== undefined
-                                ? String(attribute.exact)
-                                : `${attribute.min}–${attribute.max}`;
-                          const midpoint =
-                            attribute.exact ??
-                            (attribute.min !== undefined && attribute.max !== undefined
-                              ? Math.round((attribute.min + attribute.max) / 2)
-                              : 0);
-                          return (
-                            <div key={attribute.key}>
-                              <div className="flex items-end justify-between gap-2">
-                                <span className="truncate text-[11px] font-semibold">{attribute.label}</span>
-                                <span className="font-display text-base tabular-nums">{value}</span>
-                              </div>
-                              <div className="mt-1 h-1 overflow-hidden rounded-full bg-muted">
-                                {attribute.known && (
-                                  <div className="h-full rounded-full bg-foreground" style={{ width: `${Math.max(3, Math.min(100, midpoint))}%` }} />
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
+              <div className="p-3 pt-2">
+                <div className="flex items-center gap-3">
+                  {radar && <AttributeRadar areas={radar} />}
+                  {attributeIdentity && (
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[9px] font-black uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-300">Plays as</div>
+                      <div className="font-display text-lg leading-tight">{attributeIdentity.label}</div>
+                      <p className="mt-0.5 text-[10.5px] leading-snug text-muted-foreground">{attributeIdentity.summary}</p>
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {attributeIdentity.strengths.map((strength) => (
+                          <span key={strength} className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
+                            {strength}
+                          </span>
+                        ))}
                       </div>
                     </div>
-                  );
-                })}
+                  )}
+                </div>
+
+                <div className="mt-2.5 flex rounded-lg bg-muted/60 p-0.5" role="tablist" aria-label="Attribute group">
+                  {categories.map((category) => (
+                    <button
+                      key={category}
+                      type="button"
+                      role="tab"
+                      aria-selected={activeCategory === category}
+                      onClick={() => setAttributeTab(category)}
+                      className={cn(
+                        "flex-1 rounded-md py-1 text-[10px] font-bold capitalize",
+                        activeCategory === category
+                          ? "bg-white text-foreground shadow-sm dark:bg-white/15"
+                          : "text-muted-foreground",
+                      )}
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
+                  {report.attributes
+                    .filter((attribute) => PLAYER_ATTRIBUTE_GROUPS[activeCategory].includes(attribute.key))
+                    .map((attribute) => {
+                      const value = !attribute.known
+                        ? "?"
+                        : attribute.exact !== undefined
+                          ? String(attribute.exact)
+                          : `${attribute.min}–${attribute.max}`;
+                      const midpoint = attributeValue(attribute as ReportAttribute) ?? 0;
+                      return (
+                        <div key={attribute.key} className="min-w-0">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="truncate text-[11px] font-semibold">{attribute.label}</span>
+                            <span className="font-display text-[15px] leading-none tabular-nums">{value}</span>
+                          </div>
+                          <div className="mt-0.5 h-1 overflow-hidden rounded-full bg-muted">
+                            {attribute.known && (
+                              <div
+                                className={cn("h-full rounded-full", barTone(midpoint))}
+                                style={{ width: `${Math.max(3, Math.min(100, midpoint))}%` }}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
               </div>
             ) : (
-              <div className="text-sm text-muted-foreground">No scouting information is available yet.</div>
+              <div className="px-3 pb-3 pt-1.5 text-[11px] text-muted-foreground">
+                No scouting information yet. Send a scout to reveal attributes and terms.
+              </div>
             )}
-            </div>
           </section>
 
-          <section className="grid grid-cols-2 gap-2">
-            <Fact label="Personality" value={fullKnowledge ? player.personality : "?"} />
-            <Fact
-              label="Status"
-              value={
-                owned
-                  ? contract
-                    ? contract.squadRole
-                    : "At club"
-                  : player.currentClubId
-                    ? "Under contract"
-                    : "Free agent"
-              }
-            />
-          </section>
-
-          <section className="rounded-xl border bg-card p-3 text-xs">
-            <div className="font-semibold">Contract & availability</div>
-            <div className="mt-2 space-y-1 text-muted-foreground">
-              {owned && contract ? (
-                <div>{fmtMoneyExact(contract.weeklyWage)}/wk · {Math.max(1, contract.expirySeason - state.season + 1)} season contract</div>
-              ) : player.currentClubId ? (
-                <div>{fullKnowledge ? "Contract details known to recruitment staff" : "Contract details require scouting"}</div>
-              ) : (
-                <div>No club contract</div>
-              )}
-              {loan && <div>Loan active · {loan.playingTimeExpectation} playing-time expectation</div>}
-            </div>
-          </section>
-
-          {!owned && !fullKnowledge && (
-            <div className="rounded-xl bg-primary px-4 py-3 text-center text-sm font-semibold text-primary-foreground">
-              {hasScouting ? "Scout further for the complete picture" : "Scouting will reveal detailed attributes and terms"}
+          {!owned && !fullKnowledge && hasScouting && (
+            <div className="rounded-xl border border-dashed border-emerald-600/40 px-3 py-2 text-center text-[11px] font-semibold text-emerald-800 dark:text-emerald-200">
+              Scout further for the complete picture
             </div>
           )}
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+function ActionTile({
+  icon: Icon,
+  label,
+  onClick,
+  disabled,
+  active,
+  danger,
+  title,
+}: {
+  icon: typeof ListPlus;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  active?: boolean;
+  danger?: boolean;
+  title?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className={cn(
+        "flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl border px-1 py-2 text-[10px] font-bold leading-tight transition-colors disabled:opacity-40",
+        active
+          ? "border-emerald-600 bg-emerald-600 text-white"
+          : danger
+            ? "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300"
+            : "border-emerald-950/10 bg-white text-foreground hover:bg-emerald-50 dark:border-white/10 dark:bg-white/[0.04]",
+      )}
+    >
+      <Icon className="size-4" />
+      <span className="w-full truncate text-center">{label}</span>
+    </button>
   );
 }
 
