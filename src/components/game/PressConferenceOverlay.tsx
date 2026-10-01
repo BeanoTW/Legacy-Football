@@ -3,6 +3,7 @@ import { ChevronRight, Mic2, Newspaper, UsersRound } from "lucide-react";
 import type { GameState, InboxEffect, InboxItem } from "@/lib/game/types";
 import { inboxConversationKey } from "@/lib/game/inboxCommunication";
 import { randomIncidentById } from "@/lib/game/randomIncidents";
+import { journalistForConversation, mediaRelationship } from "@/lib/game/mediaRelations";
 import {
   pressOutcomeLabel,
   pressRoundThree,
@@ -26,10 +27,23 @@ export function PressConferenceOverlay({
 }: {
   state: GameState;
   item: InboxItem;
-  onComplete: (firstChoiceId: string, laterEffects: InboxEffect[]) => void;
+  onComplete: (
+    firstChoiceId: string,
+    laterEffects: InboxEffect[],
+    summary: {
+      outcome: string;
+      exchanges: Exchange[];
+      journalistId: string;
+      journalistName: string;
+      journalistOutlet: string;
+      journalistStyle: "balanced" | "supporter" | "financial" | "confrontational";
+    },
+  ) => void;
 }) {
   const profile = useChairmanProfile();
   const conversationKey = inboxConversationKey(item);
+  const journalist = journalistForConversation(state, conversationKey);
+  const journalistRelationship = mediaRelationship(state, journalist.id);
   const incidentId = conversationKey.split(":")[1] ?? "";
   const incident = randomIncidentById(incidentId);
   const original = state.inbox.find(
@@ -66,11 +80,11 @@ export function PressConferenceOverlay({
 
   const roundTwo =
     incident && tones[0]
-      ? pressRoundTwo(state, incident, originalDecisionId, tones[0])
+      ? pressRoundTwo(state, incident, originalDecisionId, tones[0], journalist)
       : null;
   const roundThree =
     incident && tones.length >= 2
-      ? pressRoundThree(state, incident, originalDecisionId, tones.slice(0, 2))
+      ? pressRoundThree(state, incident, originalDecisionId, tones.slice(0, 2), journalist)
       : null;
 
   const currentQuestion =
@@ -140,9 +154,9 @@ export function PressConferenceOverlay({
               <Newspaper className="size-5 text-emerald-200" />
             </div>
             <div>
-              <strong className="block text-sm">Rachel Morgan · Local Sport</strong>
+              <strong className="block text-sm">{journalist.name} · {journalist.role}</strong>
               <span className="text-xs text-white/55">
-                Chairman media availability · {state.clubName}
+                {journalist.outlet} · {journalistRelationship.band} relationship ({journalistRelationship.score}/100)
               </span>
             </div>
           </div>
@@ -206,7 +220,18 @@ export function PressConferenceOverlay({
               <Button
                 className="mt-5 w-full bg-emerald-300 text-emerald-950 hover:bg-emerald-200"
                 disabled={!firstChoiceId}
-                onClick={() => firstChoiceId && onComplete(firstChoiceId, laterEffects)}
+                onClick={() =>
+                  firstChoiceId &&
+                  outcome &&
+                  onComplete(firstChoiceId, laterEffects, {
+                    outcome,
+                    exchanges,
+                    journalistId: journalist.id,
+                    journalistName: journalist.name,
+                    journalistOutlet: journalist.outlet,
+                    journalistStyle: journalist.style,
+                  })
+                }
               >
                 Leave the press room
               </Button>
