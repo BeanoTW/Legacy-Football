@@ -293,6 +293,177 @@
 .lf-weather.is-windy .lf-debris:nth-child(2n) { width: 3px; animation-duration: 2.6s; }
 .lf-weather.is-windy .lf-debris:nth-child(3n) { background: rgb(190 150 90 / 80%); }
 
+/* --- Press room ------------------------------------------------------------ */
+@keyframes lf-press-flash {
+  0% { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+
+/* A camera flash as each new question is asked. */
+.lf-press-question::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #ffffff;
+  pointer-events: none;
+  animation: lf-press-flash 420ms ease-out 1 forwards;
+}
+
+@keyframes lf-typing {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(-3px); opacity: 1; }
+}
+
+.lf-typing { animation: lf-typing 1s ease-in-out infinite; }
+
+@keyframes lf-live-ping {
+  0% { transform: scale(1); opacity: 0.7; }
+  80%, 100% { transform: scale(2.4); opacity: 0; }
+}
+
+.lf-live-dot { animation: lf-live-ping 1.4s cubic-bezier(0, 0, 0.2, 1) infinite; }
+
+/* --- Messaging polish ------------------------------------------------------ */
+/* Open briefings: light, sized to their content (no empty dark void under a
+   short briefing), with the sender's face and a department graphic.
+   Doubled class selectors win over inbox-overhaul.css whatever the load order. */
+.lf-briefing-sheet.lf-briefing-sheet {
+  height: auto;
+  max-height: min(92dvh, 58rem);
+  background: linear-gradient(180deg, color-mix(in oklab, var(--source-accent, #1d7f75) 10%, #ffffff) 0%, #f6f9f8 22%, #f6f9f8 100%);
+  border: 1px solid color-mix(in oklab, var(--source-accent, #1d7f75) 35%, #d6e0dd);
+  color: #10262b;
+  box-shadow: 0 -1rem 2.5rem rgb(8 34 40 / 18%);
+}
+.lf-briefing-sheet.lf-briefing-sheet .lf-briefing-scroll { flex: 0 1 auto; }
+.lf-briefing-sheet.lf-briefing-sheet .lf-briefing-header {
+  overflow: hidden;
+  border-bottom-color: #dfe7e5;
+  background: radial-gradient(circle at 85% 0%, color-mix(in oklab, var(--source-accent, #1d7f75) 16%, transparent), transparent 45%);
+}
+.lf-briefing-sheet.lf-briefing-sheet .lf-briefing-handle { background: rgb(16 38 43 / 18%); }
+.lf-briefing-sheet.lf-briefing-sheet .lf-briefing-close { border-color: #d6e0dd; background: #ffffff; color: #10262b; }
+.lf-briefing-sheet.lf-briefing-sheet .lf-briefing-title { color: #10262b; }
+.lf-briefing-sheet.lf-briefing-sheet .lf-briefing-statusline,
+.lf-briefing-sheet.lf-briefing-sheet .lf-briefing-sender { color: #5d7176; }
+.lf-briefing-sheet.lf-briefing-sheet .lf-briefing-sender strong { color: #10262b; }
+.lf-briefing-sheet.lf-briefing-sheet .lf-briefing-section-title { color: color-mix(in oklab, var(--source-accent, #1d7f75) 80%, #10262b); }
+.lf-briefing-sheet.lf-briefing-sheet .lf-briefing-copy > p { color: #24393d; }
+.lf-briefing-sheet.lf-briefing-sheet .lf-briefing-copy > p:first-of-type {
+  color: #10262b;
+  font-size: 1rem;
+  font-weight: 500;
+}
+.lf-briefing-sheet.lf-briefing-sheet .lf-briefing-document {
+  border: 1px solid #dfe7e5;
+  border-radius: 1rem;
+  background: #ffffff;
+  padding: 0.9rem 0.95rem;
+  box-shadow: 0 4px 14px rgb(8 34 40 / 6%);
+}
+.lf-briefing-sheet.lf-briefing-sheet .lf-briefing-fact,
+.lf-briefing-sheet.lf-briefing-sheet .lf-finance-summary,
+.lf-briefing-sheet.lf-briefing-sheet .lf-objective-card,
+.lf-briefing-sheet.lf-briefing-sheet .lf-decision-summary-tile,
+.lf-briefing-sheet.lf-briefing-sheet .lf-conversation-entry {
+  border-color: #dfe7e5;
+  background: #f7faf9;
+  box-shadow: none;
+}
+.lf-briefing-sheet.lf-briefing-sheet .lf-briefing-fact-mark { background: var(--source-accent, #1d7f75); }
+.lf-briefing-sheet.lf-briefing-sheet .lf-briefing-fact strong,
+.lf-briefing-sheet.lf-briefing-sheet .lf-finance-row strong,
+.lf-briefing-sheet.lf-briefing-sheet .lf-objective-card strong,
+.lf-briefing-sheet.lf-briefing-sheet .lf-decision-summary-tile > strong,
+.lf-briefing-sheet.lf-briefing-sheet .lf-conversation-entry h3,
+.lf-briefing-sheet.lf-briefing-sheet .lf-decision-heading h2 { color: #10262b; }
+.lf-briefing-sheet.lf-briefing-sheet .lf-briefing-fact p,
+.lf-briefing-sheet.lf-briefing-sheet .lf-finance-row span,
+.lf-briefing-sheet.lf-briefing-sheet .lf-objective-card p,
+.lf-briefing-sheet.lf-briefing-sheet .lf-decision-summary-tile > span,
+.lf-briefing-sheet.lf-briefing-sheet .lf-conversation-entry > div:first-child { color: #5d7176; }
+.lf-briefing-sheet.lf-briefing-sheet .lf-finance-row { border-bottom-color: #e6ecea; }
+.lf-briefing-sheet.lf-briefing-sheet .lf-finance-row.is-total span,
+.lf-briefing-sheet.lf-briefing-sheet .lf-finance-row.is-total strong { color: #10262b; }
+.lf-briefing-sheet.lf-briefing-sheet .lf-finance-row.is-income span,
+.lf-briefing-sheet.lf-briefing-sheet .lf-finance-row.is-income strong,
+.lf-briefing-sheet.lf-briefing-sheet .lf-finance-row.is-positive span,
+.lf-briefing-sheet.lf-briefing-sheet .lf-finance-row.is-positive strong { color: #1f7a3a; }
+.lf-briefing-sheet.lf-briefing-sheet .lf-finance-row.is-expense span,
+.lf-briefing-sheet.lf-briefing-sheet .lf-finance-row.is-expense strong,
+.lf-briefing-sheet.lf-briefing-sheet .lf-finance-row.is-negative span,
+.lf-briefing-sheet.lf-briefing-sheet .lf-finance-row.is-negative strong { color: #c42f3a; }
+.lf-briefing-sheet.lf-briefing-sheet .lf-objective-card > svg { color: var(--source-accent, #1d7f75); }
+.lf-briefing-sheet.lf-briefing-sheet .lf-decision-summary-tile.is-positive > strong { color: #1b7f74; }
+.lf-briefing-sheet.lf-briefing-sheet .lf-decision-summary-tile.is-warning > strong { color: #b5620f; }
+.lf-briefing-sheet.lf-briefing-sheet .lf-briefing-note,
+.lf-briefing-sheet.lf-briefing-sheet .lf-resolution { background: color-mix(in oklab, var(--source-accent, #1d7f75) 8%, #ffffff); color: #10262b; }
+.lf-briefing-sheet.lf-briefing-sheet .lf-decision-section,
+.lf-briefing-sheet.lf-briefing-sheet .lf-conversation-history { border-top-color: #dfe7e5; }
+.lf-briefing-sheet.lf-briefing-sheet .lf-conversation-history > summary { color: #5d7176; }
+.lf-briefing-sheet.lf-briefing-sheet .lf-decision-card {
+  border-color: #0f3a40;
+  border-radius: 0.8rem;
+  background: #0f3a40;
+  color: #ffffff;
+}
+.lf-briefing-sheet.lf-briefing-sheet .lf-decision-card:hover { background: #1d7f75; }
+.lf-briefing-sheet.lf-briefing-sheet .lf-decision-card small { color: rgb(255 255 255 / 72%); }
+.lf-briefing-sheet.lf-briefing-sheet .lf-briefing-secondary-actions button { color: #5d7176; }
+
+/* Department graphic: a large, faint icon in the header corner. */
+.lf-briefing-watermark {
+  position: absolute;
+  right: 3.25rem;
+  top: 0.5rem;
+  width: 5.5rem;
+  height: 5.5rem;
+  color: var(--source-accent, #1d7f75);
+  opacity: 0.1;
+  pointer-events: none;
+  transform: rotate(-8deg);
+}
+
+/* Who it's from: portrait for a person, department badge otherwise. */
+.lf-briefing-from {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.5rem;
+}
+.lf-briefing-from .lf-briefing-sender { margin: 0; }
+.lf-briefing-avatar {
+  display: grid;
+  width: 2.15rem;
+  height: 2.15rem;
+  flex: 0 0 auto;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #d6e0dd;
+  border-radius: 0.65rem;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgb(8 34 40 / 10%);
+}
+.lf-briefing-avatar > svg { width: 100%; height: 100%; }
+.lf-briefing-avatar.is-department {
+  border-color: color-mix(in oklab, var(--source-accent, #1d7f75) 35%, #d6e0dd);
+  background: color-mix(in oklab, var(--source-accent, #1d7f75) 12%, #ffffff);
+  color: var(--source-accent, #1d7f75);
+}
+.lf-briefing-avatar.is-department > svg { width: 1.05rem; height: 1.05rem; }
+
+/* Bottom navigation: a bouncing "!" on Inbox while something is blocking. */
+@keyframes lf-nav-bounce {
+  0%, 55%, 100% { transform: translateY(0) scale(1); }
+  68% { transform: translateY(-4px) scale(1.08); }
+  80% { transform: translateY(0) scale(0.96); }
+  90% { transform: translateY(-1.5px) scale(1.02); }
+}
+.lf-nav-blocker {
+  box-shadow: 0 2px 8px rgb(232 57 74 / 45%);
+  animation: lf-nav-bounce 1.15s ease-in-out infinite;
+}
+
 /* --- Respect reduced motion ---------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   .lf-shake,
@@ -301,6 +472,8 @@
     animation: none !important;
   }
   .lf-body[data-dive] .lf-dot { transition: none; }
+  .lf-nav-blocker,
+  .lf-press-question::after, .lf-typing, .lf-live-dot,
   .lf-led-track, .lf-net.is-rippling, .lf-flag::after, .lf-weather.is-wet, .lf-debris { animation: none !important; }
   .lf-confetti { display: none; }
 }

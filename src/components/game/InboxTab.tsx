@@ -48,6 +48,8 @@ import { absoluteWeek, fromAbsoluteWeek } from "@/lib/game/time";
 import { inboxConversationCount, inboxConversationItems } from "@/lib/game/inboxCommunication";
 import { SeasonObjectivesDashboard } from "./SeasonObjectivesDashboard";
 import { PressConferenceOverlay } from "./PressConferenceOverlay";
+import { CharacterPortrait } from "./CharacterPortrait";
+import { clubDisplayName } from "@/lib/game/clubReference";
 
 export type InboxFilter = "all" | "unread" | "decisions" | "archive";
 
@@ -101,6 +103,21 @@ function bodySections(body: string) {
     .split(/\n\s*\n/)
     .map((section) => section.trim())
     .filter(Boolean);
+}
+
+/**
+ * Some generators write a club's internal reference (e.g. "c_06nslcr0cpl5nm")
+ * into a subject or body. Show the club's real name instead.
+ */
+const CLUB_REF = /\bc_[a-z0-9]{8,}\b/gi;
+function readable(state: GameState, text: string): string {
+  return text.includes("c_") ? text.replace(CLUB_REF, (ref) => clubDisplayName(state, ref) || ref) : text;
+}
+
+/** A named person ("Bill Roberts") rather than a department ("Club Secretary"). */
+const NOT_A_PERSON = /secretary|office|department|desk|pool|club|board|media|team|staff|press|chronicle|gazette|weekly|wire|league|medical|finance|scouting/i;
+function isPersonSender(sender: string): boolean {
+  return /^[A-Z][a-zA-Z'’-]+(?:\s[A-Z][a-zA-Z'’-]+){1,2}$/.test(sender.trim()) && !NOT_A_PERSON.test(sender);
 }
 
 type FinanceRow = {
@@ -512,7 +529,7 @@ function InboxRow({ item, state, onOpen, conversationCount }: { item: InboxItem;
           <span className={cn("lf-message-status", `status-${status.tone}`)}>{status.label}</span>
           <span className="lf-message-week">S{item.season} W{item.week}</span>
         </span>
-        <strong>{item.subject}</strong>
+        <strong>{readable(state, item.subject)}</strong>
         <span className="lf-message-subline">
           <span>{item.sender}</span>
           {deadline && <span className="lf-message-deadline"><CalendarClock /> {deadline}</span>}
@@ -546,6 +563,7 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
       <SheetContent side="bottom" hideClose className={cn("lf-briefing-sheet", `tone-${department.tone}`)}>
         <div className="lf-briefing-handle" aria-hidden="true" />
         <header className="lf-briefing-header">
+          <DepartmentIcon className="lf-briefing-watermark" aria-hidden="true" />
           <div className="lf-briefing-department"><DepartmentIcon /><span>{department.short}</span></div>
           <Button variant="ghost" size="icon" className="lf-briefing-close" onClick={onClose} aria-label="Close briefing"><X /></Button>
           <div className="lf-briefing-statusline">
@@ -554,8 +572,17 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
             {deadline && <span><CalendarClock /> {deadline}</span>}
           </div>
           <SheetHeader className="text-left">
-            <SheetTitle className="lf-briefing-title">{item.subject}</SheetTitle>
-            <p className="lf-briefing-sender">Briefing from <strong>{item.sender}</strong></p>
+            <SheetTitle className="lf-briefing-title">{readable(state, item.subject)}</SheetTitle>
+            <div className="lf-briefing-from">
+              {isPersonSender(item.sender) ? (
+                <span className="lf-briefing-avatar">
+                  <CharacterPortrait identity={{ id: `sender-${item.sender}`, subject: item.department === "Board of Directors" ? "board" : "staff" }} size={34} title={item.sender} />
+                </span>
+              ) : (
+                <span className="lf-briefing-avatar is-department"><DepartmentIcon /></span>
+              )}
+              <p className="lf-briefing-sender">Briefing from <strong>{item.sender}</strong></p>
+            </div>
           </SheetHeader>
         </header>
 
@@ -563,7 +590,7 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
           {decision ? (
             <article className="lf-briefing-document lf-decision-brief">
               <div className="lf-briefing-section-title"><Megaphone /> Decision briefing</div>
-              <BriefingBody body={currentMessage.body} department={currentMessage.department} />
+              <BriefingBody body={readable(state, currentMessage.body)} department={currentMessage.department} />
             </article>
           ) : hasConversation ? (
             <section className="lf-conversation">
@@ -571,15 +598,15 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
               {conversation.map((message) => (
                 <article key={message.id} className={cn("lf-conversation-entry", message.id === item.id && "is-current")}>
                   <div><strong>{message.sender}</strong><span>S{message.season} W{message.week}</span></div>
-                  <h3>{message.subject}</h3>
-                  <BriefingBody body={message.body} department={message.department} />
+                  <h3>{readable(state, message.subject)}</h3>
+                  <BriefingBody body={readable(state, message.body)} department={message.department} />
                 </article>
               ))}
             </section>
           ) : (
             <article className="lf-briefing-document">
               <div className="lf-briefing-section-title"><Megaphone /> Club briefing</div>
-              <BriefingBody body={item.body} department={item.department} />
+              <BriefingBody body={readable(state, item.body)} department={item.department} />
             </article>
           )}
 
@@ -632,8 +659,8 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
                 {earlierConversation.map((message) => (
                   <article key={message.id} className="lf-conversation-entry">
                     <div><strong>{message.sender}</strong><span>S{message.season} W{message.week}</span></div>
-                    <h3>{message.subject}</h3>
-                    <BriefingBody body={message.body} department={message.department} />
+                    <h3>{readable(state, message.subject)}</h3>
+                    <BriefingBody body={readable(state, message.body)} department={message.department} />
                   </article>
                 ))}
               </div>
