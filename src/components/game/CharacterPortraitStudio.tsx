@@ -12,17 +12,18 @@ import {
   type PortraitIdentity,
 } from "@/lib/game/characterPortrait";
 import { AvatarAppearanceOptions, randomAvatar } from "./ChairmanStudio";
-import { CharacterPortrait } from "./CharacterPortrait";
+import { CharacterPortrait, type PortraitKit } from "./CharacterPortrait";
 
 /** Edit any character without changing their football data. Manual
  * appearances are saved on this device and propagated to every portrait. */
 export function CharacterPortraitStudio({
-  identity, name, open, onOpenChange,
+  identity, name, open, onOpenChange, kit,
 }: {
   identity: PortraitIdentity;
   name: string;
   open: boolean;
   onOpenChange: (value: boolean) => void;
+  kit?: PortraitKit | null;
 }) {
   const [draft, setDraft] = useState<ChairmanAvatar>(() => portraitOverride(identity.id) ?? generatedPortrait(identity));
   const [draftName, setDraftName] = useState(() => characterDisplayName(identity.id, name));
@@ -41,11 +42,11 @@ export function CharacterPortraitStudio({
       <SheetContent side="bottom" className="lf-studio-sheet">
         <SheetHeader className="text-left">
           <SheetTitle className="lf-studio-title">Edit {characterDisplayName(identity.id, name)}</SheetTitle>
-          <p className="lf-studio-sub">Customise this character's name and appearance on this device.</p>
+          <p className="lf-studio-sub">{identity.subject === "player" ? "Customise this player's name and appearance. Club kit is set by his current team." : "Customise this character's name and appearance on this device."}</p>
         </SheetHeader>
         <div className="lf-studio-stage">
           <div className="lf-studio-portrait">
-            <CharacterPortrait avatar={draft} size={150} title={`${draftName || name} portrait preview`} />
+            <CharacterPortrait avatar={draft} kit={identity.subject === "player" ? kit ?? null : undefined} size={150} title={`${draftName || name} portrait preview`} />
           </div>
           <div className="lf-studio-stage-actions">
             <label className="lf-studio-name">
@@ -69,7 +70,7 @@ export function CharacterPortraitStudio({
           </div>
         </div>
         <div className="lf-studio-scroll touch-pan-y">
-          <AvatarAppearanceOptions avatar={draft} onChange={patch} />
+          <AvatarAppearanceOptions avatar={draft} onChange={patch} hideOutfit={identity.subject === "player"} />
           {error && <p role="alert" className="px-4 text-xs text-rose-500">{error}</p>}
         </div>
         <div className="lf-studio-footer">
