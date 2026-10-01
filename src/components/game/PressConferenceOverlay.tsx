@@ -84,12 +84,24 @@ export function PressConferenceOverlay({
 
   const firstAnswers = useMemo<PressAnswer[]>(
     () =>
-      (item.choices ?? []).map((choice) => ({
-        id: choice.id as PressTone,
-        label: choice.label,
-        hint: choice.hint ?? "",
-        effects: choice.effects,
-      })),
+      (item.choices ?? []).map((choice) => {
+        const tone: PressTone =
+          choice.id === "dismiss"
+            ? "dismiss"
+            : choice.id === "reassure" ||
+                choice.id === "rebuilding" ||
+                choice.id === "happy-squad" ||
+                choice.id === "stability"
+              ? "reassure"
+              : "transparent";
+        return {
+          id: choice.id,
+          tone,
+          label: choice.label,
+          hint: choice.hint ?? "",
+          effects: choice.effects,
+        };
+      }),
     [item.choices],
   );
 
@@ -134,7 +146,7 @@ export function PressConferenceOverlay({
     if (round === "complete") return;
 
     setExchanges((current) => [...current, { question: currentQuestion, answer: answer.label }]);
-    setTones((current) => [...current, answer.id]);
+    setTones((current) => [...current, answer.tone]);
 
     if (round === 1) {
       setFirstChoiceId(answer.id);
