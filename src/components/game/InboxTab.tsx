@@ -461,7 +461,7 @@ export function InboxTab({
       </div>
 
       {open && (
-        open.generatorId === "random-incident-press" && requiresInboxDecision(open) ? (
+        (open.generatorId === "random-incident-press" || open.generatorId === "calendar-press") && requiresInboxDecision(open) ? (
           <PressConferenceOverlay
             item={open}
             state={state}

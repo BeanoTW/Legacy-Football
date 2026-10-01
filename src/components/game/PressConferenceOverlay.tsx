@@ -5,9 +5,11 @@ import { inboxConversationKey } from "@/lib/game/inboxCommunication";
 import { randomIncidentById } from "@/lib/game/randomIncidents";
 import { journalistForConversation, mediaRelationship } from "@/lib/game/mediaRelations";
 import {
+  calendarPressRound,
   pressOutcomeLabel,
   pressRoundThree,
   pressRoundTwo,
+  type CalendarPressContext,
   type PressAnswer,
   type PressTone,
 } from "@/lib/game/pressConference";
@@ -46,6 +48,25 @@ export function PressConferenceOverlay({
   const journalistRelationship = mediaRelationship(state, journalist.id);
   const incidentId = conversationKey.split(":")[1] ?? "";
   const incident = randomIncidentById(incidentId);
+  const calendarContexts: CalendarPressContext[] = [
+    "summer-window-open",
+    "season-preview",
+    "summer-window-review",
+    "midseason-checkpoint",
+    "winter-window-preview",
+    "winter-window-review",
+    "season-review",
+  ];
+  const calendarContextCandidate = item.generatorId === "calendar-press" ? conversationKey.split(":")[1] : undefined;
+  const calendarContext = calendarContexts.includes(calendarContextCandidate as CalendarPressContext)
+    ? (calendarContextCandidate as CalendarPressContext)
+    : undefined;
+  const routineWindowConference =
+    calendarContext === "summer-window-open" ||
+    calendarContext === "summer-window-review" ||
+    calendarContext === "winter-window-preview" ||
+    calendarContext === "winter-window-review";
+  const maxQuestions = routineWindowConference ? 2 : 3;
   const original = state.inbox.find(
     (candidate) =>
       candidate.generatorId === "random-incident" &&
@@ -81,11 +102,15 @@ export function PressConferenceOverlay({
   const roundTwo =
     incident && tones[0]
       ? pressRoundTwo(state, incident, originalDecisionId, tones[0], journalist)
-      : null;
+      : calendarContext && tones[0]
+        ? calendarPressRound(state, calendarContext, 2, tones, journalist)
+        : null;
   const roundThree =
     incident && tones.length >= 2
       ? pressRoundThree(state, incident, originalDecisionId, tones.slice(0, 2), journalist)
-      : null;
+      : calendarContext && tones.length >= 2
+        ? calendarPressRound(state, calendarContext, 3, tones, journalist)
+        : null;
 
   const currentQuestion =
     round === 1
@@ -119,14 +144,18 @@ export function PressConferenceOverlay({
 
     setLaterEffects((current) => [...current, ...answer.effects]);
     if (round === 2) {
-      setRound(3);
+      if (maxQuestions === 2) {
+        setRound("complete");
+      } else {
+        setRound(3);
+      }
       return;
     }
 
     setRound("complete");
   };
 
-  const questionNumber = round === "complete" ? 3 : round;
+  const questionNumber = round === "complete" ? maxQuestions : Math.min(round, maxQuestions);
   const outcome = round === "complete" ? pressOutcomeLabel(tones) : null;
 
   return (
@@ -143,7 +172,7 @@ export function PressConferenceOverlay({
               </h1>
             </div>
             <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold">
-              Question {questionNumber} / 3
+              Question {questionNumber} / {maxQuestions}
             </span>
           </div>
         </header>
@@ -215,7 +244,7 @@ export function PressConferenceOverlay({
               </span>
               <h2 className="mt-1 font-display text-2xl">{outcome}</h2>
               <p className="mt-2 text-sm leading-relaxed text-white/65">
-                Your answers will now feed into supporter and reputation reaction. The interview remains attached to the original club incident in your communications history.
+                Your answers will now feed into supporter and reputation reaction. The interview remains part of the club communications history and can shape the media relationship around future stories.
               </p>
               <Button
                 className="mt-5 w-full bg-emerald-300 text-emerald-950 hover:bg-emerald-200"

@@ -499,7 +499,7 @@ function livingClubArticles(state: GameState): NewsArticle[] {
       continue;
     }
 
-    if (item.generatorId === "random-incident-press" && item.status === "completed" && item.pressConference) {
+    if ((item.generatorId === "random-incident-press" || item.generatorId === "calendar-press") && item.status === "completed" && item.pressConference) {
       const key = `press-conference|${item.eventKey}`;
       const subject = item.subject.replace(/^Press conference\s*[—-]\s*/i, "").replace(/[.!?]+$/, "");
       const exchanges = item.pressConference.exchanges;
@@ -513,7 +513,9 @@ function livingClubArticles(state: GameState): NewsArticle[] {
         headline: `${us} chairman pressed on ${subject.toLowerCase()}`,
         standfirst: `Press-room verdict: ${item.pressConference.outcome}.`,
         body: [
-          `The ${us} chairman faced ${exchanges.length} questions after the club's recent decision became a public talking point.`,
+          item.generatorId === "calendar-press"
+            ? `The ${us} chairman faced ${exchanges.length} questions at a scheduled club media briefing.`
+            : `The ${us} chairman faced ${exchanges.length} questions after the club's recent decision became a public talking point.`,
           ...exchanges.map(
             (exchange, index) =>
               `Q${index + 1}: ${exchange.question} Chairman response: ${exchange.answer}.`,
