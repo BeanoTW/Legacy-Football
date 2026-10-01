@@ -33,8 +33,9 @@ export function canonicalClubReference(state: ClubIdentityLookupState, ref: stri
 
 /** Presentation only. Never use this return value as a persisted identity key. */
 export function clubDisplayName(state: ClubIdentityLookupState, ref: string): string {
-  if (!isOpaqueClubId(ref)) return ref;
-  return registeredClubDisplayName(state, ref) ?? ref;
+  if (isOpaqueClubId(ref)) return registeredClubDisplayName(state, ref) ?? ref;
+  const canonical = clubIdForState(state, ref);
+  return registeredClubDisplayName(state, canonical) ?? ref;
 }
 
 export function sameClubReference(
