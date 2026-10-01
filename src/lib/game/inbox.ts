@@ -260,6 +260,9 @@ function applyEffectInPlace(s: GameState, e: InboxEffect, src: EffectSource): vo
     case "mediaRelationship":
       adjustMediaRelationshipInPlace(s, e.journalistId, e.delta);
       break;
+    case "boardNegotiateObjective":
+      renegotiateBoardObjectiveInPlace(s, e.objectiveId);
+      break;
     case "commercialAccept":
       acceptOfferInPlace(s, e.offerId);
       break;
@@ -1111,16 +1114,16 @@ const G_BOARD_OBJECTIVES: Generator = {
             hint: "Take the board's targets as they stand.",
             effects: [{ kind: "flag", key: `boardObjectivesSeen-s${s.season}`, value: true }],
           },
-          {
-            id: "push-back",
-            label: "Push back on the targets",
-            hint: "Argue the projection is unfair. Risks goodwill now for slack later.",
+          ...board.objectives.map((objective) => ({
+            id: `negotiate-${objective.id}`,
+            label: `Negotiate: ${objective.label}`,
+            hint: "Ask the board to soften this one objective. Every other target remains unchanged.",
             effects: [
-              { kind: "flag", key: `boardObjectivesSeen-s${s.season}`, value: true },
-              { kind: "flag", key: `boardPushback-s${s.season}`, value: true },
-              { kind: "reputation", delta: -1 },
+              { kind: "flag" as const, key: `boardObjectivesSeen-s${s.season}`, value: true },
+              { kind: "flag" as const, key: `boardNegotiated-s${s.season}`, value: objective.id },
+              { kind: "boardNegotiateObjective" as const, objectiveId: objective.id },
             ],
-          },
+          })),
         ],
       }),
     ];
