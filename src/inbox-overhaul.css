@@ -383,3 +383,274 @@
   .lf-decision-summary-tile { padding: 0.46rem 0.5rem; }
   .lf-decision-summary-tile > strong { font-size: 0.72rem; }
 }
+
+
+/* =========================================================================
+   Newsroom-inspired desk pass
+   -------------------------------------------------------------------------
+   The game screen is the vertical scroller. Keeping the inbox feed as a
+   second nested scroller made touch swipes over message cards unreliable and
+   could leave the player trapped at an old internal scroll position.
+========================================================================= */
+.lf-office-desk {
+  min-height: 0;
+}
+
+.lf-inbox-shell {
+  --inbox-ink: var(--nr-ink, #10262b);
+  --inbox-charcoal: var(--nr-card, #fff);
+  --inbox-paper: var(--nr-card, #fff);
+  --inbox-orange: #f59a2a;
+  --inbox-muted: var(--nr-soft, #4a6168);
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--nr-ink, #10262b);
+  font-family: var(--font-sans);
+}
+
+.lf-inbox-feed {
+  flex: none;
+  min-height: 0;
+  overflow: visible;
+  overscroll-behavior: auto;
+  touch-action: pan-y pinch-zoom;
+  scrollbar-gutter: auto;
+  padding-bottom: 1.2rem;
+}
+
+/* Bring the desk closer to the Newsroom's clean cards + teal/gold hierarchy. */
+.lf-inbox-header {
+  margin-bottom: .15rem;
+  padding-inline: .15rem;
+}
+.lf-inbox-header h1 {
+  color: var(--nr-ink, #10262b);
+  font-family: var(--nr-display, var(--font-display));
+  font-weight: 800;
+}
+.lf-inbox-header p { color: var(--nr-soft, #4a6168); }
+.lf-inbox-header .lf-inbox-kicker { color: var(--nr-teal, #1b7f74); }
+
+.lf-inbox-blocking {
+  border: 0;
+  border-radius: 999px;
+  background: #e8394a;
+  color: white;
+  box-shadow: 0 4px 12px rgb(232 57 74 / 24%);
+}
+
+.lf-attention-rail {
+  gap: .45rem;
+  border: 0;
+  background: transparent;
+}
+.lf-attention-stat,
+.lf-attention-stat.is-static {
+  min-height: 3.6rem;
+  border: 1px solid var(--nr-line, rgb(16 38 43 / 12%));
+  border-radius: .9rem;
+  background: var(--nr-card, #fff);
+  color: var(--nr-ink, #10262b);
+  box-shadow: 0 4px 14px rgb(8 34 40 / 6%);
+}
+.lf-attention-stat:last-child { border-right: 1px solid var(--nr-line, rgb(16 38 43 / 12%)); }
+.lf-attention-stat:hover,
+.lf-attention-stat.is-active {
+  border-color: color-mix(in oklab, var(--nr-teal, #1b7f74) 45%, transparent);
+  background: color-mix(in oklab, var(--nr-teal, #1b7f74) 7%, var(--nr-card, #fff));
+  color: var(--nr-ink, #10262b);
+}
+.lf-attention-stat strong {
+  color: var(--nr-ink, #10262b);
+  font-family: var(--nr-display, var(--font-display));
+  font-weight: 800;
+}
+.lf-attention-stat small { color: var(--nr-soft, #4a6168); }
+.lf-attention-icon {
+  border: 0;
+  border-radius: .7rem;
+  background: color-mix(in oklab, var(--nr-teal, #1b7f74) 12%, transparent);
+  color: var(--nr-teal, #1b7f74);
+}
+.lf-attention-stat:first-child .lf-attention-icon {
+  background: color-mix(in oklab, #e8394a 11%, transparent);
+  color: #d12f40;
+}
+.lf-attention-stat:last-child .lf-attention-icon {
+  background: color-mix(in oklab, #f59a2a 14%, transparent);
+  color: #bd6910;
+}
+
+.lf-inbox-tools { padding-inline: .05rem; }
+.lf-filter-tabs {
+  gap: .35rem;
+  scrollbar-width: none;
+}
+.lf-filter-tabs::-webkit-scrollbar { display: none; }
+.lf-filter-tab {
+  height: 2rem;
+  border: 1px solid var(--nr-line, rgb(16 38 43 / 12%));
+  border-radius: 999px;
+  background: var(--nr-card, #fff);
+  padding-inline: .7rem;
+  color: var(--nr-soft, #4a6168);
+  font-size: .7rem;
+  font-weight: 700;
+}
+.lf-filter-tab:hover,
+.lf-filter-tab.is-active {
+  border-color: var(--nr-deep, #0f3a40);
+  background: var(--nr-deep, #0f3a40);
+  color: white;
+}
+.lf-filter-button {
+  border-color: var(--nr-line, rgb(16 38 43 / 12%));
+  border-radius: 999px;
+  background: var(--nr-card, #fff);
+  color: var(--nr-ink, #10262b);
+}
+.lf-clear-read { color: var(--nr-soft, #4a6168); }
+
+.lf-inbox-lane + .lf-inbox-lane { margin-top: 1rem; }
+.lf-inbox-lane-heading {
+  border-bottom: 0;
+  padding: .25rem .1rem .45rem;
+}
+.lf-inbox-lane-heading h2 {
+  color: var(--nr-soft, #4a6168);
+  font-size: .66rem;
+}
+.lf-inbox-lane-heading span {
+  display: grid;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--nr-deep, #0f3a40) 9%, transparent);
+  color: var(--nr-soft, #4a6168);
+  font-weight: 800;
+}
+.lf-inbox-lane.is-urgent {
+  margin-inline: -.2rem;
+  padding: .4rem .2rem .5rem;
+  border-radius: 1rem;
+  background: linear-gradient(180deg, color-mix(in oklab, #e8394a 5%, transparent), transparent);
+}
+.lf-inbox-lane.is-urgent .lf-inbox-lane-heading h2 { color: #c62f3e; }
+.lf-inbox-lane.is-urgent .lf-inbox-lane-heading span {
+  background: #e8394a;
+  color: white;
+}
+
+.lf-inbox-lane-list { gap: .5rem; padding-top: 0; }
+
+.lf-message-row {
+  min-height: 4.8rem;
+  grid-template-columns: 2.35rem minmax(0, 1fr) auto auto;
+  gap: .55rem;
+  overflow: visible;
+  border: 1px solid var(--nr-line, rgb(16 38 43 / 12%));
+  border-radius: 1rem;
+  background: var(--nr-card, #fff);
+  padding: .65rem .65rem .65rem .55rem;
+  color: var(--nr-ink, #10262b);
+  box-shadow: 0 4px 14px rgb(8 34 40 / 7%);
+  touch-action: pan-y pinch-zoom;
+}
+.lf-message-row::before {
+  width: .23rem;
+  border-radius: 1rem 0 0 1rem;
+}
+.lf-message-row:hover {
+  border-color: color-mix(in oklab, var(--source-accent, var(--nr-teal, #1b7f74)) 45%, transparent);
+  background: color-mix(in oklab, var(--source-accent, var(--nr-teal, #1b7f74)) 4%, var(--nr-card, #fff));
+  color: var(--nr-ink, #10262b);
+}
+.lf-message-row.status-read,
+.lf-message-row.status-completed,
+.lf-message-row.status-expired { opacity: .74; }
+.lf-message-row.status-decision {
+  border-color: color-mix(in oklab, #e8394a 32%, var(--nr-line, transparent));
+  box-shadow: 0 5px 16px rgb(170 35 52 / 9%);
+}
+
+.lf-message-source {
+  width: 2.35rem;
+  height: 2.35rem;
+  border: 0;
+  border-radius: .75rem;
+  background: color-mix(in oklab, var(--source-accent) 13%, transparent);
+  color: var(--source-accent);
+}
+.lf-message-source svg { width: 1.05rem; height: 1.05rem; }
+
+.lf-message-main > strong {
+  color: var(--nr-ink, #10262b);
+  font-family: var(--nr-serif, "Instrument Serif", serif);
+  font-size: 1.08rem;
+  line-height: 1.08;
+}
+.lf-message-meta,
+.lf-message-subline { color: var(--nr-soft, #4a6168); }
+.lf-message-meta > span:first-child { color: var(--source-accent); }
+
+.lf-message-status {
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in oklab, currentColor 10%, transparent);
+  padding: .18rem .4rem;
+}
+.lf-message-status.status-decision { color: #cf3040; }
+.lf-message-status.status-priority { color: #bd6910; }
+.lf-message-status.status-urgent,
+.lf-message-status.status-expired { color: #cf3040; }
+.lf-message-deadline { color: #bd6910; }
+.lf-message-chevron { color: color-mix(in oklab, var(--nr-ink, #10262b) 40%, transparent); }
+
+.lf-message-blocker {
+  display: grid;
+  width: 1.55rem;
+  height: 1.55rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 2px solid white;
+  border-radius: 999px;
+  background: #e8394a;
+  color: white;
+  font: 900 .85rem/1 var(--nr-display, var(--font-display));
+  box-shadow: 0 3px 9px rgb(232 57 74 / 32%);
+}
+
+.lf-inbox-empty {
+  border-color: var(--nr-line, rgb(16 38 43 / 12%));
+  border-radius: 1rem;
+  background: var(--nr-card, #fff);
+  color: var(--nr-soft, #4a6168);
+}
+.lf-inbox-empty svg { color: var(--nr-teal, #1b7f74); }
+.lf-inbox-empty h2 { color: var(--nr-ink, #10262b); }
+
+@media (min-width: 700px) {
+  .lf-inbox-shell { gap: .7rem; }
+  .lf-inbox-tools,
+  .lf-inbox-feed { padding-inline: 0; }
+  .lf-attention-rail { margin-inline: 0; }
+  .lf-message-row { min-height: 5.1rem; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lf-message-blocker {
+    animation: lf-inbox-attention-bounce 1.15s ease-in-out infinite;
+  }
+}
+
+@keyframes lf-inbox-attention-bounce {
+  0%, 55%, 100% { transform: translateY(0) scale(1); }
+  68% { transform: translateY(-5px) scale(1.06); }
+  80% { transform: translateY(0) scale(.98); }
+  90% { transform: translateY(-2px) scale(1.02); }
+}

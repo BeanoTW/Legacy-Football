@@ -519,6 +519,11 @@ function InboxRow({ item, state, onOpen, conversationCount }: { item: InboxItem;
           {conversationCount > 1 && <span><MessagesSquare /> {conversationCount}</span>}
         </span>
       </span>
+      {decision && (
+        <span className="lf-message-blocker" aria-label="Blocks advance" title="Blocks advance">
+          !
+        </span>
+      )}
       <ChevronRight className="lf-message-chevron" />
     </Button>
   );
@@ -596,7 +601,7 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
                 <div className="lf-resolution is-expired"><TriangleAlert /><div><strong>Deadline passed</strong><p>This decision expired before you responded.</p></div></div>
               ) : (
                 <>
-                  <div className="lf-decision-heading"><div><span>Chairman action</span><h2>Choose your response</h2></div>{deadline && <small>{deadline}</small>}</div>
+                  <div className="lf-decision-heading"><div><span>Managing Director action</span><h2>Choose your response</h2></div>{deadline && <small>{deadline}</small>}</div>
                   <div className="lf-decision-grid">
                     {item.choices.map((choice) => {
                       const availability = evaluateChoice(state, choice);
