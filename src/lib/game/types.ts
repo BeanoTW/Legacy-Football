@@ -97,6 +97,7 @@ export type InboxEffect =
   | { kind: "flag"; key: string; value: string | number | boolean }
   | { kind: "managerRelationship"; managerId: string; trust?: number; backing?: number; autonomy?: number }
   | { kind: "ticketPriceScale"; multiplier: number }
+  | { kind: "mediaRelationship"; journalistId: string; delta: number }
 
   /* Recruitment. Every one of these routes into the canonical engine
      functions in recruitment.ts — the inbox never mutates football state. */
@@ -194,6 +195,10 @@ export interface InboxItem {
   pressConference?: {
     outcome: string;
     exchanges: { question: string; answer: string }[];
+    journalistId?: string;
+    journalistName?: string;
+    journalistOutlet?: string;
+    journalistStyle?: "balanced" | "supporter" | "financial" | "confrontational";
   };
 }
 

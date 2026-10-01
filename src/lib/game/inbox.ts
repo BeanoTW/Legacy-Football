@@ -109,6 +109,7 @@ import { managerRecruitmentRequestItems, managerRecruitmentPromiseReviewItems } 
 import { avgTicketPrice } from "./sim";
 import { ticketPriceReference } from "./ticketForecast";
 import { priceDemandFactor, scaleTicketPricesInPlace } from "./ticketPricing";
+import { adjustMediaRelationshipInPlace, mediaRelationshipDeltaForOutcome } from "./mediaRelations";
 
 /* ---------- Helpers ---------- */
 const money = (n: number) => {
@@ -254,6 +255,9 @@ function applyEffectInPlace(s: GameState, e: InboxEffect, src: EffectSource): vo
       break;
     case "ticketPriceScale":
       scaleTicketPricesInPlace(s, e.multiplier);
+      break;
+    case "mediaRelationship":
+      adjustMediaRelationshipInPlace(s, e.journalistId, e.delta);
       break;
     case "commercialAccept":
       acceptOfferInPlace(s, e.offerId);
@@ -527,11 +531,26 @@ export function resolvePressConference(
   itemId: string,
   firstChoiceId: string,
   laterEffects: InboxEffect[],
-  summary?: { outcome: string; exchanges: { question: string; answer: string }[] },
+  summary?: {
+    outcome: string;
+    exchanges: { question: string; answer: string }[];
+    journalistId?: string;
+    journalistName?: string;
+    journalistOutlet?: string;
+    journalistStyle?: "balanced" | "supporter" | "financial" | "confrontational";
+  },
 ): GameState {
   const item = s.inbox.find((candidate) => candidate.id === itemId);
   if (!item || item.status === "completed" || item.status === "expired" || item.chosenChoiceId) return s;
-  const resolved = resolveInboxChoice(s, itemId, firstChoiceId, laterEffects);
+  const mediaEffects: InboxEffect[] =
+    summary?.journalistId
+      ? [{
+          kind: "mediaRelationship",
+          journalistId: summary.journalistId,
+          delta: mediaRelationshipDeltaForOutcome(summary.outcome),
+        }]
+      : [];
+  const resolved = resolveInboxChoice(s, itemId, firstChoiceId, [...laterEffects, ...mediaEffects]);
   if (resolved === s || !summary) return resolved;
   const target = resolved.inbox.find((candidate) => candidate.id === itemId);
   if (target?.status === "completed") {
