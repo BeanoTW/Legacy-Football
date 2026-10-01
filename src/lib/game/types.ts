@@ -98,6 +98,7 @@ export type InboxEffect =
   | { kind: "managerRelationship"; managerId: string; trust?: number; backing?: number; autonomy?: number }
   | { kind: "ticketPriceScale"; multiplier: number }
   | { kind: "mediaRelationship"; journalistId: string; delta: number }
+  | { kind: "boardNegotiateObjective"; objectiveId: string }
 
   /* Recruitment. Every one of these routes into the canonical engine
      functions in recruitment.ts — the inbox never mutates football state. */
