@@ -34,6 +34,7 @@ import { clubPrediction, EXPECTATION_LABEL } from "./reputation";
 import { playerLeagueId } from "./league";
 import { commercialWeeklyIncome, activeContracts } from "./commercial";
 import { isUserClubReference, userClubReference } from "./clubReference";
+import { footballLevelOfUser } from "./footballLevel";
 import {
   netSpendThisSeason,
   transferIncomeThisSeason,
@@ -458,12 +459,44 @@ export function makeObjectives(s: GameState, season: number, board: BoardState):
 
   // Recruitment: measured from canonical football state, never the legacy squad.
   const netSpendCap = Math.max(0, Math.round((s.cash * 0.4) / 25_000) * 25_000);
-  const saleTarget = Math.round(Math.max(100_000, burn * 6) / 25_000) * 25_000;
+
+  // Player-sale expectations must live in the club's actual economy. A flat
+  // £100k floor made semi-pro/non-pro boards demand dozens of departures.
+  const level = footballLevelOfUser(s);
+  const squadMarketValue = userSquad(s).reduce((sum, player) => sum + Math.max(0, player.marketValue), 0);
+  const saleFloorByLevel: Record<number, number> = {
+    1: 2_000_000,
+    2: 500_000,
+    3: 150_000,
+    4: 60_000,
+    5: 25_000,
+    6: 10_000,
+    7: 5_000,
+    8: 2_500,
+  };
+  const saleRoundByLevel: Record<number, number> = {
+    1: 100_000,
+    2: 50_000,
+    3: 25_000,
+    4: 10_000,
+    5: 5_000,
+    6: 1_000,
+    7: 1_000,
+    8: 500,
+  };
+  const saleRound = saleRoundByLevel[level] ?? 1_000;
+  const saleTargetRaw = Math.max(
+    saleFloorByLevel[level] ?? 5_000,
+    squadMarketValue * 0.12,
+    burn * (level >= 6 ? 2 : 4),
+  );
+  const saleTarget = Math.max(saleRound, Math.round(saleTargetRaw / saleRound) * saleRound);
+
   const ageNow = averageSquadAge(s);
   const ageTarget =
     ageNow > 0 ? Math.min(29, Math.max(23, Math.round((ageNow - 0.5) * 10) / 10)) : 27;
   const securityTarget = Math.min(95, Math.max(60, Math.round(contractSecurityPct(s) + 5)));
-  const activityTarget = Math.max(1, 2 + amb);
+  const activityTarget = Math.max(1, (level >= 6 ? 1 : 2) + amb);
 
   const mk = (
     kind: BoardObjective["kind"],
@@ -573,6 +606,82 @@ export function makeObjectives(s: GameState, season: number, board: BoardState):
       5,
     ),
   ];
+}
+
+
+/**
+ * The board will concede one objective at the opening meeting. This is a real
+ * negotiation: the persisted objective itself changes, so later reviews judge
+ * the revised term rather than merely setting a cosmetic flag.
+ */
+export function renegotiateBoardObjectiveInPlace(s: GameState, objectiveId: string): boolean {
+  const objective = s.board?.objectives?.find((candidate) => candidate.id === objectiveId);
+  if (!objective || objective.status !== "active") return false;
+
+  const roundMoney = (value: number) => {
+    const level = footballLevelOfUser(s);
+    const step = level <= 2 ? 25_000 : level <= 4 ? 5_000 : level <= 5 ? 2_500 : 1_000;
+    return Math.max(step, Math.round(value / step) * step);
+  };
+
+  switch (objective.kind) {
+    case "leaguePosition": {
+      const size = (s.league ?? []).length || 20;
+      objective.target = Math.min(size, Math.round(objective.target + 2));
+      objective.label = `Finish ${objective.target}${ordinal(objective.target)} or better`;
+      break;
+    }
+    case "cashReserve":
+      objective.target = roundMoney(objective.target * 0.8);
+      objective.label = `Hold £${(objective.target / 1000).toFixed(0)}k in reserve`;
+      break;
+    case "wageControl":
+      objective.target = Math.min(100, Math.round(objective.target + 7));
+      objective.label = `Keep wages under ${objective.target}% of income`;
+      break;
+    case "fanHappiness":
+      objective.target = Math.max(45, Math.round(objective.target - 5));
+      objective.label = `Fan happiness at ${objective.target}+`;
+      break;
+    case "stadiumCondition":
+      objective.target = Math.max(50, Math.round(objective.target - 7));
+      objective.label = `Average stand condition ${objective.target}+`;
+      break;
+    case "squadRating":
+      objective.target = Math.max(1, Math.round(objective.target - 1));
+      objective.label = `Squad average rating ${objective.target}+`;
+      break;
+    case "commercialIncome":
+      objective.target = Math.max(500, Math.round((objective.target * 0.8) / 500) * 500);
+      objective.label = `Contracted sponsorship of £${(objective.target / 1000).toFixed(1)}k per week`;
+      break;
+    case "transferBudgetDiscipline": {
+      const allowance = Math.max(5_000, Math.round(Math.max(1, s.cash) * 0.08));
+      objective.target = roundMoney(objective.target + allowance);
+      objective.label = `Net transfer spend no higher than £${(objective.target / 1000).toFixed(0)}k`;
+      break;
+    }
+    case "playerSaleIncome":
+      objective.target = roundMoney(objective.target * 0.65);
+      objective.label = `Raise £${(objective.target / 1000).toFixed(objective.target < 10_000 ? 1 : 0)}k from player sales`;
+      break;
+    case "squadAge":
+      objective.target = Math.round((objective.target + 0.8) * 10) / 10;
+      objective.label = `Average squad age ${objective.target.toFixed(1)} or younger`;
+      break;
+    case "contractSecurity":
+      objective.target = Math.max(50, Math.round(objective.target - 10));
+      objective.label = `${objective.target}% of the squad contracted beyond this season`;
+      break;
+    case "recruitmentActivity":
+      objective.target = Math.max(1, Math.round(objective.target - 1));
+      objective.label = `Complete ${objective.target} incoming signing${objective.target === 1 ? "" : "s"}`;
+      break;
+    default:
+      return false;
+  }
+
+  return true;
 }
 
 function ordinal(n: number): string {
