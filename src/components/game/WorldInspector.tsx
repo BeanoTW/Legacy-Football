@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Globe2, Users, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Globe2, Palette, Users, X } from "lucide-react";
 
 import type { FootballPlayer, GameState, Position } from "@/lib/game/types";
 import { playerLeagueId, tableFor } from "@/lib/game/league";
@@ -14,6 +14,7 @@ import { footballLevelOfLeague } from "@/lib/game/footballLevel";
 import { clubPresentationName, leaguePresentationName } from "@/lib/game/clubPresentation";
 import { clubKitForReference } from "@/lib/game/clubKit";
 import { ClubBadge } from "./ClubKitArt";
+import { ClubIdentitySheet } from "./ClubIdentityStudio";
 import {
   browsableFringeSquad,
   preserveFringePlayerForProfile,
@@ -66,6 +67,7 @@ export function WorldInspector({
   );
   const [index, setIndex] = useState(initialIndex);
   const [selectedClub, setSelectedClub] = useState<string | null>(null);
+  const [identityOpen, setIdentityOpen] = useState(false);
   const safeIndex = Math.min(index, Math.max(0, leagues.length - 1));
   const league = leagues[safeIndex];
   const rows = league ? tableFor(state, league.id) : [];
@@ -217,9 +219,18 @@ export function WorldInspector({
           state={state}
           club={selectedClub}
           update={update}
+          onCustomize={() => setIdentityOpen(true)}
           onClose={() => setSelectedClub(null)}
         />
       )}
+
+      <ClubIdentitySheet
+        open={identityOpen}
+        onOpenChange={setIdentityOpen}
+        state={state}
+        update={update}
+        clubRef={selectedClub ?? undefined}
+      />
 
       <div className="flex shrink-0 items-center justify-center gap-1.5" aria-hidden="true">
         {leagues.map((item, itemIndex) => (
@@ -240,11 +251,13 @@ function ClubSquadPanel({
   state,
   club,
   update,
+  onCustomize,
   onClose,
 }: {
   state: GameState;
   club: string;
   update: (fn: (s: GameState) => GameState) => void;
+  onCustomize: () => void;
   onClose: () => void;
 }) {
   const canonical = canonicalClubReference(state, club);
@@ -270,14 +283,23 @@ function ClubSquadPanel({
             {isMe ? "Your squad" : "Club squad"} · select a player to view their profile
           </div>
         </div>
-        <button
-          type="button"
-          aria-label="Close club squad"
-          onClick={onClose}
-          className="grid size-8 shrink-0 place-items-center rounded-lg bg-black/15"
-        >
-          <X className="size-4" />
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={onCustomize}
+            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-black/15 px-2.5 text-[11px] font-semibold"
+          >
+            <Palette className="size-3.5" /> Customise
+          </button>
+          <button
+            type="button"
+            aria-label="Close club squad"
+            onClick={onClose}
+            className="grid size-8 place-items-center rounded-lg bg-black/15"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
       </div>
 
       {detailedSquad.length === 0 && fringeSquad.length === 0 ? (
