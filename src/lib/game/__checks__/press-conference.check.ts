@@ -7,7 +7,7 @@ import {
   resolvePressConference,
   runWeeklyGenerators,
 } from "../inbox";
-import { RANDOM_INCIDENTS } from "../randomIncidents";
+import { RANDOM_INCIDENTS, pressChoicesForIncident, randomIncidentById } from "../randomIncidents";
 import { seededRng } from "../rng";
 import { absoluteWeek, fromAbsoluteWeek } from "../time";
 import type { GameState } from "../types";
@@ -40,6 +40,23 @@ function pressIncidentWeek() {
     if (incident?.press) return week;
   }
   return 0;
+}
+
+console.log("\n[PC0] Incident-specific dialogue");
+{
+  const cyber = randomIncidentById("data-breach");
+  const catering = randomIncidentById("catering-hygiene");
+  check("cyber incident fixture exists", !!cyber);
+  check("catering incident fixture exists", !!catering);
+  if (cyber && catering) {
+    const cyberAnswers = pressChoicesForIncident(cyber, "partial");
+    const cateringAnswers = pressChoicesForIncident(catering, "partial");
+    check(
+      "incident opening answers are topic-specific",
+      cyberAnswers[0]?.label !== cateringAnswers[0]?.label &&
+        /data|breach|supporter/i.test(cyberAnswers[0]?.label ?? ""),
+    );
+  }
 }
 
 console.log("\n[PC1] Atomic multi-turn resolution");

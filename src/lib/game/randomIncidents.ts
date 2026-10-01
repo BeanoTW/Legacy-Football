@@ -497,12 +497,99 @@ export function pressChoicesForIncident(
   decisionId: string,
 ): InboxChoice[] {
   const risky = incident.press?.riskyChoices?.includes(decisionId) ?? false;
+
+  type IncidentPressTheme = {
+    transparent: string;
+    reassure: string;
+    dismiss: string;
+  };
+
+  const theme = (): IncidentPressTheme => {
+    switch (incident.id) {
+      case "data-breach":
+        return {
+          transparent:
+            "Supporters trusted us with their data. We had a duty to act, explain what happened and make sure the same weakness cannot be exploited twice.",
+          reassure:
+            "The priority is containing the breach, protecting supporters and getting independent assurance that the systems are secure.",
+          dismiss:
+            "I'm not going to speculate publicly about a live security incident. We'll release verified facts, not feed rumours.",
+        };
+      case "ticketing-outage":
+        return {
+          transparent:
+            "People should be able to buy a ticket without fighting our systems. We got that wrong, and the measure now is whether the next home game works properly.",
+          reassure:
+            "The immediate job is getting supporters through the turnstiles without more disruption. That's where the club's attention is.",
+          dismiss:
+            "The provider failed and we've responded. I'm not going to turn a technical outage into a week-long drama.",
+        };
+      case "catering-hygiene":
+        return {
+          transparent:
+            "If supporters buy food inside our ground, the minimum they should expect is that it is safe. We take responsibility for fixing the standards that fell short.",
+          reassure:
+            "The affected operation is being dealt with and the club will not compromise on hygiene just to keep a kiosk open.",
+          dismiss:
+            "The report is being addressed properly. I'm not going to exaggerate it beyond what the inspectors actually found.",
+        };
+      case "stadium-security":
+        return {
+          transparent:
+            "Supporter safety is not a line item we gamble with. We assessed the risk, chose a response and we'll be accountable for whether it works.",
+          reassure:
+            "The ground will operate with the safeguards we believe are necessary. If that assessment changes, we act again.",
+          dismiss:
+            "I reject the suggestion that the club is casual about safety. We have professional advice and we're acting on it.",
+        };
+      case "storm-damage":
+      case "floodlight-inspection":
+      case "pitch-drainage":
+        return {
+          transparent:
+            "The ground has to be safe and capable of staging football. We balanced the immediate risk against the repair options and made a decision we can defend.",
+          reassure:
+            "We have a workable plan in place and the operations team knows exactly what needs monitoring before the next fixture.",
+          dismiss:
+            "Every ground has maintenance issues. This one is being managed and I'm not going to pretend it is a crisis when it isn't.",
+        };
+      case "away-travel-support":
+        return {
+          transparent:
+            "Following this club costs supporters real money. We have to decide where the club can genuinely help rather than pretending that pressure doesn't exist.",
+          reassure:
+            "We want away support to remain accessible, but any help has to be sustainable across the season rather than a one-off headline.",
+          dismiss:
+            "We cannot underwrite every cost attached to following a football club. There has to be a line somewhere.",
+        };
+      case "community-fundraiser":
+        return {
+          transparent:
+            "A club should have value outside ninety minutes on a Saturday. We looked at what the project would actually deliver locally before making the call.",
+          reassure:
+            "We want a genuine community relationship, not a photo opportunity. Any commitment has to be something the club can maintain.",
+          dismiss:
+            "There are many worthwhile causes and the club cannot fund every one of them. Saying no does not mean we do not care.",
+        };
+      default:
+        return {
+          transparent: risky
+            ? "There was a genuine risk in the decision and I won't pretend otherwise. We weighed it properly and made the call we believed was right."
+            : "We looked at the facts, made the decision and we'll take responsibility for how it turns out.",
+          reassure:
+            "Every decision has to protect the club beyond one news cycle. That's what guided us here.",
+          dismiss: risky
+            ? "I think some of the criticism goes too far. We made a considered decision and I stand by it."
+            : "I don't think this needs to become a bigger story. We've dealt with the issue and we're moving on.",
+        };
+    }
+  };
+
+  const copy = theme();
   return [
     {
       id: "transparent",
-      label: risky
-        ? "There was a risk in the decision and I won't pretend otherwise. We weighed it up and made the call we believed was right."
-        : "We looked at the facts, made the decision and we'll take responsibility for how it turns out.",
+      label: copy.transparent,
       effects: [
         { kind: "reputation", delta: risky ? 2 : 1 },
         { kind: "fanHappiness", delta: 1 },
@@ -510,7 +597,7 @@ export function pressChoicesForIncident(
     },
     {
       id: "reassure",
-      label: "Every decision we make has to protect the club in the long term. That's what guided us here.",
+      label: copy.reassure,
       effects: [
         { kind: "fanHappiness", delta: risky ? 0 : 1 },
         { kind: "reputation", delta: risky ? 0 : 1 },
@@ -518,9 +605,7 @@ export function pressChoicesForIncident(
     },
     {
       id: "dismiss",
-      label: risky
-        ? "I think the criticism is overblown. We made the decision and I stand by it."
-        : "I don't think there's much of a story here. We've dealt with it and we're moving on.",
+      label: copy.dismiss,
       effects: [
         { kind: "fanHappiness", delta: risky ? -2 : -1 },
         { kind: "reputation", delta: risky ? -3 : -1 },

@@ -2359,23 +2359,54 @@ function calendarPressChoices(s: GameState, context: CalendarPressContext): Inbo
     ];
   }
 
+  const copy: Record<Exclude<CalendarPressContext, "season-preview">, [string, string, string]> = {
+    "summer-window-open": [
+      "We have clear positions we want to improve, but value and fit matter more than simply making signings.",
+      "We're comfortable with the squad we have and we'll only move if the right opportunity appears.",
+      "I'm not going to advertise our transfer plans to every club and agent in the market.",
+    ],
+    "summer-window-review": [
+      "Some business worked exactly as planned and some didn't. The important thing now is whether the squad is stronger for the season ahead.",
+      "We're satisfied with the balance of the squad and the manager has what he needs to get on with the job.",
+      "The window is closed. I'm not going to grade every deal for headlines before the team has played.",
+    ],
+    "midseason-checkpoint": [
+      "There are things we've done well and things the numbers say need to improve. We have to be clear-eyed about both.",
+      "We're broadly on the path we expected. The second half is about improving the details rather than tearing up the plan.",
+      "We're halfway through a season, not at the end of one. I'm not interested in declaring success or failure yet.",
+    ],
+    "winter-window-preview": [
+      "We'll look at where the manager genuinely needs help, but January business still has to make sense beyond the next six weeks.",
+      "We're not going into the window desperate. If the right player is there we'll act; if not, we won't force it.",
+      "I'm not discussing targets or positions while other clubs and agents are listening.",
+    ],
+    "winter-window-review": [
+      "We addressed some needs and deliberately left others alone. Now those decisions have to prove themselves in the run-in.",
+      "The squad is in a position to finish the season strongly and we didn't compromise the club to get there.",
+      "The market is shut. The useful discussion now is what this squad does with the games in front of it.",
+    ],
+    "season-review": [
+      "We'll judge the year properly: results, finances, squad development and whether the club is stronger than it was twelve months ago.",
+      "There has been progress and there are clear lessons. We need to use both when we build the next season.",
+      "I'm not reducing an entire season to one line tonight. The proper review happens with the board and manager.",
+    ],
+  };
+
+  const [transparent, reassure, dismiss] = copy[context];
   return [
     {
       id: "transparent",
-      label: "We know exactly what we want to achieve, and we'll be judged on whether we deliver it.",
-      effects: [
-        { kind: "reputation", delta: 1 },
-        { kind: "fanHappiness", delta: 1 },
-      ],
+      label: transparent,
+      effects: [{ kind: "reputation", delta: 1 }, { kind: "fanHappiness", delta: 1 }],
     },
     {
       id: "reassure",
-      label: "We're comfortable with the plan we have in place. We won't make decisions just for the sake of headlines.",
+      label: reassure,
       effects: [{ kind: "reputation", delta: 1 }],
     },
     {
       id: "dismiss",
-      label: "Our business is our business. I'm not going to conduct it through the press.",
+      label: dismiss,
       effects: [{ kind: "reputation", delta: -1 }],
     },
   ];

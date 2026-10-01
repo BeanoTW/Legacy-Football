@@ -69,6 +69,34 @@ console.log("\n[CP1b] Veteran calendar restores the window-opening briefing");
   );
 }
 
+console.log("\n[CP1c] Calendar meetings do not reuse the same script");
+{
+  let summer = fixture();
+  summer.season = 2;
+  summer.week = 1;
+  summer = runWeeklyGenerators(summer);
+  const summerItem = summer.inbox.find((candidate) => candidate.generatorId === "calendar-press");
+
+  let winter = fixture();
+  winter.week = 23;
+  winter = runWeeklyGenerators(winter);
+  const winterItem = winter.inbox.find((candidate) => candidate.generatorId === "calendar-press");
+
+  check(
+    "summer and winter opening answers differ",
+    !!summerItem?.choices?.[0] &&
+      !!winterItem?.choices?.[0] &&
+      summerItem.choices[0].label !== winterItem.choices[0].label,
+  );
+
+  const summerRound = calendarPressRound(summer, "summer-window-open", 2, ["transparent"]);
+  const seasonRound = calendarPressRound(summer, "season-review", 2, ["transparent"]);
+  check(
+    "follow-up answer sets vary by conference context",
+    summerRound.answers[0].label !== seasonRound.answers[0].label,
+  );
+}
+
 console.log("\n[CP2] Non-event week stays quiet");
 {
   let state = fixture();
