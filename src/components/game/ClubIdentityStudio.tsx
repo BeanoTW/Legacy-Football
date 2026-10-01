@@ -15,17 +15,19 @@ import {
   cleanInitials,
   cleanSponsor,
   cleanYear,
-  clubKitFor,
+  clubKitForReference,
   defaultAwayKit,
   kitFromBadge,
   randomClubKit,
-  setClubKit,
+  setClubKitForReference,
   type BadgeDesign,
   type ClubKitState,
   type KitDesign,
 } from "@/lib/game/clubKit";
 import { ClubBadge, ClubShirt } from "./ClubKitArt";
 import { cleanClubNickname, clubNickname, setClubNickname } from "@/lib/game/character";
+import { canonicalClubReference, clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
+import { renameRegisteredClubInPlace } from "@/lib/game/clubIdentity";
 
 type Section = "badge" | "home" | "away";
 
@@ -87,18 +89,21 @@ export function ClubIdentitySheet({
   onOpenChange,
   state,
   update,
+  clubRef,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   state: GameState;
   update: (fn: (s: GameState) => GameState) => void;
+  /** Omit for the user's club; pass any world club reference to edit that club. */
+  clubRef?: string;
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="flex max-h-[94dvh] flex-col gap-0 overflow-hidden rounded-t-2xl p-0 md:inset-x-auto md:right-4 md:bottom-4 md:w-[34rem] md:rounded-2xl md:border">
         <SheetTitle className="sr-only">Club identity</SheetTitle>
         <SheetDescription className="sr-only">Design your club badge, home kit and away kit.</SheetDescription>
-        {open ? <ClubIdentityStudio state={state} update={update} onDone={() => onOpenChange(false)} /> : null}
+        {open ? <ClubIdentityStudio state={state} update={update} clubRef={clubRef} onDone={() => onOpenChange(false)} /> : null}
       </SheetContent>
     </Sheet>
   );
@@ -108,19 +113,30 @@ export function ClubIdentityStudio({
   state,
   update,
   onDone,
+  clubRef,
 }: {
   state: GameState;
   update: (fn: (s: GameState) => GameState) => void;
   onDone?: () => void;
+  clubRef?: string;
 }) {
-  const saved = useMemo(() => clubKitFor(state), [state]);
-  const savedNickname = useMemo(() => clubNickname(state), [state]);
+  const targetRef = clubRef ?? state.clubName;
+  const canonical = useMemo(() => canonicalClubReference(state, targetRef), [state, targetRef]);
+  const isOwnClub = isUserClubReference(state, targetRef);
+  const saved = useMemo(() => clubKitForReference(state, targetRef), [state, targetRef]);
+  const savedName = useMemo(() => clubDisplayName(state, targetRef), [state, targetRef]);
+  const savedNickname = useMemo(() => isOwnClub ? clubNickname(state) : "", [state, isOwnClub]);
   const [draft, setDraft] = useState<ClubKitState>(saved);
+  const [draftName, setDraftName] = useState(savedName);
   const [draftNickname, setDraftNickname] = useState(savedNickname);
   const [section, setSection] = useState<Section>("badge");
   const [justSaved, setJustSaved] = useState(false);
-  const dirty = JSON.stringify(draft) !== JSON.stringify(saved) || draftNickname !== savedNickname;
-  const name = state.clubName;
+  const cleanName = draftName.trim().replace(/\s+/g, " ").slice(0, 42);
+  const dirty =
+    JSON.stringify(draft) !== JSON.stringify(saved) ||
+    cleanName !== savedName ||
+    (isOwnClub && draftNickname !== savedNickname);
+  const name = cleanName || savedName;
 
   const setBadge = (patch: Partial<BadgeDesign>) => {
     setJustSaved(false);
@@ -132,7 +148,25 @@ export function ClubIdentityStudio({
   };
 
   const save = () => {
-    update((current) => setClubNickname(setClubKit(current, draft), draftNickname));
+    if (!cleanName) return;
+    update((current) => {
+      const target = canonicalClubReference(current, targetRef);
+      let next: GameState = {
+        ...current,
+        clubIdentity: current.clubIdentity
+          ? {
+              ...current.clubIdentity,
+              clubsById: Object.fromEntries(
+                Object.entries(current.clubIdentity.clubsById).map(([id, club]) => [id, { ...club }]),
+              ),
+            }
+          : undefined,
+      };
+      renameRegisteredClubInPlace(next, target, cleanName);
+      next = setClubKitForReference(next, target, draft);
+      if (isUserClubReference(next, target)) next = setClubNickname(next, draftNickname);
+      return next;
+    });
     setJustSaved(true);
   };
 
@@ -182,13 +216,33 @@ export function ClubIdentityStudio({
 
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain bg-card px-4 py-4">
         {section === "badge" ? (
-          <BadgeEditor
-            badge={draft.badge}
-            name={name}
-            nickname={draftNickname}
-            onNicknameChange={(value) => { setJustSaved(false); setDraftNickname(cleanClubNickname(value)); }}
-            onChange={setBadge}
-          />
+          <>
+            <Field title="Club details">
+              <div className="space-y-3">
+                <TextField
+                  label="Club name"
+                  value={draftName}
+                  maxLength={42}
+                  placeholder="Club name"
+                  onChange={(value) => { setJustSaved(false); setDraftName(value); }}
+                />
+                {isOwnClub ? (
+                  <TextField
+                    label="Nickname"
+                    value={draftNickname}
+                    maxLength={28}
+                    placeholder="The Railwaymen"
+                    onChange={(value) => { setJustSaved(false); setDraftNickname(cleanClubNickname(value)); }}
+                  />
+                ) : null}
+              </div>
+            </Field>
+            <BadgeEditor
+              badge={draft.badge}
+              name={name}
+              onChange={setBadge}
+            />
+          </>
         ) : (
           <KitEditor
             which={section}
@@ -209,7 +263,7 @@ export function ClubIdentityStudio({
           variant="ghost"
           size="sm"
           disabled={!dirty}
-          onClick={() => { setJustSaved(false); setDraft(saved); setDraftNickname(savedNickname); }}
+          onClick={() => { setJustSaved(false); setDraft(saved); setDraftName(savedName); setDraftNickname(savedNickname); }}
         >
           <RotateCcw /> Undo changes
         </Button>
@@ -401,27 +455,14 @@ function TextField({ label, value, onChange, placeholder, inputMode, maxLength }
 function BadgeEditor({
   badge,
   name,
-  nickname,
-  onNicknameChange,
   onChange,
 }: {
   badge: BadgeDesign;
   name: string;
-  nickname: string;
-  onNicknameChange: (value: string) => void;
   onChange: (patch: Partial<BadgeDesign>) => void;
 }) {
   return (
     <>
-      <Field title="Club details">
-        <TextField
-          label="Nickname"
-          value={nickname}
-          maxLength={28}
-          placeholder="The Railwaymen"
-          onChange={onNicknameChange}
-        />
-      </Field>
       <Field title="Shape">
         <OptionGrid
           options={BADGE_SHAPES}
