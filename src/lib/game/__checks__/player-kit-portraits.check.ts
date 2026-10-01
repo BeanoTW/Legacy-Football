@@ -53,4 +53,20 @@ assert(
   "club identity never enters the deterministic face generator",
 );
 
-console.log("\n8 passed, 0 failed");
+const studio = readFileSync("src/components/game/CharacterPortraitStudio.tsx", "utf8");
+const chairmanStudio = readFileSync("src/components/game/ChairmanStudio.tsx", "utf8");
+
+assert(
+  studio.includes('hideOutfit={identity.subject === "player"}'),
+  "player appearance editor hides outfit controls",
+);
+assert(
+  studio.includes('kit={identity.subject === "player" ? kit ?? null : undefined}'),
+  "player appearance preview keeps the club shirt on while editing",
+);
+assert(
+  chairmanStudio.includes("hideOutfit = false") && chairmanStudio.includes("!hideOutfit"),
+  "outfit editing remains available for non-player portraits",
+);
+
+console.log("\n11 passed, 0 failed");
