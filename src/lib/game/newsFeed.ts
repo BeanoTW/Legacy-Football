@@ -499,7 +499,7 @@ function livingClubArticles(state: GameState): NewsArticle[] {
       continue;
     }
 
-    if (item.generatorId === "random-incident-press" && item.status === "completed" && item.pressConference) {
+    if ((item.generatorId === "random-incident-press" || item.generatorId === "calendar-press") && item.status === "completed" && item.pressConference) {
       const key = `press-conference|${item.eventKey}`;
       const subject = item.subject.replace(/^Press conference\s*[—-]\s*/i, "").replace(/[.!?]+$/, "");
       const exchanges = item.pressConference.exchanges;
