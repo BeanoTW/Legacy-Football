@@ -28,7 +28,6 @@ function fixture(): GameState {
 }
 
 const expected: Record<number, string> = {
-  1: "summer-window-open",
   4: "season-preview",
   10: "summer-window-review",
   20: "midseason-checkpoint",
@@ -54,6 +53,20 @@ for (const [weekText, context] of Object.entries(expected)) {
   const repeated = runWeeklyGenerators(state);
   const copies = repeated.inbox.filter((candidate) => candidate.eventKey === item?.eventKey).length;
   check(`week ${week} dedupes on rerun`, copies === 1, `copies=${copies}`);
+}
+
+console.log("\n[CP1b] Veteran calendar restores the window-opening briefing");
+{
+  let veteran = fixture();
+  veteran.season = 2;
+  veteran.week = 1;
+  veteran = runWeeklyGenerators(veteran);
+  const item = veteran.inbox.find((candidate) => candidate.generatorId === "calendar-press");
+  check(
+    "season 2 week 1 emits summer-window-open",
+    !!item && item.eventKey.includes(":summer-window-open:"),
+    item?.eventKey,
+  );
 }
 
 console.log("\n[CP2] Non-event week stays quiet");
@@ -128,6 +141,10 @@ console.log("\n[CP4] New-save onboarding only");
     "opening week contains role/world onboarding",
     state.inbox.some((item) => item.eventKey === "new-save-onboarding:your-role") &&
       state.inbox.some((item) => item.eventKey === "new-save-onboarding:living-world"),
+  );
+  check(
+    "new save gets no formal press conference in week 1",
+    !state.inbox.some((item) => item.generatorId === "calendar-press"),
   );
   check(
     "welcome is informational rather than a fake decision",
