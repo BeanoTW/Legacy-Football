@@ -515,7 +515,7 @@ function livingClubArticles(state: GameState): NewsArticle[] {
         body: [
           item.generatorId === "calendar-press"
             ? `The ${us} chairman faced ${exchanges.length} questions at a scheduled club media briefing.`
-            : `The ${us} chairman faced ${exchanges.length} questions after the club\'s recent decision became a public talking point.`,
+            : `The ${us} chairman faced ${exchanges.length} questions after the club's recent decision became a public talking point.`,
           ...exchanges.map(
             (exchange, index) =>
               `Q${index + 1}: ${exchange.question} Chairman response: ${exchange.answer}.`,
