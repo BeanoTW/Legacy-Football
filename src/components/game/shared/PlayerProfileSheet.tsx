@@ -609,15 +609,16 @@ export function PlayerProfileSheet({
             </section>
           )}
 
-          <section className="grid grid-cols-2 gap-2">
+          <section className="grid grid-cols-2 gap-2 rounded-2xl border border-emerald-950/10 bg-white/70 p-2 shadow-sm dark:border-white/10 dark:bg-white/[0.035]">
             <Fact label="Potential" value={fullKnowledge ? String(player.potentialAbility) : "?"} />
             <Fact label="Value" value={owned ? fmtMoneyExact(player.marketValue) : hasScouting ? moneyRange(report?.valueRange) : "?"} />
             <Fact label={owned ? "Wage" : "Expected wage"} value={owned ? contract ? `${fmtMoneyExact(contract.weeklyWage)}/wk` : "—" : hasScouting ? `${moneyRange(report?.wageRange)}/wk` : "?"} />
             <Fact label="Knowledge" value={owned ? "Full club" : `${knowledge}%`} />
           </section>
 
-          <section className="rounded-xl border bg-card p-3">
-            <div className="mb-2 flex items-center justify-between">
+          <section className="overflow-hidden rounded-2xl border border-emerald-950/10 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
+            <div className="border-b border-emerald-950/10 bg-gradient-to-r from-emerald-50 to-white p-3 dark:border-white/10 dark:from-emerald-950/20 dark:to-transparent">
+              <div className="flex items-center justify-between">
               <div>
                 <div className="font-display text-lg">{owned ? "Player attributes" : "Scouting profile"}</div>
                 <div className="text-[10px] text-muted-foreground">
@@ -633,7 +634,9 @@ export function PlayerProfileSheet({
                 </div>
               </div>
               <div className="font-display text-xl">{knowledge}%</div>
+              </div>
             </div>
+            <div className="p-3">
             {attributeIdentity && (
               <div className="mb-2 rounded-lg border bg-muted/30 px-2.5 py-2">
                 <div className="flex items-center justify-between gap-2">
@@ -690,6 +693,7 @@ export function PlayerProfileSheet({
             ) : (
               <div className="text-sm text-muted-foreground">No scouting information is available yet.</div>
             )}
+            </div>
           </section>
 
           <section className="grid grid-cols-2 gap-2">
@@ -753,9 +757,9 @@ function PositionChip({
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border bg-card px-3 py-2.5">
+    <div className="rounded-xl border border-emerald-950/10 bg-white px-3 py-2.5 shadow-[0_1px_0_rgba(6,78,59,0.03)] dark:border-white/10 dark:bg-white/[0.035]">
       <div className="font-display text-lg leading-tight">{value}</div>
-      <div className="mt-0.5 text-[8px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{label}</div>
     </div>
   );
 }
