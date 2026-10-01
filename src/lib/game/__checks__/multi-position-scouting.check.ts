@@ -1,0 +1,50 @@
+import { readFileSync } from "node:fs";
+import { newGame } from "../engine";
+import { createScoutingBrief, scoutingSearchPlan } from "../scoutingDiscovery";
+
+function assert(condition: unknown, message: string): asserts condition {
+  if (!condition) throw new Error(message);
+  console.log("  ✓ " + message);
+}
+
+console.log("\n[MULTI-POSITION-SCOUTING] Staff quality controls brief breadth");
+
+const low = newGame("Low Scout FC", "Tester", "LOW-SCOUT");
+low.hiredStaff = [];
+low.football.department.recruitmentRating = 35;
+assert(scoutingSearchPlan(low).positionCapacity === 1, "low-level recruitment team can cover one broad position");
+
+const mid = structuredClone(low);
+mid.football.department.recruitmentRating = 55;
+assert(scoutingSearchPlan(mid).positionCapacity === 2, "developing recruitment team can cover two broad positions");
+
+const strong = structuredClone(low);
+strong.football.department.recruitmentRating = 70;
+assert(scoutingSearchPlan(strong).positionCapacity === 3, "strong recruitment team can cover three broad positions");
+
+const elite = structuredClone(low);
+elite.football.department.recruitmentRating = 85;
+assert(scoutingSearchPlan(elite).positionCapacity === 4, "elite recruitment team can cover all four broad positions");
+
+const limited = createScoutingBrief(low, {
+  id: "low-multi",
+  positions: ["GK", "DEF", "MID", "FWD"],
+});
+const lowBrief = limited.football.scoutingDiscovery?.briefs.find((brief) => brief.id === "low-multi");
+assert(lowBrief?.positions?.length === 1, "engine enforces staff position capacity even if UI is bypassed");
+
+const wide = createScoutingBrief(elite, {
+  id: "elite-multi",
+  positions: ["GK", "DEF", "MID", "FWD"],
+});
+const eliteBrief = wide.football.scoutingDiscovery?.briefs.find((brief) => brief.id === "elite-multi");
+assert(eliteBrief?.positions?.length === 4, "elite brief persists all four selected positions");
+
+const ui = readFileSync("src/components/game/ScoutingBriefBuilder.tsx", "utf8");
+assert(
+  ui.includes("positions.length >= plan.positionCapacity") &&
+    ui.includes("your team can cover up to"),
+  "brief builder visibly limits multi-position selection by scouting capacity",
+);
+
+console.log("\n7 passed, 0 failed");
