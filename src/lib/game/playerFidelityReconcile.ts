@@ -124,11 +124,9 @@ export function compactDepartingFocusPlayersInPlace(state: GameState): void {
  * ids; ability/DOB/position/name continuity therefore survives the boundary
  * without changing the club's freshly calculated wage load.
  *
- * The legacy detailed generator currently creates a slightly larger squad than
- * the compact Fringe representation. That surplus is placeholder detail, not
- * additional persistent people: a clean hydration consumes only enough
- * contract templates for the compact squad and removes every generated
- * placeholder for the club.
+ * Detailed and compact club squads now share the same 30-player opening
+ * footprint. A clean hydration rebinds those contract templates to the
+ * persistent compact identities and removes any generated placeholders.
  */
 export function repairFreshFocusHydrationInPlace(state: GameState): void {
   if (!state.football || !state.fringePlayers) return;
