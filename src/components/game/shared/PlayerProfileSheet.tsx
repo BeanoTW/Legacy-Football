@@ -484,7 +484,7 @@ export function PlayerProfileSheet({
   return (
     <Sheet open onOpenChange={(open) => !open && setPlayerId(null)}>
       <SheetContent side="right" hideClose className="w-[96vw] overflow-y-auto border-l-0 bg-[#edf5f2] p-0 sm:max-w-md dark:bg-[#071713]">
-        <CharacterPortraitStudio identity={{ id: player.id, subject: "player" }} name={playerName(player)} open={portraitEditing} onOpenChange={setPortraitEditing} />
+        <CharacterPortraitStudio identity={{ id: player.id, subject: "player" }} name={playerName(player)} kit={shirt} open={portraitEditing} onOpenChange={setPortraitEditing} />
         <Button
           type="button"
           variant="ghost"
