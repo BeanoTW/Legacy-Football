@@ -3,6 +3,15 @@ import type { RandomIncidentDefinition } from "./randomIncidents";
 import { journalistQuestionPressure, type JournalistProfile } from "./mediaRelations";
 
 export type PressTone = "transparent" | "reassure" | "dismiss";
+export type CalendarPressContext =
+  | "summer-window-open"
+  | "season-preview"
+  | "summer-window-review"
+  | "midseason-checkpoint"
+  | "winter-window-preview"
+  | "winter-window-review"
+  | "season-review";
+
 
 export interface PressAnswer {
   id: PressTone;
@@ -161,6 +170,59 @@ export function pressRoundThree(
 
   return { question, answers: answers(3, risky) };
 }
+
+
+export function calendarPressRound(
+  state: GameState,
+  context: CalendarPressContext,
+  round: 2 | 3,
+  previousTones: PressTone[],
+  journalist?: JournalistProfile,
+): PressRound {
+  const pressure = journalist ? journalistQuestionPressure(state, journalist) : "normal";
+  const combative = previousTones.includes("dismiss");
+  const club = state.clubName;
+
+  const roundTwoQuestions: Record<CalendarPressContext, string> = {
+    "summer-window-open": "What would make this transfer window a successful one for the club?",
+    "season-preview": "What should supporters realistically expect from this team once the competitive season begins?",
+    "summer-window-review": "Now the summer window has closed, are you satisfied that the squad is stronger than it was when the window opened?",
+    "midseason-checkpoint": "At this point in the season, what has pleased you most and what still has to improve?",
+    "winter-window-preview": "With the mid-season window about to open, where does the squad most need help?",
+    "winter-window-review": "The mid-season window is over. Did the club do enough business to meet its football objectives?",
+    "season-review": "Looking back over the season as a whole, what is the biggest lesson the club should take from it?",
+  };
+
+  const roundThreeQuestions: Record<CalendarPressContext, string> = {
+    "summer-window-open": "Before we finish, is there a clear recruitment principle you will not compromise on this summer?",
+    "season-preview": "What would you personally regard as a successful season for " + club + "?",
+    "summer-window-review": "If this squad falls short, will you accept responsibility for the decisions made during the window?",
+    "midseason-checkpoint": "What is the single priority for the second half of the season?",
+    "winter-window-preview": "Can supporters expect action, or should they prepare for a quiet window?",
+    "winter-window-review": "What should supporters judge the club on between now and the end of the season?",
+    "season-review": "What is the first thing that has to change before next season begins?",
+  };
+
+  let question = round === 2 ? roundTwoQuestions[context] : roundThreeQuestions[context];
+
+  if (journalist?.style === "financial" && context.includes("window")) {
+    question =
+      round === 2
+        ? "How much room does the club genuinely have to manoeuvre financially, and will value matter more than volume?"
+        : "Can you assure supporters the club has not weakened its financial position to complete this business?";
+  } else if (journalist?.style === "supporter" && pressure !== "soft") {
+    question += " What should the people in the stands hold you accountable for?";
+  } else if (journalist?.style === "confrontational" || pressure === "hard") {
+    question += combative
+      ? " You have been defensive so far, so give us a direct answer."
+      : " I want a concrete answer rather than a general club message.";
+  } else if (pressure === "soft") {
+    question = "You have built a good working relationship with the local press, so let me ask this plainly: " + question;
+  }
+
+  return { question, answers: answers(round, false) };
+}
+
 
 export function pressOutcomeLabel(tones: PressTone[]): string {
   const transparent = tones.filter((tone) => tone === "transparent").length;
