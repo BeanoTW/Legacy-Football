@@ -33,6 +33,7 @@ import {
 } from "@/lib/game/matchSequence";
 import { motionFrameForSequence } from "@/lib/game/matchMotion";
 import { cn } from "@/lib/utils";
+import type { MatchdayGroundPresentation } from "@/lib/game/groundPresentation";
 import {
   enterMatch,
   exitMatch,
@@ -1020,6 +1021,86 @@ function PitchMarkings() {
   );
 }
 
+function MatchGroundFrame({ ground }: { ground: MatchdayGroundPresentation }) {
+  const stage = Math.max(0, Math.min(6, Math.round(ground.stage)));
+  const fill = Math.max(0, Math.min(100, ground.fillPercent));
+  const standDepth = 2.8 + stage * 0.45;
+  const crowdAlpha = 0.12 + (fill / 100) * 0.45;
+  const crowdPattern = {
+    backgroundImage: `radial-gradient(circle at 2px 2px, rgba(255,255,255,${crowdAlpha.toFixed(2)}) 1px, transparent 1.35px)`,
+    backgroundSize: stage >= 4 ? "4px 4px" : "5px 5px",
+  };
+  const standBase = "pointer-events-none absolute z-[2] overflow-hidden border-white/10 bg-[#19231f]/80 shadow-inner";
+
+  return (
+    <>
+      <div
+        aria-hidden="true"
+        className={cn(standBase, "inset-x-0 bottom-0 border-t")}
+        style={{ height: `${standDepth}%`, ...crowdPattern }}
+      />
+      {stage >= 1 && (
+        <div
+          aria-hidden="true"
+          className={cn(standBase, "inset-x-0 top-0 border-b")}
+          style={{ height: `${standDepth}%`, ...crowdPattern }}
+        />
+      )}
+      {stage >= 2 && (
+        <div
+          aria-hidden="true"
+          className={cn(standBase, "inset-y-0 left-0 border-r")}
+          style={{ width: `${Math.max(1.5, standDepth * 0.62)}%`, ...crowdPattern }}
+        />
+      )}
+      {stage >= 3 && (
+        <div
+          aria-hidden="true"
+          className={cn(standBase, "inset-y-0 right-0 border-l")}
+          style={{ width: `${Math.max(1.5, standDepth * 0.62)}%`, ...crowdPattern }}
+        />
+      )}
+
+      {stage >= 4 && (
+        <>
+          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 z-[3] h-[1.7%] bg-black/55 shadow-[0_3px_10px_rgba(0,0,0,.45)]" />
+          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 z-[3] h-[1.7%] bg-black/55 shadow-[0_-3px_10px_rgba(0,0,0,.45)]" />
+        </>
+      )}
+
+      {stage >= 2 && (
+        <>
+          {[
+            "left-[1.5%] top-[1.5%]",
+            "right-[1.5%] top-[1.5%]",
+            "left-[1.5%] bottom-[1.5%]",
+            "right-[1.5%] bottom-[1.5%]",
+          ].map((position) => (
+            <span
+              key={position}
+              aria-hidden="true"
+              className={cn(
+                "pointer-events-none absolute z-[4] h-[6%] w-[0.65%] min-w-px rounded-t bg-slate-200/70 shadow-[0_0_8px_rgba(255,255,255,.28)]",
+                position,
+              )}
+            />
+          ))}
+        </>
+      )}
+
+      <div className="pointer-events-none absolute right-2 top-2 z-30 max-w-[48%] rounded-lg border border-white/15 bg-black/60 px-2 py-1 text-right shadow-sm backdrop-blur-sm">
+        <div className="truncate text-[8px] font-black uppercase tracking-[0.14em] text-white/55">
+          Home ground · Stage {stage + 1}
+        </div>
+        <div className="truncate text-[9px] font-semibold text-white/90">{ground.shortName}</div>
+        <div className="text-[8px] text-white/50">
+          {ground.attendance.toLocaleString()} / {ground.capacity.toLocaleString()} · {fill}% full
+        </div>
+      </div>
+    </>
+  );
+}
+
 function renderSide(
   engine: Engine,
   lineup: MatchLineupPlayer[],
@@ -1073,6 +1154,7 @@ export function MatchPitchViewer({
   expanded = false,
   userColours,
   opponentColours,
+  ground,
 }: {
   events: MatchEvent[];
   usName: string;
@@ -1092,6 +1174,8 @@ export function MatchPitchViewer({
   /** Kit colours for each side's player dots. Falls back to green and red. */
   userColours?: DotColours;
   opponentColours?: DotColours;
+  /** Home ground only. Omitted for away fixtures so we never pretend the user's stadium travelled. */
+  ground?: MatchdayGroundPresentation;
 }) {
   const [viewMode, setViewMode] = useState<ViewMode>("condensed");
   // Phones follow the ball; the expanded (large) view shows the whole pitch.
@@ -1291,7 +1375,8 @@ export function MatchPitchViewer({
           expanded ? "aspect-[1.58/1] max-h-[calc(100dvh-17rem)] flex-1" : "aspect-[1.62/1] max-h-52",
         )}
       >
-        <div ref={engine.layerRef} className="absolute inset-0 will-change-transform">
+        {ground && <MatchGroundFrame ground={ground} />}
+        <div ref={engine.layerRef} className="absolute inset-0 z-10 will-change-transform">
         <PitchMarkings />
 
         {showPassLine && activeAction && (

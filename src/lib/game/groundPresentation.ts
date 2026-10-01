@@ -82,6 +82,35 @@ export function groundProgression(state: GameState) {
   };
 }
 
+export interface MatchdayGroundPresentation {
+  stage: number;
+  stageName: string;
+  shortName: string;
+  capacity: number;
+  attendance: number;
+  fillPercent: number;
+}
+
+export function matchdayGroundPresentation(
+  state: GameState,
+  home: boolean,
+  attendance: number,
+): MatchdayGroundPresentation | null {
+  if (!home) return null;
+  const progression = groundProgression(state);
+  const snapshot = infrastructureSnapshot(state);
+  const capacity = Math.max(1, snapshot.usableCapacity || snapshot.capacity || 1);
+  const boundedAttendance = Math.max(0, Math.min(capacity, Math.round(attendance)));
+  return {
+    stage: progression.visualStage,
+    stageName: progression.current.name,
+    shortName: progression.current.shortName,
+    capacity,
+    attendance: boundedAttendance,
+    fillPercent: Math.max(0, Math.min(100, Math.round((boundedAttendance / capacity) * 100))),
+  };
+}
+
 export function facilityCurrentEffect(asset: InfrastructureAsset) {
   const levelName = ASSET_CONFIG[asset.type].levels[asset.level - 1] ?? `Level ${asset.level}`;
   if (asset.type === "stand") return `${levelName} · ${asset.usableCapacity.toLocaleString()} usable places`;

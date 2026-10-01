@@ -31,6 +31,7 @@ import { userSelectionStrengthPenalty } from "@/lib/game/matchStrength";
 import { inFormPlayers } from "@/lib/game/playerForm";
 import { userSquad } from "@/lib/game/recruitment";
 import { clubKitFor, clubKitForReference, readableOn, type KitDesign } from "@/lib/game/clubKit";
+import { matchdayGroundPresentation } from "@/lib/game/groundPresentation";
 import { ClubBadge, ClubShirt } from "./ClubKitArt";
 
 const MATCH_CSS = `
@@ -95,6 +96,7 @@ export function MatchDayOverlay({
   const home = lm.fixture.home;
   const homeName = home ? usName : themName;
   const awayName = home ? themName : usName;
+  const groundPresentation = matchdayGroundPresentation(state, home, lm.projectedAttendance);
 
   // Identities: the user's saved design plus the opposition's stable world identity.
   const ours = clubKitFor(state);
@@ -437,6 +439,7 @@ export function MatchDayOverlay({
                   expanded={!finishedReplay}
                   userColours={dotColours(ourKit)}
                   opponentColours={dotColours(theirKit)}
+                  ground={groundPresentation ?? undefined}
                 />
                 {finishedReplay ? (
                   <>
