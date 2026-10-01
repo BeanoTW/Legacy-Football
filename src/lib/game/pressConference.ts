@@ -14,7 +14,10 @@ export type CalendarPressContext =
 
 
 export interface PressAnswer {
-  id: PressTone;
+  /** Stable answer id. Calendar conferences can use semantic statement ids. */
+  id: string;
+  /** Behavioural tone used for journalist pressure/outcome calculation. */
+  tone: PressTone;
   label: string;
   hint: string;
   effects: InboxEffect[];
@@ -34,6 +37,7 @@ function answers(round: 2 | 3, risky: boolean): PressAnswer[] {
     return [
       {
         id: "transparent",
+        tone: "transparent",
         label: "Acknowledge the trade-off",
         hint: risky
           ? "Admit the risk and explain why you still made the call."
@@ -45,6 +49,7 @@ function answers(round: 2 | 3, risky: boolean): PressAnswer[] {
       },
       {
         id: "reassure",
+        tone: "reassure",
         label: "Stand by the club's plan",
         hint: "Keep the answer controlled and focused on the longer term.",
         effects: [
@@ -54,6 +59,7 @@ function answers(round: 2 | 3, risky: boolean): PressAnswer[] {
       },
       {
         id: "dismiss",
+        tone: "dismiss",
         label: "Reject the premise",
         hint: risky
           ? "A combative answer could make an already difficult story worse."
@@ -69,6 +75,7 @@ function answers(round: 2 | 3, risky: boolean): PressAnswer[] {
   return [
     {
       id: "transparent",
+        tone: "transparent",
       label: "Give supporters a clear commitment",
       hint: "End with something concrete the club can be judged against.",
       effects: [
@@ -78,12 +85,14 @@ function answers(round: 2 | 3, risky: boolean): PressAnswer[] {
     },
     {
       id: "reassure",
+        tone: "reassure",
       label: "Draw a line under it",
       hint: "Calmly close the subject and move attention back to football.",
       effects: [{ kind: "reputation", delta: risky ? 0 : 1 }],
     },
     {
       id: "dismiss",
+        tone: "dismiss",
       label: "Tell the press to move on",
       hint: "Ends the exchange quickly, but rarely wins over critics.",
       effects: [
@@ -172,6 +181,19 @@ export function pressRoundThree(
 }
 
 
+export function seasonPreviewStatement(state: GameState, season = state.season): string | null {
+  const code = String(state.inboxFlags[`press:season-preview:s${season}`] ?? "");
+  const labels: Record<string, string> = {
+    promotion: "Promotion is the target.",
+    rebuilding: "This is a rebuilding season.",
+    "happy-squad": "We're happy with the squad.",
+    reinforcements: "We still need reinforcements.",
+    youth: "Youth development is a priority.",
+    stability: "Financial stability comes first.",
+  };
+  return labels[code] ?? null;
+}
+
 export function calendarPressRound(
   state: GameState,
   context: CalendarPressContext,
@@ -218,6 +240,18 @@ export function calendarPressRound(
       : " I want a concrete answer rather than a general club message.";
   } else if (pressure === "soft") {
     question = "You have built a good working relationship with the local press, so let me ask this plainly: " + question;
+  }
+
+  const remembered = seasonPreviewStatement(state);
+  if (
+    remembered &&
+    round === 2 &&
+    (context === "summer-window-review" ||
+      context === "midseason-checkpoint" ||
+      context === "winter-window-review" ||
+      context === "season-review")
+  ) {
+    question = `Earlier this season you told us, “${remembered}” ${question}`;
   }
 
   return { question, answers: answers(round, false) };
