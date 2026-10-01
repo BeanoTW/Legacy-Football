@@ -434,6 +434,8 @@ export function MatchDayOverlay({
                   userPlan={lm.engine?.userPlan}
                   opponentPlan={lm.engine?.opponentPlan}
                   userPossession={possession}
+                  weather={lm.weather}
+                  playerStats={lm.engine?.playerStats}
                   onReplayProgress={onReplayProgress}
                   onReplayClock={onReplayClock}
                   expanded={!finishedReplay}
