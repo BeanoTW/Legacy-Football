@@ -2353,8 +2353,7 @@ function calendarPressChoices(s: GameState, context: CalendarPressContext): Inbo
   return [
     {
       id: "transparent",
-      label: "Give a clear, accountable answer",
-      hint: "Set out your position directly and give supporters something concrete to judge.",
+      label: "We know exactly what we want to achieve, and we'll be judged on whether we deliver it.",
       effects: [
         { kind: "reputation", delta: 1 },
         { kind: "fanHappiness", delta: 1 },
@@ -2362,14 +2361,12 @@ function calendarPressChoices(s: GameState, context: CalendarPressContext): Inbo
     },
     {
       id: "reassure",
-      label: "Keep the message measured",
-      hint: "Back the club's plan without over-promising.",
+      label: "We're comfortable with the plan we have in place. We won't make decisions just for the sake of headlines.",
       effects: [{ kind: "reputation", delta: 1 }],
     },
     {
       id: "dismiss",
-      label: "Keep your cards close",
-      hint: "Give little away. The press may push harder.",
+      label: "Our business is our business. I'm not going to conduct it through the press.",
       effects: [{ kind: "reputation", delta: -1 }],
     },
   ];
