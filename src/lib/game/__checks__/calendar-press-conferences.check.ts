@@ -45,7 +45,11 @@ for (const [weekText, context] of Object.entries(expected)) {
   state = runWeeklyGenerators(state);
   const item = state.inbox.find((candidate) => candidate.generatorId === "calendar-press");
   check(`week ${week} emits ${context}`, !!item && item.eventKey.includes(`:${context}:`), item?.eventKey);
-  check(`week ${week} opens with three response styles`, item?.choices?.length === 3);
+  const expectedChoices = context === "season-preview" ? 6 : 3;
+  check(
+    `week ${week} opens with ${expectedChoices} meaningful response choices`,
+    item?.choices?.length === expectedChoices,
+  );
 
   const repeated = runWeeklyGenerators(state);
   const copies = repeated.inbox.filter((candidate) => candidate.eventKey === item?.eventKey).length;
@@ -69,7 +73,7 @@ console.log("\n[CP3] Generic follow-up rounds and atomic completion");
   check("season curtain-raiser exists", !!item);
 
   if (item?.choices?.length) {
-    const first = item.choices.find((choice) => choice.id === "transparent") ?? item.choices[0];
+    const first = item.choices.find((choice) => choice.id === "promotion") ?? item.choices[0];
     const roundTwo = calendarPressRound(state, "season-preview", 2, ["transparent"]);
     const roundThree = calendarPressRound(state, "season-preview", 3, ["transparent", "reassure"]);
     check("calendar round two has a question and three answers", roundTwo.question.length > 10 && roundTwo.answers.length === 3);
@@ -93,7 +97,51 @@ console.log("\n[CP3] Generic follow-up rounds and atomic completion");
     const completed = resolved.inbox.find((candidate) => candidate.id === item.id);
     check("scheduled press conference completes atomically", completed?.status === "completed");
     check("scheduled press transcript persists", completed?.pressConference?.exchanges.length === 3);
+    check(
+      "opening statement persists as narrative memory",
+      resolved.inboxFlags["press:season-preview:s1"] === "promotion",
+      String(resolved.inboxFlags["press:season-preview:s1"]),
+    );
+
+    let remembered = structuredClone(resolved);
+    remembered.week = 20;
+    const callbackRound = calendarPressRound(
+      remembered,
+      "midseason-checkpoint",
+      2,
+      ["reassure"],
+    );
+    check(
+      "mid-season press quotes the opening promise back",
+      callbackRound.question.includes("Promotion is the target."),
+      callbackRound.question,
+    );
   }
+}
+
+console.log("\n[CP4] New-save onboarding only");
+{
+  let state = fixture();
+  state.week = 1;
+  state = runWeeklyGenerators(state);
+  check(
+    "opening week contains role/world onboarding",
+    state.inbox.some((item) => item.eventKey === "new-save-onboarding:your-role") &&
+      state.inbox.some((item) => item.eventKey === "new-save-onboarding:living-world"),
+  );
+  check(
+    "welcome is informational rather than a fake decision",
+    state.inbox.find((item) => item.generatorId === "board-welcome")?.status === "unread",
+  );
+
+  let veteran = fixture();
+  veteran.season = 2;
+  veteran.week = 1;
+  veteran = runWeeklyGenerators(veteran);
+  check(
+    "onboarding never repeats in later seasons",
+    !veteran.inbox.some((item) => item.generatorId === "new-save-onboarding" || item.generatorId === "board-welcome"),
+  );
 }
 
 console.log(`\n=== ${passed} passed, ${failed} failed ===`);
