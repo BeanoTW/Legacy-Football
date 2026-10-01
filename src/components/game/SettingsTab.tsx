@@ -2,12 +2,15 @@ import { useEffect, useState } from "react";
 import { Check, Cloud, HardDrive, LogOut, Mail, Palette, RefreshCw, Trash2 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import type { SaveSlotId, SaveSlotSummary } from "@/lib/game/engine";
+import type { GameState } from "@/lib/game/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DetailScreen } from "./shared/layout";
 import { cn } from "@/lib/utils";
 import { SoundSettingsPanel } from "./SoundSettingsPanel";
 import { CareerSyncConflict, cloudClient, cloudConfigured, syncAllCareers, type SyncConflictResolution } from "@/lib/cloud/sync";
+import { DeveloperModePanel } from "./DeveloperModePanel";
+import { developerModeEnabled, setDeveloperModeEnabled } from "@/lib/game/developerMode";
 
 type Theme = "club" | "heritage" | "floodlights";
 const THEME_KEY = "chairman.colour-theme";
@@ -18,17 +21,22 @@ function applyTheme(theme: Theme) {
 }
 
 export function SettingsTab({
+  state,
+  update,
   activeSlot,
   slots,
   onSwitch,
   onDelete,
 }: {
+  state: GameState;
+  update: (fn: (s: GameState) => GameState) => void;
   activeSlot: SaveSlotId;
   slots: SaveSlotSummary[];
   onSwitch: (slot: SaveSlotId) => void;
   onDelete: (slot: SaveSlotId) => Promise<void>;
 }) {
   const [theme, setTheme] = useState<Theme>("club");
+  const [developerMode, setDeveloperMode] = useState(() => developerModeEnabled());
   const [session, setSession] = useState<Session | null>(null);
   const [email, setEmail] = useState("");
   const [cloudMessage, setCloudMessage] = useState<string | null>(null);
@@ -202,6 +210,40 @@ export function SettingsTab({
       </section>
 
       <SoundSettingsPanel />
+
+      <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
+        <div className="flex items-center justify-between gap-3 px-3 py-3">
+          <div>
+            <div className="font-display text-lg">Developer mode</div>
+            <p className="text-xs text-muted-foreground">
+              Unlock God Mode controls for testing this career.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={developerMode}
+            onClick={() => {
+              const next = !developerMode;
+              setDeveloperMode(next);
+              setDeveloperModeEnabled(next);
+            }}
+            className={cn(
+              "relative h-7 w-12 rounded-full border transition-colors",
+              developerMode ? "border-fuchsia-500 bg-fuchsia-500" : "bg-muted",
+            )}
+          >
+            <span
+              className={cn(
+                "absolute top-0.5 size-5 rounded-full bg-white shadow transition-transform",
+                developerMode ? "translate-x-5" : "translate-x-0.5",
+              )}
+            />
+          </button>
+        </div>
+      </section>
+
+      {developerMode && <DeveloperModePanel state={state} update={update} />}
 
       <section className="rounded-xl border bg-card p-4 shadow-sm">
         <div className="flex items-start gap-3">
