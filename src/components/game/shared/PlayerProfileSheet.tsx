@@ -238,7 +238,7 @@ export function PlayerProfileSheet({
 
   return (
     <Sheet open onOpenChange={(open) => !open && setPlayerId(null)}>
-      <SheetContent side="right" hideClose className="w-[94vw] overflow-y-auto p-0 sm:max-w-md">
+      <SheetContent side="right" hideClose className="w-[96vw] overflow-y-auto border-l-0 bg-[#edf5f2] p-0 sm:max-w-md dark:bg-[#071713]">
         <CharacterPortraitStudio identity={{ id: player.id, subject: "player" }} name={playerName(player)} open={portraitEditing} onOpenChange={setPortraitEditing} />
         <Button
           type="button"
@@ -250,7 +250,7 @@ export function PlayerProfileSheet({
         >
           <X className="size-5" />
         </Button>
-        <div className="relative overflow-hidden border-b border-emerald-300/10 bg-[#071713] px-3 pb-2.5 pt-3 pr-12 text-white">
+        <div className="relative overflow-hidden border-b border-emerald-300/10 bg-[#061a15] px-4 pb-4 pt-4 pr-14 text-white">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(52,211,153,.16),transparent_34%),linear-gradient(140deg,rgba(255,255,255,.035),transparent_50%)]" />
           <SheetHeader className="relative text-left">
             <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-200/55">Player profile</div>
@@ -258,11 +258,11 @@ export function PlayerProfileSheet({
               <button type="button" onClick={() => setPortraitEditing(true)}
                 className="relative shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300"
                 aria-label={`Edit ${displayName} appearance`}>
-                <CharacterPortrait identity={{ id: player.id, subject: "player" }} size={48} title={`${displayName} portrait`} />
+                <CharacterPortrait identity={{ id: player.id, subject: "player" }} size={62} title={`${displayName} portrait`} />
                 <Pencil className="absolute bottom-0 right-0 size-3 rounded-tl bg-black/70 p-0.5 text-white" aria-hidden="true" />
               </button>
               <div className="min-w-0 flex-1">
-                <SheetTitle className="truncate font-display text-[1.35rem] leading-none text-white">
+                <SheetTitle className="truncate font-display text-[1.65rem] leading-none text-white">
                   {displayName}
                 </SheetTitle>
                 <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] leading-tight text-white/50">
@@ -319,11 +319,147 @@ export function PlayerProfileSheet({
           </SheetHeader>
         </div>
 
-        <div className="space-y-2 p-3">
+        <div className="space-y-3 p-3 pb-8">
+          {owned && (
+            <section className="overflow-hidden rounded-2xl border border-emerald-950/10 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.045]">
+              <div className="flex items-center justify-between border-b border-emerald-950/10 px-3 py-2.5 dark:border-white/10">
+                <div>
+                  <div className="font-display text-lg">Player actions</div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {loanIsOut ? "Your player is currently away on loan." : loanIsIn ? "This player is on loan at your club." : "Manage contract, market status and temporary moves."}
+                  </div>
+                </div>
+                <ShieldCheck className="size-5 text-emerald-600 dark:text-emerald-300" />
+              </div>
+
+              {note && <div className="mx-3 mt-3 rounded-xl border bg-muted/40 px-3 py-2 text-xs">{note}</div>}
+
+              <div className="grid grid-cols-2 gap-2 p-3">
+                {userOwnsPlayer && !loanIsOut && (
+                  <>
+                    <Button variant="outline" className="h-auto min-h-12 justify-start px-3 py-2" onClick={toggleTransferList}>
+                      <ListPlus className="mr-2 size-4" />
+                      <span className="text-left">
+                        <strong className="block text-xs">{player.transferStatus === "listed" ? "Remove from transfer list" : "Transfer list"}</strong>
+                        <small className="block text-[9px] text-muted-foreground">{player.transferStatus === "listed" ? "Stop inviting bids" : "Invite offers from other clubs"}</small>
+                      </span>
+                    </Button>
+                    <Button variant="outline" className="h-auto min-h-12 justify-start px-3 py-2" disabled={!proposedRenewal} onClick={openContractNegotiation}>
+                      <Handshake className="mr-2 size-4" />
+                      <span className="text-left">
+                        <strong className="block text-xs">Negotiate contract</strong>
+                        <small className="block text-[9px] text-muted-foreground">Wage, term and squad role</small>
+                      </span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-auto min-h-12 justify-start px-3 py-2"
+                      disabled={!transferWindowOpen || Boolean(loan)}
+                      title={!transferWindowOpen ? ${transferWindow.label} · ${transferWindow.detail} : undefined}
+                      onClick={() => { setShowLoanOut((value) => !value); setShowContract(false); setReleaseConfirm(false); }}
+                    >
+                      <Repeat2 className="mr-2 size-4" />
+                      <span className="text-left">
+                        <strong className="block text-xs">Loan out</strong>
+                        <small className="block text-[9px] text-muted-foreground">Find a temporary club</small>
+                      </span>
+                    </Button>
+                    <Button variant="outline" className="h-auto min-h-12 justify-start px-3 py-2 text-rose-700 hover:text-rose-700 dark:text-rose-300" onClick={() => { setReleaseConfirm((value) => !value); setShowContract(false); setShowLoanOut(false); }}>
+                      <Trash2 className="mr-2 size-4" />
+                      <span className="text-left">
+                        <strong className="block text-xs">Release player</strong>
+                        <small className="block text-[9px] text-muted-foreground">Terminate the contract</small>
+                      </span>
+                    </Button>
+                  </>
+                )}
+                {loan && (
+                  <Button variant="outline" className="col-span-2 h-auto min-h-12 justify-start px-3 py-2" onClick={endLoan}>
+                    <RefreshCcw className="mr-2 size-4" />
+                    <span className="text-left">
+                      <strong className="block text-xs">{loanIsOut ? "Recall from loan" : "End loan"}</strong>
+                      <small className="block text-[9px] text-muted-foreground">End the active temporary registration</small>
+                    </span>
+                  </Button>
+                )}
+              </div>
+
+              {showContract && proposedRenewal && (
+                <div className="border-t bg-muted/25 p-3">
+                  <div className="mb-2">
+                    <strong className="text-sm">Contract proposal</strong>
+                    <p className="text-[10px] text-muted-foreground">The player can reject terms below his expectations.</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="text-[10px] font-semibold text-muted-foreground">
+                      Weekly wage
+                      <input type="number" min={0} step={25} value={renewWage} onChange={(event) => setRenewWage(Math.max(0, Number(event.target.value)))} className="mt-1 h-10 w-full rounded-lg border bg-background px-2 text-sm text-foreground" />
+                    </label>
+                    <label className="text-[10px] font-semibold text-muted-foreground">
+                      Length
+                      <select value={renewSeasons} onChange={(event) => setRenewSeasons(Number(event.target.value))} className="mt-1 h-10 w-full rounded-lg border bg-background px-2 text-sm text-foreground">
+                        {[1, 2, 3, 4].map((years) => <option key={years} value={years}>{years} season{years === 1 ? "" : "s"}</option>)}
+                      </select>
+                    </label>
+                    <label className="col-span-2 text-[10px] font-semibold text-muted-foreground">
+                      Squad role
+                      <select value={renewRole} onChange={(event) => setRenewRole(event.target.value as SquadRole)} className="mt-1 h-10 w-full rounded-lg border bg-background px-2 text-sm text-foreground">
+                        {(["Key Player", "First Team", "Rotation", "Prospect"] as SquadRole[]).map((role) => <option key={role} value={role}>{role}</option>)}
+                      </select>
+                    </label>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
+                    <span>Requested baseline {fmtMoneyExact(proposedRenewal.weeklyWage)}/wk</span>
+                    <span>Bonus {fmtMoneyExact(proposedRenewal.signingBonus)}</span>
+                  </div>
+                  <Button className="mt-3 w-full" onClick={negotiateContract}>Offer new contract</Button>
+                </div>
+              )}
+
+              {showLoanOut && (
+                <div className="border-t bg-muted/25 p-3">
+                  <div className="mb-2"><strong className="text-sm">Loan terms</strong><p className="text-[10px] text-muted-foreground">Recruitment will look for a simulated club willing to meet these terms.</p></div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="text-[10px] font-semibold text-muted-foreground">
+                      Length
+                      <select value={loanDuration} onChange={(event) => setLoanDuration(Number(event.target.value))} className="mt-1 h-10 w-full rounded-lg border bg-background px-2 text-sm text-foreground">
+                        {[4, 8, 12, 24].map((weeks) => <option key={weeks} value={weeks}>{weeks} weeks</option>)}
+                      </select>
+                    </label>
+                    <label className="text-[10px] font-semibold text-muted-foreground">
+                      Wage paid by loan club
+                      <select value={loanContribution} onChange={(event) => setLoanContribution(Number(event.target.value))} className="mt-1 h-10 w-full rounded-lg border bg-background px-2 text-sm text-foreground">
+                        {[20, 35, 50, 65, 80, 100].map((pct) => <option key={pct} value={pct}>{pct}%</option>)}
+                      </select>
+                    </label>
+                    <label className="col-span-2 text-[10px] font-semibold text-muted-foreground">
+                      Playing-time expectation
+                      <select value={loanRole} onChange={(event) => setLoanRole(event.target.value as LoanPlayingTimeExpectation)} className="mt-1 h-10 w-full rounded-lg border bg-background px-2 text-sm text-foreground">
+                        {(["Backup", "Rotation", "Regular", "Important"] as const).map((role) => <option key={role} value={role}>{role}</option>)}
+                      </select>
+                    </label>
+                  </div>
+                  <Button className="mt-3 w-full" onClick={sendLoanOut}>Find loan club</Button>
+                </div>
+              )}
+
+              {releaseConfirm && contract && (
+                <div className="border-t border-rose-200 bg-rose-50 p-3 dark:border-rose-950 dark:bg-rose-950/20">
+                  <strong className="text-sm text-rose-800 dark:text-rose-200">Release {displayName}?</strong>
+                  <p className="mt-1 text-[10px] text-rose-700/80 dark:text-rose-200/70">This terminates his contract immediately. Any settlement required by the recruitment engine will be charged to the club.</p>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <Button variant="outline" onClick={() => setReleaseConfirm(false)}>Keep player</Button>
+                    <Button className="bg-rose-600 text-white hover:bg-rose-700" onClick={releasePlayer}>Confirm release</Button>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
           {!owned && (
             <section className="rounded-xl border bg-card p-3 shadow-sm">
               <div className="mb-2">
-                <div className="font-display text-lg">Chairman actions</div>
+                <div className="font-display text-lg">Recruitment actions</div>
                 <div className="text-[10px] text-muted-foreground">
                   Target this player directly or ask recruitment staff to investigate first.
                 </div>
@@ -470,30 +606,6 @@ export function PlayerProfileSheet({
               <div className="mt-2 text-xs text-muted-foreground">
                 Last {recentForm.appearances} appearance{recentForm.appearances === 1 ? "" : "s"} · {recentForm.minutes} minutes
               </div>
-            </section>
-          )}
-
-          {owned && (
-            <section className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-xl border bg-card px-3 py-2.5">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-display text-lg">{playerFitness(player)}%</span>
-                  <span className="text-xs text-muted-foreground">{fitnessLabel(playerFitness(player))}</span>
-                  <span className="text-muted-foreground">·</span>
-                  <span className={cn("truncate text-xs font-semibold", player.injury && "text-rose-600 dark:text-rose-300")}>
-                    {player.injury ? `${player.injury.type} · ${player.injury.severity}` : player.availability === "available" ? "Available" : "Unavailable"}
-                  </span>
-                </div>
-                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
-                  <div className="h-full rounded-full bg-emerald-500" style={{ width: `${playerFitness(player)}%` }} />
-                </div>
-                {player.injury && (
-                  <div className="mt-1 text-[9px] text-muted-foreground">
-                    Expected back S{fromAbsoluteWeek(player.injury.returnAbsoluteWeek).season} W{fromAbsoluteWeek(player.injury.returnAbsoluteWeek).week}
-                  </div>
-                )}
-              </div>
-              <div className="text-right text-[8px] font-bold uppercase tracking-wider text-muted-foreground">Fitness & status</div>
             </section>
           )}
 
