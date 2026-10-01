@@ -22,6 +22,7 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
   const [nickname, setNickname] = useState("");
   const [clubKit, setClubKit] = useState<ClubKitState>(() => defaultClubKit("Dalton Town"));
   const [clubIdentityOpen, setClubIdentityOpen] = useState(false);
+  const [clubIdentityTouched, setClubIdentityTouched] = useState(false);
   const [manager, setManager] = useState(profile.name);
   const [studioOpen, setStudioOpen] = useState(false);
   const activeSlotUnreadable = slots.some((slot) => slot.id === activeSlot && slot.status === "unreadable");
@@ -92,6 +93,7 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
                 onChange={(e) => {
                   const next = e.target.value;
                   setClub(next);
+                  if (!clubIdentityTouched) setClubKit(defaultClubKit(next || "New Club"));
                 }}
                 className="border-2 border-border bg-muted/65 text-foreground placeholder:text-muted-foreground"
               />
@@ -186,6 +188,7 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
           setClub(clubName);
           setNickname(nextNickname);
           setClubKit(kit);
+          setClubIdentityTouched(true);
         }}
       />
     </div>
