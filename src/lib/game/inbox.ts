@@ -105,6 +105,9 @@ import { archivedInboxGuardKeys } from "./archive";
 import { postMatchReaction } from "./matchReaction";
 import { RANDOM_INCIDENTS, pressChoicesForIncident, randomIncidentById } from "./randomIncidents";
 import { adjustManagerRelationshipInPlace, currentManager, latestManagerRelationshipEvent, managerRelationship } from "./managerRelationship";
+import { avgTicketPrice } from "./sim";
+import { ticketPriceReference } from "./ticketForecast";
+import { priceDemandFactor, scaleTicketPricesInPlace } from "./ticketPricing";
 
 /* ---------- Helpers ---------- */
 const money = (n: number) => {
@@ -247,6 +250,9 @@ function applyEffectInPlace(s: GameState, e: InboxEffect, src: EffectSource): vo
         backing: e.backing,
         autonomy: e.autonomy,
       });
+      break;
+    case "ticketPriceScale":
+      scaleTicketPricesInPlace(s, e.multiplier);
       break;
     case "commercialAccept":
       acceptOfferInPlace(s, e.offerId);
@@ -857,6 +863,87 @@ const G_FAN_WARN: Generator = {
               { kind: "flag", key: cooldownKey, value: nowAbs },
             ],
           },
+        ],
+      }),
+    ];
+  },
+};
+
+const G_TICKET_PRICE_PRESSURE: Generator = {
+  id: "fans-ticket-price-pressure",
+  run: (s) => {
+    const reference = ticketPriceReference(s);
+    const average = avgTicketPrice(s);
+    if (!(reference > 0) || !(average > 0)) return [];
+    const ratio = average / reference;
+    if (ratio <= 1.25) return [];
+
+    const nowAbs = absoluteWeek(s.season, s.week);
+    const cooldownKey = "ticketPricePressureAtAbsoluteWeek";
+    const last = Number(s.inboxFlags[cooldownKey] ?? -999);
+    if (nowAbs - last < 6) return [];
+    if (
+      s.inbox.some(
+        (item) =>
+          item.generatorId === "fans-ticket-price-pressure" &&
+          (item.status === "unread" || item.status === "awaitingDecision"),
+      )
+    ) return [];
+
+    const premiumPct = Math.round((ratio - 1) * 100);
+    const demand = Math.round(priceDemandFactor(average, reference) * 100);
+    const severe = ratio > 1.5;
+
+    return [
+      mk(s, "fans-ticket-price-pressure", {
+        eventKey: `fans-ticket-price-pressure:abs${nowAbs}`,
+        conversationKey: `supporters:ticket-prices:s${s.season}`,
+        sender: "Priya Bhatt",
+        department: "Fan Liaison",
+        category: "fans",
+        priority: severe ? "urgent" : "high",
+        subject: `Supporters challenge ticket prices (+${premiumPct}% vs level)`,
+        body:
+          `The supporters group has formally challenged the club pricing. The average ticket is £${average.toFixed(2)}, ` +
+          `against a £${reference.toFixed(2)} reference for this level and club size. At the current price, the demand model is running at roughly ${demand}% of neutral.\n\n` +
+          `They want the chairman to respond before the next home run of fixtures.`,
+        expiresInWeeks: 2,
+        choices: [
+          {
+            id: "cut",
+            label: "Cut all ticket prices by 10%",
+            hint: "Give up yield to rebuild goodwill and demand.",
+            effects: [
+              { kind: "ticketPriceScale", multiplier: 0.9 },
+              { kind: "fanHappiness", delta: 4 },
+              { kind: "reputation", delta: 1 },
+              { kind: "flag", key: cooldownKey, value: nowAbs },
+            ],
+          },
+          {
+            id: "compromise",
+            label: "Make a 5% reduction",
+            hint: "A smaller concession that protects more matchday income.",
+            effects: [
+              { kind: "ticketPriceScale", multiplier: 0.95 },
+              { kind: "fanHappiness", delta: 2 },
+              { kind: "flag", key: cooldownKey, value: nowAbs },
+            ],
+          },
+          {
+            id: "hold",
+            label: "Hold prices",
+            hint: "Back the revenue strategy and accept continued supporter pressure.",
+            effects: [
+              { kind: "fanHappiness", delta: severe ? -2 : -1 },
+              ...(severe ? [{ kind: "reputation" as const, delta: -1 }] : []),
+              { kind: "flag", key: cooldownKey, value: nowAbs },
+            ],
+          },
+        ],
+        consequenceOnExpire: [
+          { kind: "fanHappiness", delta: -2 },
+          { kind: "flag", key: cooldownKey, value: nowAbs },
         ],
       }),
     ];
@@ -2338,6 +2425,7 @@ const GENERATORS: Generator[] = [
   G_ROOF,
   G_ROOF_FOLLOWUP,
   G_FAN_WARN,
+  G_TICKET_PRICE_PRESSURE,
   G_SPONSOR_RENEW,
   G_SPONSOR_PUSHBACK,
   G_MEDIA_MATCH,
