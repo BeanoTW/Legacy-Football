@@ -125,11 +125,11 @@ function deepestWorldFootballLevel(s: GameState): FootballLevel {
 
 /* ---------- Constants ---------- */
 
-export const SQUAD_TEMPLATE: Record<Position, number> = { GK: 3, DEF: 8, MID: 7, FWD: 4 };
+export const SQUAD_TEMPLATE: Record<Position, number> = { GK: 3, DEF: 10, MID: 10, FWD: 7 };
 export const SQUAD_SIZE =
   SQUAD_TEMPLATE.GK + SQUAD_TEMPLATE.DEF + SQUAD_TEMPLATE.MID + SQUAD_TEMPLATE.FWD;
-export const MIN_SQUAD_SIZE = 16;
-export const MAX_SQUAD_SIZE = 30;
+export const MIN_SQUAD_SIZE = 22;
+export const MAX_SQUAD_SIZE = 36;
 /**
  * A deep, persistent unattached-player market. This is deliberately large:
  * lower-league recruitment should be about finding the right player among
@@ -410,8 +410,8 @@ function makePlayerFor(
 
 function roleFor(indexInSquad: number): SquadRole {
   if (indexInSquad < 5) return "Key Player";
-  if (indexInSquad < 13) return "First Team";
-  if (indexInSquad < 19) return "Rotation";
+  if (indexInSquad < 15) return "First Team";
+  if (indexInSquad < 24) return "Rotation";
   return "Prospect";
 }
 
