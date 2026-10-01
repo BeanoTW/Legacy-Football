@@ -103,9 +103,10 @@ export function randomAvatar(current: ChairmanAvatar, nonce: number): ChairmanAv
   };
 }
 
-export function AvatarAppearanceOptions({ avatar, onChange }: {
+export function AvatarAppearanceOptions({ avatar, onChange, hideOutfit = false }: {
   avatar: ChairmanAvatar;
   onChange: (patch: Partial<ChairmanAvatar>) => void;
+  hideOutfit?: boolean;
 }) {
   const hairFor = (group: (typeof HAIR_GROUPS)[number]) =>
     HAIR_STYLES.filter((style) => style.group === group).sort(
@@ -127,9 +128,13 @@ export function AvatarAppearanceOptions({ avatar, onChange }: {
       </StudioRow>
       <StudioRow title="Hair colour"><Swatches label="Hair colour" colours={HAIR_COLOURS_ALL.map((item) => item.id)} value={avatar.hairColour} onChange={(hairColour) => onChange({ hairColour })} /></StudioRow>
       <StudioRow title="Facial hair"><Chips label="Facial hair" options={FACIAL_HAIR} value={avatar.facialHair} onChange={(facialHair) => onChange({ facialHair })} /></StudioRow>
-      <StudioRow title="Outfit"><Chips label="Outfit" options={OUTFITS} value={avatar.outfit} onChange={(outfit) => onChange({ outfit })} /></StudioRow>
-      <StudioRow title="Outfit colour"><Swatches label="Outfit colour" colours={OUTFIT_COLOURS_ALL.map((item) => item.id)} value={avatar.outfitColour} onChange={(outfitColour) => onChange({ outfitColour })} /></StudioRow>
-      <StudioRow title="Tie, scarf & trim"><Swatches label="Accent colour" colours={ACCENT_COLOURS_ALL.map((item) => item.id)} value={avatar.accentColour} onChange={(accentColour) => onChange({ accentColour })} /></StudioRow>
+      {!hideOutfit && (
+        <>
+          <StudioRow title="Outfit"><Chips label="Outfit" options={OUTFITS} value={avatar.outfit} onChange={(outfit) => onChange({ outfit })} /></StudioRow>
+          <StudioRow title="Outfit colour"><Swatches label="Outfit colour" colours={OUTFIT_COLOURS_ALL.map((item) => item.id)} value={avatar.outfitColour} onChange={(outfitColour) => onChange({ outfitColour })} /></StudioRow>
+          <StudioRow title="Tie, scarf & trim"><Swatches label="Accent colour" colours={ACCENT_COLOURS_ALL.map((item) => item.id)} value={avatar.accentColour} onChange={(accentColour) => onChange({ accentColour })} /></StudioRow>
+        </>
+      )}
       <StudioRow title="Glasses"><Chips label="Glasses" options={EYEWEAR} value={avatar.eyewear} onChange={(eyewear) => onChange({ eyewear })} /></StudioRow>
     </div>
   );

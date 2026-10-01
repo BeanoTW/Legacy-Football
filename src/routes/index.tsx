@@ -42,7 +42,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { PlayerProfileSheet } from "@/components/game/shared/PlayerProfileSheet";
-import { CharacterPortrait } from "@/components/game/CharacterPortrait";
+import { CharacterPortrait, PortraitKitProvider } from "@/components/game/CharacterPortrait";
 import { ChairmanStudio, useChairmanProfile } from "@/components/game/ChairmanStudio";
 
 export const Route = createFileRoute("/")({
@@ -186,7 +186,8 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
   };
 
   return (
-    <div className="game-shell">
+    <PortraitKitProvider state={state}>
+      <div className="game-shell">
       <PlayerProfileSheet state={state} update={update} />
       <ChairmanStudio open={chairmanStudioOpen} onOpenChange={setChairmanStudioOpen} showName={false} />
       <div className="lf-masthead shrink-0">
@@ -304,6 +305,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
         />
       )}
       {state.liveMatch && <MatchDayOverlay state={state} update={update} />}
-    </div>
+      </div>
+    </PortraitKitProvider>
   );
 }

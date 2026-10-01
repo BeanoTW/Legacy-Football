@@ -28,6 +28,7 @@ import { activeLoanForPlayer, terminateUserPlayerLoan } from "@/lib/game/loans";
 import { playerOwnerClubId } from "@/lib/game/playerRegistration";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { fmtMoney, fmtMoneyExact } from "@/lib/game/engine";
+import { clubKitForReference } from "@/lib/game/clubKit";
 import { PLAYER_ATTRIBUTE_GROUPS, scoutingAssignment, scoutingReportById, startScouting, type PlayerAttributeCategory } from "@/lib/game/scouting";
 import { scoutedOverallPresentation } from "@/lib/game/scoutingPresentation";
 import { isTransferWindowOpen, windowStatus } from "@/lib/game/calendar";
@@ -298,6 +299,12 @@ export function PlayerProfileSheet({
     ? Math.max(1, contract.expirySeason - state.season + 1)
     : null;
   const rating = dynamic ? dynamic.effective : overall.label;
+  const clubIdentity = player.currentClubId
+    ? clubKitForReference(state, player.currentClubId)
+    : null;
+  const shirt = clubIdentity
+    ? { kit: clubIdentity.home, badge: clubIdentity.badge, clubName: club }
+    : null;
   const ratingCaption = dynamic
     ? `Base ${dynamic.base}${dynamic.delta === 0 ? "" : dynamic.delta > 0 ? ` +${dynamic.delta}` : ` ${dynamic.delta}`}`
     : overall.exact
@@ -477,7 +484,7 @@ export function PlayerProfileSheet({
   return (
     <Sheet open onOpenChange={(open) => !open && setPlayerId(null)}>
       <SheetContent side="right" hideClose className="w-[96vw] overflow-y-auto border-l-0 bg-[#edf5f2] p-0 sm:max-w-md dark:bg-[#071713]">
-        <CharacterPortraitStudio identity={{ id: player.id, subject: "player" }} name={playerName(player)} open={portraitEditing} onOpenChange={setPortraitEditing} />
+        <CharacterPortraitStudio identity={{ id: player.id, subject: "player" }} name={playerName(player)} kit={shirt} open={portraitEditing} onOpenChange={setPortraitEditing} />
         <Button
           type="button"
           variant="ghost"
@@ -501,7 +508,7 @@ export function PlayerProfileSheet({
                 className="relative shrink-0 overflow-hidden rounded-xl border border-white/15 bg-gradient-to-b from-emerald-400/20 to-white/[0.03] shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300"
                 aria-label={`Edit ${displayName} appearance`}
               >
-                <CharacterPortrait identity={{ id: player.id, subject: "player" }} size={76} title={`${displayName} portrait`} />
+                <CharacterPortrait identity={{ id: player.id, subject: "player" }} kit={shirt} size={76} title={`${displayName} portrait`} />
                 <Pencil className="absolute bottom-0 right-0 size-3.5 rounded-tl bg-black/70 p-0.5 text-white" aria-hidden="true" />
               </button>
               <div className="min-w-0 flex-1 pt-0.5">
