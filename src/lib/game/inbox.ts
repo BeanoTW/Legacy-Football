@@ -520,8 +520,17 @@ export function resolvePressConference(
   itemId: string,
   firstChoiceId: string,
   laterEffects: InboxEffect[],
+  summary?: { outcome: string; exchanges: { question: string; answer: string }[] },
 ): GameState {
-  return resolveInboxChoice(s, itemId, firstChoiceId, laterEffects);
+  const item = s.inbox.find((candidate) => candidate.id === itemId);
+  if (!item || item.status === "completed" || item.status === "expired" || item.chosenChoiceId) return s;
+  const resolved = resolveInboxChoice(s, itemId, firstChoiceId, laterEffects);
+  if (resolved === s || !summary) return resolved;
+  const target = resolved.inbox.find((candidate) => candidate.id === itemId);
+  if (target?.status === "completed") {
+    target.pressConference = structuredClone(summary);
+  }
+  return resolved;
 }
 
 export function dismissInboxItem(s: GameState, id: string): GameState {
