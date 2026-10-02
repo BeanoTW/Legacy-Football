@@ -148,6 +148,8 @@ export function useGame() {
     targetRef.current = next;
     setContinueTarget(next);
     setContinueReason(null);
+    setContinueSpeedState(1);
+    if (typeof localStorage !== "undefined") localStorage.setItem(SPEED_KEY, "1");
     setIsContinuing(true);
   }, []);
 
