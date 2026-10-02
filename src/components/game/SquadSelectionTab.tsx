@@ -281,12 +281,7 @@ export function SquadSelectionTab({
                       )}
                       aria-label={`Open ${playerName(player)} profile`}
                     >
-                      <div className={cn(
-                        "mx-auto grid size-10 place-items-center rounded-full border-2 font-display text-base shadow-sm",
-                        POSITION_PITCH_CLASS[unit],
-                      )}>{player.currentAbility}</div>
-                      <div className="mt-1 max-w-[4.7rem] truncate font-display text-[11px] text-white/95">{player.lastName}</div>
-                      <div className={cn("mt-0.5 text-[8px] font-bold", SUB_TEXT_TONE[unit])}>NAT {tactical.primary} · {fitness}%</div>
+                      <SquadRailCardContent player={player} unit={unit} tacticalPosition={tactical.primary} fitness={fitness} />
                     </button>
                   );
                 })}
@@ -562,18 +557,36 @@ function Pitch({
                   )}
                   aria-label={`Move ${playerName(player)}`}
                 >
-                  <div className={cn(
-                    "mx-auto grid size-10 place-items-center rounded-full border-2 font-display text-base shadow-sm",
-                    POSITION_PITCH_CLASS[unit],
-                  )}>{player.currentAbility}</div>
-                  <div className="mt-1 max-w-[4.7rem] truncate font-display text-[11px] text-white/95">{player.lastName}</div>
-                  <div className={cn("mt-0.5 text-[8px] font-bold", SUB_TEXT_TONE[unit])}>NAT {tactical.primary} · {fitness}%</div>
+                  <SquadRailCardContent player={player} unit={unit} tacticalPosition={tactical.primary} fitness={fitness} />
                 </button>
               );
             })}
           </div>
         </div>
       )}
+    </>
+  );
+}
+
+function SquadRailCardContent({
+  player,
+  unit,
+  tacticalPosition,
+  fitness,
+}: {
+  player: FootballPlayer;
+  unit: ReturnType<typeof positionUnit>;
+  tacticalPosition: TacticalPosition;
+  fitness: number;
+}) {
+  return (
+    <>
+      <div className={cn(
+        "mx-auto grid size-10 place-items-center rounded-full border-2 font-display text-base shadow-sm",
+        POSITION_PITCH_CLASS[unit],
+      )}>{player.currentAbility}</div>
+      <div className="mt-1 max-w-[4.7rem] truncate font-display text-[11px] text-white/95">{player.lastName}</div>
+      <div className={cn("mt-0.5 text-[8px] font-bold", SUB_TEXT_TONE[unit])}>NAT {tacticalPosition} · {fitness}%</div>
     </>
   );
 }
