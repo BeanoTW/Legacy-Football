@@ -12,6 +12,7 @@ import {
   processTransferMarketDynamicsInPlace,
 } from "../transferMarketDynamics";
 import { transferAbsoluteDay } from "../transferResponses";
+import { isUserClubReference } from "../clubReference";
 
 console.log("\n[LIVE-TRANSFER-SAGAS] player interest and rival pressure");
 
@@ -48,14 +49,22 @@ assert.equal(
 );
 
 const detailedTarget = state.football.players.find(
-  (player) => player.currentClubId && player.currentClubId !== state.clubName,
+  (player) => player.currentClubId && !isUserClubReference(state, player.currentClubId),
 );
 if (detailedTarget) {
-  const originalRep = detailedTarget.reputation;
+  const original = {
+    reputation: detailedTarget.reputation,
+    personality: detailedTarget.personality,
+    transferStatus: detailedTarget.transferStatus,
+  };
   detailedTarget.reputation = 100;
+  detailedTarget.personality = "Loyal";
+  detailedTarget.transferStatus = "unlisted";
   const refusal = playerTransferInterest(state, detailedTarget.id, "Rotation");
   assert.equal(refusal?.band, "notInterested", "elite-reputation player can refuse a clearly unattractive move");
-  detailedTarget.reputation = originalRep;
+  detailedTarget.reputation = original.reputation;
+  detailedTarget.personality = original.personality;
+  detailedTarget.transferStatus = original.transferStatus;
 }
 
 const sagaState = structuredClone(state);
