@@ -13,8 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { DetailScreen } from "./shared/layout";
 
-const POSITIONS: Array<{ value: "" | Position; label: string }> = [
-  { value: "", label: "Any position" },
+const POSITIONS: Array<{ value: Position; label: string }> = [
   { value: "GK", label: "Goalkeeper" },
   { value: "DEF", label: "Defender" },
   { value: "MID", label: "Midfielder" },
@@ -49,7 +48,7 @@ export function ScoutingBriefBuilder({
   update: (fn: (s: GameState) => GameState) => void;
   onBack: () => void;
 }) {
-  const [position, setPosition] = useState<"" | Position>("");
+  const [positions, setPositions] = useState<Position[]>(["DEF"]);
   const [tacticalPosition, setTacticalPosition] = useState<"" | TacticalPosition>("");
   const [playerLevel, setPlayerLevel] = useState<ScoutingPlayerLevel>("firstTeam");
   const [minAge, setMinAge] = useState(18);
@@ -63,18 +62,29 @@ export function ScoutingBriefBuilder({
   const managerFit = manager ? managerSquadFit(state, manager) : null;
   const recruitmentBrief = manager ? managerRecruitmentBrief(state, manager) : null;
   const managerPriority = recruitmentBrief?.priorities[0] ?? null;
-  const tacticalOptions = DETAILED_POSITIONS.filter((item) => !position || positionUnit(item) === position);
+  const tacticalOptions = DETAILED_POSITIONS.filter((item) => positions.length !== 1 || positionUnit(item) === positions[0]);
 
   const useManagerRecommendation = () => {
     if (!managerPriority) return;
-    setPosition(managerPriority.position);
+    setPositions([managerPriority.position]);
     setTacticalPosition(managerPriority.tacticalPosition ?? "");
     setPlayerLevel(managerPriority.playerLevel);
   };
 
-  const changePosition = (next: "" | Position) => {
-    setPosition(next);
-    if (tacticalPosition && next && positionUnit(tacticalPosition) !== next) setTacticalPosition("");
+  const togglePosition = (next: Position) => {
+    setPositions((current) => {
+      if (current.includes(next)) {
+        const reduced = current.filter((position) => position !== next);
+        if (tacticalPosition && reduced.length !== 1) setTacticalPosition("");
+        return reduced;
+      }
+      if (current.length >= plan.positionCapacity) return current;
+      const expanded = [...current, next];
+      if (tacticalPosition && (expanded.length !== 1 || positionUnit(tacticalPosition) !== expanded[0])) {
+        setTacticalPosition("");
+      }
+      return expanded;
+    });
   };
 
   const dispatch = () => {
@@ -82,8 +92,8 @@ export function ScoutingBriefBuilder({
     update((s) =>
       createChairmanScoutingBrief(s, {
         id: `chairman-brief:s${s.season}:w${s.week}:r${sequence + 1}`,
-        position: position || undefined,
-        tacticalPosition: tacticalPosition || undefined,
+        positions,
+        tacticalPosition: positions.length === 1 ? tacticalPosition || undefined : undefined,
         playerLevel,
         minAge,
         maxAge,
@@ -134,17 +144,42 @@ export function ScoutingBriefBuilder({
           </div>
         )}
         <div className="mt-3 grid grid-cols-2 gap-x-2 gap-y-2.5">
-          <label className="grid min-w-0 gap-1 text-[11px] font-semibold">Position
-            <select className={FIELD} value={position} onChange={(e) => changePosition(e.target.value as "" | Position)}>
-              {POSITIONS.map((item) => <option key={item.value || "any"} value={item.value}>{item.label}</option>)}
-            </select>
-          </label>
-          <label className="grid min-w-0 gap-1 text-[11px] font-semibold"><span>Role <span className="font-normal text-muted-foreground">· optional</span></span>
-            <select className={FIELD} value={tacticalPosition} onChange={(e) => {
-              const next = e.target.value as "" | TacticalPosition;
-              setTacticalPosition(next);
-              if (next) setPosition(positionUnit(next));
-            }}>
+          <div className="col-span-2 grid min-w-0 gap-1 text-[11px] font-semibold">
+            <div className="flex items-center justify-between gap-2">
+              <span>Positions</span>
+              <span className="font-normal text-muted-foreground">
+                {positions.length}/{plan.positionCapacity} slots
+              </span>
+            </div>
+            <div className="grid grid-cols-4 gap-1.5">
+              {POSITIONS.map((item) => {
+                const selected = positions.includes(item.value);
+                const full = !selected && positions.length >= plan.positionCapacity;
+                return (
+                  <button
+                    key={item.value}
+                    type="button"
+                    aria-pressed={selected}
+                    disabled={full}
+                    onClick={() => togglePosition(item.value)}
+                    className={`rounded-md border px-2 py-2 text-[11px] transition-colors ${selected ? "border-primary bg-primary/10 font-semibold" : "bg-background text-muted-foreground"} ${full ? "opacity-40" : "hover:bg-muted"}`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="font-normal text-[10px] text-muted-foreground">
+              Scout quality {plan.quality}: your team can cover up to {plan.positionCapacity} broad position{plan.positionCapacity === 1 ? "" : "s"} in one brief.
+            </p>
+          </div>
+          <label className="col-span-2 grid min-w-0 gap-1 text-[11px] font-semibold"><span>Role <span className="font-normal text-muted-foreground">· optional · one position only</span></span>
+            <select
+              className={FIELD}
+              value={tacticalPosition}
+              disabled={positions.length !== 1}
+              onChange={(e) => setTacticalPosition(e.target.value as "" | TacticalPosition)}
+            >
               <option value="">Any role</option>
               {tacticalOptions.map((item) => <option key={item} value={item}>{TACTICAL_POSITION_LABEL[item]}</option>)}
             </select>
@@ -177,11 +212,11 @@ export function ScoutingBriefBuilder({
         <div className="lf-brief-footer sticky bottom-0 -mx-3 mt-3 border-t bg-card px-3 pb-1 pt-2 md:-mx-4 md:px-4">
           <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
             <span className="min-w-0 flex-1 truncate"><span className="font-semibold">Brief:</span>{" "}
-              {tacticalPosition ? TACTICAL_POSITION_LABEL[tacticalPosition] : position ? POSITIONS.find((item) => item.value === position)?.label : "Any position"} · {selectedLevel.label} · {minAge}–{maxAge}
+              {tacticalPosition ? TACTICAL_POSITION_LABEL[tacticalPosition] : positions.length ? positions.map((value) => POSITIONS.find((item) => item.value === value)?.label).join(" + ") : "No position selected"} · {selectedLevel.label} · {minAge}–{maxAge}
             </span>
             <span className="shrink-0 text-muted-foreground tnum">Scouts {plan.quality} · ~{plan.searchDays}d · up to {plan.candidateLimit}</span>
           </div>
-          <Button className="w-full" disabled={minAge > maxAge} onClick={dispatch}><Binoculars className="mr-2 size-4" /> Send scouts</Button>
+          <Button className="w-full" disabled={minAge > maxAge || positions.length === 0} onClick={dispatch}><Binoculars className="mr-2 size-4" /> Send scouts</Button>
         </div>
       </section>
     </DetailScreen>
