@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, Shield, Users } from "lucide-react";
+import { ArrowLeft, FlaskConical, TriangleAlert } from "lucide-react";
 import type { FootballPlayer, GameState, TacticalPosition } from "@/lib/game/types";
 import type { ManagerFormation } from "@/lib/game/managerIdentity";
 import { managerMatchPrep } from "@/lib/game/managerMatchPrep";
@@ -9,21 +9,16 @@ import {
   ageOf,
   playerName,
   userSquad,
-  weeksLeftOnContract,
 } from "@/lib/game/recruitment";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { MOOD_TONE_CLASS, playerMood } from "@/lib/game/character";
-import { fmtMoney } from "@/lib/game/engine";
 import { activeLoanForPlayer } from "@/lib/game/loans";
-import { absoluteWeek, fromAbsoluteWeek } from "@/lib/game/time";
-import { clubDisplayName } from "@/lib/game/clubReference";
-import { POSITION_BADGE_CLASS, POSITION_PITCH_CLASS } from "./playerPosition";
-import { contractEmploymentType } from "@/lib/game/employment";
+import { clubKitFor } from "@/lib/game/clubKit";
+import { POSITION_PITCH_CLASS } from "./playerPosition";
 import { positionEffectiveness, positionFamiliarity, positionUnit, tacticalPositionProfile } from "@/lib/game/positions";
 import { openPlayerProfile } from "./shared/PlayerProfileSheet";
-import { TacticalPlayerCard } from "./shared/TacticalPlayerCard";
-import { fitnessLabel, fixtureLoadThisWeek, medicalSupport, playerFitness, playerIsAvailable, squadAverageFitness } from "@/lib/game/playerHealth";
+import { CharacterPortrait, type PortraitKit } from "./CharacterPortrait";
+import { fixtureLoadThisWeek, medicalSupport, playerFitness, playerIsAvailable, squadAverageFitness } from "@/lib/game/playerHealth";
 import { playerSeasonLeaders, playerSeasonStats } from "@/lib/game/playerSeasonStats";
 import { playerRecentForm } from "@/lib/game/playerForm";
 import {
@@ -34,6 +29,33 @@ import {
 
 type SquadView = "pitch" | "stats";
 type PlannerSelection = { formation: ManagerFormation; playerIds: string[] };
+type Unit = ReturnType<typeof positionUnit>;
+
+const UNIT_GROUPS: { unit: Unit; label: string; minimum: number }[] = [
+  { unit: "GK", label: "Goalkeepers", minimum: 2 },
+  { unit: "DEF", label: "Defenders", minimum: 6 },
+  { unit: "MID", label: "Midfielders", minimum: 6 },
+  { unit: "FWD", label: "Forwards", minimum: 3 },
+];
+
+const UNIT_CHIP: Record<Unit, string> = {
+  GK: "bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-200",
+  DEF: "bg-emerald-100 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-200",
+  MID: "bg-blue-100 text-blue-800 dark:bg-blue-400/15 dark:text-blue-200",
+  FWD: "bg-rose-100 text-rose-800 dark:bg-rose-400/15 dark:text-rose-200",
+};
+
+function useDisplayNames(squad: FootballPlayer[]) {
+  return useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const player of squad) counts.set(player.lastName, (counts.get(player.lastName) ?? 0) + 1);
+    return (player: FootballPlayer) =>
+      (counts.get(player.lastName) ?? 0) > 1
+        ? `${player.firstName.charAt(0)}. ${player.lastName}`
+        : player.lastName;
+  }, [squad]);
+}
+
 
 const managerFormation = (state: GameState): ManagerFormation => {
   const selected = managerMatchPrep(state).selectedFormation;
@@ -94,7 +116,7 @@ const SUB_TEXT_TONE: Record<ReturnType<typeof positionUnit>, string> = {
 
 export function SquadSelectionTab({
   state,
-  update,
+  update: _update,
   onBack,
 }: {
   state: GameState;
@@ -115,7 +137,6 @@ export function SquadSelectionTab({
     return planned.length === 11 ? planned : automaticXi;
   }, [automaticXi, formation, planner, squad]);
   const selected = new Set(xi.map((player) => player.id));
-  const bench = sortSubsByPosition(squad.filter((player) => !selected.has(player.id)));
   const cohesion = state.playerClubPerformance?.cohesion ?? PLAYER_COHESION_DEFAULT;
   const morale = state.playerClubPerformance?.morale ?? PLAYER_MORALE_DEFAULT;
   const managerQuality = playerManagerQuality(state);
@@ -124,6 +145,15 @@ export function SquadSelectionTab({
   const medical = medicalSupport(state);
   const averageFitness = squadAverageFitness(state);
   const fixtureLoad = fixtureLoadThisWeek(state);
+  const available = squad.filter((player) => playerIsAvailable(player, state)).length;
+  const displayName = useDisplayNames(squad);
+  const kit = useMemo<PortraitKit>(() => {
+    const identity = clubKitFor(state);
+    return { kit: identity.home, badge: identity.badge, clubName: state.clubName };
+  }, [state]);
+  const xiFitness = Math.round(
+    xi.reduce((sum, player) => sum + playerFitness(player), 0) / Math.max(1, xi.length),
+  );
 
   const startPlanner = () => {
     const baseFormation = planner?.formation ?? managerShape;
@@ -198,77 +228,264 @@ export function SquadSelectionTab({
         "contained-scroll touch-pan-y grid min-h-0 flex-1 auto-rows-max gap-3 pr-0.5",
         planner ? "grid-cols-1" : "lg:grid-cols-[minmax(0,0.9fr)_minmax(22rem,1.1fr)] lg:grid-rows-[auto_auto_minmax(0,1fr)]",
       )}>
-        {!planner && <section className="lf-squad-overview overflow-hidden rounded-xl border bg-card shadow-sm lg:col-start-1">
-          <div className="panel-strip p-4"><div className="flex items-start justify-between gap-4"><div><div className="text-[10px] uppercase tracking-[0.2em] opacity-70">Football department</div><h2 className="font-display text-2xl">Squad & selection</h2><p className="mt-1 max-w-2xl text-sm opacity-80">Pitch view for the XI; details view for quick contract and squad review.</p></div><Shield className="size-8 opacity-70" /></div></div>
-          <div className="grid grid-cols-3 divide-x border-t text-center md:grid-cols-6"><Summary label="Available" value={`${squad.filter((player) => playerIsAvailable(player, state)).length}/${squad.length}`} /><Summary label="Manager's XI" value={String(xi.length)} /><Summary label="Avg ability" value={averageAbility(xi).toFixed(1)} /><Summary label="Cohesion" value={Math.round(cohesion).toString()} /><Summary label="Morale" value={Math.round(morale).toString()} /><Summary label="Manager" value={Math.round(managerQuality).toString()} /></div>
-        </section>}
-        {view === "pitch" ? <section className={cn("lf-pitch-card overflow-hidden rounded-xl border border-emerald-900/40 bg-[#06251c] text-white shadow-sm lg:col-start-1", planner && "col-span-1 w-full")}><div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-3"><div><div className="text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-200/55">{matchPrep.managerId ? "Manager selection" : "Caretaker selection"}</div><div className="mt-0.5 flex items-end gap-2"><div className="font-display text-2xl">First XI</div><span className="mb-0.5 rounded-md border border-white/10 bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold text-white/75">{formation}</span></div></div><div className="grid grid-cols-2 gap-1.5 text-right"><div className="rounded-lg border border-white/10 bg-black/15 px-2 py-1"><div className="font-display text-base">{averageAbility(xi).toFixed(1)}</div><div className="text-[7px] uppercase tracking-wide text-white/40">Avg OVR</div></div><div className="rounded-lg border border-white/10 bg-black/15 px-2 py-1"><div className="font-display text-base">{Math.round(xi.reduce((sum, player) => sum + playerFitness(player), 0) / Math.max(1, xi.length))}%</div><div className="text-[7px] uppercase tracking-wide text-white/40">Avg fit</div></div></div></div><div className="border-b border-white/10 px-3 py-2">
-  {!planner ? (
-    <button
-      type="button"
-      onClick={startPlanner}
-      className="group w-full rounded-xl border border-cyan-200/35 bg-gradient-to-r from-cyan-400/25 via-teal-400/20 to-emerald-400/20 px-3.5 py-3 text-left shadow-[0_8px_24px_rgba(20,184,166,0.18)] ring-1 ring-inset ring-white/10 transition hover:from-cyan-400/30 hover:via-teal-400/25 hover:to-emerald-400/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/80"
-    >
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="font-display text-base font-bold tracking-wide text-white">Lineup Sandbox</div>
-          <div className="mt-0.5 text-[10px] font-medium text-cyan-50/70">Test formations and swap players without affecting the manager&apos;s real XI.</div>
-        </div>
-        <div className="shrink-0 rounded-lg border border-white/15 bg-black/20 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-white/90 transition group-hover:bg-black/30">
-          Open
-        </div>
-      </div>
-    </button>
-  ) : (
-    <div className="text-[10px] text-white/55">Drag players onto each other to swap · tap still works on mobile. The large number is the player&apos;s estimated effectiveness in that slot.</div>
-  )}
-</div>
-<Pitch state={state} xi={xi} formation={formation} planner={Boolean(planner)} onSwap={swapPlannerPlayer} squad={squad} /></section> : <section className="overflow-hidden rounded-xl border bg-card shadow-sm lg:col-start-1"><div className="border-b px-3 py-3"><div className="font-display text-xl">Season performance</div><div className="text-xs text-muted-foreground">Recorded appearances from watched and simulated matches.</div></div><div className="grid grid-cols-3 divide-x border-b text-center"><Summary label="Avg fitness" value={`${averageFitness}%`} /><Summary label="Medical" value={medical.label} /><Summary label="Fixtures this week" value={String(fixtureLoad)} /></div><div className="grid grid-cols-2 gap-2 border-b p-3 text-xs sm:grid-cols-4"><Leader label="Top scorer" name={leaders.topScorer?.name} value={leaders.topScorer ? `${leaders.topScorer.goals} goals` : "—"} /><Leader label="Top assists" name={leaders.topAssister?.name} value={leaders.topAssister ? `${leaders.topAssister.assists} assists` : "—"} /><Leader label="Top rated" name={leaders.topRated?.name} value={leaders.topRated ? leaders.topRated.averageRating.toFixed(2) : "—"} /><Leader label="Most used" name={leaders.mostUsed?.name} value={leaders.mostUsed ? `${leaders.mostUsed.minutes} min` : "—"} /></div><div className="overflow-x-auto"><table className="w-full text-xs"><thead className="border-b bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground"><tr><th className="px-3 py-2 text-left">Player</th><th className="px-2 py-2 text-right">Apps</th><th className="px-2 py-2 text-right">Starts</th><th className="px-2 py-2 text-right">Sub</th><th className="px-2 py-2 text-right">Min</th><th className="px-2 py-2 text-right">G</th><th className="px-2 py-2 text-right">A</th><th className="px-2 py-2 text-right">Rat</th><th className="px-2 py-2 text-right">Form</th></tr></thead><tbody>{seasonStats.map((row) => <tr key={row.playerId} className="border-b last:border-b-0"><td className="px-3 py-2 font-semibold">{row.name}</td><td className="px-2 py-2 text-right">{row.appearances}</td><td className="px-2 py-2 text-right">{row.starts}</td><td className="px-2 py-2 text-right">{row.substituteAppearances}</td><td className="px-2 py-2 text-right">{row.minutes}</td><td className="px-2 py-2 text-right">{row.goals}</td><td className="px-2 py-2 text-right">{row.assists}</td><td className="px-2 py-2 text-right">{row.averageRating.toFixed(2)}</td><td className="px-2 py-2 text-right">{playerRecentForm(state, row.playerId).appearances ? `${playerRecentForm(state, row.playerId).band} ${playerRecentForm(state, row.playerId).averageRating.toFixed(2)}` : "—"}</td></tr>)}{seasonStats.length === 0 && <tr><td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">No player match records yet.</td></tr>}</tbody></table></div><div className="border-t bg-muted/20 px-3 py-2 text-[10px] text-muted-foreground">Medical score {medical.score}/100 · weekly fitness recovery +{medical.recoveryPerWeek} · injury-risk factor {medical.injuryRiskMultiplier.toFixed(2)}×</div></section>}
-        {!(planner && view === "pitch") && (
-          <>
-            <section className="overflow-hidden rounded-xl border bg-[#071713] text-white shadow-sm lg:hidden">
-              <div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-2.5">
-                <div>
-                  <div className="font-display text-lg">Substitutes & squad</div>
-                  <div className="text-[10px] text-white/55">Side-scroll the same compact player rail used in Lineup Sandbox.</div>
+        {!planner && (
+          <section className="grid grid-cols-5 divide-x overflow-hidden rounded-xl border bg-card text-center shadow-sm lg:col-start-1" aria-label="Squad pulse">
+            <Pulse label="Available" value={`${available}/${squad.length}`} pct={(available / Math.max(1, squad.length)) * 100} />
+            <Pulse label="XI avg" value={averageAbility(xi).toFixed(1)} />
+            <Pulse label="Cohesion" value={String(Math.round(cohesion))} pct={cohesion} />
+            <Pulse label="Morale" value={String(Math.round(morale))} pct={morale} />
+            <Pulse label="Manager" value={String(Math.round(managerQuality))} pct={managerQuality} />
+          </section>
+        )}
+
+        {view === "pitch" ? (
+          <section className={cn("lf-pitch-card overflow-hidden rounded-xl border border-emerald-900/40 bg-[#06251c] text-white shadow-sm lg:col-start-1", planner && "col-span-1 w-full")}>
+            <div className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2.5">
+              <div className="min-w-0">
+                <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-200/55">{matchPrep.managerId ? "Manager's selection" : "Caretaker selection"}</div>
+                <div className="mt-0.5 flex items-center gap-2">
+                  <div className="font-display text-2xl leading-none">First XI</div>
+                  <span className="rounded-md border border-white/10 bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold text-white/75">{formation}</span>
                 </div>
-                <div className="shrink-0 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[9px] font-bold text-white/50">{bench.length} players</div>
               </div>
-              <div className="flex snap-x gap-2 overflow-x-auto overscroll-x-contain px-3 py-3 [scrollbar-width:thin]">
-                {bench.map((player) => {
-                  const tactical = tacticalPositionProfile(player);
-                  const unit = positionUnit(tactical.primary);
-                  const fitness = playerFitness(player);
-                  return (
-                    <button
-                      key={player.id}
-                      type="button"
-                      onClick={() => openPlayerProfile(player.id)}
-                      className={cn(
-                        "min-w-[5.2rem] snap-start rounded-xl border px-2 py-2 text-center transition touch-pan-x focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80",
-                        SUB_CARD_TONE[unit],
-                      )}
-                      aria-label={`Open ${playerName(player)} profile`}
-                    >
-                      <SquadRailCardContent player={player} unit={unit} tacticalPosition={tactical.primary} fitness={fitness} />
-                    </button>
-                  );
-                })}
+              <div className="flex items-center gap-1.5">
+                <div className="rounded-lg border border-white/10 bg-black/15 px-2 py-1 text-right">
+                  <div className="font-display text-base leading-none">{averageAbility(xi).toFixed(1)}</div>
+                  <div className="text-[7px] uppercase tracking-wide text-white/40">OVR</div>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-black/15 px-2 py-1 text-right">
+                  <div className="font-display text-base leading-none">{xiFitness}%</div>
+                  <div className="text-[7px] uppercase tracking-wide text-white/40">Fit</div>
+                </div>
+                {!planner && (
+                  <button
+                    type="button"
+                    onClick={startPlanner}
+                    className="flex h-[2.35rem] items-center gap-1 rounded-lg border border-cyan-200/35 bg-cyan-400/20 px-2.5 text-[10px] font-black uppercase tracking-wide text-white hover:bg-cyan-400/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/80"
+                    title="Test formations and swaps without changing the manager's XI"
+                  >
+                    <FlaskConical className="size-3.5" /> Sandbox
+                  </button>
+                )}
               </div>
-            </section>
-            <section className="lf-squad-list hidden min-h-0 flex-col rounded-xl border bg-card shadow-sm lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:flex lg:overflow-hidden">
-              <div className="border-b px-4 py-3">
-                <div className="font-display text-xl">Substitutes</div>
-                <div className="text-xs text-muted-foreground">Players outside the starting XI and available from the bench.</div>
-              </div>
-              <div className="min-h-0 flex-1 divide-y lg:overflow-auto lg:overscroll-contain lg:[scrollbar-gutter:stable]">
-                {bench.map((player) => <PlayerRow key={player.id} state={state} player={player} />)}
-              </div>
-            </section>
-          </>
+            </div>
+            <div className="px-3 py-1.5 text-[10px] text-white/50">
+              {planner
+                ? "Drag players onto each other to swap · tap works on mobile. The badge is the player's effectiveness in that slot."
+                : "Tap a player for his profile · badge shows effectiveness in that position."}
+            </div>
+            <Pitch
+              state={state}
+              xi={xi}
+              formation={formation}
+              planner={Boolean(planner)}
+              onSwap={swapPlannerPlayer}
+              squad={squad}
+              kit={kit}
+              displayName={displayName}
+            />
+          </section>
+        ) : (
+          <section className="overflow-hidden rounded-xl border bg-card shadow-sm lg:col-start-1">
+            <div className="border-b px-3 py-2.5">
+              <div className="font-display text-xl leading-none">Season performance</div>
+              <div className="mt-0.5 text-[11px] text-muted-foreground">Recorded appearances from watched and simulated matches.</div>
+            </div>
+            <div className="grid grid-cols-3 divide-x border-b text-center">
+              <Pulse label="Avg fitness" value={`${averageFitness}%`} pct={averageFitness} />
+              <Pulse label="Medical" value={medical.label} />
+              <Pulse label="Fixtures this wk" value={String(fixtureLoad)} />
+            </div>
+            <div className="grid grid-cols-2 gap-2 border-b p-2.5 text-xs sm:grid-cols-4">
+              <Leader label="Top scorer" name={leaders.topScorer?.name} value={leaders.topScorer ? `${leaders.topScorer.goals} goals` : "—"} />
+              <Leader label="Top assists" name={leaders.topAssister?.name} value={leaders.topAssister ? `${leaders.topAssister.assists} assists` : "—"} />
+              <Leader label="Top rated" name={leaders.topRated?.name} value={leaders.topRated ? leaders.topRated.averageRating.toFixed(2) : "—"} />
+              <Leader label="Most used" name={leaders.mostUsed?.name} value={leaders.mostUsed ? `${leaders.mostUsed.minutes} min` : "—"} />
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="border-b bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <tr><th className="px-3 py-2 text-left">Player</th><th className="px-2 py-2 text-right">Apps</th><th className="px-2 py-2 text-right">Starts</th><th className="px-2 py-2 text-right">Sub</th><th className="px-2 py-2 text-right">Min</th><th className="px-2 py-2 text-right">G</th><th className="px-2 py-2 text-right">A</th><th className="px-2 py-2 text-right">Rat</th><th className="px-2 py-2 text-right">Form</th></tr>
+                </thead>
+                <tbody>
+                  {seasonStats.map((row) => {
+                    const form = playerRecentForm(state, row.playerId);
+                    return (
+                      <tr key={row.playerId} className="cursor-pointer border-b last:border-b-0 hover:bg-muted/30" onClick={() => openPlayerProfile(row.playerId)}>
+                        <td className="px-3 py-2 font-semibold">{row.name}</td>
+                        <td className="px-2 py-2 text-right">{row.appearances}</td>
+                        <td className="px-2 py-2 text-right">{row.starts}</td>
+                        <td className="px-2 py-2 text-right">{row.substituteAppearances}</td>
+                        <td className="px-2 py-2 text-right">{row.minutes}</td>
+                        <td className="px-2 py-2 text-right">{row.goals}</td>
+                        <td className="px-2 py-2 text-right">{row.assists}</td>
+                        <td className="px-2 py-2 text-right">{row.averageRating.toFixed(2)}</td>
+                        <td className="px-2 py-2 text-right">{form.appearances ? `${form.band} ${form.averageRating.toFixed(2)}` : "—"}</td>
+                      </tr>
+                    );
+                  })}
+                  {seasonStats.length === 0 && <tr><td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">No player match records yet.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+            <div className="border-t bg-muted/20 px-3 py-2 text-[10px] text-muted-foreground">
+              Medical score {medical.score}/100 · weekly fitness recovery +{medical.recoveryPerWeek} · injury-risk factor {medical.injuryRiskMultiplier.toFixed(2)}×
+            </div>
+          </section>
+        )}
+
+        {!(planner && view === "pitch") && (
+          <SquadPositionRails
+            state={state}
+            squad={squad}
+            selected={selected}
+            kit={kit}
+            displayName={displayName}
+            className="lg:col-start-2 lg:row-span-3 lg:row-start-1"
+          />
         )}
       </div>
     </div>
+  );
+}
+
+function SquadPositionRails({
+  state,
+  squad,
+  selected,
+  kit,
+  displayName,
+  className,
+}: {
+  state: GameState;
+  squad: FootballPlayer[];
+  selected: Set<string>;
+  kit: PortraitKit;
+  displayName: (player: FootballPlayer) => string;
+  className?: string;
+}) {
+  return (
+    <section className={cn("overflow-hidden rounded-xl border bg-card shadow-sm", className)}>
+      <div className="flex items-baseline justify-between border-b px-3 py-2.5">
+        <div>
+          <div className="font-display text-xl leading-none">Squad</div>
+          <div className="mt-0.5 text-[10px] text-muted-foreground">Swipe each position group horizontally.</div>
+        </div>
+        <div className="text-[10px] text-muted-foreground">{squad.length} players · {selected.size} in XI</div>
+      </div>
+      <div className="divide-y">
+        {UNIT_GROUPS.map(({ unit, label, minimum }) => {
+          const players = sortSubsByPosition(
+            squad.filter((player) => positionUnit(tacticalPositionProfile(player).primary) === unit),
+          );
+          const fit = players.filter((player) => playerIsAvailable(player, state)).length;
+          const thin = fit < minimum;
+          return (
+            <div key={unit} className="py-2">
+              <div className="mb-1.5 flex items-center justify-between gap-2 px-3">
+                <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+                  <span className={cn("rounded px-1 py-0.5 text-[9px]", UNIT_CHIP[unit])}>{unit}</span>
+                  {label}
+                </span>
+                <span className={cn("flex items-center gap-1 text-[10px] font-semibold", thin ? "text-amber-700 dark:text-amber-300" : "text-muted-foreground")}>
+                  {thin && <TriangleAlert className="size-3" />}
+                  {fit} available{thin ? ` · thin (want ${minimum})` : ""}
+                </span>
+              </div>
+              {players.length === 0 ? (
+                <div className="px-3 py-2 text-[11px] text-muted-foreground">No {label.toLowerCase()} in the squad.</div>
+              ) : (
+                <div className="flex snap-x gap-2 overflow-x-auto overscroll-x-contain px-3 pb-1 [scrollbar-width:thin]">
+                  {players.map((player) => (
+                    <SquadRailPlayer
+                      key={player.id}
+                      state={state}
+                      player={player}
+                      inXi={selected.has(player.id)}
+                      kit={kit}
+                      name={displayName(player)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function SquadRailPlayer({
+  state,
+  player,
+  inXi,
+  kit,
+  name,
+}: {
+  state: GameState;
+  player: FootballPlayer;
+  inXi: boolean;
+  kit: PortraitKit;
+  name: string;
+}) {
+  const tactical = tacticalPositionProfile(player);
+  const unit = positionUnit(tactical.primary);
+  const fitness = playerFitness(player);
+  const availableNow = playerIsAvailable(player, state);
+  const contract = activeContract(state, player.id);
+  const loan = activeLoanForPlayer(state, player.id);
+  const expiring = Boolean(contract && contract.expirySeason <= state.season);
+  const form = playerRecentForm(state, player.id);
+  const tags: { label: string; tone: string }[] = [];
+  if (!availableNow) tags.push({ label: "Unavailable", tone: "bg-rose-500/20 text-rose-100" });
+  if (player.transferStatus === "listed") tags.push({ label: "Listed", tone: "bg-amber-500/20 text-amber-100" });
+  if (loan) tags.push({ label: "Loan", tone: "bg-sky-500/20 text-sky-100" });
+  if (expiring) tags.push({ label: "Expiring", tone: "bg-orange-500/20 text-orange-100" });
+
+  return (
+    <button
+      type="button"
+      onClick={() => openPlayerProfile(player.id)}
+      className={cn(
+        "min-w-[7.2rem] snap-start rounded-xl border px-2 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+        SUB_CARD_TONE[unit],
+        !availableNow && "opacity-65",
+      )}
+      aria-label={`Open ${playerName(player)} profile`}
+    >
+      <div className="flex items-start justify-between gap-1.5">
+        <div className="relative shrink-0">
+          <div className="size-11 overflow-hidden rounded-full bg-[#0b3a2a] ring-1 ring-white/30">
+            <div className="-mt-0.5 flex justify-center">
+              <CharacterPortrait identity={{ id: player.id, subject: "player" }} kit={kit} size={46} framed={false} />
+            </div>
+          </div>
+          <span className={cn("absolute -right-2 -top-1 grid h-5 min-w-6 place-items-center rounded-md border px-1 font-display text-[11px]", POSITION_PITCH_CLASS[unit])}>
+            {player.currentAbility}
+          </span>
+          <span className={cn(
+            "absolute bottom-0 right-0 size-2.5 rounded-full border border-[#071713]",
+            fitness >= 90 ? "bg-emerald-300" : fitness >= 75 ? "bg-amber-300" : "bg-rose-300",
+          )} />
+        </div>
+        {inXi && <span className="rounded bg-emerald-500/20 px-1 py-0.5 text-[8px] font-black text-emerald-100">XI</span>}
+      </div>
+      <div className="mt-1 truncate font-display text-[12px] text-foreground">{name}</div>
+      <div className="mt-0.5 truncate text-[9px] font-semibold text-muted-foreground">
+        {tactical.primary}{tactical.secondary.length ? ` · ${tactical.secondary.slice(0, 2).join("/")}` : ""}
+      </div>
+      <div className="mt-0.5 text-[9px] text-muted-foreground">
+        {ageOf(player, state.season)}y · {fitness}% fit{form.appearances ? ` · ${form.averageRating.toFixed(1)}` : ""}
+      </div>
+      {tags.length > 0 && (
+        <div className="mt-1 flex flex-wrap gap-1">
+          {tags.slice(0, 2).map((tag) => (
+            <span key={tag.label} className={cn("rounded px-1 py-0.5 text-[7px] font-black uppercase", tag.tone)}>{tag.label}</span>
+          ))}
+        </div>
+      )}
+    </button>
   );
 }
 
@@ -298,6 +515,8 @@ function Pitch({
   planner = false,
   onSwap,
   squad = [],
+  kit,
+  displayName,
 }: {
   state: GameState;
   xi: FootballPlayer[];
@@ -305,6 +524,8 @@ function Pitch({
   planner?: boolean;
   onSwap?: (slotIndex: number, incomingId: string) => void;
   squad?: FootballPlayer[];
+  kit: PortraitKit;
+  displayName: (player: FootballPlayer) => string;
 }) {
   const slots = MANAGER_FORMATION_SLOTS[formation];
   const [swapSlot, setSwapSlot] = useState<number | null>(null);
@@ -423,21 +644,24 @@ function Pitch({
               )}
               aria-label={planner ? `Move ${playerName(player)}` : `Open ${playerName(player)} profile`}
             >
-              <div className={cn(
-                "relative mx-auto grid size-11 place-items-center rounded-full border-2 font-display text-base shadow-lg sm:size-12",
-                POSITION_PITCH_CLASS[positionUnit(slot)],
-                familiarityTone,
-              )}>
-                {effectiveOverall}
+              <div className="relative mx-auto size-11 sm:size-12">
+                <div className={cn("size-full overflow-hidden rounded-full bg-[#0b3a2a] shadow-lg ring-2", familiarityTone)}>
+                  <div className="-mt-0.5 flex justify-center">
+                    <CharacterPortrait identity={{ id: player.id, subject: "player" }} kit={kit} size={46} framed={false} />
+                  </div>
+                </div>
+                <span className={cn("absolute -right-2 -top-1.5 grid h-5 min-w-6 place-items-center rounded-md border px-1 font-display text-[12px] leading-none shadow", POSITION_PITCH_CLASS[positionUnit(slot)])}>
+                  {effectiveOverall}
+                </span>
                 {planner && effectiveOverall !== player.currentAbility && (
-                  <span className="absolute -left-1.5 -top-1.5 rounded-md border border-white/20 bg-black/60 px-1 py-0.5 text-[7px] font-bold text-white/75">
+                  <span className="absolute -left-2 -top-1.5 rounded-md border border-white/20 bg-black/70 px-1 py-0.5 text-[7px] font-bold text-white/75">
                     {player.currentAbility}
                   </span>
                 )}
-                <span className={cn("absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border border-emerald-950", fitnessTone)} />
+                <span className={cn("absolute bottom-0 right-0 size-2.5 rounded-full border border-emerald-950", fitnessTone)} />
               </div>
-              <div className="mt-0.5 rounded-md border border-white/10 bg-black/35 px-1 py-0.5 shadow-sm backdrop-blur-[1px]">
-                <div className="truncate font-display text-[10px] leading-none sm:text-[11px]">{player.lastName}</div>
+              <div className="mt-0.5 rounded-md bg-black/55 px-1 py-0.5 shadow-sm backdrop-blur-[1px]">
+                <div className="truncate font-display text-[10.5px] leading-none sm:text-[11px]">{displayName(player)}</div>
                 <div className="mt-0.5 flex items-center justify-center gap-1 text-[7px] font-bold leading-none text-white/60">
                   <span>{slot}</span>
                   {planner && tactical.primary !== slot && <span>· NAT {tactical.primary}</span>}
@@ -456,7 +680,7 @@ function Pitch({
       {planner && swapSlot !== null && onSwap && <div className="absolute inset-x-2 bottom-8 z-20 max-h-44 overflow-auto rounded-xl border border-white/15 bg-[#071713]/95 p-2 shadow-xl"><div className="mb-1 flex items-center justify-between"><div className="text-[9px] font-bold uppercase tracking-wider text-white/55">Replace {xi[swapSlot]?.lastName ?? "player"} · {slots[swapSlot]}</div><button type="button" onClick={() => setSwapSlot(null)} className="rounded px-2 py-1 text-xs text-white/60">Close</button></div>{squad.filter((candidate) => candidate.id !== xi[swapSlot]?.id).sort((a,b) => sandboxPositionOverall(b, slots[swapSlot]) - sandboxPositionOverall(a, slots[swapSlot])).map((candidate) => {
   const natural = tacticalPositionProfile(candidate).primary;
   const effective = sandboxPositionOverall(candidate, slots[swapSlot]);
-  return <button type="button" key={candidate.id} onClick={() => { onSwap(swapSlot, candidate.id); setSwapSlot(null); }} className="flex min-h-10 w-full items-center justify-between border-t border-white/10 px-2 text-left text-xs"><span><b>{candidate.lastName}</b> <span className="text-white/45">NAT {natural}</span></span><span className="text-right"><span className="block font-display text-base">{effective}</span>{effective !== candidate.currentAbility && <span className="block text-[8px] text-white/40">base {candidate.currentAbility}</span>}</span></button>;
+  return <button type="button" key={candidate.id} onClick={() => { onSwap(swapSlot, candidate.id); setSwapSlot(null); }} className="flex min-h-10 w-full items-center justify-between border-t border-white/10 px-2 text-left text-xs"><span><b>{displayName(candidate)}</b> <span className="text-white/45">NAT {natural}</span></span><span className="text-right"><span className="block font-display text-base">{effective}</span>{effective !== candidate.currentAbility && <span className="block text-[8px] text-white/40">base {candidate.currentAbility}</span>}</span></button>;
 })}</div>}
     </div>
       {planner && (
@@ -525,7 +749,14 @@ function Pitch({
                   )}
                   aria-label={`Move ${playerName(player)}`}
                 >
-                  <SquadRailCardContent player={player} unit={unit} tacticalPosition={tactical.primary} fitness={fitness} />
+                  <div className="relative mx-auto w-fit">
+                    <div className="size-10 overflow-hidden rounded-full bg-[#0b3a2a] ring-1 ring-white/30">
+                      <div className="-mt-0.5 flex justify-center"><CharacterPortrait identity={{ id: player.id, subject: "player" }} kit={kit} size={42} framed={false} /></div>
+                    </div>
+                    <span className={cn("absolute -right-2.5 -top-1 grid h-4 min-w-5 place-items-center rounded border px-0.5 font-display text-[10px]", POSITION_PITCH_CLASS[unit])}>{player.currentAbility}</span>
+                  </div>
+                  <div className="mt-1 max-w-[4.7rem] truncate font-display text-[11px] text-white/95">{displayName(player)}</div>
+                  <div className={cn("mt-0.5 text-[8px] font-bold", SUB_TEXT_TONE[unit])}>{tactical.primary} · {fitness}%</div>
                 </button>
               );
             })}
@@ -536,38 +767,26 @@ function Pitch({
   );
 }
 
-function SquadRailCardContent({
-  player,
-  unit,
-  tacticalPosition,
-  fitness,
-}: {
-  player: FootballPlayer;
-  unit: ReturnType<typeof positionUnit>;
-  tacticalPosition: TacticalPosition;
-  fitness: number;
-}) {
+function Pulse({ label, value, pct }: { label: string; value: string; pct?: number }) {
   return (
-    <>
-      <div className={cn(
-        "mx-auto grid size-10 place-items-center rounded-full border-2 font-display text-base shadow-sm",
-        POSITION_PITCH_CLASS[unit],
-      )}>{player.currentAbility}</div>
-      <div className="mt-1 max-w-[4.7rem] truncate font-display text-[11px] text-white/95">{player.lastName}</div>
-      <div className={cn("mt-0.5 text-[8px] font-bold", SUB_TEXT_TONE[unit])}>NAT {tacticalPosition} · {fitness}%</div>
-    </>
+    <div className="min-w-0 px-1 py-2">
+      <div className="truncate font-display text-lg leading-none tnum">{value}</div>
+      <div className="mt-1 truncate text-[8px] font-bold uppercase tracking-wider text-muted-foreground">{label}</div>
+      {pct !== undefined && (
+        <div className="mx-auto mt-1 h-1 w-8 overflow-hidden rounded-full bg-muted">
+          <div
+            className={cn(
+              "h-full rounded-full",
+              pct >= 65 ? "bg-emerald-500" : pct >= 45 ? "bg-amber-500" : "bg-rose-500",
+            )}
+            style={{ width: `${Math.max(4, Math.min(100, pct))}%` }}
+          />
+        </div>
+      )}
+    </div>
   );
 }
 
-function CompactPlayerRow({ state, player, inXi }: { state: GameState; player: FootballPlayer; inXi: boolean }) {
-  return <TacticalPlayerCard state={state} player={player} mode="compact" selected={inXi} className="rounded-none border-x-0 border-t-0 shadow-none last:border-b-0" />;
-}
-
-function PlayerRow({ state, player }: { state: GameState; player: FootballPlayer }) {
-  return <TacticalPlayerCard state={state} player={player} mode="squad" className="rounded-none border-x-0 border-t-0 shadow-none last:border-b-0" />;
-}
-
-function Summary({ label, value }: { label: string; value: string }) { return <div className="p-3"><div className="font-display text-2xl">{value}</div><div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div></div>; }
 function averageAbility(players: FootballPlayer[]): number { return players.length ? players.reduce((sum, player) => sum + player.currentAbility, 0) / players.length : 0; }
 
 function Leader({ label, name, value }: { label: string; name?: string; value: string }) { return <div className="rounded-lg border bg-muted/20 p-2"><div className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</div><div className="mt-1 truncate font-semibold">{name ?? "No data"}</div><div className="text-[10px] text-muted-foreground">{value}</div></div>; }
