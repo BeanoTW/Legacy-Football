@@ -255,7 +255,54 @@ export function SquadSelectionTab({
   )}
 </div>
 <Pitch state={state} xi={xi} formation={formation} planner={Boolean(planner)} onSwap={swapPlannerPlayer} squad={squad} /></section> : <section className="overflow-hidden rounded-xl border bg-card shadow-sm lg:col-start-1"><div className="border-b px-3 py-3"><div className="font-display text-xl">Season performance</div><div className="text-xs text-muted-foreground">Recorded appearances from watched and simulated matches.</div></div><div className="grid grid-cols-3 divide-x border-b text-center"><Summary label="Avg fitness" value={`${averageFitness}%`} /><Summary label="Medical" value={medical.label} /><Summary label="Fixtures this week" value={String(fixtureLoad)} /></div><div className="grid grid-cols-2 gap-2 border-b p-3 text-xs sm:grid-cols-4"><Leader label="Top scorer" name={leaders.topScorer?.name} value={leaders.topScorer ? `${leaders.topScorer.goals} goals` : "—"} /><Leader label="Top assists" name={leaders.topAssister?.name} value={leaders.topAssister ? `${leaders.topAssister.assists} assists` : "—"} /><Leader label="Top rated" name={leaders.topRated?.name} value={leaders.topRated ? leaders.topRated.averageRating.toFixed(2) : "—"} /><Leader label="Most used" name={leaders.mostUsed?.name} value={leaders.mostUsed ? `${leaders.mostUsed.minutes} min` : "—"} /></div><div className="overflow-x-auto"><table className="w-full text-xs"><thead className="border-b bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground"><tr><th className="px-3 py-2 text-left">Player</th><th className="px-2 py-2 text-right">Apps</th><th className="px-2 py-2 text-right">Starts</th><th className="px-2 py-2 text-right">Sub</th><th className="px-2 py-2 text-right">Min</th><th className="px-2 py-2 text-right">G</th><th className="px-2 py-2 text-right">A</th><th className="px-2 py-2 text-right">Rat</th><th className="px-2 py-2 text-right">Form</th></tr></thead><tbody>{seasonStats.map((row) => <tr key={row.playerId} className="border-b last:border-b-0"><td className="px-3 py-2 font-semibold">{row.name}</td><td className="px-2 py-2 text-right">{row.appearances}</td><td className="px-2 py-2 text-right">{row.starts}</td><td className="px-2 py-2 text-right">{row.substituteAppearances}</td><td className="px-2 py-2 text-right">{row.minutes}</td><td className="px-2 py-2 text-right">{row.goals}</td><td className="px-2 py-2 text-right">{row.assists}</td><td className="px-2 py-2 text-right">{row.averageRating.toFixed(2)}</td><td className="px-2 py-2 text-right">{playerRecentForm(state, row.playerId).appearances ? `${playerRecentForm(state, row.playerId).band} ${playerRecentForm(state, row.playerId).averageRating.toFixed(2)}` : "—"}</td></tr>)}{seasonStats.length === 0 && <tr><td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">No player match records yet.</td></tr>}</tbody></table></div><div className="border-t bg-muted/20 px-3 py-2 text-[10px] text-muted-foreground">Medical score {medical.score}/100 · weekly fitness recovery +{medical.recoveryPerWeek} · injury-risk factor {medical.injuryRiskMultiplier.toFixed(2)}×</div></section>}
-        {!(planner && view === "pitch") && <section className="lf-squad-list flex min-h-0 flex-col rounded-xl border bg-card shadow-sm lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:overflow-hidden"><div className="border-b px-4 py-3"><div className="font-display text-xl">Substitutes</div><div className="text-xs text-muted-foreground">Players outside the starting XI and available from the bench.</div></div><div className="min-h-0 flex-1 divide-y lg:overflow-auto lg:overscroll-contain lg:[scrollbar-gutter:stable]">{bench.map((player) => <PlayerRow key={player.id} state={state} player={player} />)}</div></section>}
+        {!(planner && view === "pitch") && (
+          <>
+            <section className="overflow-hidden rounded-xl border bg-[#071713] text-white shadow-sm lg:hidden">
+              <div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-2.5">
+                <div>
+                  <div className="font-display text-lg">Substitutes & squad</div>
+                  <div className="text-[10px] text-white/55">Side-scroll the same compact player rail used in Lineup Sandbox.</div>
+                </div>
+                <div className="shrink-0 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[9px] font-bold text-white/50">{bench.length} players</div>
+              </div>
+              <div className="flex snap-x gap-2 overflow-x-auto overscroll-x-contain px-3 py-3 [scrollbar-width:thin]">
+                {bench.map((player) => {
+                  const tactical = tacticalPositionProfile(player);
+                  const unit = positionUnit(tactical.primary);
+                  const fitness = playerFitness(player);
+                  return (
+                    <button
+                      key={player.id}
+                      type="button"
+                      onClick={() => openPlayerProfile(player.id)}
+                      className={cn(
+                        "min-w-[5.2rem] snap-start rounded-xl border px-2 py-2 text-center transition touch-pan-x focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80",
+                        SUB_CARD_TONE[unit],
+                      )}
+                      aria-label={`Open ${playerName(player)} profile`}
+                    >
+                      <div className={cn(
+                        "mx-auto grid size-10 place-items-center rounded-full border-2 font-display text-base shadow-sm",
+                        POSITION_PITCH_CLASS[unit],
+                      )}>{player.currentAbility}</div>
+                      <div className="mt-1 max-w-[4.7rem] truncate font-display text-[11px] text-white/95">{player.lastName}</div>
+                      <div className={cn("mt-0.5 text-[8px] font-bold", SUB_TEXT_TONE[unit])}>NAT {tactical.primary} · {fitness}%</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+            <section className="lf-squad-list hidden min-h-0 flex-col rounded-xl border bg-card shadow-sm lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:flex lg:overflow-hidden">
+              <div className="border-b px-4 py-3">
+                <div className="font-display text-xl">Substitutes</div>
+                <div className="text-xs text-muted-foreground">Players outside the starting XI and available from the bench.</div>
+              </div>
+              <div className="min-h-0 flex-1 divide-y lg:overflow-auto lg:overscroll-contain lg:[scrollbar-gutter:stable]">
+                {bench.map((player) => <PlayerRow key={player.id} state={state} player={player} />)}
+              </div>
+            </section>
+          </>
+        )}
       </div>
     </div>
   );
