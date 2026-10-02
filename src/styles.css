@@ -367,3 +367,51 @@ button.lf-decision-card.lf-choice-tile:disabled {
     transition: none;
   }
 }
+
+
+/* Legacy Football launch branding */
+.lf-launch-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(18, 106, 87, 0.34), transparent 45%),
+    #073b34;
+  opacity: 1;
+  transition: opacity 280ms ease;
+}
+
+.lf-launch-splash.is-ready {
+  animation: lf-launch-exit 900ms ease 650ms forwards;
+}
+
+.lf-launch-splash-art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  opacity: 0;
+  transform: scale(1.015);
+  transition: opacity 220ms ease, transform 900ms ease;
+}
+
+.lf-launch-splash.is-ready .lf-launch-splash-art {
+  opacity: 1;
+  transform: scale(1);
+}
+
+@keyframes lf-launch-exit {
+  0%, 72% { opacity: 1; }
+  100% { opacity: 0; pointer-events: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lf-launch-splash,
+  .lf-launch-splash-art {
+    transition: none;
+    animation: none;
+  }
+}
