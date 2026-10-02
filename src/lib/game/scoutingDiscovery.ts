@@ -215,8 +215,10 @@ function selectCandidatesForInput(
   const fringe = ranked(state, fringePool, input);
   const freeDetailed = detailed.filter((candidate) => candidate.currentClubId === null);
   const contractedDetailed = detailed.filter((candidate) => candidate.currentClubId !== null);
-  const freeQuota = Math.min(freeDetailed.length, Math.max(1, Math.floor(candidateLimit * 0.3)));
-  const fringeQuota = fringe.length ? Math.min(fringe.length, Math.max(1, Math.floor(candidateLimit * 0.25))) : 0;
+  const freeFloor = candidateLimit >= 10 ? 4 : 1;
+  const fringeFloor = candidateLimit >= 10 ? 3 : 1;
+  const freeQuota = Math.min(freeDetailed.length, Math.max(freeFloor, Math.floor(candidateLimit * 0.3)));
+  const fringeQuota = fringe.length ? Math.min(fringe.length, Math.max(fringeFloor, Math.floor(candidateLimit * 0.25))) : 0;
   const selected: DiscoveryCandidate[] = [...freeDetailed.slice(0, freeQuota), ...fringe.slice(0, fringeQuota)];
   const selectedIds = new Set(selected.map((candidate) => candidate.id));
   const remainder = [...contractedDetailed, ...freeDetailed.slice(freeQuota), ...fringe.slice(fringeQuota)]
