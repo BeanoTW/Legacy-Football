@@ -4,10 +4,15 @@ import { canonicalClubReference, sameClubReference } from "./clubReference";
 import { hashString } from "./rng";
 import { clubOverallProfile, generatedOverallForSlot } from "./playerOverall";
 
-export const FRINGE_SQUAD_SIZE = 20;
+export const FRINGE_SQUAD_SIZE = 30;
 export const FRINGE_INACTIVE_RETENTION_SEASONS = 1;
-const POSITIONS: Position[] = ["GK", "DEF", "DEF", "DEF", "MID", "MID", "MID", "MID", "FWD", "FWD"];
-const POSITION_TARGETS: Record<Position, number> = { GK: 2, DEF: 6, MID: 8, FWD: 4 };
+const POSITIONS: Position[] = [
+  "GK", "GK", "GK",
+  "DEF", "DEF", "DEF", "DEF", "DEF", "DEF", "DEF", "DEF", "DEF", "DEF",
+  "MID", "MID", "MID", "MID", "MID", "MID", "MID", "MID", "MID", "MID",
+  "FWD", "FWD", "FWD", "FWD", "FWD", "FWD", "FWD",
+];
+const POSITION_TARGETS: Record<Position, number> = { GK: 3, DEF: 10, MID: 10, FWD: 7 };
 const POSITION_ORDER: Position[] = ["GK", "DEF", "MID", "FWD"];
 
 export interface CompactFringePlayer {
