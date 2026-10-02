@@ -2,6 +2,7 @@ import type { GameState } from "./types";
 import { processDueTransferResponsesInPlace as processDueExternalTransferResponsesInPlace } from "./datedRecruitment";
 import { processDueTransferRegistrationsInPlace } from "./transferRegistration";
 import { processDueSellingClubResponsesInPlace } from "./sellingClubTransferEvents";
+import { processTransferMarketDynamicsInPlace } from "./transferMarketDynamics";
 
 /**
  * Resolve every day-scale transfer event that can mature through Advance.
@@ -13,5 +14,6 @@ import { processDueSellingClubResponsesInPlace } from "./sellingClubTransferEven
 export function processDueTransferResponsesInPlace(state: GameState): void {
   processDueSellingClubResponsesInPlace(state);
   processDueExternalTransferResponsesInPlace(state);
+  processTransferMarketDynamicsInPlace(state);
   processDueTransferRegistrationsInPlace(state);
 }
