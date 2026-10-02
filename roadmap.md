@@ -1,7 +1,7 @@
 # Roadmap
 
 ## In progress
-- [ ] Replace default app branding with Legacy Football icons, splash artwork, and install metadata.
+- [x] Replace default app branding with Legacy Football icons, splash artwork, and install metadata.
 - [x] Enable Lovable Cloud for Legacy Football — done; backend healthy.
 - [x] Create `career_saves` cloud table with per-player access rules — done.
 
