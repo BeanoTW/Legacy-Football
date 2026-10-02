@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, Shield, Users } from "lucide-react";
+import { ArrowLeft, FlaskConical, TriangleAlert } from "lucide-react";
 import type { FootballPlayer, GameState, TacticalPosition } from "@/lib/game/types";
 import type { ManagerFormation } from "@/lib/game/managerIdentity";
 import { managerMatchPrep } from "@/lib/game/managerMatchPrep";
@@ -18,11 +18,13 @@ import { fmtMoney } from "@/lib/game/engine";
 import { activeLoanForPlayer } from "@/lib/game/loans";
 import { absoluteWeek, fromAbsoluteWeek } from "@/lib/game/time";
 import { clubDisplayName } from "@/lib/game/clubReference";
+import { clubKitFor } from "@/lib/game/clubKit";
 import { POSITION_BADGE_CLASS, POSITION_PITCH_CLASS } from "./playerPosition";
 import { contractEmploymentType } from "@/lib/game/employment";
 import { positionEffectiveness, positionFamiliarity, positionUnit, tacticalPositionProfile } from "@/lib/game/positions";
 import { openPlayerProfile } from "./shared/PlayerProfileSheet";
 import { TacticalPlayerCard } from "./shared/TacticalPlayerCard";
+import { CharacterPortrait, type PortraitKit } from "./CharacterPortrait";
 import { fitnessLabel, fixtureLoadThisWeek, medicalSupport, playerFitness, playerIsAvailable, squadAverageFitness } from "@/lib/game/playerHealth";
 import { playerSeasonLeaders, playerSeasonStats } from "@/lib/game/playerSeasonStats";
 import { playerRecentForm } from "@/lib/game/playerForm";
@@ -34,6 +36,33 @@ import {
 
 type SquadView = "pitch" | "stats";
 type PlannerSelection = { formation: ManagerFormation; playerIds: string[] };
+type Unit = ReturnType<typeof positionUnit>;
+
+const UNIT_GROUPS: { unit: Unit; label: string; minimum: number }[] = [
+  { unit: "GK", label: "Goalkeepers", minimum: 2 },
+  { unit: "DEF", label: "Defenders", minimum: 6 },
+  { unit: "MID", label: "Midfielders", minimum: 6 },
+  { unit: "FWD", label: "Forwards", minimum: 3 },
+];
+
+const UNIT_CHIP: Record<Unit, string> = {
+  GK: "bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-200",
+  DEF: "bg-emerald-100 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-200",
+  MID: "bg-blue-100 text-blue-800 dark:bg-blue-400/15 dark:text-blue-200",
+  FWD: "bg-rose-100 text-rose-800 dark:bg-rose-400/15 dark:text-rose-200",
+};
+
+function useDisplayNames(squad: FootballPlayer[]) {
+  return useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const player of squad) counts.set(player.lastName, (counts.get(player.lastName) ?? 0) + 1);
+    return (player: FootballPlayer) =>
+      (counts.get(player.lastName) ?? 0) > 1
+        ? `${player.firstName.charAt(0)}. ${player.lastName}`
+        : player.lastName;
+  }, [squad]);
+}
+
 
 const managerFormation = (state: GameState): ManagerFormation => {
   const selected = managerMatchPrep(state).selectedFormation;
@@ -94,7 +123,7 @@ const SUB_TEXT_TONE: Record<ReturnType<typeof positionUnit>, string> = {
 
 export function SquadSelectionTab({
   state,
-  update,
+  update: _update,
   onBack,
 }: {
   state: GameState;
@@ -115,7 +144,6 @@ export function SquadSelectionTab({
     return planned.length === 11 ? planned : automaticXi;
   }, [automaticXi, formation, planner, squad]);
   const selected = new Set(xi.map((player) => player.id));
-  const bench = sortSubsByPosition(squad.filter((player) => !selected.has(player.id)));
   const cohesion = state.playerClubPerformance?.cohesion ?? PLAYER_COHESION_DEFAULT;
   const morale = state.playerClubPerformance?.morale ?? PLAYER_MORALE_DEFAULT;
   const managerQuality = playerManagerQuality(state);
@@ -124,6 +152,15 @@ export function SquadSelectionTab({
   const medical = medicalSupport(state);
   const averageFitness = squadAverageFitness(state);
   const fixtureLoad = fixtureLoadThisWeek(state);
+  const available = squad.filter((player) => playerIsAvailable(player, state)).length;
+  const displayName = useDisplayNames(squad);
+  const kit = useMemo<PortraitKit>(() => {
+    const identity = clubKitFor(state);
+    return { kit: identity.home, badge: identity.badge, clubName: state.clubName };
+  }, [state]);
+  const xiFitness = Math.round(
+    xi.reduce((sum, player) => sum + playerFitness(player), 0) / Math.max(1, xi.length),
+  );
 
   const startPlanner = () => {
     const baseFormation = planner?.formation ?? managerShape;
