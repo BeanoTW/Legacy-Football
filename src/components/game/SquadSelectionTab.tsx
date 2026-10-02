@@ -235,74 +235,121 @@ export function SquadSelectionTab({
         "contained-scroll touch-pan-y grid min-h-0 flex-1 auto-rows-max gap-3 pr-0.5",
         planner ? "grid-cols-1" : "lg:grid-cols-[minmax(0,0.9fr)_minmax(22rem,1.1fr)] lg:grid-rows-[auto_auto_minmax(0,1fr)]",
       )}>
-        {!planner && <section className="lf-squad-overview overflow-hidden rounded-xl border bg-card shadow-sm lg:col-start-1">
-          <div className="panel-strip p-4"><div className="flex items-start justify-between gap-4"><div><div className="text-[10px] uppercase tracking-[0.2em] opacity-70">Football department</div><h2 className="font-display text-2xl">Squad & selection</h2><p className="mt-1 max-w-2xl text-sm opacity-80">Pitch view for the XI; details view for quick contract and squad review.</p></div><Shield className="size-8 opacity-70" /></div></div>
-          <div className="grid grid-cols-3 divide-x border-t text-center md:grid-cols-6"><Summary label="Available" value={`${squad.filter((player) => playerIsAvailable(player, state)).length}/${squad.length}`} /><Summary label="Manager's XI" value={String(xi.length)} /><Summary label="Avg ability" value={averageAbility(xi).toFixed(1)} /><Summary label="Cohesion" value={Math.round(cohesion).toString()} /><Summary label="Morale" value={Math.round(morale).toString()} /><Summary label="Manager" value={Math.round(managerQuality).toString()} /></div>
-        </section>}
-        {view === "pitch" ? <section className={cn("lf-pitch-card overflow-hidden rounded-xl border border-emerald-900/40 bg-[#06251c] text-white shadow-sm lg:col-start-1", planner && "col-span-1 w-full")}><div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-3"><div><div className="text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-200/55">{matchPrep.managerId ? "Manager selection" : "Caretaker selection"}</div><div className="mt-0.5 flex items-end gap-2"><div className="font-display text-2xl">First XI</div><span className="mb-0.5 rounded-md border border-white/10 bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold text-white/75">{formation}</span></div></div><div className="grid grid-cols-2 gap-1.5 text-right"><div className="rounded-lg border border-white/10 bg-black/15 px-2 py-1"><div className="font-display text-base">{averageAbility(xi).toFixed(1)}</div><div className="text-[7px] uppercase tracking-wide text-white/40">Avg OVR</div></div><div className="rounded-lg border border-white/10 bg-black/15 px-2 py-1"><div className="font-display text-base">{Math.round(xi.reduce((sum, player) => sum + playerFitness(player), 0) / Math.max(1, xi.length))}%</div><div className="text-[7px] uppercase tracking-wide text-white/40">Avg fit</div></div></div></div><div className="border-b border-white/10 px-3 py-2">
-  {!planner ? (
-    <button
-      type="button"
-      onClick={startPlanner}
-      className="group w-full rounded-xl border border-cyan-200/35 bg-gradient-to-r from-cyan-400/25 via-teal-400/20 to-emerald-400/20 px-3.5 py-3 text-left shadow-[0_8px_24px_rgba(20,184,166,0.18)] ring-1 ring-inset ring-white/10 transition hover:from-cyan-400/30 hover:via-teal-400/25 hover:to-emerald-400/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/80"
-    >
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="font-display text-base font-bold tracking-wide text-white">Lineup Sandbox</div>
-          <div className="mt-0.5 text-[10px] font-medium text-cyan-50/70">Test formations and swap players without affecting the manager&apos;s real XI.</div>
-        </div>
-        <div className="shrink-0 rounded-lg border border-white/15 bg-black/20 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-white/90 transition group-hover:bg-black/30">
-          Open
-        </div>
-      </div>
-    </button>
-  ) : (
-    <div className="text-[10px] text-white/55">Drag players onto each other to swap · tap still works on mobile. The large number is the player&apos;s estimated effectiveness in that slot.</div>
-  )}
-</div>
-<Pitch state={state} xi={xi} formation={formation} planner={Boolean(planner)} onSwap={swapPlannerPlayer} squad={squad} /></section> : <section className="overflow-hidden rounded-xl border bg-card shadow-sm lg:col-start-1"><div className="border-b px-3 py-3"><div className="font-display text-xl">Season performance</div><div className="text-xs text-muted-foreground">Recorded appearances from watched and simulated matches.</div></div><div className="grid grid-cols-3 divide-x border-b text-center"><Summary label="Avg fitness" value={`${averageFitness}%`} /><Summary label="Medical" value={medical.label} /><Summary label="Fixtures this week" value={String(fixtureLoad)} /></div><div className="grid grid-cols-2 gap-2 border-b p-3 text-xs sm:grid-cols-4"><Leader label="Top scorer" name={leaders.topScorer?.name} value={leaders.topScorer ? `${leaders.topScorer.goals} goals` : "—"} /><Leader label="Top assists" name={leaders.topAssister?.name} value={leaders.topAssister ? `${leaders.topAssister.assists} assists` : "—"} /><Leader label="Top rated" name={leaders.topRated?.name} value={leaders.topRated ? leaders.topRated.averageRating.toFixed(2) : "—"} /><Leader label="Most used" name={leaders.mostUsed?.name} value={leaders.mostUsed ? `${leaders.mostUsed.minutes} min` : "—"} /></div><div className="overflow-x-auto"><table className="w-full text-xs"><thead className="border-b bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground"><tr><th className="px-3 py-2 text-left">Player</th><th className="px-2 py-2 text-right">Apps</th><th className="px-2 py-2 text-right">Starts</th><th className="px-2 py-2 text-right">Sub</th><th className="px-2 py-2 text-right">Min</th><th className="px-2 py-2 text-right">G</th><th className="px-2 py-2 text-right">A</th><th className="px-2 py-2 text-right">Rat</th><th className="px-2 py-2 text-right">Form</th></tr></thead><tbody>{seasonStats.map((row) => <tr key={row.playerId} className="border-b last:border-b-0"><td className="px-3 py-2 font-semibold">{row.name}</td><td className="px-2 py-2 text-right">{row.appearances}</td><td className="px-2 py-2 text-right">{row.starts}</td><td className="px-2 py-2 text-right">{row.substituteAppearances}</td><td className="px-2 py-2 text-right">{row.minutes}</td><td className="px-2 py-2 text-right">{row.goals}</td><td className="px-2 py-2 text-right">{row.assists}</td><td className="px-2 py-2 text-right">{row.averageRating.toFixed(2)}</td><td className="px-2 py-2 text-right">{playerRecentForm(state, row.playerId).appearances ? `${playerRecentForm(state, row.playerId).band} ${playerRecentForm(state, row.playerId).averageRating.toFixed(2)}` : "—"}</td></tr>)}{seasonStats.length === 0 && <tr><td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">No player match records yet.</td></tr>}</tbody></table></div><div className="border-t bg-muted/20 px-3 py-2 text-[10px] text-muted-foreground">Medical score {medical.score}/100 · weekly fitness recovery +{medical.recoveryPerWeek} · injury-risk factor {medical.injuryRiskMultiplier.toFixed(2)}×</div></section>}
-        {!(planner && view === "pitch") && (
-          <>
-            <section className="overflow-hidden rounded-xl border bg-[#071713] text-white shadow-sm lg:hidden">
-              <div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-2.5">
-                <div>
-                  <div className="font-display text-lg">Substitutes & squad</div>
-                  <div className="text-[10px] text-white/55">Side-scroll the same compact player rail used in Lineup Sandbox.</div>
+        {!planner && (
+          <section className="grid grid-cols-5 divide-x overflow-hidden rounded-xl border bg-card text-center shadow-sm lg:col-start-1" aria-label="Squad pulse">
+            <Pulse label="Available" value={`${available}/${squad.length}`} pct={(available / Math.max(1, squad.length)) * 100} />
+            <Pulse label="XI avg" value={averageAbility(xi).toFixed(1)} />
+            <Pulse label="Cohesion" value={String(Math.round(cohesion))} pct={cohesion} />
+            <Pulse label="Morale" value={String(Math.round(morale))} pct={morale} />
+            <Pulse label="Manager" value={String(Math.round(managerQuality))} pct={managerQuality} />
+          </section>
+        )}
+
+        {view === "pitch" ? (
+          <section className={cn("lf-pitch-card overflow-hidden rounded-xl border border-emerald-900/40 bg-[#06251c] text-white shadow-sm lg:col-start-1", planner && "col-span-1 w-full")}>
+            <div className="flex items-center justify-between gap-2 border-b border-white/10 px-3 py-2.5">
+              <div className="min-w-0">
+                <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-200/55">{matchPrep.managerId ? "Manager's selection" : "Caretaker selection"}</div>
+                <div className="mt-0.5 flex items-center gap-2">
+                  <div className="font-display text-2xl leading-none">First XI</div>
+                  <span className="rounded-md border border-white/10 bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold text-white/75">{formation}</span>
                 </div>
-                <div className="shrink-0 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1 text-[9px] font-bold text-white/50">{bench.length} players</div>
               </div>
-              <div className="flex snap-x gap-2 overflow-x-auto overscroll-x-contain px-3 py-3 [scrollbar-width:thin]">
-                {bench.map((player) => {
-                  const tactical = tacticalPositionProfile(player);
-                  const unit = positionUnit(tactical.primary);
-                  const fitness = playerFitness(player);
-                  return (
-                    <button
-                      key={player.id}
-                      type="button"
-                      onClick={() => openPlayerProfile(player.id)}
-                      className={cn(
-                        "min-w-[5.2rem] snap-start rounded-xl border px-2 py-2 text-center transition touch-pan-x focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80",
-                        SUB_CARD_TONE[unit],
-                      )}
-                      aria-label={`Open ${playerName(player)} profile`}
-                    >
-                      <SquadRailCardContent player={player} unit={unit} tacticalPosition={tactical.primary} fitness={fitness} />
-                    </button>
-                  );
-                })}
+              <div className="flex items-center gap-1.5">
+                <div className="rounded-lg border border-white/10 bg-black/15 px-2 py-1 text-right">
+                  <div className="font-display text-base leading-none">{averageAbility(xi).toFixed(1)}</div>
+                  <div className="text-[7px] uppercase tracking-wide text-white/40">OVR</div>
+                </div>
+                <div className="rounded-lg border border-white/10 bg-black/15 px-2 py-1 text-right">
+                  <div className="font-display text-base leading-none">{xiFitness}%</div>
+                  <div className="text-[7px] uppercase tracking-wide text-white/40">Fit</div>
+                </div>
+                {!planner && (
+                  <button
+                    type="button"
+                    onClick={startPlanner}
+                    className="flex h-[2.35rem] items-center gap-1 rounded-lg border border-cyan-200/35 bg-cyan-400/20 px-2.5 text-[10px] font-black uppercase tracking-wide text-white hover:bg-cyan-400/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/80"
+                    title="Test formations and swaps without changing the manager's XI"
+                  >
+                    <FlaskConical className="size-3.5" /> Sandbox
+                  </button>
+                )}
               </div>
-            </section>
-            <section className="lf-squad-list hidden min-h-0 flex-col rounded-xl border bg-card shadow-sm lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:flex lg:overflow-hidden">
-              <div className="border-b px-4 py-3">
-                <div className="font-display text-xl">Substitutes</div>
-                <div className="text-xs text-muted-foreground">Players outside the starting XI and available from the bench.</div>
-              </div>
-              <div className="min-h-0 flex-1 divide-y lg:overflow-auto lg:overscroll-contain lg:[scrollbar-gutter:stable]">
-                {bench.map((player) => <PlayerRow key={player.id} state={state} player={player} />)}
-              </div>
-            </section>
-          </>
+            </div>
+            <div className="px-3 py-1.5 text-[10px] text-white/50">
+              {planner
+                ? "Drag players onto each other to swap · tap works on mobile. The badge is the player's effectiveness in that slot."
+                : "Tap a player for his profile · badge shows effectiveness in that position."}
+            </div>
+            <Pitch
+              state={state}
+              xi={xi}
+              formation={formation}
+              planner={Boolean(planner)}
+              onSwap={swapPlannerPlayer}
+              squad={squad}
+              kit={kit}
+              displayName={displayName}
+            />
+          </section>
+        ) : (
+          <section className="overflow-hidden rounded-xl border bg-card shadow-sm lg:col-start-1">
+            <div className="border-b px-3 py-2.5">
+              <div className="font-display text-xl leading-none">Season performance</div>
+              <div className="mt-0.5 text-[11px] text-muted-foreground">Recorded appearances from watched and simulated matches.</div>
+            </div>
+            <div className="grid grid-cols-3 divide-x border-b text-center">
+              <Pulse label="Avg fitness" value={`${averageFitness}%`} pct={averageFitness} />
+              <Pulse label="Medical" value={medical.label} />
+              <Pulse label="Fixtures this wk" value={String(fixtureLoad)} />
+            </div>
+            <div className="grid grid-cols-2 gap-2 border-b p-2.5 text-xs sm:grid-cols-4">
+              <Leader label="Top scorer" name={leaders.topScorer?.name} value={leaders.topScorer ? `${leaders.topScorer.goals} goals` : "—"} />
+              <Leader label="Top assists" name={leaders.topAssister?.name} value={leaders.topAssister ? `${leaders.topAssister.assists} assists` : "—"} />
+              <Leader label="Top rated" name={leaders.topRated?.name} value={leaders.topRated ? leaders.topRated.averageRating.toFixed(2) : "—"} />
+              <Leader label="Most used" name={leaders.mostUsed?.name} value={leaders.mostUsed ? `${leaders.mostUsed.minutes} min` : "—"} />
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead className="border-b bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <tr><th className="px-3 py-2 text-left">Player</th><th className="px-2 py-2 text-right">Apps</th><th className="px-2 py-2 text-right">Starts</th><th className="px-2 py-2 text-right">Sub</th><th className="px-2 py-2 text-right">Min</th><th className="px-2 py-2 text-right">G</th><th className="px-2 py-2 text-right">A</th><th className="px-2 py-2 text-right">Rat</th><th className="px-2 py-2 text-right">Form</th></tr>
+                </thead>
+                <tbody>
+                  {seasonStats.map((row) => {
+                    const form = playerRecentForm(state, row.playerId);
+                    return (
+                      <tr key={row.playerId} className="cursor-pointer border-b last:border-b-0 hover:bg-muted/30" onClick={() => openPlayerProfile(row.playerId)}>
+                        <td className="px-3 py-2 font-semibold">{row.name}</td>
+                        <td className="px-2 py-2 text-right">{row.appearances}</td>
+                        <td className="px-2 py-2 text-right">{row.starts}</td>
+                        <td className="px-2 py-2 text-right">{row.substituteAppearances}</td>
+                        <td className="px-2 py-2 text-right">{row.minutes}</td>
+                        <td className="px-2 py-2 text-right">{row.goals}</td>
+                        <td className="px-2 py-2 text-right">{row.assists}</td>
+                        <td className="px-2 py-2 text-right">{row.averageRating.toFixed(2)}</td>
+                        <td className="px-2 py-2 text-right">{form.appearances ? `${form.band} ${form.averageRating.toFixed(2)}` : "—"}</td>
+                      </tr>
+                    );
+                  })}
+                  {seasonStats.length === 0 && <tr><td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">No player match records yet.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+            <div className="border-t bg-muted/20 px-3 py-2 text-[10px] text-muted-foreground">
+              Medical score {medical.score}/100 · weekly fitness recovery +{medical.recoveryPerWeek} · injury-risk factor {medical.injuryRiskMultiplier.toFixed(2)}×
+            </div>
+          </section>
+        )}
+
+        {!(planner && view === "pitch") && (
+          <SquadPositionRails
+            state={state}
+            squad={squad}
+            selected={selected}
+            kit={kit}
+            displayName={displayName}
+            className="lg:col-start-2 lg:row-span-3 lg:row-start-1"
+          />
         )}
       </div>
     </div>
