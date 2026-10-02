@@ -74,8 +74,8 @@ export function AcademyTab({
           </div>
           <div className="grid grid-cols-3 divide-x border-b text-center">
             <Metric value={fmtMoneyExact(ACADEMY_STATUSES[1].upgradeCost)} label="Set-up" />
-            <Metric value={\`\${fmtMoney(ACADEMY_STATUSES[1].weeklyCost)}/wk\`} label="Base running" />
-            <Metric value={\`up to \${ACADEMY_STATUSES[1].maxScholarships}/yr\`} label="Scholars" />
+            <Metric value={`${fmtMoney(ACADEMY_STATUSES[1].weeklyCost)}/wk`} label="Base running" />
+            <Metric value={`up to ${ACADEMY_STATUSES[1].maxScholarships}/yr`} label="Scholars" />
           </div>
           <div className="p-5">
             <Button onClick={() => update(foundAcademy)} disabled={state.cash < ACADEMY_STATUSES[1].upgradeCost} className="w-full sm:w-auto">
@@ -91,7 +91,7 @@ export function AcademyTab({
   return (
     <OverviewScreen
       title="Youth Academy"
-      subtitle={\`\${status.name} · \${academy.prospects.length} scholars · \${fmtMoney(academyWeeklyCost(state))}/wk\`}
+      subtitle={`${status.name} · ${academy.prospects.length} scholars · ${fmtMoney(academyWeeklyCost(state))}/wk`}
       className="grid content-start gap-3 xl:grid-cols-[minmax(0,1.5fr)_minmax(300px,.75fr)]"
     >
       <div className="space-y-3">
@@ -119,7 +119,7 @@ export function AcademyTab({
           </div>
           <div className="grid grid-cols-4 divide-x border-b text-center">
             <Metric value={String(academy.scholarships)} label="Scholarships" />
-            <Metric value={\`×\${(1 + status.coaching).toFixed(2)}\`} label="Academy boost" />
+            <Metric value={`×${(1 + status.coaching).toFixed(2)}`} label="Academy boost" />
             <Metric value={String(Math.round(academy.reputation))} label="Reputation" />
             <Metric value={String(academy.graduates.filter((g) => g.outcome === "promoted").length)} label="Graduates" />
           </div>
@@ -137,7 +137,7 @@ export function AcademyTab({
               <div className="text-xs font-semibold">Head of Youth</div>
               <div className="mt-1 text-sm">{head?.name ?? "Vacant"}</div>
               <div className="text-xs text-muted-foreground">
-                {head ? \`Development \${head.stats.development} · potential estimate ±\${academyPotentialError(state)}\` : "Hire a Head of Youth to improve development and potential estimates."}
+                {head ? `Development ${head.stats.development} · potential estimate ±${academyPotentialError(state)}` : "Hire a Head of Youth to improve development and potential estimates."}
               </div>
             </div>
           </div>
@@ -206,10 +206,10 @@ export function AcademyTab({
           <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Graduates</div>
           <div className="mt-2 space-y-2">
             {academy.graduates.slice(-8).reverse().map((graduate) => (
-              <div key={\`\${graduate.prospectId}:\${graduate.season}:\${graduate.outcome}\`} className="flex items-center gap-2 text-xs">
+              <div key={`${graduate.prospectId}:${graduate.season}:${graduate.outcome}`} className="flex items-center gap-2 text-xs">
                 <span className={cn("rounded px-1.5 py-0.5 font-semibold", POSITION_TONE[graduate.position])}>{graduate.position}</span>
                 <span className="min-w-0 flex-1 truncate">{graduate.name}</span>
-                <span className="shrink-0 text-muted-foreground">S{graduate.season} · {graduate.outcome === "promoted" ? "First team" : graduate.outcome === "sold" ? \`Sold \${fmtMoney(graduate.fee ?? 0)}\` : "Released"}</span>
+                <span className="shrink-0 text-muted-foreground">S{graduate.season} · {graduate.outcome === "promoted" ? "First team" : graduate.outcome === "sold" ? `Sold ${fmtMoney(graduate.fee ?? 0)}` : "Released"}</span>
               </div>
             ))}
             {!academy.graduates.length && <p className="text-xs text-muted-foreground">Your academy honours board is waiting for its first name.</p>}
@@ -270,7 +270,7 @@ function ProspectRow({ state, prospect, kit, compact = false }: { state: GameSta
   const readiness = prospectReadiness(state, prospect);
   return (
     <div className="flex items-center gap-3 px-3 py-2.5">
-      <CharacterPortrait identity={{ id: prospect.id, subject: "player" }} kit={{ kit: kit.home, badge: kit.badge, clubName: state.clubName }} size={compact ? 40 : 46} title={\`\${prospect.firstName} \${prospect.lastName} portrait\`} />
+      <CharacterPortrait identity={{ id: prospect.id, subject: "player" }} kit={{ kit: kit.home, badge: kit.badge, clubName: state.clubName }} size={compact ? 40 : 46} title={`${prospect.firstName} ${prospect.lastName} portrait`} />
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-1.5">
           <span className={cn("rounded px-1.5 py-0.5 text-[9px] font-bold", POSITION_TONE[prospect.position])}>{prospect.position}</span>
@@ -279,12 +279,12 @@ function ProspectRow({ state, prospect, kit, compact = false }: { state: GameSta
         </div>
         <div className="mt-0.5 text-[10px] text-muted-foreground">Age {prospectAge(state,prospect)} · {prospect.nationality} · {prospect.personality}</div>
         {!compact && <div className="mt-1 flex items-center gap-2">
-          <div className="h-1.5 min-w-20 flex-1 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-amber-400" style={{ width: \`\${readiness}%\` }} /></div>
+          <div className="h-1.5 min-w-20 flex-1 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-amber-400" style={{ width: `${readiness}%` }} /></div>
           <span className="text-[9px] text-muted-foreground">Ready {readiness}%</span>
           {prospect.lastGain > 0 && <span className="inline-flex items-center text-[9px] text-emerald-600"><TrendingUp className="mr-0.5 size-3" />{prospect.lastGain}</span>}
         </div>}
       </div>
-      <div className="shrink-0 text-sm text-amber-500" title={\`Estimated potential \${estimatedPotential(state,prospect)}\`}>
+      <div className="shrink-0 text-sm text-amber-500" title={`Estimated potential ${estimatedPotential(state,prospect)}`}>
         {"★".repeat(stars)}<span className="text-muted-foreground/40">{"☆".repeat(5-stars)}</span>
       </div>
     </div>
