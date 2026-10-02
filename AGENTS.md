@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Keep install and launch branding sourced from the approved Legacy Football crest and splash artwork so browser and home-screen identity stay consistent.
