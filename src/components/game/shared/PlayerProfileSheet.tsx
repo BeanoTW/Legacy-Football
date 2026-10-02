@@ -217,6 +217,7 @@ export function PlayerProfileSheet({
   const [playerId, setPlayerId] = useState<string | null>(null);
   const [portraitEditing, setPortraitEditing] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [startedNegotiationId, setStartedNegotiationId] = useState<string | null>(null);
   const [showLoan, setShowLoan] = useState(false);
   const [loanDuration, setLoanDuration] = useState(12);
   const [loanContribution, setLoanContribution] = useState(50);
@@ -237,6 +238,7 @@ export function PlayerProfileSheet({
         setPlayerId(detail.playerId);
         setPortraitEditing(false);
         setNote(null);
+        setStartedNegotiationId(null);
         setShowLoan(false);
         setShowContract(false);
         setShowLoanOut(false);
@@ -388,6 +390,9 @@ export function PlayerProfileSheet({
         ? submitTransferOffer(s, player.id, 0, "First Team", estimate.openingWeeklyWage)
         : submitTransferEnquiry(s, player.id, "First Team", estimate.openingWeeklyWage);
       setNote(result.result.reason);
+      if (result.result.ok && result.result.negotiation?.id) {
+        setStartedNegotiationId(result.result.negotiation.id);
+      }
       return result.state;
     });
   };
@@ -726,7 +731,16 @@ export function PlayerProfileSheet({
             </section>
           ) : (
             <section className="rounded-2xl border border-emerald-950/10 bg-white p-2.5 shadow-sm dark:border-white/10 dark:bg-white/[0.045]">
-              {note && <div className="mb-2 rounded-lg border bg-muted/40 px-3 py-1.5 text-[11px]">{note}</div>}
+              {note && (
+                <div className="mb-2 rounded-lg border bg-muted/40 px-3 py-2 text-[11px]">
+                  <div>{note}</div>
+                  {startedNegotiationId && (
+                    <div className="mt-1 text-[10px] text-muted-foreground">
+                      The enquiry is now live under <strong>Transfers → Negotiations</strong>. Advance time for the club and player&apos;s camp to respond.
+                    </div>
+                  )}
+                </div>
+              )}
               <div className={cn("grid gap-1.5", freeAgent ? "grid-cols-3" : "grid-cols-4")}>
                 <ActionTile icon={Star} label={shortlisted ? "Shortlisted" : "Shortlist"} active={shortlisted} onClick={() => update((s) => toggleChairmanShortlist(s, player.id))} />
                 {!assignment ? (
