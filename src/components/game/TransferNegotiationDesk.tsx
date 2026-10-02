@@ -91,10 +91,11 @@ function DealRow({ state, n, active, onClick }: { state: GameState; n: TransferN
   const p = transferTargetPlayer(state, n.playerId);
   if (!p) return null;
   const incoming = n.direction === "in";
+  const waitingOnEnquiry = incoming && n.stage === "enquiry" && n.pendingResponseAtDay !== undefined && n.clubCounterFee === undefined;
   return <button onClick={onClick} className={cn("flex w-full items-center gap-3 rounded-xl border bg-card p-3 text-left transition-colors hover:border-primary/50", active && "border-primary bg-primary/5")}>
     <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-xs font-bold text-primary">{tacticalPositionProfile(p).primary}</span>
     <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{playerName(p)}</span><span className="block truncate text-xs text-muted-foreground">{incoming ? "Buying" : "Selling"} · {STAGE_LABEL[n.stage]}</span></span>
-    <span className="shrink-0 text-right text-xs"><span className="block font-semibold tabular-nums">{fmtMoney(n.clubCounterFee ?? n.fee)}</span><span className="block text-muted-foreground">on the table</span></span><ChevronRight className="size-4 shrink-0 text-muted-foreground xl:hidden" />
+    <span className="shrink-0 text-right text-xs">{waitingOnEnquiry ? <><span className="block font-semibold">Waiting</span><span className="block text-muted-foreground">for valuation</span></> : <><span className="block font-semibold tabular-nums">{fmtMoney(n.clubCounterFee ?? n.fee)}</span><span className="block text-muted-foreground">on the table</span></>}</span><ChevronRight className="size-4 shrink-0 text-muted-foreground xl:hidden" />
   </button>;
 }
 
@@ -123,7 +124,25 @@ function NegotiationRoom({ state, n, act }: { state: GameState; n: TransferNegot
     <section className="overflow-hidden rounded-2xl border bg-card">
       <div className="panel-strip flex flex-wrap items-start justify-between gap-3 p-4"><div className="min-w-0"><div className="text-[10px] uppercase tracking-[0.2em] opacity-70">{incoming ? "Our approach for" : "Approach received for"}</div><button type="button" onClick={() => openPlayerProfile(p.id)} className="font-display text-2xl leading-tight hover:underline md:text-3xl">{playerName(p)}</button><div className="text-sm opacity-80">{tacticalPositionProfile(p).primary} · {clubLabel} · {incoming ? `${report.knowledgePct}% scouted` : `Overall ${p.currentAbility}`}</div></div><span className="rounded-md bg-black/20 px-3 py-1.5 text-xs font-semibold">{STAGE_LABEL[n.stage]}</span></div>
       {!dead && <div className="flex items-center gap-1 border-b px-4 py-3">{STEPS.map((step, i) => <div key={step.stage} className="flex min-w-0 flex-1 items-center gap-1"><div className="min-w-0 flex-1"><div className={cn("h-1.5 rounded-full", i <= current ? "bg-primary" : "bg-muted")} /><div className={cn("mt-1 truncate text-[10px] uppercase tracking-wide", i === current ? "font-bold text-primary" : "text-muted-foreground")}>{step.short}</div></div></div>)}</div>}
-      <div className="grid gap-3 p-4 sm:grid-cols-2">
+      {incoming && n.stage === "enquiry" && waitingForReply && n.clubCounterFee === undefined ? (
+        <div className="grid gap-3 p-4 sm:grid-cols-2">
+          <div className="rounded-xl border border-sky-500/25 bg-sky-500/[0.06] p-3 sm:col-span-2">
+            <div className="flex items-start gap-2">
+              <Building2 className="mt-0.5 size-4 shrink-0 text-sky-600" />
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-300">Enquiry sent</div>
+                <div className="mt-1 font-display text-xl">Awaiting {clubLabel}&apos;s valuation</div>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  We have asked whether they are willing to sell and what it would take. No transfer bid has been made yet.
+                </p>
+              </div>
+            </div>
+          </div>
+          {incoming && estimate?.valueRange && <PositionCard icon={<UserRound className="size-4" />} title="Our recruitment estimate" value={`${fmtMoneyExact(estimate.valueRange[0])}–${fmtMoneyExact(estimate.valueRange[1])}`} note="What our staff currently believe he is worth" />}
+          <PositionCard icon={<Handshake className="size-4" />} title="Planned player package" value={`${fmtMoneyExact(n.proposedWeeklyWage)}/wk`} note={`${n.proposedLengthSeasons} season${n.proposedLengthSeasons === 1 ? "" : "s"} · ${n.proposedRole} if club talks succeed`} />
+        </div>
+      ) : (
+        <div className="grid gap-3 p-4 sm:grid-cols-2">
         <PositionCard icon={<Building2 className="size-4" />} title={incoming ? `${clubLabel} want` : "Their offer"} value={fmtMoneyExact(n.clubCounterFee ?? n.fee)} note={incoming ? n.clubCounterFee ? "Latest valuation from the selling club" : "No counter yet — this is what is on the table" : "Fee offered for our player"} />
         <PositionCard icon={<Handshake className="size-4" />} title={incoming ? "Our offer" : "Our valuation"} value={fmtMoneyExact(n.fee)} note={`Wage on the table ${fmtMoneyExact(n.proposedWeeklyWage)}/wk · ${n.proposedLengthSeasons} season${n.proposedLengthSeasons === 1 ? "" : "s"} · ${n.proposedRole}`} />
         {incoming && estimate?.valueRange && <PositionCard icon={<UserRound className="size-4" />} title="Our recruitment estimate" value={`${fmtMoneyExact(estimate.valueRange[0])}–${fmtMoneyExact(estimate.valueRange[1])}`} note="What your staff believe he is worth" />}
@@ -139,6 +158,7 @@ function NegotiationRoom({ state, n, act }: { state: GameState; n: TransferNegot
           </div>
         )}
       </div>
+      )}
       {incoming && n.competingClubId && <div className={cn("mx-4 mb-4 flex items-start gap-2 rounded-xl border p-3 text-sm", n.renegotiationRequested ? "border-rose-500/40 bg-rose-500/10" : "border-amber-500/40 bg-amber-500/10")}><TriangleAlert className={cn("mt-0.5 size-4 shrink-0", n.renegotiationRequested ? "text-rose-600" : "text-amber-600")} /><div className="min-w-0"><strong>{clubDisplayName(state, n.competingClubId)}</strong> are competing for {playerName(p)}.
         {n.competingOfferFee !== undefined && <div className="mt-1 text-xs">Club offer: <strong>{fmtMoneyExact(n.competingOfferFee)}</strong></div>}
         {n.competingWeeklyWage !== undefined && <div className="text-xs">Personal terms: about <strong>{fmtMoneyExact(n.competingWeeklyWage)}/wk</strong></div>}
@@ -151,7 +171,7 @@ function NegotiationRoom({ state, n, act }: { state: GameState; n: TransferNegot
 
     <section className="rounded-2xl border bg-card p-4">
       <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{incoming && n.stage === "playerTalks" ? "Talk to the agent" : "Your move"}</div>
-      {incoming && waitingForReply && <div className="mt-3 rounded-lg border bg-muted/30 px-3 py-2 text-sm"><strong>Awaiting response.</strong> The other party has our latest position; Advance will bring their reply when it arrives.</div>}
+      {incoming && waitingForReply && <div className="mt-3 rounded-lg border bg-muted/30 px-3 py-2 text-sm"><strong>{n.stage === "enquiry" ? "Awaiting valuation." : "Awaiting response."}</strong> {n.stage === "enquiry" ? `${clubLabel} have our enquiry. Advance will bring their valuation and the player's initial interest when they respond.` : "The other party has our latest position; Advance will bring their reply when it arrives."}</div>}
       {incoming && n.stage === "enquiry" && !waitingForReply && <NumberField id={`enquiry-fee-${n.id}`} label="Your opening transfer bid" step={feeStep} min={0} value={feeInput ?? feeDefault} onChange={setFeeInput} />}
       {incoming && n.stage === "clubTalks" && !waitingForReply && <NumberField id={`fee-${n.id}`} label="Your revised transfer fee" step={feeStep} min={n.fee + feeStep} value={feeInput ?? feeDefault} onChange={setFeeInput} />}
       {incoming && n.stage === "playerTalks" && !waitingForReply && (
