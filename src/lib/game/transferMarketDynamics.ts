@@ -4,6 +4,7 @@ import { clubReputation } from "./reputation";
 import {
   MAX_SQUAD_SIZE,
   SQUAD_TEMPLATE,
+  ageOf,
   playerName,
   squadOf,
   wageDemand,
@@ -75,7 +76,7 @@ export function playerTransferInterest(
   const reputationGap = userRep - player.reputation;
   const clubStep = userRep - currentRep;
   const listedBoost = player.transferStatus === "listed" ? 7 : 0;
-  const age = Math.max(16, state.season - player.dateOfBirth.year);
+  const age = ageOf(player, state.season);
   const prospectPenalty = role === "Prospect" && age >= 24 ? -8 : 0;
   const rng = seededRng(state.saveSeed, "player-transfer-interest", player.id, userClubReference(state), role);
 
