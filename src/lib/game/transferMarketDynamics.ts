@@ -5,6 +5,7 @@ import {
   MAX_SQUAD_SIZE,
   SQUAD_TEMPLATE,
   ageOf,
+  playerInterestAssessment,
   playerName,
   squadOf,
   wageDemand,
@@ -71,10 +72,16 @@ export function playerTransferInterest(
   const player = transferTargetPlayer(state, playerId);
   if (!player) return null;
 
-  const userRep = clubReputation(state, userClubReference(state));
-  const currentRep = player.currentClubId ? clubReputation(state, player.currentClubId) : userRep;
-  const reputationGap = userRep - player.reputation;
-  const clubStep = userRep - currentRep;
+  // Start from the game's existing canonical attainability signal so scouting,
+  // player cards and live negotiations cannot disagree about club stature.
+  const canonical = playerInterestAssessment(state, player);
+  const canonicalBase = canonical.level === "keen"
+    ? 76
+    : canonical.level === "open"
+      ? 58
+      : canonical.level === "uncertain"
+        ? 38
+        : 18;
   const listedBoost = player.transferStatus === "listed" ? 7 : 0;
   const age = ageOf(player, state.season);
   const prospectPenalty = role === "Prospect" && age >= 24 ? -8 : 0;
@@ -85,14 +92,12 @@ export function playerTransferInterest(
     Math.min(
       100,
       Math.round(
-        56 +
-          reputationGap * 1.45 +
-          clubStep * 0.35 +
+        canonicalBase +
           roleInterest[role] +
           personalityInterest[player.personality] +
           listedBoost +
           prospectPenalty +
-          rngRange(rng, -7, 7),
+          rngRange(rng, -5, 5),
       ),
     ),
   );
@@ -102,28 +107,28 @@ export function playerTransferInterest(
       band: "keen",
       score,
       reason: role === "Key Player"
-        ? "The agent says the player is keen on the move and likes the importance being offered."
-        : "The agent says the player is keen to discuss the move.",
+        ? `${canonical.reason} The proposed key-player role makes the move especially attractive.`
+        : canonical.reason,
     };
   }
   if (score >= 45) {
     return {
       band: "open",
       score,
-      reason: "The player is open to the move if the football and financial package is right.",
+      reason: `${canonical.reason} The player is open to discussing the package.`,
     };
   }
   if (score >= 25) {
     return {
       band: "needsConvincing",
       score,
-      reason: "The player has reservations about the move and would need a strong role and contract package.",
+      reason: `${canonical.reason} A stronger role and contract package would be needed.`,
     };
   }
   return {
     band: "notInterested",
     score,
-    reason: "The player's camp have indicated that he is not interested in joining the club at this stage.",
+    reason: `${canonical.reason} His camp do not want to proceed with a move to us at this stage.`,
   };
 }
 
