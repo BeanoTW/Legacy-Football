@@ -19,13 +19,7 @@ import { activeLoanForPlayer } from "@/lib/game/loans";
 import { absoluteWeek, fromAbsoluteWeek } from "@/lib/game/time";
 import { clubDisplayName } from "@/lib/game/clubReference";
 import { POSITION_BADGE_CLASS, POSITION_PITCH_CLASS } from "./playerPosition";
-import {
-  clubOperatingModel,
-  contractEmploymentType,
-  professionaliseUserClub,
-  userProfessionalisationReadiness,
-} from "@/lib/game/employment";
-import { userClubReference } from "@/lib/game/clubReference";
+import { contractEmploymentType } from "@/lib/game/employment";
 import { positionEffectiveness, positionFamiliarity, positionUnit, tacticalPositionProfile } from "@/lib/game/positions";
 import { openPlayerProfile } from "./shared/PlayerProfileSheet";
 import { TacticalPlayerCard } from "./shared/TacticalPlayerCard";
@@ -40,9 +34,6 @@ import {
 
 type SquadView = "pitch" | "stats";
 type PlannerSelection = { formation: ManagerFormation; playerIds: string[] };
-
-const employmentLabel = (value: "PartTime" | "FullTime") =>
-  value === "PartTime" ? "Part-time" : "Full-time";
 
 const managerFormation = (state: GameState): ManagerFormation => {
   const selected = managerMatchPrep(state).selectedFormation;
@@ -111,9 +102,7 @@ export function SquadSelectionTab({
   onBack?: () => void;
 }) {
   const [view, setView] = useState<SquadView>("pitch");
-  const [professionalisationReview, setProfessionalisationReview] = useState(false);
   const [planner, setPlanner] = useState<PlannerSelection | null>(null);
-  const [employmentNote, setEmploymentNote] = useState<string | null>(null);
   const squad = useMemo(() => userSquad(state), [state]);
   const matchPrep = useMemo(() => managerMatchPrep(state), [state]);
   const managerShape = managerFormation(state);
@@ -127,8 +116,6 @@ export function SquadSelectionTab({
   }, [automaticXi, formation, planner, squad]);
   const selected = new Set(xi.map((player) => player.id));
   const bench = sortSubsByPosition(squad.filter((player) => !selected.has(player.id)));
-  const clubEmployment = employmentLabel(clubOperatingModel(state, userClubReference(state)));
-  const professionalisation = userProfessionalisationReadiness(state);
   const cohesion = state.playerClubPerformance?.cohesion ?? PLAYER_COHESION_DEFAULT;
   const morale = state.playerClubPerformance?.morale ?? PLAYER_MORALE_DEFAULT;
   const managerQuality = playerManagerQuality(state);
@@ -166,13 +153,6 @@ export function SquadSelectionTab({
       return { ...current, playerIds: next };
     });
   };
-
-  const professionalise = () => update((s) => {
-    const outcome = professionaliseUserClub(s);
-    setEmploymentNote(outcome.result.reason);
-    if (outcome.result.ok) setProfessionalisationReview(false);
-    return outcome.state;
-  });
 
   return (
     <div className={cn(
@@ -219,10 +199,9 @@ export function SquadSelectionTab({
         planner ? "grid-cols-1" : "lg:grid-cols-[minmax(0,0.9fr)_minmax(22rem,1.1fr)] lg:grid-rows-[auto_auto_minmax(0,1fr)]",
       )}>
         {!planner && <section className="lf-squad-overview overflow-hidden rounded-xl border bg-card shadow-sm lg:col-start-1">
-          <div className="panel-strip p-4"><div className="flex items-start justify-between gap-4"><div><div className="text-[10px] uppercase tracking-[0.2em] opacity-70">Football department</div><h2 className="font-display text-2xl">Squad & selection</h2><p className="mt-1 max-w-2xl text-sm opacity-80">Pitch view for the XI; details view for quick contract and squad review.</p><div className="mt-2 inline-flex rounded-full border border-current/20 bg-black/10 px-2.5 py-1 text-xs font-semibold">Club operating model · {clubEmployment}</div></div><Shield className="size-8 opacity-70" /></div></div>
+          <div className="panel-strip p-4"><div className="flex items-start justify-between gap-4"><div><div className="text-[10px] uppercase tracking-[0.2em] opacity-70">Football department</div><h2 className="font-display text-2xl">Squad & selection</h2><p className="mt-1 max-w-2xl text-sm opacity-80">Pitch view for the XI; details view for quick contract and squad review.</p></div><Shield className="size-8 opacity-70" /></div></div>
           <div className="grid grid-cols-3 divide-x border-t text-center md:grid-cols-6"><Summary label="Available" value={`${squad.filter((player) => playerIsAvailable(player, state)).length}/${squad.length}`} /><Summary label="Manager's XI" value={String(xi.length)} /><Summary label="Avg ability" value={averageAbility(xi).toFixed(1)} /><Summary label="Cohesion" value={Math.round(cohesion).toString()} /><Summary label="Morale" value={Math.round(morale).toString()} /><Summary label="Manager" value={Math.round(managerQuality).toString()} /></div>
         </section>}
-        {!planner && professionalisation.currentModel === "PartTime" && <section className="rounded-xl border bg-card p-3 shadow-sm lg:col-start-1"><div className="flex items-start justify-between gap-3"><div><div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Employment model</div><div className="font-display text-xl">Move to full-time football</div></div><Shield className="size-5 text-primary" /></div><p className="mt-2 text-sm text-muted-foreground">Full-time status improves access to stronger players, but future signings and renewals expect professional wages. Existing player contracts stay exactly as signed.</p><div className="mt-3 grid grid-cols-3 gap-2 text-center"><div className="rounded-lg border bg-muted/30 p-2"><div className="text-xs font-semibold">{professionalisation.trainingLabel}</div><div className="text-[10px] text-muted-foreground">Training ground</div></div><div className="rounded-lg border bg-muted/30 p-2"><div className="text-xs font-semibold">{professionalisation.recruitmentReputationBonus > 0 ? `+${professionalisation.recruitmentReputationBonus} appeal` : "Professional level"}</div><div className="text-[10px] text-muted-foreground">Player interest</div></div><div className="rounded-lg border bg-muted/30 p-2"><div className="text-xs font-semibold">{professionalisation.futureWageFactor > 1 ? `~+${Math.round((professionalisation.futureWageFactor - 1) * 100)}%` : "Level baseline"}</div><div className="text-[10px] text-muted-foreground">Future wages</div></div></div>{!professionalisation.allowed ? <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">{professionalisation.reason}</div> : professionalisationReview ? <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 p-3"><div className="text-sm font-semibold">Confirm permanent transition?</div><div className="mt-1 text-xs text-muted-foreground">The club will operate full-time from now on. Existing part-time contracts remain part-time until each player signs new terms.</div><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" onClick={professionalise}>Confirm full-time transition</Button><Button size="sm" variant="outline" onClick={() => setProfessionalisationReview(false)}>Keep part-time</Button></div></div> : <Button className="mt-3" size="sm" variant="outline" onClick={() => setProfessionalisationReview(true)}>Review full-time transition</Button>}{employmentNote && <div className="mt-3 text-xs text-muted-foreground">{employmentNote}</div>}</section>}
         {view === "pitch" ? <section className={cn("lf-pitch-card overflow-hidden rounded-xl border border-emerald-900/40 bg-[#06251c] text-white shadow-sm lg:col-start-1", planner && "col-span-1 w-full")}><div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-3"><div><div className="text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-200/55">{matchPrep.managerId ? "Manager selection" : "Caretaker selection"}</div><div className="mt-0.5 flex items-end gap-2"><div className="font-display text-2xl">First XI</div><span className="mb-0.5 rounded-md border border-white/10 bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold text-white/75">{formation}</span></div></div><div className="grid grid-cols-2 gap-1.5 text-right"><div className="rounded-lg border border-white/10 bg-black/15 px-2 py-1"><div className="font-display text-base">{averageAbility(xi).toFixed(1)}</div><div className="text-[7px] uppercase tracking-wide text-white/40">Avg OVR</div></div><div className="rounded-lg border border-white/10 bg-black/15 px-2 py-1"><div className="font-display text-base">{Math.round(xi.reduce((sum, player) => sum + playerFitness(player), 0) / Math.max(1, xi.length))}%</div><div className="text-[7px] uppercase tracking-wide text-white/40">Avg fit</div></div></div></div><div className="border-b border-white/10 px-3 py-2">
   {!planner ? (
     <button
