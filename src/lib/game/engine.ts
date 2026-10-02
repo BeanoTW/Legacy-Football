@@ -22,6 +22,7 @@ import { progressScoutingDayInPlace, progressScoutingWeekInPlace } from "./scout
 import { runInfrastructureWeek } from "./infrastructure";
 import { runSustainabilityWeek } from "./sustainability";
 import { runCommercialWeek } from "./commercial";
+import { runAcademyWeek } from "./academy";
 import { resolveWeek, syncTable } from "./league";
 import { runMigrations, type MigrationDeps, type RunMigrationsResult } from "./migrations";
 import { ensureBoard, maybeRunMidSeasonReview } from "./board";
@@ -130,6 +131,7 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   processDuePlayerLoansInPlace(s);
   runInfrastructureWeek(s);
   postRecurringWeek(s);
+  runAcademyWeek(s);
   // Commercial and recruitment are identity-native and can run directly.
   runCommercialWeek(s);
   // Capture any Focus→Fringe boundary change before legacy recruitment removes
