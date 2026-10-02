@@ -3,6 +3,7 @@ import {
   createScoutingBrief,
   scoutingCandidateProfile,
   type ScoutingBriefInput,
+  type ScoutingPositionBrief,
 } from "./scoutingDiscovery";
 import { userSquad } from "./recruitmentLegacy";
 
@@ -81,6 +82,33 @@ export function createChairmanScoutingBrief(
   });
 }
 
+export type ChairmanScoutingPositionBrief = Omit<ScoutingPositionBrief, "minCurrentAbility" | "playerLevel"> & {
+  playerLevel: ScoutingPlayerLevel;
+};
+
+function withAbilityBenchmark(
+  state: GameState,
+  target: ChairmanScoutingPositionBrief,
+): ScoutingPositionBrief {
+  const benchmark = scoutingPlayerLevelBenchmark(state, target.playerLevel);
+  const potential =
+    target.playerLevel === "firstTeamPotential" || target.playerLevel === "starPotential";
+  return {
+    ...target,
+    minCurrentAbility: potential ? Math.max(35, benchmark - 10) : benchmark,
+  };
+}
+
+export function createChairmanMultiScoutingBrief(
+  state: GameState,
+  input: Pick<ScoutingBriefInput, "id"> & { positionBriefs: ChairmanScoutingPositionBrief[] },
+): GameState {
+  return createScoutingBrief(state, {
+    id: input.id,
+    positionBriefs: input.positionBriefs.map((target) => withAbilityBenchmark(state, target)),
+  });
+}
+
 /**
  * Hidden fit score used by recruitment staff when presenting candidates. It
  * compares the candidate against the user's actual squad rather than a global
@@ -92,8 +120,11 @@ export function chairmanScoutingFitScore(
   playerId: string,
 ): number {
   const brief = state.football?.scoutingDiscovery?.briefs.find((item) => item.id === briefId);
-  const level = brief?.playerLevel;
   const profile = scoutingCandidateProfile(state, playerId);
+  const tailoredLevel = profile?.primaryPosition
+    ? brief?.positionBriefs?.find((target) => target.position === profile.primaryPosition)?.playerLevel
+    : undefined;
+  const level = tailoredLevel ?? brief?.playerLevel;
   if (!level || !profile) return 0;
   const target = scoutingPlayerLevelBenchmark(state, level);
   switch (level) {
