@@ -49,10 +49,10 @@ import { ChairmanStudio, useChairmanProfile } from "@/components/game/ChairmanSt
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Legacy Football — Chairman Simulation" },
+      { title: "Legacy Football" },
       { name: "description", content: "Build a football club legacy from non-league to the top: shape the squad, finances, facilities, staff and long-term direction." },
-      { property: "og:title", content: "Legacy Football — Chairman Simulation" },
-      { property: "og:description", content: "A persistent football chairman simulation where every season, decision and promotion becomes part of the club’s history." },
+      { property: "og:title", content: "Legacy Football" },
+      { property: "og:description", content: "A persistent football management simulation where every season, decision and promotion becomes part of the club’s history." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
