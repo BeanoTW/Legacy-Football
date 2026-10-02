@@ -67,7 +67,7 @@ saga.pendingResponseKind = undefined;
 saga.playerInterest = "open";
 saga.playerInterestRevealed = true;
 saga.competingClubId =
-  sagaState.leagues
+  (sagaState.leagues ?? [])
     .flatMap((league) => league.clubIds)
     .find((clubId) => clubId !== saga.fromClubId && clubId !== saga.toClubId) ?? "rival-club";
 saga.competingOfferFee = Math.max(1, saga.fee);
