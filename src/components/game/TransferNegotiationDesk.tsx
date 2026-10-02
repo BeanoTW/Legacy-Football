@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, Building2, ChevronRight, Handshake, TriangleAlert, UserRound } from "lucide-react";
-import type { GameState, TransferNegotiation } from "@/lib/game/types";
+import type { GameState, SquadRole, TransferNegotiation } from "@/lib/game/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { fmtMoney, fmtMoneyExact } from "@/lib/game/engine";
@@ -49,6 +49,8 @@ const STEPS: { stage: TransferNegotiation["stage"]; short: string }[] = [
   { stage: "agreed", short: "Agreed" },
   { stage: "registration", short: "Signed" },
 ];
+
+const SQUAD_ROLES: SquadRole[] = ["Key Player", "First Team", "Rotation", "Prospect"];
 
 const stageIndex = (stage: TransferNegotiation["stage"]) => {
   const found = STEPS.findIndex((step) => step.stage === stage);
@@ -105,6 +107,8 @@ function NegotiationRoom({ state, n, act }: { state: GameState; n: TransferNegot
   const registration = incoming && (n.stage === "agreed" || n.stage === "registration") ? transferRegistrationReadiness(state, n.id) : null;
   const [feeInput, setFeeInput] = useState<string | null>(null);
   const [wageInput, setWageInput] = useState<string | null>(null);
+  const [seasonsInput, setSeasonsInput] = useState(String(n.proposedLengthSeasons));
+  const [roleInput, setRoleInput] = useState<SquadRole>(n.proposedRole);
   if (!p) return null;
   const report = scoutingReport(state, p);
   const otherClub = incoming ? n.fromClubId : n.toClubId;
@@ -150,13 +154,46 @@ function NegotiationRoom({ state, n, act }: { state: GameState; n: TransferNegot
       {incoming && waitingForReply && <div className="mt-3 rounded-lg border bg-muted/30 px-3 py-2 text-sm"><strong>Awaiting response.</strong> The other party has our latest position; Advance will bring their reply when it arrives.</div>}
       {incoming && n.stage === "enquiry" && !waitingForReply && <NumberField id={`enquiry-fee-${n.id}`} label="Your opening transfer bid" step={feeStep} min={0} value={feeInput ?? feeDefault} onChange={setFeeInput} />}
       {incoming && n.stage === "clubTalks" && !waitingForReply && <NumberField id={`fee-${n.id}`} label="Your revised transfer fee" step={feeStep} min={n.fee + feeStep} value={feeInput ?? feeDefault} onChange={setFeeInput} />}
-      {incoming && n.stage === "playerTalks" && !waitingForReply && <NumberField id={`wage-${n.id}`} label="Your revised weekly wage" step={wageStep} min={n.proposedWeeklyWage + wageStep} value={wageInput ?? wageDefault} onChange={setWageInput} />}
+      {incoming && n.stage === "playerTalks" && !waitingForReply && (
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <NumberField id={`wage-${n.id}`} label="Weekly wage" step={wageStep} min={0} value={wageInput ?? wageDefault} onChange={setWageInput} compact />
+          <label className="block text-xs text-muted-foreground">
+            Contract length
+            <select value={seasonsInput} onChange={(event) => setSeasonsInput(event.target.value)} className="mt-1 h-11 w-full rounded-lg border bg-background px-3 text-sm">
+              {[1,2,3,4,5].map((season) => <option key={season} value={season}>{season} season{season === 1 ? "" : "s"}</option>)}
+            </select>
+          </label>
+          <label className="block text-xs text-muted-foreground">
+            Squad role
+            <select value={roleInput} onChange={(event) => setRoleInput(event.target.value as SquadRole)} className="mt-1 h-11 w-full rounded-lg border bg-background px-3 text-sm">
+              {SQUAD_ROLES.map((role) => <option key={role} value={role}>{role}</option>)}
+            </select>
+          </label>
+        </div>
+      )}
       <div className="mt-3 flex flex-wrap gap-2">
         {incoming && n.stage === "enquiry" && !waitingForReply && <Button size="sm" onClick={() => { const fee = Number(feeInput ?? feeDefault); setFeeInput(null); act((s) => submitEnquiryOffer(s, n.id, fee)); }}>Submit opening bid</Button>}
         {incoming && n.stage === "clubTalks" && !waitingForReply && <Button size="sm" onClick={() => { const fee = Number(feeInput ?? feeDefault); setFeeInput(null); act((s) => improveTransferOffer(s, n.id, fee)); }}>Improve our offer</Button>}
         {incoming && n.stage === "clubTalks" && !waitingForReply && n.clubCounterFee !== undefined && <Button size="sm" variant="secondary" onClick={() => { setFeeInput(null); act((s) => improveTransferOffer(s, n.id, n.clubCounterFee!)); }}>Accept club counter · {fmtMoneyExact(n.clubCounterFee)}</Button>}
-        {incoming && n.stage === "playerTalks" && !waitingForReply && <Button size="sm" onClick={() => { const wage = Number(wageInput ?? wageDefault); setWageInput(null); act((s) => improvePersonalTerms(s, n.id, wage)); }}>Improve personal terms</Button>}
-        {incoming && n.stage === "playerTalks" && !waitingForReply && n.playerCounterWage !== undefined && <Button size="sm" variant="secondary" onClick={() => { setWageInput(null); act((s) => improvePersonalTerms(s, n.id, n.playerCounterWage!)); }}>Accept agent counter · {fmtMoneyExact(n.playerCounterWage)}/wk</Button>}
+        {incoming && n.stage === "playerTalks" && !waitingForReply && <Button size="sm" onClick={() => {
+          const wage = Number(wageInput ?? wageDefault);
+          const seasons = Number(seasonsInput);
+          const changedSeasons = seasons !== n.proposedLengthSeasons ? seasons : undefined;
+          const changedRole = roleInput !== n.proposedRole ? roleInput : undefined;
+          setWageInput(null);
+          act((s) => improvePersonalTerms(s, n.id, wage, changedSeasons, changedRole));
+        }}>Send personal terms</Button>}
+        {incoming && n.stage === "playerTalks" && !waitingForReply && n.playerCounterWage !== undefined && <Button size="sm" variant="secondary" onClick={() => {
+          const seasons = Number(seasonsInput);
+          setWageInput(null);
+          act((s) => improvePersonalTerms(
+            s,
+            n.id,
+            n.playerCounterWage!,
+            seasons !== n.proposedLengthSeasons ? seasons : undefined,
+            roleInput !== n.proposedRole ? roleInput : undefined,
+          ));
+        }}>Accept agent counter · {fmtMoneyExact(n.playerCounterWage)}/wk</Button>}
         {incoming && n.stage === "agreed" && <Button size="sm" onClick={() => act((s) => beginTransferRegistration(s, n.id))} disabled={registration ? !registration.allowed : false} title={registration?.reason}>Begin medical & registration</Button>}
         {incoming && n.stage === "registration" && <Button size="sm" onClick={() => act((s) => completeTransfer(s, n.id))} disabled={registration ? !registration.allowed : false} title={registration?.reason}>Complete registration</Button>}
         {!incoming && n.stage === "agreed" && <Button size="sm" onClick={() => act((s) => completeTransfer(s, n.id))}>Complete sale</Button>}
@@ -171,6 +208,6 @@ function PositionCard({ icon, title, value, note }: { icon: React.ReactNode; tit
   return <div className="rounded-xl border bg-muted/30 p-3"><div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{icon}<span className="truncate">{title}</span></div><div className="mt-1 font-display text-2xl tabular-nums">{value}</div><div className="mt-1 text-xs text-muted-foreground">{note}</div></div>;
 }
 
-function NumberField({ id, label, step, min, value, onChange }: { id: string; label: string; step: number; min: number; value: string; onChange: (value: string) => void }) {
-  return <div className="mt-3"><label className="block text-xs text-muted-foreground" htmlFor={id}>{label}</label><input id={id} type="number" min={min} step={step} value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 h-11 w-full rounded-lg border bg-background px-3 text-base tabular-nums sm:max-w-xs" /></div>;
+function NumberField({ id, label, step, min, value, onChange, compact = false }: { id: string; label: string; step: number; min: number; value: string; onChange: (value: string) => void; compact?: boolean }) {
+  return <div className={compact ? "" : "mt-3"}><label className="block text-xs text-muted-foreground" htmlFor={id}>{label}</label><input id={id} type="number" min={min} step={step} value={value} onChange={(event) => onChange(event.target.value)} className={cn("mt-1 h-11 w-full rounded-lg border bg-background px-3 text-base tabular-nums", !compact && "sm:max-w-xs")} /></div>;
 }
