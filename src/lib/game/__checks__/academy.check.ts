@@ -56,7 +56,7 @@ check("weekly academy running cost posts to cash", weekly.cash === beforeWeeklyC
 const afterFirstPost = weekly.cash;
 runAcademyWeek(weekly);
 check("weekly academy cost is dedupe-safe", weekly.cash === afterFirstPost);
-check("academy cost is recorded in the finance ledger", weekly.financeLedger.some((entry) => entry.dedupeKey === \`academy:s\${weekly.season}:w\${weekly.week}\`));
+check("academy cost is recorded in the finance ledger", weekly.financeLedger.some((entry) => entry.dedupeKey === `academy:s${weekly.season}:w${weekly.week}`));
 
 const graduateState = structuredClone(reduced);
 const graduate = academyState(graduateState).prospects[0];
@@ -73,5 +73,5 @@ for (let i = 0; i < 60 && seasonRun.season === startingSeason; i += 1) seasonRun
 check("academy survives a full engine season rollover", seasonRun.season > startingSeason && academyState(seasonRun).status === 1);
 check("new season creates another intake", academyState(seasonRun).lastIntakeSeason === seasonRun.season);
 
-console.log(\`\n=== \${passed} passed, \${failed} failed ===\`);
+console.log(`\n=== ${passed} passed, ${failed} failed ===`);
 if (failed > 0) process.exit(1);
