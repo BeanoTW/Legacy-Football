@@ -9,23 +9,16 @@ import {
   ageOf,
   playerName,
   userSquad,
-  weeksLeftOnContract,
 } from "@/lib/game/recruitment";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { MOOD_TONE_CLASS, playerMood } from "@/lib/game/character";
-import { fmtMoney } from "@/lib/game/engine";
 import { activeLoanForPlayer } from "@/lib/game/loans";
-import { absoluteWeek, fromAbsoluteWeek } from "@/lib/game/time";
-import { clubDisplayName } from "@/lib/game/clubReference";
 import { clubKitFor } from "@/lib/game/clubKit";
-import { POSITION_BADGE_CLASS, POSITION_PITCH_CLASS } from "./playerPosition";
-import { contractEmploymentType } from "@/lib/game/employment";
+import { POSITION_PITCH_CLASS } from "./playerPosition";
 import { positionEffectiveness, positionFamiliarity, positionUnit, tacticalPositionProfile } from "@/lib/game/positions";
 import { openPlayerProfile } from "./shared/PlayerProfileSheet";
-import { TacticalPlayerCard } from "./shared/TacticalPlayerCard";
 import { CharacterPortrait, type PortraitKit } from "./CharacterPortrait";
-import { fitnessLabel, fixtureLoadThisWeek, medicalSupport, playerFitness, playerIsAvailable, squadAverageFitness } from "@/lib/game/playerHealth";
+import { fixtureLoadThisWeek, medicalSupport, playerFitness, playerIsAvailable, squadAverageFitness } from "@/lib/game/playerHealth";
 import { playerSeasonLeaders, playerSeasonStats } from "@/lib/game/playerSeasonStats";
 import { playerRecentForm } from "@/lib/game/playerForm";
 import {
@@ -774,15 +767,26 @@ function Pitch({
   );
 }
 
-function CompactPlayerRow({ state, player, inXi }: { state: GameState; player: FootballPlayer; inXi: boolean }) {
-  return <TacticalPlayerCard state={state} player={player} mode="compact" selected={inXi} className="rounded-none border-x-0 border-t-0 shadow-none last:border-b-0" />;
+function Pulse({ label, value, pct }: { label: string; value: string; pct?: number }) {
+  return (
+    <div className="min-w-0 px-1 py-2">
+      <div className="truncate font-display text-lg leading-none tnum">{value}</div>
+      <div className="mt-1 truncate text-[8px] font-bold uppercase tracking-wider text-muted-foreground">{label}</div>
+      {pct !== undefined && (
+        <div className="mx-auto mt-1 h-1 w-8 overflow-hidden rounded-full bg-muted">
+          <div
+            className={cn(
+              "h-full rounded-full",
+              pct >= 65 ? "bg-emerald-500" : pct >= 45 ? "bg-amber-500" : "bg-rose-500",
+            )}
+            style={{ width: `${Math.max(4, Math.min(100, pct))}%` }}
+          />
+        </div>
+      )}
+    </div>
+  );
 }
 
-function PlayerRow({ state, player }: { state: GameState; player: FootballPlayer }) {
-  return <TacticalPlayerCard state={state} player={player} mode="squad" className="rounded-none border-x-0 border-t-0 shadow-none last:border-b-0" />;
-}
-
-function Summary({ label, value }: { label: string; value: string }) { return <div className="p-3"><div className="font-display text-2xl">{value}</div><div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div></div>; }
 function averageAbility(players: FootballPlayer[]): number { return players.length ? players.reduce((sum, player) => sum + player.currentAbility, 0) / players.length : 0; }
 
 function Leader({ label, name, value }: { label: string; name?: string; value: string }) { return <div className="rounded-lg border bg-muted/20 p-2"><div className="text-[9px] uppercase tracking-wider text-muted-foreground">{label}</div><div className="mt-1 truncate font-semibold">{name ?? "No data"}</div><div className="text-[10px] text-muted-foreground">{value}</div></div>; }
