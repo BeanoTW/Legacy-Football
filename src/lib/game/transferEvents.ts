@@ -13,7 +13,10 @@ import { processTransferMarketDynamicsInPlace } from "./transferMarketDynamics";
  */
 export function processDueTransferResponsesInPlace(state: GameState): void {
   processDueSellingClubResponsesInPlace(state);
-  processDueExternalTransferResponsesInPlace(state);
+  // Let market pressure exist before today's club/player reply is evaluated,
+  // so a rival package influences the response instead of appearing one frame
+  // after terms were just accepted.
   processTransferMarketDynamicsInPlace(state);
+  processDueExternalTransferResponsesInPlace(state);
   processDueTransferRegistrationsInPlace(state);
 }
