@@ -6,7 +6,7 @@ import { managerSquadFit } from "@/lib/game/managerSquadFit";
 import { managerRecruitmentBrief } from "@/lib/game/managerRecruitmentBrief";
 import { DETAILED_POSITIONS, positionUnit } from "@/lib/game/positions";
 import {
-  createChairmanScoutingBrief,
+  createChairmanMultiScoutingBrief,
   SCOUTING_PLAYER_LEVELS,
   type ScoutingPlayerLevel,
 } from "@/lib/game/chairmanScoutingBrief";
@@ -39,6 +39,26 @@ const TACTICAL_POSITION_LABEL: Record<TacticalPosition, string> = {
 
 const FIELD = "h-9 w-full min-w-0 rounded-md border bg-background px-2 text-xs font-normal";
 
+interface PositionBriefDraft {
+  tacticalPosition: "" | TacticalPosition;
+  playerLevel: ScoutingPlayerLevel;
+  minAge: number;
+  maxAge: number;
+  clubStatus: "" | "free" | "contracted";
+  maxFee: string;
+  maxWage: string;
+}
+
+const defaultDraft = (): PositionBriefDraft => ({
+  tacticalPosition: "",
+  playerLevel: "firstTeam",
+  minAge: 18,
+  maxAge: 32,
+  clubStatus: "",
+  maxFee: "",
+  maxWage: "",
+});
+
 export function ScoutingBriefBuilder({
   state,
   update,
@@ -49,57 +69,72 @@ export function ScoutingBriefBuilder({
   onBack: () => void;
 }) {
   const [positions, setPositions] = useState<Position[]>(["DEF"]);
-  const [tacticalPosition, setTacticalPosition] = useState<"" | TacticalPosition>("");
-  const [playerLevel, setPlayerLevel] = useState<ScoutingPlayerLevel>("firstTeam");
-  const [minAge, setMinAge] = useState(18);
-  const [maxAge, setMaxAge] = useState(32);
-  const [clubStatus, setClubStatus] = useState<"" | "free" | "contracted">("");
-  const [maxFee, setMaxFee] = useState("");
-  const [maxWage, setMaxWage] = useState("");
+  const [activePosition, setActivePosition] = useState<Position>("DEF");
+  const [drafts, setDrafts] = useState<Record<Position, PositionBriefDraft>>({
+    GK: defaultDraft(),
+    DEF: defaultDraft(),
+    MID: defaultDraft(),
+    FWD: defaultDraft(),
+  });
   const plan = scoutingSearchPlan(state);
-  const selectedLevel = SCOUTING_PLAYER_LEVELS.find((item) => item.value === playerLevel)!;
+  const activeDraft = drafts[activePosition];
+  const selectedLevel = SCOUTING_PLAYER_LEVELS.find((item) => item.value === activeDraft.playerLevel)!;
   const manager = state.hiredStaff.find((staff) => staff.role === "Manager");
   const managerFit = manager ? managerSquadFit(state, manager) : null;
   const recruitmentBrief = manager ? managerRecruitmentBrief(state, manager) : null;
   const managerPriority = recruitmentBrief?.priorities[0] ?? null;
-  const tacticalOptions = DETAILED_POSITIONS.filter((item) => positions.length !== 1 || positionUnit(item) === positions[0]);
+  const tacticalOptions = DETAILED_POSITIONS.filter((item) => positionUnit(item) === activePosition);
+  const invalidBrief = positions.some((position) => drafts[position].minAge > drafts[position].maxAge);
+
+  const updateDraft = (position: Position, patch: Partial<PositionBriefDraft>) => {
+    setDrafts((current) => ({
+      ...current,
+      [position]: { ...current[position], ...patch },
+    }));
+  };
 
   const useManagerRecommendation = () => {
     if (!managerPriority) return;
     setPositions([managerPriority.position]);
-    setTacticalPosition(managerPriority.tacticalPosition ?? "");
-    setPlayerLevel(managerPriority.playerLevel);
+    setActivePosition(managerPriority.position);
+    updateDraft(managerPriority.position, {
+      tacticalPosition: managerPriority.tacticalPosition ?? "",
+      playerLevel: managerPriority.playerLevel,
+    });
   };
 
   const togglePosition = (next: Position) => {
     setPositions((current) => {
       if (current.includes(next)) {
+        if (current.length === 1) return current;
         const reduced = current.filter((position) => position !== next);
-        if (tacticalPosition && reduced.length !== 1) setTacticalPosition("");
+        if (activePosition === next) setActivePosition(reduced[0]);
         return reduced;
       }
       if (current.length >= plan.positionCapacity) return current;
-      const expanded = [...current, next];
-      if (tacticalPosition && (expanded.length !== 1 || positionUnit(tacticalPosition) !== expanded[0])) {
-        setTacticalPosition("");
-      }
-      return expanded;
+      setActivePosition(next);
+      return [...current, next];
     });
   };
 
   const dispatch = () => {
     const sequence = state.football?.scoutingDiscovery?.briefs.length ?? 0;
     update((s) =>
-      createChairmanScoutingBrief(s, {
+      createChairmanMultiScoutingBrief(s, {
         id: `chairman-brief:s${s.season}:w${s.week}:r${sequence + 1}`,
-        positions,
-        tacticalPosition: positions.length === 1 ? tacticalPosition || undefined : undefined,
-        playerLevel,
-        minAge,
-        maxAge,
-        clubStatus: clubStatus || undefined,
-        maxMarketValue: maxFee ? Math.max(0, Number(maxFee)) : undefined,
-        maxWeeklyWage: maxWage ? Math.max(0, Number(maxWage)) : undefined,
+        positionBriefs: positions.map((position) => {
+          const draft = drafts[position];
+          return {
+            position,
+            tacticalPosition: draft.tacticalPosition || undefined,
+            playerLevel: draft.playerLevel,
+            minAge: draft.minAge,
+            maxAge: draft.maxAge,
+            clubStatus: draft.clubStatus || undefined,
+            maxMarketValue: draft.maxFee ? Math.max(0, Number(draft.maxFee)) : undefined,
+            maxWeeklyWage: draft.maxWage ? Math.max(0, Number(draft.maxWage)) : undefined,
+          };
+        }),
       }),
     );
   };
@@ -143,8 +178,8 @@ export function ScoutingBriefBuilder({
             </details>
           </div>
         )}
-        <div className="mt-3 grid grid-cols-2 gap-x-2 gap-y-2.5">
-          <div className="col-span-2 grid min-w-0 gap-1 text-[11px] font-semibold">
+        <div className="mt-3 grid gap-3">
+          <div className="grid min-w-0 gap-1 text-[11px] font-semibold">
             <div className="flex items-center justify-between gap-2">
               <span>Positions</span>
               <span className="font-normal text-muted-foreground">
@@ -170,53 +205,89 @@ export function ScoutingBriefBuilder({
               })}
             </div>
             <p className="font-normal text-[10px] text-muted-foreground">
-              Scout quality {plan.quality}: your team can cover up to {plan.positionCapacity} broad position{plan.positionCapacity === 1 ? "" : "s"} in one brief.
+              Scout quality {plan.quality}: your team can run up to {plan.positionCapacity} tailored position {plan.positionCapacity === 1 ? "brief" : "briefs"} at once.
             </p>
           </div>
-          <label className="col-span-2 grid min-w-0 gap-1 text-[11px] font-semibold"><span>Role <span className="font-normal text-muted-foreground">· optional · one position only</span></span>
-            <select
-              className={FIELD}
-              value={tacticalPosition}
-              disabled={positions.length !== 1}
-              onChange={(e) => setTacticalPosition(e.target.value as "" | TacticalPosition)}
-            >
-              <option value="">Any role</option>
-              {tacticalOptions.map((item) => <option key={item} value={item}>{TACTICAL_POSITION_LABEL[item]}</option>)}
-            </select>
-          </label>
-          <label className="grid min-w-0 gap-1 text-[11px] font-semibold">Level
-            <select className={FIELD} value={playerLevel} onChange={(e) => setPlayerLevel(e.target.value as ScoutingPlayerLevel)}>
-              {SCOUTING_PLAYER_LEVELS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-            </select>
-          </label>
-          <label className="grid min-w-0 gap-1 text-[11px] font-semibold">Status
-            <select className={FIELD} value={clubStatus} onChange={(e) => setClubStatus(e.target.value as "" | "free" | "contracted")}>
-              <option value="">Any</option><option value="contracted">Under contract</option><option value="free">Free agents</option>
-            </select>
-          </label>
-          <p className="col-span-2 -mt-1 text-[10px] text-muted-foreground">{selectedLevel.label}: {selectedLevel.description}</p>
-          <label className="grid min-w-0 gap-1 text-[11px] font-semibold">Age from
-            <input className={FIELD} type="number" min={16} max={40} value={minAge} onChange={(e) => setMinAge(Number(e.target.value))} />
-          </label>
-          <label className="grid min-w-0 gap-1 text-[11px] font-semibold">Age to
-            <input className={FIELD} type="number" min={16} max={45} value={maxAge} onChange={(e) => setMaxAge(Number(e.target.value))} />
-          </label>
-          <label className="grid min-w-0 gap-1 text-[11px] font-semibold"><span>Max fee <span className="font-normal text-muted-foreground">· £</span></span>
-            <input className={FIELD} inputMode="numeric" placeholder="No limit" value={maxFee} onChange={(e) => setMaxFee(e.target.value.replace(/[^0-9]/g, ""))} />
-          </label>
-          <label className="grid min-w-0 gap-1 text-[11px] font-semibold"><span>Max wage <span className="font-normal text-muted-foreground">· £/wk</span></span>
-            <input className={FIELD} inputMode="numeric" placeholder="No limit" value={maxWage} onChange={(e) => setMaxWage(e.target.value.replace(/[^0-9]/g, ""))} />
-          </label>
+
+          <div className="flex gap-1.5 overflow-x-auto pb-1">
+            {positions.map((position) => {
+              const draft = drafts[position];
+              const level = SCOUTING_PLAYER_LEVELS.find((item) => item.value === draft.playerLevel)?.label ?? draft.playerLevel;
+              return (
+                <button
+                  key={position}
+                  type="button"
+                  onClick={() => setActivePosition(position)}
+                  className={`min-w-[150px] rounded-lg border px-2.5 py-2 text-left transition-colors ${activePosition === position ? "border-primary bg-primary/10" : "bg-background hover:bg-muted"}`}
+                >
+                  <div className="text-xs font-bold">{position}</div>
+                  <div className="mt-0.5 truncate text-[10px] text-muted-foreground">
+                    {draft.tacticalPosition ? TACTICAL_POSITION_LABEL[draft.tacticalPosition] : "Any role"} · {level}
+                  </div>
+                  <div className="mt-0.5 text-[9px] text-muted-foreground">Age {draft.minAge}–{draft.maxAge}</div>
+                </button>
+              );
+            })}
+          </div>
+
+          <section className="rounded-xl border bg-muted/20 p-2.5">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div>
+                <div className="text-xs font-bold">{POSITIONS.find((item) => item.value === activePosition)?.label} brief</div>
+                <div className="text-[10px] text-muted-foreground">These requirements only apply to {activePosition} candidates.</div>
+              </div>
+              <span className="rounded-full border bg-background px-2 py-0.5 text-[9px] font-semibold">{activePosition}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-x-2 gap-y-2.5">
+              <label className="col-span-2 grid min-w-0 gap-1 text-[11px] font-semibold">Role <span className="font-normal text-muted-foreground">optional</span>
+                <select
+                  className={FIELD}
+                  value={activeDraft.tacticalPosition}
+                  onChange={(e) => updateDraft(activePosition, { tacticalPosition: e.target.value as "" | TacticalPosition })}
+                >
+                  <option value="">Any role</option>
+                  {tacticalOptions.map((item) => <option key={item} value={item}>{TACTICAL_POSITION_LABEL[item]}</option>)}
+                </select>
+              </label>
+              <label className="grid min-w-0 gap-1 text-[11px] font-semibold">Level
+                <select className={FIELD} value={activeDraft.playerLevel} onChange={(e) => updateDraft(activePosition, { playerLevel: e.target.value as ScoutingPlayerLevel })}>
+                  {SCOUTING_PLAYER_LEVELS.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                </select>
+              </label>
+              <label className="grid min-w-0 gap-1 text-[11px] font-semibold">Status
+                <select className={FIELD} value={activeDraft.clubStatus} onChange={(e) => updateDraft(activePosition, { clubStatus: e.target.value as "" | "free" | "contracted" })}>
+                  <option value="">Any</option><option value="contracted">Under contract</option><option value="free">Free agents</option>
+                </select>
+              </label>
+              <p className="col-span-2 -mt-1 text-[10px] text-muted-foreground">{selectedLevel.label}: {selectedLevel.description}</p>
+              <label className="grid min-w-0 gap-1 text-[11px] font-semibold">Age from
+                <input className={FIELD} type="number" min={16} max={40} value={activeDraft.minAge} onChange={(e) => updateDraft(activePosition, { minAge: Number(e.target.value) })} />
+              </label>
+              <label className="grid min-w-0 gap-1 text-[11px] font-semibold">Age to
+                <input className={FIELD} type="number" min={16} max={45} value={activeDraft.maxAge} onChange={(e) => updateDraft(activePosition, { maxAge: Number(e.target.value) })} />
+              </label>
+              <label className="grid min-w-0 gap-1 text-[11px] font-semibold"><span>Max fee <span className="font-normal text-muted-foreground">· £</span></span>
+                <input className={FIELD} inputMode="numeric" placeholder="No limit" value={activeDraft.maxFee} onChange={(e) => updateDraft(activePosition, { maxFee: e.target.value.replace(/[^0-9]/g, "") })} />
+              </label>
+              <label className="grid min-w-0 gap-1 text-[11px] font-semibold"><span>Max wage <span className="font-normal text-muted-foreground">· £/wk</span></span>
+                <input className={FIELD} inputMode="numeric" placeholder="No limit" value={activeDraft.maxWage} onChange={(e) => updateDraft(activePosition, { maxWage: e.target.value.replace(/[^0-9]/g, "") })} />
+              </label>
+            </div>
+            {activeDraft.minAge > activeDraft.maxAge && <p className="mt-2 text-xs text-destructive">Maximum age must be at least the minimum age for this brief.</p>}
+          </section>
         </div>
-        {minAge > maxAge && <p className="mt-2 text-xs text-destructive">Maximum age must be at least the minimum age.</p>}
         <div className="lf-brief-footer sticky bottom-0 -mx-3 mt-3 border-t bg-card px-3 pb-1 pt-2 md:-mx-4 md:px-4">
           <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
-            <span className="min-w-0 flex-1 truncate"><span className="font-semibold">Brief:</span>{" "}
-              {tacticalPosition ? TACTICAL_POSITION_LABEL[tacticalPosition] : positions.length ? positions.map((value) => POSITIONS.find((item) => item.value === value)?.label).join(" + ") : "No position selected"} · {selectedLevel.label} · {minAge}–{maxAge}
+            <span className="min-w-0 flex-1 truncate">
+              <span className="font-semibold">{positions.length} {positions.length === 1 ? "search" : "searches"}:</span>{" "}
+              {positions.map((position) => {
+                const level = SCOUTING_PLAYER_LEVELS.find((item) => item.value === drafts[position].playerLevel)?.label ?? drafts[position].playerLevel;
+                return `${position} ${level}`;
+              }).join(" · ")}
             </span>
-            <span className="shrink-0 text-muted-foreground tnum">Scouts {plan.quality} · ~{plan.searchDays}d · up to {plan.candidateLimit}</span>
+            <span className="shrink-0 text-muted-foreground tnum">Scouts {plan.quality} · ~{plan.searchDays}d · up to {plan.candidateLimit} total</span>
           </div>
-          <Button className="w-full" disabled={minAge > maxAge || positions.length === 0} onClick={dispatch}><Binoculars className="mr-2 size-4" /> Send scouts</Button>
+          <Button className="w-full" disabled={invalidBrief || positions.length === 0} onClick={dispatch}><Binoculars className="mr-2 size-4" /> Send scouts</Button>
         </div>
       </section>
     </DetailScreen>
