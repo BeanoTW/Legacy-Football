@@ -80,12 +80,21 @@ export function ScoutingBrowser({
 
   const rows = useMemo(() => {
     if (!brief || brief.status !== "complete") return [];
+    const targetOrder = new Map(
+      (brief.positionBriefs ?? []).map((target, index) => [target.position, index]),
+    );
     return brief.candidateIds
       .flatMap((playerId) => {
         const player = transferTargetPlayer(state, playerId);
         return player ? [player] : [];
       })
       .sort((a, b) => {
+        if (targetOrder.size) {
+          const positionDelta =
+            (targetOrder.get(a.primaryPosition) ?? 99) -
+            (targetOrder.get(b.primaryPosition) ?? 99);
+          if (positionDelta) return positionDelta;
+        }
         const fit =
           chairmanScoutingFitScore(state, brief.id, b.id) -
           chairmanScoutingFitScore(state, brief.id, a.id);
@@ -124,6 +133,12 @@ export function ScoutingBrowser({
   const wageHeadroom = wageCeiling > 0 ? Math.max(0, wageCeiling - wageBill) : null;
   const daysRemaining = brief ? scoutingBriefDaysRemaining(state, brief.id) : 0;
   const levelLabel = scoutingPlayerLevelLabel(brief?.playerLevel);
+  const tailoredCount = brief?.positionBriefs?.length ?? 0;
+  const searchLabel = tailoredCount > 1
+    ? `${tailoredCount} tailored position briefs`
+    : brief?.positionBriefs?.[0]
+      ? `${brief.positionBriefs[0].position} · ${scoutingPlayerLevelLabel(brief.positionBriefs[0].playerLevel)}`
+      : levelLabel;
 
   const toolbar = (
     <div className="space-y-1">
@@ -135,7 +150,7 @@ export function ScoutingBrowser({
           {wageHeadroom !== null ? ` · ${fmtMoney(wageHeadroom)} headroom` : ""}
         </span>
         <span className="rounded-md bg-muted px-2 py-1">{brief?.scoutQuality ?? 50} scouting quality</span>
-        {brief?.playerLevel && <span className="rounded-md bg-muted px-2 py-1">Target · {levelLabel}</span>}
+        {(brief?.playerLevel || tailoredCount > 0) && <span className="rounded-md bg-muted px-2 py-1">Target · {searchLabel}</span>}
       </div>
     </div>
   );
@@ -160,14 +175,14 @@ export function ScoutingBrowser({
     return (
       <DetailScreen
         title="Recruitment options"
-        subtitle={`Scouts are looking for ${levelLabel.toLowerCase()} options · ${daysRemaining} day${daysRemaining === 1 ? "" : "s"} remaining`}
+        subtitle={`Scouts are working on ${searchLabel.toLowerCase()} · ${daysRemaining} day${daysRemaining === 1 ? "" : "s"} remaining`}
         actions={<Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="mr-2 size-4" /> Back</Button>}
         toolbar={toolbar}
       >
         <section className="max-w-2xl rounded-xl border bg-card p-5 shadow-sm">
           <div className="flex items-center gap-3">
             <Binoculars className="size-7" />
-            <div><div className="font-display text-xl">Scouts are working</div><div className="text-sm text-muted-foreground">Your recruitment team is working to the brief you sent: {levelLabel}.</div></div>
+            <div><div className="font-display text-xl">Scouts are working</div><div className="text-sm text-muted-foreground">Your recruitment team is working to {tailoredCount > 1 ? `${tailoredCount} separate position requirements` : `the brief you sent: ${searchLabel}`}.</div></div>
           </div>
           <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
             <div className="rounded-lg bg-muted p-2"><div className="font-display text-lg">{brief.scoutQuality ?? 50}</div><div className="text-muted-foreground">Scout quality</div></div>
@@ -183,7 +198,7 @@ export function ScoutingBrowser({
   return (
     <DetailScreen
       title="Recruitment options"
-      subtitle={`${rows.length} ${levelLabel.toLowerCase()} options brought to your attention by the football staff`}
+      subtitle={tailoredCount > 1 ? `${rows.length} options across ${tailoredCount} tailored position briefs` : `${rows.length} ${searchLabel.toLowerCase()} options brought to your attention by the football staff`}
       actions={<Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="mr-2 size-4" /> Back</Button>}
       toolbar={toolbar}
       className="touch-pan-y grid auto-rows-max content-start gap-2 xl:grid-cols-2 xl:items-start"
