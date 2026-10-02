@@ -145,12 +145,30 @@ function ManagerRelationshipPanel({ state, staff }: { state: GameState; staff: S
 export function StaffTab({ state, update }: { state: GameState; update: (fn: (s: GameState) => GameState) => void }) {
   const [view,setView]=useState<StaffView>("home"); const [filter,setFilter]=useState<"All"|StaffRole>("All"); const [minRating,setMinRating]=useState(0); const [maxWage,setMaxWage]=useState(0); const [willingOnly,setWillingOnly]=useState(true); const [sortBy,setSortBy]=useState<"rating"|"wage"|"age"|"fit">("fit");
   const [managerNegotiationId,setManagerNegotiationId]=useState<string|null>(null); const [managerOffer,setManagerOffer]=useState<ManagerOffer|null>(null); const [managerPosition,setManagerPosition]=useState<ManagerOffer|null>(null); const [managerCounter,setManagerCounter]=useState<ManagerOffer|null>(null); const [managerAcceptedOffer,setManagerAcceptedOffer]=useState<ManagerOffer|null>(null); const [managerRound,setManagerRound]=useState(1); const [managerMessage,setManagerMessage]=useState("");
+  const [contractAction,setContractAction]=useState<{kind:"release"|"renew";staffId:string}|null>(null);
   const manager=state.hiredStaff.find(s=>s.role==="Manager"); const medical=medicalSupport(state); const weeklyStaffCost=hiredStaffWagesWeekly(state); const enriched=state.staffCandidates.map(c=>({staff:c,terms:staffJoinTermsForState(state,c)})); const willingCount=enriched.filter(e=>e.terms.willing).length; const footballStaffCount=state.hiredStaff.filter(s=>FOOTBALL_ROLES.includes(s.role)).length; const specialistCount=state.hiredStaff.filter(s=>!FOOTBALL_ROLES.includes(s.role)).length; const expiringCount=state.hiredStaff.filter(s=>s.contractWeeks<=24).length;
   const closeManagerTalks=()=>{setManagerNegotiationId(null);setManagerOffer(null);setManagerPosition(null);setManagerCounter(null);setManagerAcceptedOffer(null);setManagerRound(1);setManagerMessage("");};
   const hire=(id:string)=>{const candidate=state.staffCandidates.find(c=>c.id===id);if(candidate?.role==="Manager"){const terms=staffJoinTermsForState(state,candidate);const opening=managerOpeningPosition(state,candidate,terms);setManagerNegotiationId(id);setManagerOffer(opening);setManagerPosition(opening);setManagerCounter(null);setManagerAcceptedOffer(null);setManagerRound(1);setManagerMessage(`${terms.note}. His agent has set out an opening position.`);return;}const res=hireStaffMember(state,id);if(!res.ok)return alert(res.reason??"Unable to hire.");update(()=>res.state);};
   const submitManagerOffer=()=>{if(!managerNegotiationId||!managerOffer||!managerPosition)return;const candidate=state.staffCandidates.find(c=>c.id===managerNegotiationId);if(!candidate)return;const terms=staffJoinTermsForState(state,candidate);const evaluation=evaluateManagerBargainingOffer(state,candidate,terms,managerOffer,managerPosition,managerRound);setManagerMessage(evaluation.message);if(evaluation.outcome==="counter"&&evaluation.counterOffer){setManagerCounter(evaluation.counterOffer);setManagerPosition(evaluation.counterOffer);setManagerRound(r=>r+1);return;}setManagerCounter(null);if(evaluation.outcome!=="accepted")return;setManagerAcceptedOffer({...managerOffer});};
   const confirmManagerAppointment=()=>{if(!managerNegotiationId||!managerAcceptedOffer)return;const res=completeAcceptedManagerDeal(state,managerNegotiationId,managerAcceptedOffer);if(!res.ok){setManagerAcceptedOffer(null);return setManagerMessage(res.reason??"Unable to complete the deal.");}update(()=>res.state);closeManagerTalks();};
-  const release=(id:string)=>{const st=state.hiredStaff.find(h=>h.id===id);if(!st)return;if(!confirm(`Release ${st.name}? Severance of ${fmtMoneyExact(severanceFor(st))} due.`))return;const res=sackStaffMember(state,id);if(!res.ok)return alert(res.reason??"Unable to release.");update(()=>res.state);}; const renew=(id:string)=>{const st=state.hiredStaff.find(h=>h.id===id);if(!st)return;const bonus=st.wage*2;if(!confirm(`Renew ${st.name} for 2 seasons? Renewal bonus: ${fmtMoneyExact(bonus)}.`))return;const res=renewStaffContract(state,id,2);if(!res.ok)return alert(res.reason??"Unable to renew contract.");update(()=>res.state);};
+  const release=(id:string)=>setContractAction({kind:"release",staffId:id});
+  const renew=(id:string)=>setContractAction({kind:"renew",staffId:id});
+  const confirmContractAction=()=>{
+    if(!contractAction)return;
+    const st=state.hiredStaff.find(h=>h.id===contractAction.staffId);
+    if(!st){setContractAction(null);return;}
+    if(contractAction.kind==="release"){
+      const res=sackStaffMember(state,st.id);
+      if(!res.ok)return alert(res.reason??"Unable to release.");
+      update(()=>res.state);
+      setContractAction(null);
+      return;
+    }
+    const res=renewStaffContract(state,st.id,2);
+    if(!res.ok)return alert(res.reason??"Unable to renew contract.");
+    update(()=>res.state);
+    setContractAction(null);
+  };
   const filtered=enriched.filter(({staff,terms})=>(filter==="All"||staff.role===filter)&&staff.rating>=minRating&&(maxWage<=0||terms.wageDemand<=maxWage)&&(!willingOnly||terms.willing)).sort((a,b)=>{if(sortBy==="rating")return b.staff.rating-a.staff.rating;if(sortBy==="wage")return a.terms.wageDemand-b.terms.wageDemand;if(sortBy==="age")return a.staff.age-b.staff.age;const aw=a.terms.willing?0:1,bw=b.terms.willing?0:1;if(aw!==bw)return aw-bw;if(a.staff.role==="Manager"&&b.staff.role==="Manager")return managerSquadFit(state,b.staff).score-managerSquadFit(state,a.staff).score;return b.staff.rating-a.staff.rating;});
 
   if (view === "team") return (
@@ -168,6 +186,13 @@ export function StaffTab({ state, update }: { state: GameState; update: (fn: (s:
             {state.hiredStaff.map((staff) => <StaffCard key={staff.id} state={state} staff={staff}
               onAction={() => release(staff.id)} onRenew={() => renew(staff.id)} action="release" />)}
           </div>}
+      <StaffContractDialog
+        staff={state.hiredStaff.find((staff) => staff.id === contractAction?.staffId) ?? null}
+        kind={contractAction?.kind ?? null}
+        open={Boolean(contractAction)}
+        onOpenChange={(open) => { if (!open) setContractAction(null); }}
+        onConfirm={confirmContractAction}
+      />
     </div>
   );
   if (view === "market") return (
@@ -232,6 +257,80 @@ export function StaffTab({ state, update }: { state: GameState; update: (fn: (s:
         meta={`${willingCount} willing candidates`} onClick={() => setView("market")} />
     </div>
   </OverviewScreen>;
+}
+
+function StaffContractDialog({
+  staff,
+  kind,
+  open,
+  onOpenChange,
+  onConfirm,
+}: {
+  staff: Staff | null;
+  kind: "release" | "renew" | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+}) {
+  if (!staff || !kind) return null;
+  const releasing = kind === "release";
+  const severance = severanceFor(staff);
+  const renewalBonus = staff.wage * 2;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{releasing ? "Release staff member?" : "Renew staff contract?"}</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div className={cn(
+            "rounded-xl border p-3",
+            releasing
+              ? "border-rose-500/25 bg-rose-500/[0.06]"
+              : "border-emerald-500/25 bg-emerald-500/[0.06]",
+          )}>
+            <div className="font-display text-lg">{staff.name}</div>
+            <div className="text-xs text-muted-foreground">{staff.role} · Rating {staff.rating}</div>
+          </div>
+
+          {releasing ? (
+            <>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                This ends {staff.name}&apos;s contract immediately and removes them from your staff.
+              </p>
+              <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2">
+                <span className="text-xs text-muted-foreground">Severance due now</span>
+                <strong className="tnum text-rose-700 dark:text-rose-300">{fmtMoneyExact(severance)}</strong>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Extend {staff.name}&apos;s contract by two seasons on their current weekly wage.
+              </p>
+              <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2">
+                <span className="text-xs text-muted-foreground">Renewal bonus</span>
+                <strong className="tnum">{fmtMoneyExact(renewalBonus)}</strong>
+              </div>
+            </>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button
+            variant={releasing ? "destructive" : "default"}
+            onClick={onConfirm}
+          >
+            {releasing ? <UserMinus className="mr-2 size-4" /> : <CheckCircle2 className="mr-2 size-4" />}
+            {releasing ? "Release staff" : "Renew for 2 seasons"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 function StaffCard({state,staff,terms,onAction,onRenew,action,affordable=true}: {
