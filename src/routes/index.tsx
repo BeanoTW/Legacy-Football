@@ -17,6 +17,7 @@ import { TicketsTab } from "@/components/game/TicketsTab";
 import { FixturesTab } from "@/components/game/FixturesTab";
 import { HistoryTab } from "@/components/game/HistoryTab";
 import { StaffTab } from "@/components/game/StaffTab";
+import { AcademyTab } from "@/components/game/AcademyTab";
 import { ClubHub } from "@/components/game/ClubHub";
 import { MatchDayOverlay } from "@/components/game/MatchDayOverlay";
 import { ChairmansOffice } from "@/components/game/ChairmansOffice";
@@ -260,6 +261,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
             {tab === "tickets" && <TicketsTab state={state} update={update} />}
             {tab === "recruitment" && <RecruitmentFlow key={recruitmentNavigationKey} state={state} update={update} destination={recruitmentDestination} />}
             {tab === "staff" && <StaffTab state={state} update={update} />}
+            {tab === "academy" && <AcademyTab state={state} update={update} />}
             {tab === "stadium" && <FacilitiesFlow state={state} update={update} />}
             {tab === "fixtures" && <FixturesTab state={state} update={update} />}
             {tab === "board" && <BoardTab state={state} />}

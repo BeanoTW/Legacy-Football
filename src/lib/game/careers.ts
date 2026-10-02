@@ -574,6 +574,9 @@ function runYouthIntake(s: GameState, focus: Set<string>): void {
     const active = s.football.players.filter(
       (player) => playerRegisteredClubId(player) === club,
     );
+    // A functioning academy replaces the user's automatic youth top-up.
+    // Keep the legacy intake only as an emergency net below 16 senior players.
+    if (isUserClubReference(s, club) && (s.academy?.status ?? 0) >= 1 && active.length >= 16) continue;
     const count = clamp(SQUAD_SIZE - active.length, 0, 3);
 
     for (let index = 0; index < count; index++) {

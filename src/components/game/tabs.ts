@@ -4,6 +4,7 @@ import {
   Calendar,
   CircleDollarSign,
   Gavel,
+  GraduationCap,
   Handshake,
   Home,
   LineChart as LineIcon,
@@ -28,6 +29,7 @@ export type Tab =
   | "tickets"
   | "recruitment"
   | "staff"
+  | "academy"
   | "stadium"
   | "fixtures"
   | "leagues"
@@ -43,6 +45,7 @@ export const ALL_TABS: TabDef[] = [
   ["squad", "Squad", Shirt],
   ["recruitment", "Transfers", ArrowLeftRight],
   ["staff", "Staff", Briefcase],
+  ["academy", "Academy", GraduationCap],
   ["cashflow", "Finances", CircleDollarSign],
   ["stadium", "Facilities", Building2],
   ["fixtures", "Matches", Calendar],

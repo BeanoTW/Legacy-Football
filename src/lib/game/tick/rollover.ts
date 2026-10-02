@@ -14,6 +14,7 @@ import { awardPrizeMoney, closeSeasonFinance, openSeasonFinance } from "../finan
 import { closeCommercialSeason } from "../commercial";
 import { closeRecruitmentSeason, rollRecruitmentToNewSeason } from "../recruitment";
 import { runPlayerCareerRollover } from "../careers";
+import { runAcademySeasonRollover } from "../academy";
 import { runStaffCareerRollover } from "../staffCareers";
 import { advanceFringeWorldToSeason } from "../fringe";
 import { advancePersistentFringePlayersToSeason } from "../fringePlayers";
@@ -128,6 +129,7 @@ export function tickSeasonRollover(s: GameState): void {
   // Detailed Focus players now follow deterministic age/potential development
   // and decline curves. Fringe clubs continue to evolve statistically.
   runPlayerCareerRollover(s);
+  runAcademySeasonRollover(s);
   // The pyramid has already changed, so capture every detailed club that is
   // about to fall outside Focus before recruitment removes those player rows.
   compactDepartingFocusPlayersInPlace(s);
