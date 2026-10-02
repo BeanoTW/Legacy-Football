@@ -18,6 +18,7 @@ import {
   type NegotiationResult,
 } from "./recruitmentLegacy";
 import { evaluatePlayerBargainInPlace } from "./playerNegotiation";
+import { initialisePlayerTransferInterestInPlace } from "./transferMarketDynamics";
 import {
   syncTransferTargetNegotiationInPlace,
   transferTargetPlayer,
@@ -86,8 +87,24 @@ export function openTransferEnquiryInPlace(
   const result = legacyOpenTransferEnquiryInPlace(s, playerId, role, openingWeeklyWage);
   const n = result.negotiation;
   if (!result.ok || !n) return result;
+  const interest = initialisePlayerTransferInterestInPlace(s, n);
+  if (n.competingClubId) n.competitionStatus = "bid";
 
   if (wasFreeAgent) {
+    n.playerInterestRevealed = true;
+    if (interest?.band === "notInterested") {
+      n.stage = "rejected";
+      n.resolvedAtAbsoluteWeek = nowAbsWeek(s);
+      n.log.push({
+        round: 0,
+        party: "player",
+        action: "reject",
+        note: interest.reason,
+        absoluteWeek: nowAbsWeek(s),
+      });
+      syncTransferTargetNegotiationInPlace(s, n);
+      return { ...result, reason: "Player is not interested" };
+    }
     restorePendingPlayerState(s, n, Math.min(2, n.log.length));
     return { ...result, reason: "Terms sent to player" };
   }
@@ -135,6 +152,23 @@ export function openTransferNegotiationInPlace(
   const result = legacyOpenTransferNegotiationInPlace(s, playerId, fee, role, openingWeeklyWage);
   const n = result.negotiation;
   if (!result.ok || !n) return result;
+  const interest = initialisePlayerTransferInterestInPlace(s, n);
+  n.playerInterestRevealed = true;
+  if (n.competingClubId) n.competitionStatus = "bid";
+  if (interest?.band === "notInterested") {
+    clearTransferResponseInPlace(n);
+    n.stage = "rejected";
+    n.resolvedAtAbsoluteWeek = nowAbsWeek(s);
+    n.log.push({
+      round: 0,
+      party: "player",
+      action: "reject",
+      note: interest.reason,
+      absoluteWeek: nowAbsWeek(s),
+    });
+    syncTransferTargetNegotiationInPlace(s, n);
+    return { ...result, reason: "Player is not interested" };
+  }
 
   if (wasFreeAgent) {
     restorePendingPlayerState(s, n, Math.min(2, n.log.length));
@@ -228,6 +262,8 @@ function resolveEnquiryInPlace(s: GameState, n: TransferNegotiation, dueDay: num
   delete n.pendingEnquiryFee;
   if (!p || fee === undefined || n.stage !== "enquiry") return;
   n.clubCounterFee = fee;
+  n.playerInterestRevealed = true;
+  const interest = initialisePlayerTransferInterestInPlace(s, n);
   n.log.push({
     round: 0,
     party: "club",
@@ -235,8 +271,37 @@ function resolveEnquiryInPlace(s: GameState, n: TransferNegotiation, dueDay: num
     note: `${n.fromClubId} indicate they would consider offers around £${fee.toLocaleString()}.`,
     absoluteWeek: nowAbsWeek(s),
   });
+
+  if (interest?.band === "notInterested") {
+    n.stage = "rejected";
+    n.resolvedAtAbsoluteWeek = nowAbsWeek(s);
+    n.log.push({
+      round: 0,
+      party: "player",
+      action: "reject",
+      note: interest.reason,
+      absoluteWeek: nowAbsWeek(s),
+    });
+    syncTransferTargetNegotiationInPlace(s, n);
+    pushInboxOnce(
+      s,
+      inboxItem(
+        s,
+        n,
+        dueDay,
+        `Player not interested: ${playerName(p)}`,
+        `${n.fromClubId} value ${playerName(p)} at around £${fee.toLocaleString()}, but his agent has made clear that the player is not interested in joining us at this stage.`,
+        "high",
+      ),
+    );
+    return;
+  }
+
   syncTransferTargetNegotiationInPlace(s, n);
-  const rival = n.competingClubId ? ` We are aware of interest from ${n.competingClubId}.` : "";
+  const rival = n.competingClubId
+    ? ` We are aware of a bid from ${n.competingClubId}.`
+    : "";
+  const interestLine = interest ? ` ${interest.reason}` : "";
   pushInboxOnce(
     s,
     inboxItem(
@@ -244,7 +309,7 @@ function resolveEnquiryInPlace(s: GameState, n: TransferNegotiation, dueDay: num
       n,
       dueDay,
       `Transfer enquiry response: ${playerName(p)}`,
-      `${n.fromClubId} are willing to discuss a deal and value ${playerName(p)} at around £${fee.toLocaleString()}.${rival}`,
+      `${n.fromClubId} are willing to discuss a deal and value ${playerName(p)} at around £${fee.toLocaleString()}.${interestLine}${rival}`,
     ),
   );
 }
