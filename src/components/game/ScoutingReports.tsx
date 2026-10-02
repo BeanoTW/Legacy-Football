@@ -32,11 +32,13 @@ export function ScoutingReports({
   update,
   onBack,
   focusPlayerId,
+  onNegotiationStarted,
 }: {
   state: GameState;
   update: (fn: (s: GameState) => GameState) => void;
   onBack: () => void;
   focusPlayerId?: string;
+  onNegotiationStarted?: (negotiationId: string) => void;
 }) {
   const focusRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -54,11 +56,15 @@ export function ScoutingReports({
   const managerBrief = manager ? managerRecruitmentBrief(state, manager) : null;
 
   const approach = (playerId: string, freeAgent: boolean, weeklyWage: number) =>
-    update((s) =>
-      freeAgent
-        ? submitTransferOffer(s, playerId, 0, "First Team", weeklyWage).state
-        : submitTransferEnquiry(s, playerId, "First Team", weeklyWage).state,
-    );
+    update((s) => {
+      const result = freeAgent
+        ? submitTransferOffer(s, playerId, 0, "First Team", weeklyWage)
+        : submitTransferEnquiry(s, playerId, "First Team", weeklyWage);
+      if (result.result.ok && result.result.negotiation?.id) {
+        onNegotiationStarted?.(result.result.negotiation.id);
+      }
+      return result.state;
+    });
 
   return (
     <DetailScreen

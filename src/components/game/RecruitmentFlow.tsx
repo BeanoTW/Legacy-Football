@@ -41,7 +41,16 @@ export function RecruitmentFlow({ state, update, destination }: { state: GameSta
     />;
   }
   if (view === "brief") return <ScoutingBriefBuilder state={state} update={update} onBack={() => setView("find")} />;
-  if (view === "reports") return <ScoutingReports state={state} update={update} onBack={() => setView("home")} focusPlayerId={destination?.view === "reports" ? destination.playerId : undefined} />;
+  if (view === "reports") return <ScoutingReports
+    state={state}
+    update={update}
+    onBack={() => setView("home")}
+    focusPlayerId={destination?.view === "reports" ? destination.playerId : undefined}
+    onNegotiationStarted={(negotiationId) => {
+      setSelectedNegotiationId(negotiationId);
+      setView("operations");
+    }}
+  />;
   if (view === "sales") return <OutgoingSalesDesk state={state} update={update} onBack={() => setView("home")} />;
   if (view === "loans") return <LoanDesk state={state} update={update} onBack={() => setView("home")} />;
   if (view === "history") return <TransferHistory state={state} onBack={() => setView("home")} />;

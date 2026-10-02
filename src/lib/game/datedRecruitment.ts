@@ -18,6 +18,7 @@ import {
   type NegotiationResult,
 } from "./recruitmentLegacy";
 import { evaluatePlayerBargainInPlace } from "./playerNegotiation";
+import { clubDisplayName } from "./clubReference";
 import { initialisePlayerTransferInterestInPlace } from "./transferMarketDynamics";
 import {
   syncTransferTargetNegotiationInPlace,
@@ -114,7 +115,7 @@ export function openTransferEnquiryInPlace(
   if (n.log.length) {
     n.log[n.log.length - 1] = {
       ...n.log[n.log.length - 1],
-      note: `${n.fromClubId} have received our enquiry.`,
+      note: `${n.fromClubId ? clubDisplayName(s, n.fromClubId) : "The selling club"} have received our enquiry.`,
     };
   }
   scheduleTransferResponseInPlace(s, n, "enquiry", 1, 3);
@@ -268,7 +269,7 @@ function resolveEnquiryInPlace(s: GameState, n: TransferNegotiation, dueDay: num
     round: 0,
     party: "club",
     action: "enquiry",
-    note: `${n.fromClubId} indicate they would consider offers around £${fee.toLocaleString()}.`,
+    note: `${n.fromClubId ? clubDisplayName(s, n.fromClubId) : "The selling club"} indicate they would consider offers around £${fee.toLocaleString()}.`,
     absoluteWeek: nowAbsWeek(s),
   });
 
@@ -290,7 +291,7 @@ function resolveEnquiryInPlace(s: GameState, n: TransferNegotiation, dueDay: num
         n,
         dueDay,
         `Player not interested: ${playerName(p)}`,
-        `${n.fromClubId} value ${playerName(p)} at around £${fee.toLocaleString()}, but his agent has made clear that the player is not interested in joining us at this stage.`,
+        `${n.fromClubId ? clubDisplayName(s, n.fromClubId) : "The selling club"} value ${playerName(p)} at around £${fee.toLocaleString()}, but his agent has made clear that the player is not interested in joining us at this stage.`,
         "high",
       ),
     );
@@ -309,7 +310,7 @@ function resolveEnquiryInPlace(s: GameState, n: TransferNegotiation, dueDay: num
       n,
       dueDay,
       `Transfer enquiry response: ${playerName(p)}`,
-      `${n.fromClubId} are willing to discuss a deal and value ${playerName(p)} at around £${fee.toLocaleString()}.${interestLine}${rival}`,
+      `${n.fromClubId ? clubDisplayName(s, n.fromClubId) : "The selling club"} are willing to discuss a deal and value ${playerName(p)} at around £${fee.toLocaleString()}.${interestLine}${rival}`,
     ),
   );
 }
