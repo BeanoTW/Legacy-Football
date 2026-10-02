@@ -58,12 +58,14 @@ export function ScoutingBrowser({
   update,
   onBack,
   onNewBrief,
+  onNegotiationStarted,
   initialBriefId,
 }: {
   state: GameState;
   update: (fn: (s: GameState) => GameState) => void;
   onBack: () => void;
   onNewBrief: () => void;
+  onNegotiationStarted?: (negotiationId: string) => void;
   initialBriefId?: string;
 }) {
   const [note, setNote] = useState<string | null>(null);
@@ -98,6 +100,9 @@ export function ScoutingBrowser({
         ? submitTransferOffer(s, playerId, 0, "First Team", weeklyWage)
         : submitTransferEnquiry(s, playerId, "First Team", weeklyWage);
       setNote(result.result.reason);
+      if (result.result.ok && result.result.negotiation?.id) {
+        onNegotiationStarted?.(result.result.negotiation.id);
+      }
       return result.state;
     });
 
