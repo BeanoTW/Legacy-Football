@@ -7,8 +7,13 @@ export function AppLaunchSplash() {
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
+    const failSafe = window.setTimeout(() => setVisible(false), 3000);
+    return () => window.clearTimeout(failSafe);
+  }, []);
+
+  useEffect(() => {
     if (!artReady) return;
-    const timer = window.setTimeout(() => setVisible(false), 650);
+    const timer = window.setTimeout(() => setVisible(false), 900);
     return () => window.clearTimeout(timer);
   }, [artReady]);
 
@@ -21,6 +26,7 @@ export function AppLaunchSplash() {
         alt=""
         className="lf-launch-splash-art"
         onLoad={() => setArtReady(true)}
+        onError={() => setVisible(false)}
       />
     </div>
   );
