@@ -1473,7 +1473,7 @@ export function MatchPitchViewer({
   return (
     <div
       className={cn(
-        "flex min-h-0 flex-col bg-[#07130f] text-white",
+        "flex min-h-0 min-w-0 w-full max-w-full flex-col overflow-x-hidden bg-[#07130f] text-white",
         expanded ? "h-full flex-1 p-3 sm:p-4" : "border-b p-2.5 sm:p-3",
       )}
     >

@@ -244,7 +244,7 @@ export function MatchDayOverlay({
 
           <div
             className={cn(
-              "min-h-0 flex-1",
+              "min-h-0 min-w-0 flex-1 overflow-x-hidden",
               lm.status === "brief" || !finishedReplay ? "block" : "grid lg:grid-cols-[minmax(0,1.15fr)_minmax(20rem,.85fr)] lg:grid-rows-1",
               finishedReplay && lm.status === "halfTime"
                 ? "grid-rows-[minmax(12rem,1fr)_minmax(14rem,1.1fr)]"
@@ -268,7 +268,7 @@ export function MatchDayOverlay({
             ) : null}
 
             {lm.status === "halfTime" && finishedReplay ? (
-              <section className="flex min-h-0 flex-col justify-center gap-3 overflow-y-auto border-t p-4 text-center sm:p-6">
+              <section className="flex min-h-0 min-w-0 w-full max-w-full flex-col justify-center gap-3 overflow-x-hidden overflow-y-auto border-t p-4 text-center sm:p-6">
                 <h2 className="font-display text-3xl">Half time</h2>
                 {lm.engine?.halves[0] ? (
                   <div className="mx-auto w-full max-w-sm space-y-1.5 text-left">
@@ -287,7 +287,7 @@ export function MatchDayOverlay({
             ) : null}
 
             {lm.status === "fullTime" && finishedReplay ? (
-              <section className="flex min-h-0 flex-col overflow-hidden border-t">
+              <section className="flex min-h-0 min-w-0 w-full max-w-full flex-col overflow-hidden border-t">
                 <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-3 sm:p-5">
                   <div className="text-center">
                     <div
@@ -421,7 +421,7 @@ export function MatchDayOverlay({
             ) : null}
 
             {lm.status !== "brief" ? (
-              <section className={cn("flex min-h-0 flex-col border-t bg-muted/20", !finishedReplay ? "h-full border-t-0" : "lg:border-l lg:border-t-0")}>
+              <section className={cn("flex min-h-0 min-w-0 w-full max-w-full flex-col overflow-x-hidden border-t bg-muted/20", !finishedReplay ? "h-full border-t-0" : "lg:border-l lg:border-t-0")}>
                 <MatchPitchViewer
                   events={lm.events}
                   usName={usName}
