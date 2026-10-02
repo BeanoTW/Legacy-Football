@@ -26,6 +26,8 @@ export interface ScoutingCandidateProfile {
   potentialAbility: number;
   marketValue: number;
   wageExpectation: number;
+  /** Added for tailored multi-position briefs; optional for old saved reports. */
+  primaryPosition?: Position;
 }
 
 export interface DiscoveredCandidateView {
@@ -38,11 +40,26 @@ export interface DiscoveredCandidateView {
   detailed: boolean;
 }
 
+export interface ScoutingPositionBrief {
+  position: Position;
+  tacticalPosition?: TacticalPosition;
+  minAge?: number;
+  maxAge?: number;
+  maxMarketValue?: number;
+  maxWeeklyWage?: number;
+  nationality?: string;
+  clubStatus?: "free" | "contracted";
+  minCurrentAbility?: number;
+  playerLevel?: ScoutingPlayerLevel;
+}
+
 export interface ScoutingBrief {
   id: string;
   position?: Position;
-  /** Broad positions covered by one search. New briefs use this; position remains for old saves. */
+  /** Broad positions covered by one search. Retained for compatibility with the first multi-position implementation. */
   positions?: Position[];
+  /** Independent requirements for each selected broad position. */
+  positionBriefs?: ScoutingPositionBrief[];
   tacticalPosition?: TacticalPosition;
   minAge?: number;
   maxAge?: number;
@@ -88,6 +105,7 @@ export interface ScoutingBriefInput {
   id: string;
   position?: Position;
   positions?: Position[];
+  positionBriefs?: ScoutingPositionBrief[];
   tacticalPosition?: TacticalPosition;
   minAge?: number;
   maxAge?: number;
@@ -141,12 +159,12 @@ function absoluteDay(state: GameState): number { return absoluteWeek(state.seaso
 function detailedCandidate(state: GameState, player: FootballPlayer): DetailedCandidate {
   return { id: player.id, source: "detailed", player, currentAbility: player.currentAbility, potentialAbility: player.potentialAbility, marketValue: player.marketValue, wageExpectation: player.wageExpectation, age: ageOf(player, state.season), nationality: player.nationality, currentClubId: player.currentClubId, primaryPosition: player.primaryPosition };
 }
-function profileOf(candidate: CandidateBase): ScoutingCandidateProfile { return { source: candidate.source, currentAbility: candidate.currentAbility, potentialAbility: candidate.potentialAbility, marketValue: candidate.marketValue, wageExpectation: candidate.wageExpectation }; }
+function profileOf(candidate: CandidateBase): ScoutingCandidateProfile { return { source: candidate.source, currentAbility: candidate.currentAbility, potentialAbility: candidate.potentialAbility, marketValue: candidate.marketValue, wageExpectation: candidate.wageExpectation, primaryPosition: candidate.primaryPosition }; }
 export function preserveScoutingCandidateProfileInPlace(state: GameState, player: FootballPlayer): void {
   if (!state.football) return;
   state.football.scoutingDiscovery ??= { briefs: [] };
   state.football.scoutingDiscovery.profiles ??= {};
-  state.football.scoutingDiscovery.profiles[player.id] ??= { source: "detailed", currentAbility: player.currentAbility, potentialAbility: player.potentialAbility, marketValue: player.marketValue, wageExpectation: player.wageExpectation };
+  state.football.scoutingDiscovery.profiles[player.id] ??= { source: "detailed", currentAbility: player.currentAbility, potentialAbility: player.potentialAbility, marketValue: player.marketValue, wageExpectation: player.wageExpectation, primaryPosition: player.primaryPosition };
 }
 function fringeCandidates(state: GameState): FringeCandidate[] {
   const world = ensureFringeWorldState(state); const candidates: FringeCandidate[] = [];
@@ -186,39 +204,142 @@ function discoveryScore(state: GameState, candidate: DiscoveryCandidate, input: 
 function ranked(state: GameState, candidates: DiscoveryCandidate[], input: ScoutingBriefInput): DiscoveryCandidate[] {
   return candidates.filter((candidate) => eligible(state, candidate, input)).sort((a, b) => discoveryScore(state, b, input) - discoveryScore(state, a, input) || a.id.localeCompare(b.id));
 }
-function completeScoutingBriefInPlace(state: GameState, brief: ScoutingBrief): void {
-  if (!state.football || brief.status === "complete") return;
-  const input: ScoutingBriefInput = { id: brief.id, position: brief.position, positions: brief.positions, tacticalPosition: brief.tacticalPosition, minAge: brief.minAge, maxAge: brief.maxAge, maxMarketValue: brief.maxMarketValue, maxWeeklyWage: brief.maxWeeklyWage, nationality: brief.nationality, clubStatus: brief.clubStatus, minCurrentAbility: brief.minCurrentAbility, playerLevel: brief.playerLevel };
-  const candidateLimit = brief.candidateLimit ?? scoutingSearchPlan(state).candidateLimit;
-  const detailed = ranked(state, state.football.players.map((player) => detailedCandidate(state, player)), input);
-  const fringe = ranked(state, fringeCandidates(state), input);
-  const freeDetailed = detailed.filter((candidate) => candidate.source === "detailed" && candidate.currentClubId === null);
-  const contractedDetailed = detailed.filter((candidate) => candidate.source === "detailed" && candidate.currentClubId !== null);
-  const freeQuota = Math.min(freeDetailed.length, Math.max(4, Math.floor(candidateLimit * 0.3)));
-  const fringeQuota = fringe.length ? Math.min(fringe.length, Math.max(3, Math.floor(candidateLimit * 0.25))) : 0;
+function selectCandidatesForInput(
+  state: GameState,
+  detailedPool: DetailedCandidate[],
+  fringePool: FringeCandidate[],
+  input: ScoutingBriefInput,
+  candidateLimit: number,
+): DiscoveryCandidate[] {
+  const detailed = ranked(state, detailedPool, input);
+  const fringe = ranked(state, fringePool, input);
+  const freeDetailed = detailed.filter((candidate) => candidate.currentClubId === null);
+  const contractedDetailed = detailed.filter((candidate) => candidate.currentClubId !== null);
+  const freeQuota = Math.min(freeDetailed.length, Math.max(1, Math.floor(candidateLimit * 0.3)));
+  const fringeQuota = fringe.length ? Math.min(fringe.length, Math.max(1, Math.floor(candidateLimit * 0.25))) : 0;
   const selected: DiscoveryCandidate[] = [...freeDetailed.slice(0, freeQuota), ...fringe.slice(0, fringeQuota)];
   const selectedIds = new Set(selected.map((candidate) => candidate.id));
-  const remainder = [...contractedDetailed, ...freeDetailed.slice(freeQuota), ...fringe.slice(fringeQuota)].filter((candidate) => !selectedIds.has(candidate.id)).sort((a, b) => discoveryScore(state, b, input) - discoveryScore(state, a, input) || a.id.localeCompare(b.id));
+  const remainder = [...contractedDetailed, ...freeDetailed.slice(freeQuota), ...fringe.slice(fringeQuota)]
+    .filter((candidate) => !selectedIds.has(candidate.id))
+    .sort((a, b) => discoveryScore(state, b, input) - discoveryScore(state, a, input) || a.id.localeCompare(b.id));
   selected.push(...remainder.slice(0, Math.max(0, candidateLimit - selected.length)));
-  state.football.scoutingDiscovery ??= { briefs: [] }; state.football.scoutingDiscovery.profiles ??= {};
-  const candidateIds: string[] = []; const candidateSources: Record<string, ScoutingCandidateSource> = {}; const candidateProfiles: Record<string, ScoutingCandidateProfile> = {};
-  for (const candidate of selected) {
-    if (candidate.source === "detailed") preserveKnownPlayerInPlace(state, candidate.player, ["scouted"]); else preserveKnownIdentityInPlace(state, candidate.identity, ["scouted"]);
-    const profile = profileOf(candidate); candidateIds.push(candidate.id); candidateSources[candidate.id] = candidate.source; candidateProfiles[candidate.id] = profile; state.football.scoutingDiscovery.profiles[candidate.id] ??= profile;
-  }
-  brief.candidateIds = candidateIds; brief.candidateSources = candidateSources; brief.candidateProfiles = candidateProfiles; brief.status = "complete";
-  const eventKey = `scouting-search:${brief.id}:complete`;
-  if (!state.inbox.some((item) => item.eventKey === eventKey)) state.inbox.push({ id: `inbox-${hashString(eventKey).toString(36)}`, generatorId: "scouting-search", eventKey, sender: state.football.department.headOfRecruitment || "Head Scout", department: "Head Scout", category: "transfers", subject: `Scouting search complete: ${candidateIds.length} players found`, body: `The scouting team has returned with ${candidateIds.length} candidates and an initial assessment on each. You can now ask for deeper scouting on individual players.`, priority: "normal", week: state.week, season: state.season, status: "unread" });
+  return selected.slice(0, candidateLimit);
 }
+
+function completeScoutingBriefInPlace(state: GameState, brief: ScoutingBrief): void {
+  if (!state.football || brief.status === "complete") return;
+  const candidateLimit = brief.candidateLimit ?? scoutingSearchPlan(state).candidateLimit;
+  const detailedPool = state.football.players.map((player) => detailedCandidate(state, player));
+  const fringePool = fringeCandidates(state);
+
+  let selected: DiscoveryCandidate[];
+  if (brief.positionBriefs?.length) {
+    const targets = brief.positionBriefs;
+    const baseQuota = Math.floor(candidateLimit / targets.length);
+    const extra = candidateLimit % targets.length;
+    selected = targets.flatMap((target, index) =>
+      selectCandidatesForInput(
+        state,
+        detailedPool,
+        fringePool,
+        {
+          id: `${brief.id}:${target.position}`,
+          position: target.position,
+          tacticalPosition: target.tacticalPosition,
+          minAge: target.minAge,
+          maxAge: target.maxAge,
+          maxMarketValue: target.maxMarketValue,
+          maxWeeklyWage: target.maxWeeklyWage,
+          nationality: target.nationality,
+          clubStatus: target.clubStatus,
+          minCurrentAbility: target.minCurrentAbility,
+          playerLevel: target.playerLevel,
+        },
+        baseQuota + (index < extra ? 1 : 0),
+      ),
+    );
+  } else {
+    const input: ScoutingBriefInput = {
+      id: brief.id,
+      position: brief.position,
+      positions: brief.positions,
+      tacticalPosition: brief.tacticalPosition,
+      minAge: brief.minAge,
+      maxAge: brief.maxAge,
+      maxMarketValue: brief.maxMarketValue,
+      maxWeeklyWage: brief.maxWeeklyWage,
+      nationality: brief.nationality,
+      clubStatus: brief.clubStatus,
+      minCurrentAbility: brief.minCurrentAbility,
+      playerLevel: brief.playerLevel,
+    };
+    selected = selectCandidatesForInput(state, detailedPool, fringePool, input, candidateLimit);
+  }
+
+  const unique = new Map<string, DiscoveryCandidate>();
+  for (const candidate of selected) if (!unique.has(candidate.id)) unique.set(candidate.id, candidate);
+  selected = [...unique.values()].slice(0, candidateLimit);
+
+  state.football.scoutingDiscovery ??= { briefs: [] };
+  state.football.scoutingDiscovery.profiles ??= {};
+  const candidateIds: string[] = [];
+  const candidateSources: Record<string, ScoutingCandidateSource> = {};
+  const candidateProfiles: Record<string, ScoutingCandidateProfile> = {};
+  for (const candidate of selected) {
+    if (candidate.source === "detailed") preserveKnownPlayerInPlace(state, candidate.player, ["scouted"]);
+    else preserveKnownIdentityInPlace(state, candidate.identity, ["scouted"]);
+    const profile = profileOf(candidate);
+    candidateIds.push(candidate.id);
+    candidateSources[candidate.id] = candidate.source;
+    candidateProfiles[candidate.id] = profile;
+    state.football.scoutingDiscovery.profiles[candidate.id] ??= profile;
+  }
+  brief.candidateIds = candidateIds;
+  brief.candidateSources = candidateSources;
+  brief.candidateProfiles = candidateProfiles;
+  brief.status = "complete";
+  const eventKey = `scouting-search:${brief.id}:complete`;
+  if (!state.inbox.some((item) => item.eventKey === eventKey)) {
+    const searchCount = brief.positionBriefs?.length ?? 1;
+    state.inbox.push({
+      id: `inbox-${hashString(eventKey).toString(36)}`,
+      generatorId: "scouting-search",
+      eventKey,
+      sender: state.football.department.headOfRecruitment || "Head Scout",
+      department: "Head Scout",
+      category: "transfers",
+      subject: `Scouting search complete: ${candidateIds.length} players found`,
+      body: searchCount > 1
+        ? `The scouting team has returned with ${candidateIds.length} candidates across ${searchCount} tailored position briefs. You can now ask for deeper scouting on individual players.`
+        : `The scouting team has returned with ${candidateIds.length} candidates and an initial assessment on each. You can now ask for deeper scouting on individual players.`,
+      priority: "normal",
+      week: state.week,
+      season: state.season,
+      status: "unread",
+    });
+  }
+}
+
 export function createScoutingBrief(state: GameState, input: ScoutingBriefInput): GameState {
-  const next = structuredClone(state); if (!next.football) return next; next.football.scoutingDiscovery ??= { briefs: [] }; if (next.football.scoutingDiscovery.briefs.some((brief) => brief.id === input.id)) return next;
-  const plan = scoutingSearchPlan(next); const nowDay = absoluteDay(next);
-  const requestedPositions = [...new Set(input.positions?.length ? input.positions : input.position ? [input.position] : [])];
+  const next = structuredClone(state);
+  if (!next.football) return next;
+  next.football.scoutingDiscovery ??= { briefs: [] };
+  if (next.football.scoutingDiscovery.briefs.some((brief) => brief.id === input.id)) return next;
+  const plan = scoutingSearchPlan(next);
+  const nowDay = absoluteDay(next);
+  const tailored = input.positionBriefs?.length
+    ? input.positionBriefs
+        .filter((target, index, all) => all.findIndex((candidate) => candidate.position === target.position) === index)
+        .slice(0, plan.positionCapacity)
+    : undefined;
+  const requestedPositions = tailored?.map((target) => target.position) ??
+    [...new Set(input.positions?.length ? input.positions : input.position ? [input.position] : [])];
   const positions = requestedPositions.slice(0, plan.positionCapacity);
   next.football.scoutingDiscovery.briefs.push({
     ...input,
-    position: positions.length === 1 ? positions[0] : undefined,
+    position: !tailored && positions.length === 1 ? positions[0] : undefined,
     positions: positions.length ? positions : undefined,
+    positionBriefs: tailored,
     createdAtAbsoluteWeek: absoluteWeek(next.season, next.week),
     createdAtDay: nowDay,
     dueAtDay: nowDay + plan.searchDays,
