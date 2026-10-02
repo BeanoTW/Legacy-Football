@@ -14,6 +14,7 @@ import {
   syncTransferTargetNegotiationInPlace,
   transferTargetPlayer,
 } from "./recruitmentTargetBridge";
+import { playerInterestWageMultiplier } from "./transferMarketDynamics";
 
 const int = (n: number) => Math.round(n) || 0;
 
@@ -39,9 +40,16 @@ export function evaluatePlayerBargainInPlace(s: GameState, n: TransferNegotiatio
   const profile = negotiationProfile(s.saveSeed, `player-agent:${player.id}`);
   const departmentEdge = Math.min(0.12, Math.max(0, (s.football?.department?.negotiationRating ?? 50) / 650));
   const competition = n.competingClubId ? 1.06 : 1;
+  const rivalTerms = n.competingWeeklyWage
+    ? Math.max(1, n.competingWeeklyWage / Math.max(1, wageDemand(s, player, n.proposedRole)))
+    : 1;
   const reservation = recruitmentUserNegotiationWage(
     s,
-    wageDemand(s, player, n.proposedRole) * (1 - departmentEdge) * competition,
+    wageDemand(s, player, n.proposedRole) *
+      (1 - departmentEdge) *
+      competition *
+      playerInterestWageMultiplier(n) *
+      Math.min(1.14, rivalTerms),
   );
   const explicitCounter = n.playerCounterWage;
   const abs = absoluteWeek(s.season, s.week);
