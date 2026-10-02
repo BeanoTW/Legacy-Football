@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, Shield, Sparkles, Users } from "lucide-react";
+import { ArrowLeft, Shield, Users } from "lucide-react";
 import type { FootballPlayer, GameState, TacticalPosition } from "@/lib/game/types";
 import type { ManagerFormation } from "@/lib/game/managerIdentity";
 import { managerMatchPrep } from "@/lib/game/managerMatchPrep";
@@ -38,7 +38,6 @@ import {
   playerManagerQuality,
 } from "@/lib/game/playerClubPerformance";
 
-type Preset = "strongest" | "rested" | "youth";
 type SquadView = "pitch" | "stats";
 type PlannerSelection = { formation: ManagerFormation; playerIds: string[] };
 
@@ -111,8 +110,6 @@ export function SquadSelectionTab({
   update: (fn: (s: GameState) => GameState) => void;
   onBack?: () => void;
 }) {
-  const stored = state.inboxFlags["chairman.selection.preset"];
-  const [preset, setPreset] = useState<Preset>(stored === "rested" || stored === "youth" ? stored : "strongest");
   const [view, setView] = useState<SquadView>("pitch");
   const [professionalisationReview, setProfessionalisationReview] = useState(false);
   const [planner, setPlanner] = useState<PlannerSelection | null>(null);
@@ -121,7 +118,7 @@ export function SquadSelectionTab({
   const matchPrep = useMemo(() => managerMatchPrep(state), [state]);
   const managerShape = managerFormation(state);
   const formation = planner?.formation ?? managerShape;
-  const automaticXi = useMemo(() => chooseXi(squad, preset, state, formation), [squad, preset, state, formation]);
+  const automaticXi = useMemo(() => chooseXi(squad, state, formation), [squad, state, formation]);
   const xi = useMemo(() => {
     if (!planner || planner.formation !== formation) return automaticXi;
     const byId = new Map(squad.map((player) => [player.id, player]));
@@ -145,14 +142,14 @@ export function SquadSelectionTab({
     const baseFormation = planner?.formation ?? managerShape;
     const baseXi = planner?.playerIds.length === 11
       ? planner.playerIds
-      : chooseXi(squad, preset, state, baseFormation).map((player) => player.id);
+      : chooseXi(squad, state, baseFormation).map((player) => player.id);
     setPlanner({ formation: baseFormation, playerIds: baseXi });
   };
 
   const changePlannerFormation = (next: ManagerFormation) => {
     setPlanner({
       formation: next,
-      playerIds: chooseXi(squad, preset, state, next).map((player) => player.id),
+      playerIds: chooseXi(squad, state, next).map((player) => player.id),
     });
   };
 
@@ -176,12 +173,6 @@ export function SquadSelectionTab({
     if (outcome.result.ok) setProfessionalisationReview(false);
     return outcome.state;
   });
-
-  const choose = (next: Preset) => {
-    setPreset(next);
-    setPlanner(null);
-    update((s) => ({ ...s, inboxFlags: { ...s.inboxFlags, "chairman.selection.preset": next, "chairman.selection.ids": chooseXi(userSquad(s), next, s, managerFormation(s)).map((player) => player.id).join(",") } }));
-  };
 
   return (
     <div className={cn(
@@ -232,7 +223,6 @@ export function SquadSelectionTab({
           <div className="grid grid-cols-3 divide-x border-t text-center md:grid-cols-6"><Summary label="Available" value={`${squad.filter((player) => playerIsAvailable(player, state)).length}/${squad.length}`} /><Summary label="Manager's XI" value={String(xi.length)} /><Summary label="Avg ability" value={averageAbility(xi).toFixed(1)} /><Summary label="Cohesion" value={Math.round(cohesion).toString()} /><Summary label="Morale" value={Math.round(morale).toString()} /><Summary label="Manager" value={Math.round(managerQuality).toString()} /></div>
         </section>}
         {!planner && professionalisation.currentModel === "PartTime" && <section className="rounded-xl border bg-card p-3 shadow-sm lg:col-start-1"><div className="flex items-start justify-between gap-3"><div><div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">Employment model</div><div className="font-display text-xl">Move to full-time football</div></div><Shield className="size-5 text-primary" /></div><p className="mt-2 text-sm text-muted-foreground">Full-time status improves access to stronger players, but future signings and renewals expect professional wages. Existing player contracts stay exactly as signed.</p><div className="mt-3 grid grid-cols-3 gap-2 text-center"><div className="rounded-lg border bg-muted/30 p-2"><div className="text-xs font-semibold">{professionalisation.trainingLabel}</div><div className="text-[10px] text-muted-foreground">Training ground</div></div><div className="rounded-lg border bg-muted/30 p-2"><div className="text-xs font-semibold">{professionalisation.recruitmentReputationBonus > 0 ? `+${professionalisation.recruitmentReputationBonus} appeal` : "Professional level"}</div><div className="text-[10px] text-muted-foreground">Player interest</div></div><div className="rounded-lg border bg-muted/30 p-2"><div className="text-xs font-semibold">{professionalisation.futureWageFactor > 1 ? `~+${Math.round((professionalisation.futureWageFactor - 1) * 100)}%` : "Level baseline"}</div><div className="text-[10px] text-muted-foreground">Future wages</div></div></div>{!professionalisation.allowed ? <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">{professionalisation.reason}</div> : professionalisationReview ? <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 p-3"><div className="text-sm font-semibold">Confirm permanent transition?</div><div className="mt-1 text-xs text-muted-foreground">The club will operate full-time from now on. Existing part-time contracts remain part-time until each player signs new terms.</div><div className="mt-3 flex flex-wrap gap-2"><Button size="sm" onClick={professionalise}>Confirm full-time transition</Button><Button size="sm" variant="outline" onClick={() => setProfessionalisationReview(false)}>Keep part-time</Button></div></div> : <Button className="mt-3" size="sm" variant="outline" onClick={() => setProfessionalisationReview(true)}>Review full-time transition</Button>}{employmentNote && <div className="mt-3 text-xs text-muted-foreground">{employmentNote}</div>}</section>}
-        {!planner && <section className="rounded-xl border bg-card p-3 shadow-sm lg:col-start-1"><div className="mb-3 flex items-center justify-between gap-3"><div><div className="font-display text-xl">Chairman&apos;s preference</div><div className="text-xs text-muted-foreground">The manager retains final team selection unless ownership rules say otherwise.</div></div><Sparkles className="size-5 text-primary" /></div><div className="grid grid-cols-3 gap-2"><PresetButton active={preset === "strongest"} onClick={() => choose("strongest")} title="Strongest" sub="Best XI" /><PresetButton active={preset === "rested"} onClick={() => choose("rested")} title="Rested" sub="Rotate depth" /><PresetButton active={preset === "youth"} onClick={() => choose("youth")} title="Youth" sub="Favour U23s" /></div></section>}
         {view === "pitch" ? <section className={cn("lf-pitch-card overflow-hidden rounded-xl border border-emerald-900/40 bg-[#06251c] text-white shadow-sm lg:col-start-1", planner && "col-span-1 w-full")}><div className="flex items-center justify-between gap-3 border-b border-white/10 px-3 py-3"><div><div className="text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-200/55">{matchPrep.managerId ? "Manager selection" : "Caretaker selection"}</div><div className="mt-0.5 flex items-end gap-2"><div className="font-display text-2xl">First XI</div><span className="mb-0.5 rounded-md border border-white/10 bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold text-white/75">{formation}</span></div></div><div className="grid grid-cols-2 gap-1.5 text-right"><div className="rounded-lg border border-white/10 bg-black/15 px-2 py-1"><div className="font-display text-base">{averageAbility(xi).toFixed(1)}</div><div className="text-[7px] uppercase tracking-wide text-white/40">Avg OVR</div></div><div className="rounded-lg border border-white/10 bg-black/15 px-2 py-1"><div className="font-display text-base">{Math.round(xi.reduce((sum, player) => sum + playerFitness(player), 0) / Math.max(1, xi.length))}%</div><div className="text-[7px] uppercase tracking-wide text-white/40">Avg fit</div></div></div></div><div className="border-b border-white/10 px-3 py-2">
   {!planner ? (
     <button
@@ -303,13 +293,12 @@ export function SquadSelectionTab({
   );
 }
 
-function chooseXi(players: FootballPlayer[], preset: Preset, state: GameState, formation: ManagerFormation): FootballPlayer[] {
+function chooseXi(players: FootballPlayer[], state: GameState, formation: ManagerFormation): FootballPlayer[] {
   const used = new Set<string>();
   const score = (player: FootballPlayer, position: TacticalPosition) => {
     const familiarity = positionFamiliarity(player, position);
     const familiarityBonus = familiarity === "Natural" ? 12 : familiarity === "Accomplished" ? 7 : familiarity === "Comfortable" ? 2 : -20;
-    const presetScore = preset === "youth" ? Math.max(0, 25 - ageOf(player, state.season)) * 2.4 + player.potentialAbility * 0.12 : preset === "rested" ? (playerFitness(player) - 70) * 0.28 + (ageOf(player, state.season) <= 24 ? 4 : 0) : 0;
-    return player.currentAbility + familiarityBonus + presetScore + (playerFitness(player) - 80) * 0.08;
+    return player.currentAbility + familiarityBonus + (playerFitness(player) - 80) * 0.08;
   };
   return MANAGER_FORMATION_SLOTS[formation].map((position) => {
     const broadUnit = positionUnit(position);
@@ -599,7 +588,6 @@ function PlayerRow({ state, player }: { state: GameState; player: FootballPlayer
   return <TacticalPlayerCard state={state} player={player} mode="squad" className="rounded-none border-x-0 border-t-0 shadow-none last:border-b-0" />;
 }
 
-function PresetButton({ active, onClick, title, sub }: { active: boolean; onClick: () => void; title: string; sub: string }) { return <button onClick={onClick} className={cn("rounded-xl border p-3 text-left transition-colors", active ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-muted")}><div className="font-semibold">{title}</div><div className={cn("text-xs", active ? "text-primary-foreground/70" : "text-muted-foreground")}>{sub}</div></button>; }
 function Summary({ label, value }: { label: string; value: string }) { return <div className="p-3"><div className="font-display text-2xl">{value}</div><div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div></div>; }
 function averageAbility(players: FootballPlayer[]): number { return players.length ? players.reduce((sum, player) => sum + player.currentAbility, 0) / players.length : 0; }
 
