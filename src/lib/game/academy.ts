@@ -7,7 +7,7 @@ import { clubReputation } from "./reputation";
 import { recruitmentPlayerValue, recruitmentWageForLevel } from "./recruitmentEconomy";
 import { postEntry } from "./finance";
 import { absoluteWeek } from "./time";
-import { syncLegacySquad } from "./recruitment";
+import { MAX_SQUAD_SIZE, syncLegacySquad, userSquad } from "./recruitment";
 
 export type AcademyStatusId = 0 | 1 | 2 | 3 | 4 | 5;
 
@@ -246,6 +246,7 @@ export function foundAcademy(state: GameState): GameState {
   const academy = ensureAcademy(next);
   if (academy.status > 0) return next;
   const def = ACADEMY_STATUSES[1];
+  if (next.cash < def.upgradeCost) return next;
   const entry = postEntry(next, {
     category: "Facilities",
     subcategory: "Academy",
@@ -268,6 +269,7 @@ export function upgradeAcademy(state: GameState): GameState {
   const target = (academy.status + 1) as AcademyStatusId;
   if (target > 5 || target > maxAcademyStatusFor(next)) return next;
   const def = ACADEMY_STATUSES[target];
+  if (next.cash < def.upgradeCost) return next;
   const entry = postEntry(next, {
     category: "Facilities",
     subcategory: "Academy",
@@ -315,7 +317,7 @@ export function signAcademyProspect(state: GameState, prospectId: string): GameS
   const next = structuredClone(state);
   const academy = ensureAcademy(next);
   const prospect = academy.prospects.find((p) => p.id === prospectId);
-  if (!prospect) return next;
+  if (!prospect || userSquad(next).length >= MAX_SQUAD_SIZE) return next;
   const clubId = userClubReference(next);
   const wage = graduateWage(next, prospect);
   const playerId = `academy-player-${prospect.id}`;
