@@ -55,8 +55,8 @@ export function SoundSettingsPanel() {
             >
               <span
                 className={cn(
-                  "absolute top-0.5 size-5 rounded-full bg-white shadow transition-transform",
-                  settings[row.key] ? "translate-x-[1.35rem]" : "translate-x-0.5",
+                  "absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow transition-transform",
+                  settings[row.key] ? "translate-x-5" : "translate-x-0",
                 )}
               />
             </button>
