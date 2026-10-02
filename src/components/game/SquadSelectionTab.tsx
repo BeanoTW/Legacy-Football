@@ -356,6 +356,146 @@ export function SquadSelectionTab({
   );
 }
 
+function SquadPositionRails({
+  state,
+  squad,
+  selected,
+  kit,
+  displayName,
+  className,
+}: {
+  state: GameState;
+  squad: FootballPlayer[];
+  selected: Set<string>;
+  kit: PortraitKit;
+  displayName: (player: FootballPlayer) => string;
+  className?: string;
+}) {
+  return (
+    <section className={cn("overflow-hidden rounded-xl border bg-card shadow-sm", className)}>
+      <div className="flex items-baseline justify-between border-b px-3 py-2.5">
+        <div>
+          <div className="font-display text-xl leading-none">Squad</div>
+          <div className="mt-0.5 text-[10px] text-muted-foreground">Swipe each position group horizontally.</div>
+        </div>
+        <div className="text-[10px] text-muted-foreground">{squad.length} players · {selected.size} in XI</div>
+      </div>
+      <div className="divide-y">
+        {UNIT_GROUPS.map(({ unit, label, minimum }) => {
+          const players = sortSubsByPosition(
+            squad.filter((player) => positionUnit(tacticalPositionProfile(player).primary) === unit),
+          );
+          const fit = players.filter((player) => playerIsAvailable(player, state)).length;
+          const thin = fit < minimum;
+          return (
+            <div key={unit} className="py-2">
+              <div className="mb-1.5 flex items-center justify-between gap-2 px-3">
+                <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+                  <span className={cn("rounded px-1 py-0.5 text-[9px]", UNIT_CHIP[unit])}>{unit}</span>
+                  {label}
+                </span>
+                <span className={cn("flex items-center gap-1 text-[10px] font-semibold", thin ? "text-amber-700 dark:text-amber-300" : "text-muted-foreground")}>
+                  {thin && <TriangleAlert className="size-3" />}
+                  {fit} available{thin ? ` · thin (want ${minimum})` : ""}
+                </span>
+              </div>
+              {players.length === 0 ? (
+                <div className="px-3 py-2 text-[11px] text-muted-foreground">No {label.toLowerCase()} in the squad.</div>
+              ) : (
+                <div className="flex snap-x gap-2 overflow-x-auto overscroll-x-contain px-3 pb-1 [scrollbar-width:thin]">
+                  {players.map((player) => (
+                    <SquadRailPlayer
+                      key={player.id}
+                      state={state}
+                      player={player}
+                      inXi={selected.has(player.id)}
+                      kit={kit}
+                      name={displayName(player)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function SquadRailPlayer({
+  state,
+  player,
+  inXi,
+  kit,
+  name,
+}: {
+  state: GameState;
+  player: FootballPlayer;
+  inXi: boolean;
+  kit: PortraitKit;
+  name: string;
+}) {
+  const tactical = tacticalPositionProfile(player);
+  const unit = positionUnit(tactical.primary);
+  const fitness = playerFitness(player);
+  const availableNow = playerIsAvailable(player, state);
+  const contract = activeContract(state, player.id);
+  const loan = activeLoanForPlayer(state, player.id);
+  const expiring = Boolean(contract && contract.expirySeason <= state.season);
+  const form = playerRecentForm(state, player.id);
+  const tags: { label: string; tone: string }[] = [];
+  if (!availableNow) tags.push({ label: "Unavailable", tone: "bg-rose-500/20 text-rose-100" });
+  if (player.transferStatus === "listed") tags.push({ label: "Listed", tone: "bg-amber-500/20 text-amber-100" });
+  if (loan) tags.push({ label: "Loan", tone: "bg-sky-500/20 text-sky-100" });
+  if (expiring) tags.push({ label: "Expiring", tone: "bg-orange-500/20 text-orange-100" });
+
+  return (
+    <button
+      type="button"
+      onClick={() => openPlayerProfile(player.id)}
+      className={cn(
+        "min-w-[7.2rem] snap-start rounded-xl border px-2 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+        SUB_CARD_TONE[unit],
+        !availableNow && "opacity-65",
+      )}
+      aria-label={`Open ${playerName(player)} profile`}
+    >
+      <div className="flex items-start justify-between gap-1.5">
+        <div className="relative shrink-0">
+          <div className="size-11 overflow-hidden rounded-full bg-[#0b3a2a] ring-1 ring-white/30">
+            <div className="-mt-0.5 flex justify-center">
+              <CharacterPortrait identity={{ id: player.id, subject: "player" }} kit={kit} size={46} framed={false} />
+            </div>
+          </div>
+          <span className={cn("absolute -right-2 -top-1 grid h-5 min-w-6 place-items-center rounded-md border px-1 font-display text-[11px]", POSITION_PITCH_CLASS[unit])}>
+            {player.currentAbility}
+          </span>
+          <span className={cn(
+            "absolute bottom-0 right-0 size-2.5 rounded-full border border-[#071713]",
+            fitness >= 90 ? "bg-emerald-300" : fitness >= 75 ? "bg-amber-300" : "bg-rose-300",
+          )} />
+        </div>
+        {inXi && <span className="rounded bg-emerald-500/20 px-1 py-0.5 text-[8px] font-black text-emerald-100">XI</span>}
+      </div>
+      <div className="mt-1 truncate font-display text-[12px] text-foreground">{name}</div>
+      <div className="mt-0.5 truncate text-[9px] font-semibold text-muted-foreground">
+        {tactical.primary}{tactical.secondary.length ? ` · ${tactical.secondary.slice(0, 2).join("/")}` : ""}
+      </div>
+      <div className="mt-0.5 text-[9px] text-muted-foreground">
+        {ageOf(player, state.season)}y · {fitness}% fit{form.appearances ? ` · ${form.averageRating.toFixed(1)}` : ""}
+      </div>
+      {tags.length > 0 && (
+        <div className="mt-1 flex flex-wrap gap-1">
+          {tags.slice(0, 2).map((tag) => (
+            <span key={tag.label} className={cn("rounded px-1 py-0.5 text-[7px] font-black uppercase", tag.tone)}>{tag.label}</span>
+          ))}
+        </div>
+      )}
+    </button>
+  );
+}
+
 function chooseXi(players: FootballPlayer[], state: GameState, formation: ManagerFormation): FootballPlayer[] {
   const used = new Set<string>();
   const score = (player: FootballPlayer, position: TacticalPosition) => {
@@ -382,6 +522,8 @@ function Pitch({
   planner = false,
   onSwap,
   squad = [],
+  kit,
+  displayName,
 }: {
   state: GameState;
   xi: FootballPlayer[];
@@ -389,6 +531,8 @@ function Pitch({
   planner?: boolean;
   onSwap?: (slotIndex: number, incomingId: string) => void;
   squad?: FootballPlayer[];
+  kit: PortraitKit;
+  displayName: (player: FootballPlayer) => string;
 }) {
   const slots = MANAGER_FORMATION_SLOTS[formation];
   const [swapSlot, setSwapSlot] = useState<number | null>(null);
@@ -507,21 +651,24 @@ function Pitch({
               )}
               aria-label={planner ? `Move ${playerName(player)}` : `Open ${playerName(player)} profile`}
             >
-              <div className={cn(
-                "relative mx-auto grid size-11 place-items-center rounded-full border-2 font-display text-base shadow-lg sm:size-12",
-                POSITION_PITCH_CLASS[positionUnit(slot)],
-                familiarityTone,
-              )}>
-                {effectiveOverall}
+              <div className="relative mx-auto size-11 sm:size-12">
+                <div className={cn("size-full overflow-hidden rounded-full bg-[#0b3a2a] shadow-lg ring-2", familiarityTone)}>
+                  <div className="-mt-0.5 flex justify-center">
+                    <CharacterPortrait identity={{ id: player.id, subject: "player" }} kit={kit} size={46} framed={false} />
+                  </div>
+                </div>
+                <span className={cn("absolute -right-2 -top-1.5 grid h-5 min-w-6 place-items-center rounded-md border px-1 font-display text-[12px] leading-none shadow", POSITION_PITCH_CLASS[positionUnit(slot)])}>
+                  {effectiveOverall}
+                </span>
                 {planner && effectiveOverall !== player.currentAbility && (
-                  <span className="absolute -left-1.5 -top-1.5 rounded-md border border-white/20 bg-black/60 px-1 py-0.5 text-[7px] font-bold text-white/75">
+                  <span className="absolute -left-2 -top-1.5 rounded-md border border-white/20 bg-black/70 px-1 py-0.5 text-[7px] font-bold text-white/75">
                     {player.currentAbility}
                   </span>
                 )}
-                <span className={cn("absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border border-emerald-950", fitnessTone)} />
+                <span className={cn("absolute bottom-0 right-0 size-2.5 rounded-full border border-emerald-950", fitnessTone)} />
               </div>
-              <div className="mt-0.5 rounded-md border border-white/10 bg-black/35 px-1 py-0.5 shadow-sm backdrop-blur-[1px]">
-                <div className="truncate font-display text-[10px] leading-none sm:text-[11px]">{player.lastName}</div>
+              <div className="mt-0.5 rounded-md bg-black/55 px-1 py-0.5 shadow-sm backdrop-blur-[1px]">
+                <div className="truncate font-display text-[10.5px] leading-none sm:text-[11px]">{displayName(player)}</div>
                 <div className="mt-0.5 flex items-center justify-center gap-1 text-[7px] font-bold leading-none text-white/60">
                   <span>{slot}</span>
                   {planner && tactical.primary !== slot && <span>· NAT {tactical.primary}</span>}
@@ -540,7 +687,7 @@ function Pitch({
       {planner && swapSlot !== null && onSwap && <div className="absolute inset-x-2 bottom-8 z-20 max-h-44 overflow-auto rounded-xl border border-white/15 bg-[#071713]/95 p-2 shadow-xl"><div className="mb-1 flex items-center justify-between"><div className="text-[9px] font-bold uppercase tracking-wider text-white/55">Replace {xi[swapSlot]?.lastName ?? "player"} · {slots[swapSlot]}</div><button type="button" onClick={() => setSwapSlot(null)} className="rounded px-2 py-1 text-xs text-white/60">Close</button></div>{squad.filter((candidate) => candidate.id !== xi[swapSlot]?.id).sort((a,b) => sandboxPositionOverall(b, slots[swapSlot]) - sandboxPositionOverall(a, slots[swapSlot])).map((candidate) => {
   const natural = tacticalPositionProfile(candidate).primary;
   const effective = sandboxPositionOverall(candidate, slots[swapSlot]);
-  return <button type="button" key={candidate.id} onClick={() => { onSwap(swapSlot, candidate.id); setSwapSlot(null); }} className="flex min-h-10 w-full items-center justify-between border-t border-white/10 px-2 text-left text-xs"><span><b>{candidate.lastName}</b> <span className="text-white/45">NAT {natural}</span></span><span className="text-right"><span className="block font-display text-base">{effective}</span>{effective !== candidate.currentAbility && <span className="block text-[8px] text-white/40">base {candidate.currentAbility}</span>}</span></button>;
+  return <button type="button" key={candidate.id} onClick={() => { onSwap(swapSlot, candidate.id); setSwapSlot(null); }} className="flex min-h-10 w-full items-center justify-between border-t border-white/10 px-2 text-left text-xs"><span><b>{displayName(candidate)}</b> <span className="text-white/45">NAT {natural}</span></span><span className="text-right"><span className="block font-display text-base">{effective}</span>{effective !== candidate.currentAbility && <span className="block text-[8px] text-white/40">base {candidate.currentAbility}</span>}</span></button>;
 })}</div>}
     </div>
       {planner && (
@@ -609,36 +756,20 @@ function Pitch({
                   )}
                   aria-label={`Move ${playerName(player)}`}
                 >
-                  <SquadRailCardContent player={player} unit={unit} tacticalPosition={tactical.primary} fitness={fitness} />
+                  <div className="relative mx-auto w-fit">
+                    <div className="size-10 overflow-hidden rounded-full bg-[#0b3a2a] ring-1 ring-white/30">
+                      <div className="-mt-0.5 flex justify-center"><CharacterPortrait identity={{ id: player.id, subject: "player" }} kit={kit} size={42} framed={false} /></div>
+                    </div>
+                    <span className={cn("absolute -right-2.5 -top-1 grid h-4 min-w-5 place-items-center rounded border px-0.5 font-display text-[10px]", POSITION_PITCH_CLASS[unit])}>{player.currentAbility}</span>
+                  </div>
+                  <div className="mt-1 max-w-[4.7rem] truncate font-display text-[11px] text-white/95">{displayName(player)}</div>
+                  <div className={cn("mt-0.5 text-[8px] font-bold", SUB_TEXT_TONE[unit])}>{tactical.primary} · {fitness}%</div>
                 </button>
               );
             })}
           </div>
         </div>
       )}
-    </>
-  );
-}
-
-function SquadRailCardContent({
-  player,
-  unit,
-  tacticalPosition,
-  fitness,
-}: {
-  player: FootballPlayer;
-  unit: ReturnType<typeof positionUnit>;
-  tacticalPosition: TacticalPosition;
-  fitness: number;
-}) {
-  return (
-    <>
-      <div className={cn(
-        "mx-auto grid size-10 place-items-center rounded-full border-2 font-display text-base shadow-sm",
-        POSITION_PITCH_CLASS[unit],
-      )}>{player.currentAbility}</div>
-      <div className="mt-1 max-w-[4.7rem] truncate font-display text-[11px] text-white/95">{player.lastName}</div>
-      <div className={cn("mt-0.5 text-[8px] font-bold", SUB_TEXT_TONE[unit])}>NAT {tacticalPosition} · {fitness}%</div>
     </>
   );
 }
