@@ -49,10 +49,10 @@ import { ChairmanStudio, useChairmanProfile } from "@/components/game/ChairmanSt
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Legacy Football — Chairman Simulation" },
+      { title: "Legacy Football — Director Simulation" },
       { name: "description", content: "Build a football club legacy from non-league to the top: shape the squad, finances, facilities, staff and long-term direction." },
-      { property: "og:title", content: "Legacy Football — Chairman Simulation" },
-      { property: "og:description", content: "A persistent football chairman simulation where every season, decision and promotion becomes part of the club’s history." },
+      { property: "og:title", content: "Legacy Football — Director Simulation" },
+      { property: "og:description", content: "A persistent football director simulation where every season, decision and promotion becomes part of the club’s history." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -199,8 +199,8 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
           crest={<ClubBadge design={crestDesign} clubName={state.clubName} size={56} />}
           right={
             <div className="lf-masthead-persona">
-              <button type="button" className="lf-masthead-avatar" title="Edit chairman appearance"
-                aria-label="Edit chairman appearance" onClick={() => setChairmanStudioOpen(true)}>
+              <button type="button" className="lf-masthead-avatar" title="Edit director appearance"
+                aria-label="Edit director appearance" onClick={() => setChairmanStudioOpen(true)}>
                 <CharacterPortrait avatar={chairmanProfile.avatar} size={86} title={`${state.managerName} portrait`} />
               </button>
               <div className="lf-chairman-badge" title={chairman.detail}>
