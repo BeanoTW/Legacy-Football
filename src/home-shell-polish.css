@@ -260,3 +260,40 @@ html:has(.lf-home-main), body:has(.lf-home-main),
 .lf-masthead .lf-director-reputation-stars .lf-rep-star { width: .72rem !important; height: .72rem !important; stroke-width: 2.2 !important; }
 .lf-masthead .lf-director-reputation-stars .lf-rep-star:not(.is-filled) { color: rgb(255 255 255 / 40%) !important; fill: none !important; }
 .lf-masthead .lf-director-card svg.lf-rep-star { border: 0 !important; border-radius: 0 !important; background: none !important; box-shadow: none !important; padding: 0 !important; transform: none !important; }
+
+
+/* Masthead crest sizing: override the older compact-mobile rules that cap
+   .lf-club-crest at 2.6–3rem, so the ClubBadge size prop can actually show. */
+.lf-masthead .lf-club-crest {
+  width: 5.25rem !important;
+  height: 5.25rem !important;
+  flex: 0 0 5.25rem;
+}
+
+.lf-masthead .lf-club-crest > svg {
+  width: 5.25rem !important;
+  height: 5.25rem !important;
+  max-width: none !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+@media (max-width: 767px) {
+  .lf-masthead .panel-strip > div {
+    gap: .62rem;
+  }
+
+  .lf-masthead .lf-club-crest {
+    width: 4.7rem !important;
+    height: 4.7rem !important;
+    flex-basis: 4.7rem;
+  }
+
+  .lf-masthead .lf-club-crest > svg {
+    width: 4.7rem !important;
+    height: 4.7rem !important;
+  }
+}
