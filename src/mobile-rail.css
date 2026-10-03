@@ -1,240 +1,145 @@
-/* Mobile left-rail navigation experiment.
-   This is deliberately structural: the game workspace sits beside the rail
-   rather than stacking navigation above every screen. Desktop keeps the
-   existing command bar unchanged. */
-
-.lf-mobile-workspace {
-  display: contents;
-}
+/* Compact mobile command bar.
+   The persistent left rail has been retired. Home stays one tap away beside
+   Continue; every other destination lives behind a single menu button. */
 
 @media (max-width: 767px) {
-  :root {
-    --lf-mobile-rail-width: 4.05rem;
-  }
-
-  .lf-mobile-workspace {
-    display: flex;
-    flex: 1 1 0%;
+  .game-main {
     width: 100%;
-    min-width: 0;
-    min-height: 0;
-    overflow: hidden;
-  }
-
-  .lf-mobile-nav {
-    position: relative;
-    z-index: 40;
-    display: block;
-    flex: 0 0 var(--lf-mobile-rail-width);
-    width: var(--lf-mobile-rail-width);
-    min-width: var(--lf-mobile-rail-width);
-    min-height: 0;
-    overflow: hidden;
-    border-right: 1px solid color-mix(in oklab, var(--color-primary) 20%, var(--color-border));
-    background:
-      linear-gradient(180deg,
-        color-mix(in oklab, var(--color-panel) 95%, black) 0%,
-        color-mix(in oklab, var(--color-panel) 91%, var(--color-primary) 9%) 58%,
-        color-mix(in oklab, var(--color-panel) 97%, black) 100%);
-    color: var(--color-panel-foreground);
-    box-shadow:
-      5px 0 18px rgb(3 18 20 / 10%),
-      inset -1px 0 rgb(255 255 255 / 4%);
-  }
-
-  .lf-mobile-nav::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background:
-      radial-gradient(circle at 20% 8%, color-mix(in oklab, var(--color-primary) 22%, transparent), transparent 24%),
-      linear-gradient(90deg, rgb(255 255 255 / 3%), transparent 58%);
-  }
-
-  .lf-mobile-nav-grid {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    height: 100%;
-    min-height: 0;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.08rem;
+    max-width: none;
     margin: 0;
-    padding: 0.38rem 0.28rem calc(0.45rem + env(safe-area-inset-bottom));
-    list-style: none;
+    padding: 0.45rem 0.55rem;
   }
 
-  .lf-mobile-nav-grid > li {
+  .game-screen {
+    width: 100%;
     min-width: 0;
   }
 
-  .lf-mobile-nav-grid > li + li:not(.lf-mobile-nav-more) {
-    border-top: 1px solid rgb(255 255 255 / 5%);
+  .lf-continue-bar {
+    left: 0;
+    right: 0;
+    width: auto;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
   }
 
-  button.lf-mobile-nav-item {
+  .lf-continue-bar > div {
+    align-items: stretch;
+    gap: 0.4rem;
+  }
+
+  .lf-mobile-home-button,
+  .lf-mobile-menu-button {
     position: relative;
-    min-height: 3.7rem;
-    gap: 0.22rem;
-    padding: 0.42rem 0.12rem;
-    border: 1px solid transparent;
-    border-radius: 0.72rem;
-    color: color-mix(in oklab, var(--color-panel-foreground) 68%, transparent);
-    background: transparent;
-    box-shadow: none;
-    line-height: 1;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  button.lf-mobile-nav-item .lf-mobile-nav-icon {
-    width: 1.2rem;
-    height: 1.2rem;
-    stroke-width: 1.9;
-  }
-
-  button.lf-mobile-nav-item .lf-mobile-nav-label {
-    width: 100%;
-    max-width: 100%;
-    padding-inline: 0.02rem;
-    overflow: visible;
-    font-size: 0.57rem;
-    font-weight: 720;
-    letter-spacing: -0.025em;
-    text-align: center;
-    white-space: nowrap;
-  }
-
-  button.lf-mobile-nav-item.is-active {
-    border-color: color-mix(in oklab, var(--color-primary) 30%, white 7%);
-    background:
-      linear-gradient(145deg,
-        color-mix(in oklab, var(--color-primary) 68%, var(--color-panel)),
-        color-mix(in oklab, var(--color-primary) 48%, var(--color-panel)));
-    color: var(--color-primary-foreground);
+    display: grid;
+    width: 2.9rem;
+    min-width: 2.9rem;
+    height: 3rem;
+    place-items: center;
+    padding: 0;
+    border: 1px solid color-mix(in oklab, var(--color-border) 84%, transparent);
+    border-radius: 0.85rem;
+    background: color-mix(in oklab, var(--color-card) 95%, transparent);
+    color: var(--color-foreground);
     box-shadow:
-      inset 0 1px rgb(255 255 255 / 10%),
-      0 3px 10px color-mix(in oklab, var(--color-primary) 16%, transparent);
+      inset 0 1px rgb(255 255 255 / 6%),
+      0 3px 10px rgb(0 0 0 / 8%);
   }
 
-  button.lf-mobile-nav-item.is-active::before {
-    content: "";
+  .lf-mobile-home-button[data-state="active"],
+  .lf-mobile-home-button.bg-primary {
+    border-color: color-mix(in oklab, var(--color-primary) 55%, white 8%);
+    box-shadow: 0 4px 14px color-mix(in oklab, var(--color-primary) 18%, transparent);
+  }
+
+  .lf-mobile-menu-control {
+    display: flex;
+    flex: 0 0 auto;
+  }
+
+  .lf-mobile-menu-button.is-active {
+    border-color: color-mix(in oklab, var(--color-primary) 38%, var(--color-border));
+    background: color-mix(in oklab, var(--color-card) 88%, var(--color-primary) 12%);
+  }
+
+  .lf-mobile-menu-badge {
     position: absolute;
-    left: -0.29rem;
-    top: 23%;
-    bottom: 23%;
-    width: 0.13rem;
-    border-radius: 0 999px 999px 0;
-    background: color-mix(in oklab, var(--color-banner) 74%, white);
-    box-shadow: 0 0 6px color-mix(in oklab, var(--color-banner) 32%, transparent);
-  }
-
-  button.lf-mobile-nav-item.is-active::after {
-    content: "";
-    position: absolute;
-    left: 30%;
-    right: 30%;
-    bottom: 0.22rem;
-    height: 1.5px;
-    border-radius: 999px;
-    background: color-mix(in oklab, var(--color-banner) 78%, white 8%);
-  }
-
-  .lf-mobile-nav-more {
-    margin-top: 0.3rem;
-    padding-top: 0.32rem;
-    border-top: 1px solid rgb(255 255 255 / 8%);
-  }
-
-  .lf-nav-unread,
-  .lf-nav-blocker {
-    position: absolute;
-    top: 0.22rem;
-    right: 0.28rem;
+    top: -0.28rem;
+    right: -0.2rem;
     display: grid;
     min-width: 1.05rem;
     height: 1.05rem;
     place-items: center;
     padding-inline: 0.2rem;
-    border: 2px solid color-mix(in oklab, var(--color-panel) 92%, black);
+    border: 2px solid var(--color-card);
     border-radius: 999px;
     background: #ef4444;
     color: white;
-    font-size: 0.54rem;
+    font-size: 0.56rem;
     font-weight: 900;
     line-height: 1;
   }
 
-  .lf-nav-blocker {
-    animation: lf-mobile-rail-pulse 1.25s ease-in-out infinite;
-  }
-
-  @keyframes lf-mobile-rail-pulse {
-    50% { transform: scale(1.12); }
-  }
-
-  .lf-mobile-workspace > .game-main {
-    flex: 1 1 0%;
-    width: auto;
-    min-width: 0;
-    margin: 0;
-    padding: 0.42rem 0.42rem 0.42rem 0.3rem;
-  }
-
-  .lf-mobile-workspace > .game-main .game-screen {
-    width: 100%;
-    min-width: 0;
-  }
-
-  /* Keep Continue aligned with the content column so it does not cover the rail. */
-  .lf-continue-bar {
-    left: var(--lf-mobile-rail-width);
-    right: 0;
-    width: auto;
-    padding-left: 0.3rem;
-    padding-right: 0.45rem;
-  }
-
-  .lf-continue-label {
-    gap: 0.3rem;
+  .lf-mobile-menu-badge.is-blocking {
+    animation: lf-compact-nav-pulse 1.25s ease-in-out infinite;
   }
 
   .lf-continue-button {
-    padding-left: 0.58rem;
-    padding-right: 0.58rem;
+    min-width: 0;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .lf-continue-label {
+    gap: 0.35rem;
   }
 
   .lf-continue-hint {
-    margin-left: 0.35rem;
+    margin-left: 0.45rem;
+  }
+
+  .lf-continue-more {
+    width: 2.9rem;
+    min-width: 2.9rem;
+    padding-inline: 0;
+  }
+
+  @keyframes lf-compact-nav-pulse {
+    50% { transform: scale(1.12); }
   }
 }
 
 @media (max-width: 389px) {
-  :root {
-    --lf-mobile-rail-width: 3.72rem;
+  .game-main {
+    padding-inline: 0.4rem;
   }
 
-  button.lf-mobile-nav-item {
-    min-height: 3.45rem;
+  .lf-continue-bar {
+    padding-inline: 0.38rem;
   }
 
-  button.lf-mobile-nav-item .lf-mobile-nav-icon {
-    width: 1.08rem;
-    height: 1.08rem;
+  .lf-continue-bar > div {
+    gap: 0.3rem;
   }
 
-  button.lf-mobile-nav-item .lf-mobile-nav-label {
-    font-size: 0.51rem;
+  .lf-mobile-home-button,
+  .lf-mobile-menu-button,
+  .lf-continue-more {
+    width: 2.65rem;
+    min-width: 2.65rem;
   }
 
-  .lf-mobile-workspace > .game-main {
-    padding-inline: 0.25rem;
+  .lf-continue-button {
+    padding-inline: 0.6rem;
+  }
+
+  .lf-continue-hint {
+    display: none;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lf-nav-blocker {
+  .lf-mobile-menu-badge.is-blocking {
     animation: none;
   }
 }

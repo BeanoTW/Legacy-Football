@@ -214,9 +214,6 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
         />
       </div>
 
-      <div className="lf-mobile-workspace">
-        <MobileNav tab={tab} setTab={(next) => { setDecisionQueue(false); setTab(next); }} unread={unreadCount(state)} blocking={blockingDecisions.length} />
-
       <div className="lf-kpi-ribbon shrink-0 border-b bg-panel text-panel-foreground hidden xl:block">
         <div className="mx-auto max-w-[1600px] px-5 py-1.5 grid grid-cols-4 gap-2 tnum">
           <Kpi icon={<Wallet className="size-4" />} label="Bank balance" value={fmtMoneyExact(kpi.cash)} tone={kpi.cash >= 0 ? "good" : "bad"} info="Cash in the club's bank account." />
@@ -273,7 +270,6 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
           </ScreenBoundary>
         </div>
       </main>
-      </div>
 
       <MobileContinueBar
         isContinuing={isContinuing}
@@ -282,6 +278,9 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
         label={`W${state.week} · ${phaseLabel} · Window ${transferWindowOpen ? "open" : "closed"}`}
         targets={targets}
         onAdvanceTo={requestContinue}
+        onHome={() => { setDecisionQueue(false); setTab("hub"); }}
+        homeActive={tab === "hub"}
+        menuControl={<MobileNav tab={tab} setTab={(next) => { setDecisionQueue(false); setTab(next); }} unread={unreadCount(state)} blocking={blockingDecisions.length} />}
       />
       {showAdvancePreview && (
         <AdvanceOverlay
