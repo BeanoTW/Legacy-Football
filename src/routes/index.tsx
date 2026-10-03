@@ -206,7 +206,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
                 aria-label={`Director reputation ${Math.round(userReputation)}. Edit director appearance`}
                 onClick={() => setChairmanStudioOpen(true)}
               >
-                <CharacterPortrait avatar={chairmanProfile.avatar} size={100} title={`${state.managerName} portrait`} />
+                <CharacterPortrait avatar={chairmanProfile.avatar} size={94} title={`${state.managerName} portrait`} />
                 <span className="lf-director-reputation-value">{Math.round(userReputation)}</span>
                 <span className="lf-director-reputation-stars"><ReputationStars value={userReputation} /></span>
               </button>
