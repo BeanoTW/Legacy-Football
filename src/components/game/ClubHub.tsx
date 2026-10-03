@@ -139,7 +139,7 @@ export function ClubHub({ state, update, setTab, isContinuing, onAdvanceTo }: { 
         <VitalCard variant="board" icon={<Handshake className="size-4" />} label="Board confidence" value={`${boardConf}%`} detail={strategic.pressure.headline} tone={boardConf >= 65 ? "text-emerald-600" : "text-amber-600"} meter={boardConf} onClick={() => setTab("board")} />
         <VitalCard variant="fans" icon={<Users className="size-4" />} label="Supporter mood" value={`${state.fanHappiness}%`} detail="Current supporter sentiment" tone={state.fanHappiness >= 60 ? "text-emerald-600" : "text-amber-600"} meter={state.fanHappiness} onClick={() => setTab("tickets")} />
       </section>
-      <div className={cn("lf-home-bottom-pair", suggestedSteps.length === 1 && decisionItems.length <= 1 && "is-compact")}>
+      <div className="lf-home-bottom-pair">
       <section className="lf-home-desk grid gap-2 md:grid-cols-[1.15fr_.85fr] md:gap-3">
         <div className="lf-home-panel overflow-hidden rounded-2xl border bg-card shadow-sm">
           <div className="lf-home-panel-heading">
