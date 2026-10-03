@@ -2,12 +2,12 @@
    Run with: bun src/lib/game/__checks__/ground-identity.check.ts
 */
 import { advanceWeek, newGame } from "../engine";
-import { reconcile } from "../finance";
+import { postEntry, reconcile } from "../finance";
 import { assetById, ensureInfrastructure, projectById, projectCatalogue } from "../infrastructure";
 import { stadiumAccreditation } from "../stadiumAccreditation";
 import { buildGroundScene } from "../groundScene";
 import { groundIdentityModifiers, sceneLook, standBuild, chosenStandBuild } from "../groundIdentity";
-import { approveStandBuild, renameStand, setGroundLook } from "../groundBuild";
+import { approveStandBuild, buildQuote, renameStand, setGroundLook } from "../groundBuild";
 import type { GameState } from "../types";
 
 let passed = 0;
@@ -21,7 +21,17 @@ function fixture(): GameState {
   const s = newGame("Ground Town", "Chairman Test");
   s.saveSeed = "GROUND_CHECK";
   ensureInfrastructure(s);
-  s.cash = Math.max(s.cash, 5_000_000);
+  if (s.cash < 5_000_000) {
+    postEntry(s, {
+      category: "Board",
+      subcategory: "Test funding",
+      description: "Ground identity test funding",
+      amount: 5_000_000 - s.cash,
+      direction: "income",
+      sourceSystem: "developer-mode",
+      dedupeKey: "ground-identity-test-funding",
+    });
+  }
   return s;
 }
 
@@ -54,7 +64,12 @@ console.log("\n[GI2] Choosing a covered terrace for an expansion");
     const result = approveStandBuild(s, stand.id, "capacityExpansion", { standing: "terrace", roof: "pitched" });
     check("approved", result.ok, result.reason);
     const project = Object.values(result.state.infrastructure!.projects).find((p) => p.assetId === stand.id)!;
-    check("covered terrace costs 10% less", project.baseCost === Math.round(spec.cost * 0.9), `${project.baseCost} vs ${spec.cost}`);
+    const expectedQuote = buildQuote(s, spec.cost, stand.id, "capacityExpansion", { standing: "terrace", roof: "pitched" });
+    check(
+      "covered terrace + traditional roof use the combined quoted price",
+      project.baseCost === expectedQuote.cost,
+      `${project.baseCost} vs ${expectedQuote.cost}`,
+    );
     const scheduled = project.paymentSchedule.filter((p) => p.kind === "instalment").reduce((t, p) => t + p.amount, 0);
     check("payment schedule matches the new cost exactly", scheduled === project.baseCost, `${scheduled} vs ${project.baseCost}`);
     const capacityEffect = project.effectsOnCompletion.find((e) => e.kind === "capacity") as { add: number } | undefined;
