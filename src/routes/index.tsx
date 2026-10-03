@@ -214,7 +214,8 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
         />
       </div>
 
-      <MobileNav tab={tab} setTab={(next) => { setDecisionQueue(false); setTab(next); }} unread={unreadCount(state)} blocking={blockingDecisions.length} />
+      <div className="lf-mobile-workspace">
+        <MobileNav tab={tab} setTab={(next) => { setDecisionQueue(false); setTab(next); }} unread={unreadCount(state)} blocking={blockingDecisions.length} />
 
       <div className="lf-kpi-ribbon shrink-0 border-b bg-panel text-panel-foreground hidden xl:block">
         <div className="mx-auto max-w-[1600px] px-5 py-1.5 grid grid-cols-4 gap-2 tnum">
@@ -272,6 +273,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
           </ScreenBoundary>
         </div>
       </main>
+      </div>
 
       <MobileContinueBar
         isContinuing={isContinuing}
