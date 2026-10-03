@@ -25,7 +25,7 @@ import {
   type ProjectSpec,
 } from "@/lib/game/infrastructure";
 import { facilityCurrentEffect, groundProgression } from "@/lib/game/groundPresentation";
-import { fmtMoneyExact } from "@/lib/game/engine";
+import { fmtMoney, fmtMoneyExact } from "@/lib/game/engine";
 import { fromAbsoluteWeek } from "@/lib/game/time";
 import { stadiumAccreditation } from "@/lib/game/stadiumAccreditation";
 import { clubOperatingModel, professionaliseUserClub, userProfessionalisationReadiness } from "@/lib/game/employment";
@@ -284,27 +284,120 @@ function StatusRequirement({ label, met, current, required }: { label: string; m
   return <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 py-0.5 text-[10px]">{met ? <Check className="size-3.5 text-income" /> : <CircleAlert className="size-3.5 text-muted-foreground" />}<span className="truncate">{label}</span><span className="text-right font-mono text-muted-foreground">{current} / {required}</span></div>;
 }
 
-function FacilitySheet({ state, asset, onApprove, onApproveBuild }: { state: GameState; asset: InfrastructureAsset; onApprove: (type: CapitalProjectType) => void; onApproveBuild: (type: CapitalProjectType, build: StandBuild) => void }) {
+type WorksGroup = "repair" | "improve" | "rebuild";
+
+const GROUP_OF: Partial<Record<CapitalProjectType, WorksGroup>> = {
+  minorRepair: "repair",
+  majorRepair: "repair",
+  refurbishment: "repair",
+  replacement: "rebuild",
+  capacityExpansion: "rebuild",
+  standRedevelopment: "rebuild",
+};
+const GROUP_LABEL: Record<WorksGroup, string> = { repair: "Repair", improve: "Improve", rebuild: "Rebuild & expand" };
+
+const BAND_CHIP: Record<string, string> = {
+  excellent: "bg-emerald-500 text-white",
+  good: "bg-emerald-500 text-white",
+  worn: "bg-amber-400 text-amber-950",
+  poor: "bg-rose-500 text-white",
+  critical: "bg-rose-600 text-white",
+  closed: "bg-slate-500 text-white",
+};
+const BAND_BAR: Record<string, string> = {
+  excellent: "bg-emerald-500",
+  good: "bg-emerald-500",
+  worn: "bg-amber-400",
+  poor: "bg-rose-500",
+  critical: "bg-rose-600",
+  closed: "bg-slate-400",
+};
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+/** What a piece of work actually does, as short chips. */
+function effectChips(spec: ProjectSpec, asset: InfrastructureAsset): string[] {
+  const out: string[] = [];
+  for (const effect of spec.effects) {
+    if (effect.kind === "condition") {
+      if (effect.to != null) out.push(`Condition to ${effect.to}%`);
+      else if ((effect.add ?? 0) > 0) out.push(`+${effect.add} condition`);
+    } else if (effect.kind === "level") out.push(effect.add > 1 ? `+${effect.add} levels` : "+1 level");
+    else if (effect.kind === "capacity") out.push(`+${effect.add.toLocaleString("en-GB")} ${asset.type === "stand" ? "places" : "capacity"}`);
+    else if (effect.kind === "quality") out.push(`Quality +${effect.add}`);
+    else if (effect.kind === "resetAge") out.push("Like new");
+    else if (effect.kind === "metadata") {
+      const amount = "add" in effect && typeof effect.add === "number" ? effect.add : 0;
+      const label: Record<string, string> = {
+        roofQuality: "Better roof",
+        seatingQuality: "New seats",
+        concourseQuality: "Better concourse",
+        accessibility: "Fully accessible",
+        hospitalityCapacity: amount ? `+${amount} hospitality places` : "Hospitality",
+        commercialSpace: "More retail space",
+      };
+      if (label[effect.key]) out.push(label[effect.key]);
+    }
+  }
+  return [...new Set(out)].slice(0, 4);
+}
+
+function riskLevel(risk: number) {
+  return risk >= 50 ? { label: "High risk", tone: "text-rose-600" } : risk >= 25 ? { label: "Medium risk", tone: "text-amber-600" } : { label: "Low risk", tone: "text-emerald-600" };
+}
+
+/** A short, human reason a project can't go ahead. */
+function blockedReason(state: GameState, spec: ProjectSpec, evaluation: NonNullable<ReturnType<typeof evaluateProject>>): string {
+  if (!evaluation.assetFree) return "Work already under way here";
+  if (!evaluation.capacityOk) return spec.major ? "One major project at a time" : "A minor repair is already running";
+  const shortfall = spec.cost - Math.round(state.cash);
+  if (shortfall > 0) return `${fmtMoney(shortfall)} short`;
+  const reserve = state.finance?.minimumCashReserve ?? 0;
+  if (reserve > 0) return `Would break the board's ${fmtMoney(reserve)} reserve`;
+  return evaluation.reason;
+}
+
+export function FacilitySheet({ state, asset, onApprove, onApproveBuild }: { state: GameState; asset: InfrastructureAsset; onApprove: (type: CapitalProjectType) => void; onApproveBuild: (type: CapitalProjectType, build: StandBuild) => void }) {
   const config = ASSET_CONFIG[asset.type];
   const catalogue = projectCatalogue(state, asset.id);
-  const levelName = config.levels[asset.level - 1] ?? `Level ${asset.level}`;
-  const nextLevel = config.levels[asset.level] ?? "Maximum level reached";
   const band = conditionBand(asset.condition);
   const activeProject = asset.activeProjectId
     ? state.infrastructure?.projects.find((project) => project.id === asset.activeProjectId) ?? null
     : null;
+  // Raising a stand's level asks how it should be built first.
   const [choosing, setChoosing] = useState<ProjectSpec | null>(null);
+  const groupOf = (type: CapitalProjectType): WorksGroup => GROUP_OF[type] ?? "improve";
+  const groups = (["repair", "improve", "rebuild"] as WorksGroup[]).filter((group) => catalogue.some((spec) => groupOf(spec.type) === group));
+  const [group, setGroup] = useState<WorksGroup>(() => (asset.condition < 60 && groups.includes("repair") ? "repair" : groups.includes("improve") ? "improve" : groups[0] ?? "repair"));
+  const [expanded, setExpanded] = useState<CapitalProjectType | null>(null);
+
+  const rows = catalogue
+    .filter((spec) => groupOf(spec.type) === group)
+    .map((spec) => ({ spec, evaluation: evaluateProject(state, asset.id, spec.type) }))
+    .filter((row): row is { spec: ProjectSpec; evaluation: NonNullable<ReturnType<typeof evaluateProject>> } => Boolean(row.evaluation))
+    // What you can do first, then by cost.
+    .sort((a, b) => Number(b.evaluation.allowed) - Number(a.evaluation.allowed) || a.spec.cost - b.spec.cost);
+
   return <SheetContent side="bottom" className="lf-ground-sheet">
-    <div className="border-b bg-panel px-4 py-3 text-panel-foreground">
-      <div className="flex items-center gap-2 pr-8 text-[10px] font-semibold uppercase tracking-[0.16em] opacity-70">
-        <span>{config.label}</span><span>·</span><span>{asset.location}</span>
+    <div className="border-b bg-panel px-4 pb-3 pt-3 text-panel-foreground">
+      <div className="flex items-center gap-2 pr-9 text-[10px] font-semibold uppercase tracking-[0.16em] opacity-70">
+        <span>{config.label}</span><span>·</span><span className="truncate">{asset.location}</span>
       </div>
-      <div className="mt-0.5 flex items-end justify-between gap-3 pr-8">
+      <div className="mt-0.5 flex items-center justify-between gap-3 pr-9">
         <SheetTitle className="min-w-0 truncate font-display text-2xl text-panel-foreground">{asset.name}</SheetTitle>
-        <span className={cn("shrink-0 rounded-full border border-current/20 px-2 py-0.5 text-[9px] font-semibold uppercase", BAND_TONE[band])}>{BAND_LABEL[band]}</span>
+        <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase", BAND_CHIP[band])}>{BAND_LABEL[band]}</span>
+      </div>
+      {/* The ladder of standards this facility can reach. */}
+      <div className="mt-2.5 flex gap-1" aria-label={`Level ${asset.level} of ${config.maxLevel}`}>
+        {config.levels.map((name, index) => (
+          <div key={name} className="min-w-0 flex-1">
+            <div className={cn("h-1.5 rounded-full", index < asset.level ? "bg-emerald-400" : "bg-white/20")} />
+            <div className={cn("mt-1 truncate text-[8px] font-bold uppercase tracking-wide", index === asset.level - 1 ? "text-white" : "text-white/45")}>{name}</div>
+          </div>
+        ))}
       </div>
     </div>
-    <div className="lf-ground-sheet-scroll space-y-4 p-4">
+    <div className="lf-ground-sheet-scroll space-y-3 p-3">
       {choosing ? (
         <StandBuildChooser
           state={state}
@@ -314,67 +407,117 @@ function FacilitySheet({ state, asset, onApprove, onApproveBuild }: { state: Gam
           onConfirm={(build) => { onApproveBuild(choosing.type, build); setChoosing(null); }}
         />
       ) : <>
-      <div className="grid grid-cols-3 divide-x border bg-muted/25">
-        <GroundMetric label="Level" value={`${asset.level} / ${config.maxLevel}`} />
-        <GroundMetric label="Condition" value={`${asset.condition.toFixed(0)}%`} />
-        <GroundMetric label={asset.capacity ? "Available" : "Quality"} value={asset.capacity ? asset.usableCapacity.toLocaleString() : `${asset.qualityRating}/100`} />
-      </div>
-
-      <div className="rounded-sm border-l-2 border-primary bg-muted/35 px-3 py-2">
-        <div className="text-[9px] uppercase tracking-wide text-muted-foreground">Current standard</div>
-        <div className="mt-0.5 font-display text-base">{levelName}</div>
-        <div className="mt-1 text-xs text-muted-foreground">{facilityCurrentEffect(asset)}</div>
+      <div className="rounded-lg border bg-card p-3">
+        <div className="flex items-baseline justify-between gap-2">
+          <div className="min-w-0">
+            <div className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Now</div>
+            <div className="truncate font-display text-base leading-tight">{config.levels[asset.level - 1] ?? `Level ${asset.level}`}</div>
+          </div>
+          <div className="text-right">
+            <div className="font-display text-base leading-tight tnum">{asset.capacity ? asset.usableCapacity.toLocaleString("en-GB") : `${asset.qualityRating}/100`}</div>
+            <div className="text-[9px] uppercase text-muted-foreground">{asset.capacity ? (asset.type === "stand" ? "Usable places" : "Capacity") : "Quality"}</div>
+          </div>
+        </div>
+        <div className="mt-2 flex items-center gap-2">
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+            <div className={cn("h-full rounded-full", BAND_BAR[band])} style={{ width: `${Math.max(2, Math.min(100, asset.condition))}%` }} />
+          </div>
+          <span className="shrink-0 whitespace-nowrap text-right text-[10px] font-semibold tnum text-muted-foreground">{asset.condition.toFixed(0)}% condition</span>
+        </div>
+        {asset.level < config.maxLevel && !activeProject ? (
+          <div className="mt-1.5 text-[10.5px] text-muted-foreground">Next standard: <strong className="text-foreground">{config.levels[asset.level]}</strong></div>
+        ) : null}
       </div>
 
       {activeProject ? (
-        <div className="border border-banner/40 bg-banner/10 p-3">
+        <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Work in progress</div>
-              <div className="truncate font-display text-base">{activeProject.title}</div>
+              <div className="text-[9px] font-semibold uppercase tracking-wide text-primary">Work in progress</div>
+              <div className="truncate text-sm font-semibold">{activeProject.title.replace(`${asset.name} — `, "")}</div>
             </div>
             <strong className="font-mono text-xs">{Math.round(activeProject.progress)}%</strong>
           </div>
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-background/60">
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
             <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(2, Math.round(activeProject.progress))}%` }} />
           </div>
         </div>
-      ) : (
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-sm bg-muted/35 px-3 py-2">
-          <div>
-            <div className="text-[9px] uppercase tracking-wide text-muted-foreground">Next standard</div>
-            <div className="font-display text-base">{nextLevel}</div>
-          </div>
-          {asset.level < config.maxLevel ? <span className="text-[10px] text-muted-foreground">via works</span> : null}
-        </div>
-      )}
+      ) : null}
 
       <div>
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="font-display text-lg">Available works</h3>
-          <span className="text-[10px] text-muted-foreground">{catalogue.length} option{catalogue.length === 1 ? "" : "s"}</span>
-        </div>
-        <div className="mt-2 grid gap-2">
-          {catalogue.length === 0 ? <p className="rounded-sm bg-muted/35 p-3 text-sm text-muted-foreground">No further work can be raised here right now.</p> : catalogue.map((spec) => {
-            const evaluation = evaluateProject(state, asset.id, spec.type);
-            if (!evaluation) return null;
-            const choosesBuild = asset.type === "stand" && isLevelRaising(spec.type);
-            return <article key={spec.type} className="rounded-sm border bg-background p-3">
-              <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
-                <div className="min-w-0"><h4 className="truncate font-display text-base">{spec.title}</h4><p className="mt-1 text-xs leading-snug text-muted-foreground">{spec.description}</p></div>
-                <strong className="tnum text-sm">{fmtMoneyExact(spec.cost)}</strong>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-                <span>{spec.durationWeeks} weeks</span><span>{Math.round(spec.risk)}% risk</span><span>{Math.round((1 - spec.disruption.capacityFactor) * 100)}% disruption</span>
-                {choosesBuild ? <span className="text-primary">You choose the build</span> : null}
-              </div>
-              {!evaluation.allowed ? <p className="mt-2 text-[10px] text-expense">{evaluation.reason}</p> : null}
-              <Button className="mt-3 w-full" size="sm" disabled={!evaluation.allowed} onClick={() => choosesBuild ? setChoosing(spec) : onApprove(spec.type)}>
-                {evaluation.allowed ? (choosesBuild ? "Choose the build…" : `Approve · ${fmtMoneyExact(spec.cost)}`) : "Requirements not met"}
-              </Button>
-            </article>;
-          })}
-        </div>
+        {groups.length > 1 && (
+          <div className="mb-2 flex rounded-lg bg-muted/60 p-0.5" role="tablist" aria-label="Kind of work">
+            {groups.map((id) => {
+              const count = catalogue.filter((spec) => groupOf(spec.type) === id).length;
+              return (
+                <button key={id} type="button" role="tab" aria-selected={group === id} onClick={() => { setGroup(id); setExpanded(null); }}
+                  className={cn("flex-1 rounded-md px-1 py-1.5 text-[11px] font-bold", group === id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>
+                  {GROUP_LABEL[id]} <span className="font-semibold opacity-60">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {catalogue.length === 0 ? <p className="rounded-lg bg-muted/35 p-3 text-sm text-muted-foreground">No further work can be raised here right now.</p> : (
+          <div className="overflow-hidden rounded-lg border bg-card">
+            {rows.map(({ spec, evaluation }) => {
+              const choosesBuild = asset.type === "stand" && isLevelRaising(spec.type);
+              const risk = riskLevel(spec.risk);
+              const open = expanded === spec.type;
+              const chips = effectChips(spec, asset);
+              const supporters = evaluation.positions.filter((p) => p.stance === "supports").length;
+              const opponents = evaluation.positions.filter((p) => p.stance === "opposes").length;
+              const title = spec.title.replace(`${asset.name} — `, "");
+              return (
+                <div key={spec.type} className={cn("border-t first:border-t-0", !evaluation.allowed && "bg-muted/25")}>
+                  <button type="button" onClick={() => setExpanded(open ? null : spec.type)} className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left" aria-expanded={open}>
+                    <span className="min-w-0 flex-1">
+                      <span className={cn("block text-[13px] font-semibold first-letter:uppercase", !evaluation.allowed && "text-muted-foreground")}>{title}</span>
+                      <span className="mt-1 flex flex-wrap gap-1">
+                        {chips.map((chip) => (
+                          <span key={chip} className={cn("rounded px-1.5 py-0.5 text-[9.5px] font-bold", evaluation.allowed ? "bg-emerald-50 text-emerald-800" : "bg-muted text-muted-foreground")}>{chip}</span>
+                        ))}
+                        {choosesBuild && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9.5px] font-bold text-primary">You choose the build</span>}
+                      </span>
+                      <span className="mt-1 flex flex-wrap gap-x-2 text-[10px] text-muted-foreground">
+                        <span>{plural(spec.durationWeeks, "week")}</span>
+                        <span className={risk.tone}>{risk.label}</span>
+                        {spec.disruption.capacityFactor < 1 && <span>{Math.round((1 - spec.disruption.capacityFactor) * 100)}% closed during works</span>}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-right">
+                      <span className={cn("block font-display text-[15px] leading-tight tnum", !evaluation.allowed && "text-muted-foreground")}>{fmtMoneyExact(spec.cost)}</span>
+                      {!evaluation.allowed ? (
+                        <span className="mt-0.5 block max-w-[8.5rem] text-[10px] font-semibold leading-tight text-rose-600">{blockedReason(state, spec, evaluation)}</span>
+                      ) : evaluation.affordability.verdict === "affordableButRisky" ? (
+                        <span className="mt-0.5 block text-[10px] font-semibold text-amber-600">Stretches the budget</span>
+                      ) : (
+                        <ChevronDown className={cn("ml-auto mt-1 size-4 text-muted-foreground transition-transform", open && "rotate-180")} />
+                      )}
+                    </span>
+                  </button>
+                  {open && (
+                    <div className="space-y-2 px-3 pb-3">
+                      <p className="text-[11.5px] leading-snug text-muted-foreground">{spec.description}</p>
+                      {evaluation.positions.length > 0 && (
+                        <div className="text-[10.5px] text-muted-foreground">
+                          Board: <span className="font-semibold text-emerald-700">{supporters} for</span> · <span className="font-semibold text-rose-700">{opponents} against</span> · {evaluation.positions.length - supporters - opponents} undecided
+                        </div>
+                      )}
+                      {evaluation.allowed && evaluation.affordability.verdict === "affordableButRisky" && (
+                        <p className="text-[10.5px] text-amber-700">{evaluation.reason}</p>
+                      )}
+                      <Button className="w-full" size="sm" disabled={!evaluation.allowed} onClick={() => choosesBuild ? setChoosing(spec) : onApprove(spec.type)}>
+                        {!evaluation.allowed ? blockedReason(state, spec, evaluation) : choosesBuild ? "Choose the build…" : `Approve · ${fmtMoneyExact(spec.cost)}`}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
       </>}
     </div>
