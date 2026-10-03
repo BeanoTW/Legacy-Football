@@ -88,14 +88,24 @@ function Page() {
   );
 }
 
-/** Five-star reputation read-out: one star per 20 reputation points. */
+/** Five-star reputation read-out: one star per 20 reputation points, partially filled. */
 function ReputationStars({ value }: { value: number }) {
-  const filled = Math.max(0, Math.min(5, Math.round(value / 20)));
+  const stars = Math.max(0, Math.min(5, value / 20));
   return (
-    <span className="lf-rep-stars" aria-label={`${filled} of 5 stars`}>
-      {Array.from({ length: 5 }, (_, index) => (
-        <Star key={index} className={cn("lf-rep-star", index < filled && "is-filled")} aria-hidden="true" />
-      ))}
+    <span className="lf-rep-stars" aria-label={`${stars.toFixed(1)} of 5 stars`}>
+      {Array.from({ length: 5 }, (_, index) => {
+        const fill = Math.max(0, Math.min(1, stars - index));
+        return (
+          <span key={index} className="lf-rep-star-slot">
+            <Star className="lf-rep-star" aria-hidden="true" />
+            {fill > 0 && (
+              <span className="lf-rep-star-fill" style={{ width: `${fill * 100}%` }}>
+                <Star className="lf-rep-star is-filled" aria-hidden="true" />
+              </span>
+            )}
+          </span>
+        );
+      })}
     </span>
   );
 }
