@@ -402,7 +402,7 @@ export function ChairmanPortrait({
   const brow = avatar.hair === "bald" ? shade(skin, -0.45) : shade(avatar.hairColour, -0.1);
   return (
     <svg
-      viewBox="20 28 160 192"
+      viewBox="20 18 160 192"
       width={size}
       height={(size * 192) / 160}
       className={className}
@@ -415,7 +415,7 @@ export function ChairmanPortrait({
           <stop offset="1" stopColor="#15333a" />
         </radialGradient>
         <clipPath id={`clip-${id}`}>
-          <rect x="20" y="28" width="160" height="192" rx={framed ? 24 : 0} />
+          <rect x="20" y="18" width="160" height="192" rx={framed ? 24 : 0} />
         </clipPath>
       </defs>
       <g clipPath={`url(#clip-${id})`}>

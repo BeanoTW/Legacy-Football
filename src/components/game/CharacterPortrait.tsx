@@ -80,13 +80,13 @@ function PortraitShirt({
 
   return (
     <svg
-      viewBox="20 28 160 192"
+      viewBox="20 18 160 192"
       className="pointer-events-none absolute inset-0 h-full w-full"
       aria-hidden="true"
     >
       <defs>
         <clipPath id={`${uid}-frame`}>
-          <rect x="20" y="28" width="160" height="192" rx={framed ? 24 : 0} />
+          <rect x="20" y="18" width="160" height="192" rx={framed ? 24 : 0} />
         </clipPath>
         <clipPath id={`${uid}-torso`}>
           <path d={TORSO} />

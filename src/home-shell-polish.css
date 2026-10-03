@@ -239,3 +239,24 @@
     height: .56rem !important;
   }
 }
+
+/* V4: one continuous teal canvas, soft corners, portrait headroom, fractional stars. */
+html:has(.lf-home-main), body:has(.lf-home-main),
+.game-shell:has(.lf-home-main) {
+  background: #103236 !important;
+}
+.game-main.lf-home-main .lf-home-dashboard :is(.lf-match-card, .lf-club-pulse, .lf-vital-card, .lf-suggested-next, .lf-home-panel, .lf-news-card, .lf-suggested-row, .lf-task-row) {
+  border-radius: 1.15rem !important;
+  border-color: rgb(255 255 255 / 9%) !important;
+}
+.game-main.lf-home-main .lf-home-dashboard :is(button, .lf-match-primary, .lf-match-secondary) {
+  border-radius: .9rem;
+}
+.lf-masthead .lf-director-card { border-radius: 1.1rem !important; }
+.lf-masthead .lf-director-card > svg { transform: translateY(.2rem) !important; }
+.lf-rep-star-slot { position: relative; display: inline-flex; line-height: 0; }
+.lf-rep-star-fill { position: absolute; inset: 0 auto 0 0; overflow: hidden; display: inline-flex; }
+.lf-masthead .lf-director-reputation-stars .lf-rep-star-fill .lf-rep-star { flex: 0 0 auto; }
+.lf-masthead .lf-director-reputation-stars .lf-rep-star { width: .72rem !important; height: .72rem !important; stroke-width: 2.2 !important; }
+.lf-masthead .lf-director-reputation-stars .lf-rep-star:not(.is-filled) { color: rgb(255 255 255 / 40%) !important; fill: none !important; }
+.lf-masthead .lf-director-card svg.lf-rep-star { border: 0 !important; border-radius: 0 !important; background: none !important; box-shadow: none !important; padding: 0 !important; transform: none !important; }
