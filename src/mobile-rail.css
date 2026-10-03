@@ -95,11 +95,15 @@
   }
 
   button.lf-mobile-nav-item .lf-mobile-nav-label {
+    width: 100%;
     max-width: 100%;
-    padding-inline: 0.08rem;
+    padding-inline: 0.02rem;
+    overflow: visible;
     font-size: 0.57rem;
     font-weight: 720;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.025em;
+    text-align: center;
+    white-space: nowrap;
   }
 
   button.lf-mobile-nav-item.is-active {
@@ -221,7 +225,7 @@
   }
 
   button.lf-mobile-nav-item .lf-mobile-nav-label {
-    font-size: 0.58rem;
+    font-size: 0.51rem;
   }
 
   .lf-mobile-workspace > .game-main {
