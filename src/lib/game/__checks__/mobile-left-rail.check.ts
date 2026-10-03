@@ -22,9 +22,9 @@ assert(
   "primary navigation is collapsed into one menu button",
 );
 assert(
-  continueBar.includes("lf-mobile-home-button") &&
-    continueBar.includes("menuControl"),
-  "Home and menu controls live beside Continue",
+  continueBar.indexOf("lf-mobile-home-button") < continueBar.indexOf("{menuControl}") &&
+    continueBar.indexOf("{menuControl}") < continueBar.indexOf('className="lf-continue-button'),
+  "Home and menu controls sit together before Continue",
 );
 assert(
   route.includes('homeActive={tab === "hub"}') &&
