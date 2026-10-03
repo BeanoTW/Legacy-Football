@@ -5,7 +5,7 @@ import { CircleDollarSign, Menu, Star, Ticket, Users, Wallet } from "lucide-reac
 import { BoardTab } from "@/components/BoardTab";
 import { CommercialTab } from "@/components/CommercialTab";
 import { ALL_TABS, DESKTOP_PRIMARY_TAB_IDS, type Tab } from "@/components/game/tabs";
-import { MobileNav } from "@/components/game/MobileNav";
+import { MobileDock } from "@/components/game/MobileDock";
 import { MobileContinueBar } from "@/components/game/MobileContinueBar";
 import { AdvanceOverlay } from "@/components/game/AdvanceOverlay";
 import { NewGame } from "@/components/game/NewGame";
@@ -271,17 +271,30 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
         </div>
       </main>
 
-      <MobileContinueBar
+      {/* Phones: navigation and time advance share one dock. */}
+      <MobileDock
+        tab={tab}
+        setTab={(next) => { setDecisionQueue(false); setTab(next); }}
+        unread={unreadCount(state)}
+        blocking={blockingDecisions.length}
         isContinuing={isContinuing}
-        startContinue={() => requestContinue()}
-        stopContinue={stopContinue}
-        label={`W${state.week} · ${phaseLabel} · Window ${transferWindowOpen ? "open" : "closed"}`}
+        onContinue={() => requestContinue()}
+        onStop={stopContinue}
         targets={targets}
         onAdvanceTo={requestContinue}
-        onHome={() => { setDecisionQueue(false); setTab("hub"); }}
-        homeActive={tab === "hub"}
-        menuControl={<MobileNav tab={tab} setTab={(next) => { setDecisionQueue(false); setTab(next); }} unread={unreadCount(state)} blocking={blockingDecisions.length} />}
       />
+
+      {/* Tablet and desktop retain the full Continue bar. */}
+      <div className="hidden md:block">
+        <MobileContinueBar
+          isContinuing={isContinuing}
+          startContinue={() => requestContinue()}
+          stopContinue={stopContinue}
+          label={`W${state.week} · ${phaseLabel} · Window ${transferWindowOpen ? "open" : "closed"}`}
+          targets={targets}
+          onAdvanceTo={requestContinue}
+        />
+      </div>
       {showAdvancePreview && (
         <AdvanceOverlay
           state={state}
