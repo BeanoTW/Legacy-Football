@@ -11,25 +11,25 @@
   "theme_color": "#073b34",
   "icons": [
     {
-      "src": "/legacy-football-icon-192.png",
+      "src": "/legacy-football-icon-192.png?v=3",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/legacy-football-icon-512.png",
+      "src": "/legacy-football-icon-512.png?v=3",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/legacy-football-maskable-192.png",
+      "src": "/legacy-football-maskable-192.png?v=3",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/legacy-football-maskable-512.png",
+      "src": "/legacy-football-maskable-512.png?v=3",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
