@@ -61,13 +61,13 @@ export function ChairmansOffice({
           type="button"
           className="lf-office-portrait"
           onClick={() => setStudioOpen(true)}
-          aria-label="Edit chairman appearance"
+          aria-label="Edit director appearance"
         >
           <CharacterPortrait avatar={profile.avatar} size={60} />
           <span className="lf-office-edit"><Pencil /></span>
         </button>
         <div className="min-w-0 flex-1">
-          <p className="lf-office-kicker">Chairman's office</p>
+          <p className="lf-office-kicker">Director's office</p>
           <h1>{state.managerName}</h1>
           <p>{summary}</p>
         </div>
@@ -76,7 +76,7 @@ export function ChairmansOffice({
         )}
       </header>
 
-      <div className="lf-office-switch" role="tablist" aria-label="Chairman's office">
+      <div className="lf-office-switch" role="tablist" aria-label="Director's office">
         <button
           type="button"
           role="tab"
