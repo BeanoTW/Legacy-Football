@@ -27,6 +27,7 @@ import { SquadSelectionTab } from "@/components/game/SquadSelectionTab";
 import { FacilitiesFlow } from "@/components/game/FacilitiesFlow";
 import { SettingsTab } from "@/components/game/SettingsTab";
 import { ClubBadge } from "@/components/game/ClubKitArt";
+import { ClubIdentitySheet } from "@/components/game/ClubIdentityStudio";
 import { useGame, type ContinueSpeed } from "@/hooks/useGame";
 import type { GameState } from "@/lib/game/types";
 import type { SaveSlotId, SaveSlotSummary } from "@/lib/game/engine";
@@ -145,6 +146,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
 }) {
   const [tab, setTab] = useState<Tab>("hub");
   const [chairmanStudioOpen, setChairmanStudioOpen] = useState(false);
+  const [clubIdentityOpen, setClubIdentityOpen] = useState(false);
   const chairmanProfile = useChairmanProfile();
   const [decisionQueue, setDecisionQueue] = useState(false);
   const [recruitmentDestination, setRecruitmentDestination] = useState<Extract<InboxDestination, { tab: "recruitment" }> | null>(null);
@@ -201,12 +203,23 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
       <div className="game-shell">
       <PlayerProfileSheet state={state} update={update} />
       <ChairmanStudio open={chairmanStudioOpen} onOpenChange={setChairmanStudioOpen} showName={false} />
+      <ClubIdentitySheet open={clubIdentityOpen} onOpenChange={setClubIdentityOpen} state={state} update={update} />
       <div className="lf-masthead shrink-0">
         <TopBar
           title={state.clubName}
           subtitle={clubNickname(state)}
           detail={`Season ${state.season} · Week ${state.week}/${CALENDAR.seasonEnd} · ${phaseLabel}`}
-          crest={<ClubBadge design={crestDesign} clubName={state.clubName} size={84} />}
+          crest={
+            <button
+              type="button"
+              className="lf-masthead-club-badge-button"
+              title="Edit club badge & kits"
+              aria-label="Edit club badge and kits"
+              onClick={() => setClubIdentityOpen(true)}
+            >
+              <ClubBadge design={crestDesign} clubName={state.clubName} size={84} />
+            </button>
+          }
           right={
             <div className="lf-masthead-persona">
               <button
