@@ -1,5 +1,6 @@
 import type { GameState } from "./types";
 import { assetById, averageStadiumCondition, stadiumCapacity, stadiumUsableCapacity, stands } from "./infrastructure";
+import { standCountsAsSeating } from "./groundIdentity";
 
 export type FaCapacityGrade = 1 | 2 | 3 | 4 | null;
 export interface GroundStandard { label: string; met: boolean; current: number | string; required: number | string; }
@@ -13,7 +14,8 @@ export interface StadiumAccreditation {
 export function stadiumAccreditation(state: GameState): StadiumAccreditation {
   const capacity = stadiumCapacity(state);
   const usableCapacity = stadiumUsableCapacity(state);
-  const seatedCapacity = stands(state).filter((stand) => stand.status !== "closed" && stand.level >= 2).reduce((total, stand) => total + stand.usableCapacity, 0);
+  // Covered terraces are standing accommodation: they don't count as seating.
+  const seatedCapacity = stands(state).filter((stand) => stand.status !== "closed" && standCountsAsSeating(state, stand.id, stand.level)).reduce((total, stand) => total + stand.usableCapacity, 0);
   const averageCondition = averageStadiumCondition(state);
   const sanitary = assetById(state, "sanitary");
   const accessReady = Boolean(sanitary && sanitary.status !== "closed" && sanitary.condition >= 40);
