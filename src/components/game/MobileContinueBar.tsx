@@ -51,6 +51,7 @@ export function MobileContinueBar({
             <Home className="size-5" />
           </Button>
         ) : null}
+        {menuControl}
         <Button
           className="lf-continue-button h-12 min-w-0 flex-1 justify-between px-4 text-base font-bold md:h-14 md:px-6 md:text-lg"
           variant={isContinuing ? "destructive" : "default"}
@@ -86,7 +87,6 @@ export function MobileContinueBar({
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}
-        {menuControl}
       </div>
     </div>
   );
