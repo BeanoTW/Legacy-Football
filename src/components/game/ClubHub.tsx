@@ -288,7 +288,7 @@ function AroundTheGrounds({ state, onOpenWorld }: { state: GameState; onOpenWorl
     .slice(0, 3);
 
   const recentTransfers = [...(state.football?.transferHistory ?? [])]
-    .filter((record) => record.fromClubId !== state.clubName && record.toClubId !== state.clubName)
+    .filter((record) => !isUserClubReference(state, record.fromClubId ?? "") && !isUserClubReference(state, record.toClubId ?? ""))
     .slice(-2)
     .reverse();
 
