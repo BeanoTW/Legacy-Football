@@ -259,3 +259,4 @@ html:has(.lf-home-main), body:has(.lf-home-main),
 .lf-masthead .lf-director-reputation-stars .lf-rep-star-fill .lf-rep-star { flex: 0 0 auto; }
 .lf-masthead .lf-director-reputation-stars .lf-rep-star { width: .72rem !important; height: .72rem !important; stroke-width: 2.2 !important; }
 .lf-masthead .lf-director-reputation-stars .lf-rep-star:not(.is-filled) { color: rgb(255 255 255 / 40%) !important; fill: none !important; }
+.lf-masthead .lf-director-card svg.lf-rep-star { border: 0 !important; border-radius: 0 !important; background: none !important; box-shadow: none !important; padding: 0 !important; transform: none !important; }
