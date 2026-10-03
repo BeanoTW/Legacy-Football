@@ -76,7 +76,10 @@ export function approveStandBuild(s: GameState, assetId: string, type: CapitalPr
   }
   const label = `${build.standing === "terrace" ? "covered terrace" : build.standing === "safeStanding" ? "safe standing" : "all-seater"}${resulting >= 3 ? `, ${build.roof === "twoTier" ? "two tiers" : build.roof === "cantilever" ? "cantilever roof" : "traditional roof"}` : ""}`;
   project.title = `${project.title} (${label})`;
-  project.history.push({ absoluteWeek: project.approvedAtAbsoluteWeek, note: `Built as ${label}.` });
+  project.history.push({
+    absoluteWeek: project.approvedAtAbsoluteWeek ?? next.infrastructure?.lastTickAbsoluteWeek ?? 0,
+    note: `Built as ${label}.`,
+  });
 
   const identity = { ...groundIdentity(next) };
   identity.pending = { ...identity.pending, [assetId]: { ...build, projectId: project.id } };
