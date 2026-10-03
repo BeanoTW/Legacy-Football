@@ -134,3 +134,108 @@
     height: .54rem !important;
   }
 }
+
+
+/* V3: make the dashboard itself own the backdrop so no intermediate wrapper can repaint gutters. */
+.game-main.lf-home-main,
+.game-main.lf-home-main > .game-screen,
+.game-main.lf-home-main .lf-home-dashboard {
+  background:
+    radial-gradient(34rem 18rem at 50% -2rem, rgb(55 183 166 / 18%), transparent 66%),
+    radial-gradient(24rem 20rem at 100% 48%, rgb(228 169 61 / 5%), transparent 70%),
+    linear-gradient(180deg, #123b40 0%, #153f43 52%, #103236 100%) !important;
+}
+
+.game-main.lf-home-main .lf-home-dashboard {
+  min-height: 100%;
+  padding: .48rem !important;
+  box-sizing: border-box;
+}
+
+@media (max-width: 767px) {
+  .game-main.lf-home-main {
+    padding: 0 !important;
+  }
+
+  .game-main.lf-home-main > .game-screen {
+    padding: 0 !important;
+  }
+
+  .game-main.lf-home-main .lf-home-dashboard {
+    padding: .46rem .46rem .62rem !important;
+    gap: .42rem !important;
+  }
+}
+
+/* V3 director identity: one frame only, no nested portrait card. */
+.lf-masthead .lf-director-card {
+  width: 5.35rem !important;
+  height: 5.9rem !important;
+  place-items: center;
+  overflow: hidden;
+}
+
+.lf-masthead .lf-director-card > svg {
+  width: 78px !important;
+  height: 94px !important;
+  transform: translateY(.42rem) !important;
+}
+
+.lf-masthead .lf-director-reputation-value {
+  top: .3rem !important;
+  left: .3rem !important;
+  z-index: 3;
+}
+
+.lf-masthead .lf-director-reputation-stars {
+  right: .3rem !important;
+  bottom: .28rem !important;
+  left: .3rem !important;
+  z-index: 3;
+  min-height: 1.05rem !important;
+  border: 0 !important;
+  background: rgb(2 19 24 / 72%) !important;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 22%);
+}
+
+.lf-masthead .lf-director-reputation-stars .lf-rep-star {
+  width: .66rem !important;
+  height: .66rem !important;
+}
+
+@media (max-width: 767px) {
+  .lf-masthead .panel-strip > div {
+    min-height: 5.45rem !important;
+  }
+
+  .lf-masthead .lf-director-card {
+    width: 4.95rem !important;
+    height: 5.35rem !important;
+  }
+
+  .lf-masthead .lf-director-card > svg {
+    width: 72px !important;
+    height: 86px !important;
+    transform: translateY(.44rem) !important;
+  }
+
+  .lf-masthead .lf-director-reputation-value {
+    top: .24rem !important;
+    left: .24rem !important;
+    min-width: 1.34rem !important;
+    height: 1.16rem !important;
+    font-size: .84rem !important;
+  }
+
+  .lf-masthead .lf-director-reputation-stars {
+    right: .22rem !important;
+    bottom: .22rem !important;
+    left: .22rem !important;
+    min-height: .96rem !important;
+  }
+
+  .lf-masthead .lf-director-reputation-stars .lf-rep-star {
+    width: .56rem !important;
+    height: .56rem !important;
+  }
+}
