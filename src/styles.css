@@ -383,7 +383,8 @@ button.lf-decision-card.lf-choice-tile:disabled {
 }
 
 .lf-launch-splash.is-ready {
-  animation: lf-launch-away 900ms ease 420ms forwards;
+  pointer-events: none;
+  animation: lf-launch-away 600ms ease 250ms forwards;
 }
 
 .lf-launch-splash-art {
