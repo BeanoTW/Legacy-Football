@@ -376,7 +376,11 @@ function SquadPositionRails({
       <div className="divide-y">
         {UNIT_GROUPS.map(({ unit, label, minimum }) => {
           const players = sortSubsByPosition(
-            squad.filter((player) => positionUnit(tacticalPositionProfile(player).primary) === unit),
+            squad.filter(
+              (player) =>
+                !selected.has(player.id) &&
+                positionUnit(tacticalPositionProfile(player).primary) === unit,
+            ),
           );
           const fit = players.filter((player) => playerIsAvailable(player, state)).length;
           const thin = fit < minimum;
