@@ -62,4 +62,4 @@ assert(
   "transfer enquiry response deep-links directly to the matching negotiation",
 );
 
-console.log("\n8 passed, 0 failed");
+console.log("\n7 passed, 0 failed");
