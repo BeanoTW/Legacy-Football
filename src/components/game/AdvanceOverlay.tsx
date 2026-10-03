@@ -102,14 +102,23 @@ export function AdvanceOverlay({
     : undefined;
   const reachedTarget = stopped && !!reason?.startsWith("Reached");
 
-  // Progress from the day Continue was pressed to the stop (or the end of the week).
+  // Keep the time rail as a rolling six-day look-ahead rather than tying it
+  // to the current Monday-Sunday week. A nearer explicit stop target shortens
+  // the rail, otherwise it always shows today plus the next six days.
   const startDay = startState ? currentAbsoluteDay(startState) : now;
-  const endDay = target?.untilAbsoluteDay ?? Math.max(now, startDay + (6 - (startState ? calendarDay(startState) : day)));
-  const span = Math.max(1, endDay - startDay);
+  const horizonEndDay = startDay + 6;
+  const targetEndDay = target?.untilAbsoluteDay;
+  const railEndDay =
+    targetEndDay === undefined
+      ? horizonEndDay
+      : Math.min(horizonEndDay, Math.max(startDay, targetEndDay));
+  const span = Math.max(1, railEndDay - startDay);
   const rail = useMemo(() => {
-    const all = calendarRail(startState ?? state, Math.ceil((span + 8) / 7) + 1);
-    return all.filter((cell) => cell.absoluteDay >= startDay && cell.absoluteDay <= endDay).slice(0, 14);
-  }, [endDay, span, startDay, startState, state]);
+    const all = calendarRail(startState ?? state, 2);
+    return all
+      .filter((cell) => cell.absoluteDay >= startDay && cell.absoluteDay <= railEndDay)
+      .slice(0, 7);
+  }, [railEndDay, startDay, startState, state]);
   const progress = Math.min(1, Math.max(0, (now - startDay) / span));
 
   const status = deadline ? "Deadline day" : matchday ? "Matchday" : isContinuing ? "Time running" : "Paused";
@@ -176,7 +185,7 @@ export function AdvanceOverlay({
                 {rail.map((cell) => {
                   const passed = cell.absoluteDay < now;
                   const current = cell.absoluteDay === now;
-                  const isStop = cell.absoluteDay === endDay && !!target;
+                  const isStop = cell.absoluteDay === targetEndDay && !!target;
                   return (
                     <div key={cell.absoluteDay} className="flex flex-col items-center gap-1">
                       <span
