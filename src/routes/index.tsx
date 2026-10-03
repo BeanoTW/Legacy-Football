@@ -46,6 +46,7 @@ import { cn } from "@/lib/utils";
 import { PlayerProfileSheet } from "@/components/game/shared/PlayerProfileSheet";
 import { CharacterPortrait, PortraitKitProvider } from "@/components/game/CharacterPortrait";
 import { ChairmanStudio, useChairmanProfile } from "@/components/game/ChairmanStudio";
+import { AppLaunchSplash } from "@/components/game/AppLaunchSplash";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -67,9 +68,10 @@ function Page() {
     const theme = localStorage.getItem("chairman.colour-theme");
     if (theme) document.documentElement.dataset.clubTheme = theme;
   }, []);
-  if (!game.hydrated) return <div className="h-dvh grid place-items-center text-muted-foreground">Loading…</div>;
+  if (!game.hydrated) return <><AppLaunchSplash /><div className="h-dvh grid place-items-center text-muted-foreground">Loading…</div></>;
   return (
     <>
+      <AppLaunchSplash />
       {game.state ? (
         <Game {...game} state={game.state} />
       ) : (
