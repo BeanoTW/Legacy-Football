@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeftRight,
   ArrowRight,
+  Newspaper,
   Briefcase,
   Building2,
   Heart,
@@ -181,6 +182,7 @@ export function ClubHub({ state, update, setTab, isContinuing, onAdvanceTo }: { 
         </section>
       )}
       </div>
+      <AroundTheGrounds state={state} onOpenWorld={() => setTab("world")} />
       <section className="lf-management-grid grid grid-cols-2 gap-2 md:grid-cols-3">
         <ActionTile onClick={() => setTab("squad")} icon={<SquadIcon className="size-5" />} title="Squad" value={`${squadSize} players`} sub="Selection · contracts" />
         <ActionTile onClick={() => setTab("recruitment")} icon={<TransfersIcon className="size-5" />} title="Transfers" value={activeNegotiations > 0 ? `${activeNegotiations} active` : "Market"} sub="Scouting · shortlist · deals" />
@@ -277,4 +279,81 @@ function LeaguePanel({ state, miniLeague, leagueSorted, setTab }: { state: GameS
 
 function ActionTile({ icon, title, value, sub, onClick }: { icon: React.ReactNode; title: string; value: string; sub?: string; onClick: () => void }) {
   return <button onClick={onClick} className="lf-action-tile"><span className="lf-action-icon">{icon}</span><span className="min-w-0 flex-1"><span className="lf-action-title">{title}</span><strong className="lf-action-value">{value}</strong>{sub && <small className="lf-action-sub">{sub}</small>}</span><ArrowRight className="size-4 shrink-0 text-muted-foreground" /></button>;
+}
+
+function AroundTheGrounds({ state, onOpenWorld }: { state: GameState; onOpenWorld: () => void }) {
+  const latestRound = [...state.matchRecords]
+    .filter((record) => !record.userInvolved && record.season === state.season && record.week <= state.week)
+    .sort((a, b) => b.week - a.week || b.round - a.round)
+    .slice(0, 3);
+
+  const recentTransfers = [...(state.football?.transferHistory ?? [])]
+    .filter((record) => record.fromClubId !== state.clubName && record.toClubId !== state.clubName)
+    .slice(-2)
+    .reverse();
+
+  const prediction = state.seasonPredictions.find(
+    (entry) => entry.season === state.season && entry.leagueId === state.playerLeagueId,
+  );
+
+  const stories: { tag: string; headline: string; detail: string }[] = [];
+
+  for (const record of latestRound) {
+    stories.push({
+      tag: "RESULT",
+      headline: `${clubPresentationName(clubDisplayName(state, record.home))} ${record.homeGoals}–${record.awayGoals} ${clubPresentationName(clubDisplayName(state, record.away))}`,
+      detail: `Week ${record.week} · ${record.outcome === "draw" ? "Points shared" : record.outcome === "home" ? "Home win" : "Away win"}`,
+    });
+  }
+
+  for (const transfer of recentTransfers) {
+    const destination = transfer.toClubId ? clubPresentationName(clubDisplayName(state, transfer.toClubId)) : "Free agency";
+    stories.push({
+      tag: "TRANSFER",
+      headline: `${transfer.playerName} joins ${destination}`,
+      detail: transfer.fee > 0 ? `${fmtMoney(transfer.fee)} transfer` : "Free transfer",
+    });
+  }
+
+  if (stories.length < 3 && prediction) {
+    stories.push({
+      tag: "SEASON",
+      headline: `${clubPresentationName(clubDisplayName(state, prediction.predictedChampion))} tipped for the title`,
+      detail: prediction.promotionFavourites.length
+        ? `Promotion watch: ${prediction.promotionFavourites.slice(0, 2).map((club) => clubPresentationName(clubDisplayName(state, club))).join(" · ")}`
+        : "Pre-season predictions",
+    });
+  }
+
+  if (stories.length === 0) {
+    stories.push({
+      tag: "WORLD",
+      headline: "The football world is waking up",
+      detail: "Results, transfers and league stories will appear here as the season develops.",
+    });
+  }
+
+  return (
+    <section className="lf-around-grounds rounded-2xl border bg-card shadow-sm">
+      <div className="lf-home-panel-heading">
+        <span className="lf-heading-label"><Newspaper className="size-3.5" />Around the grounds</span>
+        <button onClick={onOpenWorld}>Football world <ArrowRight className="size-3.5" /></button>
+      </div>
+      <div className="lf-around-feed">
+        {stories.slice(0, 3).map((story, index) => (
+          <button key={`${story.tag}-${story.headline}-${index}`} onClick={onOpenWorld} className="lf-around-story">
+            <span className="lf-around-tag">{story.tag}</span>
+            <span className="min-w-0 flex-1">
+              <strong>{story.headline}</strong>
+              <small>{story.detail}</small>
+            </span>
+            <ArrowRight className="size-4 shrink-0 opacity-45" />
+          </button>
+        ))}
+      </div>
+      <div className="lf-around-ticker" aria-label="Latest football world headlines">
+        <span>{stories.slice(0, 4).map((story) => `${story.tag} · ${story.headline}`).join("   •   ")}</span>
+      </div>
+    </section>
+  );
 }
