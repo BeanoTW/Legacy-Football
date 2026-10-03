@@ -153,7 +153,7 @@ export function SettingsTab({
                     <SaveFact label="Balance" value={`£${(state.cash / 1_000_000).toFixed(1)}m`} />
                   </div>
                 ) : (
-                  <p className="mt-2 text-xs text-muted-foreground">{status === "unreadable" ? "An existing save is protected. Do not clear this slot or browser data." : "Start a new chairman career here."}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">{status === "unreadable" ? "An existing save is protected. Do not clear this slot or browser data." : "Start a new director career here."}</p>
                 )}
                 <div className="mt-3 flex gap-2">
                   {!active && (
