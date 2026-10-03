@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { BriefcaseBusiness, Building2, Check, ChevronDown, CircleAlert, Hammer, History, ShieldCheck, Wrench, X } from "lucide-react";
 import { StadiumGround, type GroundHotspot } from "@/components/game/StadiumGround";
+import { StandBuildChooser } from "@/components/game/GroundStudio";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ import {
   projectCatalogue,
   projectedSeasonDecay,
   setMaintenancePolicy,
+  type ProjectSpec,
 } from "@/lib/game/infrastructure";
 import { facilityCurrentEffect, groundProgression } from "@/lib/game/groundPresentation";
 import { fmtMoneyExact } from "@/lib/game/engine";
@@ -28,6 +30,9 @@ import { fromAbsoluteWeek } from "@/lib/game/time";
 import { stadiumAccreditation } from "@/lib/game/stadiumAccreditation";
 import { clubOperatingModel, professionaliseUserClub, userProfessionalisationReadiness } from "@/lib/game/employment";
 import { userClubReference } from "@/lib/game/clubReference";
+import { clubKitFor } from "@/lib/game/clubKit";
+import { sceneLook, type StandBuild } from "@/lib/game/groundIdentity";
+import { approveStandBuild, isLevelRaising } from "@/lib/game/groundBuild";
 
 type SupportingView = "ground" | "projects" | "maintenance" | "history";
 
@@ -55,6 +60,10 @@ export function FacilitiesTab({ state, update }: { state: GameState; update: (fn
   const progression = useMemo(() => state.infrastructure ? groundProgression(state) : null, [state]);
   const accreditation = useMemo(() => state.infrastructure ? stadiumAccreditation(state) : null, [state]);
   const professional = useMemo(() => state.infrastructure ? userProfessionalisationReadiness(state) : null, [state]);
+  const look = useMemo(() => {
+    const kit = clubKitFor(state).home;
+    return sceneLook(state, { body: kit.body, secondary: kit.secondary });
+  }, [state]);
 
   if (!state.infrastructure || !snap || !progression) {
     return <div className="rounded-lg border bg-card p-6 text-sm text-muted-foreground">The club's physical assets have not been surveyed yet. Advance a week to open the ground.</div>;
@@ -112,7 +121,7 @@ export function FacilitiesTab({ state, update }: { state: GameState; update: (fn
       ) : null}
 
       <div className="lf-ground-layout min-h-0 flex-1">
-        <StadiumGround stage={progression.visualStage} hotspots={hotspots} selectedId={openAssetId} onSelect={(hotspot) => setOpenAssetId(hotspot.asset.id)} />
+        <StadiumGround stage={progression.visualStage} hotspots={hotspots} selectedId={openAssetId} onSelect={(hotspot) => setOpenAssetId(hotspot.asset.id)} look={look} />
 
         <aside className="lf-ground-sidebar space-y-2 pt-2 md:pt-0">
           <section className="border bg-card">
@@ -194,11 +203,20 @@ export function FacilitiesTab({ state, update }: { state: GameState; update: (fn
       </div>
 
       <Sheet open={Boolean(open)} onOpenChange={(isOpen) => { if (!isOpen) setOpenAssetId(null); }}>
-        {open ? <FacilitySheet state={state} asset={open} onApprove={(type) => {
-          const result = approveProject(state, open.id, type);
-          setNote(result.ok ? `Project approved on ${open.name}.` : (result.reason ?? "Unable to approve project."));
-          if (result.ok) { update(() => result.state); setOpenAssetId(null); }
-        }} /> : null}
+        {open ? <FacilitySheet
+          state={state}
+          asset={open}
+          onApprove={(type) => {
+            const result = approveProject(state, open.id, type);
+            setNote(result.ok ? `Project approved on ${open.name}.` : (result.reason ?? "Unable to approve project."));
+            if (result.ok) { update(() => result.state); setOpenAssetId(null); }
+          }}
+          onApproveBuild={(type, build) => {
+            const result = approveStandBuild(state, open.id, type, build);
+            setNote(result.reason);
+            if (result.ok) { update(() => result.state); setOpenAssetId(null); }
+          }}
+        /> : null}
       </Sheet>
     </div>
   );
@@ -266,7 +284,7 @@ function StatusRequirement({ label, met, current, required }: { label: string; m
   return <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 py-0.5 text-[10px]">{met ? <Check className="size-3.5 text-income" /> : <CircleAlert className="size-3.5 text-muted-foreground" />}<span className="truncate">{label}</span><span className="text-right font-mono text-muted-foreground">{current} / {required}</span></div>;
 }
 
-function FacilitySheet({ state, asset, onApprove }: { state: GameState; asset: InfrastructureAsset; onApprove: (type: CapitalProjectType) => void }) {
+function FacilitySheet({ state, asset, onApprove, onApproveBuild }: { state: GameState; asset: InfrastructureAsset; onApprove: (type: CapitalProjectType) => void; onApproveBuild: (type: CapitalProjectType, build: StandBuild) => void }) {
   const config = ASSET_CONFIG[asset.type];
   const catalogue = projectCatalogue(state, asset.id);
   const levelName = config.levels[asset.level - 1] ?? `Level ${asset.level}`;
@@ -275,6 +293,7 @@ function FacilitySheet({ state, asset, onApprove }: { state: GameState; asset: I
   const activeProject = asset.activeProjectId
     ? state.infrastructure?.projects.find((project) => project.id === asset.activeProjectId) ?? null
     : null;
+  const [choosing, setChoosing] = useState<ProjectSpec | null>(null);
   return <SheetContent side="bottom" className="lf-ground-sheet">
     <div className="border-b bg-panel px-4 py-3 text-panel-foreground">
       <div className="flex items-center gap-2 pr-8 text-[10px] font-semibold uppercase tracking-[0.16em] opacity-70">
@@ -286,6 +305,15 @@ function FacilitySheet({ state, asset, onApprove }: { state: GameState; asset: I
       </div>
     </div>
     <div className="lf-ground-sheet-scroll space-y-4 p-4">
+      {choosing ? (
+        <StandBuildChooser
+          state={state}
+          asset={asset}
+          spec={choosing}
+          onCancel={() => setChoosing(null)}
+          onConfirm={(build) => { onApproveBuild(choosing.type, build); setChoosing(null); }}
+        />
+      ) : <>
       <div className="grid grid-cols-3 divide-x border bg-muted/25">
         <GroundMetric label="Level" value={`${asset.level} / ${config.maxLevel}`} />
         <GroundMetric label="Condition" value={`${asset.condition.toFixed(0)}%`} />
@@ -330,6 +358,7 @@ function FacilitySheet({ state, asset, onApprove }: { state: GameState; asset: I
           {catalogue.length === 0 ? <p className="rounded-sm bg-muted/35 p-3 text-sm text-muted-foreground">No further work can be raised here right now.</p> : catalogue.map((spec) => {
             const evaluation = evaluateProject(state, asset.id, spec.type);
             if (!evaluation) return null;
+            const choosesBuild = asset.type === "stand" && isLevelRaising(spec.type);
             return <article key={spec.type} className="rounded-sm border bg-background p-3">
               <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
                 <div className="min-w-0"><h4 className="truncate font-display text-base">{spec.title}</h4><p className="mt-1 text-xs leading-snug text-muted-foreground">{spec.description}</p></div>
@@ -337,15 +366,17 @@ function FacilitySheet({ state, asset, onApprove }: { state: GameState; asset: I
               </div>
               <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
                 <span>{spec.durationWeeks} weeks</span><span>{Math.round(spec.risk)}% risk</span><span>{Math.round((1 - spec.disruption.capacityFactor) * 100)}% disruption</span>
+                {choosesBuild ? <span className="text-primary">You choose the build</span> : null}
               </div>
               {!evaluation.allowed ? <p className="mt-2 text-[10px] text-expense">{evaluation.reason}</p> : null}
-              <Button className="mt-3 w-full" size="sm" disabled={!evaluation.allowed} onClick={() => onApprove(spec.type)}>
-                {evaluation.allowed ? `Approve · ${fmtMoneyExact(spec.cost)}` : "Requirements not met"}
+              <Button className="mt-3 w-full" size="sm" disabled={!evaluation.allowed} onClick={() => choosesBuild ? setChoosing(spec) : onApprove(spec.type)}>
+                {evaluation.allowed ? (choosesBuild ? "Choose the build…" : `Approve · ${fmtMoneyExact(spec.cost)}`) : "Requirements not met"}
               </Button>
             </article>;
           })}
         </div>
       </div>
+      </>}
     </div>
   </SheetContent>;
 }
