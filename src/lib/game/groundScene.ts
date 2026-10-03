@@ -7,7 +7,12 @@
  * primitives in painter's order plus projected anchor points for hotspots.
  *
  * Pure and deterministic: the same inputs always give the same picture.
+ * An optional `look` (from groundIdentity.sceneLook) applies the club's own
+ * choices: seat/roof/cladding colours, stand builds, home end, floodlight
+ * style and mowing pattern. Without it the default ground is drawn.
  */
+
+import type { SceneLook } from "./groundIdentity";
 
 export interface SceneInput {
   /** groundProgression().visualStage, 0 (basic non-league) → 6 (elite). */
@@ -19,6 +24,8 @@ export interface SceneInput {
   /** Viewport size in CSS pixels, used to frame the scene. */
   width: number;
   height: number;
+  /** The club's own look. Optional: omitted means the default ground. */
+  look?: SceneLook;
 }
 
 export interface ScenePrimitive {
@@ -160,6 +167,31 @@ function ellipsePts(cx: number, cy: number, rx: number, ry: number, from = 0, to
   return pts;
 }
 
+/** Clip a ground polygon to an axis-aligned rectangle (Sutherland-Hodgman). */
+function clipToRect(points: V3[], x0: number, y0: number, x1: number, y1: number): V3[] {
+  const edges: Array<[(p: V3) => boolean, (a: V3, b: V3) => V3]> = [
+    [(p) => p.x >= x0, (a, b) => v(x0, a.y + ((b.y - a.y) * (x0 - a.x)) / (b.x - a.x))],
+    [(p) => p.x <= x1, (a, b) => v(x1, a.y + ((b.y - a.y) * (x1 - a.x)) / (b.x - a.x))],
+    [(p) => p.y >= y0, (a, b) => v(a.x + ((b.x - a.x) * (y0 - a.y)) / (b.y - a.y), y0)],
+    [(p) => p.y <= y1, (a, b) => v(a.x + ((b.x - a.x) * (y1 - a.y)) / (b.y - a.y), y1)],
+  ];
+  let out = points;
+  for (const [inside, cut] of edges) {
+    const input = out;
+    out = [];
+    for (let i = 0; i < input.length; i += 1) {
+      const cur = input[i];
+      const prev = input[(i + input.length - 1) % input.length];
+      if (inside(cur)) {
+        if (!inside(prev)) out.push(cut(prev, cur));
+        out.push(cur);
+      } else if (inside(prev)) out.push(cut(prev, cur));
+    }
+    if (!out.length) break;
+  }
+  return out;
+}
+
 /* ------------------------------------------------------------------ */
 /* Scene assembly                                                      */
 /* ------------------------------------------------------------------ */
@@ -290,7 +322,7 @@ function prismFaces(section: Array<[number, number]>, a0: number, a1: number, to
 /* Palette                                                             */
 /* ------------------------------------------------------------------ */
 
-const C = {
+const BASE_C = {
   field: ["#7aa24a", "#6f9a42", "#86ab55", "#94aa5d", "#6a9140"],
   hedge: "#35592a",
   treeDark: "#2c5226",
@@ -319,7 +351,14 @@ const C = {
   lightHead: "#fff2b0",
   crane: "#e6b422",
   road: "#6b6f72",
+  terrace: "#a9adae",
+  barrier: "#59636b",
 };
+
+/** The palette in use for the scene being built (reset per build). */
+const C = { ...BASE_C, field: [...BASE_C.field] };
+/** The look in use for the scene being built (reset per build). */
+let LOOK: SceneLook | undefined;
 
 /* ------------------------------------------------------------------ */
 /* Scene pieces                                                        */
@@ -449,12 +488,33 @@ function pitch(scene: Scene, stage: number, condition: number) {
   const runY = stage >= 2 ? 6 : 5;
   scene.flat(rect(-HALF_L - runX, -HALF_W - runY, HALF_L + runX, HALF_W + runY), C.surround);
 
-  // Mowing stripes across the pitch.
+  // Mowing: stripes across the pitch by default, or the club's own pattern.
+  const mowing = LOOK?.mowing ?? "stripes";
   const stripes = 12;
-  for (let i = 0; i < stripes; i += 1) {
-    const x0 = -HALF_L + (i * 2 * HALF_L) / stripes;
-    const x1 = x0 + (2 * HALF_L) / stripes;
-    scene.flat(rect(x0, -HALF_W, x1, HALF_W), i % 2 ? C.pitchA : C.pitchB);
+  if (mowing === "checks") {
+    const rows = 8;
+    for (let i = 0; i < stripes; i += 1) {
+      for (let j = 0; j < rows; j += 1) {
+        const x0 = -HALF_L + (i * 2 * HALF_L) / stripes;
+        const y0 = -HALF_W + (j * 2 * HALF_W) / rows;
+        scene.flat(rect(x0, y0, x0 + (2 * HALF_L) / stripes, y0 + (2 * HALF_W) / rows), (i + j) % 2 ? C.pitchA : C.pitchB);
+      }
+    }
+  } else if (mowing === "diagonal") {
+    scene.flat(rect(-HALF_L, -HALF_W, HALF_L, HALF_W), C.pitchB);
+    const band = 9;
+    for (let k = -14; k <= 14; k += 2) {
+      const c0 = k * band;
+      const poly = [v(c0 - HALF_W, -HALF_W), v(c0 - HALF_W + band, -HALF_W), v(c0 + HALF_W + band, HALF_W), v(c0 + HALF_W, HALF_W)];
+      const clipped = clipToRect(poly, -HALF_L, -HALF_W, HALF_L, HALF_W);
+      if (clipped.length >= 3) scene.flat(clipped, C.pitchA);
+    }
+  } else {
+    for (let i = 0; i < stripes; i += 1) {
+      const x0 = -HALF_L + (i * 2 * HALF_L) / stripes;
+      const x1 = x0 + (2 * HALF_L) / stripes;
+      scene.flat(rect(x0, -HALF_W, x1, HALF_W), i % 2 ? C.pitchA : C.pitchB);
+    }
   }
 
   // Wear: goalmouths and the centre go first.
@@ -582,6 +642,23 @@ function floodlight(scene: Scene, x: number, y: number, h: number, faceX: number
   );
 }
 
+/** A row of lamps along a roof front: the "gantry" floodlight style. */
+function gantryLights(scene: Scene, y: number, z: number, from: number, to: number) {
+  for (let x = from; x <= to; x += 7) {
+    const head = [v(x - 1.6, y, z), v(x + 1.6, y, z), v(x + 1.6, y, z + 0.8), v(x - 1.6, y, z + 0.8)];
+    const glow = project(v(x, y, z + 0.4));
+    const gr = (FOCAL * 2.2) / glow.d;
+    scene.add(
+      [
+        { d: pathOf(head), fill: "#3b4148", stroke: "#23282d", sw: 0.5 },
+        { d: pathOf(head.map((p) => v(p.x, p.y - Math.sign(y) * 0.12, p.z))), fill: C.lightHead, opacity: 0.85 },
+        { d: `M${f1(glow.x - gr)} ${f1(glow.y)}a${f1(gr)} ${f1(gr)} 0 1 0 ${f1(gr * 2)} 0a${f1(gr)} ${f1(gr)} 0 1 0 ${f1(-gr * 2)} 0`, fill: "#fff6c8", opacity: 0.07 },
+      ],
+      v(x, y, z + 2),
+    );
+  }
+}
+
 type Side = "W" | "E" | "N" | "S";
 
 /** Maps stand-local coordinates (along the touchline, outwards, up) to world. */
@@ -612,6 +689,10 @@ interface StandSpec {
   /** Adds a second, steeper tier behind a hospitality band. */
   upper?: { depth: number; rake: number };
   back?: string;
+  /** Standing terrace: crush barriers instead of seat rows. */
+  terrace?: boolean;
+  /** Cantilever roof: no columns at the front. */
+  cantilever?: boolean;
 }
 
 /** Returns the anchor (roof centre) for hotspot placement. */
@@ -620,18 +701,29 @@ function stand(scene: Scene, spec: StandSpec): V3 {
   const prims: ScenePrimitive[] = [];
   const shadowPts: V3[] = [];
   const back = spec.back ?? C.cladding;
+  const deckColour = spec.terrace ? C.terrace : spec.seat;
 
   // Lower tier: raked deck.
   const lowerTop = spec.rake;
   const deck: Array<[number, number]> = [[0, 0], [0, 1.1], [spec.depth, lowerTop], [spec.depth, 0]];
-  prims.push(...solid(prismFaces(deck, spec.from, spec.to, W), C.concrete, { faceColors: [back, back, C.concrete, C.concrete, spec.seat, back] }));
-  // Seat rows.
+  prims.push(...solid(prismFaces(deck, spec.from, spec.to, W), C.concrete, { faceColors: [back, back, C.concrete, C.concrete, deckColour, back] }));
+  // Seat rows, or crush barriers on a terrace.
   const rows = Math.max(3, Math.round(spec.depth / 1.6));
   for (let r = 1; r < rows; r += 1) {
+    if (spec.terrace && r % 2) continue;
     const t = r / rows;
-    const a = W(spec.from + 0.5, spec.depth * t, 1.1 + (lowerTop - 1.1) * t);
-    const b = W(spec.to - 0.5, spec.depth * t, 1.1 + (lowerTop - 1.1) * t);
-    prims.push({ d: pathOf([a, b], false), fill: "none", stroke: shade(spec.seat, 0.72), sw: widthAt(a, 0.8), opacity: 0.9 });
+    const z = 1.1 + (lowerTop - 1.1) * t;
+    if (spec.terrace) {
+      for (let g = spec.from + 2; g < spec.to - 2; g += 9) {
+        const a = W(g, spec.depth * t, z + 0.9);
+        const b = W(Math.min(spec.to - 2, g + 6), spec.depth * t, z + 0.9);
+        prims.push({ d: pathOf([a, b], false), fill: "none", stroke: C.barrier, sw: widthAt(a, 0.7), opacity: 0.95 });
+      }
+    } else {
+      const a = W(spec.from + 0.5, spec.depth * t, z);
+      const b = W(spec.to - 0.5, spec.depth * t, z);
+      prims.push({ d: pathOf([a, b], false), fill: "none", stroke: shade(spec.seat, 0.72), sw: widthAt(a, 0.8), opacity: 0.9 });
+    }
   }
   // Gangways.
   for (let g = spec.from + 12; g < spec.to - 6; g += 14) {
@@ -669,10 +761,12 @@ function stand(scene: Scene, spec: StandSpec): V3 {
     // Back wall up to the roof, supporting columns, then the roof slab.
     const wall: Array<[number, number]> = [[depth, 0], [depth, roofZ], [depth + 0.6, roofZ], [depth + 0.6, 0]];
     prims.push(...solid(prismFaces(wall, spec.from, spec.to, W), back));
-    for (let c = spec.from + 2; c <= spec.to - 2; c += Math.max(12, (spec.to - spec.from) / 5)) {
-      const a = W(c, 0.4, 1.1);
-      const b = W(c, 0.4, roofZ - 0.6);
-      prims.push({ d: pathOf([a, b], false), fill: "none", stroke: "#e7e9ea", sw: widthAt(a, 1.1) });
+    if (!spec.cantilever) {
+      for (let c = spec.from + 2; c <= spec.to - 2; c += Math.max(12, (spec.to - spec.from) / 5)) {
+        const a = W(c, 0.4, 1.1);
+        const b = W(c, 0.4, roofZ - 0.6);
+        prims.push({ d: pathOf([a, b], false), fill: "none", stroke: "#e7e9ea", sw: widthAt(a, 1.1) });
+      }
     }
     const roof: Array<[number, number]> = [[-1.5, roofZ - 0.5], [-1.5, roofZ], [depth + 0.8, roofZ + 1.6], [depth + 0.8, roofZ + 0.9]];
     prims.push(...solid(prismFaces(roof, spec.from - 0.5, spec.to + 0.5, W), C.roof, { faceColors: [C.roofDark, C.roofDark, C.roofDark, C.roof, C.roofDark, C.roofDark] }));
@@ -692,6 +786,34 @@ function stand(scene: Scene, spec: StandSpec): V3 {
   const anchor = W((spec.from + spec.to) / 2, (depth + 0.6) / 2, spec.roof ? roofZ + 1 : top + 1);
   scene.add(prims, W((spec.from + spec.to) / 2, depth / 2, top / 2));
   return anchor;
+}
+
+/** Apply the club's build for this side to a default stand spec. */
+function styled(spec: StandSpec, stage: number): StandSpec {
+  const build = LOOK?.stands?.[spec.side];
+  const out: StandSpec = { ...spec };
+  if (LOOK?.twoTone && (spec.side === "E" || spec.side === "N" || spec.side === "S")) out.seat = C.seatAlt;
+  if (build) {
+    out.terrace = build.terrace;
+    if (stage >= 3 && spec.roof) {
+      if (build.roof === "cantilever") {
+        out.cantilever = true;
+        out.upper = undefined;
+      } else if (build.roof === "pitched") {
+        out.upper = undefined;
+      } else if (build.roof === "twoTier" && !out.upper) {
+        out.upper = { depth: 7, rake: 5.5 };
+      }
+    }
+  }
+  // The home end: a deep, single-tier Kop.
+  if (LOOK?.homeEnd === spec.side && stage >= 2) {
+    out.depth = spec.depth + 3;
+    out.rake = spec.rake + 1.5;
+    out.roof = true;
+    out.upper = undefined;
+  }
+  return out;
 }
 
 /** Simple building with a pitched or flat roof. Returns the roof anchor. */
@@ -867,23 +989,26 @@ function compose(scene: Scene, input: SceneInput, anchors: Record<string, V3>) {
   }
 
   /* ---- Floodlights ---- */
+  const lightStyle = stage <= 1 ? "auto" : LOOK?.floodlights ?? "auto";
   if (stage <= 1) {
     const h = stage === 0 ? 15 : 18;
     for (const x of [-38, 0, 38]) {
       floodlight(scene, x, HALF_W + 7, h, x, 0);
       floodlight(scene, x, -HALF_W - 7, h, x, 0);
     }
-  } else if (stage <= 4) {
-    const h = 20 + stage * 3;
+  } else if (lightStyle === "pylons" || (lightStyle === "auto" && stage >= 5)) {
+    const h = stage >= 5 ? 44 : 34;
+    for (const [x, y] of [[-76, 60], [76, 60], [76, -58], [-76, -58]]) floodlight(scene, x, y, h, 0, 0, true);
+  } else if (lightStyle === "masts" || lightStyle === "auto") {
+    const h = 20 + Math.min(stage, 4) * 3;
     const westY = stage === 2 ? 51 : stage === 3 ? 54 : 64;
     const eastY = stage === 2 ? -47 : stage === 3 ? -51 : -53;
     for (const x of [-42, -14, 14, 42]) {
       floodlight(scene, x, westY, h + 6, x, 0);
       floodlight(scene, x, eastY, h, x, 0);
     }
-  } else {
-    for (const [x, y] of [[-76, 60], [76, 60], [76, -58], [-76, -58]]) floodlight(scene, x, y, 44, 0, 0, true);
   }
+  // Gantries are drawn on the roof fronts once the stands exist (below).
 
   /* ---- West (main) and East sides ---- */
   const westFront = HALF_W + 7;
@@ -907,7 +1032,7 @@ function compose(scene: Scene, input: SceneInput, anchors: Record<string, V3>) {
             : stage === 4
               ? { side: "W", from: -52, to: 52, front: westFront, depth: 13, rake: 7, roof: true, seat: C.seat, upper: { depth: 8, rake: 6 } }
               : { side: "W", from: -56, to: 56, front: westFront, depth: 14, rake: 7.5, roof: true, seat: C.seat, upper: { depth: 12, rake: 10 } };
-    anchors.main = stand(scene, main);
+    anchors.main = stand(scene, styled(main, stage));
 
     const east: StandSpec =
       stage === 1
@@ -917,7 +1042,13 @@ function compose(scene: Scene, input: SceneInput, anchors: Record<string, V3>) {
           : stage <= 4
             ? { side: "E", from: -48, to: 48, front: eastFront, depth: stage === 3 ? 9 : 11, rake: stage === 3 ? 4.5 : 6, roof: true, seat: C.seatAlt }
             : { side: "E", from: -56, to: 56, front: eastFront, depth: 13, rake: 7, roof: true, seat: C.seatAlt, upper: stage === 6 ? { depth: 10, rake: 8 } : undefined };
-    anchors.stands = stand(scene, east);
+    anchors.stands = stand(scene, styled(east, stage));
+
+    if (lightStyle === "gantry" && stage >= 2) {
+      const z = 8 + Math.min(stage, 4) * 2.2;
+      gantryLights(scene, westFront - 1.4, z, -40, 40);
+      gantryLights(scene, -(eastFront - 1.4), z - 2, -40, 40);
+    }
   }
 
   /* ---- Ends ---- */
@@ -928,8 +1059,8 @@ function compose(scene: Scene, input: SceneInput, anchors: Record<string, V3>) {
         : stage === 3
           ? { side, from: -30, to: 30, front: HALF_L + 7, depth: 8, rake: 4, roof: true, seat: C.seatAlt }
           : { side, from: -34, to: 34, front: HALF_L + 7, depth: stage >= 5 ? 14 : 10, rake: stage >= 5 ? 8 : 5.5, roof: true, seat: C.seatAlt, upper: stage === 6 ? { depth: 8, rake: 7 } : undefined };
-    stand(scene, endSpec("N"));
-    stand(scene, endSpec("S"));
+    stand(scene, styled(endSpec("N"), stage));
+    stand(scene, styled(endSpec("S"), stage));
   }
   if (stage >= 4) {
     // Corners filled with lower infill blocks.
@@ -986,6 +1117,17 @@ function compose(scene: Scene, input: SceneInput, anchors: Record<string, V3>) {
 /* ------------------------------------------------------------------ */
 
 export function buildGroundScene(input: SceneInput): SceneOutput {
+  // Reset the palette and look for this build (pure: same input, same picture).
+  Object.assign(C, BASE_C, { field: [...BASE_C.field] });
+  LOOK = input.look;
+  if (LOOK) {
+    C.seat = LOOK.seat;
+    C.seatAlt = LOOK.seatAlt;
+    C.roof = LOOK.roof;
+    C.roofDark = LOOK.roofDark;
+    C.brick = LOOK.cladding;
+  }
+
   const scene = new Scene();
   const anchors: Record<string, V3> = {};
   compose(scene, input, anchors);

@@ -1,0 +1,341 @@
+/* =========================================================================
+   Ground identity: how the club's ground is built and how it looks
+   -------------------------------------------------------------------------
+   - Stand builds: when a stand's level is raised (expansion, replacement or
+     redevelopment) the club chooses how: covered terrace, safe standing or
+     all-seater, and (from Modern stand up) the roof. Each has authentic
+     trade-offs in cost, capacity and atmosphere.
+   - Aesthetics: ground name, seat colours, roof and cladding, floodlights,
+     mowing pattern and a home end.
+
+   Pure and dependency-light: imports types only, so infrastructure.ts and
+   stadiumAccreditation.ts can both read it without import cycles. A build
+   only takes effect when the project it was chosen with has completed.
+========================================================================= */
+
+import type { GameState } from "./types";
+
+export type Standing = "terrace" | "safeStanding" | "seated";
+export type RoofStyle = "pitched" | "cantilever" | "twoTier";
+export type SeatScheme = "club" | "twoTone" | "classic" | "mono";
+export type RoofColour = "slate" | "club" | "white" | "charcoal";
+export type Cladding = "brick" | "modern" | "white";
+export type FloodlightStyle = "auto" | "pylons" | "masts" | "gantry";
+export type Mowing = "stripes" | "checks" | "diagonal";
+export type StandSide = "N" | "E" | "S" | "W";
+
+export interface StandBuild {
+  standing: Standing;
+  roof: RoofStyle;
+}
+
+export interface GroundIdentityState {
+  groundName?: string;
+  seats: SeatScheme;
+  roof: RoofColour;
+  cladding: Cladding;
+  floodlights: FloodlightStyle;
+  mowing: Mowing;
+  /** Which end is the home end (the Kop), if any. */
+  homeEnd: "N" | "S" | null;
+  /** Builds in force, by stand asset id. */
+  stands: Record<string, StandBuild>;
+  /** Builds chosen with a project that has not completed yet. */
+  pending: Record<string, StandBuild & { projectId: string }>;
+  /** Number of paid cosmetic changes (keeps finance dedupe keys unique). */
+  changes: number;
+}
+
+declare module "./types" {
+  interface GameState {
+    /** Optional: saves without it use the default look. */
+    groundIdentity?: GroundIdentityState;
+  }
+}
+
+export const DEFAULT_GROUND_IDENTITY: GroundIdentityState = {
+  seats: "classic",
+  roof: "slate",
+  cladding: "brick",
+  floodlights: "auto",
+  mowing: "stripes",
+  homeEnd: null,
+  stands: {},
+  pending: {},
+  changes: 0,
+};
+
+export function groundIdentity(s: GameState): GroundIdentityState {
+  return { ...DEFAULT_GROUND_IDENTITY, ...(s.groundIdentity ?? {}) };
+}
+
+/* ------------------------------------------------------------------ */
+/* Build options                                                       */
+/* ------------------------------------------------------------------ */
+
+export interface BuildOption<T extends string> {
+  id: T;
+  label: string;
+  blurb: string;
+  /** Multiplier on the project cost. */
+  cost: number;
+  /** Multiplier on any capacity the project adds. */
+  capacity: number;
+  pros: string;
+  cons: string;
+}
+
+export const STANDING_OPTIONS: readonly BuildOption<Standing>[] = [
+  {
+    id: "terrace",
+    label: "Covered terrace",
+    blurb: "Standing room under a roof. Loud, packed, proper football.",
+    cost: 0.9,
+    capacity: 1.25,
+    pros: "Most capacity per pound · best atmosphere",
+    cons: "Doesn't count as seating for EFL ground grading",
+  },
+  {
+    id: "safeStanding",
+    label: "Safe standing",
+    blurb: "Rail seats: a seat for every place, standing allowed.",
+    cost: 1.1,
+    capacity: 1.1,
+    pros: "Counts as seating · strong atmosphere",
+    cons: "Costs more than a plain all-seater",
+  },
+  {
+    id: "seated",
+    label: "All-seater",
+    blurb: "Conventional seating throughout.",
+    cost: 1,
+    capacity: 1,
+    pros: "Counts as seating · standard cost",
+    cons: "Quietest of the three",
+  },
+];
+
+export const ROOF_OPTIONS: readonly BuildOption<RoofStyle>[] = [
+  {
+    id: "pitched",
+    label: "Traditional roof",
+    blurb: "Pitched roof on columns, like the grounds of old.",
+    cost: 0.9,
+    capacity: 1,
+    pros: "Cheaper · heritage feel",
+    cons: "Columns block some views",
+  },
+  {
+    id: "cantilever",
+    label: "Cantilever roof",
+    blurb: "No columns, a clear view from every seat.",
+    cost: 1.15,
+    capacity: 1,
+    pros: "Clear views lift demand",
+    cons: "15% dearer",
+  },
+  {
+    id: "twoTier",
+    label: "Two tiers + hospitality",
+    blurb: "An upper tier over a glazed hospitality band.",
+    cost: 1.25,
+    capacity: 1.05,
+    pros: "+150 hospitality places · bigger stand",
+    cons: "25% dearer",
+  },
+];
+
+/** Projects that raise a stand's level, where the build is chosen. */
+export const LEVEL_RAISING_TYPES = ["capacityExpansion", "replacement", "standRedevelopment"] as const;
+
+export function levelAfterProject(type: string, currentLevel: number): number {
+  return Math.min(5, currentLevel + (type === "standRedevelopment" ? 2 : 1));
+}
+
+/** Roof choices open up as stands get bigger. */
+export function roofOptionsFor(resultingLevel: number): BuildOption<RoofStyle>[] {
+  if (resultingLevel < 3) return [];
+  return ROOF_OPTIONS.filter((option) => option.id !== "twoTier" || resultingLevel >= 4);
+}
+
+export function buildCostMultiplier(build: StandBuild, resultingLevel: number): number {
+  const standing = STANDING_OPTIONS.find((o) => o.id === build.standing)?.cost ?? 1;
+  const roof = resultingLevel >= 3 ? ROOF_OPTIONS.find((o) => o.id === build.roof)?.cost ?? 1 : 1;
+  return Math.round(standing * roof * 1000) / 1000;
+}
+
+export function buildCapacityMultiplier(build: StandBuild, resultingLevel: number): number {
+  const standing = STANDING_OPTIONS.find((o) => o.id === build.standing)?.capacity ?? 1;
+  const roof = resultingLevel >= 3 ? ROOF_OPTIONS.find((o) => o.id === build.roof)?.capacity ?? 1 : 1;
+  return standing * roof;
+}
+
+/** The build in force for a stand (pending builds count once their project completes). */
+export function standBuild(s: GameState, assetId: string, level?: number): StandBuild {
+  const identity = groundIdentity(s);
+  const pending = identity.pending[assetId];
+  if (pending) {
+    const project = s.infrastructure?.projects?.find((p) => p.id === pending.projectId);
+    if (project?.status === "completed") return { standing: pending.standing, roof: pending.roof };
+  }
+  const applied = identity.stands[assetId];
+  if (applied) return applied;
+  const lvl = level ?? s.infrastructure?.assets?.find((a) => a.id === assetId)?.level ?? 1;
+  // Defaults match how the ground has always been drawn.
+  return { standing: lvl <= 1 ? "terrace" : "seated", roof: lvl >= 4 ? "twoTier" : "pitched" };
+}
+
+/** A build the club actually chose (applied, or pending with a completed project). */
+export function chosenStandBuild(s: GameState, assetId: string): StandBuild | undefined {
+  const identity = groundIdentity(s);
+  const pending = identity.pending[assetId];
+  if (pending) {
+    const project = s.infrastructure?.projects?.find((p) => p.id === pending.projectId);
+    if (project?.status === "completed") return { standing: pending.standing, roof: pending.roof };
+  }
+  return identity.stands[assetId];
+}
+
+/** Covered terraces don't count as seating for ground grading. */
+export function standCountsAsSeating(s: GameState, assetId: string, level: number): boolean {
+  if (level < 2) return false;
+  return standBuild(s, assetId, level).standing !== "terrace";
+}
+
+/* ------------------------------------------------------------------ */
+/* Atmosphere: feeds infrastructure.facilityModifiers                  */
+/* ------------------------------------------------------------------ */
+
+export interface GroundIdentityModifiers {
+  /** Additive to the supporter-demand multiplier. */
+  supporterDemand: number;
+  /** Additive fan-happiness points. */
+  fanHappiness: number;
+}
+
+export function groundIdentityModifiers(s: GameState): GroundIdentityModifiers {
+  const standAssets = (s.infrastructure?.assets ?? []).filter((a) => a.type === "stand" && a.status !== "closed");
+  let demand = 0;
+  let fans = 0;
+  for (const stand of standAssets) {
+    if (stand.level < 2) continue; // basic terraces are the baseline
+    const build = standBuild(s, stand.id, stand.level);
+    if (build.standing === "terrace") { demand += 0.012; fans += 0.4; }
+    if (build.standing === "safeStanding") { demand += 0.008; fans += 0.3; }
+    if (stand.level >= 3) {
+      if (build.roof === "cantilever") demand += 0.006;
+      if (build.roof === "pitched") { demand -= 0.004; fans += 0.1; }
+    }
+  }
+  const identity = groundIdentity(s);
+  if (identity.homeEnd && standAssets.some((a) => a.location === identity.homeEnd && a.level >= 2)) {
+    demand += 0.01;
+    fans += 0.5;
+  }
+  if (identity.groundName) fans += 0.1;
+  return {
+    supporterDemand: Math.max(-0.02, Math.min(0.06, Math.round(demand * 1000) / 1000)),
+    fanHappiness: Math.max(-1, Math.min(2.5, Math.round(fans * 10) / 10)),
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Looks                                                               */
+/* ------------------------------------------------------------------ */
+
+export const SEAT_SCHEMES: { id: SeatScheme; label: string }[] = [
+  { id: "club", label: "Club colour" },
+  { id: "twoTone", label: "Two-tone" },
+  { id: "classic", label: "Classic teal" },
+  { id: "mono", label: "Grey" },
+];
+export const ROOF_COLOURS: { id: RoofColour; label: string; hex: string; dark: string }[] = [
+  { id: "slate", label: "Slate", hex: "#56616c", dark: "#3e4852" },
+  { id: "club", label: "Club colour", hex: "", dark: "" },
+  { id: "white", label: "White", hex: "#dfe3e6", dark: "#b9c0c6" },
+  { id: "charcoal", label: "Charcoal", hex: "#33383d", dark: "#24282c" },
+];
+export const CLADDINGS: { id: Cladding; label: string; hex: string }[] = [
+  { id: "brick", label: "Red brick", hex: "#9a5d42" },
+  { id: "modern", label: "Grey cladding", hex: "#c9ccd0" },
+  { id: "white", label: "White render", hex: "#eceae4" },
+];
+export const FLOODLIGHT_STYLES: { id: FloodlightStyle; label: string }[] = [
+  { id: "auto", label: "Match the ground" },
+  { id: "masts", label: "Side masts" },
+  { id: "pylons", label: "Corner pylons" },
+  { id: "gantry", label: "Roof gantries" },
+];
+export const MOWING_PATTERNS: { id: Mowing; label: string }[] = [
+  { id: "stripes", label: "Stripes" },
+  { id: "checks", label: "Checks" },
+  { id: "diagonal", label: "Diagonal" },
+];
+
+/** What the 3D scene needs. Colours come from the club kit where asked. */
+export interface SceneLook {
+  seat: string;
+  seatAlt: string;
+  twoTone: boolean;
+  roof: string;
+  roofDark: string;
+  cladding: string;
+  floodlights: FloodlightStyle;
+  mowing: Mowing;
+  homeEnd: "N" | "S" | null;
+  stands: Partial<Record<StandSide, { terrace: boolean; roof: RoofStyle | "open" }>>;
+}
+
+function darken(hex: string, f: number): string {
+  const h = hex.replace("#", "");
+  const c = (i: number) => Math.max(0, Math.min(255, Math.round(parseInt(h.slice(i, i + 2), 16) * f)));
+  return `#${[c(0), c(2), c(4)].map((n) => n.toString(16).padStart(2, "0")).join("")}`;
+}
+
+export function sceneLook(s: GameState, clubColours: { body: string; secondary: string }): SceneLook {
+  const identity = groundIdentity(s);
+  const seats =
+    identity.seats === "club"
+      ? [clubColours.body, darken(clubColours.body, 0.8)]
+      : identity.seats === "twoTone"
+        ? [clubColours.body, clubColours.secondary]
+        : identity.seats === "mono"
+          ? ["#7d858b", "#6c7379"]
+          : ["#1f6f69", "#185a55"];
+  const roof = ROOF_COLOURS.find((r) => r.id === identity.roof) ?? ROOF_COLOURS[0];
+  const roofHex = roof.id === "club" ? darken(clubColours.body, 0.85) : roof.hex;
+  const roofDark = roof.id === "club" ? darken(clubColours.body, 0.62) : roof.dark;
+  const stands: SceneLook["stands"] = {};
+  for (const stand of (s.infrastructure?.assets ?? []).filter((a) => a.type === "stand")) {
+    const side = stand.location as StandSide;
+    if (!["N", "E", "S", "W"].includes(side)) continue;
+    // Only stands the club has built its own way change the drawing.
+    const build = chosenStandBuild(s, stand.id);
+    if (!build) continue;
+    stands[side] = { terrace: build.standing === "terrace", roof: stand.level >= 3 ? build.roof : "pitched" };
+  }
+  return {
+    seat: seats[0],
+    seatAlt: seats[1],
+    twoTone: identity.seats === "twoTone",
+    roof: roofHex,
+    roofDark,
+    cladding: (CLADDINGS.find((c) => c.id === identity.cladding) ?? CLADDINGS[0]).hex,
+    floodlights: identity.floodlights,
+    mowing: identity.mowing,
+    homeEnd: identity.homeEnd,
+    stands,
+  };
+}
+
+/** Repainting seats costs per place; recolouring roofs or re-cladding per stand. */
+export function cosmeticCost(s: GameState, change: Partial<GroundIdentityState>): number {
+  const identity = groundIdentity(s);
+  const standAssets = (s.infrastructure?.assets ?? []).filter((a) => a.type === "stand");
+  const places = standAssets.filter((a) => a.level >= 2).reduce((t, a) => t + a.capacity, 0);
+  let cost = 0;
+  if (change.seats && change.seats !== identity.seats) cost += Math.round(places * 1.5);
+  if (change.roof && change.roof !== identity.roof) cost += standAssets.length * 6_000;
+  if (change.cladding && change.cladding !== identity.cladding) cost += 9_000;
+  return Math.round(cost / 100) * 100;
+}

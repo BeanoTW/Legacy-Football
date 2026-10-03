@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { InfrastructureAsset } from "@/lib/game/types";
 import { conditionBand } from "@/lib/game/infrastructure";
 import { buildGroundScene } from "@/lib/game/groundScene";
+import type { SceneLook } from "@/lib/game/groundIdentity";
 import { cn } from "@/lib/utils";
 
 export interface GroundHotspot {
@@ -130,11 +131,14 @@ export function StadiumGround({
   hotspots,
   selectedId,
   onSelect,
+  look,
 }: {
   stage: number;
   hotspots: GroundHotspot[];
   selectedId: string | null;
   onSelect: (hotspot: GroundHotspot) => void;
+  /** The club's own look (groundIdentity.sceneLook). Optional. */
+  look?: SceneLook;
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const { width, height } = useViewportSize(viewportRef);
@@ -145,6 +149,8 @@ export function StadiumGround({
     .map((h) => h.id)
     .sort()
     .join(",");
+  // Rebuild only when the look actually changes, not on every render.
+  const lookKey = look ? JSON.stringify(look) : "";
 
   const scene = useMemo(
     () =>
@@ -154,8 +160,9 @@ export function StadiumGround({
         worksAt: worksKey ? worksKey.split(",") : [],
         width,
         height,
+        look: lookKey ? (JSON.parse(lookKey) as SceneLook) : undefined,
       }),
-    [height, pitchCondition, stage, width, worksKey],
+    [height, lookKey, pitchCondition, stage, width, worksKey],
   );
 
   const strokeScale = scene.viewBox.w / width;
