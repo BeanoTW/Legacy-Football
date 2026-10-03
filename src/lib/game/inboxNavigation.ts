@@ -41,7 +41,9 @@ export function inboxDestination(state: GameState, item: InboxItem): InboxDestin
     const negotiation = openNegotiations(state).find(
       (candidate) =>
         item.eventKey === `${item.generatorId}:${candidate.id}` ||
-        item.eventKey.startsWith(`${item.generatorId}:${candidate.id}:r`),
+        item.eventKey.startsWith(`${item.generatorId}:${candidate.id}:r`) ||
+        item.eventKey.includes(`:${candidate.id}:`) ||
+        item.eventKey.endsWith(`:${candidate.id}`),
     );
     if (negotiation) {
       return { tab: "recruitment", view: "operations", negotiationId: negotiation.id, label: "View negotiation" };

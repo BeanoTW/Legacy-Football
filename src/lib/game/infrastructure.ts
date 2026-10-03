@@ -40,11 +40,57 @@ import { groundIdentityModifiers } from "./groundIdentity";
 import { seededRng, rngRange } from "./rng";
 import { assessSpend, postEntry } from "./finance";
 import { economicProfileForLevel } from "./levelEconomy";
-import { footballLevelOfUser } from "./footballLevel";
+import { footballLevelOfUser, type FootballLevel } from "./footballLevel";
 import { archivedBucketSum } from "./archive";
 
 const int = (n: number) => Math.round(Number.isFinite(n) ? n : 0);
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
+
+/**
+ * Capital works scale with the standard of football rather than using one
+ * national price list. Lower-league projects are simpler in specification and
+ * delivery, but real labour/material floors remain — especially for repairs.
+ */
+const CAPITAL_PROJECT_COST_FACTOR: Record<FootballLevel, number> = {
+  1: 1,
+  2: 0.9,
+  3: 0.8,
+  4: 0.7,
+  5: 0.6,
+  6: 0.52,
+  7: 0.45,
+  8: 0.4,
+};
+
+const REPAIR_PROJECT_COST_FACTOR: Record<FootballLevel, number> = {
+  1: 1,
+  2: 0.95,
+  3: 0.9,
+  4: 0.85,
+  5: 0.78,
+  6: 0.72,
+  7: 0.65,
+  8: 0.6,
+};
+
+const REPAIR_COST_TYPES = new Set<CapitalProjectType>([
+  "minorRepair",
+  "majorRepair",
+  "refurbishment",
+]);
+
+export function projectCostFactorForLevel(
+  level: FootballLevel,
+  type: CapitalProjectType,
+): number {
+  return REPAIR_COST_TYPES.has(type)
+    ? REPAIR_PROJECT_COST_FACTOR[level]
+    : CAPITAL_PROJECT_COST_FACTOR[level];
+}
+
+function projectCost(s: GameState, type: CapitalProjectType, baseCost: number): number {
+  return int(baseCost * projectCostFactorForLevel(footballLevelOfUser(s), type));
+}
 
 /** Four playing weeks = one deterioration period. */
 export const DETERIORATION_PERIOD_WEEKS = 4;
@@ -1046,7 +1092,7 @@ export function projectCatalogue(s: GameState, assetId: string): ProjectSpec[] {
       title: `${a.name} — minor repair`,
       description:
         "Patch-up works by the club's own contractors. Restores up to 15 points of condition.",
-      cost: int((6_000 + cfg.maintenanceCost * 8) * scale * levelScale),
+      cost: projectCost(s, "minorRepair", (6_000 + cfg.maintenanceCost * 8) * scale * levelScale),
       durationWeeks: 1,
       major: false,
       risk: 10,
@@ -1059,7 +1105,7 @@ export function projectCatalogue(s: GameState, assetId: string): ProjectSpec[] {
       type: "majorRepair",
       title: `${a.name} — major repair`,
       description: "Structural repair programme. Restores up to 35 points of condition.",
-      cost: int((28_000 + cfg.maintenanceCost * 26) * scale * levelScale),
+      cost: projectCost(s, "majorRepair", (28_000 + cfg.maintenanceCost * 26) * scale * levelScale),
       durationWeeks: 3,
       major: true,
       risk: 28,
@@ -1073,7 +1119,7 @@ export function projectCatalogue(s: GameState, assetId: string): ProjectSpec[] {
       title: `${a.name} — full refurbishment`,
       description:
         "Strip back and rebuild the interior. Restores condition to near new and slows future wear.",
-      cost: int((120_000 + cfg.maintenanceCost * 90) * scale * levelScale),
+      cost: projectCost(s, "refurbishment", (120_000 + cfg.maintenanceCost * 90) * scale * levelScale),
       durationWeeks: 8,
       major: true,
       risk: 42,
@@ -1092,7 +1138,7 @@ export function projectCatalogue(s: GameState, assetId: string): ProjectSpec[] {
       title: `${a.name} — replacement`,
       description:
         "Demolish and rebuild the asset from scratch. Very expensive and very disruptive.",
-      cost: int((420_000 + cfg.maintenanceCost * 260) * scale * levelScale),
+      cost: projectCost(s, "replacement", (420_000 + cfg.maintenanceCost * 260) * scale * levelScale),
       durationWeeks: 16,
       major: true,
       risk: 62,
@@ -1113,7 +1159,7 @@ export function projectCatalogue(s: GameState, assetId: string): ProjectSpec[] {
         type: "capacityExpansion",
         title: `${a.name} — capacity expansion (+${seats.toLocaleString("en-GB")})`,
         description: `Add ${seats.toLocaleString("en-GB")} seats within the site's planning envelope.`,
-        cost: int(seats * 420 + 90_000),
+        cost: projectCost(s, "capacityExpansion", seats * 420 + 90_000),
         durationWeeks: 12,
         major: true,
         risk: 50,
@@ -1129,7 +1175,7 @@ export function projectCatalogue(s: GameState, assetId: string): ProjectSpec[] {
         type: "roofUpgrade",
         title: `${a.name} — roof upgrade`,
         description: "Replace the roof structure and cladding. Supporters stay dry, wear slows.",
-        cost: int(180_000 * scale),
+        cost: projectCost(s, "roofUpgrade", 180_000 * scale),
         durationWeeks: 6,
         major: true,
         risk: 34,
@@ -1144,7 +1190,7 @@ export function projectCatalogue(s: GameState, assetId: string): ProjectSpec[] {
         type: "seatingRefurbishment",
         title: `${a.name} — seating refurbishment`,
         description: "New seats throughout the stand.",
-        cost: int(95_000 * scale),
+        cost: projectCost(s, "seatingRefurbishment", 95_000 * scale),
         durationWeeks: 4,
         major: true,
         risk: 22,
@@ -1159,7 +1205,7 @@ export function projectCatalogue(s: GameState, assetId: string): ProjectSpec[] {
         type: "concourseUpgrade",
         title: `${a.name} — concourse upgrade`,
         description: "Widen and modernise the concourse. Better flow, better spend.",
-        cost: int(140_000 * scale),
+        cost: projectCost(s, "concourseUpgrade", 140_000 * scale),
         durationWeeks: 6,
         major: true,
         risk: 30,
@@ -1174,7 +1220,7 @@ export function projectCatalogue(s: GameState, assetId: string): ProjectSpec[] {
         type: "accessibilityUpgrade",
         title: `${a.name} — accessibility improvements`,
         description: "Ramps, lifts, dedicated bays and improved sightlines.",
-        cost: int(85_000 * scale),
+        cost: projectCost(s, "accessibilityUpgrade", 85_000 * scale),
         durationWeeks: 4,
         major: false,
         risk: 18,
@@ -1186,7 +1232,7 @@ export function projectCatalogue(s: GameState, assetId: string): ProjectSpec[] {
         type: "hospitalityInstallation",
         title: `${a.name} — hospitality installation`,
         description: "Install matchday hospitality space inside the stand.",
-        cost: int(260_000 * scale),
+        cost: projectCost(s, "hospitalityInstallation", 260_000 * scale),
         durationWeeks: 9,
         major: true,
         risk: 40,
@@ -1201,7 +1247,7 @@ export function projectCatalogue(s: GameState, assetId: string): ProjectSpec[] {
         type: "corporateBoxes",
         title: `${a.name} — corporate boxes`,
         description: "Executive boxes along the back of the stand.",
-        cost: int(340_000 * scale),
+        cost: projectCost(s, "corporateBoxes", 340_000 * scale),
         durationWeeks: 11,
         major: true,
         risk: 46,
@@ -1217,7 +1263,7 @@ export function projectCatalogue(s: GameState, assetId: string): ProjectSpec[] {
         type: "retailExpansion",
         title: `${a.name} — food & retail expansion`,
         description: "Extra retail and catering units inside the stand.",
-        cost: int(120_000 * scale),
+        cost: projectCost(s, "retailExpansion", 120_000 * scale),
         durationWeeks: 5,
         major: true,
         risk: 26,
@@ -1232,7 +1278,7 @@ export function projectCatalogue(s: GameState, assetId: string): ProjectSpec[] {
         type: "standRedevelopment",
         title: `${a.name} — full redevelopment`,
         description: "Complete rebuild: bigger, covered, modern concourse and hospitality.",
-        cost: int(1_200_000 * scale),
+        cost: projectCost(s, "standRedevelopment", 1_200_000 * scale),
         durationWeeks: 22,
         major: true,
         risk: 75,
@@ -1259,7 +1305,7 @@ export function projectCatalogue(s: GameState, assetId: string): ProjectSpec[] {
       type: "facilityUpgrade",
       title: `${a.name} — upgrade to ${cfg.levels[next - 1]}`,
       description: `Take the ${cfg.label.toLowerCase()} from ${cfg.levels[a.level - 1]} to ${cfg.levels[next - 1]}.`,
-      cost: int((150_000 + cfg.operatingCost * 130) * levelScale),
+      cost: projectCost(s, "facilityUpgrade", (150_000 + cfg.operatingCost * 130) * levelScale),
       durationWeeks: a.type === "training" || a.type === "medical" ? 14 : 8,
       major: true,
       risk: 38,
