@@ -5,22 +5,33 @@ import { FacilitiesTab } from "@/components/FacilitiesTab";
 import { Button } from "@/components/ui/button";
 import { ClubIdentitySheet } from "./ClubIdentityStudio";
 import { ClubBadge } from "./ClubKitArt";
+import { GroundStudioSheet } from "./GroundStudio";
 import { clubKitFor } from "@/lib/game/clubKit";
+import { groundIdentity } from "@/lib/game/groundIdentity";
 
 export function FacilitiesFlow({ state, update }: { state: GameState; update: (fn: (s: GameState) => GameState) => void }) {
   const [identityOpen, setIdentityOpen] = useState(false);
+  const [studioOpen, setStudioOpen] = useState(false);
   const identity = clubKitFor(state);
+  const groundName = groundIdentity(state).groundName;
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
       <section className="grid shrink-0 grid-cols-2 gap-2" aria-label="Club areas">
-        <Button variant="default" className="h-auto justify-start gap-2 rounded-xl px-3 py-2.5 text-left">
+        <Button
+          variant="default"
+          className="h-auto justify-start gap-2 rounded-xl px-3 py-2.5 text-left"
+          onClick={() => setStudioOpen(true)}
+        >
           <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary-foreground/12">
             <Building2 className="size-4" />
           </span>
           <span className="min-w-0">
-            <span className="block text-[10px] uppercase tracking-wide opacity-75">Club</span>
-            <strong className="block truncate text-sm">Facilities</strong>
+            <span className="block text-[10px] uppercase tracking-wide opacity-75">Ground Studio</span>
+            <strong className="block truncate text-sm">{groundName ?? "Name & look"}</strong>
+            <span className="mt-0.5 flex items-center gap-1 text-[10px] opacity-75">
+              <Palette className="size-3" /> Roofs · seats · stands
+            </span>
           </span>
         </Button>
 
@@ -47,6 +58,7 @@ export function FacilitiesFlow({ state, update }: { state: GameState; update: (f
       </div>
 
       <ClubIdentitySheet open={identityOpen} onOpenChange={setIdentityOpen} state={state} update={update} />
+      {studioOpen && <GroundStudioSheet open={studioOpen} onOpenChange={setStudioOpen} state={state} update={update} />}
     </div>
   );
 }
