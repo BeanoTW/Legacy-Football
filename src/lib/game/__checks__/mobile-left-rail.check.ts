@@ -23,10 +23,10 @@ assert(
   "mobile nav uses rail-specific semantic hooks",
 );
 assert(
-  css.includes("--lf-mobile-rail-width") &&
+  css.includes("--lf-mobile-rail-width: 4.05rem") &&
     css.includes("flex: 0 0 var(--lf-mobile-rail-width)") &&
     css.includes("flex-direction: column"),
-  "mobile navigation is a fixed-width vertical rail",
+  "mobile navigation is a slim fixed-width vertical rail",
 );
 assert(
   css.includes(".lf-mobile-workspace > .game-main") &&
@@ -40,8 +40,8 @@ assert(
 );
 assert(
   css.includes(".lf-mobile-nav-more") &&
-    css.includes("margin-top: auto"),
-  "More stays anchored at the bottom of the rail",
+    css.includes("margin-top: 0.3rem"),
+  "More stays grouped with the primary rail instead of floating in dead space",
 );
 assert(
   root.includes('import mobileRailCss from "../mobile-rail.css?url"') &&

@@ -26,7 +26,7 @@ export function MobileNav({ tab, setTab, unread, blocking = 0 }: { tab: Tab; set
               )}
             >
               <Icon className="lf-mobile-nav-icon" />
-              <span className="lf-mobile-nav-label truncate max-w-full">{id === "stadium" ? "Club" : label}</span>
+              <span className="lf-mobile-nav-label">{id === "stadium" ? "Club" : label}</span>
               {id === "inbox" && blocking > 0 ? (
                 <span
                   className="lf-nav-blocker"
