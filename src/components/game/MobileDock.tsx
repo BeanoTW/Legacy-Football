@@ -46,16 +46,11 @@ export function MobileDock({
   const secondary = ALL_TABS.filter(([id]) => ![...LEFT, ...RIGHT].includes(id));
   const nextMatch = targets.find((target) => target.id === "matchday");
   const choices = targets.filter((target) => target.id !== "anything");
-  const matchDay = nextMatch?.detail.match(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\b/)?.[1];
   const caption = isContinuing
     ? "Stop"
     : blocking > 0
       ? "Decide"
-      : matchDay
-        ? `${matchDay} match`
-        : nextMatch
-          ? "Match"
-          : "Advance";
+      : "Advance";
 
   const TabButton = ({ id }: { id: Tab }) => {
     const entry = byId.get(id);
