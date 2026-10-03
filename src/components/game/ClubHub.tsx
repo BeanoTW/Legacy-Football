@@ -18,6 +18,7 @@ import type { GameState } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
 import { calendarDay, fmtMoney, simulateFixtureToday, startMatchDay, totalCapacity } from "@/lib/game/engine";
 import { actionableInbox } from "@/lib/game/attention";
+import { requiresInboxDecision } from "@/lib/game/inbox";
 import { sustainabilitySnapshot } from "@/lib/game/sustainability";
 import { HEALTH_TONE, initials } from "./shared/primitives";
 import { ALL_TABS, type Tab } from "./tabs";
@@ -76,6 +77,11 @@ export function ClubHub({ state, update, setTab, isContinuing, onAdvanceTo }: { 
   ].filter((item): item is { label: string; detail: string; tab: Tab } => item !== null);
   const decisionItems = actionableInbox(state);
   const topDecisions = decisionItems.slice(0, 2);
+  const unreadBriefings = state.inbox
+    .filter((item) => item.status === "unread" && !requiresInboxDecision(item))
+    .slice()
+    .sort((a, b) => b.season - a.season || b.week - a.week || b.id.localeCompare(a.id));
+  const deskItems = topDecisions.length > 0 ? topDecisions : unreadBriefings.slice(0, 2);
   const latestNews = state.inbox.filter((item) => !decisionItems.some((decision) => decision.id === item.id)).slice().sort((a, b) => b.season - a.season || b.week - a.week || b.id.localeCompare(a.id))[0];
   const activeNegotiations = state.football?.negotiations?.filter((negotiation) => negotiation.stage !== "completed" && negotiation.stage !== "withdrawn" && negotiation.stage !== "rejected").length ?? 0;
   const boardConf = state.board ? recomputeConfidence(state.board) : 50;
@@ -134,6 +140,38 @@ export function ClubHub({ state, update, setTab, isContinuing, onAdvanceTo }: { 
         <VitalCard variant="fans" icon={<Users className="size-4" />} label="Supporter mood" value={`${state.fanHappiness}%`} detail="Current supporter sentiment" tone={state.fanHappiness >= 60 ? "text-emerald-600" : "text-amber-600"} meter={state.fanHappiness} onClick={() => setTab("tickets")} />
       </section>
       <div className={cn("lf-home-bottom-pair", suggestedSteps.length === 1 && decisionItems.length <= 1 && "is-compact")}>
+      <section className="lf-home-desk grid gap-2 md:grid-cols-[1.15fr_.85fr] md:gap-3">
+        <div className="lf-home-panel overflow-hidden rounded-2xl border bg-card shadow-sm">
+          <div className="lf-home-panel-heading">
+            <div className="flex items-center gap-2">
+              <span className="lf-heading-label"><Briefcase className="size-3.5" />Your desk</span>
+              {decisionItems.length > 0 ? (
+                <span className="lf-count-badge is-blocking" title="Decision required">!</span>
+              ) : unreadBriefings.length > 0 ? (
+                <span className="lf-count-badge">{unreadBriefings.length}</span>
+              ) : null}
+            </div>
+            <button onClick={() => setTab("inbox")}>View all <ArrowRight className="size-3.5" /></button>
+          </div>
+          <div className="lf-task-list">
+            {deskItems.length > 0 ? deskItems.map((item) => (
+              <button key={item.id} onClick={() => setTab("inbox")} className="lf-task-row">
+                <span className="lf-task-icon"><Mail className="size-4" /></span>
+                <span className="min-w-0 flex-1">
+                  <strong className="block truncate">{item.subject}</strong>
+                  <small className="block truncate">{requiresInboxDecision(item) ? `Decision required · ${item.department}` : `Unread · ${item.department}`}</small>
+                </span>
+                <ArrowRight className="size-4 shrink-0 opacity-55" />
+              </button>
+            )) : (
+              <div className="lf-task-row is-clear">
+                <span className="lf-task-icon"><Mail className="size-4" /></span>
+                <span><strong className="block">Desk clear</strong><small className="block">No unread briefings or decisions</small></span>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
       {suggestedSteps.length > 0 && (
         <section className="lf-suggested-next rounded-2xl border bg-card shadow-sm">
           <div className="lf-home-panel-heading"><span className="lf-heading-label"><Target className="size-3.5" />Suggested next steps</span><small>Optional</small></div>
@@ -142,14 +180,6 @@ export function ClubHub({ state, update, setTab, isContinuing, onAdvanceTo }: { 
           ))}</div>
         </section>
       )}
-      <section className="lf-home-desk grid gap-2 md:grid-cols-[1.15fr_.85fr] md:gap-3">
-        <div className="lf-home-panel overflow-hidden rounded-2xl border bg-card shadow-sm">
-          <div className="lf-home-panel-heading"><div className="flex items-center gap-2"><span className="lf-heading-label"><Briefcase className="size-3.5" />Chairman tasks</span>{decisionItems.length > 0 && <span className="lf-count-badge">{decisionItems.length}</span>}</div><button onClick={() => setTab("inbox")}>View all <ArrowRight className="size-3.5" /></button></div>
-          <div className="lf-task-list">{topDecisions.length > 0 ? topDecisions.map((item) => (
-            <button key={item.id} onClick={() => setTab("inbox")} className="lf-task-row"><span className="lf-task-icon"><Mail className="size-4" /></span><span className="min-w-0 flex-1"><strong className="block truncate">{item.subject}</strong><small className="block truncate">{item.department}</small></span><ArrowRight className="size-4 shrink-0 opacity-55" /></button>
-          )) : <div className="lf-task-row is-clear"><span className="lf-task-icon"><Mail className="size-4" /></span><span><strong className="block">No decisions waiting</strong><small className="block">Nothing needs your attention</small></span></div>}</div>
-        </div>
-      </section>
       </div>
       <section className="lf-management-grid grid grid-cols-2 gap-2 md:grid-cols-3">
         <ActionTile onClick={() => setTab("squad")} icon={<SquadIcon className="size-5" />} title="Squad" value={`${squadSize} players`} sub="Selection · contracts" />
