@@ -342,7 +342,7 @@ function AroundTheGrounds({ state, onOpenWorld }: { state: GameState; onOpenWorl
       <div className="lf-around-feed">
         {stories.slice(0, 3).map((story, index) => (
           <button key={`${story.tag}-${story.headline}-${index}`} onClick={onOpenWorld} className="lf-around-story">
-            <span className="lf-around-tag">{story.tag}</span>
+            <span className={`lf-around-tag lf-around-tag--${story.tag.toLowerCase()}`}>{story.tag}</span>
             <span className="min-w-0 flex-1">
               <strong>{story.headline}</strong>
               <small>{story.detail}</small>
@@ -352,7 +352,7 @@ function AroundTheGrounds({ state, onOpenWorld }: { state: GameState; onOpenWorl
         ))}
       </div>
       <div className="lf-around-ticker" aria-label="Latest football world headlines">
-        <span>{stories.slice(0, 4).map((story) => `${story.tag} · ${story.headline}`).join("   •   ")}</span>
+        <b>LATEST</b><span>{stories.slice(0, 4).map((story) => `${story.tag} · ${story.headline}`).join("   •   ")}</span>
       </div>
     </section>
   );
