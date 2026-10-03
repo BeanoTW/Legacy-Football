@@ -401,3 +401,68 @@ button.lf-decision-card.lf-choice-tile:disabled {
   .lf-launch-splash { transition: none; }
   .lf-launch-splash.is-ready { animation-duration: 1ms; animation-delay: 650ms; }
 }
+
+
+/* Home: compact football-world feed fills tall-phone dead space with live simulation context. */
+.lf-around-grounds {
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--color-primary) 22%, var(--color-border));
+  background: color-mix(in srgb, var(--color-card) 91%, transparent);
+}
+.lf-around-feed {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
+}
+.lf-around-story {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  padding: .7rem .8rem;
+  text-align: left;
+  border-right: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
+  transition: background-color 140ms ease;
+}
+.lf-around-story:last-child { border-right: 0; }
+.lf-around-story:hover { background: color-mix(in srgb, var(--color-primary) 8%, transparent); }
+.lf-around-story strong,
+.lf-around-story small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lf-around-story strong { font-size: .78rem; line-height: 1.15; }
+.lf-around-story small { margin-top: .15rem; font-size: .65rem; color: var(--color-muted-foreground); }
+.lf-around-tag {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: .2rem .4rem;
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
+  color: var(--color-primary);
+  font-size: .52rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+.lf-around-ticker {
+  overflow: hidden;
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 9%, transparent);
+  padding: .36rem .75rem;
+  color: var(--color-muted-foreground);
+  font-size: .61rem;
+  font-weight: 650;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+.lf-around-ticker span { display: block; overflow: hidden; text-overflow: ellipsis; }
+
+@media (max-width: 767px) {
+  .lf-around-grounds { border-radius: 1.1rem; }
+  .lf-around-feed { display: block; }
+  .lf-around-story {
+    min-height: 3.35rem;
+    border-right: 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-border) 62%, transparent);
+    padding: .55rem .75rem;
+  }
+  .lf-around-story:last-child { border-bottom: 0; }
+  .lf-around-story strong { font-size: .76rem; }
+  .lf-around-story small { font-size: .62rem; }
+}
