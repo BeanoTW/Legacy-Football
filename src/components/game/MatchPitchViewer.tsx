@@ -106,9 +106,9 @@ const VIEW_MODES: { id: ViewMode; label: string }[] = [
 ];
 /** A restart card stays up this long while the teams reset underneath it. */
 const CUT_CARD_MS = 900;
-/** Shots, saves and goals play at this fraction of normal speed. */
+/** Keep ball-flight actions at normal pace: shots should feel at least as sharp as passes. */
 const SLOW_MOTION = 0.5;
-const SLOW_KINDS = new Set<MatchSequenceAction["kind"]>(["shot", "save", "goal", "block", "miss"]);
+const SLOW_KINDS = new Set<MatchSequenceAction["kind"]>(["save", "goal", "block", "miss"]);
 const LOFTED_KINDS = new Set<MatchSequenceAction["kind"]>(["cross", "switch", "clearance"]);
 const RESTART_LABEL: Partial<Record<NonNullable<MatchSequence["restart"]>, string>> = {
   kickoff: "Kick-off",
@@ -430,7 +430,7 @@ interface PlanSample {
   resultVisible: boolean;
   /** 0-1 height of a lofted ball (crosses, switches, long balls). */
   lift: number;
-  /** A shot is in flight: play it slower. */
+  /** A dramatic outcome beat may play slower; shot flight itself stays at pass pace. */
   slow: boolean;
 }
 
@@ -884,7 +884,7 @@ function createEngine(deps: EngineDeps) {
     const plan = currentPlan();
     if (!plan) return;
     const length = deps.latest.current.events.length;
-    // Shots, saves and goals play in slow motion. A restart card holds for
+    // Outcome beats may play in slow motion; shot flight stays at normal pass pace. A restart card holds for
     // the same real time at every playback speed (the reset happens under it).
     const elapsedSinceCut = Math.min(
       ...plan.cuts.map((cut) => (pb.progress - cut.at) * plan.duration).filter((ms) => ms >= 0),
