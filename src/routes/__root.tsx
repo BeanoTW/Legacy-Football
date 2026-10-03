@@ -22,6 +22,7 @@ import newsroomCss from "../newsroom.css?url";
 import departmentCss from "../department.css?url";
 import homeArtCss from "../home-art.css?url";
 import funCss from "../fun.css?url";
+import mobileRailCss from "../mobile-rail.css?url";
 import { installAudioUnlock } from "../lib/audio/soundscape";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
@@ -83,6 +84,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "stylesheet", href: departmentCss },
       { rel: "stylesheet", href: homeArtCss },
       { rel: "stylesheet", href: funCss },
+      // Mobile structural navigation experiment: persistent left rail.
+      { rel: "stylesheet", href: mobileRailCss },
       { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
