@@ -297,3 +297,31 @@ html:has(.lf-home-main), body:has(.lf-home-main),
     height: 4.7rem !important;
   }
 }
+
+
+/* Masthead crest is an identity shortcut, matching the Director portrait interaction. */
+.lf-masthead-club-badge-button {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: .9rem;
+  background: transparent;
+  cursor: pointer;
+  transition: transform 140ms ease, background-color 140ms ease;
+}
+
+.lf-masthead-club-badge-button:hover {
+  background: rgb(255 255 255 / 5%);
+}
+
+.lf-masthead-club-badge-button:active {
+  transform: scale(.96);
+}
+
+.lf-masthead-club-badge-button:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
