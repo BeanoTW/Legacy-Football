@@ -1,0 +1,234 @@
+/* Mobile dock: navigation and Continue in one bottom bar.
+   Phones get one compact command surface; tablet and desktop keep the existing
+   desktop navigation and Continue bar. */
+
+.lf-dock { display: none; }
+
+@media (max-width: 767px) {
+  :root { --lf-dock-height: 4.1rem; }
+
+  .game-shell {
+    padding-bottom: calc(var(--lf-dock-height) + env(safe-area-inset-bottom)) !important;
+  }
+
+  .game-shell > nav.lf-dock,
+  .lf-dock {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 50;
+    display: block;
+    padding: 0.3rem 0.35rem calc(0.3rem + env(safe-area-inset-bottom));
+    border-top: 1px solid rgb(140 235 220 / 18%);
+    background:
+      radial-gradient(60% 140% at 50% 0%, color-mix(in oklab, var(--color-primary) 22%, transparent), transparent 60%),
+      linear-gradient(180deg, #0f4045 0%, #0b3136 100%);
+    box-shadow: 0 -8px 22px rgb(3 20 25 / 22%), inset 0 1px rgb(255 255 255 / 9%);
+    color: white;
+    backdrop-filter: none;
+  }
+
+  .game-shell > nav.lf-dock .lf-dock-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) 4.6rem repeat(3, minmax(0, 1fr));
+    align-items: end;
+    max-width: 34rem;
+    margin-inline: auto;
+  }
+
+  .game-shell > nav.lf-dock .lf-dock-item {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    height: 3.45rem;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    border: 0;
+    border-radius: 0.8rem;
+    background: transparent;
+    color: rgb(255 255 255 / 66%);
+    box-shadow: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 150ms ease, background 150ms ease;
+  }
+
+  .game-shell > nav.lf-dock .lf-dock-item:active {
+    transform: translateY(1px) scale(0.97);
+  }
+
+  .game-shell > nav.lf-dock .lf-dock-item.is-active {
+    background: rgb(255 255 255 / 9%);
+    color: white;
+  }
+
+  .game-shell > nav.lf-dock .lf-dock-item.is-active::after {
+    content: "";
+    position: absolute;
+    bottom: 0.18rem;
+    left: 32%;
+    right: 32%;
+    height: 2px;
+    border-radius: 999px;
+    background: #4fe0a0;
+    box-shadow: 0 0 8px rgb(79 224 160 / 60%);
+  }
+
+  .game-shell > nav.lf-dock .lf-dock-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    stroke-width: 1.9;
+  }
+
+  .game-shell > nav.lf-dock .lf-dock-label {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .game-shell > nav.lf-dock .lf-dock-badge {
+    position: absolute;
+    top: 0.25rem;
+    left: calc(50% + 0.35rem);
+    display: grid;
+    min-width: 1.05rem;
+    height: 1.05rem;
+    place-items: center;
+    padding-inline: 0.2rem;
+    border: 2px solid #0d383d;
+    border-radius: 999px;
+    background: #ef4444;
+    color: white;
+    font-size: 0.56rem;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  .game-shell > nav.lf-dock .lf-dock-badge.is-blocking {
+    animation: lf-dock-bounce 1.15s ease-in-out infinite;
+  }
+
+  .game-shell > nav.lf-dock .lf-dock-centre {
+    position: relative;
+    display: flex;
+    height: 3.45rem;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  .game-shell > nav.lf-dock .lf-dock-advance {
+    position: absolute;
+    bottom: 1.05rem;
+    left: 50%;
+    display: grid;
+    width: 3.85rem;
+    height: 3.85rem;
+    place-items: center;
+    translate: -50% 0;
+    border: 3px solid #0d383d;
+    border-radius: 999px;
+    background: linear-gradient(160deg, #47e39a 0%, #18b26b 55%, #0f8f55 100%);
+    color: #06281a;
+    box-shadow:
+      0 8px 18px rgb(8 120 70 / 45%),
+      0 0 0 1px rgb(120 240 180 / 40%),
+      inset 0 2px rgb(255 255 255 / 45%);
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 120ms ease, box-shadow 150ms ease;
+  }
+
+  .game-shell > nav.lf-dock .lf-dock-advance:active {
+    transform: scale(0.94);
+  }
+
+  .game-shell > nav.lf-dock .lf-dock-play {
+    margin-left: 0.2rem;
+  }
+
+  .game-shell > nav.lf-dock .lf-dock-advance.is-running {
+    background: linear-gradient(160deg, #ffc35a 0%, #f59a21 100%);
+    color: #2a1a00;
+    box-shadow:
+      0 8px 18px rgb(245 154 33 / 45%),
+      0 0 0 1px rgb(255 210 120 / 45%),
+      inset 0 2px rgb(255 255 255 / 45%);
+  }
+
+  .game-shell > nav.lf-dock .lf-dock-advance.is-blocked {
+    background: linear-gradient(160deg, #ffc35a 0%, #f59a21 100%);
+    color: #2a1a00;
+  }
+
+  .game-shell > nav.lf-dock .lf-dock-advance-flag {
+    position: absolute;
+    top: -0.2rem;
+    right: -0.2rem;
+    display: grid;
+    width: 1.2rem;
+    height: 1.2rem;
+    place-items: center;
+    border: 2px solid #0d383d;
+    border-radius: 999px;
+    background: #ef4444;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 900;
+    animation: lf-dock-bounce 1.15s ease-in-out infinite;
+  }
+
+  .game-shell > nav.lf-dock .lf-dock-advance-more {
+    position: absolute;
+    bottom: 3.95rem;
+    left: calc(50% + 1.05rem);
+    z-index: 1;
+    display: grid;
+    width: 1.35rem;
+    height: 1.35rem;
+    place-items: center;
+    border: 2px solid #0d383d;
+    border-radius: 999px;
+    background: #e9fbf2;
+    color: #0d5c3a;
+    box-shadow: 0 2px 6px rgb(0 0 0 / 30%);
+  }
+
+  .game-shell > nav.lf-dock .lf-dock-caption {
+    max-width: 100%;
+    overflow: hidden;
+    padding-bottom: 0.32rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: rgb(255 255 255 / 82%);
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+  }
+
+  @keyframes lf-dock-bounce {
+    0%, 55%, 100% { transform: translateY(0) scale(1); }
+    68% { transform: translateY(-3px) scale(1.08); }
+    80% { transform: translateY(0) scale(0.96); }
+  }
+}
+
+@media (max-width: 359px) {
+  .game-shell > nav.lf-dock .lf-dock-label {
+    font-size: 0.54rem;
+  }
+
+  .game-shell > nav.lf-dock .lf-dock-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) 4.2rem repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-shell > nav.lf-dock .lf-dock-badge.is-blocking,
+  .game-shell > nav.lf-dock .lf-dock-advance-flag {
+    animation: none;
+  }
+}
