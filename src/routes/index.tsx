@@ -199,16 +199,17 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
           crest={<ClubBadge design={crestDesign} clubName={state.clubName} size={56} />}
           right={
             <div className="lf-masthead-persona">
-              <button type="button" className="lf-masthead-avatar" title="Edit director appearance"
-                aria-label="Edit director appearance" onClick={() => setChairmanStudioOpen(true)}>
-                <CharacterPortrait avatar={chairmanProfile.avatar} size={86} title={`${state.managerName} portrait`} />
+              <button
+                type="button"
+                className="lf-director-card"
+                title={`${chairman.detail} · Edit director appearance`}
+                aria-label={`Director reputation ${Math.round(userReputation)}. Edit director appearance`}
+                onClick={() => setChairmanStudioOpen(true)}
+              >
+                <CharacterPortrait avatar={chairmanProfile.avatar} size={100} title={`${state.managerName} portrait`} />
+                <span className="lf-director-reputation-value">{Math.round(userReputation)}</span>
+                <span className="lf-director-reputation-stars"><ReputationStars value={userReputation} /></span>
               </button>
-              <div className="lf-chairman-badge" title={chairman.detail}>
-                <span>{chairman.label}</span>
-                <strong>{Math.round(userReputation)}</strong>
-                <small>Reputation</small>
-                <ReputationStars value={userReputation} />
-              </div>
             </div>
           }
         />
@@ -248,7 +249,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
         </div>
       </nav>
 
-      <main className="game-main">
+      <main className={cn("game-main", tab === "hub" && "lf-home-main")}>
         <div className="game-screen">
           <ScreenBoundary name={ALL_TABS.find(([id]) => id === tab)?.[1] ?? tab}>
             {tab === "inbox" && <ChairmansOffice state={state} update={update} decisionQueue={decisionQueue} onDecisionQueueCleared={() => { setDecisionQueue(false); setTab("hub"); }} onNavigate={navigateFromInbox} />}
