@@ -29,7 +29,7 @@ export function MobileNav({ tab, setTab, unread, blocking = 0 }: { tab: Tab; set
             {badge && (
               <span
                 className={cn("lf-mobile-menu-badge", blocking > 0 && "is-blocking")}
-                aria-label={blocking > 0 ? \`\${blocking} item\${blocking === 1 ? "" : "s"} need attention\` : \`\${unread} unread briefing\${unread === 1 ? "" : "s"}\`}
+                aria-label={blocking > 0 ? String(blocking) + " item" + (blocking === 1 ? "" : "s") + " need attention" : String(unread) + " unread briefing" + (unread === 1 ? "" : "s")}
               >
                 {badge}
               </span>
