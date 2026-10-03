@@ -362,9 +362,9 @@ export function InboxTab({
   }, [awaiting, decisionQueue, onDecisionQueueCleared, openId, state.inbox]);
 
   const items = useMemo(() => {
-    const all = [...state.inbox].sort(
-      (a, b) => b.season - a.season || b.week - a.week || b.id.localeCompare(a.id),
-    );
+    // Inbox order is purely receipt order: newest received first. Priority and
+    // decision state affect badges/interrupts, never where a message appears.
+    const all = state.inbox.slice().reverse();
     return all.filter((item) => {
       if (filter === "unread" && item.status !== "unread" && item.status !== "awaitingDecision") return false;
       if (filter === "decisions" && !requiresInboxDecision(item)) return false;
@@ -381,7 +381,6 @@ export function InboxTab({
     (item) => item.status !== "completed" && item.status !== "expired" && (item.priority === "urgent" || item.priority === "high"),
   ).length;
   const decisionItems = items.filter(requiresInboxDecision);
-  const updateItems = items.filter((item) => !requiresInboxDecision(item));
 
   const openItem = (item: InboxItem) => {
     setOpenId(item.id);
@@ -462,18 +461,13 @@ export function InboxTab({
             <p>You can get back to running the club.</p>
           </div>
         ) : (
-          <>
-            {decisionItems.length > 0 && (
-              <InboxLane title="Needs your decision" count={decisionItems.length} urgent>
-                {decisionItems.map((item) => <InboxRow key={item.id} item={item} state={state} onOpen={openItem} conversationCount={inboxConversationCount(state.inbox, item)} />)}
-              </InboxLane>
-            )}
-            {updateItems.length > 0 && (
-              <InboxLane title={decisionItems.length > 0 ? "Club briefings" : filter === "archive" ? "Filed briefings" : "Latest briefings"} count={updateItems.length}>
-                {updateItems.map((item) => <InboxRow key={item.id} item={item} state={state} onOpen={openItem} conversationCount={inboxConversationCount(state.inbox, item)} />)}
-              </InboxLane>
-            )}
-          </>
+          <InboxLane
+            title={filter === "archive" ? "Filed briefings" : filter === "decisions" ? "Decisions" : filter === "unread" ? "Unread" : "Latest received"}
+            count={items.length}
+            urgent={filter === "decisions" && decisionItems.length > 0}
+          >
+            {items.map((item) => <InboxRow key={item.id} item={item} state={state} onOpen={openItem} conversationCount={inboxConversationCount(state.inbox, item)} />)}
+          </InboxLane>
         )}
       </div>
 

@@ -1012,7 +1012,7 @@ const G_TICKET_PRICE_PRESSURE: Generator = {
         body:
           `The supporters group has formally challenged the club pricing. The average ticket is £${average.toFixed(2)}, ` +
           `against a £${reference.toFixed(2)} reference for this level and club size. At the current price, the demand model is running at roughly ${demand}% of neutral.\n\n` +
-          `They want the chairman to respond before the next home run of fixtures.`,
+          `They want the director to respond before the next home run of fixtures.`,
         expiresInWeeks: 2,
         choices: [
           {
@@ -2064,7 +2064,7 @@ const G_SUS_FOOTBALL_REQUEST: Generator = {
                 category: "football",
                 weeks: 26,
                 targetInvestment: target,
-                note: "Chairman promised the Football Director squad investment.",
+                note: "Director promised the Football Director squad investment.",
               },
             ],
           },
@@ -2078,7 +2078,7 @@ const G_SUS_FOOTBALL_REQUEST: Generator = {
                 category: "infrastructure",
                 weeks: 34,
                 targetInvestment: target,
-                note: "Chairman promised investment in training and medical facilities.",
+                note: "Director promised investment in training and medical facilities.",
               },
             ],
           },
@@ -2139,7 +2139,7 @@ const G_SUS_SUPPORTER_PRESSURE: Generator = {
                 category: "supporters",
                 weeks: 30,
                 targetInvestment: target,
-                note: "Chairman promised investment in supporter facilities.",
+                note: "Director promised investment in supporter facilities.",
               },
             ],
           },
@@ -2197,7 +2197,7 @@ const G_SUS_COMMERCIAL_REQUEST: Generator = {
                 category: "commercial",
                 weeks: 30,
                 targetInvestment: target,
-                note: "Chairman promised commercial development.",
+                note: "Director promised commercial development.",
               },
             ],
           },
@@ -2268,7 +2268,7 @@ const G_SUS_STRATEGIC_REVIEW: Generator = {
                 category: "financial",
                 weeks: 26,
                 targetInvestment: 0,
-                note: "Chairman committed to protecting the club's reserves.",
+                note: "Director committed to protecting the club's reserves.",
               },
             ],
           },
@@ -2697,7 +2697,7 @@ const G_MANAGER_RELATIONSHIP_REACTION: Generator = {
           {
             id: "set-boundary",
             label: "Remind him who runs the club",
-            hint: "Assert chairman authority. It may settle the hierarchy, but it will damage trust.",
+            hint: "Assert director authority. It may settle the hierarchy, but it will damage trust.",
             effects: [
               { kind: "managerRelationship", managerId: manager.id, trust: -3, backing: -1, autonomy: -4 },
             ],

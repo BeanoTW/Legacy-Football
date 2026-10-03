@@ -38,7 +38,7 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
 
   const start = () => {
     if (activeSlotUnreadable) return;
-    const name = manager.trim() || "Chairman";
+    const name = manager.trim() || "Director";
     saveChairmanProfile({ ...profile, name });
     onStart(club.trim(), name, startingDivisionId, clubKit, cleanClubNickname(nickname).trim());
   };
@@ -72,12 +72,12 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
             </p>
 
             <div className="lf-newgame-chairman">
-              <button type="button" className="lf-office-portrait" onClick={() => setStudioOpen(true)} aria-label="Edit the chairman's look">
+              <button type="button" className="lf-office-portrait" onClick={() => setStudioOpen(true)} aria-label="Edit the director's look">
                 <ChairmanPortrait avatar={profile.avatar} size={76} />
                 <span className="lf-office-edit"><Pencil /></span>
               </button>
               <div className="min-w-0 flex-1 space-y-2">
-                <Label htmlFor="mgr">Chairman name</Label>
+                <Label htmlFor="mgr">Director name</Label>
                 <Input id="mgr" value={manager} maxLength={40} onChange={(e) => setManager(e.target.value)} className="border-2 border-border bg-muted/65 text-foreground placeholder:text-muted-foreground" />
                 <button type="button" className="lf-newgame-edit-look" onClick={() => setStudioOpen(true)}>
                   <Pencil /> Edit look

@@ -167,7 +167,7 @@ export function ChairmanStudio({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="lf-studio-sheet">
         <SheetHeader className="text-left">
-          <SheetTitle className="lf-studio-title">The chairman</SheetTitle>
+          <SheetTitle className="lf-studio-title">The director</SheetTitle>
           <p className="lf-studio-sub">Your look follows you into every career.</p>
         </SheetHeader>
 
@@ -202,7 +202,7 @@ export function ChairmanStudio({
         <div className="lf-studio-footer">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={() => { saveChairmanProfile(draft); onOpenChange(false); }}>
-            <Check /> Save chairman
+            <Check /> Save director
           </Button>
         </div>
       </SheetContent>
