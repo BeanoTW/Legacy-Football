@@ -1162,3 +1162,23 @@
   .lf-masthead .panel-strip,
   .lf-masthead .panel-strip > div { min-height:5.35rem; }
 }
+
+
+/* Director desk: blocking decisions get a visible pulse without reordering the inbox. */
+.lf-home-dashboard .lf-count-badge.is-blocking {
+  background: #ef4444;
+  color: #fff;
+  animation: lf-desk-blocking-pulse 1.15s ease-in-out infinite;
+}
+
+@keyframes lf-desk-blocking-pulse {
+  0%, 58%, 100% { transform: translateY(0) scale(1); }
+  70% { transform: translateY(-2px) scale(1.08); }
+  82% { transform: translateY(0) scale(.97); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lf-home-dashboard .lf-count-badge.is-blocking {
+    animation: none;
+  }
+}
