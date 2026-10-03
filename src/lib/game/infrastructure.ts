@@ -36,6 +36,7 @@ import type {
   Stand,
 } from "./types";
 import { absoluteWeek } from "./time";
+import { groundIdentityModifiers } from "./groundIdentity";
 import { seededRng, rngRange } from "./rng";
 import { assessSpend, postEntry } from "./finance";
 import { economicProfileForLevel } from "./levelEconomy";
@@ -661,6 +662,7 @@ export function facilityModifiers(s: GameState): FacilityModifiers {
     : 50;
 
   const disruptionFans = activeProjects(s).reduce((t, p) => t + p.disruption.fanHappiness, 0);
+  const identity = groundIdentityModifiers(s);
 
   return {
     hospitalityIncome: clamp(scoreMult(hosp, 0.85), 0.15, 2.0),
@@ -675,7 +677,8 @@ export function facilityModifiers(s: GameState): FacilityModifiers {
         (san - 50) * 0.0008 +
         (zone - 50) * 0.0012 +
         (conc - 50) * 0.0006 +
-        (hosp - 50) * 0.0004,
+        (hosp - 50) * 0.0004 +
+        identity.supporterDemand,
       0.82,
       1.28,
     ),
@@ -686,7 +689,8 @@ export function facilityModifiers(s: GameState): FacilityModifiers {
           10,
       ) /
         10 +
-      disruptionFans,
+      disruptionFans +
+      identity.fanHappiness,
     commercialPower:
       Math.round(
         ((shop - 50) * 0.12 + (hosp - 50) * 0.12 + (off - 50) * 0.1 + (standAvg - 50) * 0.06) * 10,
