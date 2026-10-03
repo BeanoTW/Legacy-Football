@@ -205,8 +205,8 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
         <TopBar
           title={state.clubName}
           subtitle={clubNickname(state)}
-          detail={`Season ${state.season} · Week ${state.week}/${CALENDAR.seasonEnd} · ${phaseLabel} · ${transferWindow}`}
-          crest={<ClubBadge design={crestDesign} clubName={state.clubName} size={68} />}
+          detail={`Season ${state.season} · Week ${state.week}/${CALENDAR.seasonEnd} · ${phaseLabel}`}
+          crest={<ClubBadge design={crestDesign} clubName={state.clubName} size={84} />}
           right={
             <div className="lf-masthead-persona">
               <button
