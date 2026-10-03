@@ -1,0 +1,136 @@
+/* Final Home shell polish — loaded after the rest of the presentation stack. */
+
+/* Kill the pale page layer that was still showing through between Home cards. */
+.game-main.lf-home-main {
+  background:
+    radial-gradient(34rem 18rem at 50% -2rem, rgb(55 183 166 / 20%), transparent 66%),
+    radial-gradient(24rem 20rem at 100% 48%, rgb(228 169 61 / 6%), transparent 70%),
+    linear-gradient(180deg, #123b40 0%, #153f43 52%, #103236 100%) !important;
+}
+
+.game-main.lf-home-main > .game-screen,
+.game-main.lf-home-main .lf-home-dashboard,
+.game-main.lf-home-main .lf-command-grid,
+.game-main.lf-home-main .lf-vital-grid,
+.game-main.lf-home-main .lf-home-bottom-pair {
+  background: transparent !important;
+}
+
+.game-main.lf-home-main > .game-screen {
+  padding: 0 !important;
+}
+
+.game-main.lf-home-main .lf-home-dashboard {
+  padding: 0 !important;
+}
+
+/* Let the backdrop show continuously through the normal card gutters. */
+.game-main.lf-home-main .lf-home-dashboard {
+  row-gap: .48rem;
+}
+
+@media (max-width: 767px) {
+  .game-main.lf-home-main {
+    padding: .48rem .52rem .62rem !important;
+  }
+
+  .game-main.lf-home-main > .game-screen {
+    border-radius: 0 !important;
+  }
+
+  .game-main.lf-home-main .lf-home-dashboard {
+    gap: .44rem !important;
+  }
+}
+
+/* Director card: keep the larger portrait, but give the face breathing room
+   and make reputation feel intentionally integrated rather than overlaid. */
+.lf-masthead .lf-director-card {
+  width: 5.85rem !important;
+  height: 6.1rem !important;
+  overflow: hidden;
+  border-radius: .86rem !important;
+}
+
+.lf-masthead .lf-director-card > svg {
+  width: 94px !important;
+  height: 113px !important;
+  transform: translateY(.28rem) scale(.98) !important;
+  transform-origin: 50% 50%;
+}
+
+.lf-masthead .lf-director-reputation-value {
+  top: .34rem !important;
+  left: .34rem !important;
+  min-width: 1.55rem !important;
+  height: 1.34rem !important;
+  padding-inline: .28rem !important;
+  border-radius: .42rem !important;
+  background: rgb(3 22 28 / 82%) !important;
+  font-size: .95rem !important;
+}
+
+.lf-masthead .lf-director-reputation-stars {
+  right: .32rem !important;
+  bottom: .3rem !important;
+  left: .32rem !important;
+  min-height: 1.1rem !important;
+  border-color: rgb(255 255 255 / 16%) !important;
+  background: rgb(3 22 28 / 80%) !important;
+}
+
+.lf-masthead .lf-director-reputation-stars .lf-rep-stars {
+  gap: .1rem !important;
+}
+
+.lf-masthead .lf-director-reputation-stars .lf-rep-star {
+  width: .62rem !important;
+  height: .62rem !important;
+  color: rgb(255 255 255 / 58%) !important;
+  stroke-width: 1.75 !important;
+}
+
+.lf-masthead .lf-director-reputation-stars .lf-rep-star.is-filled {
+  color: #f5b83d !important;
+  fill: #f5b83d !important;
+  filter: drop-shadow(0 0 4px rgb(245 184 61 / 50%));
+}
+
+@media (max-width: 767px) {
+  .lf-masthead .panel-strip > div {
+    min-height: 5.6rem;
+    align-items: center;
+  }
+
+  .lf-masthead .lf-director-card {
+    width: 5.25rem !important;
+    height: 5.55rem !important;
+    flex: 0 0 auto;
+  }
+
+  .lf-masthead .lf-director-card > svg {
+    width: 86px !important;
+    height: 103px !important;
+    transform: translateY(.34rem) scale(.97) !important;
+  }
+
+  .lf-masthead .lf-director-reputation-value {
+    top: .28rem !important;
+    left: .28rem !important;
+    min-width: 1.4rem !important;
+    height: 1.22rem !important;
+    font-size: .88rem !important;
+  }
+
+  .lf-masthead .lf-director-reputation-stars {
+    right: .26rem !important;
+    bottom: .25rem !important;
+    left: .26rem !important;
+    min-height: 1rem !important;
+  }
+
+  .lf-masthead .lf-director-reputation-stars .lf-rep-star {
+    width: .54rem !important;
+    height: .54rem !important;
+  }
+}
