@@ -92,11 +92,11 @@
 }
 
 :root[data-club-theme="heritage"] {
-  --primary: oklch(0.48 0.16 32);
-  --ring: oklch(0.48 0.16 32);
-  --panel: oklch(0.32 0.085 30);
-  --banner: oklch(0.78 0.12 78);
-  --background: oklch(0.965 0.02 72);
+  --primary: oklch(0.36 0.095 155);
+  --ring: oklch(0.36 0.095 155);
+  --panel: oklch(0.27 0.065 155);
+  --banner: oklch(0.76 0.105 82);
+  --background: oklch(0.965 0.018 88);
 }
 
 :root[data-club-theme="floodlights"] {
@@ -133,13 +133,13 @@
 }
 
 .dark[data-club-theme="heritage"] {
-  --primary: oklch(0.7 0.15 32);
-  --ring: oklch(0.7 0.15 32);
-  --panel: oklch(0.3 0.065 30);
-  --banner: oklch(0.74 0.11 78);
-  --background: oklch(0.185 0.018 35);
-  --card: oklch(0.235 0.022 32);
-  --popover: oklch(0.235 0.022 32);
+  --primary: oklch(0.62 0.105 155);
+  --ring: oklch(0.62 0.105 155);
+  --panel: oklch(0.235 0.055 155);
+  --banner: oklch(0.72 0.1 82);
+  --background: oklch(0.165 0.022 155);
+  --card: oklch(0.215 0.026 155);
+  --popover: oklch(0.215 0.026 155);
 }
 
 .dark[data-club-theme="floodlights"] {
@@ -185,7 +185,7 @@
   border-radius: 999px;
   background: linear-gradient(90deg, var(--color-primary), var(--color-banner));
 }
-.theme-swatch-heritage { background: linear-gradient(90deg, oklch(0.48 0.16 32), oklch(0.78 0.12 78)); }
+.theme-swatch-heritage { background: linear-gradient(90deg, oklch(0.36 0.095 155), oklch(0.76 0.105 82)); }
 .theme-swatch-floodlights { background: linear-gradient(90deg, oklch(0.27 0.035 285), oklch(0.6 0.22 302)); }
 
 .club-crest {
