@@ -267,6 +267,14 @@
   --nr-card: color-mix(in oklab, var(--card) 90%, white 10%);
 }
 .dark .lf-studio-chip { color: var(--foreground); }
+.dark .lf-studio-stage-actions > button {
+  border-color: color-mix(in oklab, white 28%, transparent);
+  background: color-mix(in oklab, var(--card) 86%, white 14%);
+  color: var(--foreground);
+}
+.dark .lf-studio-stage-actions > button:hover {
+  background: color-mix(in oklab, var(--card) 76%, white 24%);
+}
 .dark .lf-studio-chip.is-selected { color: white; }
 .dark .lf-studio-footer { background: var(--background); }
 @media (max-width: 767px) {
