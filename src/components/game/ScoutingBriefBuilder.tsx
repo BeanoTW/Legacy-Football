@@ -69,6 +69,7 @@ export function ScoutingBriefBuilder({
   onBack: () => void;
 }) {
   const [positions, setPositions] = useState<Position[]>(["DEF"]);
+  const [sending, setSending] = useState(false);
   const [activePosition, setActivePosition] = useState<Position>("DEF");
   const [drafts, setDrafts] = useState<Record<Position, PositionBriefDraft>>({
     GK: defaultDraft(),
@@ -118,9 +119,11 @@ export function ScoutingBriefBuilder({
   };
 
   const dispatch = () => {
-    const sequence = state.football?.scoutingDiscovery?.briefs.length ?? 0;
-    update((s) =>
-      createChairmanMultiScoutingBrief(s, {
+    if (sending || invalidBrief || positions.length === 0) return;
+    setSending(true);
+    update((s) => {
+      const sequence = s.football?.scoutingDiscovery?.briefs.length ?? 0;
+      return createChairmanMultiScoutingBrief(s, {
         id: `chairman-brief:s${s.season}:w${s.week}:r${sequence + 1}`,
         positionBriefs: positions.map((position) => {
           const draft = drafts[position];
@@ -135,8 +138,9 @@ export function ScoutingBriefBuilder({
             maxWeeklyWage: draft.maxWage ? Math.max(0, Number(draft.maxWage)) : undefined,
           };
         }),
-      }),
-    );
+      });
+    });
+    onBack();
   };
 
   return (
@@ -287,7 +291,7 @@ export function ScoutingBriefBuilder({
             </span>
             <span className="shrink-0 text-muted-foreground tnum">Scouts {plan.quality} · ~{plan.searchDays}d · up to {plan.candidateLimit} total</span>
           </div>
-          <Button className="w-full" disabled={invalidBrief || positions.length === 0} onClick={dispatch}><Binoculars className="mr-2 size-4" /> Send scouts</Button>
+          <Button className="w-full" disabled={sending || invalidBrief || positions.length === 0} onClick={dispatch}><Binoculars className="mr-2 size-4" /> {sending ? "Sending scouts…" : "Send scouts"}</Button>
         </div>
       </section>
     </DetailScreen>
