@@ -453,8 +453,8 @@ export function proactiveClubConversationItems(state: GameState): InboxItem[] {
       department: "Board of Directors",
       category: "board",
       priority: boardConcern.satisfaction < 30 ? "high" : "normal",
-      subject: `${boardConcern.director.name} wants to discuss ${boardConcern.concern.objective.label.toLowerCase()}`,
-      body: `I want this discussed before the next formal review. ${boardConcern.concern.objective.description} Right now: ${boardConcern.concern.progress.detail}. My live satisfaction is down to ${boardConcern.satisfaction}%.`,
+      subject: `${boardConcern.director.name} has flagged ${boardConcern.concern.objective.label.toLowerCase()}`,
+      body: `I've flagged something in my area that I think we should look at together. ${boardConcern.concern.objective.description} Right now: ${boardConcern.concern.progress.detail}. Come and speak to me and I'll give you my view on the options.`,
     }));
   }
 
