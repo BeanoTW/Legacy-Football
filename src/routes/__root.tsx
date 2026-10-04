@@ -142,12 +142,9 @@ function RootComponent() {
         });
         if (!response.ok) return;
         const latest = await response.text();
-        const assetPattern = /(?:src|href)="([^"]*\/assets\/[^"]+)"/g;
-        const fingerprint = (html: string) =>
-          Array.from(html.matchAll(assetPattern), (match) => match[1]).sort().join("|");
-        const latestFingerprint = fingerprint(latest);
-        const currentFingerprint = fingerprint(document.documentElement.outerHTML);
-        if (latestFingerprint && currentFingerprint && latestFingerprint !== currentFingerprint) {
+        const latestDocument = new DOMParser().parseFromString(latest, "text/html");
+        const latestBuild = latestDocument.querySelector('meta[name="legacy-football-build"]')?.getAttribute("content");
+        if (latestBuild && latestBuild !== __LEGACY_FOOTBALL_BUILD_ID__) {
           const reloadUrl = new URL(window.location.href);
           reloadUrl.searchParams.set("lf-refresh", Date.now().toString());
           window.location.replace(reloadUrl.toString());
