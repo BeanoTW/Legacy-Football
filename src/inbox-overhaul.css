@@ -654,3 +654,31 @@
   80% { transform: translateY(0) scale(.98); }
   90% { transform: translateY(-2px) scale(1.02); }
 }
+
+
+/* The inbox owns a dark editorial surface already. In app dark mode, lift its ink and
+   secondary text so global dark tokens cannot leave controls/messages low-contrast. */
+.dark .lf-inbox-shell {
+  --inbox-ink: oklch(0.155 0.014 205);
+  --inbox-charcoal: oklch(0.235 0.018 205);
+  --inbox-paper: oklch(0.965 0.008 190);
+  --inbox-muted: oklch(0.78 0.018 195);
+}
+.dark .lf-attention-stat small,
+.dark .lf-filter-tab,
+.dark .lf-clear-read,
+.dark .lf-inbox-lane-heading h2,
+.dark .lf-inbox-lane-heading span,
+.dark .lf-message-meta,
+.dark .lf-message-subline,
+.dark .lf-message-chevron {
+  color: var(--inbox-muted);
+}
+.dark .lf-message-row.status-read,
+.dark .lf-message-row.status-completed,
+.dark .lf-message-row.status-expired {
+  opacity: 0.86;
+}
+.dark .lf-message-main > strong {
+  color: var(--inbox-paper);
+}
