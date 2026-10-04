@@ -98,9 +98,12 @@ function baseTacticalPositionProfile(
   };
 }
 
-const LEARN_COMFORTABLE_MINUTES = 540;
-const LEARN_ACCOMPLISHED_MINUTES = 1_440;
-const LEARN_NATURAL_MINUTES = 2_700;
+const RELATED_COMFORTABLE_MINUTES = 540;
+const RELATED_ACCOMPLISHED_MINUTES = 1_440;
+const RELATED_NATURAL_MINUTES = 2_700;
+const SAME_UNIT_COMFORTABLE_MINUTES = 900;
+const SAME_UNIT_ACCOMPLISHED_MINUTES = 2_700;
+const CROSS_UNIT_COMFORTABLE_MINUTES = 1_800;
 
 function directlyRelated(primary: TacticalPosition, position: TacticalPosition): boolean {
   return POSITION_RELATIONSHIPS[primary].includes(position) || POSITION_RELATIONSHIPS[position].includes(primary);
@@ -113,9 +116,14 @@ function learnedFamiliarity(
   const base = baseTacticalPositionProfile(player);
   if (position === "GK" || base.primary === "GK") return position === base.primary ? "Natural" : "Unfamiliar";
   const minutes = player.positionExperience?.[position] ?? 0;
-  if (directlyRelated(base.primary, position) && minutes >= LEARN_NATURAL_MINUTES) return "Natural";
-  if (minutes >= LEARN_ACCOMPLISHED_MINUTES) return "Accomplished";
-  if (minutes >= LEARN_COMFORTABLE_MINUTES) return "Comfortable";
+  const related = directlyRelated(base.primary, position);
+  const sameUnit = positionUnit(base.primary) === positionUnit(position);
+  if (related && minutes >= RELATED_NATURAL_MINUTES) return "Natural";
+  if (related && minutes >= RELATED_ACCOMPLISHED_MINUTES) return "Accomplished";
+  if (!related && sameUnit && minutes >= SAME_UNIT_ACCOMPLISHED_MINUTES) return "Accomplished";
+  if (related && minutes >= RELATED_COMFORTABLE_MINUTES) return "Comfortable";
+  if (!related && sameUnit && minutes >= SAME_UNIT_COMFORTABLE_MINUTES) return "Comfortable";
+  if (!sameUnit && minutes >= CROSS_UNIT_COMFORTABLE_MINUTES) return "Comfortable";
   return "Unfamiliar";
 }
 
@@ -160,14 +168,23 @@ export function positionDevelopment(
   const minutes = player.positionExperience?.[position] ?? 0;
   const base = baseTacticalPositionProfile(player);
   if (familiarity === "Natural") return { familiarity, minutes, next: null, minutesToNext: null };
+  const related = directlyRelated(base.primary, position);
+  const sameUnit = positionUnit(base.primary) === positionUnit(position);
   if (familiarity === "Accomplished") {
-    if (!directlyRelated(base.primary, position)) return { familiarity, minutes, next: null, minutesToNext: null };
-    return { familiarity, minutes, next: "Natural", minutesToNext: Math.max(0, LEARN_NATURAL_MINUTES - minutes) };
+    if (!related) return { familiarity, minutes, next: null, minutesToNext: null };
+    return { familiarity, minutes, next: "Natural", minutesToNext: Math.max(0, RELATED_NATURAL_MINUTES - minutes) };
   }
   if (familiarity === "Comfortable") {
-    return { familiarity, minutes, next: "Accomplished", minutesToNext: Math.max(0, LEARN_ACCOMPLISHED_MINUTES - minutes) };
+    if (related) return { familiarity, minutes, next: "Accomplished", minutesToNext: Math.max(0, RELATED_ACCOMPLISHED_MINUTES - minutes) };
+    if (sameUnit) return { familiarity, minutes, next: "Accomplished", minutesToNext: Math.max(0, SAME_UNIT_ACCOMPLISHED_MINUTES - minutes) };
+    return { familiarity, minutes, next: null, minutesToNext: null };
   }
-  return { familiarity, minutes, next: "Comfortable", minutesToNext: Math.max(0, LEARN_COMFORTABLE_MINUTES - minutes) };
+  const comfortableAt = related
+    ? RELATED_COMFORTABLE_MINUTES
+    : sameUnit
+      ? SAME_UNIT_COMFORTABLE_MINUTES
+      : CROSS_UNIT_COMFORTABLE_MINUTES;
+  return { familiarity, minutes, next: "Comfortable", minutesToNext: Math.max(0, comfortableAt - minutes) };
 }
 
 export const POSITION_EFFECTIVENESS: Record<PositionFamiliarity | "Unfamiliar", number> = {
