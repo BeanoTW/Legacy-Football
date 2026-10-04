@@ -27,7 +27,7 @@ import {
   X,
 } from "lucide-react";
 import type { GameState, InboxItem, InboxCategory, InboxDepartment } from "@/lib/game/types";
-import { inboxDestination, type InboxDestination } from "@/lib/game/inboxNavigation";
+import { inboxDestination, inboxDestinations, type InboxDestination } from "@/lib/game/inboxNavigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -552,6 +552,7 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
   const currentMessage = conversation.find((message) => message.id === item.id) ?? item;
   const earlierConversation = conversation.filter((message) => message.id !== item.id);
   const destination = inboxDestination(state, item);
+  const destinations = inboxDestinations(state, item);
 
   return (
     <Sheet open onOpenChange={(value) => !value && onClose()}>
@@ -605,11 +606,24 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
             </article>
           )}
 
-          {destination && onNavigate && (
+          {onNavigate && destinations.length > 1 ? (
+            <div className="mb-3 grid gap-2">
+              {destinations.map((target) => (
+                <Button
+                  key={target.tab === "recruitment" && "playerId" in target ? target.playerId : target.label}
+                  type="button"
+                  className="w-full justify-between bg-emerald-300 text-emerald-950 hover:bg-emerald-200 hover:text-emerald-950"
+                  onClick={() => onNavigate(target)}
+                >
+                  {target.label} <ChevronRight className="size-4" />
+                </Button>
+              ))}
+            </div>
+          ) : destination && onNavigate ? (
             <Button type="button" className="mb-3 w-full justify-between bg-emerald-300 text-emerald-950 hover:bg-emerald-200 hover:text-emerald-950" onClick={() => onNavigate(destination)}>
               {destination.label} <ChevronRight className="size-4" />
             </Button>
-          )}
+          ) : null}
 
           {item.reward && (
             <aside className="lf-briefing-note"><CircleCheck /><div><strong>Potential outcome</strong><p>{item.reward}</p></div></aside>
