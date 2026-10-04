@@ -130,7 +130,7 @@ function transferWindowMasthead(state: GameState): string {
   return `Transfer window closed · reopens in ${daysUntilOpen} days`;
 }
 
-function Game({ state, update, isContinuing, continueReason, continueTarget, continueSpeed, setContinueSpeed, startContinue, stopContinue, activeSlot, saveSlots, switchSlot, deleteSlot }: {
+function Game({ state, update, isContinuing, continueReason, continueTarget, continueSpeed, setContinueSpeed, startContinue, stopContinue, activeSlot, saveSlots, switchSlot, deleteSlot, saveNow }: {
   state: GameState;
   update: (fn: (s: GameState) => GameState) => void;
   reset: () => void;
@@ -145,6 +145,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
   saveSlots: SaveSlotSummary[];
   switchSlot: (slot: SaveSlotId) => void;
   deleteSlot: (slot: SaveSlotId) => Promise<void>;
+  saveNow: () => Promise<{ local: boolean; cloud: boolean }>;
 }) {
   const [tab, setTab] = useState<Tab>("hub");
   const [chairmanStudioOpen, setChairmanStudioOpen] = useState(false);
@@ -292,7 +293,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
             {tab === "commercial" && <CommercialTab state={state} update={update} />}
             {tab === "world" && <WorldInspector state={state} update={update} />}
             {tab === "history" && <HistoryTab state={state} />}
-            {tab === "settings" && <SettingsTab state={state} update={update} activeSlot={activeSlot} slots={saveSlots} onSwitch={switchSlot} onDelete={deleteSlot} />}
+            {tab === "settings" && <SettingsTab state={state} update={update} activeSlot={activeSlot} slots={saveSlots} onSwitch={switchSlot} onDelete={deleteSlot} onSaveNow={saveNow} />}
           </ScreenBoundary>
         </div>
       </main>
