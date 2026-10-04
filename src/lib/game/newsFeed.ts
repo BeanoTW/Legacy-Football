@@ -28,6 +28,8 @@ export interface NewsPublication {
 export interface NewsScoreline {
   home: string;
   away: string;
+  homeRef?: string;
+  awayRef?: string;
   homeGoals: number;
   awayGoals: number;
   label: string;
@@ -185,7 +187,15 @@ function matchReport(state: GameState, result: FixtureResult): NewsArticle {
     headline,
     standfirst: `${competition} · ${home} ${homeGoals}-${awayGoals} ${away}`,
     body,
-    scoreline: { home, away, homeGoals, awayGoals, label: competition },
+    scoreline: {
+      home,
+      away,
+      homeRef: result.home ? state.clubName : result.opponent,
+      awayRef: result.home ? result.opponent : state.clubName,
+      homeGoals,
+      awayGoals,
+      label: competition,
+    },
     facts: [
       ...(result.home && result.attendance
         ? [{ label: "Attendance", value: result.attendance.toLocaleString() }]
@@ -258,6 +268,8 @@ function upsets(state: GameState, records: MatchRecord[]): NewsArticle[] {
       scoreline: {
         home: clubName(state, record.home),
         away: clubName(state, record.away),
+        homeRef: record.home,
+        awayRef: record.away,
         homeGoals: record.homeGoals,
         awayGoals: record.awayGoals,
         label: "League",
