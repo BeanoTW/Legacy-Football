@@ -659,10 +659,19 @@
 /* The inbox owns a dark editorial surface already. In app dark mode, lift its ink and
    secondary text so global dark tokens cannot leave controls/messages low-contrast. */
 .dark .lf-inbox-shell {
-  --inbox-ink: oklch(0.155 0.014 205);
-  --inbox-charcoal: oklch(0.235 0.018 205);
-  --inbox-paper: oklch(0.965 0.008 190);
-  --inbox-muted: oklch(0.78 0.018 195);
+  /* The redesigned desk uses the Newsroom's --nr-* tokens throughout.
+     Remap both token families so every count, heading, chip and card inherits
+     dark-safe foregrounds instead of falling back to the light palette. */
+  --nr-ink: var(--foreground);
+  --nr-soft: color-mix(in oklab, var(--foreground) 68%, transparent);
+  --nr-card: color-mix(in oklab, var(--card) 94%, white 6%);
+  --nr-line: color-mix(in oklab, var(--foreground) 16%, transparent);
+  --nr-deep: color-mix(in oklab, var(--primary) 46%, black 54%);
+  --nr-teal: color-mix(in oklab, var(--primary) 72%, white 28%);
+  --inbox-ink: var(--foreground);
+  --inbox-charcoal: var(--card);
+  --inbox-paper: var(--foreground);
+  --inbox-muted: color-mix(in oklab, var(--foreground) 68%, transparent);
 }
 .dark .lf-attention-stat small,
 .dark .lf-filter-tab,
@@ -681,4 +690,19 @@
 }
 .dark .lf-message-main > strong {
   color: var(--inbox-paper);
+}
+
+.dark .lf-attention-stat strong,
+.dark .lf-inbox-lane-heading span,
+.dark .lf-filter-button {
+  color: var(--foreground);
+}
+.dark .lf-message-status.status-decision,
+.dark .lf-message-status.status-urgent,
+.dark .lf-message-status.status-expired {
+  color: #ff7381;
+}
+.dark .lf-message-status.status-priority,
+.dark .lf-message-deadline {
+  color: #ffc06a;
 }
