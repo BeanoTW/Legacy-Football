@@ -10,6 +10,7 @@ export type InboxDestination =
   | { tab: "recruitment"; view: "find"; briefId: string; label: "View scouting results" }
   | { tab: "recruitment"; view: "operations"; negotiationId: string; label: "View negotiation" }
   | { tab: "recruitment"; view: "operations"; label: "Open transfers" }
+  | { tab: "squad"; playerId: string; label: string }
   | { tab: "recruitment"; view: "sales"; label: "View sales" }
   | { tab: "stadium"; label: "Open facilities" }
   | { tab: "commercial"; label: "Open commercial" }
@@ -34,6 +35,12 @@ export function inboxDestinations(state: GameState, item: InboxItem): InboxDesti
 
 /** Don't advertise a deep link if the referenced report or deal no longer exists. */
 export function inboxDestination(state: GameState, item: InboxItem): InboxDestination | null {
+  if (item.generatorId === "club-conversations" && item.department === "Players") {
+    const playerId = item.eventKey.match(/^club-conversation:player-playing-time:([^:]+):s\d+$/)?.[1];
+    if (playerId && transferTargetPlayer(state, playerId)) {
+      return { tab: "squad", playerId, label: "Speak to player" };
+    }
+  }
   if (item.generatorId === "scouting-report") {
     const assignment = state.football?.scouting?.assignments.find(
       (candidate) => item.eventKey.startsWith(`scouting:${candidate.playerId}:s`),
