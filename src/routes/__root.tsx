@@ -28,6 +28,7 @@ import mobileDockCss from "../mobile-dock.css?url";
 import homeShellPolishCss from "../home-shell-polish.css?url";
 import { installAudioUnlock } from "../lib/audio/soundscape";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { applyLatestBuild, cleanUpdateParams, fetchLatestBuildId } from "../lib/appUpdate";
 
 function NotFoundComponent() {
   return (
@@ -124,6 +125,7 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   useEffect(() => {
     installAudioUnlock();
+    cleanUpdateParams();
 
     // Installed PWAs can resume an older cached document. Revalidate when the
     // app launches or returns to the foreground and refresh only when the
@@ -133,21 +135,9 @@ function RootComponent() {
       if (document.visibilityState !== "visible" || Date.now() - lastCheck < 30_000) return;
       lastCheck = Date.now();
       try {
-        const updateUrl = new URL(window.location.href);
-        updateUrl.searchParams.set("lf-update-check", Date.now().toString());
-        updateUrl.hash = "";
-        const response = await fetch(updateUrl.toString(), {
-          cache: "no-store",
-          headers: { "cache-control": "no-cache, no-store, max-age=0" },
-        });
-        if (!response.ok) return;
-        const latest = await response.text();
-        const latestDocument = new DOMParser().parseFromString(latest, "text/html");
-        const latestBuild = latestDocument.querySelector('meta[name="legacy-football-build"]')?.getAttribute("content");
+        const latestBuild = await fetchLatestBuildId();
         if (latestBuild && latestBuild !== __LEGACY_FOOTBALL_BUILD_ID__) {
-          const reloadUrl = new URL(window.location.href);
-          reloadUrl.searchParams.set("lf-refresh", Date.now().toString());
-          window.location.replace(reloadUrl.toString());
+          await applyLatestBuild(latestBuild);
         }
       } catch {
         // Offline play remains valid; try again on the next foreground event.
