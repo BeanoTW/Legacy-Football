@@ -5,6 +5,7 @@ import {
   ageOf,
   playerInterestAssessment,
   playerName,
+  openNegotiations,
   submitTransferEnquiry,
   submitTransferOffer,
 } from "@/lib/game/recruitment";
@@ -27,6 +28,15 @@ import { POSITION_BADGE_CLASS } from "./playerPosition";
 import { positionUnit, tacticalPositionProfile } from "@/lib/game/positions";
 import { playerAttributeIdentity } from "@/lib/game/playerAttributeIdentity";
 import { TacticalPlayerCard } from "./shared/TacticalPlayerCard";
+
+function negotiationStatusLabel(stage: string, freeAgent: boolean): string {
+  if (stage === "enquiry") return "Enquiry sent";
+  if (stage === "clubTalks") return "Club talks";
+  if (stage === "playerTalks") return freeAgent ? "Contract talks" : "Personal terms";
+  if (stage === "agreed") return "Terms agreed";
+  if (stage === "registration") return "Registration";
+  return "Talks open";
+}
 
 export function ScoutingReports({
   state,
@@ -103,6 +113,8 @@ export function ScoutingReports({
         const interest = playerInterestAssessment(state, player);
         const watched = isChairmanShortlisted(state, player.id);
         const freeAgent = player.currentClubId === null;
+        const activeNegotiation = openNegotiations(state).find((deal) => deal.playerId === player.id) ?? null;
+        const negotiationLabel = activeNegotiation ? negotiationStatusLabel(activeNegotiation.stage, freeAgent) : null;
         const estimate = chairmanRecruitmentEstimate(state, player.id);
         const managerPriority = managerBrief?.priorities.find(
           (priority) => priority.position === player.primaryPosition,
@@ -134,6 +146,7 @@ export function ScoutingReports({
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-white/60">
                   <span>Interest <strong className="text-white/85">{interest.label}</strong></span>
                   <span>{report.complete ? "Full report" : `Scouting · ${report.knowledgePct}%`}</span>
+                  {activeNegotiation && <span className="rounded-full border border-cyan-300/25 bg-cyan-300/10 px-2 py-0.5 font-bold text-cyan-200">{negotiationLabel}</span>}
                   {!report.complete && dueEvent && dueInDays !== null && (
                     <span className="text-emerald-300">{dueEvent.label.replace(" due", "")} · {dueInDays === 0 ? "today" : `${dueInDays}d`}</span>
                   )}
@@ -173,11 +186,16 @@ export function ScoutingReports({
                   <Button
                     size="sm"
                     variant="secondary"
-                    className="h-8 px-2 text-[10px]"
-                    onClick={() => approach(player.id, freeAgent, estimate.openingWeeklyWage)}
+                    className={cn(
+                      "h-8 px-2 text-[10px]",
+                      activeNegotiation && "border border-cyan-300/35 bg-cyan-300/15 text-cyan-100 hover:bg-cyan-300/25 hover:text-white",
+                    )}
+                    onClick={() => activeNegotiation
+                      ? onNegotiationStarted?.(activeNegotiation.id)
+                      : approach(player.id, freeAgent, estimate.openingWeeklyWage)}
                   >
                     <Handshake className="mr-1 size-3" />
-                    {freeAgent ? "Approach player" : "Approach club"}
+                    {activeNegotiation ? "View negotiation" : freeAgent ? "Approach player" : "Approach club"}
                   </Button>
                 </div>
               </div>
