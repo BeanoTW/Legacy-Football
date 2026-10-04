@@ -152,7 +152,16 @@ export function MobileDock({
             </button>
           </SheetTrigger>
           <SheetContent side="bottom" className="max-h-[82vh] overflow-y-auto rounded-t-3xl">
-            <SheetHeader><SheetTitle>More club areas</SheetTitle></SheetHeader>
+            <SheetHeader className="items-center text-center">
+              <div className="text-[9px] font-black uppercase tracking-[0.22em] text-fuchsia-600/80 dark:text-fuchsia-300/80">
+                Owner-Director
+              </div>
+              <SheetTitle>More club areas</SheetTitle>
+              <div
+                className="mt-1 h-[3px] w-28 rounded-full bg-gradient-to-r from-fuchsia-500 via-violet-500 to-purple-500 shadow-[0_0_14px_rgba(168,85,247,0.28)]"
+                aria-hidden="true"
+              />
+            </SheetHeader>
             <div className="mt-5 grid grid-cols-2 gap-3 pb-4">
               {secondary.map(([id, label, Icon]) => (
                 <SheetClose asChild key={id}>
