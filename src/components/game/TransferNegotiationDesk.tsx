@@ -113,6 +113,7 @@ function NegotiationRoom({ state, n, act }: { state: GameState; n: TransferNegot
   if (!p) return null;
   const report = scoutingReport(state, p);
   const otherClub = incoming ? n.fromClubId : n.toClubId;
+  const freeAgent = incoming && !otherClub;
   const clubLabel = otherClub ? clubDisplayName(state, otherClub) : "Free agent";
   const current = stageIndex(n.stage);
   const dead = n.stage === "rejected" || n.stage === "withdrawn";
@@ -143,10 +144,29 @@ function NegotiationRoom({ state, n, act }: { state: GameState; n: TransferNegot
         </div>
       ) : (
         <div className="grid gap-3 p-4 sm:grid-cols-2">
-        <PositionCard icon={<Building2 className="size-4" />} title={incoming ? `${clubLabel} want` : "Their offer"} value={fmtMoneyExact(n.clubCounterFee ?? n.fee)} note={incoming ? n.clubCounterFee ? "Latest valuation from the selling club" : "No counter yet — this is what is on the table" : "Fee offered for our player"} />
-        <PositionCard icon={<Handshake className="size-4" />} title={incoming ? "Our offer" : "Our valuation"} value={fmtMoneyExact(n.fee)} note={`Wage on the table ${fmtMoneyExact(n.proposedWeeklyWage)}/wk · ${n.proposedLengthSeasons} season${n.proposedLengthSeasons === 1 ? "" : "s"} · ${n.proposedRole}`} />
-        {incoming && estimate?.valueRange && <PositionCard icon={<UserRound className="size-4" />} title="Our recruitment estimate" value={`${fmtMoneyExact(estimate.valueRange[0])}–${fmtMoneyExact(estimate.valueRange[1])}`} note="What your staff believe he is worth" />}
-        {incoming && n.stage === "playerTalks" && <PositionCard icon={<UserRound className="size-4" />} title="Agent's demand" value={n.playerCounterWage ? `${fmtMoneyExact(n.playerCounterWage)}/wk` : "Awaiting response"} note={`Round ${n.playerRounds} of personal terms`} />}
+        {freeAgent ? (
+          <>
+            <PositionCard
+              icon={<Handshake className="size-4" />}
+              title="Our contract offer"
+              value={`${fmtMoneyExact(n.proposedWeeklyWage)}/wk`}
+              note={`${n.proposedLengthSeasons} season${n.proposedLengthSeasons === 1 ? "" : "s"} · ${n.proposedRole}`}
+            />
+            <PositionCard
+              icon={<UserRound className="size-4" />}
+              title="Agent's position"
+              value={n.playerCounterWage ? `${fmtMoneyExact(n.playerCounterWage)}/wk` : "Awaiting response"}
+              note={n.playerCounterWage ? `Round ${n.playerRounds} of personal terms · latest counter` : `Round ${n.playerRounds} of personal terms · no counter yet`}
+            />
+          </>
+        ) : (
+          <>
+            <PositionCard icon={<Building2 className="size-4" />} title={incoming ? `${clubLabel} want` : "Their offer"} value={fmtMoneyExact(n.clubCounterFee ?? n.fee)} note={incoming ? n.clubCounterFee ? "Latest valuation from the selling club" : "No counter yet — this is what is on the table" : "Fee offered for our player"} />
+            <PositionCard icon={<Handshake className="size-4" />} title={incoming ? "Our offer" : "Our valuation"} value={fmtMoneyExact(n.fee)} note={`Wage on the table ${fmtMoneyExact(n.proposedWeeklyWage)}/wk · ${n.proposedLengthSeasons} season${n.proposedLengthSeasons === 1 ? "" : "s"} · ${n.proposedRole}`} />
+            {incoming && estimate?.valueRange && <PositionCard icon={<UserRound className="size-4" />} title="Our recruitment estimate" value={`${fmtMoneyExact(estimate.valueRange[0])}–${fmtMoneyExact(estimate.valueRange[1])}`} note="What your staff believe he is worth" />}
+            {incoming && n.stage === "playerTalks" && <PositionCard icon={<UserRound className="size-4" />} title="Agent's demand" value={n.playerCounterWage ? `${fmtMoneyExact(n.playerCounterWage)}/wk` : "Awaiting response"} note={`Round ${n.playerRounds} of personal terms`} />}
+          </>
+        )}
         {incoming && n.playerInterestRevealed && n.playerInterest && (
           <div className={cn("rounded-xl border p-3 sm:col-span-2", interestTone(n.playerInterest))}>
             <div className="flex items-center justify-between gap-3">
@@ -170,8 +190,8 @@ function NegotiationRoom({ state, n, act }: { state: GameState; n: TransferNegot
     <section className="rounded-2xl border bg-card p-4"><div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">How the talks have gone</div><ol className="mt-3 space-y-2">{n.log.slice(-8).map((entry, i) => <li key={i} className="flex gap-2.5"><span className={cn("mt-0.5 grid size-7 shrink-0 place-items-center rounded-full", entry.party === "player" ? "bg-accent/20 text-accent-foreground" : "bg-primary/10 text-primary")}>{entry.party === "player" ? <UserRound className="size-3.5" /> : <Building2 className="size-3.5" />}</span><span className="min-w-0 flex-1 rounded-xl bg-muted/50 px-3 py-2 text-sm"><span className="block text-[10px] uppercase tracking-wide text-muted-foreground">{entry.party === "player" ? "Player & agent" : "Club to club"} · {entry.action}</span>{entry.note}</span></li>)}{!n.log.length && <li className="text-sm text-muted-foreground">No exchanges recorded yet.</li>}</ol></section>
 
     <section className="rounded-2xl border bg-card p-4">
-      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{incoming && n.stage === "playerTalks" ? "Talk to the agent" : "Your move"}</div>
-      {incoming && waitingForReply && <div className="mt-3 rounded-lg border bg-muted/30 px-3 py-2 text-sm"><strong>{n.stage === "enquiry" ? "Awaiting valuation." : "Awaiting response."}</strong> {n.stage === "enquiry" ? `${clubLabel} have our enquiry. Advance will bring their valuation and the player's initial interest when they respond.` : "The other party has our latest position; Advance will bring their reply when it arrives."}</div>}
+      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{freeAgent && n.stage === "playerTalks" ? "Contract offer" : incoming && n.stage === "playerTalks" ? "Talk to the agent" : "Your move"}</div>
+      {incoming && waitingForReply && <div className="mt-3 rounded-lg border bg-muted/30 px-3 py-2 text-sm"><strong>{n.stage === "enquiry" ? "Awaiting valuation." : freeAgent ? "Offer sent to the player." : "Awaiting response."}</strong> {n.stage === "enquiry" ? `${clubLabel} have our enquiry. Advance will bring their valuation and the player's initial interest when they respond.` : freeAgent ? `Our current offer is ${fmtMoneyExact(n.proposedWeeklyWage)}/wk for ${n.proposedLengthSeasons} season${n.proposedLengthSeasons === 1 ? "" : "s"} as ${n.proposedRole}. Advance will bring the agent's response.` : "The other party has our latest position; Advance will bring their reply when it arrives."}</div>}
       {incoming && n.stage === "enquiry" && !waitingForReply && <NumberField id={`enquiry-fee-${n.id}`} label="Your opening transfer bid" step={feeStep} min={0} value={feeInput ?? feeDefault} onChange={setFeeInput} />}
       {incoming && n.stage === "clubTalks" && !waitingForReply && <NumberField id={`fee-${n.id}`} label="Your revised transfer fee" step={feeStep} min={n.fee + feeStep} value={feeInput ?? feeDefault} onChange={setFeeInput} />}
       {incoming && n.stage === "playerTalks" && !waitingForReply && (
@@ -202,7 +222,7 @@ function NegotiationRoom({ state, n, act }: { state: GameState; n: TransferNegot
           const changedRole = roleInput !== n.proposedRole ? roleInput : undefined;
           setWageInput(null);
           act((s) => improvePersonalTerms(s, n.id, wage, changedSeasons, changedRole));
-        }}>Send personal terms</Button>}
+        }}>{freeAgent ? "Send contract offer" : "Send personal terms"}</Button>}
         {incoming && n.stage === "playerTalks" && !waitingForReply && n.playerCounterWage !== undefined && <Button size="sm" variant="secondary" onClick={() => {
           const seasons = Number(seasonsInput);
           setWageInput(null);
