@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { MessageCircle, UserRound } from "lucide-react";
 import type { FootballPlayer, GameState, Staff } from "@/lib/game/types";
-import { playerName } from "@/lib/game/recruitment";
+import { playerName, userSquad } from "@/lib/game/recruitment";
+import { MANAGER_FORMATIONS } from "@/lib/game/managerFormationLayout";
 import { playerConversationTopics, staffConversationTopics } from "@/lib/game/clubConversations";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -17,11 +18,13 @@ export function ClubConversationDialog({
   subject,
   open,
   onOpenChange,
+  update,
 }: {
   state: GameState;
   subject: Subject | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  update?: (fn: (state: GameState) => GameState) => void;
 }) {
   const topics = useMemo(() => {
     if (!subject) return [];
@@ -30,10 +33,13 @@ export function ClubConversationDialog({
       : playerConversationTopics(state, subject.player);
   }, [state, subject]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [requestPlayerId, setRequestPlayerId] = useState("");
+  const [requestFeedback, setRequestFeedback] = useState("");
 
   useEffect(() => {
     if (!open) {
       setSelectedId(null);
+      setRequestFeedback("");
       return;
     }
     if (topics.length && !topics.some((topic) => topic.id === selectedId)) {
@@ -48,6 +54,34 @@ export function ClubConversationDialog({
     ? { id: subject.staff.id, subject: subject.staff.role === "Manager" ? "manager" as const : "staff" as const }
     : { id: subject.player.id, subject: "player" as const };
   const selected = topics.find((topic) => topic.id === selectedId) ?? topics[0];
+  const isManager = subject.kind === "staff" && subject.staff.role === "Manager";
+  const squad = isManager ? userSquad(state).slice().sort((a, b) => b.currentAbility - a.currentAbility) : [];
+  const currentFormation = isManager ? String(state.inboxFlags[`managerDirective:${subject.staff.id}:formation`] ?? "") : "";
+  const priorityIds = String(state.inboxFlags["chairman.managerPriority.ids"] ?? "").split(",").filter(Boolean);
+
+  const requestFormation = (formation: string) => {
+    if (!isManager || !update) return;
+    update((current) => ({
+      ...current,
+      inboxFlags: {
+        ...current.inboxFlags,
+        [`managerDirective:${subject.staff.id}:formation`]: formation,
+      },
+    }));
+    setRequestFeedback(`Understood. I'll prepare the side in ${formation} and see how the squad handles it.`);
+  };
+
+  const prioritisePlayer = () => {
+    if (!isManager || !update || !requestPlayerId) return;
+    const player = squad.find((candidate) => candidate.id === requestPlayerId);
+    if (!player) return;
+    const next = [player.id, ...priorityIds.filter((id) => id !== player.id)].slice(0, 3);
+    update((current) => ({
+      ...current,
+      inboxFlags: { ...current.inboxFlags, "chairman.managerPriority.ids": next.join(",") },
+    }));
+    setRequestFeedback(`I'll give ${playerName(player)} extra consideration when I pick the side, as long as he is fit and can do the job in the shape.`);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -62,6 +96,45 @@ export function ClubConversationDialog({
             </div>
           </div>
         </DialogHeader>
+
+          {isManager && update && (
+            <div className="rounded-2xl border bg-muted/15 p-3">
+              <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Your requests</div>
+              <div className="mb-2 text-xs font-semibold">Try a formation</div>
+              <div className="flex flex-wrap gap-1.5">
+                {MANAGER_FORMATIONS.map((formation) => (
+                  <Button
+                    key={formation}
+                    type="button"
+                    size="sm"
+                    variant={currentFormation === formation ? "default" : "outline"}
+                    className="h-8"
+                    onClick={() => requestFormation(formation)}
+                  >
+                    {formation}
+                  </Button>
+                ))}
+              </div>
+              <div className="mt-3 text-xs font-semibold">Prioritise a player</div>
+              <div className="mt-1.5 flex gap-2">
+                <select
+                  value={requestPlayerId}
+                  onChange={(event) => setRequestPlayerId(event.target.value)}
+                  className="h-9 min-w-0 flex-1 rounded-md border bg-background px-2 text-xs"
+                >
+                  <option value="">Choose player…</option>
+                  {squad.map((player) => <option key={player.id} value={player.id}>{playerName(player)} · {player.currentAbility} OVR</option>)}
+                </select>
+                <Button type="button" size="sm" className="h-9" disabled={!requestPlayerId} onClick={prioritisePlayer}>Ask manager</Button>
+              </div>
+              {priorityIds.length > 0 && (
+                <div className="mt-2 text-[11px] text-muted-foreground">
+                  Current priorities: {priorityIds.map((id) => squad.find((player) => player.id === id)).filter(Boolean).map((player) => playerName(player!)).join(", ")}
+                </div>
+              )}
+              {requestFeedback && <div className="mt-3 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-2.5 text-xs leading-relaxed">{requestFeedback}</div>}
+            </div>
+          )}
 
         <div className="grid gap-3 md:grid-cols-[0.9fr_1.1fr]">
           <div className="space-y-1.5">
