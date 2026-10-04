@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, BriefcaseBusiness, CheckCircle2, MessageCircle, Pencil, Search, SlidersHorizontal, UserMinus, UserPlus, Users } from "lucide-react";
 import type { GameState, Staff, StaffRole } from "@/lib/game/types";
 import type { ManagerOffer } from "@/lib/game/staff";
@@ -148,12 +148,15 @@ export function StaffTab({ state, update, initialConversationStaffId }: { state:
   const [managerNegotiationId,setManagerNegotiationId]=useState<string|null>(null); const [managerOffer,setManagerOffer]=useState<ManagerOffer|null>(null); const [managerPosition,setManagerPosition]=useState<ManagerOffer|null>(null); const [managerCounter,setManagerCounter]=useState<ManagerOffer|null>(null); const [managerAcceptedOffer,setManagerAcceptedOffer]=useState<ManagerOffer|null>(null); const [managerRound,setManagerRound]=useState(1); const [managerMessage,setManagerMessage]=useState("");
   const [contractAction,setContractAction]=useState<{kind:"release"|"renew";staffId:string}|null>(null);
   const [conversationStaffId,setConversationStaffId]=useState<string|null>(null);
+  const routedConversationRef=useRef<string|null>(null);
   useEffect(() => {
-    if (initialConversationStaffId && state.hiredStaff.some((staff) => staff.id === initialConversationStaffId)) {
+    if (!initialConversationStaffId || routedConversationRef.current === initialConversationStaffId) return;
+    if (state.hiredStaff.some((staff) => staff.id === initialConversationStaffId)) {
+      routedConversationRef.current = initialConversationStaffId;
       setView("team");
       setConversationStaffId(initialConversationStaffId);
     }
-  }, [initialConversationStaffId]);
+  }, [initialConversationStaffId, state.hiredStaff]);
   const conversationStaff=conversationStaffId ? state.hiredStaff.find((staff) => staff.id === conversationStaffId) ?? null : null;
   const manager=state.hiredStaff.find(s=>s.role==="Manager"); const medical=medicalSupport(state); const weeklyStaffCost=hiredStaffWagesWeekly(state); const enriched=state.staffCandidates.map(c=>({staff:c,terms:staffJoinTermsForState(state,c)})); const willingCount=enriched.filter(e=>e.terms.willing).length; const footballStaffCount=state.hiredStaff.filter(s=>FOOTBALL_ROLES.includes(s.role)).length; const specialistCount=state.hiredStaff.filter(s=>!FOOTBALL_ROLES.includes(s.role)).length; const expiringCount=state.hiredStaff.filter(s=>s.contractWeeks<=24).length;
   const closeManagerTalks=()=>{setManagerNegotiationId(null);setManagerOffer(null);setManagerPosition(null);setManagerCounter(null);setManagerAcceptedOffer(null);setManagerRound(1);setManagerMessage("");};
