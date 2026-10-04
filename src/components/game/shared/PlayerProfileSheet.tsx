@@ -23,7 +23,7 @@ import {
   toggleChairmanShortlist,
 } from "@/lib/game/recruitmentKnowledge";
 import { knownPlayerDetail } from "@/lib/game/knownPlayerDetail";
-import { tacticalPositionProfile, positionFamiliarity, positionUnit } from "@/lib/game/positions";
+import { tacticalPositionProfile, positionFamiliarity, positionDevelopment, positionUnit } from "@/lib/game/positions";
 import { activeLoanForPlayer, terminateUserPlayerLoan } from "@/lib/game/loans";
 import { playerOwnerClubId } from "@/lib/game/playerRegistration";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
@@ -266,6 +266,9 @@ export function PlayerProfileSheet({
   }
 
   const tactical = tacticalPositionProfile(player);
+  const positionPath = [tactical.primary, ...tactical.secondary]
+    .slice(0, 6)
+    .map((position) => ({ position, ...positionDevelopment(player, position) }));
   const contract = activeContract(state, player.id);
   const loan = activeLoanForPlayer(state, player.id);
   const club = player.currentClubId ? clubDisplayName(state, player.currentClubId) : "Free agent";
@@ -787,6 +790,37 @@ export function PlayerProfileSheet({
                   <Button size="sm" className="mt-2 h-9 w-full" onClick={requestLoan}>Send loan request</Button>
                 </div>
               )}
+            </section>
+          )}
+
+          {owned && (
+            <section className="rounded-2xl border border-emerald-950/10 bg-white p-3 shadow-sm dark:border-white/10 dark:bg-white/[0.045]">
+              <div className="font-display text-base">Position development</div>
+              <div className="mt-0.5 text-[10px] text-muted-foreground">Match minutes in a role build familiarity. Closely related roles can eventually become Natural.</div>
+              <div className="mt-2 grid gap-1.5">
+                {positionPath.map(({ position, familiarity, minutes, next, minutesToNext }) => {
+                  const target = next && minutesToNext !== null ? minutes + minutesToNext : minutes;
+                  const progress = next && target > 0 ? Math.min(100, Math.round((minutes / target) * 100)) : 100;
+                  return (
+                    <div key={position} className="rounded-lg border bg-muted/20 px-2.5 py-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-2">
+                          <span className={cn("rounded border px-1.5 py-0.5 text-[9px] font-bold", POSITION_BADGE_CLASS[positionUnit(position)])}>{position}</span>
+                          <strong className="text-xs">{familiarity}</strong>
+                        </span>
+                        <span className="text-[9px] text-muted-foreground">
+                          {next && minutesToNext !== null ? `${minutesToNext.toLocaleString()} min to ${next}` : familiarity === "Natural" ? "Natural position" : "Current ceiling"}
+                        </span>
+                      </div>
+                      {next && minutesToNext !== null && (
+                        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
+                          <div className="h-full rounded-full bg-emerald-500" style={{ width: `${progress}%` }} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </section>
           )}
 
