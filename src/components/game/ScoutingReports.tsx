@@ -146,7 +146,10 @@ export function ScoutingReports({
                   <Button
                     size="sm"
                     variant={watched ? "default" : "outline"}
-                    className="h-8 px-2 text-[10px]"
+                    className={cn(
+                      "h-8 px-2 text-[10px]",
+                      watched && "bg-primary text-primary-foreground hover:bg-primary/90 border-primary",
+                    )}
                     onClick={() => update((s) => toggleChairmanShortlist(s, player.id))}
                   >
                     <Star className={cn("mr-1 size-3", watched && "fill-current")} />
