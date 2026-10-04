@@ -7,6 +7,7 @@ import {
   RefreshCw,
   Repeat2,
   Star,
+  TriangleAlert,
 } from "lucide-react";
 import type { GameState, LoanPlayingTimeExpectation } from "@/lib/game/types";
 import {
@@ -69,6 +70,7 @@ export function ScoutingBrowser({
   initialBriefId?: string;
 }) {
   const [note, setNote] = useState<string | null>(null);
+  const [approachFeedback, setApproachFeedback] = useState<Record<string, { ok: boolean; message: string }>>({});
   const [loanTargetId, setLoanTargetId] = useState<string | null>(null);
   const [loanDuration, setLoanDuration] = useState(12);
   const [loanContribution, setLoanContribution] = useState(50);
@@ -108,7 +110,10 @@ export function ScoutingBrowser({
       const result = freeAgent
         ? submitTransferOffer(s, playerId, 0, "First Team", weeklyWage)
         : submitTransferEnquiry(s, playerId, "First Team", weeklyWage);
-      setNote(result.result.reason);
+      setApproachFeedback((current) => ({
+        ...current,
+        [playerId]: { ok: result.result.ok, message: result.result.reason },
+      }));
       if (result.result.ok && result.result.negotiation?.id) {
         onNegotiationStarted?.(result.result.negotiation.id);
       }
@@ -245,6 +250,15 @@ export function ScoutingBrowser({
                   </span>
                   <span>{assignment ? report.complete ? "Full report" : "Scout following up" : initialReport ? "Initial staff report" : "Basic knowledge"}</span>
                 </div>
+                {approachFeedback[player.id] && !approachFeedback[player.id].ok && (
+                  <div className="mb-2 flex items-start gap-2 rounded-xl border-2 border-amber-400/70 bg-amber-400/15 px-3 py-2.5 text-amber-50 shadow-[0_0_0_1px_rgba(251,191,36,0.08)]">
+                    <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-300" />
+                    <div>
+                      <div className="text-[10px] font-black uppercase tracking-[0.12em] text-amber-300">Approach blocked</div>
+                      <div className="mt-0.5 text-xs font-semibold leading-relaxed">{approachFeedback[player.id].message}</div>
+                    </div>
+                  </div>
+                )}
                 <div className="flex flex-wrap items-center gap-1">
                   <Button size="sm" variant="outline" className={cn("h-8 min-w-8 border-white/40 bg-white/[0.08] px-2 text-xs text-white hover:bg-white/20 hover:text-white", watched && "border-amber-300 text-amber-200")} aria-label={watched ? "Remove from shortlist" : "Add to shortlist"} title={watched ? "Shortlisted" : "Shortlist"} onClick={() => update((s) => toggleChairmanShortlist(s, player.id))}>
                     <Star className={cn("size-4", watched && "fill-current")} />
@@ -258,8 +272,23 @@ export function ScoutingBrowser({
                   ) : (
                     <span className="inline-flex h-8 flex-1 items-center justify-center px-1 text-xs text-white/85"><Binoculars className="mr-1 size-3.5" /> Scouting</span>
                   )}
-                  <Button size="sm" variant="secondary" className="h-8 flex-1 bg-[#d9ebe6] px-2 text-xs font-semibold text-[#12312c] hover:bg-white hover:text-[#12312c]" onClick={() => approach(player.id, freeAgent, estimate.openingWeeklyWage)}>
-                    <Handshake className="mr-1 size-3.5" />{freeAgent ? "Approach player" : "Approach club"}
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className={cn(
+                      "h-8 flex-1 px-2 text-xs font-semibold",
+                      approachFeedback[player.id] && !approachFeedback[player.id].ok
+                        ? "border border-amber-400/70 bg-amber-400/20 text-amber-100 hover:bg-amber-400/30 hover:text-white"
+                        : "bg-[#d9ebe6] text-[#12312c] hover:bg-white hover:text-[#12312c]",
+                    )}
+                    onClick={() => approach(player.id, freeAgent, estimate.openingWeeklyWage)}
+                  >
+                    {approachFeedback[player.id] && !approachFeedback[player.id].ok
+                      ? <TriangleAlert className="mr-1 size-3.5" />
+                      : <Handshake className="mr-1 size-3.5" />}
+                    {approachFeedback[player.id] && !approachFeedback[player.id].ok
+                      ? "Approach blocked"
+                      : freeAgent ? "Approach player" : "Approach club"}
                   </Button>
                   {!freeAgent && loanWindowOpen && !loanUnavailable && (
                     <Button size="sm" variant="outline" className="h-8 border-white/40 bg-white/[0.08] px-2 text-xs text-white hover:bg-white/20 hover:text-white" title={!loanWindowOpen ? `${loanWindow.label} · ${loanWindow.detail}` : loanUnavailable ?? "Request a temporary loan"} onClick={() => setLoanTargetId((current) => (current === player.id ? null : player.id))}>
