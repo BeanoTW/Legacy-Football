@@ -17,6 +17,7 @@ import {
   loanInAvailabilityReason,
   playerInterestAssessment,
   playerName,
+  openNegotiations,
   ageOf,
   submitTransferEnquiry,
   submitTransferOffer,
@@ -45,6 +46,15 @@ import { isTransferWindowOpen, windowStatus } from "@/lib/game/calendar";
 import { TacticalPlayerCard } from "./shared/TacticalPlayerCard";
 import { positionUnit, tacticalPositionProfile } from "@/lib/game/positions";
 import { playerAttributeIdentity } from "@/lib/game/playerAttributeIdentity";
+
+function negotiationStatusLabel(stage: string, freeAgent: boolean): string {
+  if (stage === "enquiry") return "Enquiry sent";
+  if (stage === "clubTalks") return "Club talks";
+  if (stage === "playerTalks") return freeAgent ? "Contract talks" : "Personal terms";
+  if (stage === "agreed") return "Terms agreed";
+  if (stage === "registration") return "Registration";
+  return "Talks open";
+}
 
 function newestBrief(state: GameState) {
   return [...(state.football?.scoutingDiscovery?.briefs ?? [])].sort((a, b) => {
@@ -221,6 +231,8 @@ export function ScoutingBrowser({
         const interest = playerInterestAssessment(state, player);
         const watched = isChairmanShortlisted(state, player.id);
         const freeAgent = player.currentClubId === null;
+        const activeNegotiation = openNegotiations(state).find((deal) => deal.playerId === player.id) ?? null;
+        const negotiationLabel = activeNegotiation ? negotiationStatusLabel(activeNegotiation.stage, freeAgent) : null;
         const loanUnavailable = freeAgent ? "Free agents cannot be borrowed" : loanInAvailabilityReason(state, player.id);
         const estimate = chairmanRecruitmentEstimate(state, player.id);
         if (!estimate) return null;
@@ -249,6 +261,7 @@ export function ScoutingBrowser({
                     {budgetComfortable ? "Within authority" : "Budget risk"}
                   </span>
                   <span>{assignment ? report.complete ? "Full report" : "Scout following up" : initialReport ? "Initial staff report" : "Basic knowledge"}</span>
+                  {activeNegotiation && <span className="rounded-full border border-cyan-300/25 bg-cyan-300/10 px-2 py-0.5 font-bold text-cyan-200">{negotiationLabel}</span>}
                 </div>
                 {approachFeedback[player.id] && !approachFeedback[player.id].ok && (
                   <div className="mb-2 flex items-start gap-2 rounded-xl border-2 border-amber-400/70 bg-amber-400/15 px-3 py-2.5 text-amber-50 shadow-[0_0_0_1px_rgba(251,191,36,0.08)]">
@@ -277,18 +290,26 @@ export function ScoutingBrowser({
                     variant="secondary"
                     className={cn(
                       "h-8 flex-1 px-2 text-xs font-semibold",
-                      approachFeedback[player.id] && !approachFeedback[player.id].ok
-                        ? "border border-amber-400/70 bg-amber-400/20 text-amber-100 hover:bg-amber-400/30 hover:text-white"
-                        : "bg-[#d9ebe6] text-[#12312c] hover:bg-white hover:text-[#12312c]",
+                      activeNegotiation
+                        ? "border border-cyan-300/35 bg-cyan-300/15 text-cyan-100 hover:bg-cyan-300/25 hover:text-white"
+                        : approachFeedback[player.id] && !approachFeedback[player.id].ok
+                          ? "border border-amber-400/70 bg-amber-400/20 text-amber-100 hover:bg-amber-400/30 hover:text-white"
+                          : "bg-[#d9ebe6] text-[#12312c] hover:bg-white hover:text-[#12312c]",
                     )}
-                    onClick={() => approach(player.id, freeAgent, estimate.openingWeeklyWage)}
+                    onClick={() => activeNegotiation
+                      ? onNegotiationStarted?.(activeNegotiation.id)
+                      : approach(player.id, freeAgent, estimate.openingWeeklyWage)}
                   >
-                    {approachFeedback[player.id] && !approachFeedback[player.id].ok
-                      ? <TriangleAlert className="mr-1 size-3.5" />
-                      : <Handshake className="mr-1 size-3.5" />}
-                    {approachFeedback[player.id] && !approachFeedback[player.id].ok
-                      ? "Approach blocked"
-                      : freeAgent ? "Approach player" : "Approach club"}
+                    {activeNegotiation
+                      ? <Handshake className="mr-1 size-3.5" />
+                      : approachFeedback[player.id] && !approachFeedback[player.id].ok
+                        ? <TriangleAlert className="mr-1 size-3.5" />
+                        : <Handshake className="mr-1 size-3.5" />}
+                    {activeNegotiation
+                      ? "View negotiation"
+                      : approachFeedback[player.id] && !approachFeedback[player.id].ok
+                        ? "Approach blocked"
+                        : freeAgent ? "Approach player" : "Approach club"}
                   </Button>
                   {!freeAgent && loanWindowOpen && !loanUnavailable && (
                     <Button size="sm" variant="outline" className="h-8 border-white/40 bg-white/[0.08] px-2 text-xs text-white hover:bg-white/20 hover:text-white" title={!loanWindowOpen ? `${loanWindow.label} · ${loanWindow.detail}` : loanUnavailable ?? "Request a temporary loan"} onClick={() => setLoanTargetId((current) => (current === player.id ? null : player.id))}>
