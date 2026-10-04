@@ -36,10 +36,13 @@ import { competitionLabel, fixtureCompetition, fixtureDate, fixtureKey, resultFo
 import type { AdvanceTarget } from "@/lib/game/advancePlanner";
 import { ClubIdentitySheet } from "./ClubIdentityStudio";
 import { ClubBadge } from "./ClubKitArt";
+import { CharacterPortrait } from "./CharacterPortrait";
+import { ClubConversationDialog } from "./ClubConversationDialog";
 import { clubKitFor, clubKitForReference } from "@/lib/game/clubKit";
 
 export function ClubHub({ state, update, setTab, isContinuing, onAdvanceTo }: { state: GameState; update: (fn: (s: GameState) => GameState) => void; setTab: (t: Tab) => void; isContinuing: boolean; onAdvanceTo?: (target: AdvanceTarget) => void }) {
   const [identityOpen, setIdentityOpen] = useState(false);
+  const [managerConversationOpen, setManagerConversationOpen] = useState(false);
   const [pendingSimKey, setPendingSimKey] = useState<string | null>(null);
   const [simSummary, setSimSummary] = useState<{
     fixture: GameState["fixtures"][number];
@@ -84,6 +87,10 @@ export function ClubHub({ state, update, setTab, isContinuing, onAdvanceTo }: { 
     .sort((a, b) => b.season - a.season || b.week - a.week || b.id.localeCompare(a.id));
   const deskItems = topDecisions.length > 0 ? topDecisions : unreadBriefings.slice(0, 2);
   const latestNews = state.inbox.filter((item) => !decisionItems.some((decision) => decision.id === item.id)).slice().sort((a, b) => b.season - a.season || b.week - a.week || b.id.localeCompare(a.id))[0];
+  const staffMatter = state.inbox
+    .filter((item) => item.generatorId === "club-conversations" && item.department !== "Players" && item.status !== "resolved")
+    .slice()
+    .sort((a, b) => (a.status === "awaitingDecision" ? -1 : 0) - (b.status === "awaitingDecision" ? -1 : 0) || b.season - a.season || b.week - a.week)[0];
   const activeNegotiations = state.football?.negotiations?.filter((negotiation) => negotiation.stage !== "completed" && negotiation.stage !== "withdrawn" && negotiation.stage !== "rejected").length ?? 0;
   const boardConf = state.board ? recomputeConfidence(state.board) : 50;
   const managerQuality = playerManagerQuality(state);
@@ -106,7 +113,7 @@ export function ClubHub({ state, update, setTab, isContinuing, onAdvanceTo }: { 
   return (
     <div className="lf-home-dashboard flex min-h-0 flex-col gap-3">
       <section className="lf-command-grid">
-        <div className="lf-match-card overflow-hidden rounded-2xl border bg-card shadow-sm"><MatchStrip state={state} nextFixture={nextFixture} manager={manager} update={update} onSimMatch={(fixture) => { setPendingSimKey(fixtureKey(fixture)); update((current) => simulateFixtureToday(current)); }} onOpenSchedule={() => setTab("fixtures")} onOpenStaff={() => setTab("staff")} /></div>
+        <div className="lf-match-card overflow-hidden rounded-2xl border bg-card shadow-sm"><MatchStrip state={state} nextFixture={nextFixture} manager={manager} update={update} onSimMatch={(fixture) => { setPendingSimKey(fixtureKey(fixture)); update((current) => simulateFixtureToday(current)); }} onOpenSchedule={() => setTab("fixtures")} onOpenManager={() => manager ? setManagerConversationOpen(true) : setTab("staff")} /></div>
         <aside className="lf-club-pulse">
           <div className="lf-pulse-block">
             <span className="lf-pulse-label"><Trophy className="size-3.5" />League standing</span>
@@ -117,9 +124,9 @@ export function ClubHub({ state, update, setTab, isContinuing, onAdvanceTo }: { 
           </div>
           <div className="lf-pulse-side">
             <button className="lf-pulse-manager" onClick={() => setTab("staff")}>
-              <span className="lf-pulse-label"><Users className="size-3.5" />Manager status</span>
-              <strong>{manager?.name ?? "Vacant"}</strong>
-              <small>{manager ? `${Math.round(managerQuality)}/100 quality` : "Appointment required"}</small>
+              <span className="lf-pulse-label"><Users className="size-3.5" />Staff status</span>
+              <strong>{staffMatter?.sender ?? `${staffCount} employed`}</strong>
+              <small>{staffMatter?.subject ?? (manager ? `${Math.round(managerQuality)}/100 manager quality · Staff room` : "Manager appointment required")}</small>
               <ArrowRight className="lf-pulse-chevron size-4" aria-hidden="true" />
             </button>
             <button className="lf-pulse-news" onClick={() => setTab("inbox")}>
@@ -193,6 +200,7 @@ export function ClubHub({ state, update, setTab, isContinuing, onAdvanceTo }: { 
         <ActionTile onClick={() => setIdentityOpen(true)} icon={<ClubBadge design={identity.badge} clubName={state.clubName} size={24} />} title="Club identity" value="Badge & kits" sub="Crest · home · away" />
       </section>
       <ClubIdentitySheet open={identityOpen} onOpenChange={setIdentityOpen} state={state} update={update} />
+      <ClubConversationDialog state={state} subject={manager ? { kind: "staff", staff: manager } : null} open={managerConversationOpen} onOpenChange={setManagerConversationOpen} />
       <Dialog open={Boolean(simSummary)} onOpenChange={(open) => { if (!open) setSimSummary(null); }}>
         <DialogContent className="w-[calc(100vw-2rem)] max-w-md overflow-hidden rounded-2xl border border-teal-700/25 p-0">
           {simSummary && (() => {
@@ -249,7 +257,7 @@ export function ClubHub({ state, update, setTab, isContinuing, onAdvanceTo }: { 
   );
 }
 
-function MatchStrip({ state, nextFixture, manager, update, onSimMatch, onOpenSchedule, onOpenStaff }: { state: GameState; nextFixture: GameState["fixtures"][number] | undefined; manager: GameState["hiredStaff"][number] | undefined; update: (fn: (s: GameState) => GameState) => void; onSimMatch: (fixture: GameState["fixtures"][number]) => void; onOpenSchedule: () => void; onOpenStaff: () => void }) {
+function MatchStrip({ state, nextFixture, manager, update, onSimMatch, onOpenSchedule, onOpenManager }: { state: GameState; nextFixture: GameState["fixtures"][number] | undefined; manager: GameState["hiredStaff"][number] | undefined; update: (fn: (s: GameState) => GameState) => void; onSimMatch: (fixture: GameState["fixtures"][number]) => void; onOpenSchedule: () => void; onOpenManager: () => void }) {
   const identity = clubKitFor(state);
   const opponentIdentity = nextFixture ? clubKitForReference(state, nextFixture.opponent) : null;
   const matchReady = !!nextFixture && nextFixture.week === state.week && (nextFixture.dayOfWeek ?? 5) === calendarDay(state) && !resultForFixture(state, nextFixture);
@@ -261,7 +269,7 @@ function MatchStrip({ state, nextFixture, manager, update, onSimMatch, onOpenSch
   const fitTone = prep.squadFitBand === "Excellent" ? "text-emerald-600" : prep.squadFitBand === "Good" ? "text-green-600" : prep.squadFitBand === "Workable" ? "text-amber-600" : prep.squadFitBand === "Poor" ? "text-rose-600" : "text-muted-foreground";
   const date = nextFixture ? fixtureDate(nextFixture) : null;
   const competition = nextFixture ? competitionLabel(fixtureCompetition(nextFixture)) : isPreseason ? "Preseason" : "Schedule";
-  return <div className="lf-match-inner"><div className="lf-match-copy"><div className="lf-match-kicker">Next fixture · Week {nextFixture?.week ?? state.week}</div><h2>{nextFixture ? clubPresentationName(clubDisplayName(state, nextFixture.opponent)) : "No fixture scheduled"}</h2><p>{nextFixture && date ? `${date.dayName} ${date.day} ${date.month} · ${nextFixture.home ? "Home" : "Away"} · ${competition}` : "Use the schedule to review upcoming fixtures."}</p>{nextFixture && <div className="lf-match-brief"><div><span>{manager ? "Manager's brief" : "Caretaker setup"}</span><strong>{prep.managerName} · {prep.selectedFormation} · {prep.style}</strong></div><div className={cn("lf-match-fit", fitTone)}>{prep.squadFitBand}<small>{prep.squadFitScore}/100 fit</small></div></div>}<div className="lf-match-actions">{matchReady ? <><Button onClick={() => update((current) => startMatchDay(current))} className="lf-match-primary"><Play /> View match</Button><Button variant="outline" onClick={() => nextFixture && onSimMatch(nextFixture)} className="lf-match-secondary">Sim match</Button></> : <Button onClick={onOpenSchedule} className="lf-match-primary"><Play /> View schedule</Button>}<Button variant="outline" onClick={onOpenStaff} className="lf-match-secondary">{manager ? "Manager profile" : "Appoint manager"}</Button></div></div><div className="lf-match-versus"><div className="lf-match-team"><div className={cn("lf-team-mark", nextFixture && "has-club-badge")}>{nextFixture ? <ClubBadge design={nextFixture.home ? identity.badge : opponentIdentity!.badge} clubName={homeName} size={40} /> : <ClubBadge design={identity.badge} clubName={state.clubName} size={40} />}</div><div className="truncate font-display">{homeName}</div><span>{nextFixture ? "Home" : ""}</span></div><div className="lf-vs">VS</div><div className="lf-match-team"><div className={cn("lf-team-mark", nextFixture && "has-club-badge", !nextFixture && "is-tbc")}>{nextFixture ? <ClubBadge design={nextFixture.home ? opponentIdentity!.badge : identity.badge} clubName={awayName} size={40} /> : "?"}</div><div className="truncate font-display">{awayName}</div><span>{nextFixture ? "Away" : ""}</span></div></div></div>;
+  return <div className="lf-match-inner"><div className="lf-match-copy"><div className="lf-match-kicker">Next fixture · Week {nextFixture?.week ?? state.week}</div><h2>{nextFixture ? clubPresentationName(clubDisplayName(state, nextFixture.opponent)) : "No fixture scheduled"}</h2><p>{nextFixture && date ? `${date.dayName} ${date.day} ${date.month} · ${nextFixture.home ? "Home" : "Away"} · ${competition}` : "Use the schedule to review upcoming fixtures."}</p>{nextFixture && <button type="button" className="lf-match-brief w-full text-left" onClick={onOpenManager} title={manager ? `Speak to ${manager.name}` : "Appoint a manager"}><div className="flex min-w-0 items-center gap-2">{manager ? <CharacterPortrait identity={{ id: manager.id, subject: "manager" }} size={34} framed={false} title={manager.name} /> : <span className="grid size-9 shrink-0 place-items-center rounded-full border bg-muted"><Users className="size-4" /></span>}<div className="min-w-0"><span>{manager ? "Manager's brief · tap to speak" : "Caretaker setup"}</span><strong className="block truncate">{prep.managerName} · {prep.selectedFormation} · {prep.style}</strong></div></div><div className={cn("lf-match-fit", fitTone)}>{prep.squadFitBand}<small>{prep.squadFitScore}/100 fit</small></div></button>}<div className="lf-match-actions">{matchReady ? <><Button onClick={() => update((current) => startMatchDay(current))} className="lf-match-primary"><Play /> View match</Button><Button variant="outline" onClick={() => nextFixture && onSimMatch(nextFixture)} className="lf-match-secondary">Sim match</Button></> : <Button onClick={onOpenSchedule} className="lf-match-primary"><Play /> View schedule</Button>}<Button variant="outline" onClick={onOpenManager} className="lf-match-secondary">{manager ? "Speak to manager" : "Appoint manager"}</Button></div></div><div className="lf-match-versus"><div className="lf-match-team"><div className={cn("lf-team-mark", nextFixture && "has-club-badge")}>{nextFixture ? <ClubBadge design={nextFixture.home ? identity.badge : opponentIdentity!.badge} clubName={homeName} size={40} /> : <ClubBadge design={identity.badge} clubName={state.clubName} size={40} />}</div><div className="truncate font-display">{homeName}</div><span>{nextFixture ? "Home" : ""}</span></div><div className="lf-vs">VS</div><div className="lf-match-team"><div className={cn("lf-team-mark", nextFixture && "has-club-badge", !nextFixture && "is-tbc")}>{nextFixture ? <ClubBadge design={nextFixture.home ? opponentIdentity!.badge : identity.badge} clubName={awayName} size={40} /> : "?"}</div><div className="truncate font-display">{awayName}</div><span>{nextFixture ? "Away" : ""}</span></div></div></div>;
 }
 
 function ordinal(value: number): string {
