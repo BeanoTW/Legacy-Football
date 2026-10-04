@@ -17,6 +17,12 @@
   min-height: 0;
   flex-direction: column;
 }
+.dark .lf-office {
+  --nr-ink: var(--foreground);
+  --nr-soft: color-mix(in oklab, var(--foreground) 68%, transparent);
+  --nr-card: color-mix(in oklab, var(--card) 94%, white 6%);
+  --nr-line: color-mix(in oklab, var(--foreground) 16%, transparent);
+}
 .lf-office-header {
   display: flex;
   align-items: center;
