@@ -20,6 +20,7 @@ import { clubFinancialProfile } from "./clubFinanceProfile";
 import { clubOverallProfile, playerReputationForAbility } from "./playerOverall";
 import { WEEKS_PER_SEASON } from "./time";
 import { activeLoanForPlayer } from "./loans";
+import { playerDevelopmentStaffModifier } from "./staffImpact";
 import { isUserClubReference, sameClubReference } from "./clubReference";
 import {
   ensurePlayerRegistrationStateInPlace,
