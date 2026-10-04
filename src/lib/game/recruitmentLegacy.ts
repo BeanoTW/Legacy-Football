@@ -1589,16 +1589,18 @@ export function openTransferNegotiationInPlace(
     expiresAtAbsoluteWeek: abs + NEGOTIATION_TTL_WEEKS,
     log: [],
   };
-  log(
-    n,
-    {
-      round: 1,
-      party: "club",
-      action: "offer",
-      note: `Offer of £${offerFee.toLocaleString()} tabled.`,
-    },
-    abs,
-  );
+  if (p.currentClubId !== null) {
+    log(
+      n,
+      {
+        round: 1,
+        party: "club",
+        action: "offer",
+        note: `Offer of £${offerFee.toLocaleString()} tabled.`,
+      },
+      abs,
+    );
+  }
   s.football.negotiations.push(n);
   syncTransferTargetNegotiationInPlace(s, n);
 
@@ -1611,7 +1613,7 @@ export function openTransferNegotiationInPlace(
         round: 1,
         party: "player",
         action: "offer",
-        note: "Free agent — straight to personal terms.",
+        note: `Contract offer: £${proposedWeeklyWage.toLocaleString()}/wk for ${n.proposedLengthSeasons} seasons as ${role}.`,
       },
       abs,
     );

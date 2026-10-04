@@ -15,6 +15,7 @@ import { scoutedOverallPresentation } from "@/lib/game/scoutingPresentation";
 import { chairmanRecruitmentEstimate, isChairmanShortlisted } from "@/lib/game/recruitmentKnowledge";
 import { openPlayerProfile } from "./PlayerProfileSheet";
 import { contractEmploymentType } from "@/lib/game/employment";
+import { WEEKS_PER_SEASON } from "@/lib/game/time";
 
 export type PlayerCardMode = "squad" | "recruitment" | "compact";
 
@@ -93,6 +94,13 @@ export function TacticalPlayerCard({
               {injury ? injury.type : `${fitness ?? 100}% fit`}
             </span>
           </span>
+          {compact && contract && (
+            <span className="mt-1 flex min-w-0 items-center gap-1.5 text-[9px] font-medium text-foreground/75">
+              <span>{fmtMoney(contract.weeklyWage)}/wk</span>
+              <span>·</span>
+              <span>{Math.max(1, Math.ceil((contractWeeks ?? 0) / WEEKS_PER_SEASON))} season{Math.max(1, Math.ceil((contractWeeks ?? 0) / WEEKS_PER_SEASON)) === 1 ? "" : "s"} left</span>
+            </span>
+          )}
           {mode !== "compact" && (
             <span className="mt-1 block truncate text-[9px] text-muted-foreground/80">
               {form?.appearances ? `${form.band} · ${form.averageRating.toFixed(2)}` : "No form"}
