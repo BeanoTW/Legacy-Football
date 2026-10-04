@@ -1007,6 +1007,7 @@ export function PlayerProfileSheet({
         subject={{ kind: "player", player }}
         open={conversationOpen}
         onOpenChange={setConversationOpen}
+        update={update}
       />
     </Sheet>
   );
