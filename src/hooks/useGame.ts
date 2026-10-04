@@ -205,6 +205,22 @@ export function useGame() {
   const update = useCallback((updater: (s: GameState) => GameState) => {
     setState((prev) => (prev ? updater(prev) : prev));
   }, []);
+  const saveNow = useCallback(async (): Promise<{ local: boolean; cloud: boolean }> => {
+    if (!state) return { local: false, cloud: false };
+    setSaveError(null);
+    setCloudError(null);
+    await saveGame(state, activeSlot);
+    markLocalSaveModified(activeSlot);
+    setSaveSlots(await listSaveSlots());
+    try {
+      await uploadCareer(activeSlot, state);
+      return { local: true, cloud: true };
+    } catch (error) {
+      setCloudError(`Cloud sync failed: ${(error as Error).message}`);
+      return { local: true, cloud: false };
+    }
+  }, [activeSlot, state]);
+
 
   const reset = useCallback(() => {
     setIsContinuing(false);
@@ -260,5 +276,6 @@ export function useGame() {
     cloudError,
     switchSlot,
     deleteSlot,
+    saveNow,
   };
 }
