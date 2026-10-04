@@ -122,6 +122,40 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   useEffect(() => {
     installAudioUnlock();
+
+    // Installed PWAs can resume an older cached document. Revalidate when the
+    // app launches or returns to the foreground and refresh only when the
+    // deployed asset fingerprint has changed.
+    let lastCheck = 0;
+    const checkForFreshBuild = async () => {
+      if (document.visibilityState !== "visible" || Date.now() - lastCheck < 30_000) return;
+      lastCheck = Date.now();
+      try {
+        const response = await fetch(`/?lf-update-check=${Date.now()}`, {
+          cache: "no-store",
+          headers: { "cache-control": "no-cache" },
+        });
+        if (!response.ok) return;
+        const latest = await response.text();
+        const assetPattern = /(?:src|href)="([^"]*\\/assets\\/[^"]+)"/g;
+        const fingerprint = (html: string) =>
+          Array.from(html.matchAll(assetPattern), (match) => match[1]).sort().join("|");
+        const latestFingerprint = fingerprint(latest);
+        const currentFingerprint = fingerprint(document.documentElement.outerHTML);
+        if (latestFingerprint && currentFingerprint && latestFingerprint !== currentFingerprint) {
+          window.location.reload();
+        }
+      } catch {
+        // Offline play remains valid; try again on the next foreground event.
+      }
+    };
+    void checkForFreshBuild();
+    document.addEventListener("visibilitychange", checkForFreshBuild);
+    window.addEventListener("focus", checkForFreshBuild);
+    return () => {
+      document.removeEventListener("visibilitychange", checkForFreshBuild);
+      window.removeEventListener("focus", checkForFreshBuild);
+    };
   }, []);
   return (
     <QueryClientProvider client={queryClient}>
