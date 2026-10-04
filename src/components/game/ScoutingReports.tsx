@@ -12,6 +12,7 @@ import { scoutingReport } from "@/lib/game/scouting";
 import { transferTargetPlayer } from "@/lib/game/recruitmentTargetBridge";
 import {
   chairmanRecruitmentEstimate,
+  chairmanShortlistIds,
   isChairmanShortlisted,
   toggleChairmanShortlist,
 } from "@/lib/game/recruitmentKnowledge";
@@ -33,18 +34,23 @@ export function ScoutingReports({
   onBack,
   focusPlayerId,
   onNegotiationStarted,
+  shortlistOnly = false,
 }: {
   state: GameState;
   update: (fn: (s: GameState) => GameState) => void;
   onBack: () => void;
   focusPlayerId?: string;
   onNegotiationStarted?: (negotiationId: string) => void;
+  shortlistOnly?: boolean;
 }) {
   const focusRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (focusPlayerId) focusRef.current?.scrollIntoView({ block: "center", behavior: "auto" });
   }, [focusPlayerId]);
-  const assignments = [...(state.football?.scouting?.assignments ?? [])].sort((a, b) => {
+  const shortlisted = new Set(chairmanShortlistIds(state));
+  const assignments = [...(state.football?.scouting?.assignments ?? [])]
+    .filter((assignment) => !shortlistOnly || shortlisted.has(assignment.playerId))
+    .sort((a, b) => {
     if (a.status !== b.status) return a.status === "active" ? -1 : 1;
     return b.startedAtAbsoluteWeek - a.startedAtAbsoluteWeek;
   });
@@ -68,8 +74,8 @@ export function ScoutingReports({
 
   return (
     <DetailScreen
-      title="Scouting reports"
-      subtitle={`${assignments.filter((a) => a.status === "active").length} active · ${assignments.filter((a) => a.status === "complete").length} complete`}
+      title={shortlistOnly ? "Shortlist" : "Scouting reports"}
+      subtitle={shortlistOnly ? `${assignments.length} watched target${assignments.length === 1 ? "" : "s"}` : `${assignments.filter((a) => a.status === "active").length} active · ${assignments.filter((a) => a.status === "complete").length} complete`}
       actions={
         <Button variant="ghost" size="sm" onClick={onBack}>
           <ArrowLeft className="mr-2 size-4" /> Back
@@ -79,7 +85,7 @@ export function ScoutingReports({
     >
       {assignments.length === 0 && (
         <div className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">
-          No scouting assignments yet. Use Find Players and press Scout on anyone you want the recruitment team to track.
+          {shortlistOnly ? "No shortlisted players yet. Star a player from Recommended players or Scouting reports to keep them here." : "No scouting assignments yet. Use Find Players and press Scout on anyone you want the recruitment team to track."}
         </div>
       )}
 
