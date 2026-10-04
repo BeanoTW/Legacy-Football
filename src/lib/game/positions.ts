@@ -72,7 +72,7 @@ export interface TacticalPositionProfile {
  * richer position model costs nothing in long-run save size and old saves gain
  * the same stable profile automatically.
  */
-export function tacticalPositionProfile(
+function baseTacticalPositionProfile(
   player: Pick<FootballPlayer, "id" | "primaryPosition">,
 ): TacticalPositionProfile {
   const candidates = PRIMARY_BY_UNIT[player.primaryPosition];
@@ -98,16 +98,76 @@ export function tacticalPositionProfile(
   };
 }
 
-export function positionFamiliarity(
-  player: Pick<FootballPlayer, "id" | "primaryPosition">,
+const LEARN_COMFORTABLE_MINUTES = 540;
+const LEARN_ACCOMPLISHED_MINUTES = 1_440;
+const LEARN_NATURAL_MINUTES = 2_700;
+
+function directlyRelated(primary: TacticalPosition, position: TacticalPosition): boolean {
+  return POSITION_RELATIONSHIPS[primary].includes(position) || POSITION_RELATIONSHIPS[position].includes(primary);
+}
+
+function learnedFamiliarity(
+  player: Pick<FootballPlayer, "id" | "primaryPosition" | "positionExperience">,
   position: TacticalPosition,
 ): PositionFamiliarity | "Unfamiliar" {
-  const profile = tacticalPositionProfile(player);
+  const base = baseTacticalPositionProfile(player);
+  if (position === "GK" || base.primary === "GK") return position === base.primary ? "Natural" : "Unfamiliar";
+  const minutes = player.positionExperience?.[position] ?? 0;
+  if (directlyRelated(base.primary, position) && minutes >= LEARN_NATURAL_MINUTES) return "Natural";
+  if (minutes >= LEARN_ACCOMPLISHED_MINUTES) return "Accomplished";
+  if (minutes >= LEARN_COMFORTABLE_MINUTES) return "Comfortable";
+  return "Unfamiliar";
+}
+
+export function tacticalPositionProfile(
+  player: Pick<FootballPlayer, "id" | "primaryPosition" | "positionExperience">,
+): TacticalPositionProfile {
+  const base = baseTacticalPositionProfile(player);
+  if (base.primary === "GK") return base;
+  const learned = DETAILED_POSITIONS
+    .filter((position) => position !== "GK" && position !== base.primary)
+    .filter((position) => learnedFamiliarity(player, position) !== "Unfamiliar");
+  const natural = [...new Set([
+    ...base.natural,
+    ...learned.filter((position) => learnedFamiliarity(player, position) === "Natural"),
+  ])];
+  const secondary = [...new Set([
+    ...base.secondary,
+    ...learned.filter((position) => !natural.includes(position)),
+  ])];
+  return { primary: base.primary, secondary, natural };
+}
+
+export function positionFamiliarity(
+  player: Pick<FootballPlayer, "id" | "primaryPosition" | "positionExperience">,
+  position: TacticalPosition,
+): PositionFamiliarity | "Unfamiliar" {
+  const profile = baseTacticalPositionProfile(player);
   if (profile.natural.includes(position)) return "Natural";
+  const learned = learnedFamiliarity(player, position);
+  if (learned !== "Unfamiliar") return learned;
   const index = profile.secondary.indexOf(position);
   if (index === 0) return "Accomplished";
   if (index > 0) return "Comfortable";
   return "Unfamiliar";
+}
+
+export function positionDevelopment(
+  player: Pick<FootballPlayer, "id" | "primaryPosition" | "positionExperience">,
+  position: TacticalPosition,
+): { familiarity: PositionFamiliarity | "Unfamiliar"; minutes: number; next: PositionFamiliarity | null; minutesToNext: number | null } {
+  const familiarity = positionFamiliarity(player, position);
+  const minutes = player.positionExperience?.[position] ?? 0;
+  const base = baseTacticalPositionProfile(player);
+  if (familiarity === "Natural") return { familiarity, minutes, next: null, minutesToNext: null };
+  if (familiarity === "Accomplished") {
+    if (!directlyRelated(base.primary, position)) return { familiarity, minutes, next: null, minutesToNext: null };
+    return { familiarity, minutes, next: "Natural", minutesToNext: Math.max(0, LEARN_NATURAL_MINUTES - minutes) };
+  }
+  if (familiarity === "Comfortable") {
+    return { familiarity, minutes, next: "Accomplished", minutesToNext: Math.max(0, LEARN_ACCOMPLISHED_MINUTES - minutes) };
+  }
+  return { familiarity, minutes, next: "Comfortable", minutesToNext: Math.max(0, LEARN_COMFORTABLE_MINUTES - minutes) };
 }
 
 export const POSITION_EFFECTIVENESS: Record<PositionFamiliarity | "Unfamiliar", number> = {
