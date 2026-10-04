@@ -67,6 +67,9 @@ function Page() {
   useEffect(() => {
     const theme = localStorage.getItem("chairman.colour-theme");
     if (theme) document.documentElement.dataset.clubTheme = theme;
+    const appearance = localStorage.getItem("chairman.appearance") ?? "system";
+    const dark = appearance === "dark" || (appearance === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.classList.toggle("dark", dark);
   }, []);
   if (!game.hydrated) return <><AppLaunchSplash /><div className="h-dvh grid place-items-center text-muted-foreground">Loading…</div></>;
   return (
