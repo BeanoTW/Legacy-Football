@@ -271,6 +271,7 @@ function inboxItem(state: GameState, draft: Omit<InboxItem, "id" | "generatorId"
 
 export function proactiveClubConversationItems(state: GameState): InboxItem[] {
   const items: InboxItem[] = [];
+  const manager = currentManager(state);
   const stats = new Map(playerSeasonStats(state).map((row) => [row.playerId, row]));
 
   if (state.week >= 8) {
