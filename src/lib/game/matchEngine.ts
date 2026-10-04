@@ -522,7 +522,15 @@ function playerStats(
   );
   const participants = [
     ...lineup,
-    ...bench.filter((player) => usedBenchIds.has(player.playerId)),
+    ...bench
+      .filter((player) => usedBenchIds.has(player.playerId))
+      .map((player) => {
+        const sub = substitutions
+          .filter((item) => item.side === "us" && item.playerOnId === player.playerId)
+          .sort((a, b) => a.minute - b.minute)[0];
+        const replaced = sub ? lineup.find((starter) => starter.playerId === sub.playerOffId) : undefined;
+        return replaced ? { ...player, role: replaced.role } : player;
+      }),
   ];
   const goalsFor = events.filter((event) => event.type === "goal" && event.side === "us").length;
   const goalsAgainst = events.filter((event) => event.type === "goal" && event.side === "them");
