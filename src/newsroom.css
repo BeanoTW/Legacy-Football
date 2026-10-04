@@ -260,6 +260,15 @@
 .lf-studio-chip { padding: .42rem .75rem; border: 1px solid var(--nr-line); border-radius: 999px; background: var(--nr-card); color: var(--nr-ink); font-size: .78rem; font-weight: 600; }
 .lf-studio-chip.is-selected { border-color: var(--nr-teal); background: var(--nr-teal); color: white; }
 .lf-studio-footer { display: flex; justify-content: flex-end; gap: .5rem; padding: .65rem 0 calc(.2rem + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--nr-line); background: var(--color-background, white); }
+.dark .lf-studio-sheet {
+  --nr-ink: var(--foreground);
+  --nr-soft: color-mix(in oklab, var(--foreground) 68%, transparent);
+  --nr-line: color-mix(in oklab, var(--foreground) 18%, transparent);
+  --nr-card: color-mix(in oklab, var(--card) 90%, white 10%);
+}
+.dark .lf-studio-chip { color: var(--foreground); }
+.dark .lf-studio-chip.is-selected { color: white; }
+.dark .lf-studio-footer { background: var(--background); }
 @media (max-width: 767px) {
   .lf-studio-sheet { padding: 1rem 1rem calc(.35rem + env(safe-area-inset-bottom, 0px)); }
   .lf-studio-sheet .lf-studio-title { font-size: 1.2rem !important; }
