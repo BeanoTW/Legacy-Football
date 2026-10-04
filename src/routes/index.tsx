@@ -156,6 +156,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
   const chairmanProfile = useChairmanProfile();
   const [decisionQueue, setDecisionQueue] = useState(false);
   const [recruitmentDestination, setRecruitmentDestination] = useState<Extract<InboxDestination, { tab: "recruitment" }> | null>(null);
+  const [staffConversationId, setStaffConversationId] = useState<string | null>(null);
   const [recruitmentNavigationKey, setRecruitmentNavigationKey] = useState(0);
   const [showAdvancePreview, setShowAdvancePreview] = useState(false);
   const [advanceStart, setAdvanceStart] = useState<GameState | null>(null);
@@ -188,6 +189,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
     } else {
       setRecruitmentDestination(null);
     }
+    setStaffConversationId(destination.tab === "staff" ? destination.staffId ?? null : null);
     setTab(destination.tab);
     if (destination.tab === "squad") {
       openPlayerProfile(destination.playerId);
@@ -291,7 +293,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
             {tab === "cashflow" && <CashFlowTab state={state} />}
             {tab === "tickets" && <TicketsTab state={state} update={update} />}
             {tab === "recruitment" && <RecruitmentFlow key={recruitmentNavigationKey} state={state} update={update} destination={recruitmentDestination} />}
-            {tab === "staff" && <StaffTab state={state} update={update} />}
+            {tab === "staff" && <StaffTab state={state} update={update} initialConversationStaffId={staffConversationId} />}
             {tab === "academy" && <AcademyTab state={state} update={update} />}
             {tab === "stadium" && <FacilitiesFlow state={state} update={update} />}
             {tab === "fixtures" && <FixturesTab state={state} update={update} />}
