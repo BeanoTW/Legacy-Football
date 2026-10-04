@@ -62,6 +62,7 @@ type DepartmentPresentation = {
 const DEPARTMENT_PRESENTATION: Record<InboxDepartment, DepartmentPresentation> = {
   "Board of Directors": { short: "Board", tone: "board", icon: Landmark },
   Manager: { short: "Manager", tone: "manager", icon: UserRoundCog },
+  Players: { short: "Players", tone: "club", icon: UsersRound },
   "Director of Football": { short: "Recruitment", tone: "recruitment", icon: BriefcaseBusiness },
   Finance: { short: "Finance", tone: "finance", icon: WalletCards },
   Commercial: { short: "Commercial", tone: "commercial", icon: BadgePoundSterling },

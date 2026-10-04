@@ -42,6 +42,7 @@ export type InboxCategory =
 export type InboxDepartment =
   | "Board of Directors"
   | "Manager"
+  | "Players"
   | "Director of Football"
   | "Finance"
   | "Commercial"

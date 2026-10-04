@@ -10,6 +10,8 @@ export type InboxDestination =
   | { tab: "recruitment"; view: "find"; briefId: string; label: "View scouting results" }
   | { tab: "recruitment"; view: "operations"; negotiationId: string; label: "View negotiation" }
   | { tab: "recruitment"; view: "operations"; label: "Open transfers" }
+  | { tab: "squad"; playerId: string; label: string }
+  | { tab: "staff"; staffId?: string; label: string }
   | { tab: "recruitment"; view: "sales"; label: "View sales" }
   | { tab: "stadium"; label: "Open facilities" }
   | { tab: "commercial"; label: "Open commercial" }
@@ -34,6 +36,16 @@ export function inboxDestinations(state: GameState, item: InboxItem): InboxDesti
 
 /** Don't advertise a deep link if the referenced report or deal no longer exists. */
 export function inboxDestination(state: GameState, item: InboxItem): InboxDestination | null {
+  if (item.generatorId === "club-conversations" && item.department === "Players") {
+    const playerId = item.eventKey.match(/^club-conversation:player-playing-time:([^:]+):s\d+$/)?.[1];
+    if (playerId && transferTargetPlayer(state, playerId)) {
+      return { tab: "squad", playerId, label: "Speak to player" };
+    }
+  }
+  if (item.generatorId === "club-conversations") {
+    const staff = state.hiredStaff.find((candidate) => candidate.name === item.sender);
+    if (staff) return { tab: "staff", staffId: staff.id, label: `Speak to ${staff.name}` };
+  }
   if (item.generatorId === "scouting-report") {
     const assignment = state.football?.scouting?.assignments.find(
       (candidate) => item.eventKey.startsWith(`scouting:${candidate.playerId}:s`),
@@ -80,7 +92,9 @@ export function inboxDestination(state: GameState, item: InboxItem): InboxDestin
     case "Sponsors": return { tab: "commercial", label: "Open commercial" };
     case "Board of Directors": return { tab: "board", label: "Open boardroom" };
     case "Manager":
-    case "Medical": return { tab: "staff", label: "Open staff" };
+    case "Medical":
+    case "Head Scout":
+    case "Director of Football": return { tab: "staff", label: "Open staff" };
     case "Finance": return { tab: "cashflow", label: "Open finances" };
     default: return null;
   }

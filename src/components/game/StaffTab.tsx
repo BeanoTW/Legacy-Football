@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, BriefcaseBusiness, CheckCircle2, MessageCircle, Pencil, Search, SlidersHorizontal, UserMinus, UserPlus, Users } from "lucide-react";
 import type { GameState, Staff, StaffRole } from "@/lib/game/types";
 import type { ManagerOffer } from "@/lib/game/staff";
@@ -34,6 +34,7 @@ import { medicalSupport } from "@/lib/game/playerHealth";
 import { CharacterPortrait } from "./CharacterPortrait";
 import { CharacterPortraitStudio } from "./CharacterPortraitStudio";
 import { useCharacterName } from "@/hooks/useCharacterName";
+import { ClubConversationDialog } from "./ClubConversationDialog";
 
 const STAT_KEYS: (keyof Staff["stats"])[] = ["tactics", "attack", "defense", "development", "scouting", "negotiation", "medical", "motivation"];
 const STAT_LABEL: Record<keyof Staff["stats"], string> = { tactics: "Tac", attack: "Att", defense: "Def", development: "Dev", scouting: "Sct", negotiation: "Neg", medical: "Med", motivation: "Mot" };
@@ -142,10 +143,21 @@ function ManagerRelationshipPanel({ state, staff }: { state: GameState; staff: S
   );
 }
 
-export function StaffTab({ state, update }: { state: GameState; update: (fn: (s: GameState) => GameState) => void }) {
+export function StaffTab({ state, update, initialConversationStaffId }: { state: GameState; update: (fn: (s: GameState) => GameState) => void; initialConversationStaffId?: string | null }) {
   const [view,setView]=useState<StaffView>("home"); const [filter,setFilter]=useState<"All"|StaffRole>("All"); const [minRating,setMinRating]=useState(0); const [maxWage,setMaxWage]=useState(0); const [willingOnly,setWillingOnly]=useState(true); const [sortBy,setSortBy]=useState<"rating"|"wage"|"age"|"fit">("fit");
   const [managerNegotiationId,setManagerNegotiationId]=useState<string|null>(null); const [managerOffer,setManagerOffer]=useState<ManagerOffer|null>(null); const [managerPosition,setManagerPosition]=useState<ManagerOffer|null>(null); const [managerCounter,setManagerCounter]=useState<ManagerOffer|null>(null); const [managerAcceptedOffer,setManagerAcceptedOffer]=useState<ManagerOffer|null>(null); const [managerRound,setManagerRound]=useState(1); const [managerMessage,setManagerMessage]=useState("");
   const [contractAction,setContractAction]=useState<{kind:"release"|"renew";staffId:string}|null>(null);
+  const [conversationStaffId,setConversationStaffId]=useState<string|null>(null);
+  const routedConversationRef=useRef<string|null>(null);
+  useEffect(() => {
+    if (!initialConversationStaffId || routedConversationRef.current === initialConversationStaffId) return;
+    if (state.hiredStaff.some((staff) => staff.id === initialConversationStaffId)) {
+      routedConversationRef.current = initialConversationStaffId;
+      setView("team");
+      setConversationStaffId(initialConversationStaffId);
+    }
+  }, [initialConversationStaffId, state.hiredStaff]);
+  const conversationStaff=conversationStaffId ? state.hiredStaff.find((staff) => staff.id === conversationStaffId) ?? null : null;
   const manager=state.hiredStaff.find(s=>s.role==="Manager"); const medical=medicalSupport(state); const weeklyStaffCost=hiredStaffWagesWeekly(state); const enriched=state.staffCandidates.map(c=>({staff:c,terms:staffJoinTermsForState(state,c)})); const willingCount=enriched.filter(e=>e.terms.willing).length; const footballStaffCount=state.hiredStaff.filter(s=>FOOTBALL_ROLES.includes(s.role)).length; const specialistCount=state.hiredStaff.filter(s=>!FOOTBALL_ROLES.includes(s.role)).length; const expiringCount=state.hiredStaff.filter(s=>s.contractWeeks<=24).length;
   const closeManagerTalks=()=>{setManagerNegotiationId(null);setManagerOffer(null);setManagerPosition(null);setManagerCounter(null);setManagerAcceptedOffer(null);setManagerRound(1);setManagerMessage("");};
   const hire=(id:string)=>{const candidate=state.staffCandidates.find(c=>c.id===id);if(candidate?.role==="Manager"){const terms=staffJoinTermsForState(state,candidate);const opening=managerOpeningPosition(state,candidate,terms);setManagerNegotiationId(id);setManagerOffer(opening);setManagerPosition(opening);setManagerCounter(null);setManagerAcceptedOffer(null);setManagerRound(1);setManagerMessage(`${terms.note}. His agent has set out an opening position.`);return;}const res=hireStaffMember(state,id);if(!res.ok)return alert(res.reason??"Unable to hire.");update(()=>res.state);};
@@ -184,7 +196,7 @@ export function StaffTab({ state, update }: { state: GameState; update: (fn: (s:
         ? <div className="rounded-xl border bg-card p-5 text-center text-sm text-muted-foreground">Nobody hired yet.</div>
         : <div className="lf-staff-grid grid gap-2 md:grid-cols-2">
             {state.hiredStaff.map((staff) => <StaffCard key={staff.id} state={state} staff={staff}
-              onAction={() => release(staff.id)} onRenew={() => renew(staff.id)} action="release" />)}
+              onAction={() => release(staff.id)} onRenew={() => renew(staff.id)} onSpeak={() => setConversationStaffId(staff.id)} action="release" />)}
           </div>}
       <StaffContractDialog
         staff={state.hiredStaff.find((staff) => staff.id === contractAction?.staffId) ?? null}
@@ -192,6 +204,12 @@ export function StaffTab({ state, update }: { state: GameState; update: (fn: (s:
         open={Boolean(contractAction)}
         onOpenChange={(open) => { if (!open) setContractAction(null); }}
         onConfirm={confirmContractAction}
+      />
+      <ClubConversationDialog
+        state={state}
+        subject={conversationStaff ? { kind: "staff", staff: conversationStaff } : null}
+        open={Boolean(conversationStaffId)}
+        onOpenChange={(open) => { if (!open) setConversationStaffId(null); }}
       />
     </div>
   );
@@ -333,9 +351,9 @@ function StaffContractDialog({
   );
 }
 
-function StaffCard({state,staff,terms,onAction,onRenew,action,affordable=true}: {
+function StaffCard({state,staff,terms,onAction,onRenew,onSpeak,action,affordable=true}: {
   state:GameState;staff:Staff;terms?:ReturnType<typeof staffJoinTermsForState>;
-  onAction:()=>void;onRenew?:()=>void;action:"hire"|"release";affordable?:boolean;
+  onAction:()=>void;onRenew?:()=>void;onSpeak?:()=>void;action:"hire"|"release";affordable?:boolean;
 }) {
   const [portraitEditing,setPortraitEditing] = useState(false);
   const displayName = useCharacterName(staff.id, staff.name);
@@ -393,6 +411,9 @@ function StaffCard({state,staff,terms,onAction,onRenew,action,affordable=true}: 
       {action === "hire" ? <Button size="sm" onClick={onAction} disabled={!terms?.willing || !affordable} className="h-8 flex-1">
         <UserPlus className="mr-1.5 size-4" /> {manager?"Open talks":"Hire"}
       </Button> : <>
+        {onSpeak && <Button size="sm" onClick={onSpeak} className="h-8 flex-1">
+          <MessageCircle className="mr-1.5 size-4" /> Speak
+        </Button>}
         <Button size="sm" variant="outline" onClick={onAction} className="h-8 flex-1 text-rose-700 dark:text-rose-300">
           <UserMinus className="mr-1.5 size-4" /> Release
         </Button>

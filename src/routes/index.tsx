@@ -43,7 +43,7 @@ import { advanceTargets, type AdvanceTarget } from "@/lib/game/advancePlanner";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { PlayerProfileSheet } from "@/components/game/shared/PlayerProfileSheet";
+import { PlayerProfileSheet, openPlayerProfile } from "@/components/game/shared/PlayerProfileSheet";
 import { CharacterPortrait, PortraitKitProvider } from "@/components/game/CharacterPortrait";
 import { ChairmanStudio, useChairmanProfile } from "@/components/game/ChairmanStudio";
 import { AppLaunchSplash } from "@/components/game/AppLaunchSplash";
@@ -156,6 +156,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
   const chairmanProfile = useChairmanProfile();
   const [decisionQueue, setDecisionQueue] = useState(false);
   const [recruitmentDestination, setRecruitmentDestination] = useState<Extract<InboxDestination, { tab: "recruitment" }> | null>(null);
+  const [staffConversationId, setStaffConversationId] = useState<string | null>(null);
   const [recruitmentNavigationKey, setRecruitmentNavigationKey] = useState(0);
   const [showAdvancePreview, setShowAdvancePreview] = useState(false);
   const [advanceStart, setAdvanceStart] = useState<GameState | null>(null);
@@ -188,7 +189,11 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
     } else {
       setRecruitmentDestination(null);
     }
+    setStaffConversationId(destination.tab === "staff" && "staffId" in destination ? destination.staffId ?? null : null);
     setTab(destination.tab);
+    if (destination.tab === "squad") {
+      openPlayerProfile(destination.playerId);
+    }
   };
 
   const requestContinue = (target?: AdvanceTarget | null) => {
@@ -288,7 +293,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
             {tab === "cashflow" && <CashFlowTab state={state} />}
             {tab === "tickets" && <TicketsTab state={state} update={update} />}
             {tab === "recruitment" && <RecruitmentFlow key={recruitmentNavigationKey} state={state} update={update} destination={recruitmentDestination} />}
-            {tab === "staff" && <StaffTab state={state} update={update} />}
+            {tab === "staff" && <StaffTab state={state} update={update} initialConversationStaffId={staffConversationId} />}
             {tab === "academy" && <AcademyTab state={state} update={update} />}
             {tab === "stadium" && <FacilitiesFlow state={state} update={update} />}
             {tab === "fixtures" && <FixturesTab state={state} update={update} />}

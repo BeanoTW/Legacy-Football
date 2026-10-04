@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Binoculars, CheckCircle2, Handshake, ListMinus, ListPlus, Pencil, RefreshCcw, Repeat2, Star, Trash2, X } from "lucide-react";
+import { Binoculars, CheckCircle2, Handshake, ListMinus, ListPlus, MessageCircle, Pencil, RefreshCcw, Repeat2, Star, Trash2, X } from "lucide-react";
 import type { GameState, LoanPlayingTimeExpectation, SquadRole, TacticalPosition } from "@/lib/game/types";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,7 @@ import { playerAttributeIdentity } from "@/lib/game/playerAttributeIdentity";
 import { CharacterPortrait } from "../CharacterPortrait";
 import { CharacterPortraitStudio } from "../CharacterPortraitStudio";
 import { useCharacterName } from "@/hooks/useCharacterName";
+import { ClubConversationDialog } from "../ClubConversationDialog";
 
 const PLAYER_PROFILE_EVENT = "legacy-football:open-player-profile";
 
@@ -230,6 +231,7 @@ export function PlayerProfileSheet({
   const [renewRole, setRenewRole] = useState<SquadRole>("First Team");
   const [statsView, setStatsView] = useState<"season" | "form" | "career">("season");
   const [attributeTab, setAttributeTab] = useState<PlayerAttributeCategory | null>(null);
+  const [conversationOpen, setConversationOpen] = useState(false);
 
   useEffect(() => {
     const listener = (event: Event) => {
@@ -245,6 +247,7 @@ export function PlayerProfileSheet({
         setReleaseConfirm(false);
         setStatsView("season");
         setAttributeTab(null);
+        setConversationOpen(false);
       }
     };
     window.addEventListener(PLAYER_PROFILE_EVENT, listener);
@@ -587,6 +590,11 @@ export function PlayerProfileSheet({
                 </div>
               )}
               {note && <div className="mx-2.5 mt-2.5 rounded-lg border bg-muted/40 px-3 py-1.5 text-[11px]">{note}</div>}
+              <div className="px-2.5 pt-2.5">
+                <Button type="button" variant="outline" className="h-9 w-full justify-start" onClick={() => setConversationOpen(true)}>
+                  <MessageCircle className="mr-2 size-4" /> Speak to {displayName.split(" ")[0]}
+                </Button>
+              </div>
               <div className={cn("grid gap-1.5 p-2.5", userOwnsPlayer && !loanIsOut ? (loan ? "grid-cols-5" : "grid-cols-4") : "grid-cols-1")}>
                 {userOwnsPlayer && !loanIsOut && (
                   <>
@@ -994,6 +1002,12 @@ export function PlayerProfileSheet({
           )}
         </div>
       </SheetContent>
+      <ClubConversationDialog
+        state={state}
+        subject={{ kind: "player", player }}
+        open={conversationOpen}
+        onOpenChange={setConversationOpen}
+      />
     </Sheet>
   );
 }
