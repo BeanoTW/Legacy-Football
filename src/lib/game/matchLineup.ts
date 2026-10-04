@@ -39,7 +39,7 @@ function selectForRoles(
       (player) => playerIsAvailable(player, state) && !used.has(player.id),
     );
     const score = (player: FootballPlayer) =>
-      roleScore(state, player, role, fitnessWeight) + (preference.get(player.id) ?? 0) * 1.5;
+      roleScore(state, player, role, fitnessWeight) + (preference.get(player.id) ?? 0) * 3;
     const specialists = available
       .filter((player) =>
         role === "GK"
@@ -81,9 +81,13 @@ export function userMatchLineup(
     isUserClubReference(state, playerRegisteredClubId(player)),
   );
   const storedSelection = state.inboxFlags["chairman.selection.ids"];
-  const preferredIds = (typeof storedSelection === "string" ? storedSelection : "")
-    .split(",")
-    .filter(Boolean);
+  const directorPriority = state.inboxFlags["chairman.managerPriority.ids"];
+  const selectedIds = (typeof storedSelection === "string" ? storedSelection : "").split(",").filter(Boolean);
+  const priorityIds = (typeof directorPriority === "string" ? directorPriority : "").split(",").filter(Boolean);
+  // A director request is influential rather than a forced XI: the manager will
+  // favour the player when he fits an available role, but availability and
+  // positional competence still win.
+  const preferredIds = [...priorityIds, ...selectedIds.filter((id) => !priorityIds.includes(id))];
   const manager = (state.hiredStaff ?? []).find((staff) => staff.role === "Manager");
   const rotation = manager ? managerFootballIdentity(manager).rotation : "Medium";
   const fitnessWeight = rotation === "High" ? 0.28 : rotation === "Low" ? 0.08 : 0.16;
