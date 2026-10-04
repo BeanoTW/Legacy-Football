@@ -113,6 +113,27 @@
 .lf-office-desk > .lf-inbox-shell > .lf-inbox-header { display: none; }
 
 .lf-newsroom { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: .55rem; }
+.dark .lf-newsroom {
+  --nr-ink: var(--foreground);
+  --nr-soft: color-mix(in oklab, var(--foreground) 68%, transparent);
+  --nr-card: color-mix(in oklab, var(--card) 94%, white 6%);
+  --nr-line: color-mix(in oklab, var(--foreground) 16%, transparent);
+}
+.dark .lf-newsroom .lf-news-filters button.is-active {
+  border-color: color-mix(in oklab, var(--primary) 70%, white 30%);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.dark .lf-newsroom .lf-news-kind,
+.dark .lf-newsroom .lf-news-reactions button {
+  color: color-mix(in oklab, var(--primary) 72%, white 28%);
+}
+.dark .lf-newsroom .lf-news-shape strong {
+  color: color-mix(in oklab, var(--primary) 70%, white 30%);
+}
+.dark .lf-newsroom .lf-news-post {
+  box-shadow: 0 4px 14px rgb(0 0 0 / 22%);
+}
 .lf-news-filters {
   display: flex;
   gap: .4rem;
