@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Pencil } from "lucide-react";
+import { MessageCircle, Pencil } from "lucide-react";
 import { CharacterPortrait } from "./game/CharacterPortrait";
 import { CharacterPortraitStudio } from "./game/CharacterPortraitStudio";
 import { useCharacterName } from "@/hooks/useCharacterName";
@@ -17,6 +17,7 @@ import {
   recomputeConfidence,
 } from "@/lib/game/board";
 import { SeasonObjectivesDashboard } from "./game/SeasonObjectivesDashboard";
+import { BoardConversationDialog } from "./game/BoardConversationDialog";
 
 type View = "overview" | "directors" | "objectives" | "reviews";
 
@@ -121,16 +122,21 @@ function Overview({ state }: { state: GameState }) {
 /* ---------- Directors ---------- */
 
 function Directors({ state }: { state: GameState }) {
+  const [conversationDirector, setConversationDirector] = useState<Director | null>(null);
   return (
-    <div className="grid gap-3 md:grid-cols-2">
-      {state.board.directors.map((d) => (
-        <DirectorCard key={d.id} state={state} d={d} />
-      ))}
-    </div>
+    <>
+      <div className="grid gap-3 md:grid-cols-2">
+        {state.board.directors.map((d) => (
+          <DirectorCard key={d.id} state={state} d={d} onSpeak={() => setConversationDirector(d)} />
+        ))}
+      </div>
+      <BoardConversationDialog state={state} director={conversationDirector} open={Boolean(conversationDirector)}
+        onOpenChange={(open) => { if (!open) setConversationDirector(null); }} />
+    </>
   );
 }
 
-function DirectorCard({ state, d }: { state: GameState; d: Director }) {
+function DirectorCard({ state, d, onSpeak }: { state: GameState; d: Director; onSpeak: () => void }) {
   const [portraitEditing, setPortraitEditing] = useState(false);
   const displayName = useCharacterName(d.id, d.name);
   const satisfaction = directorSatisfaction(state, d);
@@ -178,6 +184,10 @@ function DirectorCard({ state, d }: { state: GameState; d: Director }) {
         <span className="font-medium">Satisfaction {satisfaction}%.</span>{" "}
         {concern ? `Concern: ${concern.objective.label} — ${concern.progress.detail}.` : "No outstanding concerns."}
       </p>
+      <button type="button" onClick={onSpeak}
+        className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border bg-primary/[0.06] px-3 py-2 text-xs font-semibold text-primary transition hover:bg-primary/[0.12]">
+        <MessageCircle className="size-4" /> Speak to {displayName.split(" ")[0]}
+      </button>
       <details className="mt-1">
         <summary className="cursor-pointer text-[11px] font-semibold text-primary">Background</summary>
         <p className="mt-1 text-[11px] leading-snug text-muted-foreground">{d.bio}</p>
