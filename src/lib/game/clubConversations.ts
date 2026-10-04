@@ -28,7 +28,7 @@ function sentenceList(items: string[]): string {
 function contractLine(state: GameState, player: FootballPlayer): string {
   const contract = activeContract(state, player.id);
   if (!contract) return "He is not currently tied to an active contract.";
-  const weeks = weeksLeftOnContract(state, player.id);
+  const weeks = weeksLeftOnContract(state, contract);
   const seasons = Math.max(1, Math.ceil(weeks / 46));
   return `He has roughly ${seasons} season${seasons === 1 ? "" : "s"} left on ${contract.weeklyWage.toLocaleString("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: 0 })}/wk as a ${contract.squadRole.toLowerCase()}.`;
 }
@@ -74,7 +74,10 @@ function loanSuggestions(state: GameState): FootballPlayer[] {
 
 function expiringPlayers(state: GameState): FootballPlayer[] {
   return userSquad(state)
-    .filter((player) => weeksLeftOnContract(state, player.id) <= 24)
+    .filter((player) => {
+      const contract = activeContract(state, player.id);
+      return Boolean(contract && weeksLeftOnContract(state, contract) <= 24);
+    })
     .sort((a, b) => a.currentAbility - b.currentAbility);
 }
 
