@@ -12,12 +12,12 @@ import { clubPresentationName } from "./clubPresentation";
  * derived from the club name until the chairman designs their own.
  */
 
-export const BADGE_SHAPES = ["shield", "classic", "round", "roundel", "pennant", "diamond", "octagon", "square"] as const;
-export const BADGE_DIVISIONS = ["plain", "perPale", "perFess", "perBend", "quarterly", "stripes", "hoops", "chevron", "cross", "saltire", "chief"] as const;
-export const BADGE_EMBLEMS = ["none", "ball", "star", "crown", "castle", "anchor", "swallow", "oak", "wheel", "locomotive", "mountains", "waves", "hammers"] as const;
+export const BADGE_SHAPES = ["shield", "classic", "heater", "round", "roundel", "oval", "pennant", "diamond", "octagon", "hexagon", "square"] as const;
+export const BADGE_DIVISIONS = ["plain", "perPale", "perFess", "perBend", "quarterly", "stripes", "hoops", "chevron", "invertedChevron", "cross", "saltire", "chief", "bordure", "sunburst"] as const;
+export const BADGE_EMBLEMS = ["none", "ball", "star", "crown", "castle", "anchor", "swallow", "eagle", "lion", "stag", "rose", "oak", "wheel", "locomotive", "mountains", "waves", "hammers"] as const;
 export const BADGE_LETTERING = ["none", "initials", "ring"] as const;
-export const KIT_PATTERNS = ["plain", "stripes", "pinstripes", "hoops", "halves", "quarters", "sash", "chevron", "band"] as const;
-export const KIT_COLLARS = ["crew", "vneck", "polo"] as const;
+export const KIT_PATTERNS = ["plain", "stripes", "pinstripes", "doubleStripe", "centreStripe", "hoops", "halves", "thirds", "quarters", "sash", "diagonal", "chevron", "doubleChevron", "band", "yoke"] as const;
+export const KIT_COLLARS = ["crew", "vneck", "polo", "mandarin", "lace"] as const;
 
 export type BadgeShape = (typeof BADGE_SHAPES)[number];
 export type BadgeDivision = (typeof BADGE_DIVISIONS)[number];
@@ -376,10 +376,10 @@ function authoredAiClubKit(clubName: string): ClubKitState | null {
 export function defaultClubKit(clubName: string): ClubKitState {
   const hash = hashName(clubName);
   const [primary, secondary] = PAIRINGS[hash % PAIRINGS.length];
-  const shapes: BadgeShape[] = ["shield", "classic", "round", "roundel"];
-  const emblems: BadgeEmblem[] = ["ball", "star", "castle", "oak", "wheel", "crown"];
-  const divisions: BadgeDivision[] = ["plain", "chief", "perPale", "stripes", "quarterly"];
-  const patterns: KitPattern[] = ["plain", "plain", "stripes", "hoops", "halves", "band"];
+  const shapes: BadgeShape[] = ["shield", "classic", "heater", "round", "roundel", "oval", "hexagon"];
+  const emblems: BadgeEmblem[] = ["ball", "star", "castle", "oak", "wheel", "crown", "eagle", "lion", "stag", "rose"];
+  const divisions: BadgeDivision[] = ["plain", "chief", "perPale", "stripes", "quarterly", "chevron", "bordure", "sunburst"];
+  const patterns: KitPattern[] = ["plain", "plain", "stripes", "hoops", "halves", "band", "centreStripe", "doubleStripe", "sash", "yoke"];
   const pattern = patterns[(hash >>> 5) % patterns.length];
   const lightPrimary = luminance(primary) > 0.6;
   return {

@@ -48,18 +48,30 @@ function shirtPattern(kit: KitDesign): ReactNode {
       return <path d={[34, 62, 90, 118, 146].map((x) => `M${x} 160H${x + 14}V222H${x}Z`).join("")} fill={secondary} />;
     case "pinstripes":
       return <path d={Array.from({ length: 16 }, (_, index) => `M${24 + index * 10} 160H${25.6 + index * 10}V222H${24 + index * 10}Z`).join("")} fill={secondary} />;
+    case "doubleStripe":
+      return <path d="M78 150H88V230H78ZM112 150H122V230H112Z" fill={secondary} />;
+    case "centreStripe":
+      return <rect x="88" y="150" width="24" height="80" fill={secondary} />;
     case "hoops":
       return <path d="M0 180H200V192H0ZM0 204H200V216H0Z" fill={secondary} />;
     case "halves":
       return <rect x="100" y="150" width="100" height="80" fill={secondary} />;
+    case "thirds":
+      return <path d="M0 150H67V230H0ZM133 150H200V230H133Z" fill={secondary} />;
     case "quarters":
       return <path d="M100 150H200V196H100ZM0 196H100V230H0Z" fill={secondary} />;
     case "sash":
       return <path d="M44 172L62 166L162 226L140 232Z" fill={secondary} />;
+    case "diagonal":
+      return <path d="M100 150H200V230H40Z" fill={secondary} />;
     case "chevron":
       return <path d="M40 188L100 204L160 188V200L100 216L40 200Z" fill={secondary} />;
+    case "doubleChevron":
+      return <path d="M40 180L100 196L160 180V190L100 206L40 190ZM40 200L100 216L160 200V210L100 226L40 210Z" fill={secondary} />;
     case "band":
       return <rect x="0" y="194" width="200" height="12" fill={secondary} />;
+    case "yoke":
+      return <path d="M34 150H166L150 184Q100 170 50 184Z" fill={secondary} />;
     default:
       return null;
   }
@@ -139,6 +151,13 @@ function PortraitShirt({
             {[178, 186].map((y) => (
               <circle key={y} cx={100} cy={y} r={1.3} fill={kit.trim} />
             ))}
+          </g>
+        ) : kit.collar === "mandarin" ? (
+          <path d="M84 166Q100 174 116 166V176Q100 184 84 176Z" fill={kit.trim} stroke={outline} strokeWidth={1} />
+        ) : kit.collar === "lace" ? (
+          <g>
+            <path d="M84 166L100 187L116 166" fill="none" stroke={kit.trim} strokeWidth={3.5} strokeLinejoin="round" />
+            <path d="M92 174L106 180M94 180L108 174" stroke={kit.trim} strokeWidth={1.5} />
           </g>
         ) : (
           <path

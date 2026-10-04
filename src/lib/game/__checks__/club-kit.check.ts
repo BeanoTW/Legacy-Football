@@ -8,6 +8,10 @@ import {
   randomClubKit,
   sanitizeClubKit,
   setClubKit,
+  BADGE_SHAPES,
+  BADGE_EMBLEMS,
+  KIT_PATTERNS,
+  KIT_COLLARS,
 } from "../clubKit";
 import type { GameState } from "../types";
 
@@ -40,6 +44,11 @@ const next = setClubKit(state, design);
 assert.deepEqual(next.clubKit, sanitizeClubKit(design, "Dalton Town"), "saved identity is the sanitised design");
 assert.equal((next as unknown as { cash: number }).cash, 1000, "saving the identity must not alter other state");
 assert.equal(state.clubKit, undefined, "saving must not mutate the previous state");
+
+assert(BADGE_SHAPES.includes("heater") && BADGE_SHAPES.includes("hexagon"), "expanded badge silhouettes are available");
+assert(BADGE_EMBLEMS.includes("eagle") && BADGE_EMBLEMS.includes("stag") && BADGE_EMBLEMS.includes("rose"), "expanded badge emblems are available");
+assert(KIT_PATTERNS.includes("centreStripe") && KIT_PATTERNS.includes("doubleChevron") && KIT_PATTERNS.includes("yoke"), "expanded shirt patterns are available");
+assert(KIT_COLLARS.includes("mandarin") && KIT_COLLARS.includes("lace"), "expanded shirt collars are available");
 
 // Away kits must be distinguishable from the home shirt.
 for (const [body, secondary] of [["#ffffff", "#14264a"], ["#c8102e", "#ffffff"], ["#16181b", "#ffffff"], ["#fbe122", "#16181b"]]) {

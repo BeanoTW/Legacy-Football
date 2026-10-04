@@ -35,11 +35,14 @@ type Section = "badge" | "home" | "away";
 const SHAPE_LABEL: Record<BadgeDesign["shape"], string> = {
   shield: "Shield",
   classic: "Classic",
+  heater: "Heater",
   round: "Round",
   roundel: "Roundel",
+  oval: "Oval",
   pennant: "Pennant",
   diamond: "Diamond",
   octagon: "Octagon",
+  hexagon: "Hexagon",
   square: "Square",
 };
 const DIVISION_LABEL: Record<BadgeDesign["division"], string> = {
@@ -51,9 +54,12 @@ const DIVISION_LABEL: Record<BadgeDesign["division"], string> = {
   stripes: "Stripes",
   hoops: "Hoops",
   chevron: "Chevron",
+  invertedChevron: "Inverted V",
   cross: "Cross",
   saltire: "Saltire",
   chief: "Top band",
+  bordure: "Inner border",
+  sunburst: "Sunburst",
 };
 const EMBLEM_LABEL: Record<BadgeDesign["emblem"], string> = {
   none: "None",
@@ -63,6 +69,10 @@ const EMBLEM_LABEL: Record<BadgeDesign["emblem"], string> = {
   castle: "Castle",
   anchor: "Anchor",
   swallow: "Swallow",
+  eagle: "Eagle",
+  lion: "Lion",
+  stag: "Stag",
+  rose: "Rose",
   oak: "Oak",
   wheel: "Wheel",
   locomotive: "Engine",
@@ -74,14 +84,20 @@ const PATTERN_LABEL: Record<KitDesign["pattern"], string> = {
   plain: "Plain",
   stripes: "Stripes",
   pinstripes: "Pinstripe",
+  doubleStripe: "Twin stripe",
+  centreStripe: "Centre stripe",
   hoops: "Hoops",
   halves: "Halves",
+  thirds: "Thirds",
   quarters: "Quarters",
   sash: "Sash",
+  diagonal: "Diagonal half",
   chevron: "Chevron",
+  doubleChevron: "Double V",
   band: "Chest band",
+  yoke: "Shoulder yoke",
 };
-const COLLAR_LABEL: Record<KitDesign["collar"], string> = { crew: "Crew", vneck: "V-neck", polo: "Polo" };
+const COLLAR_LABEL: Record<KitDesign["collar"], string> = { crew: "Crew", vneck: "V-neck", polo: "Polo", mandarin: "Mandarin", lace: "Laced" };
 const LETTERING_LABEL: Record<BadgeDesign["lettering"], string> = { none: "None", initials: "Ribbon", ring: "Name & year" };
 
 /** Opens the builder as a sheet; drop it anywhere that has game state. */
