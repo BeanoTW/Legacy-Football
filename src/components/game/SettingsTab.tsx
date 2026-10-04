@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, Cloud, HardDrive, LogOut, Mail, Palette, RefreshCw, Trash2 } from "lucide-react";
+import { Check, Cloud, Download, HardDrive, LogOut, Mail, Palette, RefreshCw, Save, Trash2 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import type { SaveSlotId, SaveSlotSummary } from "@/lib/game/engine";
 import type { GameState } from "@/lib/game/types";
@@ -27,6 +27,7 @@ export function SettingsTab({
   slots,
   onSwitch,
   onDelete,
+  onSaveNow,
 }: {
   state: GameState;
   update: (fn: (s: GameState) => GameState) => void;
@@ -34,6 +35,7 @@ export function SettingsTab({
   slots: SaveSlotSummary[];
   onSwitch: (slot: SaveSlotId) => void;
   onDelete: (slot: SaveSlotId) => Promise<void>;
+  onSaveNow: () => Promise<{ local: boolean; cloud: boolean }>;
 }) {
   const [theme, setTheme] = useState<Theme>("club");
   const [developerMode, setDeveloperMode] = useState(() => developerModeEnabled());
@@ -44,6 +46,9 @@ export function SettingsTab({
   const [conflictingSlots, setConflictingSlots] = useState<SaveSlotId[]>([]);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [lastSync, setLastSync] = useState<string | null>(() => typeof localStorage === "undefined" ? null : localStorage.getItem("chairman.cloud-last-sync"));
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [saveBusy, setSaveBusy] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem(THEME_KEY) as Theme | null;
@@ -93,6 +98,40 @@ export function SettingsTab({
       setCloudMessage((error as Error).message);
     } finally {
       setCloudBusy(false);
+    }
+  }
+
+  async function manualSave() {
+    setSaveBusy(true);
+    setSaveMessage(null);
+    try {
+      const result = await onSaveNow();
+      setSaveMessage(result.cloud ? "Saved on device · Cloud synced" : "Saved on device · Cloud unavailable");
+    } catch (error) {
+      setSaveMessage(`Save failed: ${(error as Error).message}`);
+    } finally {
+      setSaveBusy(false);
+    }
+  }
+
+  async function checkForUpdates() {
+    setUpdateMessage("Checking for updates…");
+    try {
+      const response = await fetch(`/?lf-update-check=${Date.now()}`, { cache: "no-store", headers: { "cache-control": "no-cache" } });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const latest = await response.text();
+      const current = document.documentElement.outerHTML;
+      const assetPattern = /(?:src|href)="([^"]*\/assets\/[^"]+)"/g;
+      const assets = (html: string) => Array.from(html.matchAll(assetPattern), (match) => match[1]).sort().join("|");
+      if (assets(latest) && assets(latest) !== assets(current)) {
+        await onSaveNow();
+        setUpdateMessage("Update found · reloading latest version…");
+        window.setTimeout(() => window.location.reload(), 250);
+      } else {
+        setUpdateMessage("You're on the latest version.");
+      }
+    } catch (error) {
+      setUpdateMessage(`Could not check for updates: ${(error as Error).message}`);
     }
   }
 
@@ -182,6 +221,23 @@ export function SettingsTab({
               </article>
             );
           })}
+        </div>
+      </section>
+
+      <section className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <div className="flex items-center gap-2 font-display text-lg"><Save className="size-5" /> Save now</div>
+            <p className="mt-1 text-xs text-muted-foreground">Immediately writes this career to this device, then syncs the same save to the cloud when available.</p>
+            <Button className="mt-3" size="sm" disabled={saveBusy} onClick={() => void manualSave()}><HardDrive className="size-4" /> {saveBusy ? "Saving…" : "Save now"}</Button>
+            {saveMessage && <p className="mt-2 text-xs">{saveMessage}</p>}
+          </div>
+          <div>
+            <div className="flex items-center gap-2 font-display text-lg"><Download className="size-5" /> Game updates</div>
+            <p className="mt-1 text-xs text-muted-foreground">Checks the deployed game for a newer build. Your career is saved before any update reload.</p>
+            <Button className="mt-3" size="sm" variant="outline" onClick={() => void checkForUpdates()}><RefreshCw className="size-4" /> Check for updates</Button>
+            {updateMessage && <p className="mt-2 text-xs">{updateMessage}</p>}
+          </div>
         </div>
       </section>
 
