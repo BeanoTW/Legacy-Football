@@ -2423,8 +2423,10 @@ const CALENDAR_PRESS_EVENTS: {
   {
     context: "summer-window-open",
     week: 1,
-    subject: "Summer transfer window — opening briefing",
-    question: (s) => `The summer window is open. What are ${s.clubName}'s priorities before the market closes?`,
+    subject: "New ownership — opening press conference",
+    question: (s) => s.season === 1
+      ? `You've bought ${s.clubName} and put yourself in charge of football and club operations. Why this club, and what are you here to build?`
+      : `The summer window is open. What are ${s.clubName}'s priorities before the market closes?`,
   },
   {
     context: "season-preview",
@@ -2472,10 +2474,9 @@ const G_CALENDAR_PRESS: Generator = {
     const event = CALENDAR_PRESS_EVENTS.find((candidate) => candidate.week === s.week);
     if (!event) return [];
 
-    // A brand-new save gets a short runway to learn the club before facing
-    // the media. From season two onward, the window-opening briefing returns
-    // as part of the normal football calendar.
-    if (s.season === 1 && event.context === "summer-window-open") return [];
+    // The first summer-window briefing doubles as the public unveiling of the
+    // new owner-director. Later seasons use the same slot as the normal
+    // window-opening press conference.
 
     return [
       mk(s, "calendar-press", {
@@ -2487,7 +2488,9 @@ const G_CALENDAR_PRESS: Generator = {
         priority: event.priority ?? "normal",
         subject: `Press conference — ${event.subject}`,
         body:
-          `A scheduled media briefing is waiting for the Managing Director.\n\n` +
+          (s.season === 1 && event.context === "summer-window-open"
+            ? `Your first press conference as owner and Director of Football & Operations is waiting. The club is yours; the questions are about what you intend to build.\n\n`
+            : `A scheduled media briefing is waiting for the Owner-Director.\n\n`) +
           event.question(s),
         expiresInWeeks: 1,
         choices: calendarPressChoices(s, event.context),
