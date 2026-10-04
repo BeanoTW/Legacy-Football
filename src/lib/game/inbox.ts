@@ -117,6 +117,7 @@ import { ticketPriceReference } from "./ticketForecast";
 import { priceDemandFactor, scaleTicketPricesInPlace } from "./ticketPricing";
 import { adjustMediaRelationshipInPlace, mediaRelationshipDeltaForOutcome } from "./mediaRelations";
 import { CALENDAR, WINDOW_PRESEASON_END } from "./calendar";
+import { proactiveClubConversationItems } from "./clubConversations";
 
 /* ---------- Helpers ---------- */
 const money = (n: number) => {
@@ -2711,6 +2712,11 @@ const G_MANAGER_RELATIONSHIP_REACTION: Generator = {
   },
 };
 
+const G_CLUB_CONVERSATIONS: Generator = {
+  id: "club-conversations",
+  run: (s) => proactiveClubConversationItems(s),
+};
+
 const GENERATORS: Generator[] = [
   G_WELCOME,
   G_ONBOARDING,
@@ -2720,6 +2726,7 @@ const GENERATORS: Generator[] = [
   G_MANAGER_RECRUITMENT_REQUEST,
   G_MANAGER_RECRUITMENT_PROMISE_REVIEW,
   G_MANAGER_RELATIONSHIP_REACTION,
+  G_CLUB_CONVERSATIONS,
   G_FINANCE_WEEKLY,
   G_ROOF,
   G_ROOF_FOLLOWUP,
@@ -2878,6 +2885,7 @@ export const PRIORITY_META: Record<InboxPriority, { label: string; className: st
 export const DEPARTMENTS_ALL: InboxDepartment[] = [
   "Board of Directors",
   "Manager",
+  "Players",
   "Director of Football",
   "Finance",
   "Commercial",
