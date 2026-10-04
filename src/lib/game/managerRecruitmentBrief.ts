@@ -4,7 +4,7 @@ import { MANAGER_FORMATION_SLOTS } from "./managerFormationLayout";
 import { managerSquadFit } from "./managerSquadFit";
 import { positionEffectiveness, positionUnit } from "./positions";
 import { userClubReference } from "./clubReference";
-import type { ScoutingPlayerLevel } from "./chairmanScoutingBrief";
+import { createChairmanMultiScoutingBrief, type ScoutingPlayerLevel } from "./chairmanScoutingBrief";
 
 export interface ManagerRecruitmentPriority {
   position: Position;
@@ -116,4 +116,34 @@ export function managerRecruitmentBrief(state: GameState, manager: Staff): Manag
     tacticalShape: fit.bestFormation,
     priorities,
   };
+}
+
+
+export function managerRecruitmentAssignmentId(state: GameState, manager: Staff): string {
+  return `manager-delegated:${manager.id}:s${state.season}:w${state.week}`;
+}
+
+export function activeManagerRecruitmentAssignment(state: GameState, manager: Staff) {
+  const prefix = `manager-delegated:${manager.id}:`;
+  return (state.football?.scoutingDiscovery?.briefs ?? [])
+    .filter((brief) => brief.id.startsWith(prefix) && brief.status === "active")
+    .sort((a, b) => (b.createdAtDay ?? 0) - (a.createdAtDay ?? 0))[0] ?? null;
+}
+
+/**
+ * Hands the manager's live positional priorities to the recruitment department.
+ * Staff own the search; the Owner-Director still owns the eventual signing decision.
+ */
+export function delegateManagerRecruitmentPriorities(state: GameState, manager: Staff): GameState {
+  const priorities = managerRecruitmentBrief(state, manager).priorities;
+  if (!priorities.length || activeManagerRecruitmentAssignment(state, manager)) return state;
+  const capacity = Math.max(1, Math.min(4, state.hiredStaff.filter((staff) => staff.role === "Scout" || staff.role === "Chief Scout").length || 1));
+  return createChairmanMultiScoutingBrief(state, {
+    id: managerRecruitmentAssignmentId(state, manager),
+    positionBriefs: priorities.slice(0, capacity).map((priority) => ({
+      position: priority.position,
+      tacticalPosition: priority.tacticalPosition,
+      playerLevel: priority.playerLevel,
+    })),
+  });
 }
