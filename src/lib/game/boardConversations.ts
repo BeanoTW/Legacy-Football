@@ -36,16 +36,16 @@ export function boardConversationTopics(state: GameState, director: Director): B
   const topics: BoardConversationTopic[] = [
     {
       id: "standing",
-      label: "How am I doing?",
-      answer: `My confidence in your stewardship is ${director.confidence}%, and right now I'd describe my position as: ${BAND_LABEL[band].toLowerCase()}. On the live picture, my satisfaction is ${satisfaction}%. ${concern ? `The issue I want you looking at is “${concern.objective.label}” — ${concern.progress.detail}.` : "I do not have an outstanding concern in my portfolio."} ${personalityLine(director)}`,
+      label: "How are we doing?",
+      answer: `From my side of the club, we're at ${satisfaction}% against the plan and the wider relationship is ${BAND_LABEL[band].toLowerCase()}. ${concern ? `The area I'd like us to look at together is “${concern.objective.label}” — ${concern.progress.detail}.` : "I do not have an outstanding concern in my portfolio."} ${personalityLine(director)}`,
       tone: satisfaction < 45 ? "warning" : satisfaction >= 75 ? "positive" : "normal",
     },
     {
       id: "priority",
-      label: "What do you want me to focus on?",
+      label: "Where can I use your help?",
       answer: concern
-        ? `Start with ${concern.objective.label.toLowerCase()}. ${concern.objective.description} Current position: ${concern.progress.detail}. That is the area most likely to change my view of how the club is being run.`
-        : "Keep the club moving in the same direction. Nothing in my portfolio currently justifies dragging you into the boardroom.",
+        ? `I'd put ${concern.objective.label.toLowerCase()} on our agenda. ${concern.objective.description} Current position: ${concern.progress.detail}. I can help you work through the options from my side of the club.`
+        : "Nothing urgent from my department. If you want my view on a decision, bring it to me — that's what I'm here for.",
     },
   ];
 
@@ -54,7 +54,7 @@ export function boardConversationTopics(state: GameState, director: Director): B
     topics.push({
       id: "boardroom",
       label: "Where does the whole board stand?",
-      answer: `The board's weighted confidence is ${boardConfidence}%. ${BAND_LABEL[confidenceBand(boardConfidence)]}. Individual directors will still judge you on their own portfolios, so a healthy headline number does not mean every concern has disappeared.`,
+      answer: `The boardroom position is ${boardConfidence}% overall — ${BAND_LABEL[confidenceBand(boardConfidence)].toLowerCase()}. That is a measure of how well the plan is working across our different portfolios, not a countdown on your job. Individual directors may still have issues they can help you solve.`,
       tone: boardConfidence < 45 ? "warning" : boardConfidence >= 75 ? "positive" : "normal",
     });
   }
@@ -111,7 +111,7 @@ export function boardRequestResponse(state: GameState, director: Director, reque
     const accepted = satisfaction >= 62 && cashCover >= 10;
     return accepted
       ? { accepted: true, answer: "I'll support you taking a more aggressive case to the board. We have enough confidence and cash cover to discuss additional football spending." }
-      : { accepted: false, answer: `Not yet. At ${satisfaction}% satisfaction and roughly ${cashCover.toFixed(1)} weeks of wage cover, I want you to improve the current position before asking the club to loosen the purse strings.` };
+      : { accepted: false, answer: `Not yet. At ${satisfaction}% satisfaction and roughly ${cashCover.toFixed(1)} weeks of wage cover, I don't think the numbers support it yet. Let's improve the current position and revisit the case rather than stretching the club now.` };
   }
   if (request === "facilities") {
     const accepted = satisfaction >= 55 && state.cash > weeklyWageBill(state) * 12;
@@ -123,5 +123,5 @@ export function boardRequestResponse(state: GameState, director: Director, reque
   const accepted = satisfaction >= 50 || director.traits.includes("patient");
   return accepted
     ? { accepted: true, answer: `You have some room. I will judge the trend rather than one result, but I still expect progress from the current league position of ${position}.` }
-    : { accepted: false, answer: "I cannot promise you more patience. The board needs visible progress now, not another extension of the timetable." };
+    : { accepted: false, answer: "I don't think changing the timetable helps us yet. Let's identify what is blocking the plan and work on that first; I'll be clear with you about what the board needs to see improve." };
 }
