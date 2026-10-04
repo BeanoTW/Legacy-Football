@@ -148,26 +148,13 @@ export function SettingsTab({
   async function checkForUpdates() {
     setUpdateMessage("Checking for updates…");
     try {
-      const updateUrl = new URL(window.location.href);
-      updateUrl.searchParams.set("lf-update-check", Date.now().toString());
-      updateUrl.hash = "";
-      const response = await fetch(updateUrl.toString(), {
-        cache: "no-store",
-        headers: { "cache-control": "no-cache, no-store, max-age=0" },
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const latest = await response.text();
-      const latestDocument = new DOMParser().parseFromString(latest, "text/html");
-      const latestBuild = latestDocument.querySelector('meta[name="legacy-football-build"]')?.getAttribute("content");
+      const { fetchLatestBuildId, applyLatestBuild } = await import("@/lib/appUpdate");
+      const latestBuild = await fetchLatestBuildId();
       const currentBuild = __LEGACY_FOOTBALL_BUILD_ID__;
       if (latestBuild && latestBuild !== currentBuild) {
         await onSaveNow();
-        setUpdateMessage("Update found · reloading latest version…");
-        window.setTimeout(() => {
-          const reloadUrl = new URL(window.location.href);
-          reloadUrl.searchParams.set("lf-refresh", Date.now().toString());
-          window.location.replace(reloadUrl.toString());
-        }, 250);
+        setUpdateMessage("Update found · installing latest version…");
+        await applyLatestBuild(latestBuild);
       } else {
         setUpdateMessage("You're on the latest version.");
       }
