@@ -785,8 +785,13 @@ function createEngine(deps: EngineDeps) {
     // Anything faster than this per frame is treated as a teleport, not movement.
     const jumpLimit = (3 + 1.5 * pb.speed) * Math.max(1, dt / 16.7);
     let settled = true;
+    // Teams change ends at half-time. The simulation keeps one canonical
+    // orientation; the viewer rotates the whole pitch picture for the second half.
+    const secondHalf = sample.minute > 45;
+    const displayPoint = (point: MatchPitchPoint): MatchPitchPoint =>
+      secondHalf ? { x: 100 - point.x, y: 100 - point.y } : point;
     const place = (key: string, target: MatchPitchPoint, followMs: number) => {
-      const body = stepBody(bodies.get(key), target, dt, jumpLimit, snap, followMs);
+      const body = stepBody(bodies.get(key), displayPoint(target), dt, jumpLimit, snap, followMs);
       bodies.set(key, body);
       if (!bodySettled(body)) settled = false;
     };
@@ -848,16 +853,19 @@ function createEngine(deps: EngineDeps) {
     // Broadcast camera: wider in midfield, closer towards the box, framing
     // set pieces, pushing in for shots and pulling back for condensed play.
     const attackingUs = (act?.possessionSide ?? act?.side ?? "us") === "us";
-    const goalX = attackingUs ? 100 : 0;
-    const toGoal = attackingUs ? 100 - sample.ball.x : sample.ball.x;
+    const displayBall = displayPoint(sample.ball);
+    const canonicalGoal = attackingUs ? { x: 100, y: 50 } : { x: 0, y: 50 };
+    const displayGoal = displayPoint(canonicalGoal);
+    const goalX = displayGoal.x;
+    const toGoal = Math.abs(goalX - displayBall.x);
     let zoomTarget = 1.15 + 0.5 * Math.min(1, Math.max(0, (40 - toGoal) / 30));
-    let lookX = sample.ball.x + (goalX - sample.ball.x) * 0.18;
-    let lookY = 50 + (sample.ball.y - 50) * 0.8;
+    let lookX = displayBall.x + (goalX - displayBall.x) * 0.18;
+    let lookY = 50 + (displayBall.y - 50) * 0.8;
     const setPiece = !sample.inBridge && sample.renderSequence?.setPiece;
     if (setPiece) {
       zoomTarget = 1.6;
-      lookX = (sample.ball.x + goalX) / 2;
-      lookY = (sample.ball.y + 50) / 2;
+      lookX = (displayBall.x + goalX) / 2;
+      lookY = (displayBall.y + displayGoal.y) / 2;
     }
     if (sample.slow) zoomTarget += 0.15;
     if (sample.inBridge) zoomTarget = Math.min(zoomTarget, 1.3);

@@ -8,6 +8,8 @@ import { newsAge, newsFeed, type NewsArticle, type NewsKind } from "@/lib/game/n
 import { socialFeed, type SocialPost } from "@/lib/game/socialFeed";
 import { CharacterPortrait } from "./CharacterPortrait";
 import { useChairmanProfile } from "./ChairmanStudio";
+import { ClubBadge } from "./ClubKitArt";
+import { clubKitForReference } from "@/lib/game/clubKit";
 
 type NewsFilter = "all" | "club" | "matches" | "transfers" | "league" | "social";
 
@@ -36,20 +38,19 @@ function compact(value: number) {
   return value >= 1000 ? `${(value / 1000).toFixed(1)}k` : String(value);
 }
 
-function initials(name: string) {
-  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]).join("").toUpperCase();
-}
 
-function ScorePlate({ article, large = false }: { article: NewsArticle; large?: boolean }) {
+function ScorePlate({ article, state, large = false }: { article: NewsArticle; state: GameState; large?: boolean }) {
   const score = article.scoreline;
   if (!score) return null;
+  const homeBadge = clubKitForReference(state, score.home).badge;
+  const awayBadge = clubKitForReference(state, score.away).badge;
   return (
     <div className={cn("lf-news-score", large && "is-large")}>
       <span className="lf-news-score-label">{score.label} · Full time</span>
       <div className="lf-news-score-row">
-        <span className="lf-news-score-team"><i>{initials(score.home)}</i><b>{score.home}</b></span>
+        <span className="lf-news-score-team"><i><ClubBadge design={homeBadge} clubName={score.home} size={28} /></i><b>{score.home}</b></span>
         <strong>{score.homeGoals}<em>–</em>{score.awayGoals}</strong>
-        <span className="lf-news-score-team is-away"><i>{initials(score.away)}</i><b>{score.away}</b></span>
+        <span className="lf-news-score-team is-away"><i><ClubBadge design={awayBadge} clubName={score.away} size={28} /></i><b>{score.away}</b></span>
       </div>
     </div>
   );
@@ -109,7 +110,7 @@ function NewsCard({ article, state, onOpen }: { article: NewsArticle; state: Gam
       <button type="button" className="lf-news-post-body" onClick={onOpen}>
         <h3>{article.headline}</h3>
         <p>{article.standfirst}</p>
-        {(article.kind === "matchReport" || article.kind === "upset") && <ScorePlate article={article} />}
+        {(article.kind === "matchReport" || article.kind === "upset") && <ScorePlate article={article} state={state} />}
         {article.kind === "transfer" && <TransferPlate article={article} />}
         {article.kind === "appointment" && <ShapePlate article={article} />}
         {article.quote && <QuoteBlock article={article} />}
@@ -165,7 +166,7 @@ function ArticleReader({ article, state, onClose }: { article: NewsArticle; stat
           <h2 className="lf-paper-headline">{article.headline}</h2>
           <p className="lf-paper-standfirst">{article.standfirst}</p>
           <p className="lf-paper-byline">By {article.byline} · {newsAge(state, article)}</p>
-          {article.scoreline && <ScorePlate article={article} large />}
+          {article.scoreline && <ScorePlate article={article} state={state} large />}
           <div className="lf-paper-body">
             {article.body.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
           </div>
