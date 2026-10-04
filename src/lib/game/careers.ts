@@ -134,6 +134,9 @@ export function progressPlayerForSeason(s: GameState, player: FootballPlayer): n
     delta = -round(rngRange(rng, 1, 2.8));
   }
 
+  if (delta > 0 && isUserClubReference(s, playerRegisteredClubId(player))) {
+    delta = round(delta * playerDevelopmentStaffModifier(s, player));
+  }
   if (delta > 0 && player.personality === "Professional" && rng() < 0.35) delta += 1;
   if (delta > 0 && player.personality === "Temperamental" && rng() < 0.3) delta -= 1;
   if (delta < 0 && player.personality === "Professional" && rng() < 0.35) delta += 1;
