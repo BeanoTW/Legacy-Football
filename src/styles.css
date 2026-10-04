@@ -92,19 +92,19 @@
 }
 
 :root[data-club-theme="heritage"] {
-  --primary: oklch(0.48 0.12 155);
-  --ring: oklch(0.48 0.12 155);
-  --panel: oklch(0.38 0.09 155);
-  --banner: oklch(0.78 0.13 82);
-  --background: oklch(0.96 0.018 92);
+  --primary: oklch(0.43 0.13 18);
+  --ring: oklch(0.43 0.13 18);
+  --panel: oklch(0.31 0.09 18);
+  --banner: oklch(0.75 0.11 76);
+  --background: oklch(0.965 0.018 82);
 }
 
 :root[data-club-theme="floodlights"] {
-  --primary: oklch(0.55 0.17 255);
-  --ring: oklch(0.55 0.17 255);
-  --panel: oklch(0.36 0.12 255);
-  --banner: oklch(0.7 0.18 45);
-  --background: oklch(0.955 0.014 255);
+  --primary: oklch(0.55 0.2 302);
+  --ring: oklch(0.55 0.2 302);
+  --panel: oklch(0.28 0.035 285);
+  --banner: oklch(0.7 0.16 318);
+  --background: oklch(0.955 0.012 285);
 }
 
 .dark {
@@ -130,6 +130,26 @@
   --panel: oklch(0.35 0.05 195);
   --panel-foreground: oklch(0.99 0 0);
   --subtle: oklch(0.28 0.02 220);
+}
+
+.dark[data-club-theme="heritage"] {
+  --primary: oklch(0.66 0.13 18);
+  --ring: oklch(0.66 0.13 18);
+  --panel: oklch(0.3 0.08 18);
+  --banner: oklch(0.7 0.1 76);
+  --background: oklch(0.19 0.018 35);
+  --card: oklch(0.24 0.02 30);
+  --popover: oklch(0.24 0.02 30);
+}
+
+.dark[data-club-theme="floodlights"] {
+  --primary: oklch(0.68 0.2 302);
+  --ring: oklch(0.68 0.2 302);
+  --panel: oklch(0.27 0.04 285);
+  --banner: oklch(0.66 0.16 318);
+  --background: oklch(0.18 0.018 285);
+  --card: oklch(0.23 0.02 285);
+  --popover: oklch(0.23 0.02 285);
 }
 
 @layer base {
@@ -165,8 +185,8 @@
   border-radius: 999px;
   background: linear-gradient(90deg, var(--color-primary), var(--color-banner));
 }
-.theme-swatch-heritage { background: linear-gradient(90deg, oklch(0.48 0.12 155), oklch(0.78 0.13 82)); }
-.theme-swatch-floodlights { background: linear-gradient(90deg, oklch(0.55 0.17 255), oklch(0.7 0.18 45)); }
+.theme-swatch-heritage { background: linear-gradient(90deg, oklch(0.43 0.13 18), oklch(0.75 0.11 76)); }
+.theme-swatch-floodlights { background: linear-gradient(90deg, oklch(0.27 0.035 285), oklch(0.6 0.22 302)); }
 
 .club-crest {
   box-shadow:
