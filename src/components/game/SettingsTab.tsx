@@ -17,6 +17,7 @@ type Appearance = "light" | "dark" | "system";
 const THEME_KEY = "chairman.colour-theme";
 const APPEARANCE_KEY = "chairman.appearance";
 const DEVELOPER_EMAIL = "beanotarren@gmail.com";
+declare const __LEGACY_FOOTBALL_BUILD_ID__: string;
 
 function applyTheme(theme: Theme) {
   document.documentElement.dataset.clubTheme = theme;
@@ -156,10 +157,10 @@ export function SettingsTab({
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const latest = await response.text();
-      const current = document.documentElement.outerHTML;
-      const assetPattern = /(?:src|href)="([^"]*\/assets\/[^"]+)"/g;
-      const assets = (html: string) => Array.from(html.matchAll(assetPattern), (match) => match[1]).sort().join("|");
-      if (assets(latest) && assets(latest) !== assets(current)) {
+      const latestDocument = new DOMParser().parseFromString(latest, "text/html");
+      const latestBuild = latestDocument.querySelector('meta[name="legacy-football-build"]')?.getAttribute("content");
+      const currentBuild = __LEGACY_FOOTBALL_BUILD_ID__;
+      if (latestBuild && latestBuild !== currentBuild) {
         await onSaveNow();
         setUpdateMessage("Update found · reloading latest version…");
         window.setTimeout(() => {
