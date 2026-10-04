@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Binoculars, CheckCircle2, Handshake, Star } from "lucide-react";
 import type { GameState } from "@/lib/game/types";
 import {
@@ -44,6 +44,7 @@ export function ScoutingReports({
   shortlistOnly?: boolean;
 }) {
   const focusRef = useRef<HTMLDivElement>(null);
+  const [approachFeedback, setApproachFeedback] = useState<Record<string, { ok: boolean; message: string }>>({});
   useEffect(() => {
     if (focusPlayerId) focusRef.current?.scrollIntoView({ block: "center", behavior: "auto" });
   }, [focusPlayerId]);
@@ -66,6 +67,10 @@ export function ScoutingReports({
       const result = freeAgent
         ? submitTransferOffer(s, playerId, 0, "First Team", weeklyWage)
         : submitTransferEnquiry(s, playerId, "First Team", weeklyWage);
+      setApproachFeedback((current) => ({
+        ...current,
+        [playerId]: { ok: result.result.ok, message: result.result.reason },
+      }));
       if (result.result.ok && result.result.negotiation?.id) {
         onNegotiationStarted?.(result.result.negotiation.id);
       }
@@ -140,6 +145,16 @@ export function ScoutingReports({
                   )}>
                     <span className="font-semibold">{managerPriorityRank === 0 ? `${manager.name}'s priority` : `${manager.name}'s squad need`}</span>
                     <span> · {managerPriority.headline} · {managerPriority.playerLevel === "startingXI" ? "Starting XI level" : managerPriority.playerLevel === "firstTeam" ? "First-team level" : "Squad depth"}</span>
+                  </div>
+                )}
+                {approachFeedback[player.id] && (
+                  <div className={cn(
+                    "rounded-lg border px-2.5 py-2 text-[10px] leading-relaxed",
+                    approachFeedback[player.id].ok
+                      ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-100"
+                      : "border-amber-400/30 bg-amber-400/10 text-amber-100",
+                  )}>
+                    {approachFeedback[player.id].message}
                   </div>
                 )}
                 <div className="flex flex-wrap gap-1.5">
