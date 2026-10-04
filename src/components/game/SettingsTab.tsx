@@ -16,6 +16,7 @@ type Theme = "club" | "heritage" | "floodlights";
 type Appearance = "light" | "dark" | "system";
 const THEME_KEY = "chairman.colour-theme";
 const APPEARANCE_KEY = "chairman.appearance";
+const DEVELOPER_EMAIL = "beanotarren@gmail.com";
 
 function applyTheme(theme: Theme) {
   document.documentElement.dataset.clubTheme = theme;
@@ -84,6 +85,15 @@ export function SettingsTab({
     const { data } = client.auth.onAuthStateChange((_event, next) => setSession(next));
     return () => data.subscription.unsubscribe();
   }, []);
+
+  const developerAuthorized = session?.user.email?.trim().toLowerCase() === DEVELOPER_EMAIL;
+
+  useEffect(() => {
+    if (session && !developerAuthorized && developerMode) {
+      setDeveloperMode(false);
+      setDeveloperModeEnabled(false);
+    }
+  }, [session, developerAuthorized, developerMode]);
 
   async function sendSignInLink() {
     const client = cloudClient();
@@ -321,39 +331,43 @@ export function SettingsTab({
 
       <SoundSettingsPanel />
 
-      <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
-        <div className="flex items-center justify-between gap-3 px-3 py-3">
-          <div>
-            <div className="font-display text-lg">Developer mode</div>
-            <p className="text-xs text-muted-foreground">
-              Unlock God Mode controls for testing this career.
-            </p>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={developerMode}
-            onClick={() => {
-              const next = !developerMode;
-              setDeveloperMode(next);
-              setDeveloperModeEnabled(next);
-            }}
-            className={cn(
-              "relative h-7 w-12 rounded-full border transition-colors",
-              developerMode ? "border-fuchsia-500 bg-fuchsia-500" : "bg-muted",
-            )}
-          >
-            <span
-              className={cn(
-                "absolute top-0.5 size-5 rounded-full bg-white shadow transition-transform",
-                developerMode ? "translate-x-5" : "translate-x-0.5",
-              )}
-            />
-          </button>
-        </div>
-      </section>
-
-      {developerMode && <DeveloperModePanel state={state} update={update} />}
+      {developerAuthorized && (
+        <>
+                <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                  <div className="flex items-center justify-between gap-3 px-3 py-3">
+                    <div>
+                      <div className="font-display text-lg">Developer mode</div>
+                      <p className="text-xs text-muted-foreground">
+                        Unlock God Mode controls for testing this career.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={developerMode}
+                      onClick={() => {
+                        const next = !developerMode;
+                        setDeveloperMode(next);
+                        setDeveloperModeEnabled(next);
+                      }}
+                      className={cn(
+                        "relative h-7 w-12 rounded-full border transition-colors",
+                        developerMode ? "border-fuchsia-500 bg-fuchsia-500" : "bg-muted",
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "absolute top-0.5 size-5 rounded-full bg-white shadow transition-transform",
+                          developerMode ? "translate-x-5" : "translate-x-0.5",
+                        )}
+                      />
+                    </button>
+                  </div>
+                </section>
+          
+                {developerMode && <DeveloperModePanel state={state} update={update} />}
+        </>
+      )}
 
       <section className="rounded-xl border bg-card p-4 shadow-sm">
         <div className="flex items-start gap-3">
