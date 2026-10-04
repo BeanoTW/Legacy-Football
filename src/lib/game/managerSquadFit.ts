@@ -101,7 +101,7 @@ function scoreFormation(
         severity: missing * 30 + Math.max(0, 62 - result.average),
         reason,
       });
-    } else if (result.average < 58) {
+    } else if (result.average < 58 && !(position === "GK" && result.count >= 3)) {
       needs.push({
         position,
         required,
