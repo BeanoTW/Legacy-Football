@@ -13,11 +13,19 @@ import { DeveloperModePanel } from "./DeveloperModePanel";
 import { developerModeEnabled, setDeveloperModeEnabled } from "@/lib/game/developerMode";
 
 type Theme = "club" | "heritage" | "floodlights";
+type Appearance = "light" | "dark" | "system";
 const THEME_KEY = "chairman.colour-theme";
+const APPEARANCE_KEY = "chairman.appearance";
 
 function applyTheme(theme: Theme) {
   document.documentElement.dataset.clubTheme = theme;
   localStorage.setItem(THEME_KEY, theme);
+}
+
+function applyAppearance(appearance: Appearance) {
+  const dark = appearance === "dark" || (appearance === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  document.documentElement.classList.toggle("dark", dark);
+  localStorage.setItem(APPEARANCE_KEY, appearance);
 }
 
 export function SettingsTab({
@@ -38,6 +46,7 @@ export function SettingsTab({
   onSaveNow: () => Promise<{ local: boolean; cloud: boolean }>;
 }) {
   const [theme, setTheme] = useState<Theme>("club");
+  const [appearance, setAppearance] = useState<Appearance>("system");
   const [developerMode, setDeveloperMode] = useState(() => developerModeEnabled());
   const [session, setSession] = useState<Session | null>(null);
   const [email, setEmail] = useState("");
@@ -55,6 +64,17 @@ export function SettingsTab({
     const next = stored && ["club", "heritage", "floodlights"].includes(stored) ? stored : "club";
     setTheme(next);
     applyTheme(next);
+  }, []);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(APPEARANCE_KEY) as Appearance | null;
+    const next: Appearance = stored && ["light", "dark", "system"].includes(stored) ? stored : "system";
+    setAppearance(next);
+    applyAppearance(next);
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => { if ((localStorage.getItem(APPEARANCE_KEY) ?? "system") === "system") applyAppearance("system"); };
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
   }, []);
 
   useEffect(() => {
@@ -263,6 +283,30 @@ export function SettingsTab({
             </button>
           ))}
         </div>
+      </section>
+
+      <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
+        <div className="banner-strip flex items-center gap-2 px-3 py-2 text-sm">
+          <Palette className="size-4" /> Appearance
+        </div>
+        <div className="grid grid-cols-3 gap-2 p-3">
+          {(["light", "dark", "system"] as const).map((choice) => (
+            <button
+              key={choice}
+              onClick={() => {
+                setAppearance(choice);
+                applyAppearance(choice);
+              }}
+              className={cn(
+                "rounded-xl border p-3 text-center text-xs capitalize transition-colors sm:text-sm",
+                appearance === choice && "border-primary bg-primary/10 font-semibold",
+              )}
+            >
+              {choice}
+            </button>
+          ))}
+        </div>
+        <p className="px-3 pb-3 text-[11px] text-muted-foreground">System follows your device appearance automatically.</p>
       </section>
 
       <SoundSettingsPanel />
