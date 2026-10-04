@@ -148,15 +148,15 @@ export function SettingsTab({
   async function checkForUpdates() {
     setUpdateMessage("Checking for updates…");
     try {
-      const { fetchLatestBuildId, applyLatestBuild } = await import("@/lib/appUpdate");
-      const latestBuild = await fetchLatestBuildId();
+      const { fetchLatestBuild, applyLatestBuild } = await import("@/lib/appUpdate");
+      const latest = await fetchLatestBuild();
       const currentBuild = __LEGACY_FOOTBALL_BUILD_ID__;
-      if (latestBuild && latestBuild !== currentBuild) {
+      if (latest.id !== currentBuild) {
         await onSaveNow();
         setUpdateMessage("Update found · installing latest version…");
-        await applyLatestBuild(latestBuild);
+        await applyLatestBuild(latest.id);
       } else {
-        setUpdateMessage("You're on the latest version.");
+        setUpdateMessage(`Latest version verified · build ${currentBuild.slice(0, 8)}`);
       }
     } catch (error) {
       setUpdateMessage(`Could not check for updates: ${(error as Error).message}`);
