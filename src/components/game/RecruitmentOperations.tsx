@@ -14,11 +14,14 @@ import {
   userWageBill,
   userSquad,
   weeksLeftOnContract,
+  renewalTerms,
+  renewContract,
+  setTransferStatus,
 } from "@/lib/game/recruitment";
 import { MOOD_TONE_CLASS, playerMood } from "@/lib/game/character";
 import { clubDisplayName, userClubReference } from "@/lib/game/clubReference";
 import { activeLoanForPlayer } from "@/lib/game/loans";
-import { absoluteWeek } from "@/lib/game/time";
+import { absoluteWeek, WEEKS_PER_SEASON } from "@/lib/game/time";
 import { clubOperatingModel, contractEmploymentType } from "@/lib/game/employment";
 import { tacticalPositionProfile } from "@/lib/game/positions";
 import { TransferNegotiationDesk } from "./TransferNegotiationDesk";
@@ -115,6 +118,7 @@ export function RecruitmentOperations({
           <PlayerProfile
             state={state}
             player={selectedPlayer}
+            act={act}
             onBack={() => setSelectedPlayerId(null)}
           />
         ) : view === "squad" ? (
@@ -161,10 +165,12 @@ export function RecruitmentOperations({
 function PlayerProfile({
   state,
   player,
+  act,
   onBack,
 }: {
   state: GameState;
   player: NonNullable<ReturnType<typeof playerById>>;
+  act: Act;
   onBack: () => void;
 }) {
   const attrs = playerAttributes(player);
@@ -172,6 +178,12 @@ function PlayerProfile({
   const loan = activeLoanForPlayer(state, player.id);
   const employment = contract ? employmentLabel(contractEmploymentType(state, contract)) : "—";
   const mood = playerMood(state, player);
+  const suggestedRenewal = renewalTerms(state, player.id);
+  const [showContractOffer, setShowContractOffer] = useState(false);
+  const [wageOffer, setWageOffer] = useState(() => String(suggestedRenewal?.weeklyWage ?? contract?.weeklyWage ?? 0));
+  const [seasonsOffer, setSeasonsOffer] = useState(() => String(suggestedRenewal?.seasons ?? 2));
+  const [roleOffer, setRoleOffer] = useState(() => suggestedRenewal?.role ?? contract?.squadRole ?? "First Team");
+  const [bonusOffer, setBonusOffer] = useState(() => String(suggestedRenewal?.signingBonus ?? 0));
   const displayedWage =
     contract && loan
       ? Math.round((contract.weeklyWage * loan.loanClubWageContributionPct) / 100)
@@ -223,7 +235,68 @@ function PlayerProfile({
             <ProfileFact label="Mood" value={mood.label} />
           </div>
           <div className={`mt-2 rounded-lg px-2.5 py-1.5 text-[11px] ${MOOD_TONE_CLASS[mood.tone]}`}>{mood.detail}</div>
-          <h3 className="mt-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Abilities</h3>
+          {!loan && contract && (
+            <div className="mt-3 rounded-xl border bg-muted/20 p-3">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Contract & transfer actions</div>
+                  <div className="mt-1 text-sm">
+                    <strong>{fmtMoneyExact(contract.weeklyWage)}/wk</strong>
+                    {" · "}
+                    {Math.max(1, Math.ceil(weeksLeftOnContract(state, contract) / WEEKS_PER_SEASON))} season{Math.max(1, Math.ceil(weeksLeftOnContract(state, contract) / WEEKS_PER_SEASON)) === 1 ? "" : "s"} remaining
+                  </div>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => setShowContractOffer((value) => !value)}>
+                  {showContractOffer ? "Close negotiation" : "Negotiate contract"}
+                </Button>
+              </div>
+
+              {showContractOffer && (
+                <div className="mt-3 space-y-2 border-t pt-3">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <label className="text-xs text-muted-foreground">
+                      Weekly wage
+                      <input type="number" min={0} value={wageOffer} onChange={(event) => setWageOffer(event.target.value)} className="mt-1 h-10 w-full rounded-lg border bg-background px-3 text-sm" />
+                    </label>
+                    <label className="text-xs text-muted-foreground">
+                      Contract length
+                      <select value={seasonsOffer} onChange={(event) => setSeasonsOffer(event.target.value)} className="mt-1 h-10 w-full rounded-lg border bg-background px-3 text-sm">
+                        {[1,2,3,4,5].map((season) => <option key={season} value={season}>{season} season{season === 1 ? "" : "s"}</option>)}
+                      </select>
+                    </label>
+                    <label className="text-xs text-muted-foreground">
+                      Squad role
+                      <select value={roleOffer} onChange={(event) => setRoleOffer(event.target.value as typeof roleOffer)} className="mt-1 h-10 w-full rounded-lg border bg-background px-3 text-sm">
+                        {(["Key Player", "First Team", "Rotation", "Prospect"] as const).map((role) => <option key={role} value={role}>{role}</option>)}
+                      </select>
+                    </label>
+                    <label className="text-xs text-muted-foreground">
+                      Signing bonus
+                      <input type="number" min={0} value={bonusOffer} onChange={(event) => setBonusOffer(event.target.value)} className="mt-1 h-10 w-full rounded-lg border bg-background px-3 text-sm" />
+                    </label>
+                  </div>
+                  {suggestedRenewal && (
+                    <div className="text-[11px] text-muted-foreground">
+                      Agent indication: around <strong>{fmtMoneyExact(suggestedRenewal.weeklyWage)}/wk</strong> for {suggestedRenewal.seasons} season{suggestedRenewal.seasons === 1 ? "" : "s"}.
+                    </div>
+                  )}
+                  <Button size="sm" onClick={() => act((s) => renewContract(s, player.id, {
+                    weeklyWage: Number(wageOffer),
+                    seasons: Number(seasonsOffer),
+                    role: roleOffer,
+                    signingBonus: Number(bonusOffer),
+                  }))}>Submit contract offer</Button>
+                </div>
+              )}
+
+              <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
+                <Button size="sm" variant={player.transferStatus === "listed" ? "secondary" : "outline"} onClick={() => act((s) => setTransferStatus(s, player.id, player.transferStatus === "listed" ? "unlisted" : "listed"))}>
+                  {player.transferStatus === "listed" ? "Remove from transfer list" : "List for transfer"}
+                </Button>
+              </div>
+            </div>
+          )}
+                    <h3 className="mt-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Abilities</h3>
           <div className="mt-1.5 grid grid-cols-3 gap-1.5 sm:grid-cols-5">
             {Object.entries(attrs).map(([key, value]) => (
               <div key={key} className="rounded-lg bg-muted/50 px-2 py-1.5">
