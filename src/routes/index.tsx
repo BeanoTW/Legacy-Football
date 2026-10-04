@@ -43,7 +43,7 @@ import { advanceTargets, type AdvanceTarget } from "@/lib/game/advancePlanner";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { PlayerProfileSheet } from "@/components/game/shared/PlayerProfileSheet";
+import { PlayerProfileSheet, openPlayerProfile } from "@/components/game/shared/PlayerProfileSheet";
 import { CharacterPortrait, PortraitKitProvider } from "@/components/game/CharacterPortrait";
 import { ChairmanStudio, useChairmanProfile } from "@/components/game/ChairmanStudio";
 import { AppLaunchSplash } from "@/components/game/AppLaunchSplash";
@@ -189,6 +189,9 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
       setRecruitmentDestination(null);
     }
     setTab(destination.tab);
+    if (destination.tab === "squad") {
+      openPlayerProfile(destination.playerId);
+    }
   };
 
   const requestContinue = (target?: AdvanceTarget | null) => {
