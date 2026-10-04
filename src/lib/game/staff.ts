@@ -215,15 +215,34 @@ export function makeCandidatePool(rand01: () => number = Math.random): Staff[] {
 }
 
 /** Seeded refresh of the staff market for a given save + calendar slot. */
+function guaranteeHeadOfTransfers(pool: Staff[], seed: string): Staff[] {
+  const existing = pool.filter((staff) => staff.role === "Head of Transfers");
+  // Keep the normal market, but guarantee one attainable journeyman so a
+  // non-league Owner-Director can always put a professional in charge of the
+  // recruitment operation. Better candidates remain something to grow into.
+  if (existing.some((staff) => staff.reputation <= 20)) return pool;
+  const rand = mulberry32(hashString(`head-of-transfers-safety|${seed}`));
+  const fallback = makeStaff("Head of Transfers", 35, rand);
+  fallback.reputation = 20;
+  fallback.rating = Math.min(fallback.rating, 45);
+  fallback.wage = Math.min(fallback.wage, 1_250);
+  return [...pool, fallback];
+}
+
 export function staffPoolFor(s: GameState): Staff[] {
-  return makeCandidatePool(
-    mulberry32(hashString(`staffmarket|${s.saveSeed}|${s.season}|${s.week}`)),
+  const seed = `${s.saveSeed}|${s.season}|${s.week}`;
+  return guaranteeHeadOfTransfers(
+    makeCandidatePool(mulberry32(hashString(`staffmarket|${seed}`))),
+    seed,
   );
 }
 
 /** Seeded opening market for a brand-new save. */
 export function openingStaffPool(saveSeed: string): Staff[] {
-  return makeCandidatePool(mulberry32(hashString(`staffmarket|${saveSeed}|1|1`)));
+  return guaranteeHeadOfTransfers(
+    makeCandidatePool(mulberry32(hashString(`staffmarket|${saveSeed}|1|1`))),
+    `${saveSeed}|1|1`,
+  );
 }
 
 export const hiredStaffWagesWeekly = (s: GameState) =>
