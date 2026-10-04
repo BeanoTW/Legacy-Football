@@ -1,12 +1,12 @@
 import type { GameState, InboxItem } from "./types";
-import { openNegotiations } from "./recruitment";
+import { openNegotiations, playerName } from "./recruitment";
 import { transferTargetPlayer } from "./recruitmentTargetBridge";
 
 /** Screen destinations for contextual links in club briefings.
  * Links are derived from existing stable IDs, not message text or save migrations.
  */
 export type InboxDestination =
-  | { tab: "recruitment"; view: "reports"; playerId: string; label: "View scouting report" }
+  | { tab: "recruitment"; view: "reports"; playerId: string; label: string }
   | { tab: "recruitment"; view: "find"; briefId: string; label: "View scouting results" }
   | { tab: "recruitment"; view: "operations"; negotiationId: string; label: "View negotiation" }
   | { tab: "recruitment"; view: "operations"; label: "Open transfers" }
@@ -17,6 +17,20 @@ export type InboxDestination =
   | { tab: "staff"; label: "Open staff" }
   | { tab: "cashflow"; label: "Open finances" }
   | { tab: "tickets"; label: "Open tickets" };
+
+export function inboxDestinations(state: GameState, item: InboxItem): InboxDestination[] {
+  if (item.generatorId === "scouting-report" && item.eventKey.startsWith("scouting-batch:")) {
+    const ids = item.eventKey.split(":").at(-1)?.split(",").filter(Boolean) ?? [];
+    return ids.flatMap((playerId) => {
+      const player = transferTargetPlayer(state, playerId);
+      return player
+        ? [{ tab: "recruitment", view: "reports", playerId, label: `View ${playerName(player)}` } as InboxDestination]
+        : [];
+    });
+  }
+  const destination = inboxDestination(state, item);
+  return destination ? [destination] : [];
+}
 
 /** Don't advertise a deep link if the referenced report or deal no longer exists. */
 export function inboxDestination(state: GameState, item: InboxItem): InboxDestination | null {
