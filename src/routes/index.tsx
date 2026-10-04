@@ -189,7 +189,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
     } else {
       setRecruitmentDestination(null);
     }
-    setStaffConversationId(destination.tab === "staff" ? destination.staffId ?? null : null);
+    setStaffConversationId(destination.tab === "staff" && "staffId" in destination ? destination.staffId ?? null : null);
     setTab(destination.tab);
     if (destination.tab === "squad") {
       openPlayerProfile(destination.playerId);
