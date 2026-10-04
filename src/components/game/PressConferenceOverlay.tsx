@@ -325,10 +325,10 @@ export function PressConferenceOverlay({
 
               <div className="my-4 flex items-center gap-3">
                 <div className="overflow-hidden rounded-xl">
-                  <CharacterPortrait avatar={profile.avatar} size={44} title="Managing Director" />
+                  <CharacterPortrait avatar={profile.avatar} size={44} title="Owner-Director" />
                 </div>
                 <div>
-                  <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[#1d7f75]">Your answer</span>
+                  <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-[#1d7f75]">Owner-Director · your answer</span>
                   <strong className="text-sm">{state.managerName}</strong>
                 </div>
               </div>
