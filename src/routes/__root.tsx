@@ -10,6 +10,8 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
 
+declare const __LEGACY_FOOTBALL_BUILD_ID__: string;
+
 import appCss from "../styles.css?url";
 import presentationCss from "../presentation.css?url";
 import homeOverhaulCss from "../home-overhaul.css?url";
@@ -112,7 +114,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <head><HeadContent /></head>
+      <head><HeadContent /><meta name="legacy-football-build" content={__LEGACY_FOOTBALL_BUILD_ID__} /></head>
       <body>{children}<Scripts /></body>
     </html>
   );
