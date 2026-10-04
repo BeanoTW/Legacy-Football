@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { MessageCircle, UserRound } from "lucide-react";
+import { BriefcaseBusiness, MessageCircle, UserRound } from "lucide-react";
 import type { FootballPlayer, GameState, Staff } from "@/lib/game/types";
 import { playerName, userSquad } from "@/lib/game/recruitment";
 import { MANAGER_FORMATIONS } from "@/lib/game/managerFormationLayout";
 import { playerConversationTopics, staffConversationTopics } from "@/lib/game/clubConversations";
+import { activeManagerRecruitmentAssignment, delegateManagerRecruitmentPriorities, managerRecruitmentBrief } from "@/lib/game/managerRecruitmentBrief";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -58,6 +59,8 @@ export function ClubConversationDialog({
   const squad = isManager ? userSquad(state).slice().sort((a, b) => b.currentAbility - a.currentAbility) : [];
   const currentFormation = isManager ? String(state.inboxFlags[`managerDirective:${subject.staff.id}:formation`] ?? "") : "";
   const priorityIds = String(state.inboxFlags["chairman.managerPriority.ids"] ?? "").split(",").filter(Boolean);
+  const recruitmentBrief = isManager ? managerRecruitmentBrief(state, subject.staff) : null;
+  const delegatedRecruitment = isManager ? activeManagerRecruitmentAssignment(state, subject.staff) : null;
 
   const requestFormation = (formation: string) => {
     if (!isManager || !update) return;
@@ -69,6 +72,12 @@ export function ClubConversationDialog({
       },
     }));
     setRequestFeedback(`Understood. I'll prepare the side in ${formation} and see how the squad handles it.`);
+  };
+
+  const delegateRecruitment = () => {
+    if (!isManager || !update || !recruitmentBrief?.priorities.length || delegatedRecruitment) return;
+    update((current) => delegateManagerRecruitmentPriorities(current, subject.staff));
+    setRequestFeedback(`I've passed my priorities to Recruitment. They'll run the search and bring us candidates; the final transfer decision stays with you.`);
   };
 
   const prioritisePlayer = () => {
@@ -130,6 +139,22 @@ export function ClubConversationDialog({
               {priorityIds.length > 0 && (
                 <div className="mt-2 text-[11px] text-muted-foreground">
                   Current priorities: {priorityIds.map((id) => squad.find((player) => player.id === id)).filter(Boolean).map((player) => playerName(player!)).join(", ")}
+                </div>
+              )}
+              {recruitmentBrief && recruitmentBrief.priorities.length > 0 && (
+                <div className="mt-3 rounded-xl border border-violet-500/25 bg-violet-500/[0.05] p-2.5">
+                  <div className="flex items-center gap-2 text-xs font-semibold">
+                    <BriefcaseBusiness className="size-4 text-violet-400" />
+                    Manager's recruitment priorities
+                  </div>
+                  <div className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                    {recruitmentBrief.priorities.map((priority) => `${priority.headline} (${priority.playerLevel === "backup" ? "depth" : priority.playerLevel})`).join(" · ")}
+                  </div>
+                  <Button type="button" size="sm" variant="outline" className="mt-2 h-8 w-full border-violet-500/30"
+                    disabled={Boolean(delegatedRecruitment)} onClick={delegateRecruitment}>
+                    {delegatedRecruitment ? "Recruitment are working on it" : "Send priorities to Recruitment"}
+                  </Button>
+                  <div className="mt-1.5 text-[10px] text-muted-foreground">Recruitment will search and assess candidates. You keep final control of transfers and contracts.</div>
                 </div>
               )}
               {requestFeedback && <div className="mt-3 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-2.5 text-xs leading-relaxed">{requestFeedback}</div>}
