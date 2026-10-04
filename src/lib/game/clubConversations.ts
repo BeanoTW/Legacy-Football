@@ -9,6 +9,7 @@ import { playerRecentForm } from "./playerForm";
 import { playerSeasonStats } from "./playerSeasonStats";
 import { playerFitness } from "./playerHealth";
 import { hashString } from "./rng";
+import { absoluteWeek } from "./time";
 
 export interface ClubConversationTopic {
   id: string;
@@ -321,9 +322,12 @@ export function proactiveClubConversationItems(state: GameState): InboxItem[] {
       sender: physio.name,
       department: "Medical",
       category: "staff",
-      priority: injured.injury.weeksOut >= 4 ? "high" : "normal",
+      priority: Math.max(0, injured.injury.returnAbsoluteWeek - absoluteWeek(state.season, state.week)) >= 4 ? "high" : "normal",
       subject: `${physio.name} wants to review ${playerName(injured)}'s recovery`,
-      body: `${playerName(injured)} is recovering from ${injured.injury.type}. The current estimate is ${injured.injury.weeksOut} week${injured.injury.weeksOut === 1 ? "" : "s"} out. I wanted this on your desk so the football and recruitment plans account for it.`,
+      body: (() => {
+        const weeksOut = Math.max(0, injured.injury.returnAbsoluteWeek - absoluteWeek(state.season, state.week));
+        return `${playerName(injured)} is recovering from ${injured.injury.type}. The current estimate is ${weeksOut} week${weeksOut === 1 ? "" : "s"} out. I wanted this on your desk so the football and recruitment plans account for it.`;
+      })(),
     }));
   }
 
