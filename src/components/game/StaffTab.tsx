@@ -153,7 +153,8 @@ export function StaffTab({ state, update, initialConversationStaffId }: { state:
       setView("team");
       setConversationStaffId(initialConversationStaffId);
     }
-  }, [initialConversationStaffId, state.hiredStaff]);
+  }, [initialConversationStaffId]);
+  const conversationStaff=conversationStaffId ? state.hiredStaff.find((staff) => staff.id === conversationStaffId) ?? null : null;
   const manager=state.hiredStaff.find(s=>s.role==="Manager"); const medical=medicalSupport(state); const weeklyStaffCost=hiredStaffWagesWeekly(state); const enriched=state.staffCandidates.map(c=>({staff:c,terms:staffJoinTermsForState(state,c)})); const willingCount=enriched.filter(e=>e.terms.willing).length; const footballStaffCount=state.hiredStaff.filter(s=>FOOTBALL_ROLES.includes(s.role)).length; const specialistCount=state.hiredStaff.filter(s=>!FOOTBALL_ROLES.includes(s.role)).length; const expiringCount=state.hiredStaff.filter(s=>s.contractWeeks<=24).length;
   const closeManagerTalks=()=>{setManagerNegotiationId(null);setManagerOffer(null);setManagerPosition(null);setManagerCounter(null);setManagerAcceptedOffer(null);setManagerRound(1);setManagerMessage("");};
   const hire=(id:string)=>{const candidate=state.staffCandidates.find(c=>c.id===id);if(candidate?.role==="Manager"){const terms=staffJoinTermsForState(state,candidate);const opening=managerOpeningPosition(state,candidate,terms);setManagerNegotiationId(id);setManagerOffer(opening);setManagerPosition(opening);setManagerCounter(null);setManagerAcceptedOffer(null);setManagerRound(1);setManagerMessage(`${terms.note}. His agent has set out an opening position.`);return;}const res=hireStaffMember(state,id);if(!res.ok)return alert(res.reason??"Unable to hire.");update(()=>res.state);};
@@ -203,7 +204,7 @@ export function StaffTab({ state, update, initialConversationStaffId }: { state:
       />
       <ClubConversationDialog
         state={state}
-        subject={conversationStaffId ? { kind: "staff", staff: state.hiredStaff.find((staff) => staff.id === conversationStaffId)! } : null}
+        subject={conversationStaff ? { kind: "staff", staff: conversationStaff } : null}
         open={Boolean(conversationStaffId)}
         onOpenChange={(open) => { if (!open) setConversationStaffId(null); }}
       />
