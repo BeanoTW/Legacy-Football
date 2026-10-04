@@ -45,7 +45,7 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
 
   return (
     <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-background">
-      <TopBar title="Legacy Football" subtitle="Build a club legacy from non-league to the top" />
+      <TopBar title="Legacy Football" subtitle="Buy a non-league club. Build its legacy." />
       <div data-testid="new-career-scroll" className="min-h-0 w-full flex-1 overflow-y-auto overscroll-contain [touch-action:pan-y] [-webkit-overflow-scrolling:touch]">
       <div className="mx-auto max-w-xl px-3 py-4 pb-6 sm:px-4 sm:py-8">
         <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
@@ -67,8 +67,8 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
               ))}
             </div>
             <p className="text-sm text-muted-foreground">
-              You take over a semi-professional club at Football Level 7 with £220,000 in the bank.
-              Shape the squad, control the wage bill, invest in the ground and build your way up the pyramid.
+              You've bought a semi-professional club at Football Level 7 and appointed yourself Owner-Director of Football & Operations.
+              With £220,000 in the bank, the club is yours to build: appoint the manager, shape recruitment, hire specialists, develop the ground and lead it up the pyramid. You cannot be sacked — but every decision changes the club you own.
             </p>
 
             <div className="lf-newgame-chairman">
@@ -77,7 +77,7 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
                 <span className="lf-office-edit"><Pencil /></span>
               </button>
               <div className="min-w-0 flex-1 space-y-2">
-                <Label htmlFor="mgr">Director name</Label>
+                <Label htmlFor="mgr">Owner-Director name</Label>
                 <Input id="mgr" value={manager} maxLength={40} onChange={(e) => setManager(e.target.value)} className="border-2 border-border bg-muted/65 text-foreground placeholder:text-muted-foreground" />
                 <button type="button" className="lf-newgame-edit-look" onClick={() => setStudioOpen(true)}>
                   <Pencil /> Edit look
@@ -173,7 +173,7 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
       <div className="z-10 shrink-0 border-t border-border bg-card/95 px-3 py-2 shadow-[0_-4px_16px_rgba(0,0,0,.08)] [padding-bottom:calc(.5rem+env(safe-area-inset-bottom))]">
         <div className="mx-auto max-w-xl">
           <Button type="button" className="min-h-11 w-full text-sm font-bold" disabled={!club.trim() || activeSlotUnreadable} onClick={start}>
-            <Play className="mr-2 size-4" /> Start Season
+            <Play className="mr-2 size-4" /> Take ownership
           </Button>
         </div>
       </div>

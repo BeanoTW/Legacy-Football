@@ -170,7 +170,7 @@ function incidentAnswers(
   }));
 }
 
-function calendarAnswers(context: CalendarPressContext, round: 2 | 3): PressAnswer[] {
+function calendarAnswers(state: GameState, context: CalendarPressContext, round: 2 | 3): PressAnswer[] {
   const lines: Record<CalendarPressContext, Record<2 | 3, Record<PressTone, string>>> = {
     "summer-window-open": {
       2: {
@@ -257,6 +257,25 @@ function calendarAnswers(context: CalendarPressContext, round: 2 | 3): PressAnsw
       },
     },
   };
+
+  if (state.season === 1 && context === "summer-window-open") {
+    const opening: Record<2 | 3, Record<PressTone, string>> = {
+      2: {
+        transparent: "I bought the club because I want to build something lasting. I've put myself in charge of football and operations, but I'll employ good people and let specialists do their jobs.",
+        reassure: "This isn't about pretending I can do every job. My role is to set the direction, appoint the right people and give the club a stable platform to grow.",
+        dismiss: "I didn't buy the club for a vanity title. Judge the ownership by what the club becomes, not by what I say on day one.",
+      },
+      3: {
+        transparent: "The promise is simple: every promotion, signing and stand we build should leave this club stronger than it was before. There is no short-term exit plan.",
+        reassure: "We're starting in non-league and we'll grow at the club's pace. I want supporters to recognise the same club even if one day we're playing at the top.",
+        dismiss: "I'm not going to put a ceiling on a club I've just bought. We start here, we build properly, and we'll see how far we can take it.",
+      },
+    };
+    const copy = opening[round];
+    return (["transparent", "reassure", "dismiss"] as const).map((tone) => ({
+      id: tone, tone, label: copy[tone], hint: "", effects: answerEffects(round, tone, false),
+    }));
+  }
 
   const copy = lines[context][round];
   return (["transparent", "reassure", "dismiss"] as const).map((tone) => ({
@@ -371,7 +390,9 @@ export function calendarPressRound(
   const club = state.clubName;
 
   const roundTwoQuestions: Record<CalendarPressContext, string> = {
-    "summer-window-open": "What would make this transfer window a successful one for the club?",
+    "summer-window-open": state.season === 1
+      ? "You've made yourself responsible for football and operations rather than sitting back as owner. How hands-on do you intend to be?"
+      : "What would make this transfer window a successful one for the club?",
     "season-preview": "What should supporters realistically expect from this team once the competitive season begins?",
     "summer-window-review": "Now the summer window has closed, are you satisfied that the squad is stronger than it was when the window opened?",
     "midseason-checkpoint": "At this point in the season, what has pleased you most and what still has to improve?",
@@ -381,7 +402,9 @@ export function calendarPressRound(
   };
 
   const roundThreeQuestions: Record<CalendarPressContext, string> = {
-    "summer-window-open": "Before we finish, is there a clear recruitment principle you will not compromise on this summer?",
+    "summer-window-open": state.season === 1
+      ? "You own the club, so nobody can sack you. What should supporters hold you accountable for as you build it?"
+      : "Before we finish, is there a clear recruitment principle you will not compromise on this summer?",
     "season-preview": "What would you personally regard as a successful season for " + club + "?",
     "summer-window-review": "If this squad falls short, will you accept responsibility for the decisions made during the window?",
     "midseason-checkpoint": "What is the single priority for the second half of the season?",
@@ -419,7 +442,7 @@ export function calendarPressRound(
     question = `Earlier this season you told us, “${remembered}” ${question}`;
   }
 
-  return { question, answers: calendarAnswers(context, round) };
+  return { question, answers: calendarAnswers(state, context, round) };
 }
 
 
