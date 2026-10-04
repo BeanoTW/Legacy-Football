@@ -10,6 +10,7 @@ import { playerSeasonStats } from "./playerSeasonStats";
 import { playerFitness } from "./playerHealth";
 import { hashString } from "./rng";
 import { absoluteWeek } from "./time";
+import { directorConcern, directorSatisfaction } from "./board";
 
 export interface ClubConversationTopic {
   id: string;
@@ -441,5 +442,21 @@ export function proactiveClubConversationItems(state: GameState): InboxItem[] {
     }));
   }
 
-  return items;
+  const boardConcern = state.board?.directors
+    ?.map((director) => ({ director, concern: directorConcern(state, director), satisfaction: directorSatisfaction(state, director) }))
+    .filter((entry) => entry.concern && entry.satisfaction < 48)
+    .sort((a, b) => a.satisfaction - b.satisfaction)[0];
+  if (boardConcern?.concern) {
+    items.push(inboxItem(state, {
+      eventKey: `club-conversation:board:${boardConcern.director.id}:${boardConcern.concern.objective.id}:s${state.season}`,
+      sender: boardConcern.director.name,
+      department: "Board of Directors",
+      category: "board",
+      priority: boardConcern.satisfaction < 30 ? "high" : "normal",
+      subject: `${boardConcern.director.name} has flagged ${boardConcern.concern.objective.label.toLowerCase()}`,
+      body: `I've flagged something in my area that I think we should look at together. ${boardConcern.concern.objective.description} Right now: ${boardConcern.concern.progress.detail}. Come and speak to me and I'll give you my view on the options.`,
+    }));
+  }
+
+    return items;
 }

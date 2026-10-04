@@ -12,6 +12,7 @@ export type InboxDestination =
   | { tab: "recruitment"; view: "operations"; label: "Open transfers" }
   | { tab: "squad"; playerId: string; label: string }
   | { tab: "staff"; staffId?: string; label: string }
+  | { tab: "board"; label: string }
   | { tab: "recruitment"; view: "sales"; label: "View sales" }
   | { tab: "stadium"; label: "Open facilities" }
   | { tab: "commercial"; label: "Open commercial" }
@@ -36,6 +37,9 @@ export function inboxDestinations(state: GameState, item: InboxItem): InboxDesti
 
 /** Don't advertise a deep link if the referenced report or deal no longer exists. */
 export function inboxDestination(state: GameState, item: InboxItem): InboxDestination | null {
+  if (item.generatorId === "club-conversations" && item.department === "Board of Directors") {
+    return { tab: "board", label: "Open boardroom" };
+  }
   if (item.generatorId === "club-conversations" && item.department === "Players") {
     const playerId = item.eventKey.match(/^club-conversation:player-playing-time:([^:]+):s\d+$/)?.[1];
     if (playerId && transferTargetPlayer(state, playerId)) {
