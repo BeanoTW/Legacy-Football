@@ -15,11 +15,14 @@ import {
 const SHAPE_PATHS: Record<BadgeShape, string> = {
   shield: "M10 8H90V46C90 70 72 86 50 95C28 86 10 70 10 46Z",
   classic: "M8 12Q29 18 50 8Q71 18 92 12V50C92 74 73 88 50 96C27 88 8 74 8 50Z",
+  heater: "M8 8H92V46Q88 78 50 97Q12 78 8 46Z",
   round: "M4 50A46 46 0 1 0 96 50A46 46 0 1 0 4 50Z",
   roundel: "M4 50A46 46 0 1 0 96 50A46 46 0 1 0 4 50Z",
+  oval: "M8 50C8 22 24 5 50 5C76 5 92 22 92 50C92 78 76 95 50 95C24 95 8 78 8 50Z",
   pennant: "M14 6H86V58L50 96L14 58Z",
   diamond: "M50 3L96 50L50 97L4 50Z",
   octagon: "M31 4H69L96 31V69L69 96H31L4 69V31Z",
+  hexagon: "M25 5H75L96 50L75 95H25L4 50Z",
   square: "M12 6H88Q94 6 94 12V76Q94 83 87 86L50 97L13 86Q6 83 6 76V12Q6 6 12 6Z",
 };
 
@@ -42,12 +45,18 @@ function divisionShapes(division: BadgeDesign["division"], colour: string): Reac
       return <path d="M0 12.5H100V25H0ZM0 37.5H100V50H0ZM0 62.5H100V75H0ZM0 87.5H100V100H0Z" fill={colour} />;
     case "chevron":
       return <path d="M0 64L50 38L100 64V82L50 56L0 82Z" fill={colour} />;
+    case "invertedChevron":
+      return <path d="M0 30L50 56L100 30V48L50 74L0 48Z" fill={colour} />;
     case "cross":
       return <path d="M42 0H58V42H100V58H58V100H42V58H0V42H42Z" fill={colour} />;
     case "saltire":
       return <path d="M0 9L9 0L100 91L91 100ZM91 0L100 9L9 100L0 91Z" fill={colour} />;
     case "chief":
       return <rect x="0" y="0" width="100" height="30" fill={colour} />;
+    case "bordure":
+      return <path d="M0 0H100V100H0ZM12 12V88H88V12Z" fill={colour} fillRule="evenodd" />;
+    case "sunburst":
+      return <path d="M50 50L15 0H35ZM50 50L65 0H85ZM50 50L100 15V35ZM50 50L100 65V85ZM50 50L85 100H65ZM50 50L35 100H15ZM50 50L0 85V65ZM50 50L0 35V15Z" fill={colour} />;
     default:
       return null;
   }
@@ -142,6 +151,43 @@ function emblemArt(emblem: BadgeEmblem, colour: string, field: string): ReactNod
           strokeLinejoin="round"
         />
       );
+    case "eagle":
+      return (
+        <path
+          d="M50 28L60 12L64 31Q79 22 96 25Q84 40 68 47L88 58L68 62L80 80L58 69L50 94L42 69L20 80L32 62L12 58L32 47Q16 40 4 25Q21 22 36 31L40 12Z"
+          fill={colour}
+          stroke={edge}
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
+      );
+    case "lion":
+      return (
+        <g fill={colour} stroke={edge} strokeWidth="2.2" strokeLinejoin="round" strokeLinecap="round">
+          <path d="M31 25Q18 24 13 34Q26 31 30 41Q14 45 17 58Q27 48 35 57Q24 69 32 80L44 67L48 91H60L58 65Q69 70 75 62Q64 58 67 49Q77 52 84 44Q71 43 72 33Q62 38 57 31Q55 20 45 15Q47 25 39 28Z" />
+          <circle cx="48" cy="35" r="2.5" fill={field} stroke="none" />
+        </g>
+      );
+    case "stag":
+      return (
+        <g fill="none" stroke={colour} strokeWidth="6" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M39 91L42 61Q31 50 34 36M61 91L58 61Q69 50 66 36M42 61Q50 68 58 61" />
+          <path d="M34 40L19 28L13 13M31 35L15 39L7 50M66 40L81 28L87 13M69 35L85 39L93 50" strokeWidth="5" />
+          <path d="M42 58Q50 48 58 58" strokeWidth="8" />
+        </g>
+      );
+    case "rose": {
+      const petals = Array.from({ length: 5 }, (_, index) => (
+        <ellipse key={index} cx="50" cy="28" rx="15" ry="24" transform={`rotate(${index * 72} 50 50)`} />
+      ));
+      return (
+        <g fill={colour} stroke={edge} strokeWidth="2">
+          {petals}
+          <circle cx="50" cy="50" r="15" fill={field} />
+          <circle cx="50" cy="50" r="8" />
+        </g>
+      );
+    }
     case "oak":
       return (
         <g stroke={edge} strokeWidth="2.5">
@@ -387,18 +433,30 @@ function kitPattern(kit: KitDesign): ReactNode {
           fill={s}
         />
       );
+    case "doubleStripe":
+      return <path d="M75 0H89V200H75ZM111 0H125V200H111Z" fill={s} />;
+    case "centreStripe":
+      return <rect x="82" y="0" width="36" height="200" fill={s} />;
     case "hoops":
       return <path d="M0 44H200V62H0ZM0 80H200V98H0ZM0 116H200V134H0ZM0 152H200V170H0Z" fill={s} />;
     case "halves":
       return <rect x="100" y="0" width="100" height="200" fill={s} />;
+    case "thirds":
+      return <path d="M0 0H67V200H0ZM133 0H200V200H133Z" fill={s} />;
     case "quarters":
       return <path d="M100 0H200V100H100ZM0 100H100V200H0Z" fill={s} />;
     case "sash":
       return <path d="M50 30L72 22L152 176L130 190Z" fill={s} />;
+    case "diagonal":
+      return <path d="M100 0H200V200H0Z" fill={s} />;
     case "chevron":
       return <path d="M40 58L100 96L160 58V80L100 118L40 80Z" fill={s} />;
+    case "doubleChevron":
+      return <path d="M40 44L100 78L160 44V60L100 94L40 60ZM40 78L100 112L160 78V94L100 128L40 94Z" fill={s} />;
     case "band":
       return <rect x="0" y="82" width="200" height="26" fill={s} />;
+    case "yoke":
+      return <path d="M40 0H160L148 58Q100 42 52 58Z" fill={s} />;
     default:
       return null;
   }
@@ -423,6 +481,21 @@ function collarArt(kit: KitDesign): ReactNode {
           <circle cx="100" cy="50" r="1.8" fill={kit.body} />
           <path d="M77 14L100 26L90 42L72 24Z" fill={kit.trim} stroke={shadeHex(kit.trim, -0.3)} strokeWidth="1" />
           <path d="M123 14L100 26L110 42L128 24Z" fill={kit.trim} stroke={shadeHex(kit.trim, -0.3)} strokeWidth="1" />
+        </g>
+      );
+    case "mandarin":
+      return (
+        <g>
+          <path d="M80 18Q100 29 120 18V34Q100 43 80 34Z" fill={kit.trim} stroke={shadeHex(kit.trim, -0.3)} strokeWidth="1.5" />
+          <path d="M100 26V39" stroke={inner} strokeWidth="2" />
+        </g>
+      );
+    case "lace":
+      return (
+        <g>
+          <path d="M80 18L100 45L120 18Q100 26 80 18Z" fill={inner} />
+          <path d="M80 18L100 45L120 18" fill="none" stroke={kit.trim} strokeWidth="4" strokeLinejoin="round" />
+          <path d="M91 26L107 34M93 34L109 26" stroke={kit.trim} strokeWidth="2.2" strokeLinecap="round" />
         </g>
       );
     default:
