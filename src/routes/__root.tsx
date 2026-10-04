@@ -28,6 +28,7 @@ import mobileDockCss from "../mobile-dock.css?url";
 import homeShellPolishCss from "../home-shell-polish.css?url";
 import { installAudioUnlock } from "../lib/audio/soundscape";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { applyLatestBuild, cleanUpdateParams, fetchLatestBuildId } from "../lib/appUpdate";
 
 function NotFoundComponent() {
   return (
@@ -124,6 +125,7 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   useEffect(() => {
     installAudioUnlock();
+    cleanUpdateParams();
 
     // Installed PWAs can resume an older cached document. Revalidate when the
     // app launches or returns to the foreground and refresh only when the
