@@ -239,16 +239,27 @@ export function startScouting(state: GameState, playerId: string): GameState {
   return next;
 }
 
-function pushScoutingReport(state: GameState, player: FootballPlayer, days: number): void {
-  const complete = days >= FULL_REPORT_DAYS;
-  const milestone = complete
-    ? FULL_REPORT_DAYS
-    : days >= PARTIAL_REPORT_DAYS
-      ? PARTIAL_REPORT_DAYS
-      : 0;
-  if (!milestone) return;
-  const eventKey = `scouting:${player.id}:s${state.season}:d${milestone}`;
+type ScoutingMilestoneBatch = {
+  milestone: typeof PARTIAL_REPORT_DAYS | typeof FULL_REPORT_DAYS;
+  players: FootballPlayer[];
+};
+
+function pushScoutingReportBatch(
+  state: GameState,
+  targetDay: number,
+  batch: ScoutingMilestoneBatch,
+): void {
+  if (batch.players.length === 0) return;
+  const complete = batch.milestone === FULL_REPORT_DAYS;
+  const players = [...batch.players].sort((a, b) =>
+    `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`),
+  );
+  const playerIds = players.map((player) => player.id).sort().join(",");
+  const eventKey = `scouting-batch:s${state.season}:day${targetDay}:d${batch.milestone}:${playerIds}`;
   if (state.inbox.some((item) => item.eventKey === eventKey)) return;
+
+  const names = players.map((player) => `• ${player.firstName} ${player.lastName}`).join("\n");
+  const count = players.length;
   state.inbox.push({
     id: `inbox-${hashString(eventKey).toString(36)}`,
     generatorId: "scouting-report",
@@ -257,11 +268,15 @@ function pushScoutingReport(state: GameState, player: FootballPlayer, days: numb
     department: "Head Scout",
     category: "transfers",
     subject: complete
-      ? `Final scout report: ${player.firstName} ${player.lastName}`
-      : `Scout update: ${player.firstName} ${player.lastName}`,
+      ? count === 1
+        ? `Final scout report: ${players[0].firstName} ${players[0].lastName}`
+        : `Final scout reports — ${count} players`
+      : count === 1
+        ? `Scout update: ${players[0].firstName} ${players[0].lastName}`
+        : `Scouting update — ${count} players`,
     body: complete
-      ? "Six days of scouting are complete. We now have the full player report, tighter valuation and personality information."
-      : "Four days of scouting are complete. We now have a useful partial report; two more days will complete the assessment.",
+      ? `Six days of scouting are complete. We now have full reports, tighter valuations and personality information.\n\n${names}`
+      : `Four days of scouting are complete. These players now have useful partial reports; two more days will complete each assessment.\n\n${names}`,
     priority: "high",
     week: state.week,
     season: state.season,
@@ -273,6 +288,8 @@ function progressScoutingToDayInPlace(state: GameState, targetDay: number): void
   progressSemanticScoutingDiscoveryDayInPlace(state, targetDay);
   if (!state.football?.scouting) return;
   const nowWeek = absoluteWeek(state.season, state.week);
+  const partialReports: FootballPlayer[] = [];
+  const finalReports: FootballPlayer[] = [];
   for (const assignment of state.football.scouting.assignments) {
     if (assignment.status !== "active") continue;
     assignment.startedAtDay ??= assignment.startedAtAbsoluteWeek * 7;
@@ -286,13 +303,15 @@ function progressScoutingToDayInPlace(state: GameState, targetDay: number): void
     const player = knownPlayerDetail(state, assignment.playerId);
     if (!player) continue;
     if (before < PARTIAL_REPORT_DAYS && assignment.weeksObserved >= PARTIAL_REPORT_DAYS) {
-      pushScoutingReport(state, player, PARTIAL_REPORT_DAYS);
+      partialReports.push(player);
     }
     if (assignment.weeksObserved >= FULL_REPORT_DAYS) {
       assignment.status = "complete";
-      if (before < FULL_REPORT_DAYS) pushScoutingReport(state, player, FULL_REPORT_DAYS);
+      if (before < FULL_REPORT_DAYS) finalReports.push(player);
     }
   }
+  pushScoutingReportBatch(state, targetDay, { milestone: PARTIAL_REPORT_DAYS, players: partialReports });
+  pushScoutingReportBatch(state, targetDay, { milestone: FULL_REPORT_DAYS, players: finalReports });
 }
 
 export function progressScoutingDayInPlace(state: GameState): void {
