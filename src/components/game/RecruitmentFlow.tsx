@@ -16,7 +16,7 @@ import { chairmanShortlistIds } from "@/lib/game/recruitmentKnowledge";
 import { isUserClubReference } from "@/lib/game/clubReference";
 import { OverviewScreen, WorkflowTile } from "./shared/layout";
 
-type View = "home" | "operations" | "find" | "brief" | "reports" | "sales" | "loans" | "history";
+type View = "home" | "operations" | "find" | "brief" | "reports" | "shortlist" | "sales" | "loans" | "history";
 
 export function RecruitmentFlow({ state, update, destination }: { state: GameState; update: (fn: (s: GameState) => GameState) => void; destination?: Extract<InboxDestination, { tab: "recruitment" }> | null }) {
   const [view, setView] = useState<View>(destination?.view ?? "home");
@@ -41,8 +41,9 @@ export function RecruitmentFlow({ state, update, destination }: { state: GameSta
     />;
   }
   if (view === "brief") return <ScoutingBriefBuilder state={state} update={update} onBack={() => setView("find")} />;
-  if (view === "reports") return <ScoutingReports
+  if (view === "reports" || view === "shortlist") return <ScoutingReports
     state={state}
+    shortlistOnly={view === "shortlist"}
     update={update}
     onBack={() => setView("home")}
     focusPlayerId={destination?.view === "reports" ? destination.playerId : undefined}
@@ -74,7 +75,8 @@ export function RecruitmentFlow({ state, update, destination }: { state: GameSta
       <div className="grid grid-cols-2 gap-2 md:gap-3 xl:grid-cols-2">
         <TransferAction icon={<Binoculars className="size-5 md:size-6" />} title="Recommended players" sub="Set a scouting brief and send your recruitment team looking for suitable players" onClick={() => setView("find")} />
         <TransferAction icon={<Handshake className="size-5 md:size-6" />} title="Negotiations" sub={incomingDeals ? `${incomingDeals} incoming deal${incomingDeals === 1 ? "" : "s"} live` : "No buying talks currently open"} onClick={() => setView("operations")} />
-        <TransferAction icon={<Star className="size-5 md:size-6" />} title="Scouting reports" sub={activeScouting || completedReports ? `${activeScouting} active · ${completedReports} full · ${shortlist} watched` : "Players you scout stay here until you are done with them"} onClick={() => setView("reports")} />
+        <TransferAction icon={<Star className="size-5 md:size-6" />} title="Scouting reports" sub={activeScouting || completedReports ? `${activeScouting} active · ${completedReports} full` : "Players you scout stay here until you are done with them"} onClick={() => setView("reports")} />
+        <TransferAction icon={<Star className="size-5 md:size-6" />} title="Shortlist" sub={shortlist ? `${shortlist} watched target${shortlist === 1 ? "" : "s"}` : "Save interesting players here for later"} onClick={() => setView("shortlist")} />
         <TransferAction icon={<Shield className="size-5 md:size-6" />} title="Sell players" sub={sales ? `${sales} offer${sales === 1 ? "" : "s"} waiting` : "List players and manage incoming bids"} onClick={() => setView("sales")} />
         <TransferAction icon={<Repeat2 className="size-5 md:size-6" />} title="Loans" sub={activeLoans ? `${activeLoans} active agreement${activeLoans === 1 ? "" : "s"}` : "No active loan agreements"} onClick={() => setView("loans")} />
         <TransferAction icon={<History className="size-5 md:size-6" />} title="Transfer history" sub={transferHistoryCount ? `${transferHistoryCount} completed transfer${transferHistoryCount === 1 ? "" : "s"} recorded` : "Permanent record of completed deals"} onClick={() => setView("history")} />

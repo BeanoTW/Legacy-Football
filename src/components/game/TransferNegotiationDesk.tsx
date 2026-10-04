@@ -74,16 +74,16 @@ const interestTone = (interest: TransferNegotiation["playerInterest"]) =>
         : "border-rose-500/35 bg-rose-500/10 text-rose-700 dark:text-rose-300";
 
 export function TransferNegotiationDesk({ state, deals, act, initialNegotiationId }: { state: GameState; deals: TransferNegotiation[]; act: Act; initialNegotiationId?: string }) {
-  const [selectedId, setSelectedId] = useState<string | null>(deals.find((deal) => deal.id === initialNegotiationId)?.id ?? deals[0]?.id ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(deals.find((deal) => deal.id === initialNegotiationId)?.id ?? null);
   useEffect(() => {
     if (selectedId && deals.some((d) => d.id === selectedId)) return;
-    setSelectedId(deals[0]?.id ?? null);
+    setSelectedId(null);
   }, [deals, selectedId]);
   if (!deals.length) return <div className="grid h-full place-items-center rounded-2xl border bg-card p-8 text-center"><div><Handshake className="mx-auto size-8 text-muted-foreground" /><div className="mt-3 font-display text-xl">No live negotiations</div><p className="mt-1 text-sm text-muted-foreground">Bid for a scouted player, or wait for another club to come calling.</p></div></div>;
-  const selected = deals.find((d) => d.id === selectedId) ?? deals[0];
+  const selected = deals.find((d) => d.id === selectedId) ?? null;
   return <div className="grid h-full min-h-0 gap-3 xl:grid-cols-[minmax(260px,320px)_minmax(0,1fr)]">
-    <div className={cn("contained-scroll min-h-0 space-y-2 pr-0.5", selectedId && "hidden xl:block")}>{deals.map((n) => <DealRow key={n.id} state={state} n={n} active={n.id === selected.id} onClick={() => setSelectedId(n.id)} />)}</div>
-    <div className={cn("contained-scroll min-h-0 pr-0.5", !selectedId && "hidden xl:block")}><Button variant="ghost" size="sm" className="mb-2 xl:hidden" onClick={() => setSelectedId(null)}><ArrowLeft className="mr-2 size-4" /> All negotiations</Button><NegotiationRoom key={selected.id} state={state} n={selected} act={act} /></div>
+    <div className={cn("contained-scroll min-h-0 space-y-2 pr-0.5", selectedId && "hidden xl:block")}>{deals.map((n) => <DealRow key={n.id} state={state} n={n} active={n.id === selectedId} onClick={() => setSelectedId(n.id)} />)}</div>
+    <div className={cn("contained-scroll min-h-0 pr-0.5", !selectedId && "hidden xl:block")}>{selected ? <><Button variant="ghost" size="sm" className="mb-2 xl:hidden" onClick={() => setSelectedId(null)}><ArrowLeft className="mr-2 size-4" /> All negotiations</Button><NegotiationRoom key={selected.id} state={state} n={selected} act={act} /></> : <div className="grid h-full place-items-center rounded-2xl border bg-card p-8 text-center"><div><Handshake className="mx-auto size-8 text-muted-foreground" /><div className="mt-3 font-display text-xl">Choose a negotiation</div><p className="mt-1 text-sm text-muted-foreground">Select any live enquiry or deal from the list.</p></div></div>}</div>
   </div>;
 }
 
