@@ -210,6 +210,7 @@ export function StaffTab({ state, update, initialConversationStaffId }: { state:
         subject={conversationStaff ? { kind: "staff", staff: conversationStaff } : null}
         open={Boolean(conversationStaffId)}
         onOpenChange={(open) => { if (!open) setConversationStaffId(null); }}
+        update={update}
       />
     </div>
   );

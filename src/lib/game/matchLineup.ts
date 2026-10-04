@@ -31,15 +31,17 @@ function selectForRoles(
   roles: readonly TacticalPosition[],
   preferredIds: string[] = [],
   fitnessWeight = 0.12,
+  directorPriorityIds: string[] = [],
 ): MatchLineupPlayer[] {
   const used = new Set<string>();
   const preference = new Map(preferredIds.map((id, index) => [id, preferredIds.length - index]));
+  const directorPriority = new Set(directorPriorityIds);
   return roles.flatMap((role, roleIndex) => {
     const available = players.filter(
       (player) => playerIsAvailable(player, state) && !used.has(player.id),
     );
     const score = (player: FootballPlayer) =>
-      roleScore(state, player, role, fitnessWeight) + (preference.get(player.id) ?? 0) * 1.5;
+      roleScore(state, player, role, fitnessWeight) + (preference.get(player.id) ?? 0) * 1.5 + (directorPriority.has(player.id) ? 6 : 0);
     const specialists = available
       .filter((player) =>
         role === "GK"
@@ -81,9 +83,9 @@ export function userMatchLineup(
     isUserClubReference(state, playerRegisteredClubId(player)),
   );
   const storedSelection = state.inboxFlags["chairman.selection.ids"];
-  const preferredIds = (typeof storedSelection === "string" ? storedSelection : "")
-    .split(",")
-    .filter(Boolean);
+  const directorPriority = state.inboxFlags["chairman.managerPriority.ids"];
+  const preferredIds = (typeof storedSelection === "string" ? storedSelection : "").split(",").filter(Boolean);
+  const priorityIds = (typeof directorPriority === "string" ? directorPriority : "").split(",").filter(Boolean);
   const manager = (state.hiredStaff ?? []).find((staff) => staff.role === "Manager");
   const rotation = manager ? managerFootballIdentity(manager).rotation : "Medium";
   const fitnessWeight = rotation === "High" ? 0.28 : rotation === "Low" ? 0.08 : 0.16;
@@ -93,6 +95,7 @@ export function userMatchLineup(
     MANAGER_FORMATION_SLOTS[formation],
     preferredIds,
     fitnessWeight,
+    priorityIds,
   );
 }
 

@@ -1,6 +1,7 @@
 import type { GameState, Staff } from "./types";
 import { managerFootballIdentity, type ManagerFormation } from "./managerIdentity";
-import { managerSquadFit, type SquadFitBand } from "./managerSquadFit";
+import { formationSquadFit, managerSquadFit, type SquadFitBand } from "./managerSquadFit";
+import { isManagerFormation } from "./managerFormationLayout";
 
 export interface ManagerMatchPrep {
   managerId: string | null;
@@ -41,12 +42,17 @@ export function managerMatchPrep(state: GameState): ManagerMatchPrep {
 
   const identity = managerFootballIdentity(manager);
   const fit = managerSquadFit(state, manager);
-  const selectedFormation = fit.bestFormation;
+  const requestedFormationRaw = state.inboxFlags[`managerDirective:${manager.id}:formation`];
+  const requestedFormation = typeof requestedFormationRaw === "string" && isManagerFormation(requestedFormationRaw)
+    ? requestedFormationRaw
+    : null;
+  const selectedFormation = requestedFormation ?? fit.bestFormation;
+  const selectedFit = requestedFormation ? formationSquadFit(state, requestedFormation) : { score: fit.bestFormationScore, band: fit.band };
 
   // Tactical fit should matter, but never overpower player quality. Excellent
   // alignment is worth a small matchday edge; forcing a poor-fit shape carries
   // a similarly bounded cost. High adaptability already influences bestFormation.
-  const fitAdjustment = (fit.bestFormationScore - 60) * 0.04;
+  const fitAdjustment = (selectedFit.score - 60) * 0.04;
   const adaptabilityAdjustment =
     selectedFormation !== identity.preferredFormation
       ? identity.adaptability === "High"
@@ -67,11 +73,11 @@ export function managerMatchPrep(state: GameState): ManagerMatchPrep {
     managerName: manager.name,
     preferredFormation: identity.preferredFormation,
     selectedFormation,
-    squadFitScore: fit.bestFormationScore,
-    squadFitBand: fit.band,
+    squadFitScore: selectedFit.score,
+    squadFitBand: selectedFit.band,
     style: identity.philosophy,
     rotation: identity.rotation,
     strengthAdjustment,
-    summary: `${shapeLine} ${fit.band} squad fit; ${identity.philosophy.toLowerCase()} approach.`,
+    summary: `${shapeLine} ${selectedFit.band} squad fit; ${identity.philosophy.toLowerCase()} approach.`,
   };
 }

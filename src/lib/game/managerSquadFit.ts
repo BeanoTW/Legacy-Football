@@ -144,6 +144,11 @@ export function chooseFormationForPlayers(
   return { formation: primary.formation, score: primary.score };
 }
 
+export function formationSquadFit(state: GameState, formation: ManagerFormation): { score: number; band: SquadFitBand } {
+  const result = scoreFormation(playersForUser(state), formation);
+  return { score: result.score, band: band(result.score) };
+}
+
 function band(score: number): SquadFitBand {
   if (score >= 72) return "Excellent";
   if (score >= 62) return "Good";

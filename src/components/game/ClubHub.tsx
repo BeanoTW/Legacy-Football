@@ -200,7 +200,7 @@ export function ClubHub({ state, update, setTab, isContinuing, onAdvanceTo }: { 
         <ActionTile onClick={() => setIdentityOpen(true)} icon={<ClubBadge design={identity.badge} clubName={state.clubName} size={24} />} title="Club identity" value="Badge & kits" sub="Crest · home · away" />
       </section>
       <ClubIdentitySheet open={identityOpen} onOpenChange={setIdentityOpen} state={state} update={update} />
-      <ClubConversationDialog state={state} subject={manager ? { kind: "staff", staff: manager } : null} open={managerConversationOpen} onOpenChange={setManagerConversationOpen} />
+      <ClubConversationDialog state={state} subject={manager ? { kind: "staff", staff: manager } : null} open={managerConversationOpen} onOpenChange={setManagerConversationOpen} update={update} />
       <Dialog open={Boolean(simSummary)} onOpenChange={(open) => { if (!open) setSimSummary(null); }}>
         <DialogContent className="w-[calc(100vw-2rem)] max-w-md overflow-hidden rounded-2xl border border-teal-700/25 p-0">
           {simSummary && (() => {
