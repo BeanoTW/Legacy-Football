@@ -345,5 +345,97 @@ export function proactiveClubConversationItems(state: GameState): InboxItem[] {
     }));
   }
 
+  const youthLead = state.hiredStaff.find((staff) => staff.role === "Head of Youth");
+  if (youthLead && state.week >= 10) {
+    const youth = userSquad(state)
+      .filter((player) => ageOf(player, state.season) <= 20)
+      .filter((player) => (stats.get(player.id)?.minutes ?? 0) < 180)
+      .sort((a, b) => (b.potentialAbility - b.currentAbility) - (a.potentialAbility - a.currentAbility))[0];
+    if (youth) {
+      items.push(inboxItem(state, {
+        eventKey: `club-conversation:youth-pathway:${youthLead.id}:${youth.id}:s${state.season}`,
+        sender: youthLead.name,
+        department: "Club",
+        category: "staff",
+        priority: "normal",
+        subject: `${youthLead.name} wants a pathway decision on ${playerName(youth)}`,
+        body: `${playerName(youth)} has only played ${stats.get(youth.id)?.minutes ?? 0} first-team minutes. He still has ${Math.max(0, youth.potentialAbility - youth.currentAbility)} points of development headroom. We should either create a route to minutes here or find him a loan that will.`,
+      }));
+    }
+  }
+
+  const fitnessLead =
+    state.hiredStaff.find((staff) => staff.role === "Fitness Coach") ??
+    state.hiredStaff.find((staff) => staff.role === "Sports Scientist");
+  const tired = userSquad(state)
+    .filter((player) => !player.injury && playerFitness(player) < 65)
+    .sort((a, b) => playerFitness(a) - playerFitness(b))[0];
+  if (fitnessLead && tired) {
+    items.push(inboxItem(state, {
+      eventKey: `club-conversation:fitness:${fitnessLead.id}:${tired.id}:s${state.season}:w${state.week}`,
+      sender: fitnessLead.name,
+      department: "Medical",
+      category: "staff",
+      priority: "normal",
+      subject: `${fitnessLead.name} flags ${playerName(tired)}'s workload`,
+      body: `${playerName(tired)} is down to ${playerFitness(tired)}% fitness. I am flagging it before fatigue becomes a selection or injury problem. The manager should know the player is carrying a heavier load than ideal.`,
+    }));
+  }
+
+  const scoutLead =
+    state.hiredStaff.find((staff) => staff.role === "Chief Scout") ??
+    state.hiredStaff.find((staff) => staff.role === "Scout");
+  if (scoutLead && manager) {
+    const brief = managerRecruitmentBrief(state, manager);
+    const priority = brief.priorities[0];
+    const activeSearch = state.football?.scoutingDiscovery?.briefs.some((briefing) => briefing.status === "active");
+    if (priority && !activeSearch) {
+      items.push(inboxItem(state, {
+        eventKey: `club-conversation:scouting-focus:${scoutLead.id}:${priority.position}:s${state.season}`,
+        sender: scoutLead.name,
+        department: "Head Scout",
+        category: "staff",
+        priority: "normal",
+        subject: `${scoutLead.name} asks for a scouting direction`,
+        body: `The manager's clearest need is ${priority.headline.toLowerCase()}, and we do not currently have an active search out. I can put the department onto that area rather than let the window drift.`,
+      }));
+    }
+  }
+
+  const coach =
+    state.hiredStaff.find((staff) => staff.role === "Head Coach") ??
+    state.hiredStaff.find((staff) => staff.role === "Assistant Manager");
+  if (coach) {
+    const poorForm = userSquad(state)
+      .map((player) => ({ player, form: playerRecentForm(state, player.id) }))
+      .filter(({ form }) => form.appearances >= 3 && form.band === "Poor")
+      .sort((a, b) => a.form.averageRating - b.form.averageRating)[0];
+    if (poorForm) {
+      items.push(inboxItem(state, {
+        eventKey: `club-conversation:form:${coach.id}:${poorForm.player.id}:s${state.season}`,
+        sender: coach.name,
+        department: "Club",
+        category: "staff",
+        priority: "normal",
+        subject: `${coach.name} flags ${playerName(poorForm.player)}'s form`,
+        body: `${playerName(poorForm.player)} is averaging ${poorForm.form.averageRating.toFixed(2)} across his recent appearances. I do not think it needs panic, but it is something the football staff should actively manage rather than ignore.`,
+      }));
+    }
+  }
+
+  const goalkeepingCoach = state.hiredStaff.find((staff) => staff.role === "Goalkeeping Coach");
+  const keepers = userSquad(state).filter((player) => player.primaryPosition === "GK");
+  if (goalkeepingCoach && keepers.length < 2) {
+    items.push(inboxItem(state, {
+      eventKey: `club-conversation:keeper-depth:${goalkeepingCoach.id}:s${state.season}`,
+      sender: goalkeepingCoach.name,
+      department: "Club",
+      category: "staff",
+      priority: "high",
+      subject: `${goalkeepingCoach.name} raises goalkeeper depth`,
+      body: `We only have ${keepers.length} natural goalkeeper${keepers.length === 1 ? "" : "s"} in the first-team group. One injury or suspension leaves us exposed. I would like recruitment to look at cover.`,
+    }));
+  }
+
   return items;
 }
