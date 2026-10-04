@@ -35,6 +35,22 @@ import {
 } from "./matchEngine";
 import { applyMatchLoadInPlace, playerInjuryRiskMultiplier } from "./playerHealth";
 import { pushPlayerMatchMilestonesInPlace } from "./playerSeasonStats";
+import type { MatchPlayerStats } from "./types";
+
+function applyPositionExperienceInPlace(state: GameState, stats: MatchPlayerStats[]): void {
+  if (!state.football?.players) return;
+  for (const matchPlayer of stats) {
+    if (matchPlayer.minutes <= 0) continue;
+    const player = state.football.players.find((candidate) => candidate.id === matchPlayer.playerId);
+    if (!player) continue;
+    // Goalkeepers never cross-train with outfield positions. Outfield players
+    // likewise cannot become keepers through accidental selection.
+    if ((player.primaryPosition === "GK") !== (matchPlayer.role === "GK")) continue;
+    player.positionExperience ??= {};
+    player.positionExperience[matchPlayer.role] =
+      (player.positionExperience[matchPlayer.role] ?? 0) + matchPlayer.minutes;
+  }
+}
 
 function formGuide(s: GameState): string {
   const last5 = s.results
@@ -281,6 +297,7 @@ export function commitLiveMatch(
   cleared.liveMatch = null;
   if (lm.engine?.playerStats?.length) {
     applyMatchLoadInPlace(cleared, lm.engine.playerStats, lm.engine.injuries ?? []);
+    applyPositionExperienceInPlace(cleared, lm.engine.playerStats);
     const key = `${lm.season ?? prev.season}|${lm.fixture.week}|${lm.fixture.dayOfWeek ?? 5}|${lm.fixture.competition ?? "league"}|${lm.fixture.opponent}|${lm.fixture.home}`;
     cleared.playerMatchHistory = {
       ...prev.playerMatchHistory,

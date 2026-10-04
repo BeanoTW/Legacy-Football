@@ -1142,6 +1142,8 @@ export interface FootballPlayer {
   preferredFoot: PreferredFoot;
   primaryPosition: Position;
   secondaryPositions: Position[];
+  /** Match experience accumulated in detailed tactical positions. Optional for old saves. */
+  positionExperience?: Partial<Record<TacticalPosition, number>>;
   /**
    * Club the player is registered to represent. This remains the persisted
    * compatibility field so existing saves/UI stay compact and stable.
