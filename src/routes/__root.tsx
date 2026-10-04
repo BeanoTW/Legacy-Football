@@ -137,7 +137,7 @@ function RootComponent() {
         });
         if (!response.ok) return;
         const latest = await response.text();
-        const assetPattern = /(?:src|href)="([^"]*\\/assets\\/[^"]+)"/g;
+        const assetPattern = /(?:src|href)="([^"]*\/assets\/[^"]+)"/g;
         const fingerprint = (html: string) =>
           Array.from(html.matchAll(assetPattern), (match) => match[1]).sort().join("|");
         const latestFingerprint = fingerprint(latest);
