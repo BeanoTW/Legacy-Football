@@ -96,6 +96,10 @@ function DealRow({ state, n, active, onClick }: { state: GameState; n: TransferN
   return <button onClick={onClick} className={cn("flex w-full items-center gap-3 rounded-xl border bg-card p-3 text-left transition-colors hover:border-primary/50", active && "border-primary bg-primary/5")}>
     <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-xs font-bold text-primary">{tacticalPositionProfile(p).primary}</span>
     <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{playerName(p)}</span><span className="block truncate text-xs text-muted-foreground">{incoming ? "Buying" : "Selling"} · {STAGE_LABEL[n.stage]}</span></span>
+    <span className="min-w-[2.5rem] shrink-0 text-center">
+      <span className="block font-display text-xl leading-none">{p.currentAbility}</span>
+      <span className="mt-0.5 block text-[7px] font-bold uppercase tracking-[0.12em] text-muted-foreground">OVR</span>
+    </span>
     <span className="shrink-0 text-right text-xs">{waitingOnEnquiry ? <><span className="block font-semibold">Waiting</span><span className="block text-muted-foreground">for valuation</span></> : freeAgent ? <><span className="block font-semibold tabular-nums">{fmtMoney(n.proposedWeeklyWage)}/wk</span><span className="block text-muted-foreground">contract offer</span></> : <><span className="block font-semibold tabular-nums">{fmtMoney(n.clubCounterFee ?? n.fee)}</span><span className="block text-muted-foreground">on the table</span></>}</span><ChevronRight className="size-4 shrink-0 text-muted-foreground xl:hidden" />
   </button>;
 }
