@@ -785,8 +785,14 @@ function createEngine(deps: EngineDeps) {
     // Anything faster than this per frame is treated as a teleport, not movement.
     const jumpLimit = (3 + 1.5 * pb.speed) * Math.max(1, dt / 16.7);
     let settled = true;
+    // Teams change ends at half-time. The simulation remains side-relative;
+    // mirror the rendered pitch in the second half so attacks and defensive
+    // shapes continue coherently while each team now plays towards the other goal.
+    const secondHalf = lineupMinute > 45;
+    const displayPoint = (point: MatchPitchPoint): MatchPitchPoint =>
+      secondHalf ? { x: 100 - point.x, y: point.y } : point;
     const place = (key: string, target: MatchPitchPoint, followMs: number) => {
-      const body = stepBody(bodies.get(key), target, dt, jumpLimit, snap, followMs);
+      const body = stepBody(bodies.get(key), displayPoint(target), dt, jumpLimit, snap, followMs);
       bodies.set(key, body);
       if (!bodySettled(body)) settled = false;
     };
