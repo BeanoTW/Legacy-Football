@@ -1,4 +1,5 @@
 import type { FootballPlayer, GameState, Position, TacticalPosition } from "./types";
+import { transferSupport } from "./staffImpact";
 import { hashString } from "./rng";
 import { absoluteWeek } from "./time";
 import { calendarDay } from "./calendar";
