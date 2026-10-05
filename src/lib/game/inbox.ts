@@ -1535,7 +1535,7 @@ const G_RECRUITMENT_INCOMING_OFFER: Generator = {
           priority: "high",
           subject: `${n.fromClubId ?? "A club"} bid ${money(fee)} for ${playerName(p)}`,
           body:
-            `We have a formal approach for ${playerName(p)}.\n\n${negotiationLines(s, n)}\n\n` +
+            `We have a formal approach for ${playerName(p)}.\n\nPlayer status ........... ${p.transferStatus === "listed" ? "Transfer listed" : "Not listed for transfer"}\n${negotiationLines(s, n)}\n\n` +
             `Selling banks the fee and frees the wage. Holding firm keeps the player, ` +
             `but they may not come back.`,
           choices: [

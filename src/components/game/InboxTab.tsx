@@ -50,6 +50,8 @@ import { SeasonObjectivesDashboard } from "./SeasonObjectivesDashboard";
 import { PressConferenceOverlay } from "./PressConferenceOverlay";
 import { CharacterPortrait } from "./CharacterPortrait";
 import { clubDisplayName } from "@/lib/game/clubReference";
+import { currentManager } from "@/lib/game/managerRelationship";
+import { playerById } from "@/lib/game/recruitment";
 
 export type InboxFilter = "all" | "unread" | "decisions" | "archive";
 
@@ -543,6 +545,7 @@ function InboxRow({ item, state, onOpen, conversationCount }: { item: InboxItem;
 
 export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelete, onNavigate }: { item: InboxItem; state: GameState; onClose: () => void; onChoose: (choiceId: string) => void; onDismiss: () => void; onDelete: () => void; onNavigate?: (destination: InboxDestination) => void }) {
   const [showObjectiveNegotiation, setShowObjectiveNegotiation] = useState(false);
+  const [showManagerAdvice, setShowManagerAdvice] = useState(false);
   const decision = requiresInboxDecision(item);
   const conversation = inboxConversationItems(state.inbox, item);
   const hasConversation = conversation.length > 1;
@@ -554,6 +557,19 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
   const earlierConversation = conversation.filter((message) => message.id !== item.id);
   const destination = inboxDestination(state, item);
   const destinations = inboxDestinations(state, item);
+  const incomingNegotiation = item.generatorId === "recruitment-incoming-offer"
+    ? state.football?.negotiations.find((negotiation) => item.eventKey?.includes(`:${negotiation.id}:`))
+    : undefined;
+  const incomingPlayer = incomingNegotiation ? playerById(state, incomingNegotiation.playerId) : undefined;
+  const manager = currentManager(state);
+  const managerAdvice = incomingNegotiation && incomingPlayer && manager ? (() => {
+    const listed = incomingPlayer.transferStatus === "listed";
+    const premium = incomingPlayer.marketValue > 0 ? incomingNegotiation.fee / incomingPlayer.marketValue : 1;
+    if (listed && premium >= 1) return `I'm comfortable with this. We've listed ${incomingPlayer.firstName}, and the bid is at least around his value. From the football side, I'd be happy for you to accept.`;
+    if (listed) return `I'm fine with selling him because he's already on the transfer list, but I'd push them higher before accepting. I don't think we need to take this number immediately.`;
+    if (premium >= 1.35) return `I wasn't planning to lose him, but that's a strong offer. I could work with the sale if you think the money helps us more — ideally with a replacement lined up.`;
+    return `I'd rather keep him. He isn't transfer listed and this offer isn't strong enough for me to recommend disrupting the squad. Reject it or make them pay a clear premium.`;
+  })() : null;
 
   return (
     <Sheet open onOpenChange={(value) => !value && onClose()}>
@@ -605,6 +621,20 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
               <div className="lf-briefing-section-title"><Megaphone /> Club briefing</div>
               <BriefingBody body={readable(state, item.body)} department={item.department} />
             </article>
+          )}
+
+          {incomingNegotiation && manager && (
+            <div className="mb-3 rounded-2xl border border-sky-500/20 bg-sky-500/5 p-2.5">
+              <Button type="button" variant="outline" className="w-full justify-between" onClick={() => setShowManagerAdvice((value) => !value)}>
+                <span><UserRoundCog className="mr-2 inline size-4" />Run this by {manager.name}</span>
+                <ChevronRight className={cn("size-4 transition-transform", showManagerAdvice && "rotate-90")} />
+              </Button>
+              {showManagerAdvice && managerAdvice && (
+                <div className="mt-2 rounded-xl bg-background/70 px-3 py-2 text-sm leading-relaxed">
+                  <strong>{manager.name}:</strong> “{managerAdvice}”
+                </div>
+              )}
+            </div>
           )}
 
           {onNavigate && destinations.length > 1 ? (
