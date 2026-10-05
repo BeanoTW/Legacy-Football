@@ -1442,7 +1442,7 @@ export function MatchPitchViewer({
   const atLiveEdge = timeline.position >= timeline.frontier - 0.02;
   const nonPlay = !plan.sequence && !view.inBridge ? plan.active : null;
   const modeBadge = view.inBridge && bridge
-    ? `▶▶ ${bridge.fromMinute}′ → ${bridge.toMinute}′`
+    ? null
     : nonPlay
       ? nonPlay.type === "card"
         ? "🟨 Booking"
@@ -1451,12 +1451,9 @@ export function MatchPitchViewer({
           : nonPlay.type === "injury"
             ? "✚ Injury"
             : null
-      : plan.sequence
-        ? "Key moment"
-        : null;
+      : null;
   const showPassLine = !!activeAction && PASS_KINDS.has(activeAction.kind);
-  // With the home-ground chip in the top-right, top-centre badges sit below it.
-  const topSlot = ground ? "top-[3.4rem]" : "top-3";
+  const topSlot = "top-3";
   const markers = events
     .map((event, index) => ({ event, index }))
     .filter(({ event, index }) => (event.type === "goal" || event.type === "chance" || event.type === "card") && index + 0.95 <= timeline.frontier);
@@ -1685,7 +1682,7 @@ export function MatchPitchViewer({
           </button>
         </div>
         <div className="absolute bottom-2 right-2 rounded bg-black/45 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-white/75 backdrop-blur-sm">
-          {view.inBridge ? "Condensed play" : actionStage(activeAction, plan.active)}
+          {actionStage(activeAction, plan.active)}
         </div>
       </div>
 
