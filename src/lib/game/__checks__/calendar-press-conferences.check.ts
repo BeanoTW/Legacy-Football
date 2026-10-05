@@ -170,9 +170,15 @@ console.log("\n[CP4] New-save onboarding only");
     state.inbox.some((item) => item.eventKey === "new-save-onboarding:your-role") &&
       state.inbox.some((item) => item.eventKey === "new-save-onboarding:living-world"),
   );
+  const openingPress = state.inbox.find((item) => item.generatorId === "calendar-press");
   check(
-    "new save gets no formal press conference in week 1",
-    !state.inbox.some((item) => item.generatorId === "calendar-press"),
+    "new save gets the owner-director unveiling press conference in week 1",
+    !!openingPress && openingPress.eventKey.includes(":summer-window-open:s1"),
+    openingPress?.eventKey,
+  );
+  check(
+    "opening press conference asks for a real response",
+    (openingPress?.choices?.length ?? 0) >= 3,
   );
   check(
     "welcome is informational rather than a fake decision",

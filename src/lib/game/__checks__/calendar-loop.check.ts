@@ -51,7 +51,7 @@ for (let day = 1; day <= MATCHDAY_INDEX; day++) {
     const report = scoutingReport(state, target);
     assert(report.knowledgePct === 67, "four-day report must expose partial scouting knowledge");
     assert(!report.complete, "four-day scouting report must remain partial");
-    assert(state.inbox.some((item) => item.eventKey?.includes(`scouting:${target.id}`) && item.eventKey.endsWith(":d4")), "four-day milestone must create an inbox report");
+    assert(state.inbox.some((item) => item.generatorId === "scouting-report" && item.eventKey?.includes(`:d4:`) && item.eventKey.includes(target.id)), "four-day milestone must include the player in the batched inbox report");
   }
 }
 
@@ -64,7 +64,7 @@ assert(state.week === startingWeek, "Saturday to Sunday must remain inside the s
 assert(calendarDay(state) === 6, "Saturday to Sunday must advance the visible calendar");
 assert(scoutingAssignment(state, target.id)?.status === "complete", "sixth scouting day must complete the assignment");
 assert(scoutingReport(state, target).knowledgePct === 100, "six-day scouting report must expose full knowledge");
-assert(state.inbox.some((item) => item.eventKey?.includes(`scouting:${target.id}`) && item.eventKey.endsWith(":d6")), "six-day milestone must create the final inbox report");
+assert(state.inbox.some((item) => item.generatorId === "scouting-report" && item.eventKey?.includes(`:d6:`) && item.eventKey.includes(target.id)), "six-day milestone must include the player in the final batched inbox report");
 
 state = advanceDay(state);
 assert(state.week === startingWeek + 1, "crossing Sunday must settle exactly one week");

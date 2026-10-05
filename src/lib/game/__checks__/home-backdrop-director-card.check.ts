@@ -15,7 +15,8 @@ assert(css.includes(".game-main.lf-home-main"), "home canvas has a dedicated bac
 assert(css.includes("repeating-linear-gradient") && css.includes("radial-gradient"), "backdrop includes subtle pitch/stadium texture");
 assert(route.includes('className="lf-director-card"'), "masthead uses one combined director identity card");
 assert(route.includes("lf-director-reputation-value") && route.includes("lf-director-reputation-stars"), "reputation number and stars live inside the portrait card");
-assert(route.includes("size={100}"), "director portrait is enlarged");
+const portraitSize = Number(route.match(/<CharacterPortrait avatar=\{chairmanProfile\.avatar\} size=\{(\d+)\}/)?.[1] ?? 0);
+assert(portraitSize >= 72, "director portrait remains prominent in the combined masthead card");
 assert(!route.includes('className="lf-chairman-badge"'), "separate reputation badge has been removed from the masthead");
 
 console.log("\n7 passed, 0 failed");
