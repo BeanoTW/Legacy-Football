@@ -35,6 +35,8 @@ import { matchdayGroundPresentation } from "@/lib/game/groundPresentation";
 import { ClubBadge, ClubShirt } from "./ClubKitArt";
 
 const MATCH_CSS = `
+@keyframes lf-match-glow { 0%,100% { opacity:.38; transform:translate3d(0,0,0) scale(1); } 50% { opacity:.62; transform:translate3d(2%,1%,0) scale(1.05); } }
+.lf-match-glow { animation: lf-match-glow 9s ease-in-out infinite; }
 @keyframes lf-goal-in { 0% { opacity: 0; transform: scale(.7); } 60% { opacity: 1; transform: scale(1.06); } 100% { transform: scale(1); } }
 @keyframes lf-score-pop { 0% { transform: scale(1); } 35% { transform: scale(1.35); } 100% { transform: scale(1); } }
 @keyframes lf-marker-in { from { opacity: 0; transform: translate(-50%, -4px) scale(.6); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
@@ -168,7 +170,8 @@ export function MatchDayOverlay({
       <div className="mx-auto h-full max-w-5xl p-0 sm:px-4 sm:py-3">
         <div className="flex h-full min-h-0 flex-col overflow-hidden bg-card text-card-foreground shadow-2xl sm:rounded-[2rem] sm:border">
           {/* Top bar */}
-          <div className="flex shrink-0 items-center justify-between gap-3 bg-[#0c211a] px-4 py-2 text-white sm:px-6">
+          <div className="relative flex shrink-0 items-center justify-between gap-3 overflow-hidden border-b border-violet-300/10 bg-[linear-gradient(110deg,#0c211a_0%,#18203b_48%,#3b1f5f_100%)] px-4 py-2 text-white shadow-[0_10px_30px_rgba(76,29,149,.12)] sm:px-6">
+            <div className="pointer-events-none absolute -right-12 -top-16 size-40 rounded-full bg-violet-400/15 blur-3xl" aria-hidden="true" />
             <div className="min-w-0 text-xs text-white/70">
               <span className="font-semibold text-white">Match centre</span>
               <span className="mx-1.5 text-white/30">/</span>
@@ -194,8 +197,10 @@ export function MatchDayOverlay({
           </div>
 
           {/* Scoreboard */}
-          <section className="relative shrink-0 overflow-hidden bg-[radial-gradient(circle_at_50%_130%,#258660_0%,#123d2e_40%,#07130f_80%)] px-3 pb-2 pt-2 text-white sm:px-8 sm:pb-3">
-            <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-2 sm:gap-6">
+          <section className="relative shrink-0 overflow-hidden bg-[radial-gradient(circle_at_50%_120%,#258660_0%,#123d2e_38%,#101a2d_72%,#211333_100%)] px-3 pb-2 pt-2 text-white shadow-[inset_0_-1px_rgba(255,255,255,.05)] sm:px-8 sm:pb-3">
+            <div className="lf-match-glow pointer-events-none absolute -left-20 top-4 h-24 w-72 rotate-[-12deg] rounded-full bg-violet-400/10 blur-3xl" aria-hidden="true" />
+            <div className="pointer-events-none absolute inset-x-[28%] bottom-0 h-px bg-gradient-to-r from-transparent via-violet-300/50 to-transparent" aria-hidden="true" />
+            <div className="relative grid grid-cols-[1fr_auto_1fr] items-start gap-2 sm:gap-6">
               <TeamSide name={homeName} badge={home ? ours.badge : theirs.badge} scorers={homeScorers} />
               <div className="flex flex-col items-center pt-1">
                 <div className="whitespace-nowrap font-display text-4xl leading-none tnum sm:text-5xl" aria-live="polite">
@@ -232,7 +237,7 @@ export function MatchDayOverlay({
           </section>
 
           {lm.status !== "brief" ? (
-            <section className="shrink-0 border-b bg-[#0c211a] px-3 pb-2 pt-1 text-white sm:px-6">
+            <section className="shrink-0 border-b border-violet-300/10 bg-[linear-gradient(90deg,#0c211a_0%,#111b28_55%,#211333_100%)] px-3 pb-2 pt-1 text-white sm:px-6">
               <MatchTimeline events={visible} minute={finishedReplay ? (lm.status === "fullTime" ? 90 : 45) : minute} ourKit={ourKit} theirKit={theirKit} />
               <div className="mt-1 flex items-center justify-center gap-4 text-center text-[10px] text-white/70">
                 <PulseStat label="Possession" value={`${possession}%`} />
