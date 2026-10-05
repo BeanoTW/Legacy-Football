@@ -37,6 +37,15 @@ export function inboxDestinations(state: GameState, item: InboxItem): InboxDesti
 
 /** Don't advertise a deep link if the referenced report or deal no longer exists. */
 export function inboxDestination(state: GameState, item: InboxItem): InboxDestination | null {
+  if (item.generatorId === "club-conversations" && (
+    item.eventKey.startsWith("club-conversation:scouting-focus:") ||
+    item.eventKey.startsWith("club-conversation:keeper-depth:")
+  )) {
+    return { tab: "recruitment", view: "find", briefId: "", label: "Assign to Recruitment" };
+  }
+  if (item.generatorId === "club-conversations" && item.eventKey.startsWith("club-conversation:contracts:")) {
+    return { tab: "recruitment", view: "operations", label: "Review contracts" };
+  }
   if (item.generatorId === "club-conversations" && item.department === "Board of Directors") {
     return { tab: "board", label: "Open boardroom" };
   }
