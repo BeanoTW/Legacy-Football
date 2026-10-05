@@ -206,6 +206,12 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
     setAdvanceStart(state);
     setLastTarget(target ?? null);
     setShowAdvancePreview(true);
+    // If today's fixture is already waiting, this is a stop notification,
+    // not a progression run. Starting Continue here causes the dock to spin
+    // on "Matchday" even after the user sims the fixture.
+    if (state.liveMatch || continueReason?.toLowerCase().includes("matchday")) {
+      stopContinue();
+    }
   };
 
   const requestContinue = (target?: AdvanceTarget | null) => {
