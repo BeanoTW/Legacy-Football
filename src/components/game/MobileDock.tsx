@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { AdvanceTarget } from "@/lib/game/advancePlanner";
+import { developerModeEnabled } from "@/lib/game/developerMode";
 import { ALL_TABS, type Tab } from "./tabs";
 
 const LEFT: Tab[] = ["hub", "inbox", "squad"];
@@ -45,7 +46,8 @@ export function MobileDock({
   const byId = new Map(ALL_TABS.map((entry) => [entry[0], entry]));
   const secondary = ALL_TABS.filter(([id]) => ![...LEFT, ...RIGHT].includes(id));
   const nextMatch = targets.find((target) => target.id === "matchday");
-  const choices = targets.filter((target) => target.id !== "anything");
+  // Jump-to-date controls are a testing convenience, not part of normal career play.
+  const choices = developerModeEnabled() ? targets.filter((target) => target.id !== "anything") : [];
   const caption = isContinuing
     ? "Stop"
     : blocking > 0
