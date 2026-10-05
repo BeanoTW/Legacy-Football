@@ -123,13 +123,21 @@ export function groundDesign(s: GameState): GroundDesign {
   for (const asset of (s.infrastructure?.assets ?? []).filter((a) => a.type === "stand")) {
     const side = asset.location as StandSide;
     if (!(side in stands)) continue;
-    const build = standBuild(s, asset.id, asset.level);
     const level = Math.max(0, Math.min(5, asset.level));
+    // A stand the club never rebuilt keeps the character its name implies:
+    // terraces, ends, kops, banks and sheds are standing; the Main Stand is seated.
+    const chosen = chosenStandBuild(s, asset.id);
+    const terraceByName = !chosen && level <= 2 && /terrace|\bend\b|kop|bank|shed/i.test(asset.name ?? "") && !/main/i.test(asset.name ?? "");
+    const base = standBuild(s, asset.id, asset.level);
+    const build: StandBuild = terraceByName ? { ...base, standing: "terrace" } : base;
+    // Size follows the stand's real capacity, so grounds are asymmetric like real ones.
+    const capacity = Math.max(0, asset.capacity ?? 0);
+    const maxSpan = side === "N" || side === "S" ? 58 : 96;
     stands[side] = {
       form: standFormFor(level, build),
       level,
-      span: Math.min(side === "N" || side === "S" ? 58 : 96, 28 + level * 12),
-      depth: 6 + level * 3,
+      span: capacity > 0 ? Math.round(Math.max(18, Math.min(maxSpan, 16 + capacity * 0.04))) : Math.min(maxSpan, 28 + level * 12),
+      depth: capacity > 0 ? Math.round(Math.max(4, Math.min(24, 4 + capacity / 180))) : 6 + level * 3,
       setback: level >= 3 ? 6 : 4,
       standing: build.standing,
       roof: level === 0 ? "open" : build.roof,
