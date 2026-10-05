@@ -14,7 +14,7 @@ function shade(hex: string, amount: number): string {
   return `#${channel(0)}${channel(2)}${channel(4)}`;
 }
 
-const LONG_BACK = new Set<HairStyle>(["long", "waves", "bob"]);
+const LONG_BACK = new Set<HairStyle>(["long", "waves", "bob", "lob", "shag"]);
 
 
 /** New styles are additive: existing hairstyle SVG paths and face seeds stay unchanged. */
@@ -89,8 +89,55 @@ function NewHairFront({ style, colour, uid }: { style: HairStyle; colour: string
     default: return null;
   }
 }
+function ExtraHairBack({ style, colour }: { style: HairStyle; colour: string }) {
+  const dark = shade(colour, -0.2);
+  if (style === "shag") return <path d="M60 96 C54 60 80 42 100 42 C120 42 146 60 140 96 C144 116 142 134 146 150 L132 146 L134 158 L120 150 L82 150 L68 158 L68 146 L54 150 C58 134 56 116 60 96Z" fill={dark} />;
+  if (style === "lob") return <path d="M60 98 C56 60 80 44 100 44 C120 44 144 60 140 98 C142 128 146 152 142 166 L122 162 C120 150 118 142 116 138 L84 138 C82 142 80 150 78 162 L58 166 C54 152 58 128 60 98Z" fill={dark} />;
+  if (style === "boxBraids") return <g stroke={dark} strokeLinecap="round" fill="none">
+    {[64,70,76,82,118,124,130,136].map((x,i)=><path key={i} d={"M"+x+" 80 C"+(x+(x<100?-6:6))+" 120 "+(x+(x<100?-4:4))+" 160 "+(x+(x<100?-8:8))+" 200"} strokeWidth={5.4} strokeDasharray="4 1.4" />)}
+  </g>;
+  if (style === "afroPuffs") return <g>
+    <Coils d="M48 58 C48 40 60 30 74 32 C88 34 92 48 88 60 C84 72 70 76 60 72 C52 68 48 64 48 58Z" uid="puff-l" colour={dark} count={70} />
+    <Coils d="M152 58 C152 40 140 30 126 32 C112 34 108 48 112 60 C116 72 130 76 140 72 C148 68 152 64 152 58Z" uid="puff-r" colour={dark} count={70} />
+  </g>;
+  return null;
+}
+function ExtraHairFront({ style, colour, uid }: { style: HairStyle; colour: string; uid: string }) {
+  const light = shade(colour, 0.2), dark = shade(colour, -0.3);
+  switch (style) {
+    case "frenchCrop": return <g><FadedSides colour={colour} uid={uid} />
+      <path d="M68 86 C64 60 82 48 100 48 C118 48 136 60 132 86 C130 80 126 78 120 78 L80 78 C74 78 70 80 68 86Z" fill={colour} />
+      <path d="M78 78 L80 72 M86 78 L88 70 M94 78 L95 70 M102 78 L102 70 M110 78 L109 70 M118 78 L116 72" stroke={dark} strokeWidth={1.2} opacity={0.6} /></g>;
+    case "undercut": return <g><path d="M66 100 C63 80 66 70 72 66 L128 66 C134 70 137 80 134 100 C130 90 124 84 100 82 C76 84 70 90 66 100Z" fill={colour} opacity={0.35} />
+      <path d="M72 70 C70 50 86 38 104 38 C124 38 138 50 134 68 C120 62 106 64 94 72 C86 76 78 76 72 70Z" fill={colour} />
+      <path d="M84 50 C96 44 114 44 126 52 M80 60 C94 52 116 52 130 62" stroke={light} strokeWidth={1.4} fill="none" opacity={0.6} /></g>;
+    case "pompadour": return <g><FadedSides colour={colour} uid={uid} />
+      <path d="M68 90 C64 64 72 48 84 40 C96 30 120 30 130 42 C138 52 136 70 132 90 C128 78 120 70 100 69 C82 70 72 78 68 90Z" fill={colour} />
+      <path d="M84 46 C96 36 116 36 126 46 M80 56 C94 44 118 44 130 56" stroke={light} strokeWidth={1.8} fill="none" opacity={0.6} /></g>;
+    case "shag": return <g><path d="M60 104 C54 60 80 42 100 42 C120 42 146 60 140 104 C136 92 132 84 126 80 L122 88 L116 78 L110 86 L104 76 L98 86 L92 76 L86 86 L80 78 L74 88 C68 92 62 98 60 104Z" fill={colour} />
+      <path d="M78 54 L84 66 M96 48 L98 60 M112 50 L110 62 M124 58 L118 68" stroke={light} strokeWidth={1.4} opacity={0.55} /></g>;
+    case "lob": return <g><path d="M60 106 C54 62 82 44 100 44 C118 44 146 62 140 106 C136 86 126 70 104 66 L100 58 C94 68 76 74 68 86 C64 92 62 98 60 106Z" fill={colour} />
+      <path d="M100 46 C98 52 99 56 100 58" stroke={dark} strokeWidth={1.2} fill="none" /></g>;
+    case "boxBraids": return <g><path d="M63 100 C58 62 82 46 100 46 C118 46 142 62 137 100 C133 84 124 74 100 72 C76 74 67 84 63 100Z" fill={dark} />
+      {[70,78,86,94,102,110,118,126].map((x,i)=><path key={i} d={"M"+x+" 54 Q"+(x+(x<100?-4:4))+" 66 "+(x+(x<100?-6:6))+" 78"} stroke={colour} strokeWidth={4} strokeLinecap="round" strokeDasharray="3 1.2" fill="none" />)}</g>;
+    case "afroPuffs": return <g><path d="M65 100 C61 64 82 52 100 52 C118 52 139 64 135 100 C131 86 124 76 100 74 C76 76 69 86 65 100Z" fill={colour} />
+      <path d="M100 52 L100 72" stroke={dark} strokeWidth={1.2} /><path d="M76 62 C86 58 94 57 100 58 M124 62 C114 58 106 57 100 58" stroke={light} strokeWidth={1} opacity={0.5} fill="none" /></g>;
+    default: return null;
+  }
+}
+const EXTRA_HAIR = new Set<HairStyle>(["frenchCrop","undercut","pompadour","shag","lob","boxBraids","afroPuffs"]);
+/** Soft hairline shadow and sheen applied to solid styles for depth. */
+const NO_SHEEN = new Set<HairStyle>(["bald","buzz","afroShort","afroFade","highTop","afroLong","twists","cornrows","boxBraids","curly","receding"]);
+function HairSheen({ style, colour }: { style: HairStyle; colour: string }) {
+  if (NO_SHEEN.has(style)) return null;
+  return <g pointerEvents="none" fill="none" strokeLinecap="round">
+    <path d="M82 58 C92 53 108 53 118 58" stroke={shade(colour, 0.38)} strokeWidth={3} opacity={0.22} />
+    <path d="M88 55 C96 52 104 52 110 54" stroke="#fff" strokeWidth={1.2} opacity={0.18} />
+  </g>;
+}
 const NEW_HAIR = new Set<HairStyle>(["fade","textured","slickBack","curtains","spiky","mullet","manBun","waves360","afroShort","afroFade","highTop","twists","cornrows","afroLong","locs"]);
 function HairBack({ style, colour, uid }: { style: HairStyle; colour: string; uid: string }) {
+  if (EXTRA_HAIR.has(style)) return <ExtraHairBack style={style} colour={colour} />;
   if (NEW_HAIR.has(style)) return <NewHairBack style={style} colour={colour} uid={uid} />;
   const dark = shade(colour, -0.18);
   if (style === "long") {
@@ -108,7 +155,11 @@ function HairBack({ style, colour, uid }: { style: HairStyle; colour: string; ui
   return null;
 }
 
-function HairFront({ style, colour, uid }: { style: HairStyle; colour: string; uid: string }) {
+function HairFront(props: { style: HairStyle; colour: string; uid: string }) {
+  return <g><HairFrontShape {...props} /><HairSheen style={props.style} colour={props.colour} /></g>;
+}
+function HairFrontShape({ style, colour, uid }: { style: HairStyle; colour: string; uid: string }) {
+  if (EXTRA_HAIR.has(style)) return <ExtraHairFront style={style} colour={colour} uid={uid} />;
   if (NEW_HAIR.has(style)) return <NewHairFront style={style} colour={colour} uid={uid} />;
   const light = shade(colour, 0.14);
   switch (style) {
@@ -186,6 +237,14 @@ function FacialHairLayer({ avatar }: { avatar: ChairmanAvatar }) {
       return null;
     case "stubble":
       return <path d="M69 112 C70 136 84 150 100 151 C116 150 130 136 131 112 C126 128 114 134 100 134 C86 134 74 128 69 112Z M86 122 C92 119 108 119 114 122 C110 124 90 124 86 122Z" fill={colour} opacity={0.28} />;
+    case "designer":
+      return <path d="M68 110 C69 138 84 152 100 153 C116 152 131 138 132 110 C127 128 114 134 100 134 C86 134 73 128 68 110Z M84 123 C91 118 109 118 116 123 C110 126 90 126 84 123Z" fill={colour} opacity={0.5} />;
+    case "horseshoe":
+      return <path d="M84 124 C90 118 97 119 100 121 C103 119 110 118 116 124 L118 146 L113 146 L111 127 C106 125 94 125 89 127 L87 146 L82 146Z" fill={colour} />;
+    case "vandyke":
+      return <g fill={colour}><path d="M84 124 C88 118 96 118 100 121 C104 118 112 118 116 124 C110 122 104 124 100 125 C96 124 90 122 84 124Z" /><path d="M94 136 C97 138 103 138 106 136 C106 146 103 154 100 156 C97 154 94 146 94 136Z" /></g>;
+    case "chinstrap":
+      return <path d="M67 104 C66 136 82 154 100 155 C118 154 134 136 133 104 L129 106 C128 132 116 147 100 148 C84 147 72 132 71 106Z" fill={colour} />;
     case "moustache":
       return <path d="M84 124 C90 118 97 119 100 121 C103 119 110 118 116 124 C110 126 104 125 100 124 C96 125 90 126 84 124Z" fill={colour} />;
     case "goatee":
@@ -256,10 +315,43 @@ function NewOutfit({avatar, uid}: {avatar:ChairmanAvatar;uid:string}) {
       <path d="M96 172 L104 172 L104 198 L96 198Z" fill={dark}/>
       {[178,186,194].map(y=><circle key={y} cx={100} cy={y} r={1.4} fill={trim}/>)}
       {crest}<path d="M36 214 C44 206 50 200 56 196 M164 214 C156 206 150 200 144 196" stroke={accent} strokeWidth={2.4} fill="none"/></g>;
+    case "doubleBreasted": return <g>{base}<path d="M86 168 L100 196 L114 168Z" fill="#f4f4f1"/>{tie}
+      <path d="M84 168 L70 178 L78 188 L72 194 L100 220 L104 206Z" fill={dark}/>
+      <path d="M116 168 L130 178 L122 188 L128 194 L112 212 L104 206Z" fill={dark}/>
+      {[[90,204],[110,204],[92,214],[108,214]].map(([x,y])=><circle key={x+"-"+y} cx={x} cy={y} r={1.8} fill={trim}/>)}
+      <path d="M136 194 l9 -2 l1 4 l-9 2Z" fill={accent}/></g>;
+    case "trench": return <g><path d="M14 220 C16 188 46 170 82 166 L118 166 C154 170 184 188 186 220Z" fill={main}/><ClothShading uid={uid} colour={main}/>
+      <path d="M86 168 L100 194 L114 168Z" fill="#eef2f6"/>{tie}
+      <path d="M82 164 L64 176 L74 186 L66 194 L94 220 L100 214Z M118 164 L136 176 L126 186 L134 194 L106 220 L100 214Z" fill={dark}/>
+      <path d="M36 206 L80 206 M120 206 L164 206" stroke={dark} strokeWidth={4}/>
+      <rect x={96} y={203} width={8} height={6} rx={1} fill="none" stroke={trim} strokeWidth={1.2}/>
+      <path d="M40 190 L60 186 M160 190 L140 186" stroke={dark} strokeWidth={3}/></g>;
+    case "bomber": return <g>{base}
+      <path d="M80 160 C90 168 110 168 120 160 L122 172 C112 178 88 178 78 172Z" fill={accent}/>
+      <path d="M80 163 C90 171 110 171 120 163" stroke={trim} strokeWidth={1.2} fill="none"/>
+      <path d="M90 174 L100 220 L110 174Z" fill="#1d1f22"/>
+      <path d="M100 172 L100 220" stroke={trim} strokeWidth={1.6}/><rect x={98} y={176} width={4} height={7} rx={1.4} fill={trim}/>
+      <path d="M30 214 L170 214" stroke={accent} strokeWidth={3}/>
+      <path d="M48 192 L60 198 L58 206" stroke={dark} strokeWidth={1.4} fill="none"/>{crest}</g>;
+    case "hoodie": return <g>{base}
+      <path d="M72 166 C76 150 124 150 128 166 C120 176 110 180 100 180 C90 180 80 176 72 166Z" fill={dark}/>
+      <path d="M80 168 C88 176 112 176 120 168" stroke={light} strokeWidth={1.4} fill="none"/>
+      <path d="M94 178 L92 200 M106 178 L108 200" stroke={trim} strokeWidth={1.6} strokeLinecap="round"/>
+      <circle cx={92} cy={201} r={1.6} fill={trim}/><circle cx={108} cy={201} r={1.6} fill={trim}/>
+      <path d="M74 214 C88 206 112 206 126 214" stroke={dark} strokeWidth={1.6} fill="none"/>{crest}</g>;
+    case "gilet": return <g><path d={TORSO} fill={accent}/><ClothShading uid={uid+"-sleeve"} colour={accent}/>
+      <path d="M58 220 C58 196 66 180 82 168 L118 168 C134 180 142 196 142 220Z" fill={main}/>
+      {[186,198,210].map(y=><path key={y} d={"M62 "+y+" C80 "+(y-4)+" 120 "+(y-4)+" 138 "+y} stroke={dark} strokeWidth={1.4} fill="none"/>)}
+      <path d="M82 160 C90 168 110 168 118 160 L120 172 C110 178 90 178 80 172Z" fill={light}/>
+      <path d="M100 166 L100 220" stroke={dark} strokeWidth={2}/>{crest}</g>;
+    case "blazerTee": return <g>{base}<path d="M84 168 L100 220 L116 168Z" fill={accent}/>
+      <path d="M86 168 C92 176 108 176 114 168" stroke={shade(accent,-0.25)} strokeWidth={1.6} fill="none"/>
+      <path d="M84 168 L72 178 L78 186 L72 192 L96 220 L100 220Z M116 168 L128 178 L122 186 L128 192 L104 220 L100 220Z" fill={dark}/>
+      <path d="M132 192 l10 -2" stroke="#f4f4f1" strokeWidth={2}/></g>;
     default: return null;
   }
 }
-const NEW_OUTFITS=new Set<ChairmanAvatar["outfit"]>(["waistcoat","turtleneck","shirtTie","puffer","tracksuit","polo"]);
+const NEW_OUTFITS=new Set<ChairmanAvatar["outfit"]>(["waistcoat","turtleneck","shirtTie","puffer","tracksuit","polo","doubleBreasted","trench","bomber","hoodie","gilet","blazerTee"]);
 function OutfitLayer({ avatar, skin, uid }: { avatar: ChairmanAvatar; skin: string; uid: string }) {
   if (NEW_OUTFITS.has(avatar.outfit)) return <NewOutfit avatar={avatar} uid={uid} />;
   const main = avatar.outfitColour;
@@ -370,6 +462,16 @@ function Eyewear({ kind }: { kind: ChairmanAvatar["eyewear"] }) {
       </g>
     );
   }
+  if (kind === "aviator") return <g stroke="#b9a46a" strokeWidth={1.4}>
+    <path d="M76 98 L97 98 C98 108 94 113 87 113 C80 113 76 108 76 98Z M103 98 L124 98 C124 108 120 113 113 113 C106 113 102 108 103 98Z" fill="rgba(40,50,60,.55)" />
+    <path d="M97 99 L103 99 M76 99 L67 98 M124 99 L133 98" fill="none" /></g>;
+  if (kind === "browline") return <g>
+    <path d="M76 97 L97 97 L97 101 L76 101Z M103 97 L124 97 L124 101 L103 101Z" fill={frame} />
+    <path d="M77 100 C77 110 96 112 96 100 M104 100 C104 112 123 110 123 100" stroke="#b9a46a" strokeWidth={1} fill="rgba(255,255,255,.1)" />
+    <path d="M97 99 L103 99 M76 99 L67 98 M124 99 L133 98" stroke={frame} strokeWidth={1.6} fill="none" /></g>;
+  if (kind === "wire") return <g stroke="#c9b27a" strokeWidth={1} fill="rgba(255,255,255,.08)">
+    <ellipse cx={87} cy={103} rx={9.5} ry={7.5} /><ellipse cx={113} cy={103} rx={9.5} ry={7.5} />
+    <path d="M96.5 102 C98 100 102 100 103.5 102 M77.5 102 L67 100 M122.5 102 L133 100" fill="none" /></g>;
   return (
     <g stroke={frame} strokeWidth={2} fill="rgba(255,255,255,.12)">
       <rect x={76} y={96} width={21} height={14} rx={3} />
