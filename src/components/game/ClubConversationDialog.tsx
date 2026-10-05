@@ -4,7 +4,7 @@ import type { FootballPlayer, GameState, Staff } from "@/lib/game/types";
 import { playerName, userSquad } from "@/lib/game/recruitment";
 import { MANAGER_FORMATIONS } from "@/lib/game/managerFormationLayout";
 import { playerConversationTopics, staffConversationTopics } from "@/lib/game/clubConversations";
-import { activeManagerRecruitmentAssignment, delegateManagerRecruitmentPriorities, managerRecruitmentBrief } from "@/lib/game/managerRecruitmentBrief";
+import { activeManagerRecruitmentAssignment, delegateManagerRecruitmentPriorities, managerRecruitmentBrief, recruitmentDelegationAvailability } from "@/lib/game/managerRecruitmentBrief";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -61,6 +61,7 @@ export function ClubConversationDialog({
   const priorityIds = String(state.inboxFlags["chairman.managerPriority.ids"] ?? "").split(",").filter(Boolean);
   const recruitmentBrief = isManager ? managerRecruitmentBrief(state, subject.staff) : null;
   const delegatedRecruitment = isManager ? activeManagerRecruitmentAssignment(state, subject.staff) : null;
+  const delegationAvailability = isManager ? recruitmentDelegationAvailability(state) : null;
 
   const requestFormation = (formation: string) => {
     if (!isManager || !update) return;
@@ -75,7 +76,7 @@ export function ClubConversationDialog({
   };
 
   const delegateRecruitment = () => {
-    if (!isManager || !update || !recruitmentBrief?.priorities.length || delegatedRecruitment) return;
+    if (!isManager || !update || !recruitmentBrief?.priorities.length || delegatedRecruitment || !delegationAvailability?.available) return;
     update((current) => delegateManagerRecruitmentPriorities(current, subject.staff));
     setRequestFeedback(`I've passed my priorities to Recruitment. They'll run the search and bring us candidates; the final transfer decision stays with you.`);
   };
@@ -151,10 +152,10 @@ export function ClubConversationDialog({
                     {recruitmentBrief.priorities.map((priority) => `${priority.headline} (${priority.playerLevel === "backup" ? "depth" : priority.playerLevel})`).join(" · ")}
                   </div>
                   <Button type="button" size="sm" variant="outline" className="mt-2 h-8 w-full border-violet-500/30"
-                    disabled={Boolean(delegatedRecruitment)} onClick={delegateRecruitment}>
-                    {delegatedRecruitment ? "Recruitment are working on it" : "Send priorities to Recruitment"}
+                    disabled={Boolean(delegatedRecruitment) || !delegationAvailability?.available} onClick={delegateRecruitment}>
+                    {delegatedRecruitment ? "Recruitment are working on it" : delegationAvailability?.available ? "Send priorities to Recruitment" : "Recruitment delegation locked"}
                   </Button>
-                  <div className="mt-1.5 text-[10px] text-muted-foreground">Recruitment will search and assess candidates. You keep final control of transfers and contracts.</div>
+                  <div className="mt-1.5 text-[10px] text-muted-foreground">{delegationAvailability?.available ? "Recruitment will search and assess candidates. You keep final control of transfers and contracts." : delegationAvailability?.reason}</div>
                 </div>
               )}
               {requestFeedback && <div className="mt-3 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] p-2.5 text-xs leading-relaxed">{requestFeedback}</div>}
