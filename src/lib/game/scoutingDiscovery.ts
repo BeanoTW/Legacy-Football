@@ -141,7 +141,7 @@ export function scoutingQuality(state: GameState): number {
   const department = state.football?.department.recruitmentRating ?? 50;
   const chief = state.hiredStaff.find((staff) => staff.role === "Chief Scout");
   const scouts = state.hiredStaff.filter((staff) => staff.role === "Scout");
-  const ratings = [department];
+  const ratings = [department, transferSupport(state).scouting];
   if (chief) ratings.push(chief.stats.scouting);
   if (scouts.length) ratings.push(scouts.reduce((sum, staff) => sum + staff.stats.scouting, 0) / scouts.length);
   return Math.max(1, Math.min(100, Math.round(ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length)));

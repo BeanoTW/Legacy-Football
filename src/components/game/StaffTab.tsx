@@ -31,6 +31,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { OverviewScreen, WorkflowTile } from "./shared/layout";
 import { medicalSupport } from "@/lib/game/playerHealth";
+import { coachingSupport, transferSupport } from "@/lib/game/staffImpact";
 import { CharacterPortrait } from "./CharacterPortrait";
 import { CharacterPortraitStudio } from "./CharacterPortraitStudio";
 import { useCharacterName } from "@/hooks/useCharacterName";
@@ -42,6 +43,24 @@ type StaffView = "home" | "team" | "market";
 const ROLES: StaffRole[] = ["Manager", "Assistant Manager", "Head Coach", "Goalkeeping Coach", "Fitness Coach", "Head of Youth", "Head of Transfers", "Chief Scout", "Scout", "Head Physio", "Sports Scientist"];
 const FOOTBALL_ROLES: StaffRole[] = ["Manager", "Assistant Manager", "Head Coach", "Goalkeeping Coach", "Fitness Coach"];
 const QUICK_ROLES: ("All" | StaffRole)[] = ["All", "Manager", "Head Coach", "Assistant Manager", "Head of Transfers", "Head Physio", "Chief Scout"];
+
+function staffImpactLine(state: GameState, staff: Staff): string {
+  const coaching = coachingSupport(state);
+  const transfers = transferSupport(state);
+  switch (staff.role) {
+    case "Manager": return `Tactical leadership · preparation ${coaching.tacticalPreparation}/100 · motivation ${coaching.motivation}/100`;
+    case "Assistant Manager": return `Supports tactical preparation, motivation and outfield development · coaching ${coaching.outfieldDevelopment}/100`;
+    case "Head Coach": return `Drives senior outfield player development · coaching ${coaching.outfieldDevelopment}/100`;
+    case "Goalkeeping Coach": return `Drives senior goalkeeper development · GK coaching ${coaching.goalkeeperDevelopment}/100`;
+    case "Fitness Coach": return `Contributes to recovery and injury prevention · medical team ${medicalSupport(state).score}/100`;
+    case "Head of Youth": return `Shapes academy development, intake quality and potential assessment`;
+    case "Head of Transfers": return `Coordinates recruitment quality and negotiation expertise · department ${transfers.score}/100`;
+    case "Chief Scout": return `Leads scouting accuracy, search quality and candidate discovery · recruitment ${transfers.scouting}/100`;
+    case "Scout": return `Adds scouting capacity, candidate reach and report quality`;
+    case "Head Physio": return `Leads rehabilitation and injury prevention · medical team ${medicalSupport(state).score}/100`;
+    case "Sports Scientist": return `Supports recovery and reduces preventable injury risk · medical team ${medicalSupport(state).score}/100`;
+  }
+}
 
 function ManagerIdentityPanel({ staff, compact = false }: { staff: Staff; compact?: boolean }) {
   if (staff.role !== "Manager") return null;
@@ -384,6 +403,10 @@ function StaffCard({state,staff,terms,onAction,onRenew,onSpeak,action,affordable
         <div className="text-[8px] uppercase tracking-wide text-muted-foreground">{STAT_LABEL[key]}</div>
         <div className="font-display text-sm leading-tight tnum">{staff.stats[key]}</div>
       </div>)}
+    </div>
+    <div className="mt-1.5 rounded-lg border bg-muted/25 px-2 py-1.5 text-[10px] leading-relaxed">
+      <span className="font-semibold text-foreground">Game impact · </span>
+      <span className="text-muted-foreground">{staffImpactLine(state, staff)}</span>
     </div>
     {identity && fit && <>
       <div className="mt-2 flex flex-wrap items-center gap-1">
