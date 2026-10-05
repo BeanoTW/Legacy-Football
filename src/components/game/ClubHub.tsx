@@ -113,7 +113,13 @@ export function ClubHub({ state, update, setTab, isContinuing, onAdvanceTo }: { 
   return (
     <div className="lf-home-dashboard flex min-h-0 flex-col gap-3">
       <section className="lf-command-grid">
-        <div className="lf-match-card overflow-hidden rounded-2xl border bg-card shadow-sm"><MatchStrip state={state} nextFixture={nextFixture} manager={manager} update={update} onSimMatch={(fixture) => { setPendingSimKey(fixtureKey(fixture)); update((current) => simulateFixtureToday(current)); }} onOpenSchedule={() => setTab("fixtures")} onOpenManager={() => manager ? setManagerConversationOpen(true) : setTab("staff")} /></div>
+        <div className="lf-match-card overflow-hidden rounded-2xl border bg-card shadow-sm"><MatchStrip state={state} nextFixture={nextFixture} manager={manager} update={update} onSimMatch={(fixture) => {
+          // Record the result key before simulating. The simulation resolves the
+          // fixture immediately; pendingSimKey is UI-only and must never leave
+          // the calendar in a matchday/continuing state.
+          setPendingSimKey(fixtureKey(fixture));
+          update((current) => simulateFixtureToday(current));
+        }} onOpenSchedule={() => setTab("fixtures")} onOpenManager={() => manager ? setManagerConversationOpen(true) : setTab("staff")} /></div>
         <aside className="lf-club-pulse">
           <div className="lf-pulse-block">
             <span className="lf-pulse-label"><Trophy className="size-3.5" />League standing</span>
