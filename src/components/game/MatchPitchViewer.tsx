@@ -1487,6 +1487,24 @@ export function MatchPitchViewer({
           className={cn("shrink-0 rounded-lg px-2 py-1 text-[9px] font-black uppercase tracking-wide", statsOpen ? "bg-white text-[#07130f]" : "bg-white/10 text-white/70")}
           aria-expanded={statsOpen}>Stats</button>
       </div>
+      <div className="mb-1.5 flex items-center gap-1.5 overflow-x-auto pb-0.5">
+        <div className="flex shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white/5" role="radiogroup" aria-label="Highlights coverage">
+          {VIEW_MODES.map((mode) => (
+            <button key={mode.id} type="button" role="radio" aria-checked={viewMode === mode.id} onClick={() => setViewMode(mode.id)}
+              className={cn("whitespace-nowrap px-2 py-1.5 text-[8px] font-black uppercase tracking-wide", viewMode === mode.id ? "bg-emerald-400 text-[#07130f]" : "text-white/55")}>
+              {mode.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white/5" aria-label="Playback speed">
+          {PLAYBACK_SPEEDS.map((option) => (
+            <button key={option} type="button" onClick={() => engine.setSpeed(option)}
+              className={cn("min-w-8 px-1.5 py-1.5 text-[8px] font-black", speed === option ? "bg-white text-[#07130f]" : "text-white/55")}
+              aria-label={`Playback speed ${option} times`}>{option}×</button>
+          ))}
+        </div>
+      </div>
+
       <div
         className={cn(
           celebrating && "lf-shake",
@@ -1755,22 +1773,7 @@ export function MatchPitchViewer({
           >
             {soundOn ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
           </button>
-          <div className="hidden sm:flex shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white/5">
-            {PLAYBACK_SPEEDS.map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => engine.setSpeed(option)}
-                className={cn(
-                  "min-w-8 px-1.5 py-2 text-[9px] font-bold",
-                  speed === option ? "bg-white text-[#07130f]" : "text-white/65 hover:bg-white/10",
-                )}
-                aria-label={`Playback speed ${option} times`}
-              >
-                {option}×
-              </button>
-            ))}
-          </div>
+          
           <button
             type="button"
             className="grid size-9 shrink-0 place-items-center rounded-lg bg-white/10 hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-30"
