@@ -15,7 +15,7 @@ export function ClubCalendar({ state }: { state: GameState }) {
     ...day,
     fixtures: day.fixtures.map(f => ({ ...f, opponent: clubPresentationName(clubDisplayName(state, f.opponentRef)) })),
   })), [state]);
-  const upcoming = days.filter(day => !day.isPast);
+  const upcoming = days;
   return <div className="mx-auto max-w-5xl space-y-4 p-3 pb-28 sm:p-6">
     <header className="overflow-hidden rounded-3xl border bg-[linear-gradient(120deg,#0c211a,#16333b_58%,#321b50)] p-5 text-white shadow-lg">
       <div className="flex items-start justify-between gap-3">
@@ -33,7 +33,7 @@ function MonthGrid({days}:{days:any[]}) {
   const weeks:any[][]=[]; for(const day of days){const last=weeks[weeks.length-1]; if(last&&last[0].week===day.week)last.push(day);else weeks.push([day]);}
   return <div className="space-y-3">{weeks.map(week=><section key={week[0].week} className="overflow-hidden rounded-2xl border bg-card shadow-sm">
     <div className="flex justify-between border-b px-4 py-2"><strong>Week {week[0].week}</strong><span className="text-xs text-muted-foreground">{week[0].month}</span></div>
-    <div className="grid grid-cols-7">{week.map(day=><div key={day.absoluteDay} className={cn("min-h-24 border-r p-1.5 last:border-r-0",day.isToday&&"bg-primary/10")}>
+    <div className="grid grid-cols-7">{week.map(day=><div key={day.absoluteDay} className={cn("min-h-24 min-w-0 overflow-hidden border-r p-1 last:border-r-0",day.isToday&&"bg-primary/10",day.isPast&&"opacity-45")}>
       <div className="text-[10px] text-muted-foreground">{day.dayName}</div><div className="font-display text-xl">{day.date}</div>
       <DayMarks day={day}/>
     </div>)}</div>
@@ -42,8 +42,8 @@ function MonthGrid({days}:{days:any[]}) {
 
 function DayMarks({day}:{day:any}) { return <div className="mt-1 space-y-1">
   {day.windowOpen && !day.deadlineDay ? <div className="flex items-center gap-1 text-[8px] font-medium text-violet-400" title="Transfer window open"><RefreshCw className="size-2.5"/><span className="sr-only">Transfer window open</span></div> : null}
-  {day.fixtures.slice(0,1).map((f:any,i:number)=><div key={i} className="rounded-md border border-emerald-500/20 bg-emerald-500/12 px-1 py-1 text-emerald-700 dark:text-emerald-300">
-    <div className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-wide"><Trophy className="size-2.5 shrink-0"/> Match day</div>
+  {day.fixtures.slice(0,1).map((f:any,i:number)=><div key={i} className="max-w-full overflow-hidden rounded-md border border-emerald-500/20 bg-emerald-500/12 px-1 py-1 text-emerald-700 dark:text-emerald-300">
+    <div className="flex items-center gap-0.5 text-[7px] font-bold uppercase leading-tight tracking-normal"><Trophy className="size-2 shrink-0"/><span>Match<br/>day</span></div>
     <div className="mt-0.5 truncate text-[8px] font-semibold">{f.home?"H":"A"} · {f.opponent}</div>
   </div>)}
   {day.events.slice(0,2).map((e:any)=><div key={e.id} className="truncate rounded bg-violet-500/10 px-1 py-0.5 text-[9px] text-violet-700 dark:text-violet-300">● {e.label}</div>)}
