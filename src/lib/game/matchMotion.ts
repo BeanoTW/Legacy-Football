@@ -452,26 +452,27 @@ function sideTargets(
     next.set(id, moved);
   }
 
-  // Human limits: nobody covers more ground than the action's time allows.
-  // The ball's own actors must reach the ball, so they are exempt; the next
-  // receiver and the presser may sprint, everyone else runs.
+  // Human limits apply to everybody, including the nominated receiver. The old
+  // receiver exemption could catapult a deep full-back 30–40 m to satisfy a
+  // pre-selected diagonal endpoint. Actors already on the ball may hold their
+  // touch point; anyone travelling to the ball has to get there at sprint speed.
   const seconds = Math.max(0.25, action.weight * SECONDS_PER_WEIGHT);
-  const ballActors = new Set<string>();
+  const fixed = new Set<string>();
   for (const player of side.lineup) {
     const id = player.playerId;
     const actor = action.side === ourSide && action.playerId === id;
     const target = action.targetPlayerId === id && (action.side === ourSide || possessionSide === ourSide);
-    if (actor || target) {
-      ballActors.add(id);
-      continue;
-    }
     const from = positions.get(id) ?? fallbackBase(side, player);
     const to = next.get(id);
     if (!to) continue;
-    const speed = id === presser || id === nextReceiver ? SPRINT_SPEED : RUN_SPEED;
+    if (actor) {
+      fixed.add(id);
+      continue;
+    }
+    const speed = target || id === presser || id === nextReceiver ? SPRINT_SPEED : RUN_SPEED;
     next.set(id, limitMove(from, to, speed * seconds));
   }
-  if (!holdShape) spreadOut(next, side.lineup, ballActors);
+  if (!holdShape) spreadOut(next, side.lineup, fixed);
   return next;
 }
 
