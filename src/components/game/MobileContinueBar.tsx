@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { AdvanceTarget } from "@/lib/game/advancePlanner";
+import { developerModeEnabled } from "@/lib/game/developerMode";
 
 export function MobileContinueBar({
   isContinuing,
@@ -34,7 +35,8 @@ export function MobileContinueBar({
 }) {
   const nextMatch = targets.find((target) => target.id === "matchday");
   const hint = isContinuing ? label : nextMatch ? nextMatch.detail : label;
-  const choices = targets.filter((target) => target.id !== "anything");
+  // Jump-to-date controls are a testing convenience, not part of normal career play.
+  const choices = developerModeEnabled() ? targets.filter((target) => target.id !== "anything") : [];
 
   return (
     <div className="lf-continue-bar fixed bottom-0 inset-x-0 z-50 border-t bg-card/95 backdrop-blur px-3 pt-2 pb-[calc(.5rem+env(safe-area-inset-bottom))] shadow-[0_-8px_30px_rgba(0,0,0,.12)]">
