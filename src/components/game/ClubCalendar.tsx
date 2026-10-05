@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CalendarDays, List, Grid3X3, Circle } from "lucide-react";
+import { CalendarDays, List, Grid3X3, Circle, Trophy, RefreshCw } from "lucide-react";
 import type { GameState } from "@/lib/game/types";
 import { calendarRail } from "@/lib/game/advancePlanner";
 import { clubDisplayName } from "@/lib/game/clubReference";
@@ -41,7 +41,11 @@ function MonthGrid({days}:{days:any[]}) {
 }
 
 function DayMarks({day}:{day:any}) { return <div className="mt-1 space-y-1">
-  {day.fixtures.slice(0,1).map((f:any,i:number)=><div key={i} className="truncate rounded bg-emerald-500/12 px-1 py-0.5 text-[9px] font-semibold text-emerald-700 dark:text-emerald-300">● {f.home?"H":"A"} {f.opponent}</div>)}
+  {day.windowOpen && !day.deadlineDay ? <div className="flex items-center gap-1 text-[8px] font-medium text-violet-400" title="Transfer window open"><RefreshCw className="size-2.5"/><span className="sr-only">Transfer window open</span></div> : null}
+  {day.fixtures.slice(0,1).map((f:any,i:number)=><div key={i} className="rounded-md border border-emerald-500/20 bg-emerald-500/12 px-1 py-1 text-emerald-700 dark:text-emerald-300">
+    <div className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-wide"><Trophy className="size-2.5 shrink-0"/> Match day</div>
+    <div className="mt-0.5 truncate text-[8px] font-semibold">{f.home?"H":"A"} · {f.opponent}</div>
+  </div>)}
   {day.events.slice(0,2).map((e:any)=><div key={e.id} className="truncate rounded bg-violet-500/10 px-1 py-0.5 text-[9px] text-violet-700 dark:text-violet-300">● {e.label}</div>)}
   {day.deadlineDay&&<div className="rounded bg-amber-500/15 px-1 py-0.5 text-[9px] font-bold text-amber-700 dark:text-amber-300">● Deadline</div>}
 </div>}
