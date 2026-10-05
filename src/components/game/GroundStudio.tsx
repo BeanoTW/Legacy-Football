@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, Flag, Paintbrush, PencilLine, RotateCcw } from "lucide-react";
+import { Check, Flag, Lightbulb, Paintbrush, PencilLine, RotateCcw, Rows3, Trees, Trophy } from "lucide-react";
 import type { CapitalProjectType, GameState, InfrastructureAsset } from "@/lib/game/types";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -163,6 +163,7 @@ export function GroundStudioSheet({
   const [groundName, setGroundName] = useState(identity.groundName ?? "");
   const [names, setNames] = useState<Record<string, string>>({});
   const [note, setNote] = useState<string | null>(null);
+  const [focus, setFocus] = useState<"stands" | "pitch" | "lights" | "identity">("stands");
   const stage = state.infrastructure ? groundProgression(state).visualStage : 0;
   const cost = cosmeticCost(state, draft);
   const preview = useMemo(() => {
@@ -203,82 +204,70 @@ export function GroundStudioSheet({
         <div className="space-y-4 p-4">
           {note && <div className="rounded-lg border bg-muted/40 px-3 py-2 text-xs">{note}</div>}
 
-          <section>
-            <SectionTitle icon={<Flag className="size-3.5" />} title="Ground name" />
-            <input
-              value={groundName}
-              onChange={(event) => setGroundName(event.target.value)}
-              placeholder="e.g. Station Park"
-              maxLength={40}
-              className="h-10 w-full rounded-lg border bg-background px-3 text-sm"
-            />
-          </section>
+          <div className="grid grid-cols-4 gap-1.5">
+            {[
+              { id: "stands", label: "Stands", icon: Rows3 },
+              { id: "pitch", label: "Pitch", icon: Trophy },
+              { id: "lights", label: "Lights", icon: Lightbulb },
+              { id: "identity", label: "Identity", icon: Trees },
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <button key={item.id} type="button" onClick={() => setFocus(item.id as typeof focus)} className={cn("rounded-xl border px-1 py-2 text-center text-[10px] font-semibold", focus === item.id ? "border-primary bg-primary/10 text-primary" : "bg-background")}>
+                  <Icon className="mx-auto mb-1 size-4" />{item.label}
+                </button>
+              );
+            })}
+          </div>
 
-          <section>
-            <SectionTitle icon={<PencilLine className="size-3.5" />} title="Stand names" />
-            <div className="grid gap-1.5">
-              {standAssets(state).map((asset) => (
-                <div key={asset.id} className="flex items-center gap-2">
-                  <span className="w-20 shrink-0 text-[10px] font-semibold uppercase text-muted-foreground">{SIDE_LABEL[asset.location] ?? asset.location}</span>
-                  <input
-                    value={names[asset.id] ?? asset.name}
-                    onChange={(event) => setNames((n) => ({ ...n, [asset.id]: event.target.value }))}
-                    maxLength={32}
-                    className="h-9 min-w-0 flex-1 rounded-lg border bg-background px-2.5 text-sm"
-                  />
-                  <Button size="sm" variant="outline" className="h-9" disabled={(names[asset.id] ?? asset.name).trim() === asset.name} onClick={() => rename(asset)}>Save</Button>
-                </div>
-              ))}
-            </div>
-          </section>
+          {focus === "stands" && <>
+            <section>
+              <SectionTitle icon={<Paintbrush className="size-3.5" />} title="Roof colour" note="Live · free" />
+              <Swatches options={ROOF_COLOURS.map((r) => ({ id: r.id, label: r.label, colours: [roofSwatch(r.id), roofSwatch(r.id)] }))} value={draft.roof} onChange={(roof) => setDraft((d) => ({ ...d, roof }))} />
+            </section>
+            <section>
+              <SectionTitle title="Seats" note="Live · free" />
+              <Swatches options={SEAT_SCHEMES.map((option) => ({ id: option.id, label: option.label, colours: seatSwatch(option.id) }))} value={draft.seats} onChange={(seats) => setDraft((d) => ({ ...d, seats }))} />
+            </section>
+            <section>
+              <SectionTitle title="Stand & building finish" note="Live · free" />
+              <Swatches options={CLADDINGS.map((c) => ({ id: c.id, label: c.label, colours: [c.id === "club" ? kit.body : c.hex, c.id === "club" ? kit.body : c.hex] }))} value={draft.cladding} onChange={(cladding) => setDraft((d) => ({ ...d, cladding }))} />
+            </section>
+            <section>
+              <SectionTitle title="Home end" note="Atmosphere identity" />
+              <Chips options={[{ id: "none", label: "None" }, { id: "N", label: "North end" }, { id: "S", label: "South end" }]} value={draft.homeEnd ?? "none"} onChange={(id) => setDraft((d) => ({ ...d, homeEnd: id === "none" ? null : (id as "N" | "S") }))} />
+            </section>
+          </>}
 
-          <section>
-            <SectionTitle icon={<Paintbrush className="size-3.5" />} title="Roof colour" note="Free cosmetic" />
-            <Swatches
-              options={ROOF_COLOURS.map((r) => ({ id: r.id, label: r.label, colours: [roofSwatch(r.id), roofSwatch(r.id)] }))}
-              value={draft.roof}
-              onChange={(roof) => setDraft((d) => ({ ...d, roof }))}
-            />
-          </section>
-
-          <section>
-            <SectionTitle title="Seats" note="Free cosmetic" />
-            <Swatches
-              options={SEAT_SCHEMES.map((s) => ({ id: s.id, label: s.label, colours: seatSwatch(s.id) }))}
-              value={draft.seats}
-              onChange={(seats) => setDraft((d) => ({ ...d, seats }))}
-            />
-          </section>
-
-          <section>
-            <SectionTitle title="Main stand & buildings" note="Free cosmetic" />
-            <Swatches
-              options={CLADDINGS.map((c) => ({ id: c.id, label: c.label, colours: [c.id === "club" ? kit.body : c.hex, c.id === "club" ? kit.body : c.hex] }))}
-              value={draft.cladding}
-              onChange={(cladding) => setDraft((d) => ({ ...d, cladding }))}
-            />
-          </section>
-
-          <section>
-            <SectionTitle title="Floodlights" note="Free cosmetic" />
-            <Chips options={FLOODLIGHT_STYLES} value={draft.floodlights} onChange={(floodlights) => setDraft((d) => ({ ...d, floodlights }))} />
-          </section>
-
-          <section>
-            <SectionTitle title="Pitch mowing" note="Free" />
+          {focus === "pitch" && <section>
+            <SectionTitle title="Pitch mowing" note="Live · free" />
             <Chips options={MOWING_PATTERNS} value={draft.mowing} onChange={(mowing) => setDraft((d) => ({ ...d, mowing }))} />
-          </section>
+          </section>}
 
-          <section>
-            <SectionTitle title="Home end" note="A deep single-tier Kop · atmosphere bonus" />
-            <Chips
-              options={[{ id: "none", label: "None" }, { id: "N", label: "North end" }, { id: "S", label: "South end" }]}
-              value={draft.homeEnd ?? "none"}
-              onChange={(id) => setDraft((d) => ({ ...d, homeEnd: id === "none" ? null : (id as "N" | "S") }))}
-            />
-          </section>
+          {focus === "lights" && <section>
+            <SectionTitle title="Floodlights" note="Live · free" />
+            <Chips options={FLOODLIGHT_STYLES} value={draft.floodlights} onChange={(floodlights) => setDraft((d) => ({ ...d, floodlights }))} />
+          </section>}
+
+          {focus === "identity" && <>
+            <section>
+              <SectionTitle icon={<Flag className="size-3.5" />} title="Ground name" />
+              <input value={groundName} onChange={(event) => setGroundName(event.target.value)} placeholder="e.g. Station Park" maxLength={40} className="h-10 w-full rounded-lg border bg-background px-3 text-sm" />
+            </section>
+            <section>
+              <SectionTitle icon={<PencilLine className="size-3.5" />} title="Stand names" />
+              <div className="grid gap-1.5">
+                {standAssets(state).map((asset) => (
+                  <div key={asset.id} className="flex items-center gap-2">
+                    <span className="w-20 shrink-0 text-[10px] font-semibold uppercase text-muted-foreground">{SIDE_LABEL[asset.location] ?? asset.location}</span>
+                    <input value={names[asset.id] ?? asset.name} onChange={(event) => setNames((n) => ({ ...n, [asset.id]: event.target.value }))} maxLength={32} className="h-9 min-w-0 flex-1 rounded-lg border bg-background px-2.5 text-sm" />
+                    <Button size="sm" variant="outline" className="h-9" disabled={(names[asset.id] ?? asset.name).trim() === asset.name} onClick={() => rename(asset)}>Save</Button>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </>}
         </div>
-
         <div className="sticky bottom-0 grid grid-cols-[auto_minmax(0,1fr)] gap-2 border-t bg-card p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
           <Button variant="outline" size="icon" aria-label="Reset cosmetic changes" disabled={!changed} onClick={() => { setDraft({ seats: identity.seats, roof: identity.roof, cladding: identity.cladding, floodlights: identity.floodlights, mowing: identity.mowing, homeEnd: identity.homeEnd }); setGroundName(identity.groundName ?? ""); }}><RotateCcw className="size-4" /></Button>
           <Button className="w-full" disabled={!changed} onClick={apply}>
