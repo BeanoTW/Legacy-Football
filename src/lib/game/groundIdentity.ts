@@ -422,13 +422,8 @@ export function sceneLook(s: GameState, clubColours: { body: string; secondary: 
 }
 
 /** Repainting seats costs per place; recolouring roofs or re-cladding per stand. */
-export function cosmeticCost(s: GameState, change: Partial<GroundIdentityState>): number {
-  const identity = groundIdentity(s);
-  const standAssets = (s.infrastructure?.assets ?? []).filter((a) => a.type === "stand");
-  const places = standAssets.filter((a) => a.level >= 2).reduce((t, a) => t + a.capacity, 0);
-  let cost = 0;
-  if (change.seats && change.seats !== identity.seats) cost += Math.round(places * 1.5);
-  if (change.roof && change.roof !== identity.roof) cost += standAssets.length * 6_000;
-  if (change.cladding && change.cladding !== identity.cladding) cost += 9_000;
-  return Math.round(cost / 100) * 100;
+export function cosmeticCost(_s: GameState, _change: Partial<GroundIdentityState>): number {
+  // Cosmetic identity is player expression, not a capital project. Structural
+  // upgrades still cost money through the Facilities project system.
+  return 0;
 }

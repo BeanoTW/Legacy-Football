@@ -35,7 +35,7 @@ import {
 import { motionFrameForSequence } from "@/lib/game/matchMotion";
 import { cn } from "@/lib/utils";
 import type { MatchdayGroundPresentation } from "@/lib/game/groundPresentation";
-import { buildGroundScene } from "@/lib/game/groundScene";
+import { buildGroundScene, type SceneOutput } from "@/lib/game/groundScene";
 import {
   enterMatch,
   exitMatch,
@@ -1167,22 +1167,8 @@ function PitchMarkings({ ripple }: { ripple: "left" | "right" | null }) {
   );
 }
 
-function MatchGroundFrame({ ground }: { ground: MatchdayGroundPresentation }) {
+function MatchGroundFrame({ ground, scene }: { ground: MatchdayGroundPresentation; scene: SceneOutput }) {
   const fill = Math.max(0, Math.min(100, ground.fillPercent));
-  const scene = useMemo(
-    () =>
-      buildGroundScene({
-        stage: ground.stage,
-        pitchCondition: 100,
-        worksAt: [],
-        width: 1000,
-        height: 680,
-        look: ground.look,
-        design: ground.design,
-        camera: { mode: "matchday", zoom: 1 },
-      }),
-    [ground.design, ground.look, ground.stage],
-  );
   const { x, y, w, h } = scene.viewBox;
 
   return (
@@ -1305,6 +1291,30 @@ export function MatchPitchViewer({
   ground?: MatchdayGroundPresentation;
 }) {
   const [viewMode, setViewMode] = useState<ViewMode>("condensed");
+  const groundScene = useMemo(
+    () =>
+      ground
+        ? buildGroundScene({
+            stage: ground.stage,
+            pitchCondition: 100,
+            worksAt: [],
+            width: 1000,
+            height: 680,
+            look: ground.look,
+            design: ground.design,
+            camera: { mode: "matchday", zoom: 1 },
+          })
+        : null,
+    [ground],
+  );
+  const matchPitchStyle = groundScene
+    ? {
+        left: `${groundScene.pitchBounds.left * 100}%`,
+        top: `${groundScene.pitchBounds.top * 100}%`,
+        width: `${groundScene.pitchBounds.width * 100}%`,
+        height: `${groundScene.pitchBounds.height * 100}%`,
+      }
+    : undefined;
   // Phones follow the ball; the expanded (large) view shows the whole pitch.
   const [zoomed, setZoomed] = useState(!expanded);
   const { ctx, cache } = useMemo(
@@ -1532,7 +1542,6 @@ export function MatchPitchViewer({
         </button>
       </div>
       <div
-        ref={engine.pitchRef}
         className={cn(
           celebrating && "lf-shake",
           `lf-wx-${weatherKind}`,
@@ -1540,8 +1549,13 @@ export function MatchPitchViewer({
           expanded ? "aspect-[1.58/1] max-h-[calc(100dvh-17rem)] flex-1" : "aspect-[1.62/1] max-h-52",
         )}
       >
-        {ground && <MatchGroundFrame ground={ground} />}
-        <div ref={engine.layerRef} className="absolute inset-0 z-10 will-change-transform">
+        {ground && groundScene && <MatchGroundFrame ground={ground} scene={groundScene} />}
+        <div
+          ref={engine.pitchRef}
+          className={cn("absolute z-10 will-change-transform", !groundScene && "inset-0")}
+          style={matchPitchStyle}
+        >
+        <div ref={engine.layerRef} className="absolute inset-0 will-change-transform">
         <PitchMarkings ripple={showGoal && activeAction ? (activeAction.end.x > 50 ? "right" : "left") : null} />
 
         {showPassLine && activeAction && (
@@ -1583,6 +1597,7 @@ export function MatchPitchViewer({
               )}
             />
           </span>
+        </div>
         </div>
         </div>
 

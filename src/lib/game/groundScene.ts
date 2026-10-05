@@ -57,6 +57,8 @@ export interface SceneOutput {
   viewBox: { x: number; y: number; w: number; h: number };
   background: string;
   prims: ScenePrimitive[];
+  /** Projected playable pitch rectangle as fractions of the scene viewport. */
+  pitchBounds: { left: number; top: number; width: number; height: number };
   /** Hotspot anchors as fractions (0-1) of the viewport. */
   anchors: Record<string, { x: number; y: number }>;
 }
@@ -1247,6 +1249,18 @@ export function buildGroundScene(input: SceneInput): SceneOutput {
   maxX = cx + w / 2;
   maxY = cy + h / 2;
 
+  const pitchCorners = [v(-HALF_L, -HALF_W, 0), v(HALF_L, -HALF_W, 0), v(HALF_L, HALF_W, 0), v(-HALF_L, HALF_W, 0)].map(project);
+  const pitchMinX = Math.min(...pitchCorners.map((p) => p.x));
+  const pitchMaxX = Math.max(...pitchCorners.map((p) => p.x));
+  const pitchMinY = Math.min(...pitchCorners.map((p) => p.y));
+  const pitchMaxY = Math.max(...pitchCorners.map((p) => p.y));
+  const pitchBounds = {
+    left: (pitchMinX - minX) / w,
+    top: (pitchMinY - minY) / h,
+    width: (pitchMaxX - pitchMinX) / w,
+    height: (pitchMaxY - pitchMinY) / h,
+  };
+
   const objects = [...scene.objects].sort((a, b) => b.depth - a.depth).flatMap((o) => o.prims);
   const outAnchors: SceneOutput["anchors"] = {};
   for (const [id, point] of Object.entries(anchors)) {
@@ -1258,6 +1272,7 @@ export function buildGroundScene(input: SceneInput): SceneOutput {
     viewBox: { x: minX, y: minY, w, h },
     background: "#6f9a42",
     prims: [...scene.ground, ...scene.shadows, ...objects],
+    pitchBounds,
     anchors: outAnchors,
   };
 }

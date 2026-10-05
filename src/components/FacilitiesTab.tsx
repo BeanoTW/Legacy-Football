@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { BriefcaseBusiness, Building2, Check, ChevronDown, CircleAlert, Hammer, History, ShieldCheck, Wrench, X } from "lucide-react";
+import { BriefcaseBusiness, Building2, Check, ChevronDown, CircleAlert, Hammer, History, Palette, ShieldCheck, Wrench, X } from "lucide-react";
 import { StadiumGround, type GroundHotspot } from "@/components/game/StadiumGround";
-import { StandBuildChooser } from "@/components/game/GroundStudio";
+import { GroundStudioSheet, StandBuildChooser } from "@/components/game/GroundStudio";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -55,6 +55,7 @@ export function FacilitiesTab({ state, update }: { state: GameState; update: (fn
   const [view, setView] = useState<SupportingView>("ground");
   const [openAssetId, setOpenAssetId] = useState<string | null>(null);
   const [requirementsOpen, setRequirementsOpen] = useState(false);
+  const [studioOpen, setStudioOpen] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const snap = useMemo(() => state.infrastructure ? infrastructureSnapshot(state) : null, [state]);
   const progression = useMemo(() => state.infrastructure ? groundProgression(state) : null, [state]);
@@ -121,6 +122,12 @@ export function FacilitiesTab({ state, update }: { state: GameState; update: (fn
           <Button variant="ghost" size="icon" className="size-6" aria-label="Dismiss message" onClick={() => setNote(null)}><X /></Button>
         </div>
       ) : null}
+
+      <div className="flex shrink-0 justify-end">
+        <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => setStudioOpen(true)}>
+          <Palette className="size-3.5" /> Ground Studio
+        </Button>
+      </div>
 
       <div className="lf-ground-layout min-h-0 flex-1">
         <StadiumGround stage={progression.visualStage} hotspots={hotspots} selectedId={openAssetId} onSelect={(hotspot) => setOpenAssetId(hotspot.asset.id)} look={look} design={design} />
@@ -203,6 +210,8 @@ export function FacilitiesTab({ state, update }: { state: GameState; update: (fn
           {view === "history" ? <HistoryPanel state={state} /> : null}
         </aside>
       </div>
+
+      <GroundStudioSheet open={studioOpen} onOpenChange={setStudioOpen} state={state} update={update} />
 
       <Sheet open={Boolean(open)} onOpenChange={(isOpen) => { if (!isOpen) setOpenAssetId(null); }}>
         {open ? <FacilitySheet
