@@ -12,7 +12,7 @@ import { TransferHistory } from "./TransferHistory";
 import { Button } from "@/components/ui/button";
 import { fmtMoneyExact } from "@/lib/game/engine";
 import { openNegotiations, recruitmentSnapshot } from "@/lib/game/recruitment";
-import { delegateManagerRecruitmentPriorities } from "@/lib/game/managerRecruitmentBrief";
+import { delegateManagerRecruitmentPriorities, recruitmentDelegationAvailability } from "@/lib/game/managerRecruitmentBrief";
 import { chairmanShortlistIds } from "@/lib/game/recruitmentKnowledge";
 import { isUserClubReference } from "@/lib/game/clubReference";
 import { OverviewScreen, WorkflowTile } from "./shared/layout";
@@ -44,6 +44,8 @@ export function RecruitmentFlow({ state, update, destination }: { state: GameSta
     const flag = `recruitmentMemoAssigned:${memoEventKey}`;
     if (state.inboxFlags[flag]) return;
     update((current) => {
+      const availability = recruitmentDelegationAvailability(current);
+      if (!availability.available) return current;
       const delegated = delegateManagerRecruitmentPriorities(current, memoAssignment.manager);
       return { ...delegated, inboxFlags: { ...delegated.inboxFlags, [flag]: true } };
     });
