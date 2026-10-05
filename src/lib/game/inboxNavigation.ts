@@ -7,7 +7,7 @@ import { transferTargetPlayer } from "./recruitmentTargetBridge";
  */
 export type InboxDestination =
   | { tab: "recruitment"; view: "reports"; playerId: string; label: string }
-  | { tab: "recruitment"; view: "find"; briefId: string; label: "View scouting results" }
+  | { tab: "recruitment"; view: "find"; briefId: string; label: "View scouting results" | "Assign to Recruitment" }
   | { tab: "recruitment"; view: "operations"; negotiationId: string; label: "View negotiation" }
   | { tab: "recruitment"; view: "operations"; label: "Open transfers" }
   | { tab: "squad"; playerId: string; label: string }
