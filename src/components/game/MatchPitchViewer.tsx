@@ -1127,12 +1127,7 @@ const PlayerDot = memo(function PlayerDot({
       >
         {player.shirtNumber}
       </span>
-      {(active || receiver) && (
-        <span
-          className={cn(
-            "absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded bg-black/75 px-1.5 py-0.5 text-[8px] font-bold leading-none text-white shadow-sm",
-            receiver && !active && "text-white/75",
-          )}
+
         >
           {playerSurname(player.name)}
         </span>
@@ -1435,10 +1430,6 @@ export function MatchPitchViewer({
   const activeAction =
     view.actionIndex >= 0 ? renderSequence?.actions[view.actionIndex] : undefined;
   const bridge = plan.bridge;
-  const passLabel =
-    activeAction?.targetPlayerName && activeAction.playerName && PASS_KINDS.has(activeAction.kind)
-      ? `${playerSurname(activeAction.playerName)} → ${playerSurname(activeAction.targetPlayerName)}`
-      : null;
   const actionCommentary =
     activeAction?.commentary ??
     (view.inBridge && bridge
@@ -1705,12 +1696,6 @@ export function MatchPitchViewer({
               <div className="font-display text-2xl leading-none tnum">{view.minute}′</div>
               <div className="mt-0.5 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300">{view.cutLabel}</div>
             </div>
-          </div>
-        )}
-
-        {passLabel && (
-          <div className={cn("absolute left-1/2 z-30 -translate-x-1/2 rounded-full border border-white/15 bg-black/60 px-3 py-1 text-[10px] font-bold text-white/85 shadow-sm backdrop-blur-sm", topSlot)}>
-            {passLabel}
           </div>
         )}
 
