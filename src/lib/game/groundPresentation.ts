@@ -1,5 +1,6 @@
 import type { GameState, InfrastructureAsset } from "@/lib/game/types";
 import { ASSET_CONFIG, assets, infrastructureSnapshot, stands } from "@/lib/game/infrastructure";
+import { groundDesign, sceneLook, type GroundDesign, type SceneLook } from "@/lib/game/groundIdentity";
 
 export interface GroundRequirement {
   label: string;
@@ -89,6 +90,10 @@ export interface MatchdayGroundPresentation {
   capacity: number;
   attendance: number;
   fillPercent: number;
+  /** Canonical home-ground architecture used by the matchday stadium shell. */
+  design: GroundDesign;
+  /** Club-selected visual identity for roofs, seats, mowing and floodlights. */
+  look: SceneLook;
 }
 
 export function matchdayGroundPresentation(
@@ -108,6 +113,8 @@ export function matchdayGroundPresentation(
     capacity,
     attendance: boundedAttendance,
     fillPercent: Math.max(0, Math.min(100, Math.round((boundedAttendance / capacity) * 100))),
+    design: groundDesign(state),
+    look: sceneLook(state),
   };
 }
 
