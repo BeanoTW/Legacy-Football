@@ -197,7 +197,7 @@ export function ScoutingBrowser({
         <section className="max-w-2xl rounded-xl border bg-card p-5 shadow-sm">
           <div className="flex items-center gap-3">
             <Binoculars className="size-7" />
-            <div><div className="font-display text-xl">Scouts are working</div><div className="text-sm text-muted-foreground">Your recruitment team is working to {tailoredCount > 1 ? `${tailoredCount} separate position requirements` : `the brief you sent: ${searchLabel}`}.</div></div>
+            <div><div className="font-display text-xl">{brief.delegatedLabel ?? "Scouts are working"}</div><div className="text-sm text-muted-foreground">{brief.delegatedBy ? `${brief.delegatedBy} is running this delegated recruitment job` : `Your recruitment team is working to ${tailoredCount > 1 ? `${tailoredCount} separate position requirements` : `the brief you sent: ${searchLabel}`}.`}</div></div>
           </div>
           <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
             <div className="rounded-lg bg-muted p-2"><div className="font-display text-lg">{brief.scoutQuality ?? 50}</div><div className="text-muted-foreground">Scout quality</div></div>
