@@ -96,7 +96,7 @@ export function AdvanceOverlay({
   const digest = useMemo(() => (startState ? advanceDigest(startState, state) : null), [startState, state]);
   const stopped = !isContinuing;
   const decisions = state.inbox.filter(requiresInboxDecision);
-  const matchday = stopped && !!reason && reason.toLowerCase().includes("matchday");
+  const matchday = stopped && (!!state.liveMatch || (!!reason && reason.toLowerCase().includes("matchday")));
   const todaysFixture = matchday
     ? state.fixtures.find((fixture) => fixture.week === state.week && (fixture.dayOfWeek ?? 5) === day)
     : undefined;
@@ -260,7 +260,7 @@ export function AdvanceOverlay({
                     {matchday
                       ? todaysFixture
                         ? `${todaysFixture.home ? "Home to" : "Away at"} ${opponentName(state, todaysFixture.opponent)}`
-                        : "It's matchday"
+                        : "MATCHDAY"
                       : reachedTarget
                         ? reason
                         : decisions.length
@@ -269,7 +269,7 @@ export function AdvanceOverlay({
                   </div>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {matchday
-                      ? "The week waits here until the match is played."
+                      ? "Your fixture is ready. View the match to continue the calendar."
                       : reachedTarget
                         ? "Time has stopped where you asked."
                         : reason}
@@ -328,7 +328,7 @@ export function AdvanceOverlay({
               </Button>
               {matchday ? (
                 <Button className="ml-auto h-11" onClick={onOpenMatchday}>
-                  Go to matchday <ChevronRight />
+                  View match <ChevronRight />
                 </Button>
               ) : decisions.length || (!reachedTarget && reason) ? (
                 <Button className="ml-auto h-11" onClick={onOpenInbox}>
