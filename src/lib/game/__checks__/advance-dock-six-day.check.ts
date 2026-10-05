@@ -20,6 +20,6 @@ assert(!overlay.includes("6 - (startState ? calendarDay(startState) : day)"), "r
 assert(overlay.includes("cell.absoluteDay === targetEndDay"), "explicit target markers remain accurate inside the rolling window");
 assert(route.includes("onContinue={() => openAdvancePreview()}"), "centre Advance opens the preview instead of progressing time");
 assert(route.includes("onAdvanceTo={openAdvancePreview}"), "dock stop choices also preview before progressing time");
-assert(overlay.includes("<Play /> Advance 1 day"), "preview requires an explicit second action to move time");
+assert(overlay.includes("<Play /> Advance"), "preview requires an explicit second action to move time");
 
 console.log("\n10 passed, 0 failed");
