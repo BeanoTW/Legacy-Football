@@ -5,6 +5,8 @@ import { calendarRail } from "@/lib/game/advancePlanner";
 import { clubDisplayName } from "@/lib/game/clubReference";
 import { clubPresentationName } from "@/lib/game/clubPresentation";
 import { cn } from "@/lib/utils";
+import { ClubBadge } from "./ClubKitArt";
+import { clubKitFor, clubKitForReference } from "@/lib/game/clubKit";
 
 const FULL_DAY = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"] as const;
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -13,6 +15,7 @@ export function ClubCalendar({ state }: { state: GameState }) {
   const [agenda, setAgenda] = useState(false);
   const days = useMemo(() => calendarRail(state, 12).map(day => ({
     ...day,
+    __state: state,
     fixtures: day.fixtures.map(f => ({ ...f, opponent: clubPresentationName(clubDisplayName(state, f.opponentRef)) })),
   })), [state]);
   const upcoming = days;
@@ -35,17 +38,21 @@ function MonthGrid({days}:{days:any[]}) {
     <div className="flex justify-between border-b px-4 py-2"><strong>Week {week[0].week}</strong><span className="text-xs text-muted-foreground">{week[0].month}</span></div>
     <div className="grid grid-cols-7">{week.map(day=><div key={day.absoluteDay} className={cn("min-h-24 min-w-0 overflow-hidden border-r p-1 last:border-r-0",day.isToday&&"bg-primary/10",day.isPast&&"opacity-45")}>
       <div className="text-[10px] text-muted-foreground">{day.dayName}</div><div className="font-display text-xl">{day.date}</div>
-      <DayMarks day={day}/>
+      <DayMarks day={day} state={day.__state}/>
     </div>)}</div>
   </section>)}</div>;
 }
 
-function DayMarks({day}:{day:any}) { return <div className="mt-1 space-y-1">
+function DayMarks({day,state}:{day:any;state:GameState}) { return <div className="mt-1 space-y-1">
   {day.windowOpen && !day.deadlineDay ? <div className="flex items-center gap-1 text-[8px] font-medium text-violet-400" title="Transfer window open"><RefreshCw className="size-2.5"/><span className="sr-only">Transfer window open</span></div> : null}
-  {day.fixtures.slice(0,1).map((f:any,i:number)=><div key={i} className="max-w-full overflow-hidden rounded-md border border-emerald-500/20 bg-emerald-500/12 px-1 py-1 text-emerald-700 dark:text-emerald-300">
-    <div className="flex items-center gap-0.5 text-[7px] font-bold uppercase leading-tight tracking-normal"><Trophy className="size-2 shrink-0"/><span>Match<br/>day</span></div>
-    <div className="mt-0.5 truncate text-[8px] font-semibold">{f.home?"H":"A"} · {f.opponent}</div>
-  </div>)}
+  {day.fixtures.slice(0,1).map((f:any,i:number)=>{
+    const ours=clubKitFor(state), theirs=clubKitForReference(state,f.opponentRef);
+    const home=f.home?{kit:ours,name:state.clubName}:{kit:theirs,name:f.opponent};
+    const away=f.home?{kit:theirs,name:f.opponent}:{kit:ours,name:state.clubName};
+    return <div key={i} className="max-w-full overflow-hidden rounded-md border border-emerald-500/20 bg-emerald-500/10 px-0.5 py-1 text-emerald-700 dark:text-emerald-300" title={`${home.name} vs ${away.name}`}>
+      <div className="flex items-center justify-center gap-0.5"><Trophy className="size-2.5 shrink-0 opacity-80"/><ClubBadge design={home.kit.badge} clubName={home.name} size={14}/><span className="text-[7px] font-bold opacity-60">v</span><ClubBadge design={away.kit.badge} clubName={away.name} size={14}/></div>
+    </div>
+  })}
   {day.events.slice(0,2).map((e:any)=><div key={e.id} className="truncate rounded bg-violet-500/10 px-1 py-0.5 text-[9px] text-violet-700 dark:text-violet-300">● {e.label}</div>)}
   {day.deadlineDay&&<div className="rounded bg-amber-500/15 px-1 py-0.5 text-[9px] font-bold text-amber-700 dark:text-amber-300">● Deadline</div>}
 </div>}
