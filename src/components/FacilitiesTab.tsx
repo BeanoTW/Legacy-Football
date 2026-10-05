@@ -31,7 +31,7 @@ import { stadiumAccreditation } from "@/lib/game/stadiumAccreditation";
 import { clubOperatingModel, professionaliseUserClub, userProfessionalisationReadiness } from "@/lib/game/employment";
 import { userClubReference } from "@/lib/game/clubReference";
 import { clubKitFor } from "@/lib/game/clubKit";
-import { sceneLook, type StandBuild } from "@/lib/game/groundIdentity";
+import { groundDesign, sceneLook, type StandBuild } from "@/lib/game/groundIdentity";
 import { approveStandBuild, isLevelRaising } from "@/lib/game/groundBuild";
 
 type SupportingView = "ground" | "projects" | "maintenance" | "history";
@@ -64,6 +64,8 @@ export function FacilitiesTab({ state, update }: { state: GameState; update: (fn
     const kit = clubKitFor(state).home;
     return sceneLook(state, { body: kit.body, secondary: kit.secondary });
   }, [state]);
+  // The ground is drawn stand-by-stand from the club's slot-based design.
+  const design = useMemo(() => groundDesign(state), [state]);
 
   if (!state.infrastructure || !snap || !progression) {
     return <div className="rounded-lg border bg-card p-6 text-sm text-muted-foreground">The club's physical assets have not been surveyed yet. Advance a week to open the ground.</div>;
@@ -121,7 +123,7 @@ export function FacilitiesTab({ state, update }: { state: GameState; update: (fn
       ) : null}
 
       <div className="lf-ground-layout min-h-0 flex-1">
-        <StadiumGround stage={progression.visualStage} hotspots={hotspots} selectedId={openAssetId} onSelect={(hotspot) => setOpenAssetId(hotspot.asset.id)} look={look} />
+        <StadiumGround stage={progression.visualStage} hotspots={hotspots} selectedId={openAssetId} onSelect={(hotspot) => setOpenAssetId(hotspot.asset.id)} look={look} design={design} />
 
         <aside className="lf-ground-sidebar space-y-2 pt-2 md:pt-0">
           <section className="border bg-card">
