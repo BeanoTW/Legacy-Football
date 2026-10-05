@@ -12,6 +12,7 @@ import { TransferHistory } from "./TransferHistory";
 import { Button } from "@/components/ui/button";
 import { fmtMoneyExact } from "@/lib/game/engine";
 import { openNegotiations, recruitmentSnapshot } from "@/lib/game/recruitment";
+import { delegateManagerRecruitmentPriorities } from "@/lib/game/managerRecruitmentBrief";
 import { chairmanShortlistIds } from "@/lib/game/recruitmentKnowledge";
 import { isUserClubReference } from "@/lib/game/clubReference";
 import { OverviewScreen, WorkflowTile } from "./shared/layout";
@@ -24,6 +25,29 @@ export function RecruitmentFlow({ state, update, destination }: { state: GameSta
     destination?.view === "operations" && "negotiationId" in destination ? destination.negotiationId : undefined,
   );
   const snap = useMemo(() => (state.football ? recruitmentSnapshot(state) : null), [state]);
+  const memoEventKey = destination?.view === "find" && "memoEventKey" in destination ? destination.memoEventKey : undefined;
+  const memoAssignment = useMemo(() => {
+    if (!memoEventKey) return null;
+    const manager = state.hiredStaff.find((staff) => staff.role === "Manager");
+    if (!manager) return null;
+    if (memoEventKey.startsWith("club-conversation:scouting-focus:")) {
+      return { manager, label: "Manager priorities" };
+    }
+    if (memoEventKey.startsWith("club-conversation:keeper-depth:")) {
+      return { manager, label: "Goalkeeper cover" };
+    }
+    return null;
+  }, [memoEventKey, state.hiredStaff]);
+
+  useEffect(() => {
+    if (!memoAssignment || !memoEventKey) return;
+    const flag = `recruitmentMemoAssigned:${memoEventKey}`;
+    if (state.inboxFlags[flag]) return;
+    update((current) => {
+      const delegated = delegateManagerRecruitmentPriorities(current, memoAssignment.manager);
+      return { ...delegated, inboxFlags: { ...delegated.inboxFlags, [flag]: true } };
+    });
+  }, [memoAssignment, memoEventKey, state.inboxFlags, update]);
 
   if (view === "find") {
     const hasBrief = Boolean(state.football?.scoutingDiscovery?.briefs.length);
