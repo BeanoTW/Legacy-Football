@@ -1127,11 +1127,6 @@ const PlayerDot = memo(function PlayerDot({
       >
         {player.shirtNumber}
       </span>
-
-        >
-          {playerSurname(player.name)}
-        </span>
-      )}
     </div>
   );
 });
