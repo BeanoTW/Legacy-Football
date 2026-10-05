@@ -299,7 +299,7 @@ export function AdvanceOverlay({
                 Close
               </Button>
               <Button className="ml-auto h-11" onClick={onContinue}>
-                <Play /> Advance 1 day
+                <Play /> Advance
               </Button>
             </>
           ) : isContinuing ? (
