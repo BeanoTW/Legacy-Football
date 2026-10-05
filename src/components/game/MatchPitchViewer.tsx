@@ -87,6 +87,9 @@ const PLAYER_FOLLOW_MS = 70;
 const PLAYER_SPRING_MS = 95;
 /** How quickly a player's facing turns (ms time constant). */
 const FACING_TURN_MS = 140;
+/** Ignore tiny spring-settling velocities so markers do not twitch between run and ball-facing. */
+const FACING_RUN_PX_S = 18;
+const FACING_SETTLE_PX_S = 7;
 /** The ball is tighter to its path so passes still feel crisp. */
 const BALL_FOLLOW_MS = 28;
 /** How long a detected teleport takes to blend out (ms time constant). */
@@ -538,6 +541,8 @@ interface Body {
   vy: number;
   /** Facing, radians on screen (0 = towards the right-hand goal). */
   face: number;
+  /** Hysteresis: once running, do not flip to ball-facing until genuinely settled. */
+  facingRun: boolean;
 }
 
 function stepBody(
@@ -549,7 +554,7 @@ function stepBody(
   followMs: number,
 ): Body {
   if (!body || snap) {
-    return { tx: target.x, ty: target.y, ox: 0, oy: 0, rx: target.x, ry: target.y, vx: 0, vy: 0, face: body?.face ?? 0 };
+    return { tx: target.x, ty: target.y, ox: 0, oy: 0, rx: target.x, ry: target.y, vx: 0, vy: 0, face: body?.face ?? 0, facingRun: body?.facingRun ?? false };
   }
   const jx = target.x - body.tx;
   const jy = target.y - body.ty;
@@ -833,10 +838,13 @@ function createEngine(deps: EngineDeps) {
       if (key === "ball") continue;
       const vxp = (body.vx * width) / 100;
       const vyp = (body.vy * height) / 100;
-      const want =
-        Math.hypot(vxp, vyp) > 14
-          ? Math.atan2(vyp, vxp)
-          : Math.atan2(((ballY - body.ry) * height) / 100, ((ballX - body.rx) * width) / 100);
+      const speedPx = Math.hypot(vxp, vyp);
+      if (body.facingRun ? speedPx < FACING_SETTLE_PX_S : speedPx > FACING_RUN_PX_S) {
+        body.facingRun = !body.facingRun;
+      }
+      const want = body.facingRun
+        ? Math.atan2(vyp, vxp)
+        : Math.atan2(((ballY - body.ry) * height) / 100, ((ballX - body.rx) * width) / 100);
       let delta = want - body.face;
       while (delta > Math.PI) delta -= Math.PI * 2;
       while (delta < -Math.PI) delta += Math.PI * 2;
