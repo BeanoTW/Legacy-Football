@@ -83,6 +83,9 @@ export interface ScoutingBrief {
   candidateLimit?: number;
   status: ScoutingBriefStatus;
   candidateIds: string[];
+  /** Staff-delegated searches can retain their operational origin for status/return messaging. */
+  delegatedBy?: string;
+  delegatedLabel?: string;
   /** Optional for backwards compatibility with briefs created before world discovery. */
   candidateSources?: Record<string, ScoutingCandidateSource>;
   /** Internal facts; chairman-facing reports reveal these progressively. */
@@ -116,6 +119,8 @@ export interface ScoutingBriefInput {
   clubStatus?: "free" | "contracted";
   minCurrentAbility?: number;
   playerLevel?: ScoutingPlayerLevel;
+  delegatedBy?: string;
+  delegatedLabel?: string;
 }
 
 interface CandidateBase {
@@ -308,13 +313,17 @@ function completeScoutingBriefInPlace(state: GameState, brief: ScoutingBrief): v
       id: `inbox-${hashString(eventKey).toString(36)}`,
       generatorId: "scouting-search",
       eventKey,
-      sender: state.football.department.headOfRecruitment || "Head Scout",
-      department: "Head Scout",
+      sender: brief.delegatedBy || state.football.department.headOfRecruitment || "Head Scout",
+      department: brief.delegatedBy ? "Director of Football" : "Head Scout",
       category: "transfers",
-      subject: `Scouting search complete: ${candidateIds.length} players found`,
-      body: searchCount > 1
-        ? `The scouting team has returned with ${candidateIds.length} candidates across ${searchCount} tailored position briefs. You can now ask for deeper scouting on individual players.`
-        : `The scouting team has returned with ${candidateIds.length} candidates and an initial assessment on each. You can now ask for deeper scouting on individual players.`,
+      subject: brief.delegatedLabel
+        ? `${brief.delegatedLabel}: ${candidateIds.length} candidates returned`
+        : `Scouting search complete: ${candidateIds.length} players found`,
+      body: brief.delegatedLabel
+        ? `Recruitment has completed the delegated ${brief.delegatedLabel.toLowerCase()} job and returned with ${candidateIds.length} candidates. Open the results to review the exact players before deciding whether anyone should be pursued.`
+        : searchCount > 1
+          ? `The scouting team has returned with ${candidateIds.length} candidates across ${searchCount} tailored position briefs. You can now ask for deeper scouting on individual players.`
+          : `The scouting team has returned with ${candidateIds.length} candidates and an initial assessment on each. You can now ask for deeper scouting on individual players.`,
       priority: "normal",
       week: state.week,
       season: state.season,
