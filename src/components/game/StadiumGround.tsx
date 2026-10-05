@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { InfrastructureAsset } from "@/lib/game/types";
 import { conditionBand } from "@/lib/game/infrastructure";
 import { buildGroundScene } from "@/lib/game/groundScene";
-import type { SceneLook } from "@/lib/game/groundIdentity";
+import type { GroundCameraMode, SceneLook } from "@/lib/game/groundIdentity";
 import { cn } from "@/lib/utils";
 
 export interface GroundHotspot {
@@ -132,6 +132,8 @@ export function StadiumGround({
   selectedId,
   onSelect,
   look,
+  interactiveCamera = true,
+  cameraMode = "orbit",
 }: {
   stage: number;
   hotspots: GroundHotspot[];
@@ -139,9 +141,13 @@ export function StadiumGround({
   onSelect: (hotspot: GroundHotspot) => void;
   /** The club's own look (groundIdentity.sceneLook). Optional. */
   look?: SceneLook;
+  interactiveCamera?: boolean;
+  cameraMode?: GroundCameraMode;
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const { width, height } = useViewportSize(viewportRef);
+  const [camera, setCamera] = useState({ azimuthDeg: -122, elevationDeg: 50, zoom: 1 });
+  const dragRef = useRef<{ id: number; x: number; y: number; az: number; el: number } | null>(null);
 
   const pitchCondition = Math.round((hotspots.find((h) => h.id === "pitch")?.asset.condition ?? 80) / 5) * 5;
   const worksKey = hotspots
@@ -161,8 +167,9 @@ export function StadiumGround({
         width,
         height,
         look: lookKey ? (JSON.parse(lookKey) as SceneLook) : undefined,
+        camera: { ...camera, mode: cameraMode },
       }),
-    [height, lookKey, pitchCondition, stage, width, worksKey],
+    [camera, cameraMode, height, lookKey, pitchCondition, stage, width, worksKey],
   );
 
   const strokeScale = scene.viewBox.w / width;
@@ -196,7 +203,32 @@ export function StadiumGround({
   const { x, y, w, h } = scene.viewBox;
 
   return (
-    <div ref={viewportRef} className={cn("lf-ground-viewport rounded-lg", `lf-ground-stage-${stage}`)} style={{ background: scene.background }}>
+    <div
+      ref={viewportRef}
+      className={cn("lf-ground-viewport rounded-lg", `lf-ground-stage-${stage}`)}
+      style={{ background: scene.background, touchAction: interactiveCamera ? "none" : undefined }}
+      onPointerDown={interactiveCamera ? (event) => {
+        event.currentTarget.setPointerCapture(event.pointerId);
+        dragRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY, az: camera.azimuthDeg, el: camera.elevationDeg };
+      } : undefined}
+      onPointerMove={interactiveCamera ? (event) => {
+        const drag = dragRef.current;
+        if (!drag || drag.id !== event.pointerId) return;
+        setCamera((current) => ({
+          ...current,
+          azimuthDeg: drag.az + (event.clientX - drag.x) * 0.35,
+          elevationDeg: Math.max(20, Math.min(75, drag.el - (event.clientY - drag.y) * 0.25)),
+        }));
+      } : undefined}
+      onPointerUp={interactiveCamera ? (event) => {
+        if (dragRef.current?.id === event.pointerId) dragRef.current = null;
+      } : undefined}
+      onPointerCancel={() => { dragRef.current = null; }}
+      onWheel={interactiveCamera ? (event) => {
+        event.preventDefault();
+        setCamera((current) => ({ ...current, zoom: Math.max(0.65, Math.min(2.2, current.zoom - event.deltaY * 0.001)) }));
+      } : undefined}
+    >
       <style>{SCENE_CSS}</style>
       <div className="lf-ground-scene-heading">
         <span className="lf-ground-scene-stage">Stage {stage + 1}</span>

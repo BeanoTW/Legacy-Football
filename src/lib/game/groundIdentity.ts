@@ -23,6 +23,34 @@ export type Cladding = "brick" | "modern" | "white";
 export type FloodlightStyle = "auto" | "pylons" | "masts" | "gantry";
 export type Mowing = "stripes" | "checks" | "diagonal";
 export type StandSide = "N" | "E" | "S" | "W";
+export type CornerSlot = "NW" | "NE" | "SW" | "SE";
+export type StandForm = "open" | "shelter" | "terrace" | "traditional" | "cantilever" | "twoTier";
+export type CornerForm = "open" | "access" | "pylon" | "terrace" | "seated";
+export type PerimeterStyle = "rail" | "chainLink" | "barrier" | "brick" | "hoardings";
+export type PerimeterColour = "white" | "club" | "green" | "galvanized";
+export type CarParkSurface = "gravel" | "tarmac";
+export type CarParkLocation = "NW" | "NE" | "SW" | "SE";
+export type GroundCameraMode = "orbit" | "matchday";
+
+export interface GroundStandDesign {
+  form: StandForm;
+  /** Capacity/quality progression stays independent from architectural form. */
+  level: number;
+  span: number;
+  depth: number;
+  setback: number;
+  standing: Standing;
+  roof: RoofStyle | "open";
+}
+
+export interface GroundCornerDesign { form: CornerForm; }
+export interface GroundDesign {
+  version: 1;
+  stands: Record<StandSide, GroundStandDesign>;
+  corners: Record<CornerSlot, GroundCornerDesign>;
+  perimeter: { style: PerimeterStyle; colour: PerimeterColour };
+  surroundings: { carParkSurface: CarParkSurface; carParkLocation: CarParkLocation };
+}
 
 export interface StandBuild {
   standing: Standing;
@@ -42,6 +70,8 @@ export interface GroundIdentityState {
   stands: Record<string, StandBuild>;
   /** Builds chosen with a project that has not completed yet. */
   pending: Record<string, StandBuild & { projectId: string }>;
+  /** Canonical slot-based ground design. Optional on old saves and derived deterministically. */
+  design?: GroundDesign;
   /** Number of paid cosmetic changes (keeps finance dedupe keys unique). */
   changes: number;
 }
@@ -67,6 +97,61 @@ export const DEFAULT_GROUND_IDENTITY: GroundIdentityState = {
 
 export function groundIdentity(s: GameState): GroundIdentityState {
   return { ...DEFAULT_GROUND_IDENTITY, ...(s.groundIdentity ?? {}) };
+}
+
+
+const SIDE_DEFAULT: Record<StandSide, GroundStandDesign> = {
+  N: { form: "open", level: 1, span: 28, depth: 7, setback: 4, standing: "terrace", roof: "open" },
+  E: { form: "shelter", level: 1, span: 28, depth: 7, setback: 4, standing: "terrace", roof: "pitched" },
+  S: { form: "open", level: 1, span: 28, depth: 7, setback: 4, standing: "terrace", roof: "open" },
+  W: { form: "traditional", level: 1, span: 36, depth: 9, setback: 4, standing: "terrace", roof: "pitched" },
+};
+
+function standFormFor(level: number, build: StandBuild): StandForm {
+  if (level <= 0) return "open";
+  if (level === 1) return build.standing === "terrace" ? "shelter" : "traditional";
+  if (level === 2) return build.standing === "terrace" ? "terrace" : "traditional";
+  if (build.roof === "twoTier" || level >= 5) return "twoTier";
+  return build.roof === "cantilever" ? "cantilever" : "traditional";
+}
+
+/** Deterministic adapter for pre-slot saves. Nothing is persisted merely by reading it. */
+export function groundDesign(s: GameState): GroundDesign {
+  const identity = groundIdentity(s);
+  if (identity.design?.version === 1) return identity.design;
+  const stands = structuredClone(SIDE_DEFAULT);
+  for (const asset of (s.infrastructure?.assets ?? []).filter((a) => a.type === "stand")) {
+    const side = asset.location as StandSide;
+    if (!(side in stands)) continue;
+    const build = standBuild(s, asset.id, asset.level);
+    const level = Math.max(0, Math.min(5, asset.level));
+    stands[side] = {
+      form: standFormFor(level, build),
+      level,
+      span: Math.min(side === "N" || side === "S" ? 58 : 96, 28 + level * 12),
+      depth: 6 + level * 3,
+      setback: level >= 3 ? 6 : 4,
+      standing: build.standing,
+      roof: level === 0 ? "open" : build.roof,
+    };
+  }
+  return {
+    version: 1,
+    stands,
+    corners: {
+      NW: { form: "open" }, NE: { form: "open" },
+      SW: { form: "open" }, SE: { form: "open" },
+    },
+    perimeter: { style: "rail", colour: "white" },
+    surroundings: { carParkSurface: "gravel", carParkLocation: "SW" },
+  };
+}
+
+/** Persist the deterministic legacy adapter when a write path wants canonical data. */
+export function ensureGroundDesign(s: GameState): GroundDesign {
+  const design = groundDesign(s);
+  s.groundIdentity = { ...groundIdentity(s), design: structuredClone(design) };
+  return s.groundIdentity.design!;
 }
 
 /* ------------------------------------------------------------------ */
