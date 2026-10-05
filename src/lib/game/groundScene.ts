@@ -26,6 +26,15 @@ export interface SceneInput {
   height: number;
   /** The club's own look. Optional: omitted means the default ground. */
   look?: SceneLook;
+  /** Orbit camera. Omitted values preserve the legacy aerial composition. */
+  camera?: {
+    azimuthDeg?: number;
+    elevationDeg?: number;
+    zoom?: number;
+    panX?: number;
+    panY?: number;
+    mode?: "orbit" | "matchday";
+  };
 }
 
 export interface ScenePrimitive {
@@ -107,20 +116,31 @@ function mix(a: string, b: string, t: number): string {
 /* Camera                                                              */
 /* ------------------------------------------------------------------ */
 
-const TARGET = v(-4, 2, 0);
+let TARGET = v(-4, 2, 0);
 const DISTANCE = 250;
-const ELEVATION = (50 * Math.PI) / 180;
-const AZIMUTH = (-122 * Math.PI) / 180;
 const FOCAL = 1000;
+let CAM = v(0, 0, DISTANCE);
+let FWD = v(0, 0, -1);
+let RIGHT = v(1, 0, 0);
+let UP = v(0, 1, 0);
 
-const CAM = v(
-  TARGET.x + DISTANCE * Math.cos(ELEVATION) * Math.cos(AZIMUTH),
-  TARGET.y + DISTANCE * Math.cos(ELEVATION) * Math.sin(AZIMUTH),
-  TARGET.z + DISTANCE * Math.sin(ELEVATION),
-);
-const FWD = norm(sub(TARGET, CAM));
-const RIGHT = norm(cross(FWD, v(0, 0, 1)));
-const UP = cross(RIGHT, FWD);
+function configureCamera(input: SceneInput): void {
+  const camera = input.camera;
+  const matchday = camera?.mode === "matchday";
+  const azimuth = ((matchday ? -90 : camera?.azimuthDeg ?? -122) * Math.PI) / 180;
+  const elevation = ((matchday ? 89.5 : Math.max(20, Math.min(75, camera?.elevationDeg ?? 50))) * Math.PI) / 180;
+  const zoom = Math.max(0.65, Math.min(2.2, camera?.zoom ?? 1));
+  TARGET = v((matchday ? 0 : -4) + (camera?.panX ?? 0), (matchday ? 0 : 2) + (camera?.panY ?? 0), 0);
+  const distance = DISTANCE / zoom;
+  CAM = v(
+    TARGET.x + distance * Math.cos(elevation) * Math.cos(azimuth),
+    TARGET.y + distance * Math.cos(elevation) * Math.sin(azimuth),
+    TARGET.z + distance * Math.sin(elevation),
+  );
+  FWD = norm(sub(TARGET, CAM));
+  RIGHT = norm(cross(FWD, v(0, 0, 1)));
+  UP = cross(RIGHT, FWD);
+}
 /** Direction towards the sun: low from behind-left so shadows fall to the right. */
 const SUN = norm(v(-0.55, 0.62, 0.62));
 const REF_DEPTH = DISTANCE;
@@ -1117,6 +1137,7 @@ function compose(scene: Scene, input: SceneInput, anchors: Record<string, V3>) {
 /* ------------------------------------------------------------------ */
 
 export function buildGroundScene(input: SceneInput): SceneOutput {
+  configureCamera(input);
   // Reset the palette and look for this build (pure: same input, same picture).
   Object.assign(C, BASE_C, { field: [...BASE_C.field] });
   LOOK = input.look;
