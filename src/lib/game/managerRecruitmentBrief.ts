@@ -119,6 +119,20 @@ export function managerRecruitmentBrief(state: GameState, manager: Staff): Manag
 }
 
 
+export interface RecruitmentDelegationAvailability {
+  available: boolean;
+  reason?: string;
+  head?: Staff;
+}
+
+export function recruitmentDelegationAvailability(state: GameState): RecruitmentDelegationAvailability {
+  const head = state.hiredStaff.find((staff) => staff.role === "Head of Transfers");
+  if (!head) return { available: false, reason: "Appoint a Head of Transfers before delegating recruitment." };
+  const scouts = state.hiredStaff.filter((staff) => staff.role === "Scout" || staff.role === "Chief Scout");
+  if (!scouts.length) return { available: false, reason: "Recruitment needs at least one Scout or Chief Scout to execute the search." };
+  return { available: true, head };
+}
+
 export function managerRecruitmentAssignmentId(state: GameState, manager: Staff): string {
   return `manager-delegated:${manager.id}:s${state.season}:w${state.week}`;
 }
@@ -135,12 +149,13 @@ export function activeManagerRecruitmentAssignment(state: GameState, manager: St
  * Staff own the search; the Owner-Director still owns the eventual signing decision.
  */
 export function delegateManagerRecruitmentPriorities(state: GameState, manager: Staff): GameState {
+  const availability = recruitmentDelegationAvailability(state);
   const priorities = managerRecruitmentBrief(state, manager).priorities;
-  if (!priorities.length || activeManagerRecruitmentAssignment(state, manager)) return state;
+  if (!availability.available || !priorities.length || activeManagerRecruitmentAssignment(state, manager)) return state;
   const capacity = Math.max(1, Math.min(4, state.hiredStaff.filter((staff) => staff.role === "Scout" || staff.role === "Chief Scout").length || 1));
   return createChairmanMultiScoutingBrief(state, {
     id: managerRecruitmentAssignmentId(state, manager),
-    delegatedBy: state.football.department.headOfRecruitment || "Head of Transfers",
+    delegatedBy: availability.head!.name,
     delegatedLabel: priorities[0]?.headline ?? "Manager recruitment request",
     positionBriefs: priorities.slice(0, capacity).map((priority) => ({
       position: priority.position,
