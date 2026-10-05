@@ -140,6 +140,8 @@ export function delegateManagerRecruitmentPriorities(state: GameState, manager: 
   const capacity = Math.max(1, Math.min(4, state.hiredStaff.filter((staff) => staff.role === "Scout" || staff.role === "Chief Scout").length || 1));
   return createChairmanMultiScoutingBrief(state, {
     id: managerRecruitmentAssignmentId(state, manager),
+    delegatedBy: state.football.department.headOfRecruitment || "Head of Transfers",
+    delegatedLabel: priorities[0]?.headline ?? "Manager recruitment request",
     positionBriefs: priorities.slice(0, capacity).map((priority) => ({
       position: priority.position,
       tacticalPosition: priority.tacticalPosition,
