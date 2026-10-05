@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Binoculars, Handshake, History, Repeat2, Shield, Star } from "lucide-react";
 import type { GameState } from "@/lib/game/types";
 import type { InboxDestination } from "@/lib/game/inboxNavigation";
