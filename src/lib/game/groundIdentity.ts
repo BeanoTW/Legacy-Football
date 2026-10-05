@@ -17,11 +17,11 @@ import type { GameState } from "./types";
 
 export type Standing = "terrace" | "safeStanding" | "seated";
 export type RoofStyle = "pitched" | "cantilever" | "twoTier";
-export type SeatScheme = "club" | "twoTone" | "classic" | "mono";
-export type RoofColour = "slate" | "club" | "white" | "charcoal";
-export type Cladding = "brick" | "modern" | "white";
+export type SeatScheme = "club" | "twoTone" | "classic" | "mono" | "red" | "blue" | "navy" | "black" | "white" | "amber" | "purple";
+export type RoofColour = "slate" | "club" | "white" | "charcoal" | "black" | "red" | "blue" | "green" | "cream" | "silver";
+export type Cladding = "brick" | "modern" | "white" | "darkBrick" | "black" | "club" | "blue" | "green" | "cream";
 export type FloodlightStyle = "auto" | "pylons" | "masts" | "gantry";
-export type Mowing = "stripes" | "checks" | "diagonal";
+export type Mowing = "stripes" | "checks" | "diagonal" | "wide" | "vertical";
 export type StandSide = "N" | "E" | "S" | "W";
 export type CornerSlot = "NW" | "NE" | "SW" | "SE";
 export type StandForm = "open" | "shelter" | "terrace" | "traditional" | "cantilever" | "twoTier";
@@ -336,22 +336,41 @@ export function groundIdentityModifiers(s: GameState): GroundIdentityModifiers {
 /* Looks                                                               */
 /* ------------------------------------------------------------------ */
 
-export const SEAT_SCHEMES: { id: SeatScheme; label: string }[] = [
+export const SEAT_SCHEMES: { id: SeatScheme; label: string; colours?: [string, string] }[] = [
   { id: "club", label: "Club colour" },
   { id: "twoTone", label: "Two-tone" },
-  { id: "classic", label: "Classic teal" },
-  { id: "mono", label: "Grey" },
+  { id: "classic", label: "Classic teal", colours: ["#1f6f69", "#185a55"] },
+  { id: "mono", label: "Grey", colours: ["#7d858b", "#6c7379"] },
+  { id: "red", label: "Red", colours: ["#c62828", "#8e1b1b"] },
+  { id: "blue", label: "Royal blue", colours: ["#2463b4", "#17427d"] },
+  { id: "navy", label: "Navy", colours: ["#243b63", "#172641"] },
+  { id: "black", label: "Black", colours: ["#25282b", "#111315"] },
+  { id: "white", label: "White", colours: ["#e8e9e7", "#cfd2d2"] },
+  { id: "amber", label: "Amber", colours: ["#d99a19", "#a66f0d"] },
+  { id: "purple", label: "Purple", colours: ["#7047a8", "#4c2d78"] },
 ];
 export const ROOF_COLOURS: { id: RoofColour; label: string; hex: string; dark: string }[] = [
   { id: "slate", label: "Slate", hex: "#56616c", dark: "#3e4852" },
   { id: "club", label: "Club colour", hex: "", dark: "" },
   { id: "white", label: "White", hex: "#dfe3e6", dark: "#b9c0c6" },
   { id: "charcoal", label: "Charcoal", hex: "#33383d", dark: "#24282c" },
+  { id: "black", label: "Black", hex: "#202326", dark: "#101214" },
+  { id: "red", label: "Red", hex: "#a92f31", dark: "#712022" },
+  { id: "blue", label: "Blue", hex: "#315d91", dark: "#203e62" },
+  { id: "green", label: "Green", hex: "#2f6848", dark: "#204831" },
+  { id: "cream", label: "Cream", hex: "#d8d0ba", dark: "#aaa18a" },
+  { id: "silver", label: "Silver", hex: "#aab0b5", dark: "#737a80" },
 ];
 export const CLADDINGS: { id: Cladding; label: string; hex: string }[] = [
   { id: "brick", label: "Red brick", hex: "#9a5d42" },
+  { id: "darkBrick", label: "Dark brick", hex: "#68463d" },
   { id: "modern", label: "Grey cladding", hex: "#c9ccd0" },
   { id: "white", label: "White render", hex: "#eceae4" },
+  { id: "black", label: "Black panels", hex: "#35393c" },
+  { id: "club", label: "Club colour", hex: "" },
+  { id: "blue", label: "Blue panels", hex: "#496b8f" },
+  { id: "green", label: "Green panels", hex: "#4d725b" },
+  { id: "cream", label: "Cream render", hex: "#d8d0ba" },
 ];
 export const FLOODLIGHT_STYLES: { id: FloodlightStyle; label: string }[] = [
   { id: "auto", label: "Match the ground" },
@@ -361,6 +380,8 @@ export const FLOODLIGHT_STYLES: { id: FloodlightStyle; label: string }[] = [
 ];
 export const MOWING_PATTERNS: { id: Mowing; label: string }[] = [
   { id: "stripes", label: "Stripes" },
+  { id: "wide", label: "Wide stripes" },
+  { id: "vertical", label: "Lengthways" },
   { id: "checks", label: "Checks" },
   { id: "diagonal", label: "Diagonal" },
 ];
@@ -387,14 +408,13 @@ function darken(hex: string, f: number): string {
 
 export function sceneLook(s: GameState, clubColours: { body: string; secondary: string }): SceneLook {
   const identity = groundIdentity(s);
+  const seatScheme = SEAT_SCHEMES.find((option) => option.id === identity.seats);
   const seats =
     identity.seats === "club"
       ? [clubColours.body, darken(clubColours.body, 0.8)]
       : identity.seats === "twoTone"
         ? [clubColours.body, clubColours.secondary]
-        : identity.seats === "mono"
-          ? ["#7d858b", "#6c7379"]
-          : ["#1f6f69", "#185a55"];
+        : seatScheme?.colours ?? ["#1f6f69", "#185a55"];
   const roof = ROOF_COLOURS.find((r) => r.id === identity.roof) ?? ROOF_COLOURS[0];
   const roofHex = roof.id === "club" ? darken(clubColours.body, 0.85) : roof.hex;
   const roofDark = roof.id === "club" ? darken(clubColours.body, 0.62) : roof.dark;
@@ -413,7 +433,7 @@ export function sceneLook(s: GameState, clubColours: { body: string; secondary: 
     twoTone: identity.seats === "twoTone",
     roof: roofHex,
     roofDark,
-    cladding: (CLADDINGS.find((c) => c.id === identity.cladding) ?? CLADDINGS[0]).hex,
+    cladding: identity.cladding === "club" ? clubColours.body : (CLADDINGS.find((c) => c.id === identity.cladding) ?? CLADDINGS[0]).hex,
     floodlights: identity.floodlights,
     mowing: identity.mowing,
     homeEnd: identity.homeEnd,
