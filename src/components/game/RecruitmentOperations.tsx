@@ -1,4 +1,4 @@
-type Act = (fn: (s: GameState) => GameState | { state: GameState; [key: string]: unknown }, message?: string) => void;
+type Act = (fn: (s: GameState) => { state: GameState; result: { ok: boolean; reason: string } }) => void;
 import { useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import type { GameState } from "@/lib/game/types";
