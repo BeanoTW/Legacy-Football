@@ -853,7 +853,15 @@ class Possession {
   pass(receiver: MatchLineupPlayer, point: MatchPitchPoint, kind: FootballActionKind): void {
     const distance = metres(this.ball, point);
     const base = kind === "cross" ? 1 : kind === "switch" ? 0.62 : 0.38;
-    const weight = Math.max(kind === "switch" ? 0.85 : 0.5, base + distance * 0.012) * this.tempo;
+    const receiverNow = this.attackPositions().get(receiver.playerId) ?? point;
+    const runnerDistance = metres(receiverNow, point);
+    // A lofted switch/overlap must leave enough visual time for the receiver's
+    // run. This prevents a full-back being forced to outrun the movement model.
+    const runnerWeight =
+      kind === "switch" || kind === "overlap"
+        ? runnerDistance / (9.2 * 1.5)
+        : 0;
+    const weight = Math.max(kind === "switch" ? 0.85 : 0.5, base + distance * 0.012, runnerWeight) * this.tempo;
     this.push({
       kind,
       side: this.cfg.side,
