@@ -1442,7 +1442,7 @@ export function MatchPitchViewer({
   const atLiveEdge = timeline.position >= timeline.frontier - 0.02;
   const nonPlay = !plan.sequence && !view.inBridge ? plan.active : null;
   const modeBadge = view.inBridge && bridge
-    ? `▶▶ ${bridge.fromMinute}′ → ${bridge.toMinute}′`
+    ? null
     : nonPlay
       ? nonPlay.type === "card"
         ? "🟨 Booking"
@@ -1451,12 +1451,9 @@ export function MatchPitchViewer({
           : nonPlay.type === "injury"
             ? "✚ Injury"
             : null
-      : plan.sequence
-        ? "Key moment"
-        : null;
+      : null;
   const showPassLine = !!activeAction && PASS_KINDS.has(activeAction.kind);
-  // With the home-ground chip in the top-right, top-centre badges sit below it.
-  const topSlot = ground ? "top-[3.4rem]" : "top-3";
+  const topSlot = "top-3";
   const markers = events
     .map((event, index) => ({ event, index }))
     .filter(({ event, index }) => (event.type === "goal" || event.type === "chance" || event.type === "card") && index + 0.95 <= timeline.frontier);
@@ -1480,64 +1477,27 @@ export function MatchPitchViewer({
         expanded ? "h-full flex-1 p-3 sm:p-4" : "border-b p-2.5 sm:p-3",
       )}
     >
-      <div className="mb-1.5 flex items-center justify-between gap-2 text-xs font-semibold tnum">
-        <span className="min-w-0 flex-1 truncate">{usName}</span>
-        <strong className="shrink-0 rounded bg-black/25 px-2 py-0.5 font-display text-base">
-          {replayScore.us}–{replayScore.them}
-        </strong>
-        <span className="min-w-0 flex-1 truncate text-right text-white/65">{themName}</span>
-      </div>
-      <div className={cn("lf-led mb-1.5", showGoal && "is-goal")} aria-hidden="true">
-        <div className="lf-led-track">
-          {showGoal
-            ? "GOAL! GOAL! GOAL! GOAL! GOAL! GOAL! GOAL! GOAL!"
-            : `${usName.toUpperCase()} · ${themName.toUpperCase()} · LEGACY FOOTBALL · MATCHDAY LIVE · ${usName.toUpperCase()} · ${themName.toUpperCase()} · LEGACY FOOTBALL · MATCHDAY LIVE ·`}
+      <div className="mb-2 flex items-center gap-2">
+        <div className="min-w-0 flex-1 text-right">
+          <div className="truncate text-[11px] font-bold text-white/85">{usName}</div>
         </div>
-      </div>
-      <div className="mb-2">
-        <div className="grid grid-cols-3 overflow-hidden rounded-lg border border-white/10 bg-white/5" role="radiogroup" aria-label="How much of the match to show">
-          {VIEW_MODES.map((mode) => (
-            <button
-              key={mode.id}
-              type="button"
-              role="radio"
-              aria-checked={viewMode === mode.id}
-              onClick={() => setViewMode(mode.id)}
-              className={cn(
-                "whitespace-nowrap px-1 py-1.5 text-[9px] font-bold uppercase tracking-wide",
-                viewMode === mode.id ? "bg-emerald-400 text-[#07130f]" : "text-white/60 hover:bg-white/10",
-              )}
-            >
-              {mode.label}
-            </button>
-          ))}
+        <div className="flex shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-1 shadow-sm">
+          <strong className="font-display text-xl leading-none tnum">{replayScore.us}–{replayScore.them}</strong>
+          <span className="text-[9px] font-black uppercase tracking-wide text-emerald-300 tnum">{view.minute}'</span>
         </div>
-      </div>
-
-      <div className="mb-1.5 flex items-center gap-2">
-        <div className="text-[8px] font-bold uppercase tracking-[0.16em] text-white/45">Momentum</div>
-        <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-white/10" role="meter" aria-label="Momentum" aria-valuemin={-100} aria-valuemax={100} aria-valuenow={Math.round(momentum * 100)}>
-          <div className="absolute inset-y-0 left-1/2 w-px bg-white/40" />
-          <div
-            className={cn("absolute inset-y-0 rounded-full transition-all duration-700", momentum >= 0 ? "left-1/2 bg-emerald-400" : "right-1/2 bg-rose-400")}
-            style={{ width: `${Math.abs(momentum) * 50}%` }}
-          />
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[11px] font-bold text-white/70">{themName}</div>
         </div>
-        <button
-          type="button"
-          onClick={() => setStatsOpen((open) => !open)}
-          className={cn("rounded-md px-2 py-0.5 text-[9px] font-black uppercase tracking-wide", statsOpen ? "bg-white text-[#07130f]" : "bg-white/10 text-white/75")}
-          aria-expanded={statsOpen}
-        >
-          Stats
-        </button>
+        <button type="button" onClick={() => setStatsOpen((open) => !open)}
+          className={cn("shrink-0 rounded-lg px-2 py-1 text-[9px] font-black uppercase tracking-wide", statsOpen ? "bg-white text-[#07130f]" : "bg-white/10 text-white/70")}
+          aria-expanded={statsOpen}>Stats</button>
       </div>
       <div
         className={cn(
           celebrating && "lf-shake",
           `lf-wx-${weatherKind}`,
           "relative w-full overflow-hidden rounded-2xl border border-white/25 bg-[linear-gradient(90deg,#17764f_0%,#17764f_12.5%,#1b8056_12.5%,#1b8056_25%,#17764f_25%,#17764f_37.5%,#1b8056_37.5%,#1b8056_50%,#17764f_50%,#17764f_62.5%,#1b8056_62.5%,#1b8056_75%,#17764f_75%,#17764f_87.5%,#1b8056_87.5%,#1b8056_100%)] shadow-inner",
-          expanded ? "aspect-[1.58/1] max-h-[calc(100dvh-17rem)] flex-1" : "aspect-[1.62/1] max-h-52",
+          expanded ? "aspect-[1.58/1] max-h-[calc(100dvh-12rem)] flex-1" : "aspect-[1.62/1] max-h-64",
         )}
       >
         {ground && groundScene && <MatchGroundFrame ground={ground} scene={groundScene} />}
@@ -1722,24 +1682,11 @@ export function MatchPitchViewer({
           </button>
         </div>
         <div className="absolute bottom-2 right-2 rounded bg-black/45 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-white/75 backdrop-blur-sm">
-          {view.inBridge ? "Condensed play" : actionStage(activeAction, plan.active)}
+          {actionStage(activeAction, plan.active)}
         </div>
       </div>
 
-      <div className="mt-2 rounded-xl border border-white/10 bg-black/15 px-2.5 py-2">
-        <div className="mb-1.5 flex items-center justify-between gap-2 text-[9px] font-bold uppercase tracking-wide text-white/45">
-          <span>Played match history</span>
-          <span>
-            {playing && atLiveEdge
-              ? `LIVE · ${view.minute}'`
-              : `PAUSED · ${view.minute}' · played to ${Math.round(timeline.playedTo)}'`}
-          </span>
-        </div>
-        <div className="mb-1 flex items-center justify-between px-0.5 text-[9px] text-white/35">
-          <span>0'</span>
-          <span>Drag left to replay · rewinding pauses the match</span>
-          <span>{Math.round(timeline.playedTo)}'</span>
-        </div>
+      <div className="mt-2 rounded-xl border border-white/10 bg-black/15 p-1.5">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -1813,7 +1760,7 @@ export function MatchPitchViewer({
           >
             {soundOn ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
           </button>
-          <div className="flex shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white/5">
+          <div className="hidden sm:flex shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white/5">
             {PLAYBACK_SPEEDS.map((option) => (
               <button
                 key={option}
@@ -1852,7 +1799,7 @@ export function MatchPitchViewer({
 
       <div
         className={cn(
-          "mt-2 min-h-12 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs leading-snug",
+          "mt-1.5 min-h-9 rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5 text-[11px] leading-snug",
           activeAction?.kind === "goal" && "border-amber-300/40 bg-amber-300/10",
         )}
         aria-live="polite"

@@ -194,11 +194,11 @@ export function MatchDayOverlay({
           </div>
 
           {/* Scoreboard */}
-          <section className="relative shrink-0 overflow-hidden bg-[radial-gradient(circle_at_50%_130%,#258660_0%,#123d2e_40%,#07130f_80%)] px-3 pb-3 pt-3 text-white sm:px-8 sm:pb-4">
+          <section className="relative shrink-0 overflow-hidden bg-[radial-gradient(circle_at_50%_130%,#258660_0%,#123d2e_40%,#07130f_80%)] px-3 pb-2 pt-2 text-white sm:px-8 sm:pb-3">
             <div className="grid grid-cols-[1fr_auto_1fr] items-start gap-2 sm:gap-6">
               <TeamSide name={homeName} badge={home ? ours.badge : theirs.badge} scorers={homeScorers} />
               <div className="flex flex-col items-center pt-1">
-                <div className="whitespace-nowrap font-display text-5xl leading-none tnum sm:text-6xl" aria-live="polite">
+                <div className="whitespace-nowrap font-display text-4xl leading-none tnum sm:text-5xl" aria-live="polite">
                   <span key={`h${homeGoals}`} className={homeGoals ? "lf-score-pop" : undefined}>{homeGoals}</span>
                   <span className="mx-2 text-white/35 sm:mx-3">–</span>
                   <span key={`a${awayGoals}`} className={awayGoals ? "lf-score-pop" : undefined}>{awayGoals}</span>
@@ -234,7 +234,7 @@ export function MatchDayOverlay({
           {lm.status !== "brief" ? (
             <section className="shrink-0 border-b bg-[#0c211a] px-3 pb-2 pt-1 text-white sm:px-6">
               <MatchTimeline events={visible} minute={finishedReplay ? (lm.status === "fullTime" ? 90 : 45) : minute} ourKit={ourKit} theirKit={theirKit} />
-              <div className="mt-1.5 grid grid-cols-3 text-center text-[11px]">
+              <div className="mt-1 flex items-center justify-center gap-4 text-center text-[10px] text-white/70">
                 <PulseStat label="Possession" value={`${possession}%`} />
                 <PulseStat label="Chances" value={`${liveChances("us").length}–${liveChances("them").length}`} />
                 <PulseStat label="xG" value={`${liveXg("us").toFixed(1)}–${liveXg("them").toFixed(1)}`} />
