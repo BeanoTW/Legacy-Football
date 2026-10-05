@@ -92,8 +92,10 @@ const FACING_RUN_PX_S = 18;
 const FACING_SETTLE_PX_S = 7;
 /** The ball is tighter to its path so passes still feel crisp. */
 const BALL_FOLLOW_MS = 28;
-/** How long a detected teleport takes to blend out (ms time constant). */
+/** How long ordinary target corrections take to blend out. */
 const JUMP_BLEND_MS = 320;
+/** Sequence hand-offs need a softer, longer blend so shape resets do not look like sideways skating. */
+const SEQUENCE_BLEND_MS = 520;
 /** Clamp for long frames (tab switches, GC pauses) so nothing lurches. */
 const MAX_FRAME_MS = 64;
 /** Slider/timeline state is pushed to React at most this often. */
@@ -552,6 +554,7 @@ function stepBody(
   jumpLimit: number,
   snap: boolean,
   followMs: number,
+  blendMs = JUMP_BLEND_MS,
 ): Body {
   if (!body || snap) {
     return { tx: target.x, ty: target.y, ox: 0, oy: 0, rx: target.x, ry: target.y, vx: 0, vy: 0, face: body?.face ?? 0, facingRun: body?.facingRun ?? false };
@@ -565,7 +568,7 @@ function stepBody(
   }
   body.tx = target.x;
   body.ty = target.y;
-  const decay = Math.exp(-dt / JUMP_BLEND_MS);
+  const decay = Math.exp(-dt / blendMs);
   body.ox *= decay;
   body.oy *= decay;
   const goalX = body.tx + body.ox;
@@ -663,6 +666,8 @@ function createEngine(deps: EngineDeps) {
   let camY = 50;
   let ballX = 50;
   let ballY = 50;
+  let lastCursor = -1;
+  let lastBridge: boolean | null = null;
   const dives = new Map<string, string>();
   let layer: HTMLElement | null = null;
 
@@ -751,6 +756,9 @@ function createEngine(deps: EngineDeps) {
     const pb = deps.playback.current;
     const sample = samplePlan(plan, pb.progress);
     const { ctx } = deps.latest.current;
+    const sequenceHandoff = !snap && (lastCursor !== pb.cursor || (lastBridge !== null && lastBridge !== sample.inBridge));
+    lastCursor = pb.cursor;
+    lastBridge = sample.inBridge;
 
     if (pb.cursor + pb.progress >= pb.frontier - 0.002) {
       pb.playedTo = Math.max(pb.playedTo, sample.minute);
@@ -791,7 +799,15 @@ function createEngine(deps: EngineDeps) {
     const jumpLimit = (3 + 1.5 * pb.speed) * Math.max(1, dt / 16.7);
     let settled = true;
     const place = (key: string, target: MatchPitchPoint, followMs: number) => {
-      const body = stepBody(bodies.get(key), target, dt, jumpLimit, snap, followMs);
+      const body = stepBody(
+        bodies.get(key),
+        target,
+        dt,
+        sequenceHandoff ? Math.min(jumpLimit, 2.5) : jumpLimit,
+        snap,
+        followMs,
+        sequenceHandoff ? SEQUENCE_BLEND_MS : JUMP_BLEND_MS,
+      );
       bodies.set(key, body);
       if (!bodySettled(body)) settled = false;
     };
@@ -983,6 +999,8 @@ function createEngine(deps: EngineDeps) {
         pb.playedTo = 0;
         pb.knownLength = 0;
         bodies.clear();
+        lastCursor = -1;
+        lastBridge = null;
         deps.hudRef.current = null;
         lastReport = "";
       }
