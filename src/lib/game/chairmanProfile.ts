@@ -38,11 +38,18 @@ export type HairStyle =
   | "twists"
   | "cornrows"
   | "afroLong"
-  | "locs";
+  | "locs"
+  | "frenchCrop"
+  | "undercut"
+  | "pompadour"
+  | "shag"
+  | "lob"
+  | "boxBraids"
+  | "afroPuffs";
 
-export type FacialHair = "none" | "stubble" | "moustache" | "goatee" | "short" | "full";
-export type Outfit = "suit" | "openCollar" | "quarterZip" | "knit" | "overcoat" | "waistcoat" | "shirtTie" | "turtleneck" | "polo" | "tracksuit" | "puffer";
-export type Eyewear = "none" | "round" | "rectangle";
+export type FacialHair = "none" | "stubble" | "designer" | "moustache" | "horseshoe" | "goatee" | "vandyke" | "chinstrap" | "short" | "full";
+export type Outfit = "suit" | "openCollar" | "quarterZip" | "knit" | "overcoat" | "waistcoat" | "shirtTie" | "turtleneck" | "polo" | "tracksuit" | "puffer" | "doubleBreasted" | "trench" | "bomber" | "hoodie" | "gilet" | "blazerTee";
+export type Eyewear = "none" | "round" | "rectangle" | "aviator" | "browline" | "wire";
 
 export interface ChairmanAvatar {
   sex: ChairmanSex;
@@ -152,28 +159,45 @@ export const HAIR_STYLES: { id: HairStyle; label: string; for: ChairmanSex[]; gr
   { id: "cornrows", label: "Cornrows", for: ["male","female"], group: "Afro & textured" },
   { id: "afroLong", label: "Big afro", for: ["female","male"], group: "Afro & textured" },
   { id: "locs", label: "Locs", for: ["male","female"], group: "Afro & textured" },
+  { id: "boxBraids", label: "Box braids", for: ["female","male"], group: "Afro & textured" },
+  { id: "afroPuffs", label: "Afro puffs", for: ["female","male"], group: "Afro & textured" },
+  { id: "frenchCrop", label: "French crop", for: ["male","female"], group: "Modern" },
+  { id: "undercut", label: "Undercut", for: ["male","female"], group: "Modern" },
+  { id: "pompadour", label: "Pompadour", for: ["male","female"], group: "Classic" },
+  { id: "shag", label: "Shag", for: ["female","male"], group: "Longer" },
+  { id: "lob", label: "Long bob", for: ["female","male"], group: "Longer" },
 ];
 
 export const FACIAL_HAIR: { id: FacialHair; label: string }[] = [
   { id: "none", label: "Clean shaven" },
   { id: "stubble", label: "Stubble" },
+  { id: "designer", label: "Heavy stubble" },
   { id: "moustache", label: "Moustache" },
+  { id: "horseshoe", label: "Horseshoe" },
   { id: "goatee", label: "Goatee" },
+  { id: "vandyke", label: "Van Dyke" },
+  { id: "chinstrap", label: "Chinstrap" },
   { id: "short", label: "Short beard" },
   { id: "full", label: "Full beard" },
 ];
 
 export const OUTFITS: { id: Outfit; label: string }[] = [
   { id: "suit", label: "Suit & tie" },
+  { id: "doubleBreasted", label: "Double-breasted" },
   { id: "waistcoat", label: "Three-piece" },
   { id: "openCollar", label: "Blazer, open collar" },
   { id: "turtleneck", label: "Blazer & roll-neck" },
   { id: "shirtTie", label: "Shirt & tie" },
+  { id: "blazerTee", label: "Blazer & tee" },
   { id: "overcoat", label: "Overcoat & scarf" },
+  { id: "trench", label: "Trench coat" },
   { id: "puffer", label: "Touchline coat" },
   { id: "quarterZip", label: "Club quarter-zip" },
   { id: "tracksuit", label: "Club tracksuit" },
   { id: "polo", label: "Club polo" },
+  { id: "gilet", label: "Club gilet" },
+  { id: "bomber", label: "Bomber jacket" },
+  { id: "hoodie", label: "Hoodie" },
   { id: "knit", label: "Knitted jumper" },
 ];
 
@@ -181,6 +205,9 @@ export const EYEWEAR: { id: Eyewear; label: string }[] = [
   { id: "none", label: "None" },
   { id: "round", label: "Round frames" },
   { id: "rectangle", label: "Rectangular frames" },
+  { id: "browline", label: "Browline" },
+  { id: "wire", label: "Thin wire" },
+  { id: "aviator", label: "Aviators" },
 ];
 
 export const DEFAULT_AVATAR: ChairmanAvatar = {

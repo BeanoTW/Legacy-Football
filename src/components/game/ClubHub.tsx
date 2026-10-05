@@ -88,7 +88,7 @@ export function ClubHub({ state, update, setTab, isContinuing, onAdvanceTo }: { 
   const deskItems = topDecisions.length > 0 ? topDecisions : unreadBriefings.slice(0, 2);
   const latestNews = state.inbox.filter((item) => !decisionItems.some((decision) => decision.id === item.id)).slice().sort((a, b) => b.season - a.season || b.week - a.week || b.id.localeCompare(a.id))[0];
   const staffMatter = state.inbox
-    .filter((item) => item.generatorId === "club-conversations" && item.department !== "Players" && item.status !== "resolved")
+    .filter((item) => item.generatorId === "club-conversations" && item.department !== "Players" && item.status !== "completed")
     .slice()
     .sort((a, b) => (a.status === "awaitingDecision" ? -1 : 0) - (b.status === "awaitingDecision" ? -1 : 0) || b.season - a.season || b.week - a.week)[0];
   const activeNegotiations = state.football?.negotiations?.filter((negotiation) => negotiation.stage !== "completed" && negotiation.stage !== "withdrawn" && negotiation.stage !== "rejected").length ?? 0;
