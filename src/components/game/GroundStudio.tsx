@@ -279,7 +279,8 @@ export function GroundStudioSheet({
           </section>
         </div>
 
-        <div className="sticky bottom-0 border-t bg-card p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+        <div className="sticky bottom-0 grid grid-cols-[auto_minmax(0,1fr)] gap-2 border-t bg-card p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+          <Button variant="outline" size="icon" aria-label="Reset cosmetic changes" disabled={!changed} onClick={() => { setDraft({ seats: identity.seats, roof: identity.roof, cladding: identity.cladding, floodlights: identity.floodlights, mowing: identity.mowing, homeEnd: identity.homeEnd }); setGroundName(identity.groundName ?? ""); }}><RotateCcw className="size-4" /></Button>
           <Button className="w-full" disabled={!changed} onClick={apply}>
             {changed ? (cost > 0 ? `Apply · ${fmtMoneyExact(cost)}` : "Apply · free") : "No changes"}
           </Button>
