@@ -203,15 +203,6 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
       setTab("inbox");
       return;
     }
-    // Matchday is already the next required action: Advance should take the
-    // director straight into the fixture rather than opening a redundant
-    // preview that immediately stops again.
-    if (state.liveMatch) {
-      stopContinue();
-      setShowAdvancePreview(false);
-      setTab("hub");
-      return;
-    }
     setAdvanceStart(state);
     setLastTarget(target ?? null);
     setShowAdvancePreview(true);
