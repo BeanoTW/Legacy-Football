@@ -7,7 +7,7 @@ import { transferTargetPlayer } from "./recruitmentTargetBridge";
  */
 export type InboxDestination =
   | { tab: "recruitment"; view: "reports"; playerId: string; label: string }
-  | { tab: "recruitment"; view: "find"; briefId: string; label: "View scouting results" | "Assign to Recruitment" }
+  | { tab: "recruitment"; view: "find"; briefId: string; memoEventKey?: string; label: "View scouting results" | "Assign to Recruitment" }
   | { tab: "recruitment"; view: "operations"; negotiationId: string; label: "View negotiation" }
   | { tab: "recruitment"; view: "operations"; label: "Open transfers" }
   | { tab: "squad"; playerId: string; label: string }
@@ -41,7 +41,7 @@ export function inboxDestination(state: GameState, item: InboxItem): InboxDestin
     item.eventKey.startsWith("club-conversation:scouting-focus:") ||
     item.eventKey.startsWith("club-conversation:keeper-depth:")
   )) {
-    return { tab: "recruitment", view: "find", briefId: "", label: "Assign to Recruitment" };
+    return { tab: "recruitment", view: "find", briefId: "", memoEventKey: item.eventKey, label: "Assign to Recruitment" };
   }
   if (item.generatorId === "club-conversations" && item.eventKey.startsWith("club-conversation:contracts:")) {
     return { tab: "recruitment", view: "operations", label: "Review contracts" };
