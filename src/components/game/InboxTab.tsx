@@ -564,11 +564,11 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
   const manager = currentManager(state);
   const managerAdvice = incomingNegotiation && incomingPlayer && manager ? (() => {
     const listed = incomingPlayer.transferStatus === "listed";
-    const premium = incomingPlayer.marketValue > 0 ? incomingNegotiation.fee / incomingPlayer.marketValue : 1;
-    if (listed && premium >= 1) return `I'm comfortable with this. We've listed ${incomingPlayer.firstName}, and the bid is at least around his value. From the football side, I'd be happy for you to accept.`;
-    if (listed) return `I'm fine with selling him because he's already on the transfer list, but I'd push them higher before accepting. I don't think we need to take this number immediately.`;
-    if (premium >= 1.35) return `I wasn't planning to lose him, but that's a strong offer. I could work with the sale if you think the money helps us more — ideally with a replacement lined up.`;
-    return `I'd rather keep him. He isn't transfer listed and this offer isn't strong enough for me to recommend disrupting the squad. Reject it or make them pay a clear premium.`;
+    const role = incomingNegotiation.proposedRole;
+    if (listed) return `I'm comfortable with ${incomingPlayer.firstName} leaving. He's already on the transfer list, so from the football side I can plan without him. Recruitment can advise you on the price.`;
+    if (role === "Prospect") return `I wouldn't push him out, but he's not central to my current first-team plans. If you decide to sell, I can work around it; let Recruitment judge whether the deal itself is good enough.`;
+    if (role === "Rotation") return `I'd prefer to keep him for squad depth. If he goes, I'd want us to make sure the position is covered. Recruitment should advise you on the financial side.`;
+    return `I'd rather keep him. He's part of my first-team plans and isn't transfer listed. If you do decide to sell, I'd want a replacement lined up; Recruitment can advise you on the valuation.`;
   })() : null;
 
   return (
