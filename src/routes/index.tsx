@@ -15,6 +15,7 @@ import { DashboardTab } from "@/components/game/DashboardTab";
 import { CashFlowTab } from "@/components/game/CashFlowTab";
 import { TicketsTab } from "@/components/game/TicketsTab";
 import { FixturesTab } from "@/components/game/FixturesTab";
+import { ClubCalendar } from "@/components/game/ClubCalendar";
 import { HistoryTab } from "@/components/game/HistoryTab";
 import { StaffTab } from "@/components/game/StaffTab";
 import { AcademyTab } from "@/components/game/AcademyTab";
@@ -316,6 +317,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
             {tab === "academy" && <AcademyTab state={state} update={update} />}
             {tab === "stadium" && <FacilitiesFlow state={state} update={update} />}
             {tab === "fixtures" && <FixturesTab state={state} update={update} />}
+            {tab === "calendar" && <ClubCalendar state={state} />}
             {tab === "board" && <BoardTab state={state} />}
             {tab === "commercial" && <CommercialTab state={state} update={update} />}
             {tab === "world" && <WorldInspector state={state} update={update} />}

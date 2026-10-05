@@ -32,6 +32,7 @@ export type Tab =
   | "academy"
   | "stadium"
   | "fixtures"
+  | "calendar"
   | "leagues"
   | "world"
   | "history"
@@ -49,6 +50,7 @@ export const ALL_TABS: TabDef[] = [
   ["cashflow", "Finances", CircleDollarSign],
   ["stadium", "Facilities", Building2],
   ["fixtures", "Matches", Calendar],
+  ["calendar", "Calendar", Calendar],
   ["board", "Board", Gavel],
   ["commercial", "Commercial", Handshake],
   ["tickets", "Tickets", Ticket],
