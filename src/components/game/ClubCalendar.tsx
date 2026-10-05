@@ -6,6 +6,7 @@ import { clubDisplayName } from "@/lib/game/clubReference";
 import { clubPresentationName } from "@/lib/game/clubPresentation";
 import { cn } from "@/lib/utils";
 import { ClubBadge } from "./ClubKitArt";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { clubKitFor, clubKitForReference } from "@/lib/game/clubKit";
 
 const FULL_DAY = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"] as const;
@@ -49,9 +50,12 @@ function DayMarks({day,state}:{day:any;state:GameState}) { return <div className
     const ours=clubKitFor(state), theirs=clubKitForReference(state,f.opponentRef);
     const home=f.home?{kit:ours,name:state.clubName}:{kit:theirs,name:f.opponent};
     const away=f.home?{kit:theirs,name:f.opponent}:{kit:ours,name:state.clubName};
-    return <div key={i} className="max-w-full overflow-hidden rounded-md border border-emerald-500/20 bg-emerald-500/10 px-0.5 py-1 text-emerald-700 dark:text-emerald-300" title={`${home.name} vs ${away.name}`}>
-      <div className="flex items-center justify-center gap-0.5"><Trophy className="size-2.5 shrink-0 opacity-80"/><ClubBadge design={home.kit.badge} clubName={home.name} size={14}/><span className="text-[7px] font-bold opacity-60">v</span><ClubBadge design={away.kit.badge} clubName={away.name} size={14}/></div>
-    </div>
+    return <Popover key={i}><PopoverTrigger asChild><button type="button" className="block w-full max-w-full overflow-hidden rounded-md border border-emerald-500/20 bg-emerald-500/10 px-0.5 py-1 text-emerald-700 dark:text-emerald-300" aria-label={`${home.name} versus ${away.name}`}>
+      <span className="flex items-center justify-center gap-0.5"><Trophy className="size-2.5 shrink-0 opacity-80"/><ClubBadge design={home.kit.badge} clubName={home.name} size={14}/><span className="text-[7px] font-bold opacity-60">v</span><ClubBadge design={away.kit.badge} clubName={away.name} size={14}/></span>
+    </button></PopoverTrigger><PopoverContent side="top" align="center" className="w-auto max-w-[calc(100vw-2rem)] rounded-xl px-3 py-2 text-sm">
+      <div className="flex items-center gap-2 font-semibold"><ClubBadge design={home.kit.badge} clubName={home.name} size={22}/><span>{home.name}</span><span className="text-muted-foreground">v</span><ClubBadge design={away.kit.badge} clubName={away.name} size={22}/><span>{away.name}</span></div>
+      <div className="mt-1 text-center text-[10px] uppercase tracking-wide text-muted-foreground">Home · Away</div>
+    </PopoverContent></Popover>
   })}
   {day.events.slice(0,2).map((e:any)=><div key={e.id} className="truncate rounded bg-violet-500/10 px-1 py-0.5 text-[9px] text-violet-700 dark:text-violet-300">● {e.label}</div>)}
   {day.deadlineDay&&<div className="rounded bg-amber-500/15 px-1 py-0.5 text-[9px] font-bold text-amber-700 dark:text-amber-300">● Deadline</div>}
