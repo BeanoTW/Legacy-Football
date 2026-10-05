@@ -12,6 +12,7 @@ import { progressSemanticScoutingDiscoveryDayInPlace } from "./semanticScoutingS
 import { knownPlayerDetail } from "./knownPlayerDetail";
 import { isUserClubReference } from "./clubReference";
 import { tacticalPositionProfile } from "./positions";
+import { isTransferWindowOpen } from "./calendar";
 
 export type PlayerAttributeCategory = "Technical" | "Mental" | "Physical";
 
@@ -356,7 +357,15 @@ export function scoutingReport(state: GameState, player: FootballPlayer): Scouti
         : days > 0
           ? Math.min(4, 2 + days)
           : 0;
-  const qualityFactor = 1.2 - reportQuality / 200;
+  const chiefScout = state.hiredStaff.find((staff) => staff.role === "Chief Scout");
+  // During an open transfer window the Chief Scout becomes the quality-control
+  // layer for live target reports: better chiefs narrow uncertainty faster.
+  // This changes certainty only; it never changes the player's real attributes.
+  const chiefWindowFactor =
+    !owned && isTransferWindowOpen(state) && chiefScout
+      ? Math.max(0.72, 1 - Math.max(0, chiefScout.stats.scouting - 40) / 210)
+      : 1;
+  const qualityFactor = (1.2 - reportQuality / 200) * chiefWindowFactor;
   const baseWidth =
     days >= FULL_REPORT_DAYS ? 0 : days >= PARTIAL_REPORT_DAYS ? 5 : days >= 3 ? 8 : 12;
   const width =
