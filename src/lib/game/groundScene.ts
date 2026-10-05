@@ -12,7 +12,7 @@
  * style and mowing pattern. Without it the default ground is drawn.
  */
 
-import type { SceneLook } from "./groundIdentity";
+import type { CornerSlot, GroundDesign, GroundStandDesign, SceneLook, StandSide } from "./groundIdentity";
 
 export interface SceneInput {
   /** groundProgression().visualStage, 0 (basic non-league) → 6 (elite). */
@@ -26,6 +26,12 @@ export interface SceneInput {
   height: number;
   /** The club's own look. Optional: omitted means the default ground. */
   look?: SceneLook;
+  /**
+   * Slot-based ground design (groundIdentity.groundDesign). When present the
+   * ground is composed stand-by-stand and corner-by-corner from the design;
+   * when omitted the legacy stage composition is used unchanged.
+   */
+  design?: GroundDesign;
   /** Orbit camera. Omitted values preserve the legacy aerial composition. */
   camera?: {
     azimuthDeg?: number;
@@ -552,6 +558,18 @@ function pitch(scene: Scene, stage: number, condition: number) {
     }
   }
 
+  if (wear > 0) {
+    for (const y of [-HALF_W + 1.3, HALF_W - 1.3]) {
+      scene.flat(rect(-38, y - 0.9, 38, y + 0.9), C.wear, 0.06 + wear * 0.22);
+    }
+  }
+  const mud = Math.max(0, Math.min(1, (55 - condition) / 30));
+  if (mud > 0) {
+    for (const [x, y, rx, ry] of [[-HALF_L + 5, 0, 5, 7],[HALF_L - 5, 0, 5, 7],[0, 0, 7, 5]] as const) {
+      scene.flat(ellipsePts(x, y, rx * (0.6 + mud * 0.5), ry * (0.6 + mud * 0.5), 0, Math.PI * 2, 22), "#6b5537", 0.25 + mud * 0.45);
+    }
+  }
+
   const lw = 1.5;
   const L = (pts: V3[], close = false) => scene.flatLine(pts, C.line, lw, 0.95, close);
   L(rect(-HALF_L, -HALF_W, HALF_L, HALF_W), true);
@@ -681,6 +699,12 @@ function gantryLights(scene: Scene, y: number, z: number, from: number, to: numb
 
 type Side = "W" | "E" | "N" | "S";
 
+function facesCamera(a: V3, b: V3, c: V3, behind: V3): boolean {
+  let n = cross(sub(b, a), sub(c, a));
+  if (dot(n, sub(behind, a)) > 0) n = v(-n.x, -n.y, -n.z);
+  return dot(n, sub(CAM, a)) > 0;
+}
+
 /** Maps stand-local coordinates (along the touchline, outwards, up) to world. */
 function sideMapper(side: Side, front: number) {
   return (along: number, out: number, z: number): V3 => {
@@ -713,12 +737,15 @@ interface StandSpec {
   terrace?: boolean;
   /** Cantilever roof: no columns at the front. */
   cantilever?: boolean;
+  mapper?: (along: number, out: number, z: number) => V3;
+  rearDetail?: boolean;
 }
 
 /** Returns the anchor (roof centre) for hotspot placement. */
 function stand(scene: Scene, spec: StandSpec): V3 {
-  const W = sideMapper(spec.side, spec.front);
+  const W = spec.mapper ?? sideMapper(spec.side, spec.front);
   const prims: ScenePrimitive[] = [];
+  const frontFacing = facesCamera(W(spec.from, 0, 1.1), W(spec.to, 0, 1.1), W(spec.from, spec.depth, spec.rake), W(spec.from, spec.depth + 2, 0));
   const shadowPts: V3[] = [];
   const back = spec.back ?? C.cladding;
   const deckColour = spec.terrace ? C.terrace : spec.seat;
@@ -728,7 +755,7 @@ function stand(scene: Scene, spec: StandSpec): V3 {
   const deck: Array<[number, number]> = [[0, 0], [0, 1.1], [spec.depth, lowerTop], [spec.depth, 0]];
   prims.push(...solid(prismFaces(deck, spec.from, spec.to, W), C.concrete, { faceColors: [back, back, C.concrete, C.concrete, deckColour, back] }));
   // Seat rows, or crush barriers on a terrace.
-  const rows = Math.max(3, Math.round(spec.depth / 1.6));
+  const rows = frontFacing ? Math.max(3, Math.round(spec.depth / 1.6)) : 0;
   for (let r = 1; r < rows; r += 1) {
     if (spec.terrace && r % 2) continue;
     const t = r / rows;
@@ -746,7 +773,7 @@ function stand(scene: Scene, spec: StandSpec): V3 {
     }
   }
   // Gangways.
-  for (let g = spec.from + 12; g < spec.to - 6; g += 14) {
+  for (let g = spec.from + 12; frontFacing && g < spec.to - 6; g += 14) {
     const a = W(g, 0.3, 1.2);
     const b = W(g, spec.depth - 0.3, lowerTop);
     prims.push({ d: pathOf([a, b], false), fill: "none", stroke: C.concrete, sw: widthAt(a, 1.3), opacity: 0.9 });
@@ -759,13 +786,13 @@ function stand(scene: Scene, spec: StandSpec): V3 {
     const band: Array<[number, number]> = [[depth, 0], [depth, top + 3.5], [depth + 2.5, top + 3.5], [depth + 2.5, 0]];
     prims.push(...solid(prismFaces(band, spec.from, spec.to, W), back));
     const glass = [W(spec.from + 1, depth - 0.05, top + 0.6), W(spec.to - 1, depth - 0.05, top + 0.6), W(spec.to - 1, depth - 0.05, top + 3), W(spec.from + 1, depth - 0.05, top + 3)];
-    prims.push({ d: pathOf(glass), fill: C.glass, opacity: 0.85 });
+    if (frontFacing) prims.push({ d: pathOf(glass), fill: C.glass, opacity: 0.85 });
     const u0 = depth + 1;
     const uBase = top + 3.5;
     const uTop = uBase + spec.upper.rake;
     const upper: Array<[number, number]> = [[u0, 0], [u0, uBase + 1], [u0 + spec.upper.depth, uTop], [u0 + spec.upper.depth, 0]];
     prims.push(...solid(prismFaces(upper, spec.from + 2, spec.to - 2, W), C.concrete, { faceColors: [back, back, C.concrete, C.concrete, spec.seat, back] }));
-    const uRows = Math.round(spec.upper.depth / 1.7);
+    const uRows = frontFacing ? Math.round(spec.upper.depth / 1.7) : 0;
     for (let r = 1; r < uRows; r += 1) {
       const t = r / uRows;
       const a = W(spec.from + 2.5, u0 + spec.upper.depth * t, uBase + 1 + (uTop - uBase - 1) * t);
@@ -781,7 +808,7 @@ function stand(scene: Scene, spec: StandSpec): V3 {
     // Back wall up to the roof, supporting columns, then the roof slab.
     const wall: Array<[number, number]> = [[depth, 0], [depth, roofZ], [depth + 0.6, roofZ], [depth + 0.6, 0]];
     prims.push(...solid(prismFaces(wall, spec.from, spec.to, W), back));
-    if (!spec.cantilever) {
+    if (!spec.cantilever && frontFacing) {
       for (let c = spec.from + 2; c <= spec.to - 2; c += Math.max(12, (spec.to - spec.from) / 5)) {
         const a = W(c, 0.4, 1.1);
         const b = W(c, 0.4, roofZ - 0.6);
@@ -802,6 +829,16 @@ function stand(scene: Scene, spec: StandSpec): V3 {
   }
   shadowPts.push(W(spec.from, 0, 0), W(spec.to, 0, 0), W(spec.from, depth + 0.8, 0), W(spec.to, depth + 0.8, 0));
   scene.shadowSolid(shadowPts, 0.3);
+
+  if (spec.rearDetail && !frontFacing) {
+    const backOut = depth + (spec.roof ? 0.65 : 0.05);
+    const span = spec.to - spec.from;
+    const doors = Math.max(1, Math.round(span / 16));
+    for (let i = 0; i < doors; i += 1) {
+      const d = spec.from + ((i + 0.5) * span) / doors;
+      prims.push({ d: pathOf([W(d - 0.9, backOut, 0), W(d + 0.9, backOut, 0), W(d + 0.9, backOut, 2.3), W(d - 0.9, backOut, 2.3)]), fill: "#2b2f33", opacity: 0.92 });
+    }
+  }
 
   const anchor = W((spec.from + spec.to) / 2, (depth + 0.6) / 2, spec.roof ? roofZ + 1 : top + 1);
   scene.add(prims, W((spec.from + spec.to) / 2, depth / 2, top / 2));
