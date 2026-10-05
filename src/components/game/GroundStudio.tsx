@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, Flag, Paintbrush, PencilLine } from "lucide-react";
+import { Check, Flag, Paintbrush, PencilLine, RotateCcw } from "lucide-react";
 import type { CapitalProjectType, GameState, InfrastructureAsset } from "@/lib/game/types";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -186,8 +186,7 @@ export function GroundStudioSheet({
     });
 
   const roofSwatch = (id: string) => (id === "club" ? kit.body : ROOF_COLOURS.find((r) => r.id === id)?.hex ?? "#56616c");
-  const seatSwatch = (id: string) =>
-    id === "club" ? [kit.body, kit.body] : id === "twoTone" ? [kit.body, kit.secondary] : id === "mono" ? ["#7d858b", "#7d858b"] : ["#1f6f69", "#1f6f69"];
+  const seatSwatch = (id: string) => { if (id === "club") return [kit.body, kit.body]; if (id === "twoTone") return [kit.body, kit.secondary]; return SEAT_SCHEMES.find((option) => option.id === id)?.colours ?? ["#1f6f69", "#185a55"]; };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -197,7 +196,7 @@ export function GroundStudioSheet({
           <SheetTitle className="font-display text-2xl leading-none">Ground Studio</SheetTitle>
         </div>
 
-        <div className="relative h-56 overflow-hidden border-b">
+        <div className="sticky top-14 z-[9] h-56 overflow-hidden border-b bg-card">
           <StadiumGround stage={stage} hotspots={[]} selectedId={null} onSelect={() => {}} look={preview} design={groundDesign(state)} />
         </div>
 
@@ -254,7 +253,7 @@ export function GroundStudioSheet({
           <section>
             <SectionTitle title="Main stand & buildings" note="Free cosmetic" />
             <Swatches
-              options={CLADDINGS.map((c) => ({ id: c.id, label: c.label, colours: [c.hex, c.hex] }))}
+              options={CLADDINGS.map((c) => ({ id: c.id, label: c.label, colours: [c.id === "club" ? kit.body : c.hex, c.id === "club" ? kit.body : c.hex] }))}
               value={draft.cladding}
               onChange={(cladding) => setDraft((d) => ({ ...d, cladding }))}
             />
