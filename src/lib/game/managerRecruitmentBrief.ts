@@ -5,6 +5,7 @@ import { managerSquadFit } from "./managerSquadFit";
 import { positionEffectiveness, positionUnit } from "./positions";
 import { userClubReference } from "./clubReference";
 import { createChairmanMultiScoutingBrief, type ScoutingPlayerLevel } from "./chairmanScoutingBrief";
+import { clubStaffStage, staffRoleAvailable } from "./staff";
 
 export interface ManagerRecruitmentPriority {
   position: Position;
@@ -126,6 +127,7 @@ export interface RecruitmentDelegationAvailability {
 }
 
 export function recruitmentDelegationAvailability(state: GameState): RecruitmentDelegationAvailability {
+  if (!staffRoleAvailable(state, "Head of Transfers")) return { available: false, reason: `Recruitment delegation unlocks once the club reaches professional department status. Current structure: ${clubStaffStage(state)}.` };
   const head = state.hiredStaff.find((staff) => staff.role === "Head of Transfers");
   if (!head) return { available: false, reason: "Appoint a Head of Transfers before delegating recruitment." };
   const scouts = state.hiredStaff.filter((staff) => staff.role === "Scout" || staff.role === "Chief Scout");
