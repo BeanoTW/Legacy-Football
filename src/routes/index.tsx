@@ -196,7 +196,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
     }
   };
 
-  const requestContinue = (target?: AdvanceTarget | null) => {
+  const openAdvancePreview = (target?: AdvanceTarget | null) => {
     if (blockingDecisions.length > 0) {
       stopContinue();
       setDecisionQueue(true);
@@ -204,6 +204,19 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
       return;
     }
     setAdvanceStart(state);
+    setLastTarget(target ?? null);
+    setShowAdvancePreview(true);
+  };
+
+  const requestContinue = (target?: AdvanceTarget | null) => {
+    if (blockingDecisions.length > 0) {
+      stopContinue();
+      setShowAdvancePreview(false);
+      setDecisionQueue(true);
+      setTab("inbox");
+      return;
+    }
+    setAdvanceStart((current) => current ?? state);
     setLastTarget(target ?? null);
     setShowAdvancePreview(true);
     startContinue(target);
@@ -313,10 +326,10 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
         unread={unreadCount(state)}
         blocking={blockingDecisions.length}
         isContinuing={isContinuing}
-        onContinue={() => requestContinue()}
+        onContinue={() => openAdvancePreview()}
         onStop={stopContinue}
         targets={targets}
-        onAdvanceTo={requestContinue}
+        onAdvanceTo={openAdvancePreview}
       />
 
       {/* Tablet and desktop retain the full Continue bar. */}
