@@ -234,7 +234,7 @@ export function GroundStudioSheet({
           </section>
 
           <section>
-            <SectionTitle icon={<Paintbrush className="size-3.5" />} title="Roof colour" note="Most visible from above · £6k per stand" />
+            <SectionTitle icon={<Paintbrush className="size-3.5" />} title="Roof colour" note="Free cosmetic" />
             <Swatches
               options={ROOF_COLOURS.map((r) => ({ id: r.id, label: r.label, colours: [roofSwatch(r.id), roofSwatch(r.id)] }))}
               value={draft.roof}
@@ -243,7 +243,7 @@ export function GroundStudioSheet({
           </section>
 
           <section>
-            <SectionTitle title="Seats" note="Repainting costs £1.50 a place" />
+            <SectionTitle title="Seats" note="Free cosmetic" />
             <Swatches
               options={SEAT_SCHEMES.map((s) => ({ id: s.id, label: s.label, colours: seatSwatch(s.id) }))}
               value={draft.seats}
@@ -252,7 +252,7 @@ export function GroundStudioSheet({
           </section>
 
           <section>
-            <SectionTitle title="Main stand & buildings" note="£9k to re-clad" />
+            <SectionTitle title="Main stand & buildings" note="Free cosmetic" />
             <Swatches
               options={CLADDINGS.map((c) => ({ id: c.id, label: c.label, colours: [c.hex, c.hex] }))}
               value={draft.cladding}
@@ -261,7 +261,7 @@ export function GroundStudioSheet({
           </section>
 
           <section>
-            <SectionTitle title="Floodlights" note={stage < 2 ? "From a Small Professional Ground" : "Free"} />
+            <SectionTitle title="Floodlights" note="Free cosmetic" />
             <Chips options={FLOODLIGHT_STYLES} value={draft.floodlights} onChange={(floodlights) => setDraft((d) => ({ ...d, floodlights }))} />
           </section>
 
