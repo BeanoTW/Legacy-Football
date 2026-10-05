@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { InfrastructureAsset } from "@/lib/game/types";
 import { conditionBand } from "@/lib/game/infrastructure";
 import { buildGroundScene } from "@/lib/game/groundScene";
-import type { GroundCameraMode, SceneLook } from "@/lib/game/groundIdentity";
+import type { GroundCameraMode, GroundDesign, SceneLook } from "@/lib/game/groundIdentity";
 import { cn } from "@/lib/utils";
 
 export interface GroundHotspot {
@@ -132,6 +132,7 @@ export function StadiumGround({
   selectedId,
   onSelect,
   look,
+  design,
   interactiveCamera = true,
   cameraMode = "orbit",
 }: {
@@ -141,6 +142,8 @@ export function StadiumGround({
   onSelect: (hotspot: GroundHotspot) => void;
   /** The club's own look (groundIdentity.sceneLook). Optional. */
   look?: SceneLook;
+  /** Slot-based ground design (groundIdentity.groundDesign). Omitted: legacy stage drawing. */
+  design?: GroundDesign;
   interactiveCamera?: boolean;
   cameraMode?: GroundCameraMode;
 }) {
@@ -157,6 +160,7 @@ export function StadiumGround({
     .join(",");
   // Rebuild only when the look actually changes, not on every render.
   const lookKey = look ? JSON.stringify(look) : "";
+  const designKey = design ? JSON.stringify(design) : "";
 
   const scene = useMemo(
     () =>
@@ -167,9 +171,10 @@ export function StadiumGround({
         width,
         height,
         look: lookKey ? (JSON.parse(lookKey) as SceneLook) : undefined,
+        design: designKey ? (JSON.parse(designKey) as GroundDesign) : undefined,
         camera: { ...camera, mode: cameraMode },
       }),
-    [camera, cameraMode, height, lookKey, pitchCondition, stage, width, worksKey],
+    [camera, cameraMode, designKey, height, lookKey, pitchCondition, stage, width, worksKey],
   );
 
   const strokeScale = scene.viewBox.w / width;

@@ -19,6 +19,7 @@ import {
   groundIdentity,
   levelAfterProject,
   roofOptionsFor,
+  groundDesign,
   sceneLook,
   standBuild,
   type GroundIdentityState,
@@ -197,7 +198,7 @@ export function GroundStudioSheet({
         </div>
 
         <div className="relative h-56 overflow-hidden border-b">
-          <StadiumGround stage={stage} hotspots={[]} selectedId={null} onSelect={() => {}} look={preview} />
+          <StadiumGround stage={stage} hotspots={[]} selectedId={null} onSelect={() => {}} look={preview} design={groundDesign(state)} />
         </div>
 
         <div className="space-y-4 p-4">

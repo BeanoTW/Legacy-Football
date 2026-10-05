@@ -12,7 +12,7 @@
  * style and mowing pattern. Without it the default ground is drawn.
  */
 
-import type { SceneLook } from "./groundIdentity";
+import type { CornerSlot, GroundDesign, GroundStandDesign, SceneLook, StandSide } from "./groundIdentity";
 
 export interface SceneInput {
   /** groundProgression().visualStage, 0 (basic non-league) → 6 (elite). */
@@ -26,6 +26,12 @@ export interface SceneInput {
   height: number;
   /** The club's own look. Optional: omitted means the default ground. */
   look?: SceneLook;
+  /**
+   * Slot-based ground design (groundIdentity.groundDesign). When present the
+   * ground is composed stand-by-stand and corner-by-corner from the design;
+   * when omitted the legacy stage composition is used unchanged.
+   */
+  design?: GroundDesign;
   /** Orbit camera. Omitted values preserve the legacy aerial composition. */
   camera?: {
     azimuthDeg?: number;
@@ -552,6 +558,18 @@ function pitch(scene: Scene, stage: number, condition: number) {
     }
   }
 
+  if (wear > 0) {
+    for (const y of [-HALF_W + 1.3, HALF_W - 1.3]) {
+      scene.flat(rect(-38, y - 0.9, 38, y + 0.9), C.wear, 0.06 + wear * 0.22);
+    }
+  }
+  const mud = Math.max(0, Math.min(1, (55 - condition) / 30));
+  if (mud > 0) {
+    for (const [x, y, rx, ry] of [[-HALF_L + 5, 0, 5, 7],[HALF_L - 5, 0, 5, 7],[0, 0, 7, 5]] as const) {
+      scene.flat(ellipsePts(x, y, rx * (0.6 + mud * 0.5), ry * (0.6 + mud * 0.5), 0, Math.PI * 2, 22), "#6b5537", 0.25 + mud * 0.45);
+    }
+  }
+
   const lw = 1.5;
   const L = (pts: V3[], close = false) => scene.flatLine(pts, C.line, lw, 0.95, close);
   L(rect(-HALF_L, -HALF_W, HALF_L, HALF_W), true);
@@ -681,6 +699,12 @@ function gantryLights(scene: Scene, y: number, z: number, from: number, to: numb
 
 type Side = "W" | "E" | "N" | "S";
 
+function facesCamera(a: V3, b: V3, c: V3, behind: V3): boolean {
+  let n = cross(sub(b, a), sub(c, a));
+  if (dot(n, sub(behind, a)) > 0) n = v(-n.x, -n.y, -n.z);
+  return dot(n, sub(CAM, a)) > 0;
+}
+
 /** Maps stand-local coordinates (along the touchline, outwards, up) to world. */
 function sideMapper(side: Side, front: number) {
   return (along: number, out: number, z: number): V3 => {
@@ -713,12 +737,15 @@ interface StandSpec {
   terrace?: boolean;
   /** Cantilever roof: no columns at the front. */
   cantilever?: boolean;
+  mapper?: (along: number, out: number, z: number) => V3;
+  rearDetail?: boolean;
 }
 
 /** Returns the anchor (roof centre) for hotspot placement. */
 function stand(scene: Scene, spec: StandSpec): V3 {
-  const W = sideMapper(spec.side, spec.front);
+  const W = spec.mapper ?? sideMapper(spec.side, spec.front);
   const prims: ScenePrimitive[] = [];
+  const frontFacing = facesCamera(W(spec.from, 0, 1.1), W(spec.to, 0, 1.1), W(spec.from, spec.depth, spec.rake), W(spec.from, spec.depth + 2, 0));
   const shadowPts: V3[] = [];
   const back = spec.back ?? C.cladding;
   const deckColour = spec.terrace ? C.terrace : spec.seat;
@@ -728,7 +755,7 @@ function stand(scene: Scene, spec: StandSpec): V3 {
   const deck: Array<[number, number]> = [[0, 0], [0, 1.1], [spec.depth, lowerTop], [spec.depth, 0]];
   prims.push(...solid(prismFaces(deck, spec.from, spec.to, W), C.concrete, { faceColors: [back, back, C.concrete, C.concrete, deckColour, back] }));
   // Seat rows, or crush barriers on a terrace.
-  const rows = Math.max(3, Math.round(spec.depth / 1.6));
+  const rows = frontFacing ? Math.max(3, Math.round(spec.depth / 1.6)) : 0;
   for (let r = 1; r < rows; r += 1) {
     if (spec.terrace && r % 2) continue;
     const t = r / rows;
@@ -746,7 +773,7 @@ function stand(scene: Scene, spec: StandSpec): V3 {
     }
   }
   // Gangways.
-  for (let g = spec.from + 12; g < spec.to - 6; g += 14) {
+  for (let g = spec.from + 12; frontFacing && g < spec.to - 6; g += 14) {
     const a = W(g, 0.3, 1.2);
     const b = W(g, spec.depth - 0.3, lowerTop);
     prims.push({ d: pathOf([a, b], false), fill: "none", stroke: C.concrete, sw: widthAt(a, 1.3), opacity: 0.9 });
@@ -759,13 +786,13 @@ function stand(scene: Scene, spec: StandSpec): V3 {
     const band: Array<[number, number]> = [[depth, 0], [depth, top + 3.5], [depth + 2.5, top + 3.5], [depth + 2.5, 0]];
     prims.push(...solid(prismFaces(band, spec.from, spec.to, W), back));
     const glass = [W(spec.from + 1, depth - 0.05, top + 0.6), W(spec.to - 1, depth - 0.05, top + 0.6), W(spec.to - 1, depth - 0.05, top + 3), W(spec.from + 1, depth - 0.05, top + 3)];
-    prims.push({ d: pathOf(glass), fill: C.glass, opacity: 0.85 });
+    if (frontFacing) prims.push({ d: pathOf(glass), fill: C.glass, opacity: 0.85 });
     const u0 = depth + 1;
     const uBase = top + 3.5;
     const uTop = uBase + spec.upper.rake;
     const upper: Array<[number, number]> = [[u0, 0], [u0, uBase + 1], [u0 + spec.upper.depth, uTop], [u0 + spec.upper.depth, 0]];
     prims.push(...solid(prismFaces(upper, spec.from + 2, spec.to - 2, W), C.concrete, { faceColors: [back, back, C.concrete, C.concrete, spec.seat, back] }));
-    const uRows = Math.round(spec.upper.depth / 1.7);
+    const uRows = frontFacing ? Math.round(spec.upper.depth / 1.7) : 0;
     for (let r = 1; r < uRows; r += 1) {
       const t = r / uRows;
       const a = W(spec.from + 2.5, u0 + spec.upper.depth * t, uBase + 1 + (uTop - uBase - 1) * t);
@@ -781,7 +808,7 @@ function stand(scene: Scene, spec: StandSpec): V3 {
     // Back wall up to the roof, supporting columns, then the roof slab.
     const wall: Array<[number, number]> = [[depth, 0], [depth, roofZ], [depth + 0.6, roofZ], [depth + 0.6, 0]];
     prims.push(...solid(prismFaces(wall, spec.from, spec.to, W), back));
-    if (!spec.cantilever) {
+    if (!spec.cantilever && frontFacing) {
       for (let c = spec.from + 2; c <= spec.to - 2; c += Math.max(12, (spec.to - spec.from) / 5)) {
         const a = W(c, 0.4, 1.1);
         const b = W(c, 0.4, roofZ - 0.6);
@@ -802,6 +829,16 @@ function stand(scene: Scene, spec: StandSpec): V3 {
   }
   shadowPts.push(W(spec.from, 0, 0), W(spec.to, 0, 0), W(spec.from, depth + 0.8, 0), W(spec.to, depth + 0.8, 0));
   scene.shadowSolid(shadowPts, 0.3);
+
+  if (spec.rearDetail && !frontFacing) {
+    const backOut = depth + (spec.roof ? 0.65 : 0.05);
+    const span = spec.to - spec.from;
+    const doors = Math.max(1, Math.round(span / 16));
+    for (let i = 0; i < doors; i += 1) {
+      const d = spec.from + ((i + 0.5) * span) / doors;
+      prims.push({ d: pathOf([W(d - 0.9, backOut, 0), W(d + 0.9, backOut, 0), W(d + 0.9, backOut, 2.3), W(d - 0.9, backOut, 2.3)]), fill: "#2b2f33", opacity: 0.92 });
+    }
+  }
 
   const anchor = W((spec.from + spec.to) / 2, (depth + 0.6) / 2, spec.roof ? roofZ + 1 : top + 1);
   scene.add(prims, W((spec.from + spec.to) / 2, depth / 2, top / 2));
@@ -1136,6 +1173,32 @@ function compose(scene: Scene, input: SceneInput, anchors: Record<string, V3>) {
 /* Framing                                                             */
 /* ------------------------------------------------------------------ */
 
+
+/* Slot-based composition (GroundDesign). Axes follow sideMapper: +x North, -x South, +y West, -y East. */
+const SIDE_SIGN: Record<CornerSlot, [number, number]> = { NW:[1,1], NE:[1,-1], SW:[-1,1], SE:[-1,-1] };
+const isTouchline=(s:StandSide)=>s==="W"||s==="E";
+const clampN=(n:number,a:number,b:number)=>Math.max(a,Math.min(b,n));
+const sideFront=(s:StandSide,d:GroundStandDesign)=>(isTouchline(s)?HALF_W:HALF_L)+3+clampN(d.setback,2,10);
+
+function perimeter(scene:Scene, design:GroundDesign){
+  const inset=4.2, loop=rect(-HALF_L-inset,-HALF_W-inset,HALF_L+inset,HALF_W+inset);
+  if(design.perimeter.style==="chainLink"){ fenceRun(scene,loop,2.2); return; }
+  const tone=design.perimeter.colour==="club"?(LOOK?.seat??C.seat):design.perimeter.colour==="green"?"#2f6b3c":design.perimeter.colour==="galvanized"?"#a8b0b5":"#f1f3f0";
+  for(let i=0;i<loop.length;i++){const a=loop[i],b=loop[(i+1)%loop.length];const mid=v((a.x+b.x)/2,(a.y+b.y)/2);
+    if(design.perimeter.style==="brick") scene.add(solid(boxFaces(Math.min(a.x,b.x)-.12,Math.min(a.y,b.y)-.12,0,Math.max(a.x,b.x)+.12,Math.max(a.y,b.y)+.12,1.05),C.brick),mid);
+    else scene.add([{d:pathOf([v(a.x,a.y,1),v(b.x,b.y,1)],false),fill:"none",stroke:design.perimeter.style==="barrier"?"#59636b":tone,sw:1,cap:"round"}],mid);
+  }
+}
+function dugouts(scene:Scene,modern:boolean){for(const x of [-9,9]){const y0=HALF_W+2.2,y1=HALF_W+3.8;scene.add(solid(boxFaces(x-3.6,y0,0,x+3.6,y1,2.1),modern?"#9fc7d6":"#8a6a45"),v(x,(y0+y1)/2,1));}}
+function latticePylon(scene:Scene,x:number,y:number,h:number){const top=v(x,y,h),prims:ScenePrimitive[]=[];for(const dx of [-2,2])prims.push({d:pathOf([v(x+dx,y,0),top],false),fill:"none",stroke:"#7f878d",sw:1});scene.add(prims,v(x,y,h/2));scene.shadowLine(v(x,y,0),top,1.6,.22);}
+function scoreboard(scene:Scene,x:number,y:number){const board=[v(x,y-3,2.6),v(x,y+3,2.6),v(x,y+3,5.4),v(x,y-3,5.4)];scene.add([{d:pathOf(board),fill:"#1f2a24",stroke:"#e9e6da",sw:.6}],v(x,y,3));}
+function designedCarPark(scene:Scene,design:GroundDesign,rand:()=>number,withCoach:boolean):V3{const [sx,sy]=SIDE_SIGN[design.surroundings.carParkLocation],x0=sx>0?76:-104,y0=sy>0?44:-72,x1=x0+28,y1=y0+28;scene.flat(rect(x0,y0,x1,y1),design.surroundings.carParkSurface==="tarmac"?C.tarmac:C.gravel);const palette=["#b8322c","#dfe3e6","#23324a","#8a9097"];for(let x=x0+4;x<x1-3;x+=4){if(rand()<.6)car(scene,x,y0+4,"y",palette[Math.floor(rand()*palette.length)]);}if(withCoach)scene.add(solid(boxFaces((x0+x1)/2-6,(y0+y1)/2-1.3,.3,(x0+x1)/2+6,(y0+y1)/2+1.3,3.2),"#dfe3e6"),v((x0+x1)/2,(y0+y1)/2,1.5));return v((x0+x1)/2,(y0+y1)/2,0);}
+function designedStandSpec(side:StandSide,d:GroundStandDesign):StandSpec|null{if(d.form==="open")return null;const span=clampN(d.span,12,isTouchline(side)?100:64),front=sideFront(side,d),depth=clampN(d.depth,3,26),terrace=d.standing==="terrace",seat=side==="W"?C.seat:(LOOK?.twoTone?C.seatAlt:C.seat),base={side,front,seat,terrace,rearDetail:true} as const;if(d.form==="shelter"){const w=Math.min(span,24);return{...base,from:-w/2,to:w/2,depth:3,rake:1.2,roof:true};}if(d.form==="terrace")return{...base,terrace:true,from:-span/2,to:span/2,depth:clampN(depth*.75,4,16),rake:depth*.3,roof:d.roof!=="open"};if(d.form==="traditional")return{...base,from:-span/2,to:span/2,depth,rake:depth*.55,roof:d.roof!=="open",back:C.brick};if(d.form==="cantilever")return{...base,from:-span/2,to:span/2,depth,rake:depth*.6,roof:true,cantilever:true,back:C.cladding};return{...base,from:-span/2,to:span/2,depth:depth*.7,rake:depth*.42,roof:true,cantilever:true,back:C.cladding,upper:{depth:depth*.55,rake:depth*.45}};}
+function openSide(scene:Scene,side:StandSide,d:GroundStandDesign):V3{const W=sideMapper(side,sideFront(side,d)-2),half=isTouchline(side)?44:28;scene.flat([W(-half,0,0),W(half,0,0),W(half,3.2,0),W(-half,3.2,0)],C.concrete,.9);return W(0,2,1);}
+function corner(scene:Scene,slot:CornerSlot,form:GroundDesign["corners"][CornerSlot]["form"],design:GroundDesign){if(form==="open"||form==="pylon")return;const [sx,sy]=SIDE_SIGN[slot],end:StandSide=sx>0?"N":"S",touch:StandSide=sy>0?"W":"E",cx=sx*sideFront(end,design.stands[end]),cy=sy*sideFront(touch,design.stands[touch]),out=norm(v(sx,sy,0)),along=v(-out.y,out.x,0),mapper=(a:number,o:number,z:number)=>v(cx+along.x*a+out.x*o,cy+along.y*a+out.y*o,z);if(form==="access"){scene.flat([mapper(-2,-1,0),mapper(2,-1,0),mapper(2,14,0),mapper(-2,14,0)],C.path);return;}stand(scene,{side:end,front:0,mapper,from:-7,to:7,depth:form==="seated"?9:7,rake:form==="seated"?4.5:2.6,roof:form==="seated",cantilever:form==="seated",seat:form==="seated"?C.seatAlt:C.terrace,terrace:form!=="seated",rearDetail:form==="seated"});}
+function composeDesigned(scene:Scene,input:SceneInput,design:GroundDesign,anchors:Record<string,V3>){const stage=clampN(Math.round(input.stage),0,6),rand=rng(0x5eed+stage*7919),sides=["N","E","S","W"] as StandSide[],maxLevel=Math.max(...sides.map(s=>design.stands[s].level));countryside(scene,rng(20260924));neighbourPitch(scene,stage);scene.flat(rect(-HALF_L-9,-HALF_W-8,HALF_L+9,HALF_W+8),maxLevel>=2?C.path:"#a8ad93");scene.flat(rect(-HALF_L-6.5,-HALF_W-5.5,HALF_L+6.5,HALF_W+5.5),"#6e9b44");pitch(scene,stage,input.pitchCondition);anchors.pitch=v(0,0,0);goal(scene,-HALF_L,1);goal(scene,HALF_L,-1);perimeter(scene,design);dugouts(scene,maxLevel>=3);for(const side of ["W","E","N","S"] as StandSide[]){const d=design.stands[side],spec=designedStandSpec(side,d),a=spec?stand(scene,spec):openSide(scene,side,d);if(side==="W")anchors.main=a;if(side==="E")anchors.stands=a;}for(const slot of ["NW","NE","SW","SE"] as CornerSlot[])corner(scene,slot,design.corners[slot].form,design);for(const slot of ["NW","NE","SW","SE"] as CornerSlot[]){if(design.corners[slot].form==="pylon"||(LOOK?.floodlights??"auto")==="pylons"||((LOOK?.floodlights??"auto")==="auto"&&maxLevel<=2)){const [sx,sy]=SIDE_SIGN[slot];latticePylon(scene,sx*(sideFront(sx>0?"N":"S",design.stands[sx>0?"N":"S"])+6),sy*(sideFront(sy>0?"W":"E",design.stands[sy>0?"W":"E"])+6),24);}}const openEnd=(["N","S"] as StandSide[]).find(s=>design.stands[s].form==="open");if(openEnd&&maxLevel<=3)scoreboard(scene,(openEnd==="N"?1:-1)*(sideFront(openEnd,design.stands[openEnd])+9),18);anchors.parking=designedCarPark(scene,design,rand,maxLevel>=2);treeBelts(scene,rand);}
+function designedFrame(design:GroundDesign):V3[]{const reach=(s:StandSide)=>sideFront(s,design.stands[s])+(design.stands[s].form==="open"?6:clampN(design.stands[s].depth,3,26)+2),xN=reach("N"),xS=reach("S"),yW=reach("W"),yE=reach("E"),tall=Math.max(...(["N","E","S","W"] as StandSide[]).map(s=>design.stands[s].form==="twoTier"?22:design.stands[s].level>=3?16:10)),[px,py]=SIDE_SIGN[design.surroundings.carParkLocation];return[v(-xS,-yE,0),v(xN,-yE,0),v(xN,yW,0),v(-xS,yW,0),v(-xS,yW,tall),v(xN,yW,tall),v(px*82,py*50,0)];}
+
 export function buildGroundScene(input: SceneInput): SceneOutput {
   configureCamera(input);
   // Reset the palette and look for this build (pure: same input, same picture).
@@ -1151,14 +1214,16 @@ export function buildGroundScene(input: SceneInput): SceneOutput {
 
   const scene = new Scene();
   const anchors: Record<string, V3> = {};
-  compose(scene, input, anchors);
+  if (input.design?.version === 1) composeDesigned(scene, input, input.design, anchors);
+  else compose(scene, input, anchors);
 
   // Frame the ground itself (pitch, stands, club buildings), fitted to the viewport's shape.
   const stage = Math.max(0, Math.min(6, Math.round(input.stage)));
   const reachX = stage >= 4 ? 78 : stage >= 2 ? 70 : 62;
   const reachY = stage >= 4 ? 64 : stage >= 2 ? 56 : 46;
   const tall = stage >= 5 ? 34 : stage >= 3 ? 20 : 10;
-  const core = [
+  const designed = input.design?.version === 1;
+  const core = designed ? designedFrame(input.design!).map(project) : [
     v(-reachX, -reachY, 0), v(reachX, -reachY, 0), v(reachX, reachY, 0), v(-reachX, reachY, 0),
     v(-reachX, reachY, tall), v(reachX, reachY, tall),
 // Club buildings to the left and hospitality to the right.
