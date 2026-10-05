@@ -81,6 +81,47 @@ export const STAFF_ROLES: StaffRole[] = [
   "Sports Scientist",
 ];
 
+export type StaffDepartmentStage = "grassroots" | "semiPro" | "professional" | "established" | "elite";
+
+/**
+ * Canonical backroom progression. Tier is the structural gate; reputation
+ * controls candidate quality separately. This keeps tiny clubs hands-on and
+ * lets organisational autonomy grow with the club.
+ */
+const ROLE_UNLOCK_STAGE: Record<StaffRole, StaffDepartmentStage> = {
+  Manager: "grassroots",
+  "Head Coach": "grassroots",
+  Scout: "grassroots",
+  "Assistant Manager": "semiPro",
+  "Goalkeeping Coach": "semiPro",
+  "Fitness Coach": "semiPro",
+  "Head of Youth": "professional",
+  "Head of Transfers": "professional",
+  "Chief Scout": "professional",
+  "Head Physio": "professional",
+  "Sports Scientist": "established",
+};
+
+const STAGE_ORDER: StaffDepartmentStage[] = ["grassroots", "semiPro", "professional", "established", "elite"];
+
+export function clubStaffStage(s: GameState): StaffDepartmentStage {
+  const tier = s.leagues.find((league) => league.id === s.playerLeagueId)?.tier ?? 7;
+  if (tier <= 1) return "elite";
+  if (tier <= 3) return "established";
+  if (tier <= 4) return "professional";
+  if (tier <= 6) return "semiPro";
+  return "grassroots";
+}
+
+export function staffRoleAvailable(s: GameState, role: StaffRole): boolean {
+  return STAGE_ORDER.indexOf(clubStaffStage(s)) >= STAGE_ORDER.indexOf(ROLE_UNLOCK_STAGE[role]);
+}
+
+export function availableStaffRoles(s: GameState): StaffRole[] {
+  return STAFF_ROLES.filter((role) => staffRoleAvailable(s, role));
+}
+
+
 // Which stats matter most for each role — used to weight overall rating & wage
 const ROLE_WEIGHTS: Record<StaffRole, Partial<Record<keyof StaffStats, number>>> = {
   Manager: { tactics: 3, motivation: 2, attack: 1, defense: 1 },
@@ -217,7 +258,7 @@ export function makeCandidatePool(rand01: () => number = Math.random): Staff[] {
 /** Seeded refresh of the staff market for a given save + calendar slot. */
 export function staffPoolFor(s: GameState): Staff[] {
   const seed = `${s.saveSeed}|${s.season}|${s.week}`;
-  return makeCandidatePool(mulberry32(hashString(`staffmarket|${seed}`)));
+  return makeCandidatePool(mulberry32(hashString(`staffmarket|${seed}`))).filter((staff) => staffRoleAvailable(s, staff.role));
 }
 
 /** Seeded opening market for a brand-new save. Senior recruitment leadership is not guaranteed at non-league level. */
