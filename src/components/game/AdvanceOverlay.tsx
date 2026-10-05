@@ -269,7 +269,7 @@ export function AdvanceOverlay({
                   </div>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {matchday
-                      ? "Your fixture is ready. View the match to continue the calendar."
+                      ? "It's match day. Select View Match from the Home dashboard to continue."
                       : reachedTarget
                         ? "Time has stopped where you asked."
                         : reason}
@@ -327,8 +327,8 @@ export function AdvanceOverlay({
                 Close
               </Button>
               {matchday ? (
-                <Button className="ml-auto h-11" onClick={onOpenMatchday}>
-                  View match <ChevronRight />
+                <Button className="ml-auto h-11" onClick={onClose}>
+                  Back to Home <ChevronRight />
                 </Button>
               ) : decisions.length || (!reachedTarget && reason) ? (
                 <Button className="ml-auto h-11" onClick={onOpenInbox}>
