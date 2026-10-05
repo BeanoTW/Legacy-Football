@@ -400,6 +400,22 @@ console.log("\n[H7] Hot-core size at S5 / S10 / S20");
     console.log(`  · S${t} hot core: ${kb} KB`);
   }
   const s20 = marks.get(20)!.hot;
+  const topLevelSizes = Object.entries(s)
+    .map(([key, value]) => [key, byteLength(JSON.stringify(value))] as const)
+    .sort((a, b) => b[1] - a[1]);
+  console.log("  · S20 largest hot-core domains:");
+  for (const [key, bytes] of topLevelSizes.slice(0, 12)) {
+    console.log(`    ${key}: ${(bytes / 1024).toFixed(0)} KB`);
+  }
+  if (s.football) {
+    const footballSizes = Object.entries(s.football)
+      .map(([key, value]) => [key, byteLength(JSON.stringify(value))] as const)
+      .sort((a, b) => b[1] - a[1]);
+    console.log("  · S20 largest football domains:");
+    for (const [key, bytes] of footballSizes.slice(0, 12)) {
+      console.log(`    football.${key}: ${(bytes / 1024).toFixed(0)} KB`);
+    }
+  }
   const worldClubs = s.leagues.reduce((total, league) => total + league.clubIds.length, 0);
   const hotCoreBudget = 2 * 1024 * 1024 + Math.max(0, worldClubs - 40) * 14 * 1024;
   check(
