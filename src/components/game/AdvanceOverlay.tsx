@@ -121,7 +121,8 @@ export function AdvanceOverlay({
   }, [railEndDay, startDay, startState, state]);
   const progress = Math.min(1, Math.max(0, (now - startDay) / span));
 
-  const status = deadline ? "Deadline day" : matchday ? "Matchday" : isContinuing ? "Time running" : "Paused";
+  const previewing = stopped && !reason && !!startState;
+  const status = deadline ? "Deadline day" : matchday ? "Matchday" : isContinuing ? "Time running" : previewing ? "Ready" : "Paused";
 
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/45 px-2 pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-16 backdrop-blur-[2px] md:items-center md:px-6 md:pb-6">
@@ -292,7 +293,16 @@ export function AdvanceOverlay({
         </div>
 
         <footer className="flex shrink-0 items-center gap-2 border-t bg-card p-3">
-          {isContinuing ? (
+          {previewing ? (
+            <>
+              <Button variant="outline" className="h-11" onClick={onClose}>
+                Close
+              </Button>
+              <Button className="ml-auto h-11" onClick={onContinue}>
+                <Play /> Advance 1 day
+              </Button>
+            </>
+          ) : isContinuing ? (
             <>
               <div className="inline-flex rounded-lg border bg-muted/40 p-0.5" role="group" aria-label="Speed">
                 {([1, 2, 4] as const).map((option) => (

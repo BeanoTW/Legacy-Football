@@ -17,8 +17,8 @@ const RIGHT: Tab[] = ["recruitment", "stadium"];
 const SHORT_LABEL: Partial<Record<Tab, string>> = { hub: "Home", stadium: "Club" };
 
 /**
- * Mobile navigation and Continue in one bar. The raised centre button advances
- * time (Stop while advancing); its chevron opens the existing Advance-to menu.
+ * Mobile navigation and time controls in one bar. The raised centre button opens
+ * the Advance preview before time moves (Stop while advancing).
  */
 export function MobileDock({
   tab,
