@@ -1,6 +1,8 @@
 import type { GameState, InfrastructureAsset } from "@/lib/game/types";
 import { ASSET_CONFIG, assets, infrastructureSnapshot, stands } from "@/lib/game/infrastructure";
-import { groundDesign, sceneLook, type GroundDesign, type SceneLook } from "@/lib/game/groundIdentity";
+import { groundDesign, sceneLook, type GroundDesign, type SceneLook, type StandForm } from "@/lib/game/groundIdentity";
+import { clubKitFor, clubKitForReference } from "@/lib/game/clubKit";
+import { hashString } from "@/lib/game/rng";
 
 export interface GroundRequirement {
   label: string;
@@ -96,12 +98,50 @@ export interface MatchdayGroundPresentation {
   look: SceneLook;
 }
 
+
+function generatedAwayGround(state: GameState, opponent: string, attendance: number): MatchdayGroundPresentation {
+  const league = state.leagues.find((item) => item.id === state.liveMatch?.leagueId)
+    ?? state.leagues.find((item) => item.clubIds.includes(opponent));
+  const tier = league?.tier ?? 7;
+  const reputation = state.clubReputations?.[opponent] ?? league?.reputationRange?.[0] ?? 20;
+  const stage = tier <= 1 ? 5 : tier <= 2 ? 4 : tier <= 4 ? 3 : tier <= 6 ? 1 : 0;
+  const seed = hashString(`away-ground|${opponent}`);
+  const level = Math.max(1, Math.min(5, stage || 1));
+  const forms: StandForm[] = stage >= 5 ? ["twoTier", "twoTier", "cantilever", "twoTier"]
+    : stage >= 3 ? ["traditional", "cantilever", "traditional", "cantilever"]
+    : stage >= 1 ? ["shelter", "traditional", "open", "terrace"]
+    : ["open", "shelter", "open", "traditional"];
+  const side = (n: number) => forms[(seed + n) % forms.length];
+  const spanBase = 30 + stage * 10 + Math.round(reputation / 8);
+  const design: GroundDesign = {
+    version: 1,
+    stands: {
+      N: { form: side(0), level, span: Math.min(92, spanBase), depth: 6 + level * 3, setback: 4, standing: stage < 2 ? "terrace" : "seated", roof: stage >= 4 ? "cantilever" : "pitched" },
+      E: { form: side(1), level, span: Math.min(96, spanBase + 8), depth: 7 + level * 3, setback: 4, standing: stage < 2 ? "terrace" : "seated", roof: stage >= 4 ? "cantilever" : "pitched" },
+      S: { form: side(2), level, span: Math.min(92, spanBase - 4), depth: 6 + level * 3, setback: 4, standing: stage < 2 ? "terrace" : "seated", roof: stage >= 4 ? "cantilever" : "pitched" },
+      W: { form: side(3), level, span: Math.min(96, spanBase + 12), depth: 8 + level * 3, setback: 4, standing: stage < 2 ? "terrace" : "seated", roof: stage >= 4 ? "cantilever" : "pitched" },
+    },
+    corners: {
+      NW: { form: stage >= 4 ? "seated" : "open" }, NE: { form: stage >= 5 ? "seated" : "open" },
+      SW: { form: stage >= 5 ? "seated" : "access" }, SE: { form: stage >= 4 ? "seated" : "open" },
+    },
+    perimeter: { style: stage >= 3 ? "hoardings" : stage >= 1 ? "barrier" : "rail", colour: "club" },
+    surroundings: { carParkSurface: stage >= 2 ? "tarmac" : "gravel", carParkLocation: ["NW","NE","SW","SE"][seed % 4] as "NW"|"NE"|"SW"|"SE" },
+  };
+  const kit = clubKitForReference(state, opponent).home;
+  const baseLook = sceneLook(state, { body: kit.body, secondary: kit.trim });
+  const look: SceneLook = { ...baseLook, seat: kit.body, seatAlt: kit.trim, twoTone: true, roof: kit.body, roofDark: kit.trim, cladding: kit.body, homeEnd: null, stands: {} };
+  const capacity = Math.max(1200, Math.round((2500 + stage * stage * 4500 + reputation * 120) / 250) * 250);
+  const boundedAttendance = Math.max(0, Math.min(capacity, Math.round(attendance)));
+  return { stage, stageName: STAGE_NAMES[stage], shortName: STAGE_NAMES[stage].replace(" Ground", ""), capacity, attendance: boundedAttendance, fillPercent: Math.round((boundedAttendance / capacity) * 100), design, look };
+}
+
 export function matchdayGroundPresentation(
   state: GameState,
   home: boolean,
   attendance: number,
 ): MatchdayGroundPresentation | null {
-  if (!home) return null;
+  if (!home) return generatedAwayGround(state, state.liveMatch?.fixture.opponent ?? "Opponent", attendance);
   const progression = groundProgression(state);
   const snapshot = infrastructureSnapshot(state);
   const capacity = Math.max(1, snapshot.usableCapacity || snapshot.capacity || 1);
@@ -114,7 +154,7 @@ export function matchdayGroundPresentation(
     attendance: boundedAttendance,
     fillPercent: Math.max(0, Math.min(100, Math.round((boundedAttendance / capacity) * 100))),
     design: groundDesign(state),
-    look: sceneLook(state),
+    look: sceneLook(state, { body: clubKitFor(state).home.body, secondary: clubKitFor(state).home.trim }),
   };
 }
 
