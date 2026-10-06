@@ -9,6 +9,8 @@ import { socialFeed, type SocialPost } from "@/lib/game/socialFeed";
 import { CharacterPortrait } from "./CharacterPortrait";
 import { useChairmanProfile } from "./ChairmanStudio";
 import { SupporterEventArt } from "./SupporterEventCards";
+import { TurnoutIndicator } from "./EventVisualPrimitives";
+import { EVENT_OUTCOME_LABEL, EVENT_VISUALS } from "@/lib/game/supporterEventPresentation";
 
 type NewsFilter = "all" | "club" | "matches" | "transfers" | "league" | "social";
 
@@ -96,6 +98,45 @@ function QuoteBlock({ article }: { article: NewsArticle }) {
   );
 }
 
+function CommunityEventMedia({
+  article,
+  state,
+  large = false,
+}: {
+  article: NewsArticle;
+  state: GameState;
+  large?: boolean;
+}) {
+  const event = article.communityEvent;
+  if (!event) return null;
+  const visual = EVENT_VISUALS[event.eventId];
+  const sarah = event.sarahFeatured
+    ? (state.hiredStaff ?? []).find((staff) => staff.id === "ST-community-sarah-malik" || staff.name === "Sarah Malik")
+    : null;
+  return (
+    <div className={cn("lf-event-news-hero", visual.tone, large && "is-large", event.outcome && `outcome-${event.outcome}`)}>
+      <div className="lf-event-news-rubric">
+        <span>{visual.category}</span>
+        {event.phase === "result" && event.outcome ? (
+          <span className="lf-event-news-outcome">
+            <TurnoutIndicator outcome={event.outcome} size="sm" />
+            {EVENT_OUTCOME_LABEL[event.outcome]}
+          </span>
+        ) : (
+          <span>Community event</span>
+        )}
+      </div>
+      <SupporterEventArt eventId={event.eventId} />
+      {sarah && (
+        <div className="lf-event-sarah">
+          <CharacterPortrait identity={{ id: sarah.id, subject: "staff" }} size={large ? 38 : 30} title="Sarah Malik" />
+          <span><strong>Sarah Malik</strong><small>{event.sarahRole ?? "Coordinator"}</small></span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function NewsCard({ article, state, onOpen }: { article: NewsArticle; state: GameState; onOpen: () => void }) {
   return (
     <article className={cn("lf-news-post", `tone-${article.publication.tone}`, article.involvesUser && "is-ours")}>
@@ -110,7 +151,7 @@ function NewsCard({ article, state, onOpen }: { article: NewsArticle; state: Gam
       <button type="button" className="lf-news-post-body" onClick={onOpen}>
         <h3>{article.headline}</h3>
         <p>{article.standfirst}</p>
-        {article.communityEvent && <div className="mt-3 overflow-hidden rounded-xl border bg-muted/20"><SupporterEventArt eventId={article.communityEvent.eventId} /></div>}
+        {article.communityEvent && <CommunityEventMedia article={article} state={state} />}
         {(article.kind === "matchReport" || article.kind === "upset") && <ScorePlate article={article} />}
         {article.kind === "transfer" && <TransferPlate article={article} />}
         {article.kind === "appointment" && <ShapePlate article={article} />}
@@ -167,7 +208,7 @@ function ArticleReader({ article, state, onClose }: { article: NewsArticle; stat
           <h2 className="lf-paper-headline">{article.headline}</h2>
           <p className="lf-paper-standfirst">{article.standfirst}</p>
           <p className="lf-paper-byline">By {article.byline} · {newsAge(state, article)}</p>
-          {article.communityEvent && <div className="my-4 overflow-hidden rounded-xl border bg-muted/20"><SupporterEventArt eventId={article.communityEvent.eventId} /></div>}
+          {article.communityEvent && <CommunityEventMedia article={article} state={state} large />}
           {article.scoreline && <ScorePlate article={article} large />}
           <div className="lf-paper-body">
             {article.body.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
