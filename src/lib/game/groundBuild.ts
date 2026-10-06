@@ -75,7 +75,8 @@ export function approveStandBuild(s: GameState, assetId: string, type: CapitalPr
   if (resulting >= 4 && build.roof === "twoTier") {
     project.effectsOnCompletion.push({ kind: "metadata", key: "hospitalityCapacity", add: 150 });
   }
-  const label = `${build.standing === "terrace" ? "covered terrace" : build.standing === "safeStanding" ? "safe standing" : "all-seater"}${resulting >= 3 ? `, ${build.roof === "twoTier" ? "two tiers" : build.roof === "cantilever" ? "cantilever roof" : "traditional roof"}` : ""}`;
+  const variantLabel = build.variant === "compact" ? "compact" : build.variant === "longLow" ? "long & low" : "traditional";
+  const label = `${variantLabel} ${build.standing === "terrace" ? "covered terrace" : build.standing === "safeStanding" ? "safe standing" : "all-seater"}${resulting >= 3 ? `, ${build.roof === "twoTier" ? "two tiers" : build.roof === "cantilever" ? "cantilever roof" : "traditional roof"}` : ""}`;
   project.title = `${project.title} (${label})`;
   project.history.push({
     absoluteWeek: project.approvedAtAbsoluteWeek ?? next.infrastructure?.lastTickAbsoluteWeek ?? 0,
