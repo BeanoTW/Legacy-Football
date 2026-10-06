@@ -1897,4 +1897,11 @@ export function buildGroundScene(input: SceneInput): SceneOutput {
   }
 
   return {
-    viewBox: { x: min
+    viewBox: { x: minX, y: minY, w, h },
+    background: "#6f9a42",
+    prims: [...scene.ground, ...scene.shadows, ...objects],
+    pitchBounds,
+    anchors: outAnchors,
+    ...(designed ? { selectables } : {}),
+  };
+}
