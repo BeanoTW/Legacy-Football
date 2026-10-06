@@ -316,8 +316,8 @@ function StandEnvelopeExpansion({
       <Button
         size="sm"
         className="mt-2 w-full"
-        disabled={!evaluation.ok}
-        title={evaluation.ok ? undefined : evaluation.reasons.join(" · ")}
+        disabled={!evaluation?.allowed}
+        title={evaluation?.allowed ? undefined : evaluation?.reason}
         onClick={() =>
           apply((s) =>
             approveStandBuild(s, asset.id, spec.type, standBuild(s, asset.id, asset.level))
@@ -326,7 +326,7 @@ function StandEnvelopeExpansion({
       >
         Preview & approve physical expansion
       </Button>
-      {!evaluation.ok ? <p className="mt-1 text-[10px] text-muted-foreground">{evaluation.reasons[0]}</p> : null}
+      {!evaluation?.allowed ? <p className="mt-1 text-[10px] text-muted-foreground">{evaluation?.reason}</p> : null}
       <p className="mt-1 text-[10px] text-muted-foreground">Moving the sliders inside {builtSpan}m × {builtDepth}m remains free. This project increases the permanent envelope and capacity.</p>
     </div>
   );
@@ -574,7 +574,7 @@ function StandDevelopment({ state, asset, apply }: { state: GameState; asset: In
                 <Button
                   size="sm"
                   className="mt-2 w-full"
-                  disabled={!evaluateProject(state, host.id, expansion.type).ok}
+                  disabled={!evaluateProject(state, host.id, expansion.type)?.allowed}
                   onClick={() => apply((s) => approveStandBuild(s, host.id, expansion.type, standBuild(s, host.id, host.level)))}
                 >
                   Approve corner infill
