@@ -3,7 +3,7 @@ import { calendarDay } from "./calendar";
 import { absoluteWeek } from "./time";
 import { transferAbsoluteDay } from "./transferResponses";
 
-export type TimelineEventKind = "fixture" | "scouting" | "transfer" | "club";
+export type TimelineEventKind = "fixture" | "scouting" | "transfer" | "club" | "supporters";
 
 export interface TimelineEvent {
   id: string;
@@ -141,6 +141,12 @@ export function upcomingTimelineEvents(state: GameState, horizonDays = 42): Time
       label: milestone.label,
       detail: playerName(state, assignment.playerId),
     });
+  }
+
+  for (const event of state.supporterEvents ?? []) {
+    if (event.status !== "scheduled" || event.scheduledAbsoluteDay < now || event.scheduledAbsoluteDay > end) continue;
+    const date = seasonWeekFromAbsoluteDay(state, event.scheduledAbsoluteDay);
+    events.push({ id: `supporters:${event.id}`, kind: "supporters", absoluteDay: event.scheduledAbsoluteDay, week: date.week, day: date.day, label: "Supporter event", detail: event.eventId });
   }
 
   for (const negotiation of state.football?.negotiations ?? []) {
