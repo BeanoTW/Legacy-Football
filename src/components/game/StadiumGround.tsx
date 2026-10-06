@@ -165,8 +165,10 @@ export function StadiumGround({
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const gesture = useRef<{ az: number; el: number; zoom: number; x: number; y: number; dist: number; moved: boolean; t: number; pinch: boolean } | null>(null);
 
-  const pitchCondition = Math.round((hotspots.find((h) => h.id === "pitch")?.asset.condition ?? 80) / 5) * 5;
-  const worksKey = hotspots
+  // Keep Facilities resilient when a legacy save or editor render has no hotspot list yet.
+  const safeHotspots = Array.isArray(hotspots) ? hotspots : [];
+  const pitchCondition = Math.round((safeHotspots.find((h) => h.id === "pitch")?.asset?.condition ?? 80) / 5) * 5;
+  const worksKey = safeHotspots
     .filter((h) => h.asset.activeProjectId)
     .map((h) => h.id)
     .sort()
