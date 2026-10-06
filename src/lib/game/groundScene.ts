@@ -1368,10 +1368,15 @@ function corner(scene: Scene, slot: CornerSlot, design: GroundDesign) {
   const anchor = f.mapper(0, 4, 2);
   const foot = [f.mapper(-f.gap / 2, 0, 0), f.mapper(f.gap / 2, 0, 0), f.mapper(f.gap / 2, 8, 0), f.mapper(-f.gap / 2, 8, 0)];
   if (c.form === "access") {
-    // Access furniture is separate from the developed infill ribbon.
-    scene.flat([f.mapper(-2.2, -2, 0), f.mapper(2.2, -2, 0), f.mapper(2.2, 16, 0), f.mapper(-2.2, 16, 0)], C.path);
-    const g0 = f.mapper(-2.4, 0.5, 0);
-    const g1 = f.mapper(2.4, 0.5, 0);
+    // Access furniture belongs outside the spectator barrier.  The old lane
+    // started at a negative corner-frame offset, which could project the road
+    // and gate back across the touchline/goal-line. Keep the whole access
+    // corridor on the outward side of the two adjacent stand fronts instead.
+    const accessInner = 3.5;
+    const accessOuter = 17;
+    scene.flat([f.mapper(-2.2, accessInner, 0), f.mapper(2.2, accessInner, 0), f.mapper(2.2, accessOuter, 0), f.mapper(-2.2, accessOuter, 0)], C.path);
+    const g0 = f.mapper(-2.4, accessInner + 0.5, 0);
+    const g1 = f.mapper(2.4, accessInner + 0.5, 0);
     scene.add([
       { d: pathOf([g0, v(g0.x, g0.y, 2.6)], false), fill: "none", stroke: "#3b3f43", sw: widthAt(g0, 1.2) },
       { d: pathOf([g1, v(g1.x, g1.y, 2.6)], false), fill: "none", stroke: "#3b3f43", sw: widthAt(g1, 1.2) },
