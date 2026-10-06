@@ -517,7 +517,7 @@ function SelectionPanel({
 
 function StandDevelopment({ state, asset, apply }: { state: GameState; asset: InfrastructureAsset; apply: (edit: (s: GameState) => { state: GameState; ok: boolean; reason?: string }) => void }) {
   const [choosing, setChoosing] = useState<ProjectSpec | null>(null);
-  const projects = projectCatalogue(state, asset.id).filter((spec) => ["capacityExpansion", "standRedevelopment", "roofUpgrade", "seatingRefurbishment", "concourseUpgrade", "accessibilityUpgrade", "hospitalityInstallation", "corporateBoxes", "retailExpansion"].includes(spec.type));
+  const projects = projectCatalogue(state, asset.id).filter((spec) => ["capacityExpansion", "standRedevelopment", "roofUpgrade"].includes(spec.type));
   if (!projects.length) return null;
   if (choosing) return <div className="rounded-xl border bg-muted/20 p-3">{isLevelRaising(choosing.type) ? <StandBuildChooser state={state} asset={asset} spec={choosing} onCancel={() => setChoosing(null)} onConfirm={(build) => { apply((s) => approveStandBuild(s, asset.id, choosing.type, build)); setChoosing(null); }} /> : <div className="space-y-3"><div><div className="font-display text-base">{choosing.title.replace(`${asset.name} — `, "")}</div><div className="text-xs text-muted-foreground">{choosing.description}</div></div><div className="grid grid-cols-3 divide-x rounded-lg border bg-muted/30 text-center"><div className="p-2"><strong className="block">{fmtMoneyExact(choosing.cost)}</strong><span className="text-[9px] uppercase text-muted-foreground">Cost</span></div><div className="p-2"><strong className="block">{choosing.durationWeeks}w</strong><span className="text-[9px] uppercase text-muted-foreground">Build</span></div><div className="p-2"><strong className="block">{choosing.effects.find((e) => e.kind === "capacity") ? `+${(choosing.effects.find((e) => e.kind === "capacity") as { add: number }).add.toLocaleString("en-GB")}` : "—"}</strong><span className="text-[9px] uppercase text-muted-foreground">Places</span></div></div><div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setChoosing(null)}>Back</Button><Button onClick={() => { apply((s) => approveProjectCompat(s, asset.id, choosing.type)); setChoosing(null); }}>Approve</Button></div></div>}</div>;
   return <Field label="Develop this stand">
@@ -534,7 +534,7 @@ function StandDevelopment({ state, asset, apply }: { state: GameState; asset: In
         </div>;
       })}
     </div>
-    <p className="mt-1 text-[10.5px] text-muted-foreground">Style and shape remain free. Capacity and structural work create a real construction project.</p>
+    <p className="mt-1 text-[10.5px] text-muted-foreground">Only visible structural work lives here. Accessibility, hospitality, catering, retail and other non-visual capability are developed through Facilities.</p>
   </Field>;
 }
 
