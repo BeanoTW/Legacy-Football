@@ -1345,8 +1345,8 @@ function cornerFrame(slot: CornerSlot, design: GroundDesign) {
   // A: where the end stand stops; B: where the touchline stand stops.
   const endHalf = endSpec ? (endSpec.to - endSpec.from) / 2 : HALF_W - 6;
   const touchHalf = touchSpec ? (touchSpec.to - touchSpec.from) / 2 : HALF_L - 8;
-  const A = v(sx * sideFront(end, design.stands[end]), sy * Math.min(endHalf + 0.5, HALF_W + 10), 0);
-  const B = v(sx * Math.min(touchHalf + 0.5, HALF_L + 10), sy * sideFront(touch, design.stands[touch]), 0);
+  const A = v(sx * sideFront(end, design.stands[end]), sy * endHalf, 0);
+  const B = v(sx * touchHalf, sy * sideFront(touch, design.stands[touch]), 0);
   const mid = v((A.x + B.x) / 2, (A.y + B.y) / 2, 0);
   let along = norm(sub(B, A));
   let out = v(along.y, -along.x, 0);
@@ -1355,63 +1355,133 @@ function cornerFrame(slot: CornerSlot, design: GroundDesign) {
   along = v(-out.y, out.x, 0);
   const gap = Math.hypot(B.x - A.x, B.y - A.y);
   const mapper = (a: number, o: number, z: number) => v(mid.x + along.x * a + out.x * o, mid.y + along.y * a + out.y * o, z);
-  const neighbourDepth = Math.min(endSpec?.depth ?? 8, touchSpec?.depth ?? 8);
-  return { sx, sy, mapper, end, touch, gap, neighbourDepth };
+  return { sx, sy, mapper, end, touch, gap, endSpec, touchSpec, A, B };
 }
 
+/** A ribbon between the actual end faces, not a rotated rectangular stand.
+ * In positive corner coordinates the entire sweep stays outside the fence:
+ * its turn is confined to x >= clearanceX, y >= clearanceY; the two
+ * approach legs stay beyond their respective stand fronts. */
 function corner(scene: Scene, slot: CornerSlot, design: GroundDesign) {
   const c = design.corners[slot];
   const f = cornerFrame(slot, design);
-  const large = c.size === "large";
-  const half = Math.max(3, Math.min(large ? f.gap / 2 : 6, f.gap / 2));
-  // Corner infill must stay outside the playing rectangle. Pull the inner edge
-  // away from the pitch and taper it rather than drawing a straight stand chord
-  // through the corner of the field.
-  const safeFront = Math.max(2.4, Math.min(5.5, f.neighbourDepth * 0.42));
-  const shape = c.shape ?? "angled";
-  const cornerMapper = (a: number, o: number, z: number) => {
-    const t = Math.min(1, Math.abs(a) / Math.max(1, half));
-    const curve = shape === "rounded" ? 1 - Math.sqrt(Math.max(0, 1 - t * t)) : t;
-    return f.mapper(a, o + safeFront * (1 - curve), z);
-  };
-  const foot = (depth: number) => [cornerMapper(-half, 0, 0), cornerMapper(half, 0, 0), f.mapper(half, depth + safeFront, 0), f.mapper(-half, depth + safeFront, 0)];
-  const anchor = cornerMapper(0, 4, 2);
-  switch (c.form) {
-    case "access": {
-      // A gate in the corner, a path out and a little turnstile hut.
-      scene.flat([f.mapper(-2.2, -2, 0), f.mapper(2.2, -2, 0), f.mapper(2.2, 16, 0), f.mapper(-2.2, 16, 0)], C.path);
-      const g0 = f.mapper(-2.4, 0.5, 0);
-      const g1 = f.mapper(2.4, 0.5, 0);
-      scene.add([
-        { d: pathOf([g0, v(g0.x, g0.y, 2.6)], false), fill: "none", stroke: "#3b3f43", sw: widthAt(g0, 1.2) },
-        { d: pathOf([g1, v(g1.x, g1.y, 2.6)], false), fill: "none", stroke: "#3b3f43", sw: widthAt(g1, 1.2) },
-        { d: pathOf([v(g0.x, g0.y, 2.4), v(g1.x, g1.y, 2.4)], false), fill: "none", stroke: "#3b3f43", sw: widthAt(g0, 0.7) },
-        { d: pathOf([v(g0.x, g0.y, 1.2), v(g1.x, g1.y, 1.2)], false), fill: "none", stroke: "#e8a33d", sw: widthAt(g0, 0.5), opacity: 0.9 },
-      ], v((g0.x + g1.x) / 2, (g0.y + g1.y) / 2, 1.2));
-      const hut = f.mapper(4.5, 3, 0);
-      scene.add(solid(boxFaces(hut.x - 1.4, hut.y - 1.4, 0, hut.x + 1.4, hut.y + 1.4, 2.5), C.brick), v(hut.x, hut.y, 1.2));
-      scene.shadowSolid([...rect(hut.x - 1.4, hut.y - 1.4, hut.x + 1.4, hut.y + 1.4), ...rect(hut.x - 1.4, hut.y - 1.4, hut.x + 1.4, hut.y + 1.4, 2.5)], 0.22);
-      select(`corner:${slot}`, anchor, foot(14), 3);
-      return;
-    }
-    case "terrace":
-      {
-        const depth = large ? Math.max(7, f.neighbourDepth * 0.8) : 6;
-        stand(scene, { side: f.end, front: 0, mapper: cornerMapper, from: -half, to: half, depth, rake: depth * 0.36, roof: false, seat: C.terrace, terrace: true, rearDetail: false, back: MATERIAL_TONE.concrete });
-        select(`corner:${slot}`, anchor, foot(depth), depth * 0.36 + 1);
-      }
-      return;
-    case "seated": {
-      const colours = sideColours(f.touch);
-      const depth = large ? Math.max(9, f.neighbourDepth * 0.85) : 8;
-      stand(scene, { side: f.end, front: 0, mapper: cornerMapper, from: -half, to: half, depth, rake: depth * 0.5, roof: true, cantilever: true, seat: colours.seatAlt, back: MATERIAL_TONE.cladding, rearDetail: true, roofColour: colours.roof, roofDark: colours.roofDark });
-      select(`corner:${slot}`, anchor, foot(depth), depth * 0.5 + 4.8);
-      return;
-    }
-    default:
-      // Open corners (and pylon corners, whose pylon is drawn with the lights) stay grass.
-      select(`corner:${slot}`, anchor, foot(8), 0);
+  const anchor = f.mapper(0, 4, 2);
+  const foot = [f.mapper(-f.gap / 2, 0, 0), f.mapper(f.gap / 2, 0, 0), f.mapper(f.gap / 2, 8, 0), f.mapper(-f.gap / 2, 8, 0)];
+  if (c.form === "access") {
+    // Access furniture is separate from the developed infill ribbon.
+    scene.flat([f.mapper(-2.2, -2, 0), f.mapper(2.2, -2, 0), f.mapper(2.2, 16, 0), f.mapper(-2.2, 16, 0)], C.path);
+    const g0 = f.mapper(-2.4, 0.5, 0);
+    const g1 = f.mapper(2.4, 0.5, 0);
+    scene.add([
+      { d: pathOf([g0, v(g0.x, g0.y, 2.6)], false), fill: "none", stroke: "#3b3f43", sw: widthAt(g0, 1.2) },
+      { d: pathOf([g1, v(g1.x, g1.y, 2.6)], false), fill: "none", stroke: "#3b3f43", sw: widthAt(g1, 1.2) },
+      { d: pathOf([v(g0.x, g0.y, 2.4), v(g1.x, g1.y, 2.4)], false), fill: "none", stroke: "#3b3f43", sw: widthAt(g0, 0.7) },
+      { d: pathOf([v(g0.x, g0.y, 1.2), v(g1.x, g1.y, 1.2)], false), fill: "none", stroke: "#e8a33d", sw: widthAt(g0, 0.5), opacity: 0.9 },
+    ], centroid([g0, g1]));
+    const hut = f.mapper(4.5, 3, 0);
+    scene.add(solid(boxFaces(hut.x - 1.4, hut.y - 1.4, 0, hut.x + 1.4, hut.y + 1.4, 2.5), C.brick), v(hut.x, hut.y, 1.2));
+    scene.shadowSolid([...rect(hut.x - 1.4, hut.y - 1.4, hut.x + 1.4, hut.y + 1.4), ...rect(hut.x - 1.4, hut.y - 1.4, hut.x + 1.4, hut.y + 1.4, 2.5)], 0.22);
+    select(`corner:${slot}`, anchor, foot, 3);
+    return;
   }
+  if ((c.form !== "terrace" && c.form !== "seated") || !f.endSpec || !f.touchSpec) {
+    // Open/pylon corners have no deck or roof; missing neighbours cannot be bridged.
+    select(`corner:${slot}`, anchor, foot, 0);
+    return;
+  }
+
+  const endSpec = f.endSpec;
+  const touchSpec = f.touchSpec;
+  const terrace = c.form === "terrace";
+  const colours = sideColours(f.touch);
+  const clearanceX = HALF_L + 4.4;
+  const clearanceY = HALF_W + 4.4;
+  const ax = Math.abs(f.A.x);
+  const ay = Math.abs(f.A.y);
+  const bx = Math.abs(f.B.x);
+  const by = Math.abs(f.B.y);
+  const reach = (spec: StandSpec) => spec.depth + (spec.upper ? spec.upper.depth + 1 : 0);
+  const rearHeight = (spec: StandSpec) => spec.rake + (spec.upper ? spec.upper.rake + 3.5 : 0);
+  const endDepth = reach(endSpec);
+  const touchDepth = reach(touchSpec);
+  // Full joins both end faces. Partial grows from one neighbour and leaves
+  // a real access opening before the other, including in the roof.
+  const extent = c.size === "large" ? 1 : 0.6;
+  const rounded = c.shape === "rounded";
+  const point = (t: number, row: number, roof = false): V3 => {
+    const x = ax + endDepth * row;
+    const y = by + touchDepth * row;
+    const cx = Math.max(bx, clearanceX);
+    const cy = Math.max(ay, clearanceY);
+    let px: number;
+    let py: number;
+    if (t <= 0.25) {
+      px = x;
+      py = ay + (cy - ay) * t * 4;
+    } else if (t >= 0.75) {
+      px = cx + (bx - cx) * (t - 0.75) * 4;
+      py = y;
+    } else {
+      const u = (t - 0.25) * 2;
+      // Diagonal chamfer versus a true quarter-ellipse. Every seating row
+      // and roof edge samples the same family, with independently sized ends.
+      px = cx + (x - cx) * (rounded ? Math.cos(u * Math.PI / 2) : 1 - u);
+      py = cy + (y - cy) * (rounded ? Math.sin(u * Math.PI / 2) : u);
+    }
+    const endZ = 1.1 + (rearHeight(endSpec) - 1.1) * row;
+    const touchZ = 1.1 + (rearHeight(touchSpec) - 1.1) * row;
+    const z = roof
+      ? (endSpec.rake + (endSpec.upper ? endSpec.upper.rake + 3.5 : 0) + 3.2 + row * 1.6) * (1 - t)
+        + (touchSpec.rake + (touchSpec.upper ? touchSpec.upper.rake + 3.5 : 0) + 3.2 + row * 1.6) * t
+      : endZ * (1 - t) + touchZ * t;
+    return v(f.sx * px, f.sy * py, z);
+  };
+  const ground = (p: V3) => v(p.x, p.y, 0);
+  const segments = 24;
+  const rows = Math.max(3, Math.round(Math.max(endDepth, touchDepth) / 1.6));
+  const roofed = !terrace;
+  const footprint: V3[] = [];
+  const outer: V3[] = [];
+  for (let i = 0; i <= segments; i += 1) {
+    const t = extent * i / segments;
+    footprint.push(ground(point(t, 0)));
+    outer.push(ground(point(t, 1)));
+  }
+  for (let i = 0; i < segments; i += 1) {
+    const t0 = extent * i / segments;
+    const t1 = extent * (i + 1) / segments;
+    const a = point(t0, 0), b = point(t1, 0);
+    const d = point(t0, 1), e = point(t1, 1);
+    const faces = [
+      [a, b, e, d],
+      [ground(a), ground(b), b, a],
+      [ground(d), d, e, ground(e)],
+    ];
+    // End caps only at exposed ribbon ends, never between tessellated cells.
+    if (i === 0) faces.push([ground(a), a, d, ground(d)]);
+    if (i === segments - 1) faces.push([ground(b), ground(e), e, b]);
+    const prims = solid(faces, C.concrete, { faceColors: [terrace ? C.terrace : colours.seatAlt, C.concrete, terrace ? MATERIAL_TONE.concrete : colours.cladding], outline: false });
+    if (facesCamera(a, b, d, ground(d))) {
+      for (let r = 1; r < rows; r += 1) {
+        if (terrace && r % 2) continue;
+        const p0 = point(t0, r / rows), p1 = point(t1, r / rows);
+        if (terrace) { p0.z += 0.8; p1.z += 0.8; }
+        prims.push({ d: pathOf([p0, p1], false), fill: "none", stroke: terrace ? C.barrier : shade(colours.seatAlt, 0.72), sw: widthAt(p0, terrace ? 0.6 : 0.8) });
+      }
+    }
+    scene.add(prims, centroid([a, b, d, e]));
+    if (roofed) {
+      const roof = [point(t0, 0, true), point(t1, 0, true), point(t1, 1, true), point(t0, 1, true)];
+      const underside = roof.map((p) => v(p.x, p.y, p.z - 0.45));
+      const roofFaces = [roof, underside, ...roof.map((p, j) => [p, roof[(j + 1) % 4], underside[(j + 1) % 4], underside[j]])];
+      const roofPrims = solid(roofFaces, colours.roofDark, { faceColors: [colours.roof], outline: false });
+      if (i % 3 === 0) roofPrims.push({ d: pathOf([roof[0], roof[3]], false), fill: "none", stroke: shade(colours.roof, 0.82), sw: widthAt(roof[0], 0.5) });
+      scene.add(roofPrims, centroid(roof));
+      scene.shadowSolid([...roof, ...roof.map(ground)], 0.3);
+    } else scene.shadowSolid([a, b, d, e, ...[a, b, d, e].map(ground)], 0.25);
+  }
+  const mid = point(extent / 2, 0.5, roofed);
+  select(`corner:${slot}`, mid, footprint.concat(outer.reverse()), Math.max(standHeight(endSpec), standHeight(touchSpec)));
 }
 
 /* ---------------- Perimeter ---------------- */
