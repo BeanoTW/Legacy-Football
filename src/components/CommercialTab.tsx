@@ -126,7 +126,7 @@ function SupporterEventsPanel({ state, act }: { state: GameState; act: (fn: (s: 
     <Panel title="Event coordination" aside={support.coordinator ? `Rating ${support.score}` : "Director-led"}>
       {support.coordinator ? (
         <div className="px-3 py-2">
-          <div className="flex items-baseline justify-between gap-2"><strong className="text-sm">{support.coordinator.name}</strong><span className="text-[10px] text-muted-foreground">Community & Events Officer</span></div>
+          <div className="flex items-baseline justify-between gap-2"><strong className="text-sm">{support.coordinator.name}</strong><span className="text-[10px] text-muted-foreground">{support.volunteer ? "Volunteer coordinator" : "Community & Events Officer"}</span></div>
           <div className="mt-1 flex flex-wrap gap-1.5 text-[10px] font-semibold">
             <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-emerald-700 dark:text-emerald-300">Costs −{support.costDiscountPct}%</span>
             <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-violet-700 dark:text-violet-300">Turnout +{support.turnoutBoostPct}%</span>
