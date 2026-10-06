@@ -1762,4 +1762,73 @@ function composeDesigned(scene: Scene, input: SceneInput, design: GroundDesign, 
     const reach = spec ? standReach(side, d) : 6.5;
     select(`stand:${side}`, spec ? anchor : W(0, 3, 1.5), [W(-half, 0, 0), W(half, 0, 0), W(half, reach, 0), W(-half, reach, 0)], spec ? standHeight(spec) : 0.6);
   }
-  for (const slot of ["NW", "NE", "SW", "SE"] as CornerSlot[]) corner(scene, slot, des
+  for (const slot of ["NW", "NE", "SW", "SE"] as CornerSlot[]) corner(scene, slot, design);
+  designedLights(scene, design);
+  scoreboard(scene, design);
+  designedSurroundings(scene, design, rand, anchors);
+  treeBelts(scene, rand);
+
+  for (const id of input.worksAt) {
+    const at = anchors[id];
+    if (!at) continue;
+    if (id === "pitch" || id === "parking") groundworks(scene, id === "pitch" ? v(-HALF_L + 22, 6, 0) : at);
+    else crane(scene, at);
+  }
+}
+
+/** Outline the selected component: a soft footprint and, for tall things, a frame. */
+function drawHighlight(scene: Scene, id: string | undefined) {
+  const target = id ? SELECTABLES[id] : undefined;
+  if (!target) return;
+  const amber = "#ffc53d";
+  scene.shadows.push({ d: pathOf(target.footprint), fill: amber, opacity: 0.22 });
+  scene.shadows.push({ d: pathOf(target.footprint), fill: "none", stroke: amber, sw: 2.2, opacity: 0.95 });
+  if (target.height > 0.5) {
+    const top = target.footprint.map((p) => v(p.x, p.y, target.height));
+    const prims: ScenePrimitive[] = [{ d: pathOf(top), fill: "none", stroke: amber, sw: 1.8, opacity: 0.95 }];
+    for (let i = 0; i < target.footprint.length; i += 1) prims.push({ d: pathOf([target.footprint[i], top[i]], false), fill: "none", stroke: amber, sw: 1.4, opacity: 0.85 });
+    // Draw on top of everything.
+    scene.objects.push({ depth: -1e9, prims });
+  }
+}
+
+function designedFrame(design: GroundDesign): V3[] {
+  const reach = (side: StandSide) => sideFront(side, design.stands[side]) + standReach(side, design.stands[side]) + 1;
+  const xN = reach("N");
+  const xS = reach("S");
+  const yW = reach("W");
+  const yE = reach("E");
+  const tall = Math.max(...(["N", "E", "S", "W"] as StandSide[]).map((side) => {
+    const spec = designedStandSpec(side, design.stands[side]);
+    return spec ? standHeight(spec) : 4;
+  }));
+  const [px, py] = SIDE_SIGN[design.surroundings.carParkLocation];
+  return [v(-xS, -yE, 0), v(xN, -yE, 0), v(xN, yW, 0), v(-xS, yW, 0), v(-xS, yW, tall), v(xN, yW, tall), v(-xS, -yE, tall), v(xN, -yE, tall), v(px * Math.max(xN, xS, 70), py * Math.max(yW, yE, 44), 0)];
+}
+
+export function buildGroundScene(input: SceneInput): SceneOutput {
+  configureCamera(input);
+  // Reset the palette and look for this build (pure: same input, same picture).
+  Object.assign(C, BASE_C, { field: [...BASE_C.field] });
+  LOOK = input.look;
+  if (LOOK) {
+    C.seat = LOOK.seat;
+    C.seatAlt = LOOK.seatAlt;
+    C.roof = LOOK.roof;
+    C.roofDark = LOOK.roofDark;
+    C.brick = LOOK.cladding;
+  }
+
+  const scene = new Scene();
+  const anchors: Record<string, V3> = {};
+  SELECTABLES = {};
+  if (input.design?.version === 1) {
+    composeDesigned(scene, input, input.design, anchors);
+    drawHighlight(scene, input.highlight);
+  } else compose(scene, input, anchors);
+
+  // Frame the ground itself (pitch, stands, club buildings), fitted to the viewport's shape.
+  const stage = Math.max(0, Math.min(6, Math.round(input.stage)));
+  const reachX = stage >= 4 ? 78 : stage >= 2 ? 70 : 62;
+  const reachY = stage >= 4 ? 64 : stage >= 2 ? 56 : 46;
+  const 
