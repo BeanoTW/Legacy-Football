@@ -409,6 +409,13 @@ console.log("\n[H7] Hot-core size at S5 / S10 / S20");
         .map((entry) => `${entry.key} ${(entry.bytes / 1024).toFixed(0)} KB`)
         .join(" · "),
   );
+  console.log(
+    "  · S20 largest growth drivers: " +
+      breakdown.drivers
+        .slice(0, 8)
+        .map((entry) => `${entry.key} ${(entry.bytes / 1024).toFixed(0)} KB${entry.rows != null ? `/${entry.rows}` : ""}`)
+        .join(" · "),
+  );
   const worldClubs = s.leagues.reduce((total, league) => total + league.clubIds.length, 0);
   const hotCoreBudget = 2 * 1024 * 1024 + Math.max(0, worldClubs - 40) * 14 * 1024;
   check(
