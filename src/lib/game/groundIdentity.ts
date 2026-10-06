@@ -166,6 +166,32 @@ function standFormFor(level: number, build: StandBuild): StandForm {
   return build.roof === "cantilever" ? "cantilever" : "traditional";
 }
 
+/** Physical footprint implied by purchased capacity and the chosen structural variant.
+ * Variants change proportions, never grant free infrastructure. */
+export function standStructuralFootprint(
+  side: StandSide,
+  capacity: number,
+  level: number,
+  variant: StandVariant = "traditional",
+) {
+  const cap = Math.max(0, capacity);
+  const siteSpan = side === "N" || side === "S" ? 58 : 96;
+  const variantSpanFactor = variant === "compact" ? 0.78 : 1;
+  const maxSpan = Math.round(siteSpan * variantSpanFactor);
+  const spanRate = variant === "longLow" ? 0.047 : variant === "compact" ? 0.031 : 0.04;
+  const depthRate = variant === "compact" ? 330 : variant === "longLow" ? 600 : 450;
+  const span = cap > 0
+    ? Math.round(Math.max(18, Math.min(maxSpan, 18 + cap * spanRate)))
+    : Math.min(maxSpan, 28 + level * 12);
+  const widthCapacity = Math.max(0, (maxSpan - 18) / spanRate);
+  const overflow = Math.max(0, cap - widthCapacity);
+  const depthBase = variant === "compact" ? 6 : 4;
+  const depth = cap > 0
+    ? Math.round(Math.max(depthBase, Math.min(26, depthBase + overflow / depthRate)))
+    : 6 + level * 3;
+  return { span, depth };
+}
+
 /** Deterministic adapter for pre-slot saves. Nothing is persisted merely by reading it. */
 export function groundDesign(s: GameState): GroundDesign {
   const identity = groundIdentity(s);
@@ -211,18 +237,15 @@ function derivedGroundDesign(s: GameState): GroundDesign {
     const terraceByName = !chosen && level <= 2 && /terrace|\bend\b|kop|bank|shed/i.test(asset.name ?? "") && !/main/i.test(asset.name ?? "");
     const base = standBuild(s, asset.id, asset.level);
     const build: StandBuild = terraceByName ? { ...base, standing: "terrace" } : base;
-    // Size follows the stand's real capacity, so grounds are asymmetric like real ones.
+    // Size follows real capacity and the paid build variant. The same number
+    // of places can therefore produce visibly different stadium character.
     const capacity = Math.max(0, asset.capacity ?? 0);
-    const maxSpan = side === "N" || side === "S" ? 58 : 96;
+    const footprint = standStructuralFootprint(side, capacity, level, build.variant ?? "traditional");
     stands[side] = {
       form: standFormFor(level, build),
       level,
-      span: capacity > 0 ? Math.round(Math.max(18, Math.min(maxSpan, 18 + capacity * 0.04))) : Math.min(maxSpan, 28 + level * 12),
-      // Fill the available length first. Once full, extra places make the
-      // stand deeper; later level/form progression provides the height.
-      depth: capacity > 0
-        ? Math.round(Math.max(4, Math.min(24, 4 + Math.max(0, capacity - Math.max(0, (maxSpan - 18) / 0.04)) / 450)))
-        : 6 + level * 3,
+      span: footprint.span,
+      depth: footprint.depth,
       setback: level >= 3 ? 6 : 4,
       standing: build.standing,
       roof: level === 0 ? "open" : build.roof,
