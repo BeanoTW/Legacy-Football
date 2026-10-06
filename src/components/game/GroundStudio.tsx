@@ -42,11 +42,8 @@ import {
 } from "@/lib/game/groundIdentity";
 import {
   defaultMaterial,
-  roofOptions,
-  standFormOptions,
-   standFootprintForCapacity,
-  standingOptions,
-  updateCorner,
+     standFootprintForCapacity,
+   updateCorner,
   updateFixtures,
   updatePerimeter,
   updateStand,
@@ -185,8 +182,6 @@ const SIDES = ["W", "E", "N", "S"] as const;
 const CORNERS = ["NW", "NE", "SW", "SE"] as const;
 const CORNER_NAME: Record<string, string> = { NW: "North-West corner", NE: "North-East corner", SW: "South-West corner", SE: "South-East corner" };
 const FIXTURE_NAME: Record<string, string> = { pitch: "Pitch", lights: "Floodlights", perimeter: "Perimeter", dugouts: "Dugouts", scoreboard: "Scoreboard", surroundings: "Car park & buildings" };
-const STANDING_LABEL: Record<string, string> = { terrace: "Standing", safeStanding: "Safe standing", seated: "Seated" };
-const ROOF_LABEL: Record<string, string> = { pitched: "Pitched", cantilever: "Cantilever", twoTier: "Two-tier", open: "No roof" };
 const GATE_LABEL: Record<string, string> = { N: "North", E: "East", S: "South", W: "West" };
 
 export function GroundStudioSheet({
@@ -314,7 +309,7 @@ function StandDevelopmentPanel({
     : undefined;
 
   return (
-    <Field label={mode === "maintenance" ? "Maintain this stand" : "Develop this stand"}>
+    <Field label={mode === "maintenance" ? `Maintain this ${asset.type === "cornerStand" ? "corner" : "stand"}` : "Develop this stand"}>
       {active ? (
         <div className="rounded-xl border bg-muted/35 px-3 py-2">
           <div className="flex items-center justify-between gap-2">
@@ -455,10 +450,26 @@ function StandDevelopment({ state, asset, apply }: { state: GameState; asset: In
   const projects = projectCatalogue(state, asset.id).filter((spec) => ["capacityExpansion", "standRedevelopment", "roofUpgrade"].includes(spec.type));
   const nextStructuralStage = asset.level <= 2 ? "Extend" : asset.level <= 4 ? "Enlarge" : "Mature structure";
   if (!projects.length) return null;
+  const side = asset.location as StandSide;
+  const design = groundDesign(state);
+  const currentBuild = standBuild(state, asset.id, asset.level);
+  const footprint = standFootprintForCapacity(design, side, asset.capacity, currentBuild.variant ?? "traditional");
+  const variantLabel = STAND_VARIANTS.find((option) => option.id === (currentBuild.variant ?? "traditional"))?.label ?? "Traditional";
+  const currentStructure = `${currentBuild.standing === "terrace" ? "Terrace" : currentBuild.standing === "safeStanding" ? "Safe standing" : "Seated"} · ${currentBuild.roof === "twoTier" ? "Two-tier" : currentBuild.roof === "cantilever" ? "Cantilever roof" : "Traditional roof"}`;
   const capacityProject = projects.find((spec) => spec.type === "capacityExpansion");
   const capacityEffect = capacityProject?.effects.find((effect) => effect.kind === "capacity") as { kind: "capacity"; add: number } | undefined;
   if (choosing) return <div className="rounded-xl border bg-muted/20 p-3">{isLevelRaising(choosing.type) ? <StandBuildChooser state={state} asset={asset} spec={choosing} onCancel={() => setChoosing(null)} onConfirm={(build) => { apply((s) => approveStandBuild(s, asset.id, choosing.type, build)); setChoosing(null); }} /> : <div className="space-y-3"><div><div className="font-display text-base">{choosing.title.replace(`${asset.name} — `, "")}</div><div className="text-xs text-muted-foreground">{choosing.description}</div></div><div className="grid grid-cols-3 divide-x rounded-lg border bg-muted/30 text-center"><div className="p-2"><strong className="block">{fmtMoneyExact(choosing.cost)}</strong><span className="text-[9px] uppercase text-muted-foreground">Cost</span></div><div className="p-2"><strong className="block">{choosing.durationWeeks}w</strong><span className="text-[9px] uppercase text-muted-foreground">Build</span></div><div className="p-2"><strong className="block">{choosing.effects.find((e) => e.kind === "capacity") ? `+${(choosing.effects.find((e) => e.kind === "capacity") as { add: number }).add.toLocaleString("en-GB")}` : "—"}</strong><span className="text-[9px] uppercase text-muted-foreground">Places</span></div></div><div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setChoosing(null)}>Back</Button><Button onClick={() => { apply((s) => approveProjectCompat(s, asset.id, choosing.type)); setChoosing(null); }}>Approve</Button></div></div>}</div>;
   return <Field label="Develop this stand">
+    <div className="mb-2 rounded-xl border bg-muted/20 px-3 py-2">
+      <div className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Current structure</div>
+      <div className="mt-0.5 flex items-start justify-between gap-3">
+        <div>
+          <strong className="block text-xs">{asset.capacity.toLocaleString("en-GB")} places · {variantLabel}</strong>
+          <span className="text-[10px] text-muted-foreground">{currentStructure}</span>
+        </div>
+        <span className="shrink-0 text-[10px] text-muted-foreground">{footprint.span}m × {footprint.depth}m</span>
+      </div>
+    </div>
     <div className="mb-2 rounded-xl border bg-muted/20 px-3 py-2">
       <div className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Next physical stage</div>
       <div className="mt-0.5 flex items-baseline justify-between gap-2">
