@@ -1661,4 +1661,56 @@ function designedLights(scene: Scene, design: GroundDesign) {
       const spec = designedStandSpec(side, design.stands[side]);
       if (!spec) continue;
       const z = standHeight(spec) - 1.2;
-     
+      const y = (side === "W" ? 1 : -1) * (spec.front - 1.4);
+      const half = (spec.to - spec.from) / 2 - 4;
+      gantryLights(scene, y, z, -half, half);
+      marks.push(v(-half, y, z), v(half, y, z));
+    }
+  }
+  const pts = marks.length ? marks : [v(0, 0, 10)];
+  const cx = pts.reduce((t, p) => t + p.x, 0) / pts.length;
+  const cy = pts.reduce((t, p) => t + p.y, 0) / pts.length;
+  const hull = convexHull(pts.map((p) => v(p.x, p.y, 0)));
+  select("lights", v(cx, cy, Math.max(...pts.map((p) => p.z))), hull.length >= 3 ? hull : rect(-60, -45, 60, 45), 0);
+}
+
+/* ---------------- Surroundings ---------------- */
+
+function coach(scene: Scene, x: number, y: number) {
+  const body = solid(boxFaces(x - 6, y - 1.3, 0.3, x + 6, y + 1.3, 3.2), "#dfe3e6");
+  scene.shadowSolid([...rect(x - 6, y - 1.3, x + 6, y + 1.3), ...rect(x - 6, y - 1.3, x + 6, y + 1.3, 3.2)], 0.24);
+  scene.add([...body, { d: pathOf([v(x - 5.6, y - 1.32, 1.9), v(x + 5.6, y - 1.32, 1.9), v(x + 5.6, y - 1.32, 2.8), v(x - 5.6, y - 1.32, 2.8)]), fill: "#2d3a44", opacity: 0.85 }], v(x, y, 1.5));
+}
+
+function designedSurroundings(scene: Scene, design: GroundDesign, rand: () => number, anchors: Record<string, V3>) {
+  const level = maxStandLevel(design);
+  const [sx, sy] = SIDE_SIGN[design.surroundings.carParkLocation];
+  const x0 = sx > 0 ? 80 : -108;
+  const x1 = x0 + 28;
+  const y0 = sy > 0 ? 44 : -72;
+  const y1 = y0 + 28;
+  const tarmac = design.surroundings.carParkSurface === "tarmac";
+  scene.flat(rect(x0, y0, x1, y1), tarmac ? C.tarmac : C.gravel);
+  if (tarmac) {
+    for (let x = x0 + 3; x <= x1 - 3; x += 2.6) {
+      scene.flatLine([v(x, y0 + 1), v(x, y0 + 6)], "#e9e9e2", 0.8, 0.7);
+      scene.flatLine([v(x, y1 - 6), v(x, y1 - 1)], "#e9e9e2", 0.8, 0.7);
+    }
+  } else {
+    scene.flatLine([v(x0 + 2, (y0 + y1) / 2 - 1.5), v(x1 - 2, (y0 + y1) / 2 - 1.5)], shade(C.gravel, 0.85), 1.6, 0.6);
+    scene.flatLine([v(x0 + 2, (y0 + y1) / 2 + 1.5), v(x1 - 2, (y0 + y1) / 2 + 1.5)], shade(C.gravel, 0.85), 1.6, 0.6);
+  }
+  const palette = ["#b8322c", "#dfe3e6", "#23324a", "#8a9097", "#1d1f22", "#3d6ea5", "#c9b27a"];
+  for (let x = x0 + 3.5; x <= x1 - 3; x += 2.6) {
+    if (rand() < 0.55) car(scene, x, y0 + 3.5, "y", palette[Math.floor(rand() * palette.length)]);
+    if (rand() < 0.45) car(scene, x, y1 - 3.5, "y", palette[Math.floor(rand() * palette.length)]);
+  }
+  if (design.surroundings.coachBay ?? level >= 2) coach(scene, (x0 + x1) / 2, (y0 + y1) / 2);
+  scene.flat([v(sx > 0 ? x0 : x1, (y0 + y1) / 2 - 2.5), v(sx > 0 ? x0 - 14 : x1 + 14, (y0 + y1) / 2 - 2.5), v(sx > 0 ? x0 - 14 : x1 + 14, (y0 + y1) / 2 + 2.5), v(sx > 0 ? x0 : x1, (y0 + y1) / 2 + 2.5)], C.path);
+  anchors.parking = v((x0 + x1) / 2, (y0 + y1) / 2, 0);
+
+  // Club buildings beside the car park.
+  const chosen = design.surroundings.buildings ?? "auto";
+  const style = chosen === "auto" ? (level <= 1 ? "portacabins" : level === 2 ? "clubhouse" : level === 3 ? "brickClubhouse" : "modern") : chosen;
+  const bx = sx > 0 ? 82 : -104;
+  co
