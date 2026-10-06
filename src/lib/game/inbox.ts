@@ -118,6 +118,7 @@ import { priceDemandFactor, scaleTicketPricesInPlace } from "./ticketPricing";
 import { adjustMediaRelationshipInPlace, mediaRelationshipDeltaForOutcome } from "./mediaRelations";
 import { CALENDAR, WINDOW_PRESEASON_END } from "./calendar";
 import { proactiveClubConversationItems } from "./clubConversations";
+import { applySarahMalikDecisionInPlace } from "./supporterEvents";
 
 /* ---------- Helpers ---------- */
 const money = (n: number) => {
@@ -269,6 +270,9 @@ function applyEffectInPlace(s: GameState, e: InboxEffect, src: EffectSource): vo
       break;
     case "boardNegotiateObjective":
       renegotiateBoardObjectiveInPlace(s, e.objectiveId);
+      break;
+    case "communityEventsOnboarding":
+      applySarahMalikDecisionInPlace(s, e.mode);
       break;
     case "commercialAccept":
       acceptOfferInPlace(s, e.offerId);
@@ -745,6 +749,54 @@ const G_ONBOARDING: Generator = {
     }
 
     return items;
+  },
+};
+
+const G_COMMUNITY_EVENTS_ONBOARDING: Generator = {
+  id: "community-events-onboarding",
+  run: (s) => {
+    if (s.season !== 1 || s.week !== 1) return [];
+    if (s.inboxFlags["communityEventsSarahStatus"]) return [];
+    return [
+      mk(s, "community-events-onboarding", {
+        eventKey: "community-events-onboarding:sarah-malik",
+        sender: "Sarah Malik",
+        department: "Club",
+        category: "staff",
+        priority: "normal",
+        subject: "Community events — happy to keep things going",
+        body:
+          "Hi. I’ve been helping the club as a volunteer with open days, school visits, supporter evenings and the odd family event. I’m happy to keep things ticking over while you get your bearings.\n\n" +
+          "You’ll find community and supporter events under Commercial → Events. They cost the club money to run, but good events can build supporter backing and the club’s local reputation.\n\n" +
+          "If you’d rather make the role official, I’d happily take it on properly. Either way, I’m here to help.",
+        expiresInWeeks: 2,
+        consequenceOnExpire: [
+          { kind: "communityEventsOnboarding", mode: "volunteer" },
+          { kind: "fanHappiness", delta: -1 },
+        ],
+        choices: [
+          {
+            id: "volunteer",
+            label: "Please carry on as a volunteer",
+            hint: "No wage. Sarah keeps the events programme going, but some supporters may question leaving the role unpaid.",
+            effects: [
+              { kind: "communityEventsOnboarding", mode: "volunteer" },
+              { kind: "fanHappiness", delta: -1 },
+            ],
+          },
+          {
+            id: "paid",
+            label: "Make it a paid role — £275/wk",
+            hint: "Appoint Sarah as Community & Events Officer. Small goodwill boost and more time for the job.",
+            effects: [
+              { kind: "communityEventsOnboarding", mode: "paid" },
+              { kind: "fanHappiness", delta: 2 },
+              { kind: "reputation", delta: 1 },
+            ],
+          },
+        ],
+      }),
+    ];
   },
 };
 
@@ -2723,6 +2775,7 @@ const G_CLUB_CONVERSATIONS: Generator = {
 const GENERATORS: Generator[] = [
   G_WELCOME,
   G_ONBOARDING,
+  G_COMMUNITY_EVENTS_ONBOARDING,
   G_CALENDAR_PRESS,
   G_RANDOM_INCIDENT,
   G_RANDOM_INCIDENT_PRESS,
