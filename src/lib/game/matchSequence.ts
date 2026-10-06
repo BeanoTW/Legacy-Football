@@ -855,12 +855,11 @@ class Possession {
     const base = kind === "cross" ? 1 : kind === "switch" ? 0.62 : 0.38;
     const receiverNow = this.attackPositions().get(receiver.playerId) ?? point;
     const runnerDistance = metres(receiverNow, point);
-    // A lofted switch/overlap must leave enough visual time for the receiver's
-    // run. This prevents a full-back being forced to outrun the movement model.
-    const runnerWeight =
-      kind === "switch" || kind === "overlap"
-        ? runnerDistance / (9.2 * 1.5)
-        : 0;
+    // Every pass must leave enough visual time for the receiver to reach the
+    // nominated endpoint. Without this, a normal or through pass can arrive
+    // before the receiver, so the next "receive" frame claims possession while
+    // the player is still several metres away from the ball.
+    const runnerWeight = runnerDistance / (9.2 * 1.5);
     const weight = Math.max(kind === "switch" ? 0.85 : 0.5, base + distance * 0.012, runnerWeight) * this.tempo;
     this.push({
       kind,
