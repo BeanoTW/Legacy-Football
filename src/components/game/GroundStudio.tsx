@@ -559,7 +559,7 @@ function StandDevelopment({ state, asset, apply }: { state: GameState; asset: In
         </Field>
         <Field label="Corner use">
           <div className="flex flex-wrap gap-1.5">
-            {cornerFormOptions(design, slot).map((option) => (
+            {cornerFormOptions(design, slot).filter((option) => option.id !== "access").map((option) => (
               <OptionChip
                 key={option.id}
                 active={c.form === option.id}
@@ -574,6 +574,13 @@ function StandDevelopment({ state, asset, apply }: { state: GameState; asset: In
         </Field>
         {builtInfill ? (
           <>
+            <Field label="Access tunnel · free">
+              <div className="flex gap-1.5">
+                <OptionChip active={!c.accessTunnel} onClick={() => apply((s) => updateCorner(s, slot, { accessTunnel: false }))}>None</OptionChip>
+                <OptionChip active={Boolean(c.accessTunnel)} onClick={() => apply((s) => updateCorner(s, slot, { accessTunnel: true }))}>Tunnel</OptionChip>
+              </div>
+              <p className="mt-1 text-[10.5px] text-muted-foreground">A presentation option through the corner stand, not a separate corner type.</p>
+            </Field>
             <Field label="Built infill">
               <div className="flex gap-1.5">
                 {(["small", "large"] as const).map((size) => <OptionChip key={size} active={(c.size ?? "small") === size} onClick={() => apply((s) => updateCorner(s, slot, { size }))}>{size === "small" ? "Compact" : "Full corner"}</OptionChip>)}
