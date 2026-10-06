@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { fmtMoneyExact } from "@/lib/game/engine";
 import { clubKitFor } from "@/lib/game/clubKit";
 import { groundProgression } from "@/lib/game/groundPresentation";
-import { approveProject, assetById, evaluateProject, projectCatalogue, stands as standAssets, type ProjectSpec } from "@/lib/game/infrastructure";
+import { approveProject as approveProjectCompat, assetById, evaluateProject, projectCatalogue, stands as standAssets, type ProjectSpec } from "@/lib/game/infrastructure";
 import {
   BUILDING_STYLES,
   CLADDINGS,
@@ -365,7 +365,7 @@ function StandDevelopment({ state, asset, apply }: { state: GameState; asset: In
   const [choosing, setChoosing] = useState<ProjectSpec | null>(null);
   const projects = projectCatalogue(state, asset.id).filter((spec) => ["capacityExpansion", "standRedevelopment", "roofUpgrade", "seatingRefurbishment", "concourseUpgrade", "accessibilityUpgrade", "hospitalityInstallation", "corporateBoxes", "retailExpansion"].includes(spec.type));
   if (!projects.length) return null;
-  if (choosing && isLevelRaising(choosing.type)) return <div className="rounded-xl border bg-muted/20 p-3"><StandBuildChooser state={state} asset={asset} spec={choosing} onCancel={() => setChoosing(null)} onConfirm={(build) => { apply((s) => approveStandBuild(s, asset.id, choosing.type, build)); setChoosing(null); }} /></div>;
+  if (choosing) return <div className="rounded-xl border bg-muted/20 p-3">{isLevelRaising(choosing.type) ? <StandBuildChooser state={state} asset={asset} spec={choosing} onCancel={() => setChoosing(null)} onConfirm={(build) => { apply((s) => approveStandBuild(s, asset.id, choosing.type, build)); setChoosing(null); }} /> : <div className="space-y-3"><div><div className="font-display text-base">{choosing.title.replace(`${asset.name} — `, "")}</div><div className="text-xs text-muted-foreground">{choosing.description}</div></div><div className="grid grid-cols-3 divide-x rounded-lg border bg-muted/30 text-center"><div className="p-2"><strong className="block">{fmtMoneyExact(choosing.cost)}</strong><span className="text-[9px] uppercase text-muted-foreground">Cost</span></div><div className="p-2"><strong className="block">{choosing.durationWeeks}w</strong><span className="text-[9px] uppercase text-muted-foreground">Build</span></div><div className="p-2"><strong className="block">{choosing.effects.find((e) => e.kind === "capacity") ? `+${(choosing.effects.find((e) => e.kind === "capacity") as { add: number }).add.toLocaleString("en-GB")}` : "—"}</strong><span className="text-[9px] uppercase text-muted-foreground">Places</span></div></div><div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setChoosing(null)}>Back</Button><Button onClick={() => { apply((s) => approveProjectCompat(s, asset.id, choosing.type)); setChoosing(null); }}>Approve</Button></div></div>}</div>;
   return <Field label="Develop this stand">
     <div className="overflow-hidden rounded-xl border bg-card">
       {projects.map((spec) => {
@@ -376,7 +376,7 @@ function StandDevelopment({ state, asset, apply }: { state: GameState; asset: In
             <div className="truncate text-xs font-semibold">{spec.title.replace(`${asset.name} — `, "")}</div>
             <div className="text-[10px] text-muted-foreground">{capacity ? `+${capacity.add.toLocaleString("en-GB")} places · ` : ""}{spec.durationWeeks} weeks · {fmtMoneyExact(spec.cost)}</div>
           </div>
-          <Button size="sm" variant="outline" disabled={!evaluation?.allowed} onClick={() => isLevelRaising(spec.type) ? setChoosing(spec) : apply((s) => approveProject(s, asset.id, spec.type))}>{evaluation?.allowed ? "Build" : "Locked"}</Button>
+          <Button size="sm" variant="outline" disabled={!evaluation?.allowed} onClick={() => setChoosing(spec)}>{evaluation?.allowed ? "Build" : "Locked"}</Button>
         </div>;
       })}
     </div>
