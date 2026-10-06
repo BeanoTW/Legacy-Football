@@ -1394,6 +1394,7 @@ export interface RecruitmentState {
 
 export type InfrastructureAssetType =
   | "stand"
+  | "cornerStand"
   | "pitch"
   | "shop"
   | "parking"
@@ -1467,6 +1468,8 @@ export type CapitalProjectType =
   | "corporateBoxes"
   | "retailExpansion"
   | "standRedevelopment"
+  | "cornerBuild"
+  | "cornerExpansion"
   | "facilityUpgrade";
 
 export type CapitalProjectStatus =
