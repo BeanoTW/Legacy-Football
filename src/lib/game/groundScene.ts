@@ -1367,7 +1367,7 @@ function corner(scene: Scene, slot: CornerSlot, design: GroundDesign) {
   const f = cornerFrame(slot, design);
   const anchor = f.mapper(0, 4, 2);
   const foot = [f.mapper(-f.gap / 2, 0, 0), f.mapper(f.gap / 2, 0, 0), f.mapper(f.gap / 2, 8, 0), f.mapper(-f.gap / 2, 8, 0)];
-  if (c.form === "access") {
+  if (c.form === "access" || ((c.form === "terrace" || c.form === "seated") && c.accessTunnel)) {
     // Access furniture belongs outside the spectator barrier.  The old lane
     // started at a negative corner-frame offset, which could project the road
     // and gate back across the touchline/goal-line. Keep the whole access
