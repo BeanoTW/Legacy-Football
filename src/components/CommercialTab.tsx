@@ -26,7 +26,7 @@ import {
   weeksRemaining,
 } from "@/lib/game/commercial";
 import { fmtMoney, fmtMoneyExact } from "@/lib/game/engine";
-import { SUPPORTER_EVENTS, eventAvailable, eventCost, scheduleSupporterEvent, supporterEvents } from "@/lib/game/supporterEvents";
+import { SUPPORTER_EVENTS, eventAvailable, eventCoordinationSupport, eventCost, scheduleSupporterEvent, supporterEvents } from "@/lib/game/supporterEvents";
 
 type View = "partnerships" | "events" | "vacancies" | "negotiations" | "history";
 
@@ -121,7 +121,22 @@ function Empty({ children }: { children: React.ReactNode }) {
 
 function SupporterEventsPanel({ state, act }: { state: GameState; act: (fn: (s: GameState) => { state: GameState; message: string }) => void }) {
   const scheduled = supporterEvents(state).find((event) => event.status === "scheduled");
+  const support = eventCoordinationSupport(state);
   return <div className="space-y-2">
+    <Panel title="Event coordination" aside={support.coordinator ? `Rating ${support.score}` : "Director-led"}>
+      {support.coordinator ? (
+        <div className="px-3 py-2">
+          <div className="flex items-baseline justify-between gap-2"><strong className="text-sm">{support.coordinator.name}</strong><span className="text-[10px] text-muted-foreground">Community & Events Officer</span></div>
+          <div className="mt-1 flex flex-wrap gap-1.5 text-[10px] font-semibold">
+            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-emerald-700 dark:text-emerald-300">Costs −{support.costDiscountPct}%</span>
+            <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-violet-700 dark:text-violet-300">Turnout +{support.turnoutBoostPct}%</span>
+            <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-sky-700 dark:text-sky-300">Cooldown −{support.cooldownReductionPct}%</span>
+          </div>
+        </div>
+      ) : (
+        <div className="px-3 py-2 text-[11px] text-muted-foreground">You can run events yourself. Hire a Community & Events Officer from Staff to lower organising costs, improve turnout and repeat successful formats sooner.</div>
+      )}
+    </Panel>
     {scheduled && <Panel title="Coming up" aside="Club calendar"><div className="px-3 py-2 text-sm"><strong>{SUPPORTER_EVENTS.find((event)=>event.id===scheduled.eventId)?.name}</strong><div className="text-[11px] text-muted-foreground">Booked · £{scheduled.cost.toLocaleString()} committed</div></div></Panel>}
     <Panel title="Community & supporter events" aside="Invest in the club's backing">
       {SUPPORTER_EVENTS.map((event) => { const available=eventAvailable(state,event); const cost=eventCost(state,event); return <div key={event.id} className="px-3 py-2">
