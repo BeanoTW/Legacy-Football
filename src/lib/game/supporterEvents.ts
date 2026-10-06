@@ -46,8 +46,58 @@ export const SUPPORTER_EVENTS: SupporterEventDefinition[] = [
 
 const clamp=(n:number,lo:number,hi:number)=>Math.max(lo,Math.min(hi,n));
 
+export const SARAH_MALIK_ID = "ST-community-sarah-malik";
+export const SARAH_MALIK_FLAG = "communityEventsSarahStatus";
+const SARAH_EVENTS_COMPLETED_FLAG = "communityEventsSarahCompleted";
+
+export function sarahMalikStarter(mode: "volunteer" | "paid"): Staff {
+  return {
+    id: SARAH_MALIK_ID,
+    name: "Sarah Malik",
+    role: "Community & Events Officer",
+    age: 26,
+    rating: 38,
+    stats: {
+      tactics: 30,
+      attack: 30,
+      defense: 30,
+      development: 34,
+      scouting: 31,
+      negotiation: 36,
+      medical: 30,
+      motivation: 40,
+    },
+    wage: mode === "paid" ? 275 : 0,
+    contractWeeks: 104,
+    reputation: 22,
+  };
+}
+
+export function applySarahMalikDecisionInPlace(s: GameState, mode: "volunteer" | "paid"): void {
+  s.inboxFlags ??= {};
+  s.inboxFlags[SARAH_MALIK_FLAG] = mode;
+  const existing = (s.hiredStaff ?? []).find((member) => member.id === SARAH_MALIK_ID);
+  const sarah = existing ?? sarahMalikStarter(mode);
+  sarah.wage = mode === "paid" ? 275 : 0;
+  sarah.contractWeeks = Math.max(sarah.contractWeeks, 104);
+  if (!existing) s.hiredStaff = [...(s.hiredStaff ?? []), sarah];
+}
+
+function developSarahFromCompletedEvent(s: GameState, coordinator?: Staff): void {
+  if (!coordinator || coordinator.id !== SARAH_MALIK_ID) return;
+  const completed = Number(s.inboxFlags?.[SARAH_EVENTS_COMPLETED_FLAG] ?? 0) + 1;
+  s.inboxFlags ??= {};
+  s.inboxFlags[SARAH_EVENTS_COMPLETED_FLAG] = completed;
+  if (completed % 3 !== 0) return;
+  coordinator.stats.motivation = Math.min(72, coordinator.stats.motivation + 1);
+  coordinator.stats.negotiation = Math.min(72, coordinator.stats.negotiation + 1);
+  coordinator.rating = Math.round((coordinator.stats.motivation * 3 + coordinator.stats.negotiation * 2) / 5);
+  coordinator.reputation = Math.min(72, Math.max(coordinator.reputation, coordinator.rating - 8));
+}
+
 export interface EventCoordinationSupport {
   coordinator?: Staff;
+  volunteer: boolean;
   score: number;
   costDiscountPct: number;
   turnoutBoostPct: number;
@@ -62,11 +112,14 @@ export interface EventCoordinationSupport {
 export function eventCoordinationSupport(s: GameState): EventCoordinationSupport {
   const coordinator = (s.hiredStaff ?? []).find((member) => member.role === "Community & Events Officer");
   if (!coordinator) {
-    return { score: 0, costDiscountPct: 0, turnoutBoostPct: 0, cooldownReductionPct: 0 };
+    return { volunteer: false, score: 0, costDiscountPct: 0, turnoutBoostPct: 0, cooldownReductionPct: 0 };
   }
-  const score = Math.round(clamp(coordinator.stats.motivation * 0.6 + coordinator.stats.negotiation * 0.4, 30, 95));
+  const volunteer = coordinator.id === SARAH_MALIK_ID && s.inboxFlags?.[SARAH_MALIK_FLAG] === "volunteer";
+  const rawScore = clamp(coordinator.stats.motivation * 0.6 + coordinator.stats.negotiation * 0.4, 30, 95);
+  const score = Math.round(volunteer ? 30 + (rawScore - 30) * 0.65 : rawScore);
   return {
     coordinator,
+    volunteer,
     score,
     costDiscountPct: Math.round(clamp((score - 30) * 0.2, 0, 13)),
     turnoutBoostPct: Math.round(clamp((score - 25) * 0.25, 0, 18)),
@@ -119,5 +172,6 @@ export function resolveDueSupporterEvents(s:GameState):void {
     e.fanGain=Math.max(1,Math.round(d.fanGain*turnout)); e.reputationGain=Number((d.reputationGain*turnout).toFixed(1));
     s.fanHappiness=clamp((s.fanHappiness??60)+e.fanGain,0,100);
     s.reputation=clamp((s.reputation??0)+e.reputationGain,0,100);
+    developSarahFromCompletedEvent(s, support.coordinator);
   }
 }
