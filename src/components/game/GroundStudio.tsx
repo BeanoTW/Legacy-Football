@@ -445,6 +445,17 @@ function SelectionPanel({
     );
   }
 
+function developmentLockReason(state: GameState, spec: ProjectSpec, evaluation: NonNullable<ReturnType<typeof evaluateProject>>): string {
+  if (evaluation.allowed) return "";
+  if (!evaluation.assetFree) return "Work already under way on this stand";
+  if (!evaluation.capacityOk) return spec.major ? "Another major project is already under way" : "A repair project is already under way";
+  const cashShortfall = spec.cost - Math.round(state.cash);
+  if (cashShortfall > 0) return `${fmtMoneyExact(cashShortfall)} short`;
+  const reserve = state.finance?.minimumCashReserve ?? 0;
+  if (reserve > 0 && Math.round(state.cash) - spec.cost < reserve) return `Would break the ${fmtMoneyExact(reserve)} cash reserve`;
+  return evaluation.reason || "Unavailable";
+}
+
 function StandDevelopment({ state, asset, apply }: { state: GameState; asset: InfrastructureAsset; apply: (edit: (s: GameState) => { state: GameState; ok: boolean; reason?: string }) => void }) {
   const [choosing, setChoosing] = useState<ProjectSpec | null>(null);
   const projects = projectCatalogue(state, asset.id).filter((spec) => ["capacityExpansion", "standRedevelopment", "roofUpgrade"].includes(spec.type));
@@ -482,12 +493,18 @@ function StandDevelopment({ state, asset, apply }: { state: GameState; asset: In
       {projects.map((spec) => {
         const evaluation = evaluateProject(state, asset.id, spec.type);
         const capacity = spec.effects.find((effect) => effect.kind === "capacity") as { kind: "capacity"; add: number } | undefined;
-        return <div key={spec.type} className="flex items-center gap-2 border-t p-2.5 first:border-t-0">
-          <div className="min-w-0 flex-1">
+        const lockReason = evaluation ? developmentLockReason(state, spec, evaluation) : "Unavailable";
+        return <div key={spec.type} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-t p-2.5 first:border-t-0">
+          <div className="min-w-0">
             <div className="truncate text-xs font-semibold">{spec.title.replace(`${asset.name} — `, "")}</div>
-            <div className="text-[10px] text-muted-foreground">{capacity ? `+${capacity.add.toLocaleString("en-GB")} places · ` : ""}{spec.durationWeeks} weeks · {fmtMoneyExact(spec.cost)}</div>
+            <div className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
+              {capacity ? <span>+{capacity.add.toLocaleString("en-GB")} places</span> : null}
+              <span>{spec.durationWeeks} weeks</span>
+              <strong className="text-foreground">{fmtMoneyExact(spec.cost)}</strong>
+            </div>
+            {!evaluation?.allowed ? <div className="mt-1 text-[10px] font-semibold text-rose-600">{lockReason}</div> : null}
           </div>
-          <Button size="sm" variant="outline" disabled={!evaluation?.allowed} onClick={() => setChoosing(spec)}>{evaluation?.allowed ? "Build" : "Locked"}</Button>
+          <Button size="sm" variant="outline" disabled={!evaluation?.allowed} onClick={() => setChoosing(spec)}>{evaluation?.allowed ? "Build" : "Unavailable"}</Button>
         </div>;
       })}
     </div>
