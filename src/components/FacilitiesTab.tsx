@@ -305,6 +305,8 @@ const GROUP_OF: Partial<Record<CapitalProjectType, WorksGroup>> = {
   replacement: "rebuild",
   capacityExpansion: "rebuild",
   standRedevelopment: "rebuild",
+  cornerBuild: "rebuild",
+  cornerExpansion: "rebuild",
 };
 const GROUP_LABEL: Record<WorksGroup, string> = { repair: "Repair", improve: "Improve", rebuild: "Rebuild & expand" };
 
@@ -374,7 +376,7 @@ export function FacilitySheet({ state, asset, onApprove, onApproveBuild }: { sta
   const catalogue = projectCatalogue(state, asset.id);
   // Structural stand development is owned by Ground Studio. Facilities owns
   // non-visual capability and every non-stand facility upgrade.
-  const visibleCatalogue = asset.type === "stand"
+  const visibleCatalogue = asset.type === "stand" || asset.type === "cornerStand"
     ? catalogue.filter((spec) => ["minorRepair", "majorRepair", "refurbishment", "replacement"].includes(spec.type))
     : catalogue;
   const band = conditionBand(asset.condition);
@@ -498,7 +500,7 @@ export function FacilitySheet({ state, asset, onApprove, onApproveBuild }: { sta
           </div>
         )}
 
-        {visibleCatalogue.length === 0 ? <p className="rounded-lg bg-muted/35 p-3 text-sm text-muted-foreground">{asset.type === "stand" ? "Structural development is handled in Ground Studio. Facilities tracks this stand's condition and maintenance." : "No further work can be raised here right now."}</p> : (
+        {visibleCatalogue.length === 0 ? <p className="rounded-lg bg-muted/35 p-3 text-sm text-muted-foreground">{asset.type === "stand" || asset.type === "cornerStand" ? "Structural development is handled in Ground Studio. Facilities tracks condition and maintenance." : "No further work can be raised here right now."}</p> : (
           <div className="overflow-hidden rounded-lg border bg-card">
             {rows.map(({ spec, evaluation }) => {
               const choosesBuild = asset.type === "stand" && isLevelRaising(spec.type);

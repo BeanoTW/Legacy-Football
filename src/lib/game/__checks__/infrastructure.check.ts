@@ -20,6 +20,7 @@ import {
   closeAssetInPlace,
   deteriorationFor,
   directorPositions,
+  evaluateProject,
   facilityModifiers,
   infrastructureSnapshot,
   periodIndexFor,
@@ -796,25 +797,55 @@ console.log("\n[J] Static audit");
 }
 
 /* =========================================================================
-   [K] Regression: a played season stays consistent
+   [K] Stadium ownership/coherence
+========================================================================= */
+console.log("\n[K] Stadium ownership/coherence");
+{
+  const s = rich("STADIUM_COHERENCE");
+  const corners = assets(s).filter((a) => a.type === "cornerStand");
+  check("K1. every save owns four dedicated corner slots", corners.length === 4 && new Set(corners.map((a) => a.location)).size === 4);
+
+  const beforeCapacity = stadiumCapacity(s);
+  corners[0].capacity = 500;
+  check("K2. owned corner capacity contributes to stadium capacity", stadiumCapacity(s) === beforeCapacity + 500);
+
+  const stand = assets(s).find((a) => a.type === "stand")!;
+  const redevelopment = projectCatalogue(s, stand.id).find((p) => p.type === "standRedevelopment");
+  const forbidden = new Set(["concourseQuality", "accessibility", "hospitalityCapacity", "commercialSpace"]);
+  const leaksFacilityCapability = redevelopment?.effects.some((effect) => effect.kind === "metadata" && forbidden.has(effect.key)) ?? true;
+  check("K3. stand redevelopment stays structural and does not grant facility capability", Boolean(redevelopment) && !leaksFacilityCapability);
+
+  const hospitality = assetById(s, "hospitality")!;
+  hospitality.level = 2;
+  for (const spectatorStand of assets(s).filter((a) => a.type === "stand")) spectatorStand.level = 2;
+  const evaluation = evaluateProject(s, hospitality.id, "facilityUpgrade");
+  check(
+    "K4. higher hospitality is genuinely locked until the ground structure supports it",
+    Boolean(evaluation) && evaluation?.allowed === false && /Modern stand/i.test(evaluation.reason),
+    evaluation?.reason,
+  );
+}
+
+/* =========================================================================
+   [L] Regression: a played season stays consistent
 ========================================================================= */
 console.log("\n[K] Regression");
 {
   let s = rich("INFRA_SEASON", 12_000_000);
   for (let i = 0; i < 24; i++) s = advanceWeek(s);
-  check("K1. reconciles after 24 played weeks", reconcile(s).ok);
+  check("L1. reconciles after 24 played weeks", reconcile(s).ok);
   check(
-    "K2. conditions stay bounded after a long run",
+    "L2. conditions stay bounded after a long run",
     assets(s).every((a) => a.condition >= 0 && a.condition <= a.maximumCondition),
   );
-  check("K3. usable capacity stays within nominal", stadiumUsableCapacity(s) <= stadiumCapacity(s));
+  check("L3. usable capacity stays within nominal", stadiumUsableCapacity(s) <= stadiumCapacity(s));
   const replay = (() => {
     let t = rich("INFRA_SEASON", 12_000_000);
     for (let i = 0; i < 24; i++) t = advanceWeek(t);
     return t;
   })();
   check(
-    "K4. same seed replays identically",
+    "L4. same seed replays identically",
     JSON.stringify(s.infrastructure) === JSON.stringify(replay.infrastructure),
   );
 }
