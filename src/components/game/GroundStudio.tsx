@@ -392,4 +392,81 @@ function SelectionPanel({
   if (selection === "pitch") {
     return (
       <div className="space-y-3">
-        <PanelTitle title="Pitch" sub="Mo
+        <PanelTitle title="Pitch" sub="Mowing pattern" />
+        <div className="grid grid-cols-5 gap-1.5">
+          {MOWING_PATTERNS.map((pattern) => (
+            <button key={pattern.id} type="button" onClick={() => applyLook({ mowing: pattern.id })} className={cn("flex flex-col items-center gap-1 rounded-lg border p-1.5 text-[10px] font-semibold", identity.mowing === pattern.id ? "border-primary bg-primary/10" : "bg-background")} aria-pressed={identity.mowing === pattern.id}>
+              <MowingIcon pattern={pattern.id} />
+              <span className="w-full truncate text-center">{pattern.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  if (selection === "lights") {
+    return (
+      <div className="space-y-3">
+        <PanelTitle title="Floodlights" sub="Pylon corners always keep their pylon" />
+        <div className="flex flex-wrap gap-1.5">
+          {FLOODLIGHT_STYLES.map((style) => <OptionChip key={style.id} active={identity.floodlights === style.id} onClick={() => applyLook({ floodlights: style.id })}>{style.label}</OptionChip>)}
+        </div>
+      </div>
+    );
+  }
+  if (selection === "perimeter") {
+    const gates = design.perimeter.gates ?? ["N", "S"];
+    return (
+      <div className="space-y-3">
+        <PanelTitle title="Perimeter" sub="What separates the crowd from the pitch" />
+        <div className="flex flex-wrap gap-1.5">
+          {PERIMETER_STYLES.map((style) => <OptionChip key={style.id} active={design.perimeter.style === style.id} onClick={() => apply((s) => updatePerimeter(s, { style: style.id }))}>{style.label}</OptionChip>)}
+        </div>
+        <div className="divide-y rounded-xl border">
+          <ExpandRow label="Colour" value={PERIMETER_COLOURS.find((c) => c.id === design.perimeter.colour)?.label ?? ""} swatch={[design.perimeter.colour === "club" ? kit.body : PERIMETER_COLOURS.find((c) => c.id === design.perimeter.colour)?.hex ?? "#fff"]}>
+            {(close) => <Swatches options={PERIMETER_COLOURS.map((c) => ({ id: c.id, label: c.label, colours: [c.id === "club" ? kit.body : c.hex] }))} value={design.perimeter.colour} onChange={(colour) => { apply((s) => updatePerimeter(s, { colour: colour as GroundDesign["perimeter"]["colour"] })); close(); }} />}
+          </ExpandRow>
+        </div>
+        <Field label="Gates (gaps in the perimeter)">
+          <div className="flex gap-1.5">
+            {SIDES.map((side) => (
+              <OptionChip key={side} active={gates.includes(side)} onClick={() => apply((s) => updatePerimeter(s, { gates: gates.includes(side) ? gates.filter((g) => g !== side) : [...gates, side] }))}>{GATE_LABEL[side]}</OptionChip>
+            ))}
+          </div>
+        </Field>
+      </div>
+    );
+  }
+  if (selection === "dugouts" || selection === "scoreboard") {
+    const options = selection === "dugouts" ? DUGOUT_STYLES : SCOREBOARD_STYLES;
+    const value = selection === "dugouts" ? design.fixtures?.dugouts ?? "auto" : design.fixtures?.scoreboard ?? "auto";
+    return (
+      <div className="space-y-3">
+        <PanelTitle title={FIXTURE_NAME[selection]} sub="Match the ground follows how developed it is" />
+        <div className="flex flex-wrap gap-1.5">
+          {options.map((option) => (
+            <OptionChip key={option.id} active={value === option.id} onClick={() => apply((s) => updateFixtures(s, selection === "dugouts" ? { dugouts: option.id as GroundDesign["fixtures"] extends infer F ? F extends { dugouts?: infer D } ? D : never : never } : { scoreboard: option.id as never }))}>{option.label}</OptionChip>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  if (selection === "surroundings") {
+    const sur = design.surroundings;
+    return (
+      <div className="space-y-3">
+        <PanelTitle title="Car park & buildings" />
+        <Field label="Car park">
+          <div className="flex flex-wrap gap-1.5">
+            {(["gravel", "tarmac"] as const).map((surface) => <OptionChip key={surface} active={sur.carParkSurface === surface} onClick={() => apply((s) => updateSurroundings(s, { carParkSurface: surface }))}>{surface === "gravel" ? "Gravel" : "Tarmac"}</OptionChip>)}
+            <OptionChip active={sur.coachBay ?? design.stands.W.level >= 2} onClick={() => apply((s) => updateSurroundings(s, { coachBay: !(sur.coachBay ?? design.stands.W.level >= 2) }))}>Coach bay</OptionChip>
+          </div>
+        </Field>
+        <Field label="Where">
+          <div className="flex flex-wrap gap-1.5">
+            {CORNERS.map((slot) => <OptionChip key={slot} active={sur.carParkLocation === slot} onClick={() => apply((s) => updateSurroundings(s, { carParkLocation: slot }))}>{CORNER_NAME[slot].replace(" corner", "")}</OptionChip>)}
+          </div>
+        </Field>
+        <Field label="Club buildings">
+          <div className="flex flex-wrap gap-1.5">
+            {BUILDING_STYLES.map((style) => <OptionChip key={style.id} active={(sur.buildings ?? "auto") === style.id} onClick={() => apply((s) => updateSurroundings(s, { buildings: style.id
