@@ -305,10 +305,10 @@ function SelectionPanel({
     const d = design.stands[side];
     const asset = standBySide.get(side);
     const own = identity.standLooks?.[side] ?? {};
-    const limits = standSizeLimits(design, side);
+    const limits = standSizeLimits(design, side, asset?.capacity);
     return (
       <div className="space-y-3">
-        <PanelTitle title={labels[selection]} sub={`${SIDE_LABEL[side]} · Facilities level ${d.level}`} />
+        <PanelTitle title={labels[selection]} sub={`${SIDE_LABEL[side]} · ${asset?.capacity?.toLocaleString() ?? "—"} capacity · Facilities level ${d.level}`} />
         <Field label="Structure">
           <div className="flex flex-wrap gap-1.5">
             {standFormOptions(design, side).map((option) => (
