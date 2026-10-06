@@ -1435,7 +1435,7 @@ export function projectCatalogue(s: GameState, assetId: string): ProjectSpec[] {
       out.push({
         type: "standRedevelopment",
         title: `${a.name} — full redevelopment`,
-        description: "Complete rebuild: bigger, covered, modern concourse and hospitality.",
+        description: "Demolish and rebuild the stand as a larger modern spectator structure. Internal facilities are fitted out separately through Facilities.",
         cost: projectCost(s, "standRedevelopment", 1_200_000 * scale),
         durationWeeks: 22,
         major: true,
@@ -1450,10 +1450,6 @@ export function projectCatalogue(s: GameState, assetId: string): ProjectSpec[] {
           { kind: "quality", add: 18 },
           { kind: "metadata", key: "roofQuality", to: 98 },
           { kind: "metadata", key: "seatingQuality", to: 96 },
-          { kind: "metadata", key: "concourseQuality", to: 95 },
-          { kind: "metadata", key: "accessibility", to: 95 },
-          { kind: "metadata", key: "hospitalityCapacity", add: 240 },
-          { kind: "maximumCondition", add: 0 },
         ],
       });
   } else if (a.type === "cornerStand") {
