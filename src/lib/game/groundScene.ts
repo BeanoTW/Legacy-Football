@@ -399,3 +399,204 @@ const C = { ...BASE_C, field: [...BASE_C.field] };
 let LOOK: SceneLook | undefined;
 
 /* ------------------------------------------------------------------ */
+/* Scene pieces                                                        */
+/* ------------------------------------------------------------------ */
+
+const HALF_L = 50;
+const HALF_W = 32;
+
+function countryside(scene: Scene, rand: () => number) {
+  // Patchwork fields, skipping the club site.
+  const site = { x0: -120, x1: 122, y0: -80, y1: 76 };
+  for (let gx = -6; gx < 6; gx += 1) {
+    for (let gy = -5; gy < 5; gy += 1) {
+      const x0 = gx * 70 - 10;
+      const y0 = gy * 58 - 10;
+      const x1 = x0 + 70;
+      const y1 = y0 + 58;
+      const tone = C.field[Math.floor(rand() * C.field.length)];
+      scene.flat(rect(x0, y0, x1, y1), tone);
+      // Subtle tramlines give fields a photographic texture.
+      if (rand() < 0.55) {
+        for (let k = 1; k < 6; k += 1) {
+          const y = y0 + (k * (y1 - y0)) / 6;
+          scene.flatLine([v(x0 + 3, y), v(x1 - 3, y)], shade(tone, 0.9), 1.1, 0.5);
+        }
+      }
+    }
+  }
+  // Hedgerows along field boundaries.
+  for (let gx = -6; gx <= 6; gx += 1) {
+    const x = gx * 70 - 10;
+    scene.flatLine([v(x, -300), v(x, 300)], C.hedge, 3.2, 0.85);
+  }
+  for (let gy = -5; gy <= 5; gy += 1) {
+    const y = gy * 58 - 10;
+    scene.flatLine([v(-440, y), v(440, y)], C.hedge, 3.2, 0.85);
+  }
+  // Club site grass sits on top as one mown block.
+  scene.flat(rect(site.x0, site.y0, site.x1, site.y1), "#6e9b44");
+  scene.flatLine(
+    [v(site.x0, site.y0), v(site.x1, site.y0), v(site.x1, site.y1), v(site.x0, site.y1)],
+    C.hedge,
+    3.6,
+    0.9,
+    true,
+  );
+
+  // Road along the far boundary and a lane down to the car park.
+  scene.flat(rect(-440, 86, 440, 95), C.road);
+  scene.flatLine([v(-440, 90.5), v(440, 90.5)], "#e8e6d8", 1, 0.55);
+  scene.flat(
+    [v(-126, 86), v(-119, 86), v(-119, -44), v(-126, -44)],
+    C.road,
+  );
+}
+
+function tree(scene: Scene, x: number, y: number, r: number, rand: () => number) {
+  const h = r * 1.5 + 2;
+  const c = v(x, y, h);
+  const top = project(c);
+  const screenR = (FOCAL * r) / top.d;
+  const circle = (cx: number, cy: number, rr: number) => {
+    const pts: string[] = [];
+    for (let i = 0; i <= 18; i += 1) {
+      const a = (i / 18) * Math.PI * 2;
+      pts.push(`${i ? "L" : "M"}${f1(cx + Math.cos(a) * rr)} ${f1(cy + Math.sin(a) * rr * 0.92)}`);
+    }
+    return pts.join("") + "Z";
+  };
+  scene.shadowPoly(ellipsePts(x, y, r * 1.05, r * 1.05, 0, Math.PI * 2, 18, h * 0.55), 0.18);
+  const tone = rand() < 0.5 ? C.tree : mix(C.tree, C.treeDark, 0.4);
+  scene.add(
+    [
+      { d: circle(top.x, top.y, screenR), fill: C.treeDark },
+      { d: circle(top.x - screenR * 0.12, top.y - screenR * 0.1, screenR * 0.86), fill: tone },
+      { d: circle(top.x - screenR * 0.32, top.y - screenR * 0.3, screenR * 0.42), fill: C.treeLight, opacity: 0.7 },
+    ],
+    c,
+  );
+}
+
+function treeBelts(scene: Scene, rand: () => number) {
+  // Mature belt along the road, like the railway embankment in the reference.
+  for (let x = -230; x <= 230; x += 7 + rand() * 6) {
+    tree(scene, x, 80 + rand() * 5, 4 + rand() * 3, rand);
+  }
+  // Clumps in the hedges and beyond the ends.
+  const clumps: Array<[number, number]> = [
+    [222, -40], [228, 10], [222, 40], [-200, -60], [-190, -20], [130, -120], [-60, -140], [40, 150], [210, -80],
+  ];
+  for (const [cx, cy] of clumps) {
+    const n = 3 + Math.floor(rand() * 4);
+    for (let i = 0; i < n; i += 1) tree(scene, cx + (rand() - 0.5) * 22, cy + (rand() - 0.5) * 16, 3.5 + rand() * 3, rand);
+  }
+  // Hedgerow trees around the site boundary.
+  for (let x = -110; x <= 100; x += 18 + rand() * 14) tree(scene, x, -80 + (rand() - 0.5) * 3, 3 + rand() * 2.5, rand);
+}
+
+function neighbourPitch(scene: Scene, stage: number) {
+  // A rec-ground pitch next door (the reference photo has one); it becomes
+  // a fenced academy pitch as the club grows.
+  const cx = 170;
+  const cy = -2;
+  const hl = 42;
+  const hw = 28;
+  const academy = stage >= 3;
+  scene.flat(rect(cx - hl - 4, cy - hw - 4, cx + hl + 4, cy + hw + 4), academy ? "#3f9546" : "#78a44b");
+  if (academy) {
+    for (let i = 0; i < 8; i += 2) {
+      const x0 = cx - hl + (i * 2 * hl) / 8;
+      scene.flat(rect(x0, cy - hw, x0 + (2 * hl) / 8, cy + hw), "#37893e");
+    }
+  }
+  const op = academy ? 0.9 : 0.55;
+  scene.flatLine(rect(cx - hl, cy - hw, cx + hl, cy + hw), C.line, 1.1, op, true);
+  scene.flatLine([v(cx, cy - hw), v(cx, cy + hw)], C.line, 1.1, op);
+  scene.flatLine(ellipsePts(cx, cy, 7, 7), C.line, 1.1, op);
+  for (const s of [-1, 1]) {
+    const gx = cx + s * hl;
+    scene.flatLine([v(gx, cy - 16), v(gx - s * 14, cy - 16), v(gx - s * 14, cy + 16), v(gx, cy + 16)], C.line, 1.1, op);
+  }
+  if (academy) fenceRun(scene, rect(cx - hl - 4, cy - hw - 4, cx + hl + 4, cy + hw + 4), 3.2);
+}
+
+function pitch(scene: Scene, stage: number, condition: number) {
+  const runX = stage >= 2 ? 6 : 5;
+  const runY = stage >= 2 ? 6 : 5;
+  scene.flat(rect(-HALF_L - runX, -HALF_W - runY, HALF_L + runX, HALF_W + runY), C.surround);
+
+  // Mowing: every pattern reads clearly from the air (and top-down on matchday).
+  const mowing = LOOK?.mowing ?? "stripes";
+  const light = mix(C.pitchA, "#ffffff", 0.06);
+  const dark = shade(C.pitchB, 0.96);
+  const L2 = 2 * HALF_L;
+  const W2 = 2 * HALF_W;
+  if (mowing === "checks") {
+    const cols = 12;
+    const rows = 8;
+    for (let i = 0; i < cols; i += 1) {
+      for (let j = 0; j < rows; j += 1) {
+        const x0 = -HALF_L + (i * L2) / cols;
+        const y0 = -HALF_W + (j * W2) / rows;
+        scene.flat(rect(x0, y0, x0 + L2 / cols, y0 + W2 / rows), (i + j) % 2 ? light : dark);
+      }
+    }
+  } else if (mowing === "diagonal") {
+    scene.flat(rect(-HALF_L, -HALF_W, HALF_L, HALF_W), dark);
+    const band = 7.5;
+    for (let k = -20; k <= 20; k += 2) {
+      const c0 = k * band;
+      const poly = [v(c0 - HALF_W, -HALF_W), v(c0 - HALF_W + band, -HALF_W), v(c0 + HALF_W + band, HALF_W), v(c0 + HALF_W, HALF_W)];
+      const clipped = clipToRect(poly, -HALF_L, -HALF_W, HALF_L, HALF_W);
+      if (clipped.length >= 3) scene.flat(clipped, light);
+    }
+  } else if (mowing === "vertical") {
+    // Lengthways: bands run goal to goal.
+    const bands = 10;
+    for (let j = 0; j < bands; j += 1) {
+      const y0 = -HALF_W + (j * W2) / bands;
+      scene.flat(rect(-HALF_L, y0, HALF_L, y0 + W2 / bands), j % 2 ? light : dark);
+    }
+  } else {
+    // Stripes across the pitch: classic (12) or wide (6).
+    const stripes = mowing === "wide" ? 6 : 12;
+    for (let i = 0; i < stripes; i += 1) {
+      const x0 = -HALF_L + (i * L2) / stripes;
+      scene.flat(rect(x0, -HALF_W, x0 + L2 / stripes, HALF_W), i % 2 ? light : dark);
+    }
+  }
+
+  // Wear: goalmouths and the centre go first.
+  const wear = Math.max(0, Math.min(1, (78 - condition) / 45));
+  if (wear > 0) {
+    for (const [x, y, rx, ry] of [
+      [-HALF_L + 6, 0, 7, 9],
+      [HALF_L - 6, 0, 7, 9],
+      [0, 0, 11, 7],
+      [-HALF_L + 16, 0, 6, 12],
+      [HALF_L - 16, 0, 6, 12],
+    ] as const) {
+      scene.flat(ellipsePts(x, y, rx * (0.45 + wear * 0.55), ry * (0.45 + wear * 0.55), 0, Math.PI * 2, 24), C.wear, 0.1 + wear * 0.38);
+      scene.flat(ellipsePts(x, y, rx * (0.25 + wear * 0.3), ry * (0.25 + wear * 0.3), 0, Math.PI * 2, 20), C.wear, 0.08 + wear * 0.3);
+    }
+  }
+
+  if (wear > 0) {
+    for (const y of [-HALF_W + 1.3, HALF_W - 1.3]) {
+      scene.flat(rect(-38, y - 0.9, 38, y + 0.9), C.wear, 0.06 + wear * 0.22);
+    }
+  }
+  const mud = Math.max(0, Math.min(1, (55 - condition) / 30));
+  if (mud > 0) {
+    for (const [x, y, rx, ry] of [[-HALF_L + 5, 0, 5, 7],[HALF_L - 5, 0, 5, 7],[0, 0, 7, 5]] as const) {
+      scene.flat(ellipsePts(x, y, rx * (0.6 + mud * 0.5), ry * (0.6 + mud * 0.5), 0, Math.PI * 2, 22), "#6b5537", 0.25 + mud * 0.45);
+    }
+  }
+
+  const lw = 1.5;
+  const L = (pts: V3[], close = false) => scene.flatLine(pts, C.line, lw, 0.95, close);
+  L(rect(-HALF_L, -HALF_W, HALF_L, HALF_W), true);
+  L([v(0, -HALF_W), v(0, HALF_W)]);
+  L(ellipsePts(0, 0, 9.15, 9.15, 0, Math.PI * 2, 48));
+  scene.flat(ellipsePts(0, 0, 0.5, 0.5, 0, Mat
