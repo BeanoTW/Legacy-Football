@@ -163,6 +163,9 @@ export function groundDesign(s: GameState): GroundDesign {
   const derived = derivedGroundDesign(s);
   const saved = identity.design;
   if (saved?.version !== 1) return derived;
+  // A saved design keeps the club's choices, but levels always come from the real stands:
+  // when Facilities work raises a stand above the level it was designed at, that side
+  // takes the new structure (keeping its material), so progression stays visible.
   const stands = { ...saved.stands };
   for (const side of ["N", "E", "S", "W"] as StandSide[]) {
     const live = derived.stands[side];
@@ -473,7 +476,12 @@ function darken(hex: string, f: number): string {
   return `#${[c(0), c(2), c(4)].map((n) => n.toString(16).padStart(2, "0")).join("")}`;
 }
 
-function resolveColours(seatsId: SeatScheme, roofId: RoofColour, claddingId: Cladding, clubColours: { body: string; secondary: string }): StandColours & { twoTone: boolean } {
+function resolveColours(
+  seatsId: SeatScheme,
+  roofId: RoofColour,
+  claddingId: Cladding,
+  clubColours: { body: string; secondary: string },
+): StandColours & { twoTone: boolean } {
   const seatScheme = SEAT_SCHEMES.find((option) => option.id === seatsId);
   const seats =
     seatsId === "club"
@@ -482,7 +490,14 @@ function resolveColours(seatsId: SeatScheme, roofId: RoofColour, claddingId: Cla
         ? [clubColours.body, clubColours.secondary]
         : seatScheme?.colours ?? ["#1f6f69", "#185a55"];
   const roof = ROOF_COLOURS.find((r) => r.id === roofId) ?? ROOF_COLOURS[0];
-  return { seat: seats[0], seatAlt: seats[1], twoTone: seatsId === "twoTone", roof: roof.id === "club" ? darken(clubColours.body, 0.85) : roof.hex, roofDark: roof.id === "club" ? darken(clubColours.body, 0.62) : roof.dark, cladding: claddingId === "club" ? clubColours.body : (CLADDINGS.find((c) => c.id === claddingId) ?? CLADDINGS[0]).hex };
+  return {
+    seat: seats[0],
+    seatAlt: seats[1],
+    twoTone: seatsId === "twoTone",
+    roof: roof.id === "club" ? darken(clubColours.body, 0.85) : roof.hex,
+    roofDark: roof.id === "club" ? darken(clubColours.body, 0.62) : roof.dark,
+    cladding: claddingId === "club" ? clubColours.body : (CLADDINGS.find((c) => c.id === claddingId) ?? CLADDINGS[0]).hex,
+  };
 }
 
 export function sceneLook(s: GameState, clubColours: { body: string; secondary: string }): SceneLook {
@@ -518,28 +533,52 @@ export function sceneLook(s: GameState, clubColours: { body: string; secondary: 
   };
 }
 
-export const STAND_MATERIALS: { id: StandMaterial; label: string }[] = [
-  { id: "brick", label: "Brick" }, { id: "timber", label: "Timber" }, { id: "concrete", label: "Concrete" }, { id: "cladding", label: "Steel cladding" },
-];
-export const DUGOUT_STYLES: { id: DugoutStyle; label: string }[] = [
-  { id: "auto", label: "Match the ground" }, { id: "wooden", label: "Wooden" }, { id: "brick", label: "Brick" }, { id: "perspex", label: "Perspex" },
-];
-export const SCOREBOARD_STYLES: { id: ScoreboardStyle; label: string }[] = [
-  { id: "auto", label: "Match the ground" }, { id: "none", label: "None" }, { id: "manual", label: "Hand-turned" }, { id: "electronic", label: "Electronic" },
-];
-export const BUILDING_STYLES: { id: GroundBuildings; label: string }[] = [
-  { id: "auto", label: "Match the ground" }, { id: "portacabins", label: "Portacabins" }, { id: "clubhouse", label: "Timber clubhouse" }, { id: "brickClubhouse", label: "Brick clubhouse" }, { id: "modern", label: "Modern offices" },
-];
-export const PERIMETER_STYLES: { id: PerimeterStyle; label: string }[] = [
-  { id: "rail", label: "Pitch-side rail" }, { id: "chainLink", label: "Chain-link fence" }, { id: "barrier", label: "Crush barriers" }, { id: "brick", label: "Brick wall" }, { id: "hoardings", label: "Advertising hoardings" },
-];
-export const PERIMETER_COLOURS: { id: PerimeterColour; label: string; hex: string }[] = [
-  { id: "white", label: "White", hex: "#f1f3f0" }, { id: "club", label: "Club colour", hex: "" }, { id: "green", label: "Green", hex: "#2f6b3c" }, { id: "galvanized", label: "Galvanised", hex: "#a8b0b5" },
-];
-
 /** Repainting seats costs per place; recolouring roofs or re-cladding per stand. */
 export function cosmeticCost(_s: GameState, _change: Partial<GroundIdentityState>): number {
   // Cosmetic identity is player expression, not a capital project. Structural
   // upgrades still cost money through the Facilities project system.
   return 0;
 }
+
+/* ------------------------------------------------------------------ */
+/* Ground Studio option lists (cosmetic: free)                         */
+/* ------------------------------------------------------------------ */
+
+export const STAND_MATERIALS: { id: StandMaterial; label: string }[] = [
+  { id: "brick", label: "Brick" },
+  { id: "timber", label: "Timber" },
+  { id: "concrete", label: "Concrete" },
+  { id: "cladding", label: "Steel cladding" },
+];
+export const DUGOUT_STYLES: { id: DugoutStyle; label: string }[] = [
+  { id: "auto", label: "Match the ground" },
+  { id: "wooden", label: "Wooden" },
+  { id: "brick", label: "Brick" },
+  { id: "perspex", label: "Perspex" },
+];
+export const SCOREBOARD_STYLES: { id: ScoreboardStyle; label: string }[] = [
+  { id: "auto", label: "Match the ground" },
+  { id: "none", label: "None" },
+  { id: "manual", label: "Hand-turned" },
+  { id: "electronic", label: "Electronic" },
+];
+export const BUILDING_STYLES: { id: GroundBuildings; label: string }[] = [
+  { id: "auto", label: "Match the ground" },
+  { id: "portacabins", label: "Portacabins" },
+  { id: "clubhouse", label: "Timber clubhouse" },
+  { id: "brickClubhouse", label: "Brick clubhouse" },
+  { id: "modern", label: "Modern offices" },
+];
+export const PERIMETER_STYLES: { id: PerimeterStyle; label: string }[] = [
+  { id: "rail", label: "Pitch-side rail" },
+  { id: "chainLink", label: "Chain-link fence" },
+  { id: "barrier", label: "Crush barriers" },
+  { id: "brick", label: "Brick wall" },
+  { id: "hoardings", label: "Advertising hoardings" },
+];
+export const PERIMETER_COLOURS: { id: PerimeterColour; label: string; hex: string }[] = [
+  { id: "white", label: "White", hex: "#f1f3f0" },
+  { id: "club", label: "Club colour", hex: "" },
+  { id: "green", label: "Green", hex: "#2f6b3c" },
+  { id: "galvanized", label: "Galvanised", hex: "#a8b0b5" },
+];
