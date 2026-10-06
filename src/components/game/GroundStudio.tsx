@@ -21,6 +21,7 @@ import {
   ROOF_COLOURS,
   SEAT_SCHEMES,
   STANDING_OPTIONS,
+  STAND_VARIANTS,
   cosmeticCost,
   groundIdentity,
   levelAfterProject,
@@ -82,6 +83,7 @@ export function StandBuildChooser({
   const [build, setBuild] = useState<StandBuild>({
     standing: current.standing,
     roof: roofs.some((r) => r.id === current.roof) ? current.roof : roofs[0]?.id ?? "pitched",
+    variant: current.variant ?? "traditional",
   });
   const quote = buildQuote(state, spec.cost, asset.id, spec.type as CapitalProjectType, build);
   const capacityEffect = spec.effects.find((e) => e.kind === "capacity") as { add: number } | undefined;
@@ -104,6 +106,9 @@ export function StandBuildChooser({
       />
       {roofs.length > 0 && (
         <OptionGroup title="Roof" options={roofs} value={build.roof} onChange={(id) => setBuild((b) => ({ ...b, roof: id }))} />
+      )}
+      {resulting >= 2 && (
+        <OptionGroup title="Structure" options={STAND_VARIANTS} value={build.variant ?? "traditional"} onChange={(id) => setBuild((b) => ({ ...b, variant: id }))} />
       )}
 
       <div className="grid grid-cols-3 divide-x rounded-lg border bg-muted/30 text-center">
