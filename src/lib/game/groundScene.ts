@@ -1540,4 +1540,65 @@ function scoreboard(scene: Scene, design: GroundDesign) {
   if (electronic) {
     // Lit amber score and a glow.
     for (const [dy, tone] of [[-2.4, "#ffcf5a"], [-0.8, "#ffffff"], [0.8, "#ffffff"], [2.4, "#ffcf5a"]] as const) {
-      prims.push({ d: pathOf([v(x + fx * 5, y + dy - 0.55, 
+      prims.push({ d: pathOf([v(x + fx * 5, y + dy - 0.55, legH + 1), v(x + fx * 5, y + dy + 0.55, legH + 1), v(x + fx * 5, y + dy + 0.55, legH + 3), v(x + fx * 5, y + dy - 0.55, legH + 3)]), fill: tone, opacity: 0.95 });
+    }
+  } else {
+    // HOME 0 - 0 AWAY on hand-turned tiles.
+    for (const [dy, tone] of [[-1.9, "#f2f0e6"], [-0.65, "#f2c14e"], [0.65, "#f2c14e"], [1.9, "#f2f0e6"]] as const) {
+      prims.push({ d: pathOf([v(x + fx * 5, y + dy - 0.45, legH + 0.6), v(x + fx * 5, y + dy + 0.45, legH + 0.6), v(x + fx * 5, y + dy + 0.45, legH + 2.1), v(x + fx * 5, y + dy - 0.45, legH + 2.1)]), fill: tone, opacity: 0.92 });
+    }
+  }
+  scene.shadowPoly(board, 0.18);
+  scene.add(prims, v(x, y, legH));
+  select("scoreboard", v(x, y, legH + h), rect(x - 1.5, y - w - 1, x + 1.5, y + w + 1), legH + h);
+}
+
+/* ---------------- Floodlights ---------------- */
+
+function latticePylon(scene: Scene, x: number, y: number, h: number) {
+  const dir = norm(v(-x, -y, 0));
+  const side = v(-dir.y, dir.x, 0);
+  const legs = [-1, 1].map((k) => v(x + side.x * 2.4 * k, y + side.y * 2.4 * k, 0));
+  const top = v(x, y, h);
+  const prims: ScenePrimitive[] = [];
+  const line = (a: V3, b: V3, w: number) => ({ d: pathOf([a, b], false), fill: "none", stroke: "#7f878d", sw: widthAt(a, w), cap: "round" as const });
+  for (const leg of legs) prims.push(line(leg, top, 0.9));
+  for (let k = 0; k < 6; k += 1) {
+    const t0 = k / 6;
+    const t1 = (k + 1) / 6;
+    const l0 = v(legs[0].x + (top.x - legs[0].x) * t0, legs[0].y + (top.y - legs[0].y) * t0, h * t0);
+    const r1 = v(legs[1].x + (top.x - legs[1].x) * t1, legs[1].y + (top.y - legs[1].y) * t1, h * t1);
+    prims.push(line(l0, r1, 0.45));
+  }
+  const hw = 3.4;
+  const fh = 3;
+  const frame = [
+    v(x - side.x * hw, y - side.y * hw, h),
+    v(x + side.x * hw, y + side.y * hw, h),
+    v(x + side.x * hw + dir.x * 0.8, y + side.y * hw + dir.y * 0.8, h + fh),
+    v(x - side.x * hw + dir.x * 0.8, y - side.y * hw + dir.y * 0.8, h + fh),
+  ];
+  prims.push({ d: pathOf(frame), fill: "#3b4148", stroke: "#23282d", sw: 0.6 });
+  for (let r = 0; r < 3; r += 1) {
+    for (let c = 0; c < 4; c += 1) {
+      const u = (c + 0.5) / 4;
+      const w2 = (r + 0.5) / 3;
+      const p = v(
+        frame[0].x + (frame[1].x - frame[0].x) * u + (frame[3].x - frame[0].x) * w2 + dir.x * 0.1,
+        frame[0].y + (frame[1].y - frame[0].y) * u + (frame[3].y - frame[0].y) * w2 + dir.y * 0.1,
+        h + fh * w2,
+      );
+      const sp = project(p);
+      const rr = (FOCAL * 0.42) / sp.d;
+      prims.push({ d: `M${f1(sp.x - rr)} ${f1(sp.y)}a${f1(rr)} ${f1(rr)} 0 1 0 ${f1(rr * 2)} 0a${f1(rr)} ${f1(rr)} 0 1 0 ${f1(-rr * 2)} 0`, fill: C.lightHead, opacity: 0.95 });
+    }
+  }
+  scene.shadowLine(v(x, y, 0), top, 1.6, 0.22);
+  scene.add(prims, v(x, y, h / 2));
+}
+
+/** Short pitch-side posts with a single lamp: the most basic floodlights. */
+function lampPost(scene: Scene, x: number, y: number, h: number) {
+  const base = v(x, y, 0);
+  const top = v(x, y, h);
+  const head = [v(x - 0.7, y, h), v(x + 0.7, y, h), v(x + 0.7,
