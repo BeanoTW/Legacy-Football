@@ -169,7 +169,7 @@ export function updateStand(s: GameState, side: StandSide, patch: Partial<Omit<G
   });
 }
 
-export function updateCorner(s: GameState, slot: CornerSlot, patch: { form?: CornerForm; size?: CornerSize; shape?: "angled" | "rounded" }): EditResult {
+export function updateCorner(s: GameState, slot: CornerSlot, patch: { form?: CornerForm; size?: CornerSize; shape?: "angled" | "rounded"; accessTunnel?: boolean }): EditResult {
   return editDesign(s, (design) => {
     if (patch.form) {
       const option = cornerFormOptions(design, slot).find((o) => o.id === patch.form);
