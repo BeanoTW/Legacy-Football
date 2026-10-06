@@ -599,4 +599,191 @@ function pitch(scene: Scene, stage: number, condition: number) {
   L(rect(-HALF_L, -HALF_W, HALF_L, HALF_W), true);
   L([v(0, -HALF_W), v(0, HALF_W)]);
   L(ellipsePts(0, 0, 9.15, 9.15, 0, Math.PI * 2, 48));
-  scene.flat(ellipsePts(0, 0, 0.5, 0.5, 0, Mat
+  scene.flat(ellipsePts(0, 0, 0.5, 0.5, 0, Math.PI * 2, 10), C.line);
+  for (const s of [-1, 1]) {
+    const gx = s * HALF_L;
+    L([v(gx, -20.16), v(gx - s * 16.5, -20.16), v(gx - s * 16.5, 20.16), v(gx, 20.16)]);
+    L([v(gx, -9.16), v(gx - s * 5.5, -9.16), v(gx - s * 5.5, 9.16), v(gx, 9.16)]);
+    const spot = gx - s * 11;
+    scene.flat(ellipsePts(spot, 0, 0.45, 0.45, 0, Math.PI * 2, 10), C.line);
+    const a = Math.acos(5.5 / 9.15);
+    L(s > 0 ? ellipsePts(spot, 0, 9.15, 9.15, Math.PI - a, Math.PI + a, 16) : ellipsePts(spot, 0, 9.15, 9.15, -a, a, 16));
+    for (const cy of [-HALF_W, HALF_W]) {
+      const start = s > 0 ? (cy > 0 ? Math.PI : Math.PI / 2) : cy > 0 ? -Math.PI / 2 : 0;
+      L(ellipsePts(gx, cy, 1, 1, start, start + Math.PI / 2, 6));
+    }
+  }
+}
+
+function goal(scene: Scene, x: number, facing: 1 | -1, small = false, yCentre = 0) {
+  const hw = small ? 2.5 : 3.66;
+  const h = small ? 1.8 : 2.44;
+  const depth = small ? 1.4 : 2;
+  const bx = x - facing * depth;
+  const post = (p: V3, q: V3, w: number) => ({
+    d: pathOf([p, q], false),
+    fill: "none",
+    stroke: C.white,
+    sw: widthAt(p, w),
+    cap: "round" as const,
+  });
+  const prims: ScenePrimitive[] = [
+    // Net as a translucent tent.
+    { d: pathOf([v(x, yCentre - hw, h), v(bx, yCentre - hw, 0), v(bx, yCentre + hw, 0), v(x, yCentre + hw, h)]), fill: "#ffffff", opacity: 0.22 },
+    { d: pathOf([v(x, yCentre - hw, 0), v(x, yCentre - hw, h), v(bx, yCentre - hw, 0)]), fill: "#ffffff", opacity: 0.18 },
+    { d: pathOf([v(x, yCentre + hw, 0), v(x, yCentre + hw, h), v(bx, yCentre + hw, 0)]), fill: "#ffffff", opacity: 0.18 },
+    post(v(x, yCentre - hw, 0), v(x, yCentre - hw, h), 1.8),
+    post(v(x, yCentre + hw, 0), v(x, yCentre + hw, h), 1.8),
+    post(v(x, yCentre - hw, h), v(x, yCentre + hw, h), 1.8),
+    post(v(bx, yCentre - hw, 0), v(bx, yCentre + hw, 0), 1),
+  ];
+  scene.shadowPoly([v(x, yCentre - hw, h), v(x, yCentre + hw, h), v(x, yCentre + hw, 0), v(x, yCentre - hw, 0)], 0.18);
+  scene.add(prims, v(x, yCentre, h / 2));
+}
+
+/** Ball-stop mesh fence along a closed loop of ground points. */
+function fenceRun(scene: Scene, loop: V3[], height: number) {
+  for (let i = 0; i < loop.length; i += 1) {
+    const a = loop[i];
+    const b = loop[(i + 1) % loop.length];
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    const segments = Math.max(1, Math.round(len / 12));
+    for (let s = 0; s < segments; s += 1) {
+      const t0 = s / segments;
+      const t1 = (s + 1) / segments;
+      const p0 = v(a.x + (b.x - a.x) * t0, a.y + (b.y - a.y) * t0);
+      const p1 = v(a.x + (b.x - a.x) * t1, a.y + (b.y - a.y) * t1);
+      const top0 = v(p0.x, p0.y, height);
+      const top1 = v(p1.x, p1.y, height);
+      const prims: ScenePrimitive[] = [
+        { d: pathOf([p0, p1, top1, top0]), fill: C.fence, opacity: 0.3 },
+        { d: pathOf([top0, top1], false), fill: "none", stroke: C.post, sw: widthAt(top0, 1.2), opacity: 0.9 },
+        { d: pathOf([p0, p1], false), fill: "none", stroke: C.post, sw: widthAt(p0, 1.6), opacity: 0.85 },
+      ];
+      for (let k = 0; k <= 2; k += 1) {
+        const t = k / 2;
+        const px = p0.x + (p1.x - p0.x) * t;
+        const py = p0.y + (p1.y - p0.y) * t;
+        prims.push({ d: pathOf([v(px, py, 0), v(px, py, height)], false), fill: "none", stroke: C.post, sw: widthAt(v(px, py, 0), 1.1), opacity: 0.95 });
+      }
+      scene.shadowPoly([p0, p1, top1, top0], 0.12);
+      scene.add(prims, v((p0.x + p1.x) / 2, (p0.y + p1.y) / 2, height / 2));
+    }
+  }
+}
+
+function floodlight(scene: Scene, x: number, y: number, h: number, faceX: number, faceY: number, tower = false) {
+  const base = v(x, y, 0);
+  const top = v(x, y, h);
+  const dir = norm(v(faceX - x, faceY - y, 0));
+  const side = v(-dir.y, dir.x, 0);
+  const hw = tower ? 3.2 : 1.4;
+  const hh = tower ? 2.6 : 0.9;
+  const head = [
+    v(x - side.x * hw, y - side.y * hw, h),
+    v(x + side.x * hw, y + side.y * hw, h),
+    v(x + side.x * hw, y + side.y * hw, h + hh),
+    v(x - side.x * hw, y - side.y * hw, h + hh),
+  ];
+  scene.shadowLine(base, top, tower ? 2.6 : 1.4, 0.3);
+  scene.shadowPoly(head, 0.3);
+  const glow = project(v(x + dir.x * 0.5, y + dir.y * 0.5, h + hh / 2));
+  const gr = (FOCAL * (tower ? 6 : 3.2)) / glow.d;
+  scene.add(
+    [
+      { d: pathOf([base, top], false), fill: "none", stroke: "#8d949a", sw: widthAt(base, tower ? 3.2 : 1.8), cap: "round" },
+      { d: pathOf(head), fill: "#3b4148", stroke: "#23282d", sw: 0.6 },
+      { d: pathOf(head.map((p) => v(p.x + dir.x * 0.15, p.y + dir.y * 0.15, p.z))), fill: C.lightHead, opacity: 0.85 },
+      {
+        d: `M${f1(glow.x - gr)} ${f1(glow.y)}a${f1(gr)} ${f1(gr)} 0 1 0 ${f1(gr * 2)} 0a${f1(gr)} ${f1(gr)} 0 1 0 ${f1(-gr * 2)} 0`,
+        fill: "#fff6c8",
+        opacity: 0.08,
+      },
+    ],
+    v(x, y, h),
+  );
+}
+
+/** A row of lamps along a roof front: the "gantry" floodlight style. */
+function gantryLights(scene: Scene, y: number, z: number, from: number, to: number) {
+  for (let x = from; x <= to; x += 7) {
+    const head = [v(x - 1.6, y, z), v(x + 1.6, y, z), v(x + 1.6, y, z + 0.8), v(x - 1.6, y, z + 0.8)];
+    const glow = project(v(x, y, z + 0.4));
+    const gr = (FOCAL * 2.2) / glow.d;
+    scene.add(
+      [
+        { d: pathOf(head), fill: "#3b4148", stroke: "#23282d", sw: 0.5 },
+        { d: pathOf(head.map((p) => v(p.x, p.y - Math.sign(y) * 0.12, p.z))), fill: C.lightHead, opacity: 0.85 },
+        { d: `M${f1(glow.x - gr)} ${f1(glow.y)}a${f1(gr)} ${f1(gr)} 0 1 0 ${f1(gr * 2)} 0a${f1(gr)} ${f1(gr)} 0 1 0 ${f1(-gr * 2)} 0`, fill: "#fff6c8", opacity: 0.07 },
+      ],
+      v(x, y, z + 2),
+    );
+  }
+}
+
+type Side = "W" | "E" | "N" | "S";
+
+function facesCamera(a: V3, b: V3, c: V3, behind: V3): boolean {
+  let n = cross(sub(b, a), sub(c, a));
+  if (dot(n, sub(behind, a)) > 0) n = v(-n.x, -n.y, -n.z);
+  return dot(n, sub(CAM, a)) > 0;
+}
+
+/** Maps stand-local coordinates (along the touchline, outwards, up) to world. */
+function sideMapper(side: Side, front: number) {
+  return (along: number, out: number, z: number): V3 => {
+    switch (side) {
+      case "W":
+        return v(along, front + out, z);
+      case "E":
+        return v(-along, -(front + out), z);
+      case "N":
+        return v(front + out, -along, z);
+      case "S":
+        return v(-(front + out), along, z);
+    }
+  };
+}
+
+interface StandSpec {
+  side: Side;
+  from: number;
+  to: number;
+  front: number;
+  depth: number;
+  rake: number;
+  roof: boolean;
+  seat: string;
+  /** Adds a second, steeper tier behind a hospitality band. */
+  upper?: { depth: number; rake: number };
+  back?: string;
+  /** Standing terrace: crush barriers instead of seat rows. */
+  terrace?: boolean;
+  /** Cantilever roof: no columns at the front. */
+  cantilever?: boolean;
+  mapper?: (along: number, out: number, z: number) => V3;
+  rearDetail?: boolean;
+  /** Per-stand roof colours (fall back to the ground-wide palette). */
+  roofColour?: string;
+  roofDark?: string;
+}
+
+/** Returns the anchor (roof centre) for hotspot placement. */
+function stand(scene: Scene, spec: StandSpec): V3 {
+  const W = spec.mapper ?? sideMapper(spec.side, spec.front);
+  const prims: ScenePrimitive[] = [];
+  const frontFacing = facesCamera(W(spec.from, 0, 1.1), W(spec.to, 0, 1.1), W(spec.from, spec.depth, spec.rake), W(spec.from, spec.depth + 2, 0));
+  const shadowPts: V3[] = [];
+  const back = spec.back ?? C.cladding;
+  const roofC = spec.roofColour ?? C.roof;
+  const roofD = spec.roofDark ?? C.roofDark;
+  const deckColour = spec.terrace ? C.terrace : spec.seat;
+
+  // Lower tier: raked deck.
+  const lowerTop = spec.rake;
+  const deck: Array<[number, number]> = [[0, 0], [0, 1.1], [spec.depth, lowerTop], [spec.depth, 0]];
+  prims.push(...solid(prismFaces(deck, spec.from, spec.to, W), C.concrete, { faceColors: [back, back, C.concrete, C.concrete, deckColour, back] }));
+  // Seat rows, or crush barriers on a terrace.
+  const rows = frontFacing ? Math.max(3, Math.round(spec.depth / 1.6)) : 0;
+  for (let r = 1; r < rows; r += 1) {
+    if (spec.terrace && r % 2) continu
