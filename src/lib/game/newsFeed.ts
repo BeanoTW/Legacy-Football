@@ -442,6 +442,44 @@ function livingClubArticles(state: GameState): NewsArticle[] {
   const us = clubPresentationName(state.clubName);
 
   for (const item of state.inbox ?? []) {
+    if (item.generatorId === "community-events-onboarding" && (item.status === "completed" || item.status === "expired")) {
+      const key = `community-events-onboarding|${item.eventKey}`;
+      const paid = item.chosenChoiceId === "paid";
+      const decision = paid ? "Paid appointment" : "Volunteer arrangement";
+      articles.push({
+        id: key,
+        kind: "clubIncident",
+        season: item.season,
+        week: item.week,
+        publication: PUBLICATIONS.local,
+        byline: pick(`${key}|byline`, REPORTERS),
+        headline: paid
+          ? `${us} put community volunteer Sarah Malik on the payroll`
+          : `Sarah Malik to continue unpaid community role at ${us}`,
+        standfirst: paid
+          ? "Supporters welcome the new owner's decision to turn a long-running volunteer role into paid work."
+          : "The long-serving volunteer will stay on, though the decision has drawn a mixed reaction from supporters.",
+        body: paid
+          ? [
+              "Sarah Malik, who had been organising community activity at the club on a voluntary basis, has been appointed Community & Events Officer.",
+              "The move gives the club a permanent point of contact for school visits, supporter evenings, open days and other community events.",
+            ]
+          : [
+              "Sarah Malik will continue coordinating community activity on a voluntary basis after offering to help the new owner settle in.",
+              "Many supporters value the continuity, although some have questioned why the club has not made the role a paid position.",
+            ],
+        facts: [
+          { label: "Role", value: "Community & Events Officer" },
+          { label: "Arrangement", value: paid ? "£275 per week" : "Volunteer" },
+          { label: "Decision", value: decision },
+        ],
+        tags: [us, "Community", "Supporters", "Sarah Malik"],
+        involvesUser: true,
+        reactions: reactions(key, paid ? 1.9 : 1.6),
+      });
+      continue;
+    }
+
     if (item.generatorId === "random-incident" && (item.status === "completed" || item.status === "expired")) {
       const key = `club-incident|${item.eventKey}`;
       const choice = item.choices?.find((candidate) => candidate.id === item.chosenChoiceId);
