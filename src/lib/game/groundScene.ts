@@ -1301,4 +1301,152 @@ function designedStandSpec(side: StandSide, d: GroundStandDesign): StandSpec | n
       spec = { ...base, from: -span / 2, to: span / 2, depth, rake: depth * 0.55, roof: d.roof !== "open" };
       break;
     case "cantilever":
-      spec = {
+      spec = { ...base, from: -span / 2, to: span / 2, depth, rake: depth * 0.6, roof: true, cantilever: true };
+      break;
+    default:
+      spec = { ...base, from: -span / 2, to: span / 2, depth: depth * 0.7, rake: depth * 0.42, roof: true, cantilever: true, upper: { depth: depth * 0.55, rake: depth * 0.45 } };
+  }
+  // The home end (the Kop): deeper and steeper, single tier, always covered.
+  if (LOOK?.homeEnd === side && !isTouchline(side)) {
+    spec = { ...spec, depth: spec.depth + 3, rake: spec.rake + 1.5, roof: true, upper: undefined };
+  }
+  return spec;
+}
+
+/** Visual depth of a side (for footprints, framing and what sits behind it). */
+function standReach(side: StandSide, d: GroundStandDesign): number {
+  const spec = designedStandSpec(side, d);
+  if (!spec) return 6;
+  return spec.depth + (spec.upper ? spec.upper.depth + 1 : 0) + 1;
+}
+
+function standHeight(spec: StandSpec): number {
+  const top = spec.rake + (spec.upper ? spec.upper.rake + 4.5 : 0);
+  return top + (spec.roof ? 4.8 : 1);
+}
+
+/** Hard standing (and a grass bank) where a side has no stand. */
+function openSide(scene: Scene, side: StandSide, d: GroundStandDesign): V3 {
+  const W = sideMapper(side, sideFront(side, d) - 2);
+  const half = isTouchline(side) ? 44 : 28;
+  scene.flat([W(-half, 0, 0), W(half, 0, 0), W(half, 3.2, 0), W(-half, 3.2, 0)], C.concrete, 0.9);
+  scene.flat([W(-half, 3.2, 0), W(half, 3.2, 0), W(half, 6.5, 0), W(-half, 6.5, 0)], "#5f8f3f", 0.85);
+  return W(0, 2, 1);
+}
+
+/* ---------------- Corners ---------------- */
+
+function cornerFrame(slot: CornerSlot, design: GroundDesign) {
+  const [sx, sy] = SIDE_SIGN[slot];
+  const end: StandSide = sx > 0 ? "N" : "S";
+  const touch: StandSide = sy > 0 ? "W" : "E";
+  const endSpec = designedStandSpec(end, design.stands[end]);
+  const touchSpec = designedStandSpec(touch, design.stands[touch]);
+  // A: where the end stand stops; B: where the touchline stand stops.
+  const endHalf = endSpec ? (endSpec.to - endSpec.from) / 2 : HALF_W - 6;
+  const touchHalf = touchSpec ? (touchSpec.to - touchSpec.from) / 2 : HALF_L - 8;
+  const A = v(sx * sideFront(end, design.stands[end]), sy * Math.min(endHalf + 0.5, HALF_W + 10), 0);
+  const B = v(sx * Math.min(touchHalf + 0.5, HALF_L + 10), sy * sideFront(touch, design.stands[touch]), 0);
+  const mid = v((A.x + B.x) / 2, (A.y + B.y) / 2, 0);
+  let along = norm(sub(B, A));
+  let out = v(along.y, -along.x, 0);
+  if (dot(out, v(sx, sy, 0)) < 0) out = v(-out.x, -out.y, 0);
+  // Keep "along" right-handed relative to "out" so the stand faces the pitch.
+  along = v(-out.y, out.x, 0);
+  const gap = Math.hypot(B.x - A.x, B.y - A.y);
+  const mapper = (a: number, o: number, z: number) => v(mid.x + along.x * a + out.x * o, mid.y + along.y * a + out.y * o, z);
+  const neighbourDepth = Math.min(endSpec?.depth ?? 8, touchSpec?.depth ?? 8);
+  return { sx, sy, mapper, end, touch, gap, neighbourDepth };
+}
+
+function corner(scene: Scene, slot: CornerSlot, design: GroundDesign) {
+  const c = design.corners[slot];
+  const f = cornerFrame(slot, design);
+  const large = c.size === "large";
+  const half = Math.max(3, Math.min(large ? f.gap / 2 : 6, f.gap / 2));
+  const foot = (depth: number) => [f.mapper(-half, 0, 0), f.mapper(half, 0, 0), f.mapper(half, depth, 0), f.mapper(-half, depth, 0)];
+  const anchor = f.mapper(0, 4, 2);
+  switch (c.form) {
+    case "access": {
+      // A gate in the corner, a path out and a little turnstile hut.
+      scene.flat([f.mapper(-2.2, -2, 0), f.mapper(2.2, -2, 0), f.mapper(2.2, 16, 0), f.mapper(-2.2, 16, 0)], C.path);
+      const g0 = f.mapper(-2.4, 0.5, 0);
+      const g1 = f.mapper(2.4, 0.5, 0);
+      scene.add([
+        { d: pathOf([g0, v(g0.x, g0.y, 2.6)], false), fill: "none", stroke: "#3b3f43", sw: widthAt(g0, 1.2) },
+        { d: pathOf([g1, v(g1.x, g1.y, 2.6)], false), fill: "none", stroke: "#3b3f43", sw: widthAt(g1, 1.2) },
+        { d: pathOf([v(g0.x, g0.y, 2.4), v(g1.x, g1.y, 2.4)], false), fill: "none", stroke: "#3b3f43", sw: widthAt(g0, 0.7) },
+        { d: pathOf([v(g0.x, g0.y, 1.2), v(g1.x, g1.y, 1.2)], false), fill: "none", stroke: "#e8a33d", sw: widthAt(g0, 0.5), opacity: 0.9 },
+      ], v((g0.x + g1.x) / 2, (g0.y + g1.y) / 2, 1.2));
+      const hut = f.mapper(4.5, 3, 0);
+      scene.add(solid(boxFaces(hut.x - 1.4, hut.y - 1.4, 0, hut.x + 1.4, hut.y + 1.4, 2.5), C.brick), v(hut.x, hut.y, 1.2));
+      scene.shadowSolid([...rect(hut.x - 1.4, hut.y - 1.4, hut.x + 1.4, hut.y + 1.4), ...rect(hut.x - 1.4, hut.y - 1.4, hut.x + 1.4, hut.y + 1.4, 2.5)], 0.22);
+      select(`corner:${slot}`, anchor, foot(14), 3);
+      return;
+    }
+    case "terrace":
+      {
+        const depth = large ? Math.max(7, f.neighbourDepth * 0.8) : 6;
+        stand(scene, { side: f.end, front: 0, mapper: f.mapper, from: -half, to: half, depth, rake: depth * 0.36, roof: false, seat: C.terrace, terrace: true, rearDetail: false, back: MATERIAL_TONE.concrete });
+        select(`corner:${slot}`, anchor, foot(depth), depth * 0.36 + 1);
+      }
+      return;
+    case "seated": {
+      const colours = sideColours(f.touch);
+      const depth = large ? Math.max(9, f.neighbourDepth * 0.85) : 8;
+      stand(scene, { side: f.end, front: 0, mapper: f.mapper, from: -half, to: half, depth, rake: depth * 0.5, roof: true, cantilever: true, seat: colours.seatAlt, back: MATERIAL_TONE.cladding, rearDetail: true, roofColour: colours.roof, roofDark: colours.roofDark });
+      select(`corner:${slot}`, anchor, foot(depth), depth * 0.5 + 4.8);
+      return;
+    }
+    default:
+      // Open corners (and pylon corners, whose pylon is drawn with the lights) stay grass.
+      select(`corner:${slot}`, anchor, foot(8), 0);
+  }
+}
+
+/* ---------------- Perimeter ---------------- */
+
+function perimeterTone(design: GroundDesign): string {
+  switch (design.perimeter.colour) {
+    case "club": return LOOK?.seat ?? C.seat;
+    case "green": return "#2f6b3c";
+    case "galvanized": return "#a8b0b5";
+    default: return "#f1f3f0";
+  }
+}
+
+function perimeter(scene: Scene, design: GroundDesign) {
+  const inset = 4.2;
+  const loop = rect(-HALF_L - inset, -HALF_W - inset, HALF_L + inset, HALF_W + inset);
+  const style = design.perimeter.style;
+  const tone = perimeterTone(design);
+  const gates = new Set(design.perimeter.gates ?? ["N", "S"]);
+  // Which side a fence position belongs to (for gate gaps).
+  const sideAt = (m: V3): StandSide => (Math.abs(m.x) > HALF_L ? (m.x > 0 ? "N" : "S") : m.y > 0 ? "W" : "E");
+  for (let i = 0; i < loop.length; i += 1) {
+    const a = loop[i];
+    const b = loop[(i + 1) % loop.length];
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    const segments = Math.max(1, Math.round(len / 8));
+    for (let k = 0; k < segments; k += 1) {
+      const p0 = v(a.x + ((b.x - a.x) * k) / segments, a.y + ((b.y - a.y) * k) / segments);
+      const p1 = v(a.x + ((b.x - a.x) * (k + 1)) / segments, a.y + ((b.y - a.y) * (k + 1)) / segments);
+      const mid = v((p0.x + p1.x) / 2, (p0.y + p1.y) / 2);
+      // Gate: leave the middle of that side open.
+      const side = sideAt(mid);
+      const alongCentre = isTouchline(side) ? Math.abs(mid.x) : Math.abs(mid.y);
+      if (gates.has(side) && alongCentre < 4.5) continue;
+      const prims: ScenePrimitive[] = [];
+      if (style === "chainLink") {
+        const h = 2.4;
+        prims.push({ d: pathOf([p0, p1, v(p1.x, p1.y, h), v(p0.x, p0.y, h)]), fill: tone === "#f1f3f0" ? "#8f979c" : tone, opacity: 0.32 });
+        // Diamond mesh hint.
+        for (let q = 0; q < 4; q += 1) {
+          const t0 = q / 4;
+          const t1 = (q + 1) / 4;
+          const m0 = v(p0.x + (p1.x - p0.x) * t0, p0.y + (p1.y - p0.y) * t0, 0.2);
+          const m1 = v(p0.x + (p1.x - p0.x) * t1, p0.y + (p1.y - p0.y) * t1, h - 0.2);
+          prims.push({ d: pathOf([m0, m1], false), fill: "none", stroke: "#6f777c", sw: widthAt(m0, 0.25), opacity: 0.6 });
+        }
+        prims.push({ d: pathOf([v(p0.x, p0.y, h), v(p1.x, p1.y, h)], false), fill: "none", stroke: "#4f575c", sw: widthAt(p0, 0.6) });
+        for (cons
