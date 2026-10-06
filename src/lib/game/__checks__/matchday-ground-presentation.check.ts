@@ -39,7 +39,11 @@ console.log("\n[MGP1] Home fixture uses canonical Facilities progression");
 console.log("\n[MGP2] Away fixture never shows the user's stadium");
 {
   const state = newGame("Away Ground Town", "Chairman Test");
-  check("away match returns no ground presentation", matchdayGroundPresentation(state, false, 2_000) === null);
+  // Since #207 away matches show a generated opponent ground, never the user's own design.
+  const away = matchdayGroundPresentation(state, false, 2_000);
+  const home = matchdayGroundPresentation(state, true, 2_000);
+  check("away match returns a generated opponent ground", Boolean(away?.design));
+  check("the away ground is not the user's stadium", JSON.stringify(away?.design) !== JSON.stringify(home?.design));
 }
 
 console.log("\n[MGP3] Crowd fill is safely bounded");

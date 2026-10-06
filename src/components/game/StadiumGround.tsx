@@ -126,6 +126,8 @@ function useViewportSize(ref: RefObject<HTMLDivElement | null>) {
   return size;
 }
 
+const DEFAULT_CAMERA = { azimuthDeg: -122, elevationDeg: 50, zoom: 1, panX: 0, panY: 0 };
+
 export function StadiumGround({
   stage,
   hotspots,
@@ -135,6 +137,9 @@ export function StadiumGround({
   design,
   interactiveCamera = true,
   cameraMode = "orbit",
+  selection = null,
+  onSelectComponent,
+  componentLabels,
 }: {
   stage: number;
   hotspots: GroundHotspot[];
@@ -146,11 +151,19 @@ export function StadiumGround({
   design?: GroundDesign;
   interactiveCamera?: boolean;
   cameraMode?: GroundCameraMode;
+  /** Ground Studio: the selected component ("stand:W", "corner:NE", "pitch", …). */
+  selection?: string | null;
+  /** Ground Studio: tap a component to select it (null when tapping empty ground). */
+  onSelectComponent?: (id: string | null) => void;
+  /** Friendly names for selectable components (shown on the selected pin). */
+  componentLabels?: Record<string, string>;
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const { width, height } = useViewportSize(viewportRef);
-  const [camera, setCamera] = useState({ azimuthDeg: -122, elevationDeg: 50, zoom: 1 });
-  const dragRef = useRef<{ id: number; x: number; y: number; az: number; el: number } | null>(null);
+  const [camera, setCamera] = useState(DEFAULT_CAMERA);
+  // Gesture state: one finger orbits, two fingers pinch-zoom, a quick tap selects.
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const gesture = useRef<{ az: number; el: number; zoom: number; x: number; y: number; dist: number; moved: boolean; t: number; pinch: boolean } | null>(null);
 
   const pitchCondition = Math.round((hotspots.find((h) => h.id === "pitch")?.asset.condition ?? 80) / 5) * 5;
   const worksKey = hotspots
@@ -173,9 +186,26 @@ export function StadiumGround({
         look: lookKey ? (JSON.parse(lookKey) as SceneLook) : undefined,
         design: designKey ? (JSON.parse(designKey) as GroundDesign) : undefined,
         camera: { ...camera, mode: cameraMode },
+        highlight: selection ?? undefined,
       }),
-    [camera, cameraMode, designKey, height, lookKey, pitchCondition, stage, width, worksKey],
+    [camera, cameraMode, designKey, height, lookKey, pitchCondition, selection, stage, width, worksKey],
   );
+
+  // Frame the selected component (once per selection change).
+  const focusedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!onSelectComponent || selection === focusedFor.current) return;
+    focusedFor.current = selection;
+    const target = selection ? scene.selectables?.[selection] : undefined;
+    if (!target) return;
+    const wide = selection === "pitch" || selection === "perimeter" || selection === "lights";
+    setCamera((current) => ({
+      ...current,
+      panX: wide ? 0 : (target.world.x + 4) * 0.8,
+      panY: wide ? 0 : (target.world.y - 2) * 0.8,
+      zoom: wide ? 1 : Math.max(current.zoom, selection?.startsWith("corner") || selection === "dugouts" || selection === "scoreboard" ? 1.8 : 1.45),
+    }));
+  }, [onSelectComponent, scene.selectables, selection]);
 
   const strokeScale = scene.viewBox.w / width;
 
@@ -213,25 +243,74 @@ export function StadiumGround({
       className={cn("lf-ground-viewport rounded-lg", `lf-ground-stage-${stage}`)}
       style={{ background: scene.background, touchAction: interactiveCamera ? "none" : undefined }}
       onPointerDown={interactiveCamera ? (event) => {
-        event.currentTarget.setPointerCapture(event.pointerId);
-        dragRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY, az: camera.azimuthDeg, el: camera.elevationDeg };
+        // Capture can fail (synthetic or already-released pointers); gestures still work.
+        try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* ignore */ }
+        pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        const pts = [...pointers.current.values()];
+        const pinch = pts.length >= 2;
+        gesture.current = {
+          az: camera.azimuthDeg,
+          el: camera.elevationDeg,
+          zoom: camera.zoom,
+          x: event.clientX,
+          y: event.clientY,
+          dist: pinch ? Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) : 0,
+          moved: pinch || Boolean(gesture.current?.moved),
+          t: Date.now(),
+          pinch,
+        };
       } : undefined}
       onPointerMove={interactiveCamera ? (event) => {
-        const drag = dragRef.current;
-        if (!drag || drag.id !== event.pointerId) return;
+        const g = gesture.current;
+        if (!g || !pointers.current.has(event.pointerId)) return;
+        pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+        const pts = [...pointers.current.values()];
+        if (pts.length >= 2 && g.pinch && g.dist > 0) {
+          const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+          setCamera((current) => ({ ...current, zoom: Math.max(0.75, Math.min(2.6, g.zoom * (dist / g.dist))) }));
+          return;
+        }
+        if (g.pinch) return;
+        const dx = event.clientX - g.x;
+        const dy = event.clientY - g.y;
+        if (!g.moved && Math.hypot(dx, dy) < 8) return;
+        g.moved = true;
         setCamera((current) => ({
           ...current,
-          azimuthDeg: drag.az + (event.clientX - drag.x) * 0.35,
-          elevationDeg: Math.max(20, Math.min(75, drag.el - (event.clientY - drag.y) * 0.25)),
+          azimuthDeg: g.az + dx * 0.35,
+          elevationDeg: Math.max(20, Math.min(75, g.el - dy * 0.25)),
         }));
       } : undefined}
       onPointerUp={interactiveCamera ? (event) => {
-        if (dragRef.current?.id === event.pointerId) dragRef.current = null;
+        const g = gesture.current;
+        pointers.current.delete(event.pointerId);
+        // A quick tap that didn't move selects the nearest component.
+        if (g && !g.moved && !g.pinch && onSelectComponent && Date.now() - g.t < 600) {
+          const rect = event.currentTarget.getBoundingClientRect();
+          const fx = (event.clientX - rect.left) / rect.width;
+          const fy = (event.clientY - rect.top) / rect.height;
+          let best: string | null = null;
+          let bestDist = 46;
+          for (const [id, at] of Object.entries(scene.selectables ?? {})) {
+            const d = Math.hypot((at.x - fx) * rect.width, (at.y - fy) * rect.height);
+            if (d < bestDist) { bestDist = d; best = id; }
+          }
+          onSelectComponent(best);
+        }
+        if (pointers.current.size === 0) gesture.current = null;
+        else if (g) {
+          // One finger left after a pinch: continue as an orbit from here, never as a tap.
+          const [rest] = [...pointers.current.values()];
+          gesture.current = { ...g, pinch: false, moved: true, x: rest.x, y: rest.y, az: camera.azimuthDeg, el: camera.elevationDeg, zoom: camera.zoom };
+        }
       } : undefined}
-      onPointerCancel={() => { dragRef.current = null; }}
+      onPointerCancel={(event) => {
+        pointers.current.delete(event.pointerId);
+        if (pointers.current.size === 0) gesture.current = null;
+      }}
       onWheel={interactiveCamera ? (event) => {
         event.preventDefault();
-        setCamera((current) => ({ ...current, zoom: Math.max(0.65, Math.min(2.2, current.zoom - event.deltaY * 0.001)) }));
+        setCamera((current) => ({ ...current, zoom: Math.max(0.75, Math.min(2.6, current.zoom - event.deltaY * 0.0015)) }));
       } : undefined}
     >
       <style>{SCENE_CSS}</style>
@@ -249,6 +328,40 @@ export function StadiumGround({
         {paths}
       </svg>
       <div className="lf-ground-aerial-shade" aria-hidden="true" />
+
+      {onSelectComponent && scene.selectables ? (
+        <div className="pointer-events-none absolute inset-0 z-[6]" aria-hidden="true">
+          {Object.entries(scene.selectables).map(([id, at]) => {
+            if (at.x < 0.02 || at.x > 0.98 || at.y < 0.02 || at.y > 0.98) return null;
+            const active = id === selection;
+            return (
+              <span
+                key={id}
+                data-selectable={id}
+                className={cn("absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 transition-all", active ? "size-3.5 border-white bg-amber-400 shadow-[0_0_0_4px_rgba(255,197,61,.35)]" : "size-2.5 border-white/90 bg-white/45")}
+                style={{ left: `${at.x * 100}%`, top: `${at.y * 100}%` }}
+              >
+                {active && componentLabels?.[id] ? (
+                  <span className="absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-black/75 px-2 py-0.5 text-[10px] font-bold text-white">{componentLabels[id]}</span>
+                ) : null}
+              </span>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {interactiveCamera && cameraMode === "orbit" ? (
+        <button
+          type="button"
+          onPointerDown={(event) => event.stopPropagation()}
+          onPointerUp={(event) => event.stopPropagation()}
+          onClick={() => { setCamera(DEFAULT_CAMERA); focusedFor.current = null; }}
+          className="absolute left-2 top-2 z-[7] rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur-sm"
+          aria-label="Reset the camera to the default view"
+        >
+          ⟲ View
+        </button>
+      ) : null}
 
       {/* Leader lines from each label to the part of the ground it describes. */}
       <svg className="pointer-events-none absolute inset-0 z-[5] h-full w-full" aria-hidden="true">

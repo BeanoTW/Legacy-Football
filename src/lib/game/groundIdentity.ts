@@ -20,7 +20,7 @@ export type RoofStyle = "pitched" | "cantilever" | "twoTier";
 export type SeatScheme = "club" | "twoTone" | "classic" | "mono" | "red" | "blue" | "navy" | "black" | "white" | "amber" | "purple";
 export type RoofColour = "slate" | "club" | "white" | "charcoal" | "black" | "red" | "blue" | "green" | "cream" | "silver";
 export type Cladding = "brick" | "modern" | "white" | "darkBrick" | "black" | "club" | "blue" | "green" | "cream";
-export type FloodlightStyle = "auto" | "pylons" | "masts" | "gantry";
+export type FloodlightStyle = "auto" | "posts" | "pylons" | "masts" | "gantry";
 export type Mowing = "stripes" | "checks" | "diagonal" | "wide" | "vertical";
 export type StandSide = "N" | "E" | "S" | "W";
 export type CornerSlot = "NW" | "NE" | "SW" | "SE";
@@ -31,6 +31,18 @@ export type PerimeterColour = "white" | "club" | "green" | "galvanized";
 export type CarParkSurface = "gravel" | "tarmac";
 export type CarParkLocation = "NW" | "NE" | "SW" | "SE";
 export type GroundCameraMode = "orbit" | "matchday";
+export type StandMaterial = "brick" | "cladding" | "timber" | "concrete";
+export type CornerSize = "small" | "large";
+export type DugoutStyle = "auto" | "wooden" | "brick" | "perspex";
+export type ScoreboardStyle = "auto" | "none" | "manual" | "electronic";
+export type GroundBuildings = "auto" | "portacabins" | "clubhouse" | "brickClubhouse" | "modern";
+
+/** Per-stand cosmetic overrides. Anything unset falls back to the ground-wide look. */
+export interface StandLook {
+  seats?: SeatScheme;
+  roof?: RoofColour;
+  cladding?: Cladding;
+}
 
 export interface GroundStandDesign {
   form: StandForm;
@@ -41,15 +53,43 @@ export interface GroundStandDesign {
   setback: number;
   standing: Standing;
   roof: RoofStyle | "open";
+  /** Structural style of the stand's back and ends. Optional: derived from form when unset. */
+  material?: StandMaterial;
 }
 
-export interface GroundCornerDesign { form: CornerForm; }
+export interface GroundCornerDesign {
+  form: CornerForm;
+  /** Optional: corner infill footprint. Defaults to small. */
+  size?: CornerSize;
+}
+
+/**
+ * Canonical slot-based design. Every field added after #194 is optional with a
+ * renderer default, so old saves, generated away grounds and matchday keep working.
+ */
 export interface GroundDesign {
   version: 1;
   stands: Record<StandSide, GroundStandDesign>;
   corners: Record<CornerSlot, GroundCornerDesign>;
-  perimeter: { style: PerimeterStyle; colour: PerimeterColour };
-  surroundings: { carParkSurface: CarParkSurface; carParkLocation: CarParkLocation };
+  perimeter: {
+    style: PerimeterStyle;
+    colour: PerimeterColour;
+    /** Sides with an opening in the perimeter (gates). Default: both ends. */
+    gates?: StandSide[];
+  };
+  surroundings: {
+    carParkSurface: CarParkSurface;
+    carParkLocation: CarParkLocation;
+    /** Clubhouse/office buildings by the car park. Default derives from the ground's size. */
+    buildings?: GroundBuildings;
+    /** Coach bay in the car park. Default: from Seated stand level up. */
+    coachBay?: boolean;
+  };
+  /** Pitch-side fixtures. Optional: "auto" derives from the ground's size. */
+  fixtures?: {
+    dugouts?: DugoutStyle;
+    scoreboard?: ScoreboardStyle;
+  };
 }
 
 export interface StandBuild {
@@ -72,6 +112,8 @@ export interface GroundIdentityState {
   pending: Record<string, StandBuild & { projectId: string }>;
   /** Canonical slot-based ground design. Optional on old saves and derived deterministically. */
   design?: GroundDesign;
+  /** Per-stand cosmetics (seats, roof, cladding). Global seats/roof/cladding are the fallback. */
+  standLooks?: Partial<Record<StandSide, StandLook>>;
   /** Number of paid cosmetic changes (keeps finance dedupe keys unique). */
   changes: number;
 }
@@ -118,7 +160,24 @@ function standFormFor(level: number, build: StandBuild): StandForm {
 /** Deterministic adapter for pre-slot saves. Nothing is persisted merely by reading it. */
 export function groundDesign(s: GameState): GroundDesign {
   const identity = groundIdentity(s);
-  if (identity.design?.version === 1) return identity.design;
+  const derived = derivedGroundDesign(s);
+  const saved = identity.design;
+  if (saved?.version !== 1) return derived;
+  // A saved design keeps the club's choices, but levels always come from the real stands:
+  // when Facilities work raises a stand above the level it was designed at, that side
+  // takes the new structure (keeping its material), so progression stays visible.
+  const stands = { ...saved.stands };
+  for (const side of ["N", "E", "S", "W"] as StandSide[]) {
+    const live = derived.stands[side];
+    const mine = saved.stands[side];
+    if (!mine) { stands[side] = live; continue; }
+    stands[side] = live.level > mine.level ? { ...live, material: mine.material } : { ...mine, level: live.level };
+  }
+  return { ...saved, stands };
+}
+
+/** The design implied by the club's real stands, used for old saves and as the live structure. */
+function derivedGroundDesign(s: GameState): GroundDesign {
   const stands = structuredClone(SIDE_DEFAULT);
   for (const asset of (s.infrastructure?.assets ?? []).filter((a) => a.type === "stand")) {
     const side = asset.location as StandSide;
@@ -374,6 +433,7 @@ export const CLADDINGS: { id: Cladding; label: string; hex: string }[] = [
 ];
 export const FLOODLIGHT_STYLES: { id: FloodlightStyle; label: string }[] = [
   { id: "auto", label: "Match the ground" },
+  { id: "posts", label: "Pitch-side posts" },
   { id: "masts", label: "Side masts" },
   { id: "pylons", label: "Corner pylons" },
   { id: "gantry", label: "Roof gantries" },
@@ -398,6 +458,16 @@ export interface SceneLook {
   mowing: Mowing;
   homeEnd: "N" | "S" | null;
   stands: Partial<Record<StandSide, { terrace: boolean; roof: RoofStyle | "open" }>>;
+  /** Per-stand resolved colours. Optional: sides without an entry use the ground-wide colours. */
+  standColours?: Partial<Record<StandSide, StandColours>>;
+}
+
+export interface StandColours {
+  seat: string;
+  seatAlt: string;
+  roof: string;
+  roofDark: string;
+  cladding: string;
 }
 
 function darken(hex: string, f: number): string {
@@ -406,18 +476,33 @@ function darken(hex: string, f: number): string {
   return `#${[c(0), c(2), c(4)].map((n) => n.toString(16).padStart(2, "0")).join("")}`;
 }
 
-export function sceneLook(s: GameState, clubColours: { body: string; secondary: string }): SceneLook {
-  const identity = groundIdentity(s);
-  const seatScheme = SEAT_SCHEMES.find((option) => option.id === identity.seats);
+function resolveColours(
+  seatsId: SeatScheme,
+  roofId: RoofColour,
+  claddingId: Cladding,
+  clubColours: { body: string; secondary: string },
+): StandColours & { twoTone: boolean } {
+  const seatScheme = SEAT_SCHEMES.find((option) => option.id === seatsId);
   const seats =
-    identity.seats === "club"
+    seatsId === "club"
       ? [clubColours.body, darken(clubColours.body, 0.8)]
-      : identity.seats === "twoTone"
+      : seatsId === "twoTone"
         ? [clubColours.body, clubColours.secondary]
         : seatScheme?.colours ?? ["#1f6f69", "#185a55"];
-  const roof = ROOF_COLOURS.find((r) => r.id === identity.roof) ?? ROOF_COLOURS[0];
-  const roofHex = roof.id === "club" ? darken(clubColours.body, 0.85) : roof.hex;
-  const roofDark = roof.id === "club" ? darken(clubColours.body, 0.62) : roof.dark;
+  const roof = ROOF_COLOURS.find((r) => r.id === roofId) ?? ROOF_COLOURS[0];
+  return {
+    seat: seats[0],
+    seatAlt: seats[1],
+    twoTone: seatsId === "twoTone",
+    roof: roof.id === "club" ? darken(clubColours.body, 0.85) : roof.hex,
+    roofDark: roof.id === "club" ? darken(clubColours.body, 0.62) : roof.dark,
+    cladding: claddingId === "club" ? clubColours.body : (CLADDINGS.find((c) => c.id === claddingId) ?? CLADDINGS[0]).hex,
+  };
+}
+
+export function sceneLook(s: GameState, clubColours: { body: string; secondary: string }): SceneLook {
+  const identity = groundIdentity(s);
+  const ground = resolveColours(identity.seats, identity.roof, identity.cladding, clubColours);
   const stands: SceneLook["stands"] = {};
   for (const stand of (s.infrastructure?.assets ?? []).filter((a) => a.type === "stand")) {
     const side = stand.location as StandSide;
@@ -427,17 +512,24 @@ export function sceneLook(s: GameState, clubColours: { body: string; secondary: 
     if (!build) continue;
     stands[side] = { terrace: build.standing === "terrace", roof: stand.level >= 3 ? build.roof : "pitched" };
   }
+  const standColours: SceneLook["standColours"] = {};
+  for (const [side, own] of Object.entries(identity.standLooks ?? {}) as [StandSide, StandLook | undefined][]) {
+    if (!own || (!own.seats && !own.roof && !own.cladding)) continue;
+    const { twoTone: _ignored, ...colours } = resolveColours(own.seats ?? identity.seats, own.roof ?? identity.roof, own.cladding ?? identity.cladding, clubColours);
+    standColours[side] = colours;
+  }
   return {
-    seat: seats[0],
-    seatAlt: seats[1],
-    twoTone: identity.seats === "twoTone",
-    roof: roofHex,
-    roofDark,
-    cladding: identity.cladding === "club" ? clubColours.body : (CLADDINGS.find((c) => c.id === identity.cladding) ?? CLADDINGS[0]).hex,
+    seat: ground.seat,
+    seatAlt: ground.seatAlt,
+    twoTone: ground.twoTone,
+    roof: ground.roof,
+    roofDark: ground.roofDark,
+    cladding: ground.cladding,
     floodlights: identity.floodlights,
     mowing: identity.mowing,
     homeEnd: identity.homeEnd,
     stands,
+    ...(Object.keys(standColours).length ? { standColours } : {}),
   };
 }
 
@@ -447,3 +539,46 @@ export function cosmeticCost(_s: GameState, _change: Partial<GroundIdentityState
   // upgrades still cost money through the Facilities project system.
   return 0;
 }
+
+/* ------------------------------------------------------------------ */
+/* Ground Studio option lists (cosmetic: free)                         */
+/* ------------------------------------------------------------------ */
+
+export const STAND_MATERIALS: { id: StandMaterial; label: string }[] = [
+  { id: "brick", label: "Brick" },
+  { id: "timber", label: "Timber" },
+  { id: "concrete", label: "Concrete" },
+  { id: "cladding", label: "Steel cladding" },
+];
+export const DUGOUT_STYLES: { id: DugoutStyle; label: string }[] = [
+  { id: "auto", label: "Match the ground" },
+  { id: "wooden", label: "Wooden" },
+  { id: "brick", label: "Brick" },
+  { id: "perspex", label: "Perspex" },
+];
+export const SCOREBOARD_STYLES: { id: ScoreboardStyle; label: string }[] = [
+  { id: "auto", label: "Match the ground" },
+  { id: "none", label: "None" },
+  { id: "manual", label: "Hand-turned" },
+  { id: "electronic", label: "Electronic" },
+];
+export const BUILDING_STYLES: { id: GroundBuildings; label: string }[] = [
+  { id: "auto", label: "Match the ground" },
+  { id: "portacabins", label: "Portacabins" },
+  { id: "clubhouse", label: "Timber clubhouse" },
+  { id: "brickClubhouse", label: "Brick clubhouse" },
+  { id: "modern", label: "Modern offices" },
+];
+export const PERIMETER_STYLES: { id: PerimeterStyle; label: string }[] = [
+  { id: "rail", label: "Pitch-side rail" },
+  { id: "chainLink", label: "Chain-link fence" },
+  { id: "barrier", label: "Crush barriers" },
+  { id: "brick", label: "Brick wall" },
+  { id: "hoardings", label: "Advertising hoardings" },
+];
+export const PERIMETER_COLOURS: { id: PerimeterColour; label: string; hex: string }[] = [
+  { id: "white", label: "White", hex: "#f1f3f0" },
+  { id: "club", label: "Club colour", hex: "" },
+  { id: "green", label: "Green", hex: "#2f6b3c" },
+  { id: "galvanized", label: "Galvanised", hex: "#a8b0b5" },
+];

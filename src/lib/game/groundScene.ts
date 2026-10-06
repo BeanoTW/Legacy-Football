@@ -12,7 +12,7 @@
  * style and mowing pattern. Without it the default ground is drawn.
  */
 
-import type { CornerSlot, GroundDesign, GroundStandDesign, SceneLook, StandSide } from "./groundIdentity";
+import type { CornerSlot, GroundDesign, GroundStandDesign, SceneLook, StandMaterial, StandSide } from "./groundIdentity";
 
 export interface SceneInput {
   /** groundProgression().visualStage, 0 (basic non-league) → 6 (elite). */
@@ -32,6 +32,11 @@ export interface SceneInput {
    * when omitted the legacy stage composition is used unchanged.
    */
   design?: GroundDesign;
+  /**
+   * Ground Studio selection to outline, e.g. "stand:W", "corner:NE", "pitch",
+   * "lights", "perimeter", "dugouts", "scoreboard", "surroundings".
+   */
+  highlight?: string;
   /** Orbit camera. Omitted values preserve the legacy aerial composition. */
   camera?: {
     azimuthDeg?: number;
@@ -59,6 +64,11 @@ export interface SceneOutput {
   prims: ScenePrimitive[];
   /** Projected playable pitch rectangle as fractions of the scene viewport. */
   pitchBounds: { left: number; top: number; width: number; height: number };
+  /**
+   * Designed grounds only: every selectable component, with its projected
+   * position (fractions of the viewport) and world point (for camera focus).
+   */
+  selectables?: Record<string, { x: number; y: number; world: { x: number; y: number; z: number } }>;
   /** Hotspot anchors as fractions (0-1) of the viewport. */
   anchors: Record<string, { x: number; y: number }>;
 }
@@ -516,32 +526,44 @@ function pitch(scene: Scene, stage: number, condition: number) {
   const runY = stage >= 2 ? 6 : 5;
   scene.flat(rect(-HALF_L - runX, -HALF_W - runY, HALF_L + runX, HALF_W + runY), C.surround);
 
-  // Mowing: stripes across the pitch by default, or the club's own pattern.
+  // Mowing: every pattern reads clearly from the air (and top-down on matchday).
   const mowing = LOOK?.mowing ?? "stripes";
-  const stripes = 12;
+  const light = mix(C.pitchA, "#ffffff", 0.06);
+  const dark = shade(C.pitchB, 0.96);
+  const L2 = 2 * HALF_L;
+  const W2 = 2 * HALF_W;
   if (mowing === "checks") {
+    const cols = 12;
     const rows = 8;
-    for (let i = 0; i < stripes; i += 1) {
+    for (let i = 0; i < cols; i += 1) {
       for (let j = 0; j < rows; j += 1) {
-        const x0 = -HALF_L + (i * 2 * HALF_L) / stripes;
-        const y0 = -HALF_W + (j * 2 * HALF_W) / rows;
-        scene.flat(rect(x0, y0, x0 + (2 * HALF_L) / stripes, y0 + (2 * HALF_W) / rows), (i + j) % 2 ? C.pitchA : C.pitchB);
+        const x0 = -HALF_L + (i * L2) / cols;
+        const y0 = -HALF_W + (j * W2) / rows;
+        scene.flat(rect(x0, y0, x0 + L2 / cols, y0 + W2 / rows), (i + j) % 2 ? light : dark);
       }
     }
   } else if (mowing === "diagonal") {
-    scene.flat(rect(-HALF_L, -HALF_W, HALF_L, HALF_W), C.pitchB);
-    const band = 9;
-    for (let k = -14; k <= 14; k += 2) {
+    scene.flat(rect(-HALF_L, -HALF_W, HALF_L, HALF_W), dark);
+    const band = 7.5;
+    for (let k = -20; k <= 20; k += 2) {
       const c0 = k * band;
       const poly = [v(c0 - HALF_W, -HALF_W), v(c0 - HALF_W + band, -HALF_W), v(c0 + HALF_W + band, HALF_W), v(c0 + HALF_W, HALF_W)];
       const clipped = clipToRect(poly, -HALF_L, -HALF_W, HALF_L, HALF_W);
-      if (clipped.length >= 3) scene.flat(clipped, C.pitchA);
+      if (clipped.length >= 3) scene.flat(clipped, light);
+    }
+  } else if (mowing === "vertical") {
+    // Lengthways: bands run goal to goal.
+    const bands = 10;
+    for (let j = 0; j < bands; j += 1) {
+      const y0 = -HALF_W + (j * W2) / bands;
+      scene.flat(rect(-HALF_L, y0, HALF_L, y0 + W2 / bands), j % 2 ? light : dark);
     }
   } else {
+    // Stripes across the pitch: classic (12) or wide (6).
+    const stripes = mowing === "wide" ? 6 : 12;
     for (let i = 0; i < stripes; i += 1) {
-      const x0 = -HALF_L + (i * 2 * HALF_L) / stripes;
-      const x1 = x0 + (2 * HALF_L) / stripes;
-      scene.flat(rect(x0, -HALF_W, x1, HALF_W), i % 2 ? C.pitchA : C.pitchB);
+      const x0 = -HALF_L + (i * L2) / stripes;
+      scene.flat(rect(x0, -HALF_W, x0 + L2 / stripes, HALF_W), i % 2 ? light : dark);
     }
   }
 
@@ -741,6 +763,9 @@ interface StandSpec {
   cantilever?: boolean;
   mapper?: (along: number, out: number, z: number) => V3;
   rearDetail?: boolean;
+  /** Per-stand roof colours (fall back to the ground-wide palette). */
+  roofColour?: string;
+  roofDark?: string;
 }
 
 /** Returns the anchor (roof centre) for hotspot placement. */
@@ -750,6 +775,8 @@ function stand(scene: Scene, spec: StandSpec): V3 {
   const frontFacing = facesCamera(W(spec.from, 0, 1.1), W(spec.to, 0, 1.1), W(spec.from, spec.depth, spec.rake), W(spec.from, spec.depth + 2, 0));
   const shadowPts: V3[] = [];
   const back = spec.back ?? C.cladding;
+  const roofC = spec.roofColour ?? C.roof;
+  const roofD = spec.roofDark ?? C.roofDark;
   const deckColour = spec.terrace ? C.terrace : spec.seat;
 
   // Lower tier: raked deck.
@@ -818,12 +845,12 @@ function stand(scene: Scene, spec: StandSpec): V3 {
       }
     }
     const roof: Array<[number, number]> = [[-1.5, roofZ - 0.5], [-1.5, roofZ], [depth + 0.8, roofZ + 1.6], [depth + 0.8, roofZ + 0.9]];
-    prims.push(...solid(prismFaces(roof, spec.from - 0.5, spec.to + 0.5, W), C.roof, { faceColors: [C.roofDark, C.roofDark, C.roofDark, C.roof, C.roofDark, C.roofDark] }));
+    prims.push(...solid(prismFaces(roof, spec.from - 0.5, spec.to + 0.5, W), roofC, { faceColors: [roofD, roofD, roofD, roofC, roofD, roofD] }));
     // Roof sheeting ribs.
     for (let c = spec.from + 3; c < spec.to; c += 4) {
       const a = W(c, -1.4, roofZ + 0.02);
       const b = W(c, depth + 0.7, roofZ + 1.62);
-      prims.push({ d: pathOf([a, b], false), fill: "none", stroke: shade(C.roof, 0.82), sw: widthAt(a, 0.5), opacity: 0.8 });
+      prims.push({ d: pathOf([a, b], false), fill: "none", stroke: shade(roofC, 0.82), sw: widthAt(a, 0.5), opacity: 0.8 });
     }
     shadowPts.push(W(spec.from, -1.5, roofZ), W(spec.to, -1.5, roofZ), W(spec.from, depth + 0.8, roofZ + 1.6), W(spec.to, depth + 0.8, roofZ + 1.6));
   } else {
@@ -1176,30 +1203,608 @@ function compose(scene: Scene, input: SceneInput, anchors: Record<string, V3>) {
 /* ------------------------------------------------------------------ */
 
 
-/* Slot-based composition (GroundDesign). Axes follow sideMapper: +x North, -x South, +y West, -y East. */
-const SIDE_SIGN: Record<CornerSlot, [number, number]> = { NW:[1,1], NE:[1,-1], SW:[-1,1], SE:[-1,-1] };
-const isTouchline=(s:StandSide)=>s==="W"||s==="E";
-const clampN=(n:number,a:number,b:number)=>Math.max(a,Math.min(b,n));
-const sideFront=(s:StandSide,d:GroundStandDesign)=>(isTouchline(s)?HALF_W:HALF_L)+3+clampN(d.setback,2,10);
+/* ------------------------------------------------------------------ */
+/* Slot-based composition (GroundDesign)                               */
+/* ------------------------------------------------------------------ */
+/*
+ * Axes follow sideMapper (authoritative): +x = North end, -x = South end,
+ * +y = West (main) touchline, -y = East touchline, +z = up.
+ *
+ * Each side, corner, fence run, fixture and building is an independent object
+ * so painter-order sorting holds from any orbit angle. Every component also
+ * registers a selectable anchor and a footprint so Ground Studio can select and
+ * highlight it. Optional design fields fall back to "auto" choices that follow
+ * the ground's size, so old saves and generated away grounds keep rendering.
+ */
 
-function perimeter(scene:Scene, design:GroundDesign){
-  const inset=4.2, loop=rect(-HALF_L-inset,-HALF_W-inset,HALF_L+inset,HALF_W+inset);
-  if(design.perimeter.style==="chainLink"){ fenceRun(scene,loop,2.2); return; }
-  const tone=design.perimeter.colour==="club"?(LOOK?.seat??C.seat):design.perimeter.colour==="green"?"#2f6b3c":design.perimeter.colour==="galvanized"?"#a8b0b5":"#f1f3f0";
-  for(let i=0;i<loop.length;i++){const a=loop[i],b=loop[(i+1)%loop.length];const mid=v((a.x+b.x)/2,(a.y+b.y)/2);
-    if(design.perimeter.style==="brick") scene.add(solid(boxFaces(Math.min(a.x,b.x)-.12,Math.min(a.y,b.y)-.12,0,Math.max(a.x,b.x)+.12,Math.max(a.y,b.y)+.12,1.05),C.brick),mid);
-    else scene.add([{d:pathOf([v(a.x,a.y,1),v(b.x,b.y,1)],false),fill:"none",stroke:design.perimeter.style==="barrier"?"#59636b":tone,sw:1,cap:"round"}],mid);
+const SIDE_SIGN: Record<CornerSlot, [number, number]> = { NW: [1, 1], NE: [1, -1], SW: [-1, 1], SE: [-1, -1] };
+const isTouchline = (side: StandSide) => side === "W" || side === "E";
+const clampN = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
+const sideFront = (side: StandSide, d: GroundStandDesign) => (isTouchline(side) ? HALF_W : HALF_L) + 3 + clampN(d.setback, 2, 10);
+
+/** Selectable components and their outlines, gathered while composing. */
+interface Selectable {
+  anchor: V3;
+  /** Ground footprint (closed polygon at z = 0). */
+  footprint: V3[];
+  /** Height of the highlight box (0 = flat outline). */
+  height: number;
+}
+let SELECTABLES: Record<string, Selectable> = {};
+const select = (id: string, anchor: V3, footprint: V3[], height = 0) => {
+  SELECTABLES[id] = { anchor, footprint, height };
+};
+
+interface SideColours { seat: string; seatAlt: string; roof: string; roofDark: string; cladding: string; own: boolean }
+function sideColours(side: StandSide): SideColours {
+  const own = LOOK?.standColours?.[side];
+  if (own) return { ...own, own: true };
+  return { seat: C.seat, seatAlt: C.seatAlt, roof: C.roof, roofDark: C.roofDark, cladding: C.brick, own: false };
+}
+
+const MATERIAL_TONE: Record<StandMaterial, string> = {
+  brick: "#9a5d42",
+  timber: "#8a6a45",
+  concrete: "#b5b1a6",
+  cladding: "#cfd3d6",
+};
+function defaultMaterialFor(form: GroundStandDesign["form"]): StandMaterial {
+  return form === "shelter" ? "timber" : form === "terrace" ? "concrete" : form === "traditional" ? "brick" : "cladding";
+}
+/** Back/fascia colour: a per-stand cladding colour wins; otherwise the material. */
+function backColour(side: StandSide, d: GroundStandDesign): string {
+  const colours = sideColours(side);
+  const material = d.material ?? defaultMaterialFor(d.form);
+  if (colours.own) return colours.cladding;
+  // The ground-wide "cladding" choice tints brick (as it always has).
+  if (material === "brick") return C.brick;
+  return MATERIAL_TONE[material];
+}
+
+function maxStandLevel(design: GroundDesign) {
+  return Math.max(...(["N", "E", "S", "W"] as StandSide[]).map((side) => design.stands[side].level));
+}
+
+/* ---------------- Stands ---------------- */
+
+function designedStandSpec(side: StandSide, d: GroundStandDesign): StandSpec | null {
+  if (d.form === "open") return null;
+  const maxSpan = isTouchline(side) ? 100 : 64;
+  const span = clampN(d.span, 12, maxSpan);
+  const front = sideFront(side, d);
+  const depth = clampN(d.depth, 3, 26);
+  const colours = sideColours(side);
+  const twoToneAlt = !colours.own && LOOK?.twoTone && side !== "W";
+  const base = {
+    side,
+    front,
+    seat: twoToneAlt ? colours.seatAlt : colours.seat,
+    terrace: d.standing === "terrace",
+    rearDetail: true,
+    back: backColour(side, d),
+    roofColour: colours.roof,
+    roofDark: colours.roofDark,
+  } as const;
+  let spec: StandSpec;
+  switch (d.form) {
+    case "shelter": {
+      const w = Math.min(span, 26);
+      spec = { ...base, from: -w / 2, to: w / 2, depth: 3, rake: 1.2, roof: true };
+      break;
+    }
+    case "terrace": {
+      const dd = clampN(depth * 0.8, 4, 16);
+      spec = { ...base, terrace: true, from: -span / 2, to: span / 2, depth: dd, rake: dd * 0.34, roof: d.roof !== "open" };
+      break;
+    }
+    case "traditional":
+      spec = { ...base, from: -span / 2, to: span / 2, depth, rake: depth * 0.55, roof: d.roof !== "open" };
+      break;
+    case "cantilever":
+      spec = { ...base, from: -span / 2, to: span / 2, depth, rake: depth * 0.6, roof: true, cantilever: true };
+      break;
+    default:
+      spec = { ...base, from: -span / 2, to: span / 2, depth: depth * 0.7, rake: depth * 0.42, roof: true, cantilever: true, upper: { depth: depth * 0.55, rake: depth * 0.45 } };
+  }
+  // The home end (the Kop): deeper and steeper, single tier, always covered.
+  if (LOOK?.homeEnd === side && !isTouchline(side)) {
+    spec = { ...spec, depth: spec.depth + 3, rake: spec.rake + 1.5, roof: true, upper: undefined };
+  }
+  return spec;
+}
+
+/** Visual depth of a side (for footprints, framing and what sits behind it). */
+function standReach(side: StandSide, d: GroundStandDesign): number {
+  const spec = designedStandSpec(side, d);
+  if (!spec) return 6;
+  return spec.depth + (spec.upper ? spec.upper.depth + 1 : 0) + 1;
+}
+
+function standHeight(spec: StandSpec): number {
+  const top = spec.rake + (spec.upper ? spec.upper.rake + 4.5 : 0);
+  return top + (spec.roof ? 4.8 : 1);
+}
+
+/** Hard standing (and a grass bank) where a side has no stand. */
+function openSide(scene: Scene, side: StandSide, d: GroundStandDesign): V3 {
+  const W = sideMapper(side, sideFront(side, d) - 2);
+  const half = isTouchline(side) ? 44 : 28;
+  scene.flat([W(-half, 0, 0), W(half, 0, 0), W(half, 3.2, 0), W(-half, 3.2, 0)], C.concrete, 0.9);
+  scene.flat([W(-half, 3.2, 0), W(half, 3.2, 0), W(half, 6.5, 0), W(-half, 6.5, 0)], "#5f8f3f", 0.85);
+  return W(0, 2, 1);
+}
+
+/* ---------------- Corners ---------------- */
+
+function cornerFrame(slot: CornerSlot, design: GroundDesign) {
+  const [sx, sy] = SIDE_SIGN[slot];
+  const end: StandSide = sx > 0 ? "N" : "S";
+  const touch: StandSide = sy > 0 ? "W" : "E";
+  const endSpec = designedStandSpec(end, design.stands[end]);
+  const touchSpec = designedStandSpec(touch, design.stands[touch]);
+  // A: where the end stand stops; B: where the touchline stand stops.
+  const endHalf = endSpec ? (endSpec.to - endSpec.from) / 2 : HALF_W - 6;
+  const touchHalf = touchSpec ? (touchSpec.to - touchSpec.from) / 2 : HALF_L - 8;
+  const A = v(sx * sideFront(end, design.stands[end]), sy * Math.min(endHalf + 0.5, HALF_W + 10), 0);
+  const B = v(sx * Math.min(touchHalf + 0.5, HALF_L + 10), sy * sideFront(touch, design.stands[touch]), 0);
+  const mid = v((A.x + B.x) / 2, (A.y + B.y) / 2, 0);
+  let along = norm(sub(B, A));
+  let out = v(along.y, -along.x, 0);
+  if (dot(out, v(sx, sy, 0)) < 0) out = v(-out.x, -out.y, 0);
+  // Keep "along" right-handed relative to "out" so the stand faces the pitch.
+  along = v(-out.y, out.x, 0);
+  const gap = Math.hypot(B.x - A.x, B.y - A.y);
+  const mapper = (a: number, o: number, z: number) => v(mid.x + along.x * a + out.x * o, mid.y + along.y * a + out.y * o, z);
+  const neighbourDepth = Math.min(endSpec?.depth ?? 8, touchSpec?.depth ?? 8);
+  return { sx, sy, mapper, end, touch, gap, neighbourDepth };
+}
+
+function corner(scene: Scene, slot: CornerSlot, design: GroundDesign) {
+  const c = design.corners[slot];
+  const f = cornerFrame(slot, design);
+  const large = c.size === "large";
+  const half = Math.max(3, Math.min(large ? f.gap / 2 : 6, f.gap / 2));
+  const foot = (depth: number) => [f.mapper(-half, 0, 0), f.mapper(half, 0, 0), f.mapper(half, depth, 0), f.mapper(-half, depth, 0)];
+  const anchor = f.mapper(0, 4, 2);
+  switch (c.form) {
+    case "access": {
+      // A gate in the corner, a path out and a little turnstile hut.
+      scene.flat([f.mapper(-2.2, -2, 0), f.mapper(2.2, -2, 0), f.mapper(2.2, 16, 0), f.mapper(-2.2, 16, 0)], C.path);
+      const g0 = f.mapper(-2.4, 0.5, 0);
+      const g1 = f.mapper(2.4, 0.5, 0);
+      scene.add([
+        { d: pathOf([g0, v(g0.x, g0.y, 2.6)], false), fill: "none", stroke: "#3b3f43", sw: widthAt(g0, 1.2) },
+        { d: pathOf([g1, v(g1.x, g1.y, 2.6)], false), fill: "none", stroke: "#3b3f43", sw: widthAt(g1, 1.2) },
+        { d: pathOf([v(g0.x, g0.y, 2.4), v(g1.x, g1.y, 2.4)], false), fill: "none", stroke: "#3b3f43", sw: widthAt(g0, 0.7) },
+        { d: pathOf([v(g0.x, g0.y, 1.2), v(g1.x, g1.y, 1.2)], false), fill: "none", stroke: "#e8a33d", sw: widthAt(g0, 0.5), opacity: 0.9 },
+      ], v((g0.x + g1.x) / 2, (g0.y + g1.y) / 2, 1.2));
+      const hut = f.mapper(4.5, 3, 0);
+      scene.add(solid(boxFaces(hut.x - 1.4, hut.y - 1.4, 0, hut.x + 1.4, hut.y + 1.4, 2.5), C.brick), v(hut.x, hut.y, 1.2));
+      scene.shadowSolid([...rect(hut.x - 1.4, hut.y - 1.4, hut.x + 1.4, hut.y + 1.4), ...rect(hut.x - 1.4, hut.y - 1.4, hut.x + 1.4, hut.y + 1.4, 2.5)], 0.22);
+      select(`corner:${slot}`, anchor, foot(14), 3);
+      return;
+    }
+    case "terrace":
+      {
+        const depth = large ? Math.max(7, f.neighbourDepth * 0.8) : 6;
+        stand(scene, { side: f.end, front: 0, mapper: f.mapper, from: -half, to: half, depth, rake: depth * 0.36, roof: false, seat: C.terrace, terrace: true, rearDetail: false, back: MATERIAL_TONE.concrete });
+        select(`corner:${slot}`, anchor, foot(depth), depth * 0.36 + 1);
+      }
+      return;
+    case "seated": {
+      const colours = sideColours(f.touch);
+      const depth = large ? Math.max(9, f.neighbourDepth * 0.85) : 8;
+      stand(scene, { side: f.end, front: 0, mapper: f.mapper, from: -half, to: half, depth, rake: depth * 0.5, roof: true, cantilever: true, seat: colours.seatAlt, back: MATERIAL_TONE.cladding, rearDetail: true, roofColour: colours.roof, roofDark: colours.roofDark });
+      select(`corner:${slot}`, anchor, foot(depth), depth * 0.5 + 4.8);
+      return;
+    }
+    default:
+      // Open corners (and pylon corners, whose pylon is drawn with the lights) stay grass.
+      select(`corner:${slot}`, anchor, foot(8), 0);
   }
 }
-function dugouts(scene:Scene,modern:boolean){for(const x of [-9,9]){const y0=HALF_W+2.2,y1=HALF_W+3.8;scene.add(solid(boxFaces(x-3.6,y0,0,x+3.6,y1,2.1),modern?"#9fc7d6":"#8a6a45"),v(x,(y0+y1)/2,1));}}
-function latticePylon(scene:Scene,x:number,y:number,h:number){const top=v(x,y,h),prims:ScenePrimitive[]=[];for(const dx of [-2,2])prims.push({d:pathOf([v(x+dx,y,0),top],false),fill:"none",stroke:"#7f878d",sw:1});scene.add(prims,v(x,y,h/2));scene.shadowLine(v(x,y,0),top,1.6,.22);}
-function scoreboard(scene:Scene,x:number,y:number){const board=[v(x,y-3,2.6),v(x,y+3,2.6),v(x,y+3,5.4),v(x,y-3,5.4)];scene.add([{d:pathOf(board),fill:"#1f2a24",stroke:"#e9e6da",sw:.6}],v(x,y,3));}
-function designedCarPark(scene:Scene,design:GroundDesign,rand:()=>number,withCoach:boolean):V3{const [sx,sy]=SIDE_SIGN[design.surroundings.carParkLocation],x0=sx>0?76:-104,y0=sy>0?44:-72,x1=x0+28,y1=y0+28;scene.flat(rect(x0,y0,x1,y1),design.surroundings.carParkSurface==="tarmac"?C.tarmac:C.gravel);const palette=["#b8322c","#dfe3e6","#23324a","#8a9097"];for(let x=x0+4;x<x1-3;x+=4){if(rand()<.6)car(scene,x,y0+4,"y",palette[Math.floor(rand()*palette.length)]);}if(withCoach)scene.add(solid(boxFaces((x0+x1)/2-6,(y0+y1)/2-1.3,.3,(x0+x1)/2+6,(y0+y1)/2+1.3,3.2),"#dfe3e6"),v((x0+x1)/2,(y0+y1)/2,1.5));return v((x0+x1)/2,(y0+y1)/2,0);}
-function designedStandSpec(side:StandSide,d:GroundStandDesign):StandSpec|null{if(d.form==="open")return null;const span=clampN(d.span,12,isTouchline(side)?100:64),front=sideFront(side,d),depth=clampN(d.depth,3,26),terrace=d.standing==="terrace",seat=side==="W"?C.seat:(LOOK?.twoTone?C.seatAlt:C.seat),base={side,front,seat,terrace,rearDetail:true} as const;if(d.form==="shelter"){const w=Math.min(span,24);return{...base,from:-w/2,to:w/2,depth:3,rake:1.2,roof:true};}if(d.form==="terrace")return{...base,terrace:true,from:-span/2,to:span/2,depth:clampN(depth*.75,4,16),rake:depth*.3,roof:d.roof!=="open"};if(d.form==="traditional")return{...base,from:-span/2,to:span/2,depth,rake:depth*.55,roof:d.roof!=="open",back:C.brick};if(d.form==="cantilever")return{...base,from:-span/2,to:span/2,depth,rake:depth*.6,roof:true,cantilever:true,back:C.cladding};return{...base,from:-span/2,to:span/2,depth:depth*.7,rake:depth*.42,roof:true,cantilever:true,back:C.cladding,upper:{depth:depth*.55,rake:depth*.45}};}
-function openSide(scene:Scene,side:StandSide,d:GroundStandDesign):V3{const W=sideMapper(side,sideFront(side,d)-2),half=isTouchline(side)?44:28;scene.flat([W(-half,0,0),W(half,0,0),W(half,3.2,0),W(-half,3.2,0)],C.concrete,.9);return W(0,2,1);}
-function corner(scene:Scene,slot:CornerSlot,form:GroundDesign["corners"][CornerSlot]["form"],design:GroundDesign){if(form==="open"||form==="pylon")return;const [sx,sy]=SIDE_SIGN[slot],end:StandSide=sx>0?"N":"S",touch:StandSide=sy>0?"W":"E",cx=sx*sideFront(end,design.stands[end]),cy=sy*sideFront(touch,design.stands[touch]),out=norm(v(sx,sy,0)),along=v(-out.y,out.x,0),mapper=(a:number,o:number,z:number)=>v(cx+along.x*a+out.x*o,cy+along.y*a+out.y*o,z);if(form==="access"){scene.flat([mapper(-2,-1,0),mapper(2,-1,0),mapper(2,14,0),mapper(-2,14,0)],C.path);return;}stand(scene,{side:end,front:0,mapper,from:-7,to:7,depth:form==="seated"?9:7,rake:form==="seated"?4.5:2.6,roof:form==="seated",cantilever:form==="seated",seat:form==="seated"?C.seatAlt:C.terrace,terrace:form!=="seated",rearDetail:form==="seated"});}
-function composeDesigned(scene:Scene,input:SceneInput,design:GroundDesign,anchors:Record<string,V3>){const stage=clampN(Math.round(input.stage),0,6),rand=rng(0x5eed+stage*7919),sides=["N","E","S","W"] as StandSide[],maxLevel=Math.max(...sides.map(s=>design.stands[s].level));countryside(scene,rng(20260924));neighbourPitch(scene,stage);scene.flat(rect(-HALF_L-9,-HALF_W-8,HALF_L+9,HALF_W+8),maxLevel>=2?C.path:"#a8ad93");scene.flat(rect(-HALF_L-6.5,-HALF_W-5.5,HALF_L+6.5,HALF_W+5.5),"#6e9b44");pitch(scene,stage,input.pitchCondition);anchors.pitch=v(0,0,0);goal(scene,-HALF_L,1);goal(scene,HALF_L,-1);perimeter(scene,design);dugouts(scene,maxLevel>=3);for(const side of ["W","E","N","S"] as StandSide[]){const d=design.stands[side],spec=designedStandSpec(side,d),a=spec?stand(scene,spec):openSide(scene,side,d);if(side==="W")anchors.main=a;if(side==="E")anchors.stands=a;}for(const slot of ["NW","NE","SW","SE"] as CornerSlot[])corner(scene,slot,design.corners[slot].form,design);for(const slot of ["NW","NE","SW","SE"] as CornerSlot[]){if(design.corners[slot].form==="pylon"||(LOOK?.floodlights??"auto")==="pylons"||((LOOK?.floodlights??"auto")==="auto"&&maxLevel<=2)){const [sx,sy]=SIDE_SIGN[slot];latticePylon(scene,sx*(sideFront(sx>0?"N":"S",design.stands[sx>0?"N":"S"])+6),sy*(sideFront(sy>0?"W":"E",design.stands[sy>0?"W":"E"])+6),24);}}const openEnd=(["N","S"] as StandSide[]).find(s=>design.stands[s].form==="open");if(openEnd&&maxLevel<=3)scoreboard(scene,(openEnd==="N"?1:-1)*(sideFront(openEnd,design.stands[openEnd])+9),18);anchors.parking=designedCarPark(scene,design,rand,maxLevel>=2);treeBelts(scene,rand);}
-function designedFrame(design:GroundDesign):V3[]{const reach=(s:StandSide)=>sideFront(s,design.stands[s])+(design.stands[s].form==="open"?6:clampN(design.stands[s].depth,3,26)+2),xN=reach("N"),xS=reach("S"),yW=reach("W"),yE=reach("E"),tall=Math.max(...(["N","E","S","W"] as StandSide[]).map(s=>design.stands[s].form==="twoTier"?22:design.stands[s].level>=3?16:10)),[px,py]=SIDE_SIGN[design.surroundings.carParkLocation];return[v(-xS,-yE,0),v(xN,-yE,0),v(xN,yW,0),v(-xS,yW,0),v(-xS,yW,tall),v(xN,yW,tall),v(px*82,py*50,0)];}
+
+/* ---------------- Perimeter ---------------- */
+
+function perimeterTone(design: GroundDesign): string {
+  switch (design.perimeter.colour) {
+    case "club": return LOOK?.seat ?? C.seat;
+    case "green": return "#2f6b3c";
+    case "galvanized": return "#a8b0b5";
+    default: return "#f1f3f0";
+  }
+}
+
+function perimeter(scene: Scene, design: GroundDesign) {
+  const inset = 4.2;
+  const loop = rect(-HALF_L - inset, -HALF_W - inset, HALF_L + inset, HALF_W + inset);
+  const style = design.perimeter.style;
+  const tone = perimeterTone(design);
+  const gates = new Set(design.perimeter.gates ?? ["N", "S"]);
+  // Which side a fence position belongs to (for gate gaps).
+  const sideAt = (m: V3): StandSide => (Math.abs(m.x) > HALF_L ? (m.x > 0 ? "N" : "S") : m.y > 0 ? "W" : "E");
+  for (let i = 0; i < loop.length; i += 1) {
+    const a = loop[i];
+    const b = loop[(i + 1) % loop.length];
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    const segments = Math.max(1, Math.round(len / 8));
+    for (let k = 0; k < segments; k += 1) {
+      const p0 = v(a.x + ((b.x - a.x) * k) / segments, a.y + ((b.y - a.y) * k) / segments);
+      const p1 = v(a.x + ((b.x - a.x) * (k + 1)) / segments, a.y + ((b.y - a.y) * (k + 1)) / segments);
+      const mid = v((p0.x + p1.x) / 2, (p0.y + p1.y) / 2);
+      // Gate: leave the middle of that side open.
+      const side = sideAt(mid);
+      const alongCentre = isTouchline(side) ? Math.abs(mid.x) : Math.abs(mid.y);
+      if (gates.has(side) && alongCentre < 4.5) continue;
+      const prims: ScenePrimitive[] = [];
+      if (style === "chainLink") {
+        const h = 2.4;
+        prims.push({ d: pathOf([p0, p1, v(p1.x, p1.y, h), v(p0.x, p0.y, h)]), fill: tone === "#f1f3f0" ? "#8f979c" : tone, opacity: 0.32 });
+        // Diamond mesh hint.
+        for (let q = 0; q < 4; q += 1) {
+          const t0 = q / 4;
+          const t1 = (q + 1) / 4;
+          const m0 = v(p0.x + (p1.x - p0.x) * t0, p0.y + (p1.y - p0.y) * t0, 0.2);
+          const m1 = v(p0.x + (p1.x - p0.x) * t1, p0.y + (p1.y - p0.y) * t1, h - 0.2);
+          prims.push({ d: pathOf([m0, m1], false), fill: "none", stroke: "#6f777c", sw: widthAt(m0, 0.25), opacity: 0.6 });
+        }
+        prims.push({ d: pathOf([v(p0.x, p0.y, h), v(p1.x, p1.y, h)], false), fill: "none", stroke: "#4f575c", sw: widthAt(p0, 0.6) });
+        for (const p of [p0, p1]) prims.push({ d: pathOf([p, v(p.x, p.y, h)], false), fill: "none", stroke: "#4f575c", sw: widthAt(p, 0.7) });
+        scene.shadowPoly([p0, p1, v(p1.x, p1.y, h), v(p0.x, p0.y, h)], 0.08);
+      } else if (style === "brick") {
+        const nx = -(p1.y - p0.y) / len;
+        const ny = (p1.x - p0.x) / len;
+        const at = (t: number, o: number, z: number) => v(p0.x + (p1.x - p0.x) * t + nx * o, p0.y + (p1.y - p0.y) * t + ny * o, z);
+        prims.push(...solid(prismFaces([[-0.17, 0], [-0.17, 1.1], [0.17, 1.1], [0.17, 0]], 0, 1, (t, o, z) => at(t, o, z)), "#9a5d42"));
+        prims.push({ d: pathOf([at(0, 0, 1.12), at(1, 0, 1.12)], false), fill: "none", stroke: "#cfc6b6", sw: widthAt(p0, 0.6) });
+        scene.shadowPoly([p0, p1, v(p1.x, p1.y, 1.1), v(p0.x, p0.y, 1.1)], 0.12);
+      } else if (style === "hoardings") {
+        const tones = ["#1f6f69", "#c8102e", "#f2c14e", "#23324a", "#ffffff", tone];
+        const fill = tones[(i * 5 + k * 3) % tones.length];
+        prims.push({ d: pathOf([p0, p1, v(p1.x, p1.y, 0.95), v(p0.x, p0.y, 0.95)]), fill, stroke: "#e7f2ef", sw: 0.5 });
+        const s0 = v(p0.x + (p1.x - p0.x) * 0.2, p0.y + (p1.y - p0.y) * 0.2, 0.45);
+        const s1 = v(p0.x + (p1.x - p0.x) * 0.8, p0.y + (p1.y - p0.y) * 0.8, 0.45);
+        prims.push({ d: pathOf([s0, s1], false), fill: "none", stroke: fill === "#ffffff" || fill === "#f2c14e" ? "#23324a" : "#ffffff", sw: widthAt(s0, 1.1), opacity: 0.9 });
+        scene.shadowPoly([p0, p1, v(p1.x, p1.y, 0.95), v(p0.x, p0.y, 0.95)], 0.14);
+      } else {
+        // Tubular rail, or heavier crush barriers.
+        const barrier = style === "barrier";
+        const h = barrier ? 1.15 : 1.05;
+        const w = barrier ? 1.3 : 0.85;
+        const rail = barrier ? (tone === "#f1f3f0" ? "#59636b" : tone) : tone;
+        prims.push({ d: pathOf([v(p0.x, p0.y, h), v(p1.x, p1.y, h)], false), fill: "none", stroke: rail, sw: widthAt(p0, w), cap: "round" });
+        if (barrier) prims.push({ d: pathOf([v(p0.x, p0.y, 0.55), v(p1.x, p1.y, 0.55)], false), fill: "none", stroke: rail, sw: widthAt(p0, 0.8), cap: "round" });
+        for (let q = 0; q <= (barrier ? 2 : 3); q += 1) {
+          const t = q / (barrier ? 2 : 3);
+          const p = v(p0.x + (p1.x - p0.x) * t, p0.y + (p1.y - p0.y) * t);
+          prims.push({ d: pathOf([p, v(p.x, p.y, h)], false), fill: "none", stroke: rail, sw: widthAt(p, w * 0.8), cap: "round" });
+        }
+        scene.shadowLine(v(p0.x, p0.y, h), v(p1.x, p1.y, h), w, 0.16);
+      }
+      scene.add(prims, v(mid.x, mid.y, 0.5));
+    }
+  }
+  select("perimeter", v(0, -HALF_W - inset, 1.2), loop, 1.2);
+}
+
+/* ---------------- Fixtures ---------------- */
+
+function dugouts(scene: Scene, design: GroundDesign) {
+  const level = maxStandLevel(design);
+  const chosen = design.fixtures?.dugouts ?? "auto";
+  const style = chosen === "auto" ? (level >= 4 ? "perspex" : level >= 3 ? "brick" : "wooden") : chosen;
+  for (const x of [-9, 9]) {
+    const x0 = x - 3.6;
+    const x1 = x + 3.6;
+    const y0 = HALF_W + 2.2;
+    const y1 = HALF_W + 3.9;
+    const prims: ScenePrimitive[] = [];
+    if (style === "perspex") {
+      // Clear curved-look shell over a row of seats.
+      prims.push(...solid(boxFaces(x0 + 0.3, y0 + 0.5, 0, x1 - 0.3, y1 - 0.1, 0.7), "#2a3036"));
+      prims.push(...solid(prismFaces([[0, 0], [0, 2.1], [1.2, 2.3], [1.7, 1.6], [1.7, 0]], x0, x1, (a, o, z) => v(a, y0 + o, z)), "#a9d3e2").map((p) => ({ ...p, opacity: 0.5 })));
+    } else if (style === "brick") {
+      prims.push(...solid(boxFaces(x0, y0 + 0.9, 0, x1, y1, 2.1), "#9a5d42"));
+      prims.push(...solid(boxFaces(x0 - 0.2, y0 - 0.1, 2.1, x1 + 0.2, y1 + 0.1, 2.35), C.roofDark));
+      prims.push(...solid(boxFaces(x0 + 0.4, y0 + 0.2, 0, x1 - 0.4, y0 + 0.9, 0.6), "#2a3036"));
+    } else {
+      // Wooden hut with a dark open front.
+      prims.push(...solid(boxFaces(x0, y0, 0, x1, y1, 2), "#8a6a45"));
+      prims.push({ d: pathOf([v(x0 + 0.5, y0 - 0.02, 0.4), v(x1 - 0.5, y0 - 0.02, 0.4), v(x1 - 0.5, y0 - 0.02, 1.6), v(x0 + 0.5, y0 - 0.02, 1.6)]), fill: "#2b231b", opacity: 0.9 });
+    }
+    scene.shadowSolid([...rect(x0, y0, x1, y1), ...rect(x0, y0, x1, y1, 2.2)], 0.22);
+    scene.add(prims, v(x, (y0 + y1) / 2, 1));
+  }
+  select("dugouts", v(0, HALF_W + 3, 2.5), rect(-13, HALF_W + 2, 13, HALF_W + 4.2), 2.4);
+}
+
+function scoreboard(scene: Scene, design: GroundDesign) {
+  const level = maxStandLevel(design);
+  const chosen = design.fixtures?.scoreboard ?? "auto";
+  const style = chosen === "auto" ? (level >= 4 ? "electronic" : "manual") : chosen;
+  if (style === "none") return;
+  // Behind an open end if there is one, otherwise in the South-East corner.
+  const openEnd = (["N", "S"] as StandSide[]).find((side) => design.stands[side].form === "open");
+  const x = openEnd ? (openEnd === "N" ? 1 : -1) * (sideFront(openEnd, design.stands[openEnd]) + 9) : -(sideFront("S", design.stands.S) + 6);
+  const y = openEnd ? 18 : -(sideFront("E", design.stands.E) + 6);
+  const prims: ScenePrimitive[] = [];
+  const electronic = style === "electronic";
+  const legH = electronic ? 6 : 2.6;
+  const h = electronic ? 4 : 2.8;
+  const w = electronic ? 5 : 3.2;
+  for (const dy of [-w + 0.4, w - 0.4]) prims.push({ d: pathOf([v(x, y + dy, 0), v(x, y + dy, legH)], false), fill: "none", stroke: "#3b3f43", sw: widthAt(v(x, y, 0), electronic ? 1.1 : 0.8) });
+  // Face the pitch: the board's normal points towards x = 0.
+  const fx = x > 0 ? -0.06 : 0.06;
+  const board = [v(x, y - w, legH), v(x, y + w, legH), v(x, y + w, legH + h), v(x, y - w, legH + h)];
+  prims.push(...solid(prismFaces([[-0.25, legH], [-0.25, legH + h], [0.25, legH + h], [0.25, legH]], y - w, y + w, (a, o, z) => v(x + o, a, z)), electronic ? "#15181b" : "#1f2a24"));
+  if (electronic) {
+    // Lit amber score and a glow.
+    for (const [dy, tone] of [[-2.4, "#ffcf5a"], [-0.8, "#ffffff"], [0.8, "#ffffff"], [2.4, "#ffcf5a"]] as const) {
+      prims.push({ d: pathOf([v(x + fx * 5, y + dy - 0.55, legH + 1), v(x + fx * 5, y + dy + 0.55, legH + 1), v(x + fx * 5, y + dy + 0.55, legH + 3), v(x + fx * 5, y + dy - 0.55, legH + 3)]), fill: tone, opacity: 0.95 });
+    }
+  } else {
+    // HOME 0 - 0 AWAY on hand-turned tiles.
+    for (const [dy, tone] of [[-1.9, "#f2f0e6"], [-0.65, "#f2c14e"], [0.65, "#f2c14e"], [1.9, "#f2f0e6"]] as const) {
+      prims.push({ d: pathOf([v(x + fx * 5, y + dy - 0.45, legH + 0.6), v(x + fx * 5, y + dy + 0.45, legH + 0.6), v(x + fx * 5, y + dy + 0.45, legH + 2.1), v(x + fx * 5, y + dy - 0.45, legH + 2.1)]), fill: tone, opacity: 0.92 });
+    }
+  }
+  scene.shadowPoly(board, 0.18);
+  scene.add(prims, v(x, y, legH));
+  select("scoreboard", v(x, y, legH + h), rect(x - 1.5, y - w - 1, x + 1.5, y + w + 1), legH + h);
+}
+
+/* ---------------- Floodlights ---------------- */
+
+function latticePylon(scene: Scene, x: number, y: number, h: number) {
+  const dir = norm(v(-x, -y, 0));
+  const side = v(-dir.y, dir.x, 0);
+  const legs = [-1, 1].map((k) => v(x + side.x * 2.4 * k, y + side.y * 2.4 * k, 0));
+  const top = v(x, y, h);
+  const prims: ScenePrimitive[] = [];
+  const line = (a: V3, b: V3, w: number) => ({ d: pathOf([a, b], false), fill: "none", stroke: "#7f878d", sw: widthAt(a, w), cap: "round" as const });
+  for (const leg of legs) prims.push(line(leg, top, 0.9));
+  for (let k = 0; k < 6; k += 1) {
+    const t0 = k / 6;
+    const t1 = (k + 1) / 6;
+    const l0 = v(legs[0].x + (top.x - legs[0].x) * t0, legs[0].y + (top.y - legs[0].y) * t0, h * t0);
+    const r1 = v(legs[1].x + (top.x - legs[1].x) * t1, legs[1].y + (top.y - legs[1].y) * t1, h * t1);
+    prims.push(line(l0, r1, 0.45));
+  }
+  const hw = 3.4;
+  const fh = 3;
+  const frame = [
+    v(x - side.x * hw, y - side.y * hw, h),
+    v(x + side.x * hw, y + side.y * hw, h),
+    v(x + side.x * hw + dir.x * 0.8, y + side.y * hw + dir.y * 0.8, h + fh),
+    v(x - side.x * hw + dir.x * 0.8, y - side.y * hw + dir.y * 0.8, h + fh),
+  ];
+  prims.push({ d: pathOf(frame), fill: "#3b4148", stroke: "#23282d", sw: 0.6 });
+  for (let r = 0; r < 3; r += 1) {
+    for (let c = 0; c < 4; c += 1) {
+      const u = (c + 0.5) / 4;
+      const w2 = (r + 0.5) / 3;
+      const p = v(
+        frame[0].x + (frame[1].x - frame[0].x) * u + (frame[3].x - frame[0].x) * w2 + dir.x * 0.1,
+        frame[0].y + (frame[1].y - frame[0].y) * u + (frame[3].y - frame[0].y) * w2 + dir.y * 0.1,
+        h + fh * w2,
+      );
+      const sp = project(p);
+      const rr = (FOCAL * 0.42) / sp.d;
+      prims.push({ d: `M${f1(sp.x - rr)} ${f1(sp.y)}a${f1(rr)} ${f1(rr)} 0 1 0 ${f1(rr * 2)} 0a${f1(rr)} ${f1(rr)} 0 1 0 ${f1(-rr * 2)} 0`, fill: C.lightHead, opacity: 0.95 });
+    }
+  }
+  scene.shadowLine(v(x, y, 0), top, 1.6, 0.22);
+  scene.add(prims, v(x, y, h / 2));
+}
+
+/** Short pitch-side posts with a single lamp: the most basic floodlights. */
+function lampPost(scene: Scene, x: number, y: number, h: number) {
+  const base = v(x, y, 0);
+  const top = v(x, y, h);
+  const head = [v(x - 0.7, y, h), v(x + 0.7, y, h), v(x + 0.7, y, h + 0.6), v(x - 0.7, y, h + 0.6)];
+  scene.shadowLine(base, top, 0.9, 0.22);
+  scene.add([
+    { d: pathOf([base, top], false), fill: "none", stroke: "#8d949a", sw: widthAt(base, 0.9), cap: "round" },
+    { d: pathOf(head), fill: C.lightHead, stroke: "#3b4148", sw: 0.5 },
+  ], v(x, y, h / 2));
+}
+
+function designedLights(scene: Scene, design: GroundDesign) {
+  const level = maxStandLevel(design);
+  const chosen = LOOK?.floodlights ?? "auto";
+  const roofedTouchlines = (["W", "E"] as StandSide[]).filter((side) => {
+    const d = design.stands[side];
+    return d.form !== "open" && d.roof !== "open" && d.form !== "shelter";
+  });
+  const style = chosen === "auto"
+    ? level <= 1 ? "posts" : level <= 3 ? "pylons" : roofedTouchlines.length === 2 ? "gantry" : "masts"
+    : chosen === "gantry" && roofedTouchlines.length === 0 ? "masts" : chosen;
+  const marks: V3[] = [];
+  // Pylon corners always carry a pylon, whatever the style.
+  const pylonAt = (slot: CornerSlot) => {
+    const [sx, sy] = SIDE_SIGN[slot];
+    const end: StandSide = sx > 0 ? "N" : "S";
+    const touch: StandSide = sy > 0 ? "W" : "E";
+    const px = sx * (sideFront(end, design.stands[end]) + Math.min(10, standReach(end, design.stands[end]) * 0.4) + 5);
+    const py = sy * (sideFront(touch, design.stands[touch]) + Math.min(10, standReach(touch, design.stands[touch]) * 0.4) + 5);
+    // A corner chosen as a pylon corner gets a taller landmark pylon on a concrete base,
+    // so the choice reads even when the whole ground already uses pylons.
+    const landmark = design.corners[slot].form === "pylon";
+    const h = (level >= 4 ? 36 : 26) + (landmark ? 8 : 0);
+    if (landmark) {
+      scene.add(solid(boxFaces(px - 3.2, py - 3.2, 0, px + 3.2, py + 3.2, 1.2), MATERIAL_TONE.concrete), v(px, py, 0.6));
+      scene.shadowSolid([...rect(px - 3.2, py - 3.2, px + 3.2, py + 3.2), ...rect(px - 3.2, py - 3.2, px + 3.2, py + 3.2, 1.2)], 0.2);
+    }
+    latticePylon(scene, px, py, h);
+    marks.push(v(px, py, h));
+  };
+  const corners = ["NW", "NE", "SW", "SE"] as CornerSlot[];
+  for (const slot of corners) if (design.corners[slot].form === "pylon" || style === "pylons") pylonAt(slot);
+  if (style === "posts") {
+    for (const x of [-36, 0, 36]) {
+      for (const sy of [1, -1]) {
+        const y = sy * (HALF_W + 6);
+        lampPost(scene, x, y, 12);
+        marks.push(v(x, y, 12));
+      }
+    }
+  } else if (style === "masts") {
+    for (const x of [-42, -14, 14, 42]) {
+      const yW = sideFront("W", design.stands.W) + standReach("W", design.stands.W) + 3;
+      const yE = -(sideFront("E", design.stands.E) + standReach("E", design.stands.E) + 3);
+      floodlight(scene, x, yW, 26, x, 0);
+      floodlight(scene, x, yE, 24, x, 0);
+      marks.push(v(x, yW, 26), v(x, yE, 24));
+    }
+  } else if (style === "gantry") {
+    for (const side of roofedTouchlines) {
+      const spec = designedStandSpec(side, design.stands[side]);
+      if (!spec) continue;
+      const z = standHeight(spec) - 1.2;
+      const y = (side === "W" ? 1 : -1) * (spec.front - 1.4);
+      const half = (spec.to - spec.from) / 2 - 4;
+      gantryLights(scene, y, z, -half, half);
+      marks.push(v(-half, y, z), v(half, y, z));
+    }
+  }
+  const pts = marks.length ? marks : [v(0, 0, 10)];
+  const cx = pts.reduce((t, p) => t + p.x, 0) / pts.length;
+  const cy = pts.reduce((t, p) => t + p.y, 0) / pts.length;
+  const hull = convexHull(pts.map((p) => v(p.x, p.y, 0)));
+  select("lights", v(cx, cy, Math.max(...pts.map((p) => p.z))), hull.length >= 3 ? hull : rect(-60, -45, 60, 45), 0);
+}
+
+/* ---------------- Surroundings ---------------- */
+
+function coach(scene: Scene, x: number, y: number) {
+  const body = solid(boxFaces(x - 6, y - 1.3, 0.3, x + 6, y + 1.3, 3.2), "#dfe3e6");
+  scene.shadowSolid([...rect(x - 6, y - 1.3, x + 6, y + 1.3), ...rect(x - 6, y - 1.3, x + 6, y + 1.3, 3.2)], 0.24);
+  scene.add([...body, { d: pathOf([v(x - 5.6, y - 1.32, 1.9), v(x + 5.6, y - 1.32, 1.9), v(x + 5.6, y - 1.32, 2.8), v(x - 5.6, y - 1.32, 2.8)]), fill: "#2d3a44", opacity: 0.85 }], v(x, y, 1.5));
+}
+
+function designedSurroundings(scene: Scene, design: GroundDesign, rand: () => number, anchors: Record<string, V3>) {
+  const level = maxStandLevel(design);
+  const [sx, sy] = SIDE_SIGN[design.surroundings.carParkLocation];
+  const x0 = sx > 0 ? 80 : -108;
+  const x1 = x0 + 28;
+  const y0 = sy > 0 ? 44 : -72;
+  const y1 = y0 + 28;
+  const tarmac = design.surroundings.carParkSurface === "tarmac";
+  scene.flat(rect(x0, y0, x1, y1), tarmac ? C.tarmac : C.gravel);
+  if (tarmac) {
+    for (let x = x0 + 3; x <= x1 - 3; x += 2.6) {
+      scene.flatLine([v(x, y0 + 1), v(x, y0 + 6)], "#e9e9e2", 0.8, 0.7);
+      scene.flatLine([v(x, y1 - 6), v(x, y1 - 1)], "#e9e9e2", 0.8, 0.7);
+    }
+  } else {
+    scene.flatLine([v(x0 + 2, (y0 + y1) / 2 - 1.5), v(x1 - 2, (y0 + y1) / 2 - 1.5)], shade(C.gravel, 0.85), 1.6, 0.6);
+    scene.flatLine([v(x0 + 2, (y0 + y1) / 2 + 1.5), v(x1 - 2, (y0 + y1) / 2 + 1.5)], shade(C.gravel, 0.85), 1.6, 0.6);
+  }
+  const palette = ["#b8322c", "#dfe3e6", "#23324a", "#8a9097", "#1d1f22", "#3d6ea5", "#c9b27a"];
+  for (let x = x0 + 3.5; x <= x1 - 3; x += 2.6) {
+    if (rand() < 0.55) car(scene, x, y0 + 3.5, "y", palette[Math.floor(rand() * palette.length)]);
+    if (rand() < 0.45) car(scene, x, y1 - 3.5, "y", palette[Math.floor(rand() * palette.length)]);
+  }
+  if (design.surroundings.coachBay ?? level >= 2) coach(scene, (x0 + x1) / 2, (y0 + y1) / 2);
+  scene.flat([v(sx > 0 ? x0 : x1, (y0 + y1) / 2 - 2.5), v(sx > 0 ? x0 - 14 : x1 + 14, (y0 + y1) / 2 - 2.5), v(sx > 0 ? x0 - 14 : x1 + 14, (y0 + y1) / 2 + 2.5), v(sx > 0 ? x0 : x1, (y0 + y1) / 2 + 2.5)], C.path);
+  anchors.parking = v((x0 + x1) / 2, (y0 + y1) / 2, 0);
+
+  // Club buildings beside the car park.
+  const chosen = design.surroundings.buildings ?? "auto";
+  const style = chosen === "auto" ? (level <= 1 ? "portacabins" : level === 2 ? "clubhouse" : level === 3 ? "brickClubhouse" : "modern") : chosen;
+  const bx = sx > 0 ? 82 : -104;
+  const by0 = sy > 0 ? 8 : -40;
+  if (style === "portacabins") {
+    anchors.offices = building(scene, bx, by0 + 12, bx + 12, by0 + 18, 2.8, C.cabin, { roof: "#8f8f8a" });
+    building(scene, bx, by0 + 20, bx + 12, by0 + 26, 2.8, "#c9b27a", { roof: "#8f8f8a" });
+    building(scene, bx + 14, by0 + 14, bx + 20, by0 + 24, 2.6, "#7a8b6f", { roof: "#8f8f8a" });
+  } else if (style === "clubhouse") {
+    anchors.offices = building(scene, bx, by0 + 10, bx + 20, by0 + 28, 4, "#8a6a45", { pitched: true, roof: C.roofDark });
+  } else if (style === "brickClubhouse") {
+    anchors.offices = building(scene, bx, by0 + 10, bx + 22, by0 + 30, 5, "#9a5d42", { pitched: true, roof: C.roofDark });
+  } else {
+    anchors.offices = building(scene, bx - 2, by0 + 8, bx + 22, by0 + 32, 8, C.cladding, { glassy: true, roof: C.roofDark });
+  }
+  anchors.shop = building(scene, bx + 2, by0, bx + 10, by0 + 6, 3, "#3d6a8a", { roof: C.roof });
+  anchors.hospitality = anchors.offices;
+  // Turnstile hut by the end nearest the car park.
+  const tx = sx * (HALF_L + 7.5);
+  anchors.access = building(scene, tx - 2, sy * 14 - 2.5, tx + 2, sy * 14 + 2.5, 2.6, C.brick, { roof: C.roofDark });
+  select("surroundings", v((x0 + x1) / 2, (y0 + y1) / 2, 2), [v(Math.min(x0, bx - 2), Math.min(y0, by0), 0), v(Math.max(x1, bx + 22), Math.min(y0, by0), 0), v(Math.max(x1, bx + 22), Math.max(y1, by0 + 32), 0), v(Math.min(x0, bx - 2), Math.max(y1, by0 + 32), 0)], 0);
+}
+
+/* ---------------- Composition ---------------- */
+
+function composeDesigned(scene: Scene, input: SceneInput, design: GroundDesign, anchors: Record<string, V3>) {
+  const stage = clampN(Math.round(input.stage), 0, 6);
+  const rand = rng(0x5eed + stage * 7919);
+  const level = maxStandLevel(design);
+  countryside(scene, rng(20260924));
+  neighbourPitch(scene, stage);
+  scene.flat(rect(-HALF_L - 9, -HALF_W - 8, HALF_L + 9, HALF_W + 8), level >= 2 ? C.path : "#a8ad93");
+  scene.flat(rect(-HALF_L - 6.5, -HALF_W - 5.5, HALF_L + 6.5, HALF_W + 5.5), "#6e9b44");
+  pitch(scene, stage, input.pitchCondition);
+  anchors.pitch = v(0, 0, 0);
+  select("pitch", v(0, 0, 0.5), rect(-HALF_L, -HALF_W, HALF_L, HALF_W), 0);
+  goal(scene, -HALF_L, 1);
+  goal(scene, HALF_L, -1);
+  perimeter(scene, design);
+  dugouts(scene, design);
+
+  for (const side of ["W", "E", "N", "S"] as StandSide[]) {
+    const d = design.stands[side];
+    const spec = designedStandSpec(side, d);
+    const anchor = spec ? stand(scene, spec) : openSide(scene, side, d);
+    if (side === "W") anchors.main = anchor;
+    if (side === "E") anchors.stands = anchor;
+    const W = sideMapper(side, sideFront(side, d));
+    const half = spec ? (spec.to - spec.from) / 2 : isTouchline(side) ? 44 : 28;
+    const reach = spec ? standReach(side, d) : 6.5;
+    select(`stand:${side}`, spec ? anchor : W(0, 3, 1.5), [W(-half, 0, 0), W(half, 0, 0), W(half, reach, 0), W(-half, reach, 0)], spec ? standHeight(spec) : 0.6);
+  }
+  for (const slot of ["NW", "NE", "SW", "SE"] as CornerSlot[]) corner(scene, slot, design);
+  designedLights(scene, design);
+  scoreboard(scene, design);
+  designedSurroundings(scene, design, rand, anchors);
+  treeBelts(scene, rand);
+
+  for (const id of input.worksAt) {
+    const at = anchors[id];
+    if (!at) continue;
+    if (id === "pitch" || id === "parking") groundworks(scene, id === "pitch" ? v(-HALF_L + 22, 6, 0) : at);
+    else crane(scene, at);
+  }
+}
+
+/** Outline the selected component: a soft footprint and, for tall things, a frame. */
+function drawHighlight(scene: Scene, id: string | undefined) {
+  const target = id ? SELECTABLES[id] : undefined;
+  if (!target) return;
+  const amber = "#ffc53d";
+  scene.shadows.push({ d: pathOf(target.footprint), fill: amber, opacity: 0.22 });
+  scene.shadows.push({ d: pathOf(target.footprint), fill: "none", stroke: amber, sw: 2.2, opacity: 0.95 });
+  if (target.height > 0.5) {
+    const top = target.footprint.map((p) => v(p.x, p.y, target.height));
+    const prims: ScenePrimitive[] = [{ d: pathOf(top), fill: "none", stroke: amber, sw: 1.8, opacity: 0.95 }];
+    for (let i = 0; i < target.footprint.length; i += 1) prims.push({ d: pathOf([target.footprint[i], top[i]], false), fill: "none", stroke: amber, sw: 1.4, opacity: 0.85 });
+    // Draw on top of everything.
+    scene.objects.push({ depth: -1e9, prims });
+  }
+}
+
+function designedFrame(design: GroundDesign): V3[] {
+  const reach = (side: StandSide) => sideFront(side, design.stands[side]) + standReach(side, design.stands[side]) + 1;
+  const xN = reach("N");
+  const xS = reach("S");
+  const yW = reach("W");
+  const yE = reach("E");
+  const tall = Math.max(...(["N", "E", "S", "W"] as StandSide[]).map((side) => {
+    const spec = designedStandSpec(side, design.stands[side]);
+    return spec ? standHeight(spec) : 4;
+  }));
+  const [px, py] = SIDE_SIGN[design.surroundings.carParkLocation];
+  return [v(-xS, -yE, 0), v(xN, -yE, 0), v(xN, yW, 0), v(-xS, yW, 0), v(-xS, yW, tall), v(xN, yW, tall), v(-xS, -yE, tall), v(xN, -yE, tall), v(px * Math.max(xN, xS, 70), py * Math.max(yW, yE, 44), 0)];
+}
 
 export function buildGroundScene(input: SceneInput): SceneOutput {
   configureCamera(input);
@@ -1216,8 +1821,11 @@ export function buildGroundScene(input: SceneInput): SceneOutput {
 
   const scene = new Scene();
   const anchors: Record<string, V3> = {};
-  if (input.design?.version === 1) composeDesigned(scene, input, input.design, anchors);
-  else compose(scene, input, anchors);
+  SELECTABLES = {};
+  if (input.design?.version === 1) {
+    composeDesigned(scene, input, input.design, anchors);
+    drawHighlight(scene, input.highlight);
+  } else compose(scene, input, anchors);
 
   // Frame the ground itself (pitch, stands, club buildings), fitted to the viewport's shape.
   const stage = Math.max(0, Math.min(6, Math.round(input.stage)));
@@ -1241,9 +1849,23 @@ export function buildGroundScene(input: SceneInput): SceneOutput {
   let h = (maxY - minY) * pad;
   if (w / h > aspect) h = w / aspect;
   else w = h * aspect;
-  const cx = (minX + maxX) / 2;
+  let cx = (minX + maxX) / 2;
   // Leave a little more room at the top for the stage badge.
-  const cy = (minY + maxY) / 2 - h * 0.02;
+  let cy = (minY + maxY) / 2 - h * 0.02;
+  // Zoom and pan act after the fit (in screen space), so they visibly frame the
+  // ground; at zoom 1 with no pan the framing is exactly the fitted view.
+  if (input.camera?.mode !== "matchday") {
+    const zoom = Math.max(0.65, Math.min(2.6, input.camera?.zoom ?? 1));
+    const panned = Boolean(input.camera?.panX || input.camera?.panY);
+    if (zoom !== 1 || panned) {
+      const focus = project(TARGET);
+      const pull = panned ? Math.min(1, 0.55 + Math.max(0, zoom - 1)) : Math.min(1, Math.max(0, zoom - 1));
+      cx += (focus.x - cx) * pull;
+      cy += (focus.y - cy) * pull;
+      w /= zoom;
+      h /= zoom;
+    }
+  }
   minX = cx - w / 2;
   minY = cy - h / 2;
   maxX = cx + w / 2;
@@ -1268,11 +1890,18 @@ export function buildGroundScene(input: SceneInput): SceneOutput {
     outAnchors[id] = { x: (p.x - minX) / w, y: (p.y - minY) / h };
   }
 
+  const selectables: NonNullable<SceneOutput["selectables"]> = {};
+  for (const [id, item] of Object.entries(SELECTABLES)) {
+    const p = project(item.anchor);
+    selectables[id] = { x: (p.x - minX) / w, y: (p.y - minY) / h, world: { x: item.anchor.x, y: item.anchor.y, z: item.anchor.z } };
+  }
+
   return {
     viewBox: { x: minX, y: minY, w, h },
     background: "#6f9a42",
     prims: [...scene.ground, ...scene.shadows, ...objects],
     pitchBounds,
     anchors: outAnchors,
+    ...(designed ? { selectables } : {}),
   };
 }
