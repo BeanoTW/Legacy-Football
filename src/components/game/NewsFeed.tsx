@@ -8,6 +8,7 @@ import { newsAge, newsFeed, type NewsArticle, type NewsKind } from "@/lib/game/n
 import { socialFeed, type SocialPost } from "@/lib/game/socialFeed";
 import { CharacterPortrait } from "./CharacterPortrait";
 import { useChairmanProfile } from "./ChairmanStudio";
+import { SupporterEventArt } from "./SupporterEventCards";
 
 type NewsFilter = "all" | "club" | "matches" | "transfers" | "league" | "social";
 
@@ -109,6 +110,7 @@ function NewsCard({ article, state, onOpen }: { article: NewsArticle; state: Gam
       <button type="button" className="lf-news-post-body" onClick={onOpen}>
         <h3>{article.headline}</h3>
         <p>{article.standfirst}</p>
+        {article.communityEvent && <div className="mt-3 overflow-hidden rounded-xl border bg-muted/20"><SupporterEventArt eventId={article.communityEvent.eventId} /></div>}
         {(article.kind === "matchReport" || article.kind === "upset") && <ScorePlate article={article} />}
         {article.kind === "transfer" && <TransferPlate article={article} />}
         {article.kind === "appointment" && <ShapePlate article={article} />}
@@ -165,6 +167,7 @@ function ArticleReader({ article, state, onClose }: { article: NewsArticle; stat
           <h2 className="lf-paper-headline">{article.headline}</h2>
           <p className="lf-paper-standfirst">{article.standfirst}</p>
           <p className="lf-paper-byline">By {article.byline} · {newsAge(state, article)}</p>
+          {article.communityEvent && <div className="my-4 overflow-hidden rounded-xl border bg-muted/20"><SupporterEventArt eventId={article.communityEvent.eventId} /></div>}
           {article.scoreline && <ScorePlate article={article} large />}
           <div className="lf-paper-body">
             {article.body.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
