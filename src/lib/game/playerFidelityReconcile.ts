@@ -182,6 +182,13 @@ export function repairFreshFocusHydrationInPlace(state: GameState): void {
       state.football!.players.push(player);
       state.football!.contracts.push(contract);
     });
+
+    // Focus is already the canonical detailed representation of these people.
+    // Keeping the compact mirror as well stores the same 30-player squad twice
+    // for every focused club. When the club leaves Focus,
+    // compactDepartingFocusPlayersInPlace recreates the compact rows from these
+    // exact detailed ids/abilities/DOBs before the detailed squad is removed.
+    for (const source of compact) delete state.fringePlayers[source.playerId];
   }
 }
 
