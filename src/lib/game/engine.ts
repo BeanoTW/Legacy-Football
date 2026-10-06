@@ -53,6 +53,7 @@ import { syncUserCupFixtures } from "./cupFixtures";
 import { announceUserCupDrawInPlace } from "./cupNarrative";
 import { resolveAllAiDomesticCups } from "./aiDomesticCups";
 import { recoverPlayerHealthWeekInPlace } from "./playerHealth";
+import { resolveDueSupporterEvents } from "./supporterEvents";
 
 export { weekForLeagueRound } from "./pyramid";
 export { newGame, SAVE_VERSION } from "./newGame";
@@ -120,6 +121,7 @@ export type { MatchOverride } from "./tick/matchday";
 export function advanceWeek(prev: GameState, override?: MatchOverride): GameState {
   const s: GameState = structuredClone(prev);
   ensureFinance(s);
+  resolveDueSupporterEvents(s);
 
   // A response due on Sunday must land before weekly football settlement.
   processDueTransferResponsesInPlace(s);
@@ -273,6 +275,9 @@ function resolveDatedFixtureInPlace(state: GameState, requestedFixture?: GameSta
  * and contracts remain on their established deterministic boundaries.
  */
 export function advanceDay(prev: GameState): GameState {
+  const dueCheck = structuredClone(prev);
+  resolveDueSupporterEvents(dueCheck);
+  prev = dueCheck;
   if (!prev.domesticCups?.length && prev.week <= 7) {
     const bootstrapped = structuredClone(prev);
     ensureSeasonCups(bootstrapped);
