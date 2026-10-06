@@ -380,7 +380,7 @@ function SelectionPanel({
               apply((s) =>
                 isLevelRaising(spec.type)
                   ? approveStandBuild(s, asset.id, spec.type, standBuild(s, asset.id, asset.level))
-                  : approveProject(s, asset.id, spec.type)
+                  : approveProjectCompat(s, asset.id, spec.type)
               )
             }
           />
