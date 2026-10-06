@@ -227,10 +227,16 @@ export function StadiumGround({
   );
 
   const labels = useMemo(() => {
-    const items = hotspots.flatMap((hotspot) => {
+    const facilityHotspots = hotspots.filter((hotspot) => !["shop", "offices", "hospitality", "access"].includes(hotspot.id));
+    const items = facilityHotspots.flatMap((hotspot) => {
       const anchor = scene.anchors[hotspot.id];
       return anchor ? [{ id: hotspot.id, label: hotspot.label, ax: anchor.x * width, ay: anchor.y * height }] : [];
     });
+    const facilities = hotspots.filter((hotspot) => ["shop", "offices", "hospitality", "access"].includes(hotspot.id));
+    if (facilities.length) {
+      const anchors = facilities.map((hotspot) => scene.anchors[hotspot.id]).filter(Boolean);
+      if (anchors.length) items.push({ id: "__facilities", label: "Facilities", ax: anchors.reduce((sum,a)=>sum+a.x*width,0)/anchors.length, ay: anchors.reduce((sum,a)=>sum+a.y*height,0)/anchors.length });
+    }
     return layoutLabels(items, width, height);
   }, [height, hotspots, scene.anchors, width]);
 
