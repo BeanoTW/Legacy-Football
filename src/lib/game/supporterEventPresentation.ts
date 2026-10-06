@@ -3,8 +3,24 @@ import { fromAbsoluteWeek } from "./time";
 import { SUPPORTER_EVENTS, type ScheduledSupporterEvent, type SupporterEventId } from "./supporterEvents";
 
 export type EventOutcome = "strong" | "average" | "weak";
+export type EventTexturePattern =
+  | "grid"
+  | "script"
+  | "dots"
+  | "school"
+  | "herringbone"
+  | "quote"
+  | "bunting"
+  | "chevron"
+  | "timeline"
+  | "laurel";
+export type EventBorderStyle = "solid" | "rounded" | "dashed" | "accent";
+export type SarahEventRole = "organizer" | "coordinator" | "mentor" | "facilitator" | "host" | "custodian";
+
 export const EVENT_OUTCOME_LABEL: Record<EventOutcome, string> = {
-  strong: "Strong turnout", average: "Steady turnout", weak: "Quiet turnout",
+  strong: "Strong turnout",
+  average: "Steady turnout",
+  weak: "Quiet turnout",
 };
 
 /** Read-only presentation of the existing resolver's turnout denominator. */
@@ -25,15 +41,44 @@ export function eventDateLabel(absoluteDay: number): string {
   return `${DAY_NAMES[slot.day]} ${date.day} ${seasonMonthName(date.month)} · S${slot.season}`;
 }
 
-export const EVENT_VISUALS: Record<SupporterEventId, { category: string; motif: "pitch" | "signing" | "coaching" | "school" | "tools" | "forum" | "festival" | "shirt" | "archive" | "trophy"; tone: string }> = {
-  "open-training": { category: "Inside the club", motif: "pitch", tone: "text-primary" },
-  "meet-team": { category: "Squad & supporters", motif: "signing", tone: "text-chart-4" },
-  "kids-coaching": { category: "Grassroots football", motif: "coaching", tone: "text-income" },
-  "school-visits": { category: "Next generation", motif: "school", tone: "text-chart-1" },
-  "volunteer-ground": { category: "Our ground", motif: "tools", tone: "text-chart-2" },
-  "supporters-evening": { category: "Supporter voices", motif: "forum", tone: "text-chart-5" },
-  "family-day": { category: "A club for everyone", motif: "festival", tone: "text-chart-4" },
-  "preseason-launch": { category: "A new season", motif: "shirt", tone: "text-primary" },
-  "heritage-day": { category: "Club history", motif: "archive", tone: "text-chart-2" },
-  "legends-day": { category: "Former favourites", motif: "trophy", tone: "text-chart-5" },
+export interface EventVisualDefinition {
+  category: string;
+  motif: "pitch" | "signing" | "coaching" | "school" | "tools" | "forum" | "festival" | "shirt" | "archive" | "trophy";
+  tone: string;
+  texturePattern: EventTexturePattern;
+  borderStyle: EventBorderStyle;
+  sarahMalikRole?: SarahEventRole;
+}
+
+export const EVENT_VISUALS: Record<SupporterEventId, EventVisualDefinition> = {
+  "open-training": {
+    category: "Inside the club", motif: "pitch", tone: "text-primary", texturePattern: "grid", borderStyle: "solid", sarahMalikRole: "organizer",
+  },
+  "meet-team": {
+    category: "Squad & supporters", motif: "signing", tone: "text-chart-4", texturePattern: "script", borderStyle: "rounded", sarahMalikRole: "coordinator",
+  },
+  "kids-coaching": {
+    category: "Grassroots football", motif: "coaching", tone: "text-income", texturePattern: "dots", borderStyle: "dashed", sarahMalikRole: "mentor",
+  },
+  "school-visits": {
+    category: "Next generation", motif: "school", tone: "text-chart-1", texturePattern: "school", borderStyle: "solid", sarahMalikRole: "facilitator",
+  },
+  "volunteer-ground": {
+    category: "Our ground", motif: "tools", tone: "text-chart-2", texturePattern: "herringbone", borderStyle: "solid", sarahMalikRole: "coordinator",
+  },
+  "supporters-evening": {
+    category: "Supporter voices", motif: "forum", tone: "text-chart-5", texturePattern: "quote", borderStyle: "rounded", sarahMalikRole: "facilitator",
+  },
+  "family-day": {
+    category: "A club for everyone", motif: "festival", tone: "text-chart-4", texturePattern: "bunting", borderStyle: "rounded", sarahMalikRole: "host",
+  },
+  "preseason-launch": {
+    category: "A new season", motif: "shirt", tone: "text-primary", texturePattern: "chevron", borderStyle: "accent", sarahMalikRole: "coordinator",
+  },
+  "heritage-day": {
+    category: "Club history", motif: "archive", tone: "text-chart-2", texturePattern: "timeline", borderStyle: "solid",
+  },
+  "legends-day": {
+    category: "Former favourites", motif: "trophy", tone: "text-chart-5", texturePattern: "laurel", borderStyle: "accent", sarahMalikRole: "custodian",
+  },
 };
