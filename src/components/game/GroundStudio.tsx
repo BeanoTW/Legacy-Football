@@ -224,4 +224,102 @@ export function GroundStudioSheet({
           <div className="min-w-0">
             <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Ground Studio · free</div>
             <SheetTitle className="truncate font-display text-xl leading-none">{identity.groundName ?? "Your ground"}</SheetTitle>
-    
+          </div>
+          <Button size="sm" className="mr-9" onClick={() => onOpenChange(false)}>Done</Button>
+        </div>
+
+        {/* The ground is the navigation. */}
+        {/* The Facilities viewport has fixed heights; here it fills (and is clipped to) its slot. */}
+        <div className="relative min-h-0 flex-[1.15] overflow-hidden border-b [&_.lf-ground-viewport]:!h-full [&_.lf-ground-viewport]:!min-h-0 [&_.lf-ground-viewport]:!rounded-none">
+          <StadiumGround
+            stage={stage}
+            hotspots={[]}
+            selectedId={null}
+            onSelect={() => {}}
+            look={look}
+            design={design}
+            selection={selection}
+            onSelectComponent={(id) => { setSelection(id); setNote(null); }}
+            componentLabels={labels}
+          />
+          <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-semibold text-white">
+            Tap the ground to edit · drag to orbit · pinch to zoom
+          </div>
+        </div>
+
+        {/* Quick picker for everything (also reachable by tapping the ground). */}
+        <div className="flex gap-1.5 overflow-x-auto border-b px-3 py-2 [scrollbar-width:none]">
+          <PickChip active={selection === null} onClick={() => setSelection(null)}>Whole ground</PickChip>
+          {SIDES.map((side) => <PickChip key={side} active={selection === `stand:${side}`} onClick={() => setSelection(`stand:${side}`)}>{labels[`stand:${side}`]}</PickChip>)}
+          {(["pitch", "lights", "perimeter", "dugouts", "scoreboard", "surroundings"] as const).map((id) => <PickChip key={id} active={selection === id} onClick={() => setSelection(id)}>{FIXTURE_NAME[id]}</PickChip>)}
+          {CORNERS.map((slot) => <PickChip key={slot} active={selection === `corner:${slot}`} onClick={() => setSelection(`corner:${slot}`)}>{slot}</PickChip>)}
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">
+          {note ? <div className="mb-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs text-amber-900">{note}</div> : null}
+          <SelectionPanel
+            selection={selection}
+            state={state}
+            design={design}
+            identity={identity}
+            kit={kit}
+            labels={labels}
+            apply={apply}
+            applyLook={applyLook}
+            standBySide={standBySide}
+          />
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function SelectionPanel({
+  selection,
+  state,
+  design,
+  identity,
+  kit,
+  labels,
+  apply,
+  applyLook,
+  standBySide,
+}: {
+  selection: Selection;
+  state: GameState;
+  design: GroundDesign;
+  identity: GroundIdentityState;
+  kit: { body: string; secondary: string };
+  labels: Record<string, string>;
+  apply: (edit: (s: GameState) => { state: GameState; ok: boolean; reason?: string }) => void;
+  applyLook: (change: Parameters<typeof setGroundLook>[1]) => void;
+  standBySide: Map<string, InfrastructureAsset>;
+}) {
+  const seatSwatch = (id: SeatScheme): string[] => (id === "club" ? [kit.body, kit.body] : id === "twoTone" ? [kit.body, kit.secondary] : SEAT_SCHEMES.find((o) => o.id === id)?.colours ?? ["#1f6f69", "#185a55"]);
+  const roofSwatch = (id: RoofColour) => (id === "club" ? kit.body : ROOF_COLOURS.find((r) => r.id === id)?.hex ?? "#56616c");
+  const claddingSwatch = (id: Cladding) => (id === "club" ? kit.body : CLADDINGS.find((c) => c.id === id)?.hex ?? "#9a5d42");
+
+  /* ---------- A stand ---------- */
+  if (selection?.startsWith("stand:")) {
+    const side = selection.slice(6) as StandSide;
+    const d = design.stands[side];
+    const asset = standBySide.get(side);
+    const own = identity.standLooks?.[side] ?? {};
+    const limits = standSizeLimits(design, side);
+    return (
+      <div className="space-y-3">
+        <PanelTitle title={labels[selection]} sub={`${SIDE_LABEL[side]} · Facilities level ${d.level}`} />
+        <Field label="Structure">
+          <div className="flex flex-wrap gap-1.5">
+            {standFormOptions(design, side).map((option) => (
+              <OptionChip key={option.id} active={d.form === option.id} disabled={!option.allowed} title={option.reason} onClick={() => apply((s) => updateStand(s, side, { form: option.id }))}>
+                {option.label}{!option.allowed ? " 🔒" : ""}
+              </OptionChip>
+            ))}
+          </div>
+          {standFormOptions(design, side).some((o) => !o.allowed) ? <p className="mt-1 text-[10.5px] text-muted-foreground">Bigger structures unlock as you develop this stand in Facilities.</p> : null}
+        </Field>
+        {standingOptions(d.form).length > 1 ? (
+          <Field label="Standing or seated">
+            <div className="flex flex-wrap gap-1.5">
+              {standingOptions(d.form).map((id) => <OptionChip key={id} active={d.standing === id} onClick={() => apply((s) => updateStand(s, side, { s
