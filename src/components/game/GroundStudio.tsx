@@ -132,4 +132,96 @@ function OptionGroup<T extends string>({
 }) {
   return (
     <div>
-      <div cl
+      <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{title}</div>
+      <div className="grid gap-1.5">
+        {options.map((option) => {
+          const active = option.id === value;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => onChange(option.id)}
+              className={cn("rounded-lg border px-3 py-2 text-left transition-colors", active ? "border-primary bg-primary/10" : "bg-background hover:bg-muted/50")}
+              aria-pressed={active}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <strong className="text-sm">{option.label}</strong>
+                <span className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground">
+                  {option.cost === 1 ? "Base cost" : `${option.cost > 1 ? "+" : ""}${Math.round((option.cost - 1) * 100)}%`}
+                  {active && <Check className="size-3.5 text-primary" />}
+                </span>
+              </div>
+              <div className="text-[11px] text-muted-foreground">{option.blurb}</div>
+              <div className="mt-1 text-[10px]"><span className="text-income">+ {option.pros}</span><span className="text-muted-foreground"> · </span><span className="text-expense">− {option.cons}</span></div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Ground Studio: name, stand names and the look                       */
+/* ------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------ */
+/* Ground Studio: direct manipulation                                  */
+/* ------------------------------------------------------------------ */
+/*
+ * The stadium is the navigation: tap a stand, corner, the pitch, the lights,
+ * the perimeter, the dugouts, the scoreboard or the car park, and a compact
+ * panel opens for just that thing. Every change is free and shows immediately.
+ * Structure (what a stand can be) is unlocked by Facilities progression.
+ */
+
+type Selection = string | null;
+const SIDES = ["W", "E", "N", "S"] as const;
+const CORNERS = ["NW", "NE", "SW", "SE"] as const;
+const CORNER_NAME: Record<string, string> = { NW: "North-West corner", NE: "North-East corner", SW: "South-West corner", SE: "South-East corner" };
+const FIXTURE_NAME: Record<string, string> = { pitch: "Pitch", lights: "Floodlights", perimeter: "Perimeter", dugouts: "Dugouts", scoreboard: "Scoreboard", surroundings: "Car park & buildings" };
+const STANDING_LABEL: Record<string, string> = { terrace: "Standing", safeStanding: "Safe standing", seated: "Seated" };
+const ROOF_LABEL: Record<string, string> = { pitched: "Pitched", cantilever: "Cantilever", twoTier: "Two-tier", open: "No roof" };
+const GATE_LABEL: Record<string, string> = { N: "North", E: "East", S: "South", W: "West" };
+
+export function GroundStudioSheet({
+  open,
+  onOpenChange,
+  state,
+  update,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  state: GameState;
+  update: (fn: (s: GameState) => GameState) => void;
+}) {
+  const [selection, setSelection] = useState<Selection>("stand:W");
+  const [note, setNote] = useState<string | null>(null);
+  const identity = groundIdentity(state);
+  const design = groundDesign(state);
+  const kit = clubKitFor(state).home;
+  const look = useMemo(() => sceneLook(state, { body: kit.body, secondary: kit.secondary }), [state, kit.body, kit.secondary]);
+  const stage = state.infrastructure ? groundProgression(state).visualStage : 0;
+  const standBySide = new Map(standAssets(state).map((asset) => [asset.location, asset]));
+  const labels: Record<string, string> = {
+    ...Object.fromEntries(SIDES.map((side) => [`stand:${side}`, standBySide.get(side)?.name ?? SIDE_LABEL[side]])),
+    ...Object.fromEntries(CORNERS.map((slot) => [`corner:${slot}`, CORNER_NAME[slot]])),
+    ...FIXTURE_NAME,
+  };
+
+  const apply = (edit: (s: GameState) => { state: GameState; ok: boolean; reason?: string }) =>
+    update((current) => {
+      const result = edit(current);
+      setNote(result.ok ? null : result.reason ?? "Not available");
+      return result.ok ? result.state : current;
+    });
+  const applyLook = (change: Parameters<typeof setGroundLook>[1]) => apply((s) => setGroundLook(s, change));
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" className="flex h-[96dvh] flex-col gap-0 rounded-t-2xl p-0">
+        <div className="flex items-center justify-between gap-2 border-b px-4 py-2.5">
+          <div className="min-w-0">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Ground Studio · free</div>
+            <SheetTitle className="truncate font-display text-xl leading-none">{identity.groundName ?? "Your ground"}</SheetTitle>
+    
