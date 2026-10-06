@@ -371,6 +371,11 @@ function blockedReason(state: GameState, spec: ProjectSpec, evaluation: NonNulla
 export function FacilitySheet({ state, asset, onApprove, onApproveBuild }: { state: GameState; asset: InfrastructureAsset; onApprove: (type: CapitalProjectType) => void; onApproveBuild: (type: CapitalProjectType, build: StandBuild) => void }) {
   const config = ASSET_CONFIG[asset.type];
   const catalogue = projectCatalogue(state, asset.id);
+  // Structural stand development is owned by Ground Studio. Facilities owns
+  // non-visual capability and every non-stand facility upgrade.
+  const visibleCatalogue = asset.type === "stand"
+    ? catalogue.filter((spec) => ["minorRepair", "majorRepair", "refurbishment", "replacement"].includes(spec.type))
+    : catalogue;
   const band = conditionBand(asset.condition);
   const activeProject = asset.activeProjectId
     ? state.infrastructure?.projects.find((project) => project.id === asset.activeProjectId) ?? null
@@ -378,11 +383,11 @@ export function FacilitySheet({ state, asset, onApprove, onApproveBuild }: { sta
   // Raising a stand's level asks how it should be built first.
   const [choosing, setChoosing] = useState<ProjectSpec | null>(null);
   const groupOf = (type: CapitalProjectType): WorksGroup => GROUP_OF[type] ?? "improve";
-  const groups = (["repair", "improve", "rebuild"] as WorksGroup[]).filter((group) => catalogue.some((spec) => groupOf(spec.type) === group));
+  const groups = (["repair", "improve", "rebuild"] as WorksGroup[]).filter((group) => visibleCatalogue.some((spec) => groupOf(spec.type) === group));
   const [group, setGroup] = useState<WorksGroup>(() => (asset.condition < 60 && groups.includes("repair") ? "repair" : groups.includes("improve") ? "improve" : groups[0] ?? "repair"));
   const [expanded, setExpanded] = useState<CapitalProjectType | null>(null);
 
-  const rows = catalogue
+  const rows = visibleCatalogue
     .filter((spec) => groupOf(spec.type) === group)
     .map((spec) => ({ spec, evaluation: evaluateProject(state, asset.id, spec.type) }))
     .filter((row): row is { spec: ProjectSpec; evaluation: NonNullable<ReturnType<typeof evaluateProject>> } => Boolean(row.evaluation))
@@ -459,7 +464,7 @@ export function FacilitySheet({ state, asset, onApprove, onApproveBuild }: { sta
         {groups.length > 1 && (
           <div className="mb-2 flex rounded-lg bg-muted/60 p-0.5" role="tablist" aria-label="Kind of work">
             {groups.map((id) => {
-              const count = catalogue.filter((spec) => groupOf(spec.type) === id).length;
+              const count = visibleCatalogue.filter((spec) => groupOf(spec.type) === id).length;
               return (
                 <button key={id} type="button" role="tab" aria-selected={group === id} onClick={() => { setGroup(id); setExpanded(null); }}
                   className={cn("flex-1 rounded-md px-1 py-1.5 text-[11px] font-bold", group === id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>
@@ -470,7 +475,7 @@ export function FacilitySheet({ state, asset, onApprove, onApproveBuild }: { sta
           </div>
         )}
 
-        {catalogue.length === 0 ? <p className="rounded-lg bg-muted/35 p-3 text-sm text-muted-foreground">No further work can be raised here right now.</p> : (
+        {visibleCatalogue.length === 0 ? <p className="rounded-lg bg-muted/35 p-3 text-sm text-muted-foreground">{asset.type === "stand" ? "Structural development is handled in Ground Studio. Facilities tracks this stand's condition and maintenance." : "No further work can be raised here right now."}</p> : (
           <div className="overflow-hidden rounded-lg border bg-card">
             {rows.map(({ spec, evaluation }) => {
               const choosesBuild = asset.type === "stand" && isLevelRaising(spec.type);
