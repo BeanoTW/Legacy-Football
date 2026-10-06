@@ -8,6 +8,7 @@ import { compactState } from "../storage/compaction";
 import { coreKey, manifestKey, isManifest, checksum } from "../storage/manifest";
 import { serializeSave, byteLength } from "../storage/serialize";
 import { stateHash } from "../diagnostics/stateHash";
+import { saveSizeBreakdown } from "../diagnostics/saveSize";
 import { reconcile, hasEntry } from "../finance";
 import { runWeeklyGenerators } from "../inbox";
 import { totalCapitalSpend } from "../infrastructure";
