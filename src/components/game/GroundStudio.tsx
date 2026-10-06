@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, Flag, Lightbulb, Paintbrush, PencilLine, RotateCcw, Rows3, Trees, Trophy } from "lucide-react";
 import type { CapitalProjectType, GameState, InfrastructureAsset } from "@/lib/game/types";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { fmtMoneyExact } from "@/lib/game/engine";
 import { clubKitFor } from "@/lib/game/clubKit";
 import { groundProgression } from "@/lib/game/groundPresentation";
-import { approveProject as approveProjectCompat, assetById, evaluateProject, projectCatalogue, stands as standAssets, type ProjectSpec } from "@/lib/game/infrastructure";
+import { approveProject as approveProjectCompat, assetById, ensureInfrastructure, evaluateProject, projectCatalogue, stands as standAssets, type ProjectSpec } from "@/lib/game/infrastructure";
 import {
   BUILDING_STYLES,
   CLADDINGS,
@@ -202,6 +202,19 @@ export function GroundStudioSheet({
 }) {
   const [selection, setSelection] = useState<Selection>("stand:W");
   const [note, setNote] = useState<string | null>(null);
+  const hasCornerAssets = Boolean(state.infrastructure?.assets.some((asset) => asset.type === "cornerStand"));
+
+  // Old saves may already have infrastructure but pre-date dedicated corner
+  // assets. Upgrade them as soon as Ground Studio opens instead of requiring
+  // the player to advance a week before corner development appears.
+  useEffect(() => {
+    if (!open || !state.infrastructure || hasCornerAssets) return;
+    update((current) => {
+      const next = structuredClone(current);
+      ensureInfrastructure(next);
+      return next;
+    });
+  }, [open, hasCornerAssets, state.infrastructure, update]);
   const identity = groundIdentity(state);
   const design = groundDesign(state);
   const kit = clubKitFor(state).home;
@@ -292,7 +305,7 @@ function StandDevelopmentPanel({
 }) {
   const projects = projectCatalogue(state, asset.id).filter((spec) =>
     (mode === "maintenance"
-      ? ["minorRepair", "majorRepair", "refurbishment", "replacement"]
+      ? ["minorRepair", "majorRepair"]
       : ["capacityExpansion", "roofUpgrade", "seatingRefurbishment", "concourseUpgrade", "accessibilityUpgrade", "hospitalityInstallation", "corporateBoxes", "retailExpansion", "standRedevelopment", "minorRepair", "majorRepair", "refurbishment", "replacement"]
     ).includes(spec.type),
   );
@@ -311,6 +324,11 @@ function StandDevelopmentPanel({
           <div className="mt-1 text-[11px] text-muted-foreground">
             {Math.round(active.progress)}% complete · {active.durationWeeks} week project
           </div>
+        </div>
+      ) : projects.length === 0 && mode === "maintenance" ? (
+        <div className="rounded-xl border bg-muted/20 px-3 py-3">
+          <strong className="block text-xs">No maintenance needed</strong>
+          <span className="mt-0.5 block text-[10.5px] text-muted-foreground">{asset.condition.toFixed(0)}% condition · no repair work is currently required.</span>
         </div>
       ) : (
         <div className="grid gap-1.5">
@@ -394,7 +412,7 @@ function SelectionPanel({
             </button>
           ))}
         </div>
-        {standWorkspace === "maintenance" && asset ? (
+        {standWorkspace === "maintain" && asset ? (
           <StandDevelopmentPanel
             state={state}
             asset={asset}
