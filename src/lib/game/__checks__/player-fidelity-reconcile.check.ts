@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { newGame } from "../newGame";
-import { ensurePersistentFringePlayers, fringePlayersForClub } from "../fringePlayers";
+import { FRINGE_SQUAD_SIZE, ensurePersistentFringePlayers, fringePlayersForClub } from "../fringePlayers";
 import { clubFootballStrength } from "../footballStrength";
 import {
   compactDepartingFocusPlayersInPlace,
@@ -16,7 +16,7 @@ const clubId = openingPlan.fringeClubIds[0];
 if (!clubId) throw new Error("fringe club missing");
 
 const originalCompact = fringePlayersForClub(state, clubId);
-assert.equal(originalCompact.length, 20);
+assert.equal(originalCompact.length, FRINGE_SQUAD_SIZE);
 const originalIds = originalCompact.map((player) => player.playerId).sort();
 const compactStrength = clubFootballStrength(state, clubId);
 
@@ -27,7 +27,7 @@ state.trackedClubIds = [...(state.trackedClubIds ?? []), clubId];
 reconcileRecruitmentFidelity(state);
 repairFreshFocusHydrationInPlace(state);
 const focused = state.football?.players.filter((player) => player.currentClubId === clubId) ?? [];
-assert.equal(focused.length, 20);
+assert.equal(focused.length, FRINGE_SQUAD_SIZE);
 assert.deepEqual(
   focused.map((player) => player.id).sort(),
   originalIds,
@@ -65,7 +65,7 @@ assert.equal(
   evolvedAbility,
   "Focus development must survive compaction",
 );
-assert.equal(fringePlayersForClub(state, clubId).length, 20, "compacted active squad must stay bounded");
+assert.equal(fringePlayersForClub(state, clubId).length, FRINGE_SQUAD_SIZE, "compacted active squad must stay bounded");
 
 // Re-enter Focus a second time: the evolved player must still be the same
 // person and carry the compacted ability back into detailed simulation.
