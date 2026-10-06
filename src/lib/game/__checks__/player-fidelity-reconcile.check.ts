@@ -33,13 +33,19 @@ assert.deepEqual(
   originalIds,
   "Fringe→Focus must hydrate the same persistent player ids",
 );
+const originalById = new Map(originalCompact.map((player) => [player.playerId, player]));
 for (const player of focused) {
-  const compact = state.fringePlayers?.[player.id];
-  assert.ok(compact);
-  assert.deepEqual(player.dateOfBirth, compact.dateOfBirth);
-  assert.equal(player.primaryPosition, compact.primaryPosition);
-  assert.equal(player.currentAbility, compact.currentAbility);
-  assert.equal(player.potentialAbility, compact.potentialAbility);
+  const source = originalById.get(player.id);
+  assert.ok(source);
+  assert.deepEqual(player.dateOfBirth, source.dateOfBirth);
+  assert.equal(player.primaryPosition, source.primaryPosition);
+  assert.equal(player.currentAbility, source.currentAbility);
+  assert.equal(player.potentialAbility, source.potentialAbility);
+  assert.equal(
+    state.fringePlayers?.[player.id],
+    undefined,
+    "Focus must not retain a duplicate compact copy of a detailed player",
+  );
 }
 assert.equal(
   clubFootballStrength(state, clubId),
