@@ -228,11 +228,11 @@ function derivedGroundDesign(s: GameState): GroundDesign {
       roof: level === 0 ? "open" : build.roof,
     };
   }
-  const corners = {
-    NW: { form: "open" as CornerForm },
-    NE: { form: "open" as CornerForm },
-    SW: { form: "open" as CornerForm },
-    SE: { form: "open" as CornerForm },
+  const corners: Record<CornerSlot, GroundCornerDesign> = {
+    NW: { form: "open" },
+    NE: { form: "open" },
+    SW: { form: "open" },
+    SE: { form: "open" },
   };
   for (const asset of (s.infrastructure?.assets ?? []).filter((a) => a.type === "cornerStand")) {
     const slot = asset.location as CornerSlot;
