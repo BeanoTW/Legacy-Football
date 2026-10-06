@@ -13,6 +13,8 @@ export interface GroundHotspot {
   className: string;
 }
 
+const DEFAULT_CAMERA = { azimuthDeg: -122, elevationDeg: 50, zoom: 1, panX: 0, panY: 0 };
+
 const BAND_COLOUR: Record<string, string> = {
   excellent: "oklch(0.73 0.17 145)",
   good: "oklch(0.73 0.17 145)",
@@ -135,6 +137,9 @@ export function StadiumGround({
   design,
   interactiveCamera = true,
   cameraMode = "orbit",
+  selection = null,
+  onSelectComponent,
+  componentLabels,
 }: {
   stage: number;
   hotspots: GroundHotspot[];
@@ -146,10 +151,13 @@ export function StadiumGround({
   design?: GroundDesign;
   interactiveCamera?: boolean;
   cameraMode?: GroundCameraMode;
+  selection?: string | null;
+  onSelectComponent?: (id: string | null) => void;
+  componentLabels?: Record<string, string>;
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const { width, height } = useViewportSize(viewportRef);
-  const [camera, setCamera] = useState({ azimuthDeg: -122, elevationDeg: 50, zoom: 1 });
+  const [camera, setCamera] = useState(DEFAULT_CAMERA);
   const dragRef = useRef<{ id: number; x: number; y: number; az: number; el: number } | null>(null);
 
   const pitchCondition = Math.round((hotspots.find((h) => h.id === "pitch")?.asset.condition ?? 80) / 5) * 5;
@@ -173,8 +181,9 @@ export function StadiumGround({
         look: lookKey ? (JSON.parse(lookKey) as SceneLook) : undefined,
         design: designKey ? (JSON.parse(designKey) as GroundDesign) : undefined,
         camera: { ...camera, mode: cameraMode },
+        highlight: selection ?? undefined,
       }),
-    [camera, cameraMode, designKey, height, lookKey, pitchCondition, stage, width, worksKey],
+    [camera, cameraMode, designKey, height, lookKey, pitchCondition, selection, stage, width, worksKey],
   );
 
   const strokeScale = scene.viewBox.w / width;
