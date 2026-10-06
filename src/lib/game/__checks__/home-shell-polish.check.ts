@@ -8,7 +8,6 @@ function assert(condition: unknown, message: string): asserts condition {
 console.log("\n[HOME-SHELL-POLISH] Continuous backdrop and refined director card");
 
 const root = readFileSync("src/routes/__root.tsx", "utf8");
-const route = readFileSync("src/routes/index.tsx", "utf8");
 const css = readFileSync("src/home-shell-polish.css", "utf8");
 
 assert(root.includes('homeShellPolishCss') && root.indexOf('homeShellPolishCss') > root.indexOf('mobileDockCss'), "Home polish stylesheet loads after the existing presentation stack");
