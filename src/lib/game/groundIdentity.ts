@@ -192,7 +192,7 @@ export function groundDesign(s: GameState): GroundDesign {
     if (!mine) { corners[slot] = live; continue; }
     const built = live.form === "terrace" || live.form === "seated";
     corners[slot] = built
-      ? { ...mine, form: live.form, size: live.size }
+      ? { ...mine, form: mine.form === "terrace" || mine.form === "seated" ? mine.form : live.form, size: live.size }
       : { ...mine, form: mine.form === "pylon" ? "pylon" : "open", size: undefined, accessTunnel: undefined };
   }
   return { ...saved, stands, corners };
