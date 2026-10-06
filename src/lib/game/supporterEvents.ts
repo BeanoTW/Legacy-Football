@@ -1,4 +1,4 @@
-import type { GameState } from "./types";
+import type { GameState, Staff } from "./types";
 import { postEntry } from "./finance";
 import { footballLevelOfUser } from "./footballLevel";
 import { currentAbsoluteDay } from "./timeline";
@@ -45,6 +45,34 @@ export const SUPPORTER_EVENTS: SupporterEventDefinition[] = [
 ];
 
 const clamp=(n:number,lo:number,hi:number)=>Math.max(lo,Math.min(hi,n));
+
+export interface EventCoordinationSupport {
+  coordinator?: Staff;
+  score: number;
+  costDiscountPct: number;
+  turnoutBoostPct: number;
+  cooldownReductionPct: number;
+}
+
+/**
+ * Community events remain director-led by default. Hiring a specialist makes
+ * them cheaper to organise, improves turnout, and lets the club repeat the
+ * same format a little sooner without turning the role into a hard gate.
+ */
+export function eventCoordinationSupport(s: GameState): EventCoordinationSupport {
+  const coordinator = (s.hiredStaff ?? []).find((member) => member.role === "Community & Events Officer");
+  if (!coordinator) {
+    return { score: 0, costDiscountPct: 0, turnoutBoostPct: 0, cooldownReductionPct: 0 };
+  }
+  const score = Math.round(clamp(coordinator.stats.motivation * 0.6 + coordinator.stats.negotiation * 0.4, 30, 95));
+  return {
+    coordinator,
+    score,
+    costDiscountPct: Math.round(clamp((score - 30) * 0.2, 0, 13)),
+    turnoutBoostPct: Math.round(clamp((score - 25) * 0.25, 0, 18)),
+    cooldownReductionPct: Math.round(clamp((score - 30) * 0.18, 0, 12)),
+  };
+}
 const store=(s:GameState):ScheduledSupporterEvent[] => {
   const raw=(s as GameState & { supporterEvents?: ScheduledSupporterEvent[] }).supporterEvents;
   return Array.isArray(raw)?raw:[];
@@ -54,14 +82,17 @@ export const eventDefinition=(id:SupporterEventId)=>SUPPORTER_EVENTS.find(e=>e.i
 export function eventCost(s:GameState,d:SupporterEventDefinition):number {
   const level=footballLevelOfUser(s);
   const scale=Math.pow(1.7,Math.max(0,7-level));
-  return Math.round(d.baseCost*scale/10)*10;
+  const support=eventCoordinationSupport(s);
+  return Math.round((d.baseCost*scale*(1-support.costDiscountPct/100))/10)*10;
 }
 export function eventAvailable(s:GameState,d:SupporterEventDefinition):{ok:boolean;reason?:string}{
   const level=footballLevelOfUser(s);
   if(d.minLevel && level>d.minLevel) return {ok:false,reason:`Unlocks at Level ${d.minLevel}`};
   if(store(s).some(e=>e.status==="scheduled")) return {ok:false,reason:"Another club event is already scheduled"};
   const last=[...store(s)].reverse().find(e=>e.eventId===d.id);
-  if(last && currentAbsoluteDay(s)-last.bookedAbsoluteDay<d.cooldownDays) return {ok:false,reason:"Supporters have seen this event too recently"};
+  const support=eventCoordinationSupport(s);
+  const cooldown=Math.max(1,Math.round(d.cooldownDays*(1-support.cooldownReductionPct/100)));
+  if(last && currentAbsoluteDay(s)-last.bookedAbsoluteDay<cooldown) return {ok:false,reason:"Supporters have seen this event too recently"};
   const cost=eventCost(s,d); if(s.cash<cost) return {ok:false,reason:"Not enough cash"};
   return {ok:true};
 }
@@ -81,7 +112,8 @@ export function resolveDueSupporterEvents(s:GameState):void {
     const d=eventDefinition(e.eventId);
     const mood=clamp((s.fanHappiness??60)/60,0.65,1.35);
     const rep=clamp((s.reputation??20)/35,0.65,1.8);
-    const attendance=Math.max(25,Math.round((55+d.fanGain*45)*mood*rep));
+    const support=eventCoordinationSupport(s);
+    const attendance=Math.max(25,Math.round((55+d.fanGain*45)*mood*rep*(1+support.turnoutBoostPct/100)));
     const turnout=clamp(attendance/(80+d.fanGain*50),0.65,1.35);
     e.status="completed"; e.attendance=attendance;
     e.fanGain=Math.max(1,Math.round(d.fanGain*turnout)); e.reputationGain=Number((d.reputationGain*turnout).toFixed(1));
