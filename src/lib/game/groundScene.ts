@@ -1831,4 +1831,70 @@ export function buildGroundScene(input: SceneInput): SceneOutput {
   const stage = Math.max(0, Math.min(6, Math.round(input.stage)));
   const reachX = stage >= 4 ? 78 : stage >= 2 ? 70 : 62;
   const reachY = stage >= 4 ? 64 : stage >= 2 ? 56 : 46;
-  const 
+  const tall = stage >= 5 ? 34 : stage >= 3 ? 20 : 10;
+  const designed = input.design?.version === 1;
+  const core = designed ? designedFrame(input.design!).map(project) : [
+    v(-reachX, -reachY, 0), v(reachX, -reachY, 0), v(reachX, reachY, 0), v(-reachX, reachY, 0),
+    v(-reachX, reachY, tall), v(reachX, reachY, tall),
+// Club buildings to the left and hospitality to the right.
+    ...(stage >= 2 ? [v(-106, -8, 0), v(-106, 16, 10), v(-90, -56, 0), v(116, 40, 8)] : [v(-86, -12, 0), v(-86, 12, 8), v(-66, -48, 0), v(78, 30, 6)]),
+  ].map(project);
+  let minX = Math.min(...core.map((p) => p.x));
+  let maxX = Math.max(...core.map((p) => p.x));
+  let minY = Math.min(...core.map((p) => p.y));
+  let maxY = Math.max(...core.map((p) => p.y));
+  const aspect = Math.max(0.3, input.width / Math.max(1, input.height));
+  const pad = 1.06;
+  let w = (maxX - minX) * pad;
+  let h = (maxY - minY) * pad;
+  if (w / h > aspect) h = w / aspect;
+  else w = h * aspect;
+  let cx = (minX + maxX) / 2;
+  // Leave a little more room at the top for the stage badge.
+  let cy = (minY + maxY) / 2 - h * 0.02;
+  // Zoom and pan act after the fit (in screen space), so they visibly frame the
+  // ground; at zoom 1 with no pan the framing is exactly the fitted view.
+  if (input.camera?.mode !== "matchday") {
+    const zoom = Math.max(0.65, Math.min(2.6, input.camera?.zoom ?? 1));
+    const panned = Boolean(input.camera?.panX || input.camera?.panY);
+    if (zoom !== 1 || panned) {
+      const focus = project(TARGET);
+      const pull = panned ? Math.min(1, 0.55 + Math.max(0, zoom - 1)) : Math.min(1, Math.max(0, zoom - 1));
+      cx += (focus.x - cx) * pull;
+      cy += (focus.y - cy) * pull;
+      w /= zoom;
+      h /= zoom;
+    }
+  }
+  minX = cx - w / 2;
+  minY = cy - h / 2;
+  maxX = cx + w / 2;
+  maxY = cy + h / 2;
+
+  const pitchCorners = [v(-HALF_L, -HALF_W, 0), v(HALF_L, -HALF_W, 0), v(HALF_L, HALF_W, 0), v(-HALF_L, HALF_W, 0)].map(project);
+  const pitchMinX = Math.min(...pitchCorners.map((p) => p.x));
+  const pitchMaxX = Math.max(...pitchCorners.map((p) => p.x));
+  const pitchMinY = Math.min(...pitchCorners.map((p) => p.y));
+  const pitchMaxY = Math.max(...pitchCorners.map((p) => p.y));
+  const pitchBounds = {
+    left: (pitchMinX - minX) / w,
+    top: (pitchMinY - minY) / h,
+    width: (pitchMaxX - pitchMinX) / w,
+    height: (pitchMaxY - pitchMinY) / h,
+  };
+
+  const objects = [...scene.objects].sort((a, b) => b.depth - a.depth).flatMap((o) => o.prims);
+  const outAnchors: SceneOutput["anchors"] = {};
+  for (const [id, point] of Object.entries(anchors)) {
+    const p = project(point);
+    outAnchors[id] = { x: (p.x - minX) / w, y: (p.y - minY) / h };
+  }
+
+  const selectables: NonNullable<SceneOutput["selectables"]> = {};
+  for (const [id, item] of Object.entries(SELECTABLES)) {
+    const p = project(item.anchor);
+    selectables[id] = { x: (p.x - minX) / w, y: (p.y - minY) / h, world: { x: item.anchor.x, y: item.anchor.y, z: item.anchor.z } };
+  }
+
+  return {
+    viewBox: { x: min
