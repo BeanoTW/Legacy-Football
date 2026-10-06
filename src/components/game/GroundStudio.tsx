@@ -540,23 +540,23 @@ function StandDevelopment({ state, asset, apply }: { state: GameState; asset: In
           </div>
           <p className="mt-1 text-[10.5px] text-muted-foreground">Changing the geometry never costs money, including after this corner has been built.</p>
         </Field>
+        <Field label="Corner use">
+          <div className="flex flex-wrap gap-1.5">
+            {cornerFormOptions(design, slot).map((option) => (
+              <OptionChip
+                key={option.id}
+                active={c.form === option.id}
+                disabled={!option.allowed}
+                title={option.reason}
+                onClick={() => apply((s) => updateCorner(s, slot, { form: option.id }))}
+              >
+                {option.label}{!option.allowed ? " 🔒" : ""}
+              </OptionChip>
+            ))}
+          </div>
+        </Field>
         {builtInfill ? (
           <>
-            <Field label="Corner use">
-              <div className="flex flex-wrap gap-1.5">
-                {cornerFormOptions(design, slot).map((option) => (
-                  <OptionChip
-                    key={option.id}
-                    active={c.form === option.id}
-                    disabled={!option.allowed}
-                    title={option.reason}
-                    onClick={() => apply((s) => updateCorner(s, slot, { form: option.id }))}
-                  >
-                    {option.label}{!option.allowed ? " 🔒" : ""}
-                  </OptionChip>
-                ))}
-              </div>
-            </Field>
             <Field label="Built infill">
               <div className="flex gap-1.5">
                 {(["small", "large"] as const).map((size) => <OptionChip key={size} active={(c.size ?? "small") === size} onClick={() => apply((s) => updateCorner(s, slot, { size }))}>{size === "small" ? "Compact" : "Full corner"}</OptionChip>)}
