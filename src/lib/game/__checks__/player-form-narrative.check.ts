@@ -17,6 +17,7 @@ const outfield = squad.filter((player) => player.primaryPosition !== "GK");
 assert(outfield.length >= 2);
 const hot = outfield[0];
 const cold = outfield[1];
+for (const player of outfield) player.currentAbility = 40;
 hot.currentAbility = 60;
 cold.currentAbility = 60;
 cold.primaryPosition = hot.primaryPosition;
