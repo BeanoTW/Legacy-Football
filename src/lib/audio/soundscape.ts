@@ -7,6 +7,7 @@ import {
   THEME_BARS,
   whistle,
   type CrowdBed,
+  type CrowdBedProfile,
   type CrowdReaction,
   type WhistlePattern,
 } from "./synth";
@@ -80,6 +81,7 @@ interface Graph {
 let graph: Graph | null = null;
 let inMatch = false;
 let bed: CrowdBed | null = null;
+let crowdProfile: CrowdBedProfile = { density: 0.65, size: 0.25, enclosure: 0.25 };
 let themeTimer: number | null = null;
 let themeBar = 0;
 let themeNextAt = 0;
@@ -173,6 +175,7 @@ export function enterMatch(): void {
   stopThemeSoon();
   if (!bed) {
     bed = crowdBed(g.ctx, g.crowd, g.ctx.currentTime);
+    bed.setProfile(crowdProfile);
     bed.setIntensity(0.25);
   }
 }
@@ -190,6 +193,15 @@ export function setCrowdIntensity(value: number): void {
   bed?.setIntensity(value);
 }
 
+export function setCrowdProfile(profile: CrowdBedProfile): void {
+  crowdProfile = {
+    density: Math.max(0, Math.min(1, profile.density)),
+    size: Math.max(0, Math.min(1, profile.size)),
+    enclosure: Math.max(0, Math.min(1, profile.enclosure)),
+  };
+  bed?.setProfile(crowdProfile);
+}
+
 export function playWhistle(pattern: WhistlePattern): void {
   const g = graph;
   if (!g || !load().effects) return;
@@ -199,7 +211,14 @@ export function playWhistle(pattern: WhistlePattern): void {
 export function playReaction(kind: CrowdReaction): void {
   const g = graph;
   if (!g || !load().crowd) return;
-  crowdReaction(g.ctx, g.crowd, g.ctx.currentTime + 0.02, kind);
+  const reactionGain = g.ctx.createGain();
+  const scale =
+    (0.78 + crowdProfile.size * 0.22) *
+    (0.72 + crowdProfile.density * 0.38) *
+    (0.94 + crowdProfile.enclosure * 0.12);
+  reactionGain.gain.value = scale;
+  reactionGain.connect(g.crowd);
+  crowdReaction(g.ctx, reactionGain, g.ctx.currentTime + 0.02, kind);
 }
 
 export function playKick(strength = 1): void {
