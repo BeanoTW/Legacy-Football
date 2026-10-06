@@ -16,8 +16,7 @@ import {
   type GroundIdentityState,
   type StandBuild,
 } from "./groundIdentity";
-import { ensureGroundDesign } from "./groundIdentity";
-import { standFootprintForCapacity } from "./groundEditor";
+
 
 export interface GroundActionResult {
   state: GameState;
@@ -87,20 +86,9 @@ export function approveStandBuild(s: GameState, assetId: string, type: CapitalPr
   identity.pending = { ...identity.pending, [assetId]: { ...build, projectId: project.id } };
   next.groundIdentity = identity;
 
-  // Structural dimensions are outcomes of purchased capacity, not free editor
-  // sliders. Apply the completed project's target footprint to the pending
-  // ground design now; the project remains the canonical owner of capacity.
-  const capacityEffect = project.effectsOnCompletion.find((effect) => effect.kind === "capacity") as { kind: "capacity"; add: number } | undefined;
-  if (capacityEffect) {
-    const side = asset.location as "N" | "E" | "S" | "W";
-    if (["N", "E", "S", "W"].includes(side)) {
-      const design = ensureGroundDesign(next);
-      const targetCapacity = asset.capacity + capacityEffect.add;
-      const footprint = standFootprintForCapacity(design, side, targetCapacity);
-      design.stands[side] = { ...design.stands[side], span: footprint.span, depth: footprint.depth };
-      next.groundIdentity = { ...groundIdentity(next), design };
-    }
-  }
+  // The chosen build stays pending until the capital project completes.
+  // Ground geometry is derived from the live purchased capacity, so it grows
+  // on completion rather than when the director presses Approve.
   recomputeDerived(next);
   syncLegacyStadium(next);
   return { state: next, ok: true, reason: `Approved: ${asset.name} as ${label} · £${newCost.toLocaleString("en-GB")}.` };
