@@ -510,7 +510,7 @@ export function GroundStudioSheet({
           </div>
         </div>
 
-        <div className="relative min-h-0 flex-1 overflow-y-auto px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-3">
+        <div className="relative min-h-0 flex-1 overflow-y-auto px-4 pb-[calc(4rem+env(safe-area-inset-bottom))] pt-3 scroll-pb-[calc(4rem+env(safe-area-inset-bottom))]">
           {planning && planningAsset ? (
             <StandBuildChooser
               key={`${planning.assetId}:${planning.spec.type}`}
@@ -641,7 +641,7 @@ function GroundMap({
     );
   };
   return (
-    <div className="absolute inset-0 z-[12] flex flex-col gap-2 overflow-y-auto bg-[#08130f]/95 px-3.5 pb-3 pt-2.5 backdrop-blur-md">
+    <div className="absolute inset-0 z-[12] flex flex-col gap-2 overflow-y-auto bg-[#08130f]/95 px-3.5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-2.5 backdrop-blur-md">
       <div className="flex items-baseline justify-between gap-2">
         <div className="lfk-eyebrow">Every part · north at top</div>
         <button type="button" className="text-[11px] font-semibold text-[var(--lf-muted)]" onClick={onClose}>Close</button>
@@ -668,12 +668,12 @@ function GroundMap({
         {tile("stand:S", "s")}
         {tile("corner:SE", "se")}
       </div>
-      <div className="lf-scroll-x -mx-0.5 !gap-1.5 !pb-0" aria-label="Ground and surroundings">
+      <div className="lf-scroll-x -mx-0.5 snap-x scroll-px-3 !gap-1.5 !pb-1 !pr-5" aria-label="Ground and surroundings">
         {[...GROUPS[2].items, ...GROUPS[3].items].filter((id) => id !== "pitch").map((id) => {
           const fixture = FIXTURES[id as FixtureId];
           const Icon = fixture.icon;
           return (
-            <button key={id} type="button" className="lf-tile shrink-0 flex-row items-center whitespace-nowrap px-2.5 py-1.5 text-[12px]" aria-pressed={selection === id} onClick={() => onPick(id)}>
+            <button key={id} type="button" className="lf-tile snap-start shrink-0 flex-row items-center whitespace-nowrap px-2.5 py-1.5 text-[12px]" aria-pressed={selection === id} onClick={() => onPick(id)}>
               <Icon className="size-3.5 text-[var(--lf-free)]" />{fixture.label}
             </button>
           );
