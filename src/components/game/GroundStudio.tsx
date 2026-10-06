@@ -336,20 +336,26 @@ function StandDevelopmentPanel({
   state,
   asset,
   onApprove,
+  mode = "all",
 }: {
   state: GameState;
   asset: InfrastructureAsset;
   onApprove: (spec: ProjectSpec) => void;
+  mode?: "all" | "maintenance";
+}
 }) {
   const projects = projectCatalogue(state, asset.id).filter((spec) =>
-    ["capacityExpansion", "roofUpgrade", "seatingRefurbishment", "concourseUpgrade", "accessibilityUpgrade", "hospitalityInstallation", "corporateBoxes", "retailExpansion", "standRedevelopment", "minorRepair", "majorRepair", "refurbishment", "replacement"].includes(spec.type),
+    (mode === "maintenance"
+      ? ["minorRepair", "majorRepair", "refurbishment", "replacement"]
+      : ["capacityExpansion", "roofUpgrade", "seatingRefurbishment", "concourseUpgrade", "accessibilityUpgrade", "hospitalityInstallation", "corporateBoxes", "retailExpansion", "standRedevelopment", "minorRepair", "majorRepair", "refurbishment", "replacement"]
+    ).includes(spec.type),
   );
   const active = asset.activeProjectId
     ? state.infrastructure?.projects.find((project) => project.id === asset.activeProjectId)
     : undefined;
 
   return (
-    <Field label="Develop this stand">
+    <Field label={mode === "maintenance" ? "Maintain this stand" : "Develop this stand"}>
       {active ? (
         <div className="rounded-xl border bg-muted/35 px-3 py-2">
           <div className="flex items-center justify-between gap-2">
@@ -419,6 +425,7 @@ function SelectionPanel({
   const seatSwatch = (id: SeatScheme): string[] => (id === "club" ? [kit.body, kit.body] : id === "twoTone" ? [kit.body, kit.secondary] : SEAT_SCHEMES.find((o) => o.id === id)?.colours ?? ["#1f6f69", "#185a55"]);
   const roofSwatch = (id: RoofColour) => (id === "club" ? kit.body : ROOF_COLOURS.find((r) => r.id === id)?.hex ?? "#56616c");
   const claddingSwatch = (id: Cladding) => (id === "club" ? kit.body : CLADDINGS.find((c) => c.id === id)?.hex ?? "#9a5d42");
+  const [standWorkspace, setStandWorkspace] = useState<"customize" | "maintenance" | "upgrade">("customize");
 
   /* ---------- A stand ---------- */
   if (selection?.startsWith("stand:")) {
@@ -430,19 +437,28 @@ function SelectionPanel({
     return (
       <div className="space-y-3">
         <PanelTitle title={labels[selection]} sub={`${SIDE_LABEL[side]} · ${asset?.capacity?.toLocaleString() ?? "—"} capacity · Facilities level ${d.level}`} />
-        {asset ? (
+        <div className="grid grid-cols-3 gap-1.5 rounded-xl border bg-muted/20 p-1">
+          {(["customize", "maintenance", "upgrade"] as const).map((workspace) => (
+            <button
+              key={workspace}
+              type="button"
+              onClick={() => setStandWorkspace(workspace)}
+              className={cn("rounded-lg px-2 py-2 text-xs font-semibold capitalize transition-colors", standWorkspace === workspace ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}
+            >
+              {workspace}
+            </button>
+          ))}
+        </div>
+        {standWorkspace === "maintenance" && asset ? (
           <StandDevelopmentPanel
             state={state}
             asset={asset}
-            onApprove={(spec) =>
-              apply((s) =>
-                isLevelRaising(spec.type)
-                  ? approveStandBuild(s, asset.id, spec.type, standBuild(s, asset.id, asset.level))
-                  : approveProjectCompat(s, asset.id, spec.type)
-              )
-            }
+            mode="maintenance"
+            onApprove={(spec) => apply((s) => approveProjectCompat(s, asset.id, spec.type))}
           />
         ) : null}
+        {standWorkspace === "customize" ? (
+          <>
         <Field label="Structure">
           <div className="flex flex-wrap gap-1.5">
             {standFormOptions(design, side).map((option) => (
@@ -492,8 +508,10 @@ function SelectionPanel({
             </ExpandRow>
           </div>
         ) : null}
-        {asset ? <StandDevelopment state={state} asset={asset} apply={apply} /> : null}
-        {asset ? <RenameRow key={asset.id} initial={asset.name} onSave={(name) => apply((s) => renameStand(s, asset.id, name))} /> : null}
+          </>
+        ) : null}
+        {standWorkspace === "upgrade" && asset ? <StandDevelopment state={state} asset={asset} apply={apply} /> : null}
+        {standWorkspace === "customize" && asset ? <RenameRow key={asset.id} initial={asset.name} onSave={(name) => apply((s) => renameStand(s, asset.id, name))} /> : null}
       </div>
     );
   }
