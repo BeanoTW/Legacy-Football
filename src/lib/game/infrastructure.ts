@@ -694,6 +694,9 @@ export interface FacilityProgressionSpec {
   next: string | null;
   benefits: string[];
   dependency: string | null;
+  dependencyMet: boolean;
+  /** Quantified simulation changes if the next facility level is completed now. */
+  nextImpact: string[];
 }
 
 /**
@@ -701,16 +704,69 @@ export interface FacilityProgressionSpec {
  * level + condition through facilityModifiers(); this describes what those
  * levels mean and gives future UI/visual passes one canonical contract.
  */
+function facilityDependencyStatus(s: GameState, a: InfrastructureAsset): { text: string | null; met: boolean } {
+  if (a.type === "stand" || a.type === "cornerStand" || a.type === "pitch") return { text: null, met: true };
+  const nextLevel = a.level + 1;
+  const highestStandLevel = stands(s).reduce((max, stand) => Math.max(max, stand.level), 0);
+  const groundCapacity = stadiumCapacity(s);
+
+  if (a.type === "hospitality" && nextLevel >= 3) {
+    return { text: "Requires at least one Modern stand (level 3+) before higher hospitality can be fitted out.", met: highestStandLevel >= 3 };
+  }
+  if (a.type === "concessions" && nextLevel >= 3) {
+    return { text: "Requires a developed spectator stand (level 2+) with enough permanent concourse space.", met: highestStandLevel >= 2 };
+  }
+  if (a.type === "sanitary" && nextLevel >= 3) {
+    return { text: "Requires a developed spectator stand (level 2+) for modern circulation and accessible provision.", met: highestStandLevel >= 2 };
+  }
+  if (a.type === "shop" && nextLevel >= 3) {
+    return { text: "Requires a permanent ground serving at least 3,000 spectator places.", met: groundCapacity >= 3_000 };
+  }
+  return { text: null, met: true };
+}
+
+function formatImpact(label: string, before: number, after: number, pct = false): string | null {
+  const delta = after - before;
+  if (Math.abs(delta) < 0.005) return null;
+  if (pct) return `${label} ${delta > 0 ? "+" : ""}${Math.round(delta * 100)}%`;
+  return `${label} ${delta > 0 ? "+" : ""}${Math.round(delta * 10) / 10}`;
+}
+
+function nextFacilityImpact(s: GameState, a: InfrastructureAsset): string[] {
+  if (a.level >= ASSET_CONFIG[a.type].maxLevel || a.type === "stand" || a.type === "cornerStand") return [];
+  const before = facilityModifiers(s);
+  const projected = structuredClone(s);
+  const nextAsset = assetById(projected, a.id);
+  if (!nextAsset) return [];
+  nextAsset.level = Math.min(ASSET_CONFIG[a.type].maxLevel, nextAsset.level + 1);
+  nextAsset.condition = clamp(nextAsset.condition + 12, 0, nextAsset.maximumCondition);
+  recomputeDerived(projected);
+  const after = facilityModifiers(projected);
+  const candidates = [
+    formatImpact("Hospitality income", before.hospitalityIncome, after.hospitalityIncome, true),
+    formatImpact("Concession spend", before.concessionSpend, after.concessionSpend, true),
+    formatImpact("Parking income", before.parkingIncome, after.parkingIncome, true),
+    formatImpact("Attendance convenience", before.attendanceConvenience, after.attendanceConvenience, true),
+    formatImpact("Supporter demand", before.supporterDemand, after.supporterDemand, true),
+    formatImpact("Fan happiness", before.fanHappiness, after.fanHappiness),
+    formatImpact("Commercial power", before.commercialPower, after.commercialPower),
+    formatImpact("Staff attraction", before.staffAttraction, after.staffAttraction),
+    formatImpact("Recruitment attraction", before.recruitmentAttraction, after.recruitmentAttraction),
+    formatImpact("Sporting quality", before.sportingQuality, after.sportingQuality),
+  ].filter((value): value is string => Boolean(value));
+  return candidates.slice(0, 4);
+}
+
+/**
+ * Product-facing facility ladder backed by the same modifiers used by the
+ * simulation. It tells the UI what the next level means and whether the
+ * stadium structure can actually support it.
+ */
 export function facilityProgressionSpec(s: GameState, a: InfrastructureAsset): FacilityProgressionSpec {
   const cfg = ASSET_CONFIG[a.type];
   const current = cfg.levels[a.level - 1] ?? `Level ${a.level}`;
   const next = a.level < cfg.maxLevel ? cfg.levels[a.level] : null;
-  const dependency =
-    a.type === "hospitality" && a.level >= 3 ? "Requires a developed covered stand envelope." :
-    a.type === "concessions" && a.level >= 2 ? "Requires sufficient concourse/service space." :
-    a.type === "sanitary" && a.level >= 2 ? "Requires modern spectator circulation and access." :
-    a.type === "shop" && a.level >= 2 ? "Requires permanent retail space at the ground." :
-    null;
+  const dependency = facilityDependencyStatus(s, a);
   const benefits: Record<InfrastructureAssetType, string[]> = {
     stand: ["Matchday capacity", "Supporter demand", "Ground quality"],
     cornerStand: ["Matchday capacity", "Ground enclosure", "Supporter atmosphere"],
@@ -725,7 +781,15 @@ export function facilityProgressionSpec(s: GameState, a: InfrastructureAsset): F
     offices: ["Commercial capability", "Club operations"],
     fanZone: ["Supporter demand", "Matchday experience"],
   };
-  return { role: cfg.label, current, next, benefits: benefits[a.type], dependency };
+  return {
+    role: cfg.label,
+    current,
+    next,
+    benefits: benefits[a.type],
+    dependency: dependency.text,
+    dependencyMet: dependency.met,
+    nextImpact: next ? nextFacilityImpact(s, a) : [],
+  };
 }
 
 export interface FacilityModifiers {
