@@ -1643,6 +1643,7 @@ export function evaluateProject(
 ): ProjectEvaluation | null {
   const spec = specFor(s, assetId, type);
   if (!spec) return null;
+  const a = assetById(s, assetId);
   const cap = projectCapacity(s);
   const capacityOk = spec.major ? cap.canStartMajor : cap.canStartMinor;
   const assetFree = !projectForAsset(s, assetId);
