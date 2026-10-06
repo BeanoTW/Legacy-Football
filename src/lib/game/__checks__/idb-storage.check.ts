@@ -70,9 +70,18 @@ console.log("\n[D1] Basic IndexedDB store");
   check("save reads back byte-equivalent", serializeSave(loaded.state!) === serializeSave(s));
   check("round trip preserves deterministic state", stateHash(loaded.state!) === stateHash(s));
   const s2 = advanceWeek(s);
+  const expectedS2 = compactState(s2).core;
   await store.save(s2);
-  check("overwrite replaces previous state", stateHash((await store.load()).state!) === stateHash(s2));
-  check("overwrite does not accumulate records", (await records.keys()).length === 2);
+  check(
+    "overwrite replaces previous state",
+    stateHash((await store.load()).state!) === stateHash(expectedS2),
+  );
+  const overwriteManifest = await store.readManifest();
+  check(
+    "overwrite does not accumulate records",
+    isManifest(overwriteManifest) &&
+      (await records.keys()).length === 2 + overwriteManifest!.chunkManifest.length,
+  );
   await store.clear();
   check("clear removes the current save", (await store.load()).state === null && (await records.keys()).length === 0);
 }
