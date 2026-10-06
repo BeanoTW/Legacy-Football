@@ -26,7 +26,8 @@ import {
   weeksRemaining,
 } from "@/lib/game/commercial";
 import { fmtMoney, fmtMoneyExact } from "@/lib/game/engine";
-import { SUPPORTER_EVENTS, eventAvailable, eventCost, scheduleSupporterEvent, supporterEvents } from "@/lib/game/supporterEvents";
+import { supporterEvents } from "@/lib/game/supporterEvents";
+import { SupporterEventsPanel } from "@/components/game/SupporterEventCards";
 
 type View = "partnerships" | "events" | "vacancies" | "negotiations" | "history";
 
@@ -115,21 +116,6 @@ function Panel({ title, aside, children }: { title: string; aside?: string; chil
 }
 function Empty({ children }: { children: React.ReactNode }) {
   return <p className="px-3 py-2.5 text-xs text-muted-foreground">{children}</p>;
-}
-
-/* ---------------- Community & supporter events ---------------- */
-
-function SupporterEventsPanel({ state, act }: { state: GameState; act: (fn: (s: GameState) => { state: GameState; message: string }) => void }) {
-  const scheduled = supporterEvents(state).find((event) => event.status === "scheduled");
-  return <div className="space-y-2">
-    {scheduled && <Panel title="Coming up" aside="Club calendar"><div className="px-3 py-2 text-sm"><strong>{SUPPORTER_EVENTS.find((event)=>event.id===scheduled.eventId)?.name}</strong><div className="text-[11px] text-muted-foreground">Booked · £{scheduled.cost.toLocaleString()} committed</div></div></Panel>}
-    <Panel title="Community & supporter events" aside="Invest in the club's backing">
-      {SUPPORTER_EVENTS.map((event) => { const available=eventAvailable(state,event); const cost=eventCost(state,event); return <div key={event.id} className="px-3 py-2">
-        <div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="text-sm font-semibold">{event.name}</div><div className="text-[11px] text-muted-foreground">{event.description}</div></div><div className="shrink-0 text-right text-xs font-semibold tnum">{money(cost)}</div></div>
-        <div className="mt-1 flex items-center justify-between gap-2"><span className="text-[10px] text-muted-foreground">Fan backing + · Community standing +</span><Btn tone={available.ok?"primary":undefined} onClick={()=>available.ok&&act((s)=>scheduleSupporterEvent(s,event.id,7))}>{available.ok?"Schedule":available.reason??"Unavailable"}</Btn></div>
-      </div>})}
-    </Panel>
-  </div>;
 }
 
 /* ---------------- Partnerships ---------------- */
