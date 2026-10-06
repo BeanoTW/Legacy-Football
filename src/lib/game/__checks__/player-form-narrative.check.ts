@@ -21,6 +21,9 @@ for (const player of outfield) player.currentAbility = 40;
 hot.currentAbility = 60;
 cold.currentAbility = 60;
 cold.primaryPosition = hot.primaryPosition;
+cold.secondaryPositions = [...hot.secondaryPositions];
+hot.fitness = 100;
+cold.fitness = 100;
 
 formState.playerMatchHistory = {};
 for (let week = 1; week <= 4; week++) {
