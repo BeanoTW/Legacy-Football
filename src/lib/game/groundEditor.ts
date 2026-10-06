@@ -93,12 +93,7 @@ export function standFootprintForCapacity(
   capacity: number,
   variant: "traditional" | "longLow" | "compact" = "traditional",
 ) {
-  const limits = standSizeLimits(design, side, capacity);
-  const raw = standStructuralFootprint(side, capacity, design.stands[side].level, variant);
-  return {
-    span: clamp(raw.span, limits.span.min, Math.max(limits.span.max, raw.span)),
-    depth: clamp(raw.depth, limits.depth.min, Math.max(limits.depth.max, raw.depth)),
-  };
+  return standStructuralFootprint(side, capacity, design.stands[side].level, variant);
 }
 
 /** Which standing/roof choices make sense for a form. */
