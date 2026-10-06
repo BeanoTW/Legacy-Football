@@ -1735,6 +1735,8 @@ export interface GameState {
   cash: number;
   reputation: number;
   fanHappiness: number;
+  /** Community/supporter events booked by the club. Optional for legacy saves. */
+  supporterEvents?: import("./supporterEvents").ScheduledSupporterEvent[];
 
   stands: Stand[];
   pitchCondition: number;

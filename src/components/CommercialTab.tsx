@@ -26,8 +26,9 @@ import {
   weeksRemaining,
 } from "@/lib/game/commercial";
 import { fmtMoney, fmtMoneyExact } from "@/lib/game/engine";
+import { SUPPORTER_EVENTS, eventAvailable, eventCost, scheduleSupporterEvent, supporterEvents } from "@/lib/game/supporterEvents";
 
-type View = "partnerships" | "vacancies" | "negotiations" | "history";
+type View = "partnerships" | "events" | "vacancies" | "negotiations" | "history";
 
 const money = (n: number) => fmtMoneyExact(n);
 
@@ -61,6 +62,7 @@ export function CommercialTab({
 
   const tabs: [View, string, number | null][] = [
     ["partnerships", "Deals", snap.activePartners],
+    ["events", "Events", supporterEvents(state).filter((event) => event.status === "scheduled").length],
     ["vacancies", "Open", snap.openCategories.length],
     ["negotiations", "Talks", snap.pendingOffers],
     ["history", "History", null],
@@ -76,7 +78,7 @@ export function CommercialTab({
         <Stat label="Weekly" value={fmtMoney(snap.weeklyIncome)} tone="good" />
         <Stat label={`Season · ${snap.activePartners} partner${snap.activePartners === 1 ? "" : "s"}`} value={fmtMoney(snap.seasonIncome)} />
       </section>
-      <div className="lf-segmented grid grid-cols-4" role="tablist" aria-label="Commercial view">
+      <div className="lf-segmented grid grid-cols-5" role="tablist" aria-label="Commercial view">
         {tabs.map(([id, label, count]) => <button key={id} type="button" role="tab" aria-selected={view === id}
           className={cn(view === id && "is-active")} onClick={() => setView(id)}>
           {label}{count != null && count > 0 && <b className={cn(id !== "negotiations" && "is-neutral")}>{count}</b>}
@@ -87,6 +89,7 @@ export function CommercialTab({
         <button type="button" className="shrink-0 text-muted-foreground underline" onClick={() => setNote(null)}>dismiss</button>
       </div>}
       {view === "partnerships" && <Partnerships state={state} />}
+      {view === "events" && <SupporterEventsPanel state={state} act={act} />}
       {view === "vacancies" && <Vacancies state={state} />}
       {view === "negotiations" && <Negotiations state={state} act={act} />}
       {view === "history" && <History state={state} />}
@@ -112,6 +115,21 @@ function Panel({ title, aside, children }: { title: string; aside?: string; chil
 }
 function Empty({ children }: { children: React.ReactNode }) {
   return <p className="px-3 py-2.5 text-xs text-muted-foreground">{children}</p>;
+}
+
+/* ---------------- Community & supporter events ---------------- */
+
+function SupporterEventsPanel({ state, act }: { state: GameState; act: (fn: (s: GameState) => { state: GameState; message: string }) => void }) {
+  const scheduled = supporterEvents(state).find((event) => event.status === "scheduled");
+  return <div className="space-y-2">
+    {scheduled && <Panel title="Coming up" aside="Club calendar"><div className="px-3 py-2 text-sm"><strong>{SUPPORTER_EVENTS.find((event)=>event.id===scheduled.eventId)?.name}</strong><div className="text-[11px] text-muted-foreground">Booked · £{scheduled.cost.toLocaleString()} committed</div></div></Panel>}
+    <Panel title="Community & supporter events" aside="Invest in the club's backing">
+      {SUPPORTER_EVENTS.map((event) => { const available=eventAvailable(state,event); const cost=eventCost(state,event); return <div key={event.id} className="px-3 py-2">
+        <div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="text-sm font-semibold">{event.name}</div><div className="text-[11px] text-muted-foreground">{event.description}</div></div><div className="shrink-0 text-right text-xs font-semibold tnum">{money(cost)}</div></div>
+        <div className="mt-1 flex items-center justify-between gap-2"><span className="text-[10px] text-muted-foreground">Fan backing + · Community standing +</span><Btn tone={available.ok?"primary":undefined} onClick={()=>available.ok&&act((s)=>scheduleSupporterEvent(s,event.id,7))}>{available.ok?"Schedule":available.reason??"Unavailable"}</Btn></div>
+      </div>})}
+    </Panel>
+  </div>;
 }
 
 /* ---------------- Partnerships ---------------- */
