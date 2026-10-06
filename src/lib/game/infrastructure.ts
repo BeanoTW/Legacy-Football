@@ -1124,7 +1124,11 @@ export function expansionAllowance(s: GameState, a: InfrastructureAsset): number
   const tierBonus = (s.leagues ?? []).find((l) => l.id === s.playerLeagueId)?.tier === 1 ? 1.15 : 1;
   const siteCap = int((3_000 + rep * 90) * tierBonus);
   const headroom = Math.max(0, 16_000 - a.capacity);
-  return int(Math.min(siteCap, headroom) / 250) * 250;
+  // One project is one believable structural step, not the whole remaining
+  // planning envelope. Repeated development creates the stadium over time.
+  const stepByLevel = [0, 500, 750, 1_000, 1_500, 2_000];
+  const structuralStep = stepByLevel[Math.max(1, Math.min(5, a.level))] ?? 750;
+  return int(Math.min(siteCap, headroom, structuralStep) / 250) * 250;
 }
 
 /** Every project the club could raise against one asset, costed. */
@@ -1209,8 +1213,12 @@ export function projectCatalogue(s: GameState, assetId: string): ProjectSpec[] {
     if (seats > 0)
       out.push({
         type: "capacityExpansion",
-        title: `${a.name} — capacity expansion (+${seats.toLocaleString("en-GB")})`,
-        description: `Add ${seats.toLocaleString("en-GB")} seats within the site's planning envelope.`,
+        title: `${a.name} — ${a.level <= 2 ? "extend stand" : a.level <= 4 ? "enlarge stand" : "structural expansion"} (+${seats.toLocaleString("en-GB")})`,
+        description: a.level <= 2
+          ? `Extend the existing structure along the available side, adding ${seats.toLocaleString("en-GB")} places.`
+          : a.level <= 4
+            ? `Enlarge the stand beyond its initial footprint, adding ${seats.toLocaleString("en-GB")} places through extra depth and structure.`
+            : `Expand the mature stand structure by ${seats.toLocaleString("en-GB")} places within the remaining site envelope.`,
         cost: projectCost(s, "capacityExpansion", seats * 420 + 90_000),
         durationWeeks: 12,
         major: true,
