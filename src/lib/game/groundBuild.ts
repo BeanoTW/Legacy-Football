@@ -17,6 +17,7 @@ import {
   type StandBuild,
 } from "./groundIdentity";
 
+
 export interface GroundActionResult {
   state: GameState;
   ok: boolean;
@@ -84,6 +85,10 @@ export function approveStandBuild(s: GameState, assetId: string, type: CapitalPr
   const identity = { ...groundIdentity(next) };
   identity.pending = { ...identity.pending, [assetId]: { ...build, projectId: project.id } };
   next.groundIdentity = identity;
+
+  // The chosen build stays pending until the capital project completes.
+  // Ground geometry is derived from the live purchased capacity, so it grows
+  // on completion rather than when the director presses Approve.
   recomputeDerived(next);
   syncLegacyStadium(next);
   return { state: next, ok: true, reason: `Approved: ${asset.name} as ${label} · £${newCost.toLocaleString("en-GB")}.` };

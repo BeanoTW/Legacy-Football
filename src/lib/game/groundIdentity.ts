@@ -176,7 +176,10 @@ export function groundDesign(s: GameState): GroundDesign {
     const live = derived.stands[side];
     const mine = saved.stands[side];
     if (!mine) { stands[side] = live; continue; }
-    stands[side] = live.level > mine.level ? { ...live, material: mine.material } : { ...mine, level: live.level };
+    // Saved design owns presentation; purchased capacity owns dimensions.
+    stands[side] = live.level > mine.level
+      ? { ...live, material: mine.material }
+      : { ...mine, level: live.level, span: live.span, depth: live.depth };
   }
   return { ...saved, stands };
 }
@@ -200,8 +203,12 @@ function derivedGroundDesign(s: GameState): GroundDesign {
     stands[side] = {
       form: standFormFor(level, build),
       level,
-      span: capacity > 0 ? Math.round(Math.max(18, Math.min(maxSpan, 16 + capacity * 0.04))) : Math.min(maxSpan, 28 + level * 12),
-      depth: capacity > 0 ? Math.round(Math.max(4, Math.min(24, 4 + capacity / 180))) : 6 + level * 3,
+      span: capacity > 0 ? Math.round(Math.max(18, Math.min(maxSpan, 18 + capacity * 0.04))) : Math.min(maxSpan, 28 + level * 12),
+      // Fill the available length first. Once full, extra places make the
+      // stand deeper; later level/form progression provides the height.
+      depth: capacity > 0
+        ? Math.round(Math.max(4, Math.min(24, 4 + Math.max(0, capacity - Math.max(0, (maxSpan - 18) / 0.04)) / 450)))
+        : 6 + level * 3,
       setback: level >= 3 ? 6 : 4,
       standing: build.standing,
       roof: level === 0 ? "open" : build.roof,
