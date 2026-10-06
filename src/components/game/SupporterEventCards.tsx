@@ -1,7 +1,7 @@
 import { CalendarPlus, CalendarDays, Heart, Star, Users, Pencil, GraduationCap, School, Paintbrush, MessagesSquare, Flag, Shirt, Landmark, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { GameState } from "@/lib/game/types";
-import { SUPPORTER_EVENTS, eventAvailable, eventCost, scheduleSupporterEvent, supporterEvents, type SupporterEventId, type ScheduledSupporterEvent } from "@/lib/game/supporterEvents";
+import { SUPPORTER_EVENTS, eventAvailable, eventCoordinationSupport, eventCost, scheduleSupporterEvent, supporterEvents, type SupporterEventId, type ScheduledSupporterEvent } from "@/lib/game/supporterEvents";
 import { EVENT_VISUALS, EVENT_OUTCOME_LABEL, eventDateLabel, supporterEventOutcome } from "@/lib/game/supporterEventPresentation";
 import { currentAbsoluteDay } from "@/lib/game/timeline";
 import { fmtMoneyExact } from "@/lib/game/format";
@@ -68,7 +68,29 @@ export function SupporterEventsPanel({ state, act }: { state: GameState; act: (f
   const scheduled = events.find((event) => event.status === "scheduled");
   const completed = events.filter((event) => event.status === "completed").sort((a,b) => b.scheduledAbsoluteDay-a.scheduledAbsoluteDay);
   const daysLeft = scheduled ? Math.max(0, scheduled.scheduledAbsoluteDay-currentAbsoluteDay(state)) : 0;
+  const support = eventCoordinationSupport(state);
   return <div className="space-y-4">
+    <section className="rounded-lg border bg-card p-3">
+      <div className="flex items-baseline justify-between gap-2">
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Event coordination</p>
+          <h2 className="font-display text-lg">{support.coordinator ? support.coordinator.name : "Director-led"}</h2>
+        </div>
+        <span className="text-[10px] text-muted-foreground">{support.coordinator ? `Rating ${support.score}` : "No specialist"}</span>
+      </div>
+      {support.coordinator ? (
+        <>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">{support.volunteer ? "Volunteer coordinator" : "Community & Events Officer"}</p>
+          <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] font-semibold">
+            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-emerald-700 dark:text-emerald-300">Costs −{support.costDiscountPct}%</span>
+            <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-violet-700 dark:text-violet-300">Turnout +{support.turnoutBoostPct}%</span>
+            <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-sky-700 dark:text-sky-300">Cooldown −{support.cooldownReductionPct}%</span>
+          </div>
+        </>
+      ) : (
+        <p className="mt-1 text-[11px] text-muted-foreground">Run events yourself, or hire a Community & Events Officer to lower organising costs, improve turnout and repeat successful formats sooner.</p>
+      )}
+    </section>
     {scheduled && <section className="space-y-2"><div className="flex items-center justify-between"><h2 className="text-xs font-semibold">Coming up</h2><span className="text-[11px] text-muted-foreground">{daysLeft === 0 ? "Today" : `In ${daysLeft} day${daysLeft === 1 ? "" : "s"}`}</span></div><SupporterEventSummary event={scheduled}/></section>}
     {completed.length > 0 && <section className="space-y-2"><h2 className="text-xs font-semibold">Latest occasion</h2><SupporterEventSummary event={completed[0]}/>{completed.length > 1 && <details><summary className="cursor-pointer py-2 text-xs text-primary">Past occasions ({completed.length-1})</summary><div className="grid gap-2 sm:grid-cols-2">{completed.slice(1).map((event) => <SupporterEventSummary key={event.id} event={event}/>)}</div></details>}</section>}
     <section><h2 className="mb-2 text-xs font-semibold">Community & supporter events</h2><div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
