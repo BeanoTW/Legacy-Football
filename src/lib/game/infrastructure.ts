@@ -184,6 +184,17 @@ export const ASSET_CONFIG: Record<InfrastructureAssetType, AssetTypeConfig> = {
     capacityBands: [1, 1, 0.95, 0.72, 0.35, 0],
     levels: ["Basic terrace", "Seated stand", "Modern stand", "Premium stand", "Landmark stand"],
   },
+  cornerStand: {
+    label: "Corner Stand",
+    decayPerPeriod: 1.9,
+    operatingCost: 520,
+    maintenanceCost: 320,
+    maintenanceRequirement: 55,
+    maxLevel: 3,
+    bucket: "stadiumOps",
+    capacityBands: [1, 1, 0.95, 0.72, 0.35, 0],
+    levels: ["Compact corner", "Developed corner", "Full corner"],
+  },
   pitch: {
     label: "Pitch",
     decayPerPeriod: 4.6,
@@ -592,6 +603,16 @@ export function ensureInfrastructure(s: GameState): void {
   }
 
   const infra = s.infrastructure;
+  // Dedicated corner structures are migrated lazily so old saves keep working.
+  for (const slot of ["NW", "NE", "SW", "SE"] as const) {
+    const id = `corner-${slot}`;
+    if (!infra.assets.some((asset) => asset.id === id)) {
+      const corner = baseAsset(id, "cornerStand", `${slot} Corner`, slot, season, 1, 100, 0, {});
+      corner.ageYears = 0;
+      corner.openedSeason = season;
+      infra.assets.push(corner);
+    }
+  }
   if (!Array.isArray(infra.projects)) infra.projects = [];
   if (!Array.isArray(infra.history)) infra.history = [];
   if (!MAINTENANCE_POLICIES.includes(infra.maintenancePolicy)) infra.maintenancePolicy = "Standard";
@@ -615,6 +636,8 @@ export const assetById = (s: GameState, id: string): InfrastructureAsset | undef
 export const assetsOfType = (s: GameState, type: InfrastructureAssetType) =>
   assets(s).filter((a) => a.type === type);
 export const stands = (s: GameState) => assetsOfType(s, "stand");
+export const cornerStands = (s: GameState) => assetsOfType(s, "cornerStand");
+const spectatorStructures = (s: GameState) => [...stands(s), ...cornerStands(s)];
 
 export const projects = (s: GameState): CapitalProject[] => s.infrastructure?.projects ?? [];
 export const projectById = (s: GameState, id: string) => projects(s).find((p) => p.id === id);
@@ -640,9 +663,9 @@ export function usableCapacityOf(s: GameState, a: InfrastructureAsset): number {
   return clamp(int(a.capacity * factor), 0, a.capacity);
 }
 
-export const stadiumCapacity = (s: GameState) => stands(s).reduce((t, a) => t + a.capacity, 0);
+export const stadiumCapacity = (s: GameState) => spectatorStructures(s).reduce((t, a) => t + a.capacity, 0);
 export const stadiumUsableCapacity = (s: GameState) =>
-  stands(s).reduce((t, a) => t + usableCapacityOf(s, a), 0);
+  spectatorStructures(s).reduce((t, a) => t + usableCapacityOf(s, a), 0);
 
 export function averageStadiumCondition(s: GameState): number {
   const st = stands(s);
@@ -690,6 +713,7 @@ export function facilityProgressionSpec(s: GameState, a: InfrastructureAsset): F
     null;
   const benefits: Record<InfrastructureAssetType, string[]> = {
     stand: ["Matchday capacity", "Supporter demand", "Ground quality"],
+    cornerStand: ["Matchday capacity", "Ground enclosure", "Supporter atmosphere"],
     pitch: ["Playing surface", "Sporting quality"],
     shop: ["Commercial power", "Retail capability"],
     parking: ["Matchday access", "Parking income"],
@@ -898,6 +922,7 @@ export function deteriorationFor(s: GameState, a: InfrastructureAsset, period: n
   const qualityFactor = clamp(1 - a.qualityRating / 260, 0.55, 1);
   const usage =
     a.type === "stand" ||
+    a.type === "cornerStand" ||
     a.type === "pitch" ||
     a.type === "concessions" ||
     a.type === "sanitary" ||
@@ -1069,6 +1094,8 @@ export const PROJECT_LABEL: Record<CapitalProjectType, string> = {
   corporateBoxes: "Corporate boxes",
   retailExpansion: "Food & retail expansion",
   standRedevelopment: "Full stand redevelopment",
+  cornerBuild: "Build corner stand",
+  cornerExpansion: "Expand corner stand",
   facilityUpgrade: "Facility upgrade",
 };
 
@@ -1107,6 +1134,13 @@ const STAND_TYPES = STAND_STRUCTURE_TYPES;
 
 function availableProjectTypes(a: InfrastructureAsset): CapitalProjectType[] {
   const out: CapitalProjectType[] = [];
+  if (a.type === "cornerStand") {
+    if (a.capacity <= 0) return ["cornerBuild"];
+    if (a.condition < a.maximumCondition - 2) out.push("minorRepair", "majorRepair");
+    out.push("refurbishment");
+    if (a.level < ASSET_CONFIG.cornerStand.maxLevel) out.push("cornerExpansion");
+    return out;
+  }
   if (a.condition < a.maximumCondition - 2) out.push("minorRepair", "majorRepair");
   out.push("refurbishment");
   if (a.condition < 35 || a.ageYears > 45) out.push("replacement");
@@ -1358,6 +1392,45 @@ export function projectCatalogue(s: GameState, assetId: string): ProjectSpec[] {
           { kind: "maximumCondition", add: 0 },
         ],
       });
+  } else if (a.type === "cornerStand") {
+    if (has("cornerBuild")) {
+      const seats = 500;
+      out.push({
+        type: "cornerBuild",
+        title: `${a.name} — build corner stand (+${seats.toLocaleString("en-GB")})`,
+        description: "Construct the first permanent spectator structure in this corner.",
+        cost: projectCost(s, "cornerBuild", seats * 440 + 65_000),
+        durationWeeks: 8,
+        major: true,
+        risk: 38,
+        disruption: { capacityFactor: 1, revenueFactor: 0.96, fanHappiness: -1 },
+        effects: [
+          { kind: "capacity", add: seats },
+          { kind: "condition", to: 96 },
+          { kind: "quality", add: 6 },
+        ],
+      });
+    }
+    if (has("cornerExpansion")) {
+      const seats = a.level === 1 ? 500 : 750;
+      out.push({
+        type: "cornerExpansion",
+        title: `${a.name} — expand corner (+${seats.toLocaleString("en-GB")})`,
+        description: a.level === 1
+          ? "Extend the compact corner into a developed infill."
+          : "Complete the corner with a deeper, larger spectator structure.",
+        cost: projectCost(s, "cornerExpansion", seats * 470 + 80_000),
+        durationWeeks: a.level === 1 ? 9 : 12,
+        major: true,
+        risk: 44,
+        disruption: { capacityFactor: 0.7, revenueFactor: 0.9, fanHappiness: -1 },
+        effects: [
+          { kind: "capacity", add: seats },
+          { kind: "level", add: 1 },
+          { kind: "condition", add: -3 },
+        ],
+      });
+    }
   } else if (has("facilityUpgrade")) {
     const next = clamp(a.level + 1, 1, cfg.maxLevel);
     const capAdd = a.capacity > 0 ? Math.round(a.capacity * 0.45) : 0;
@@ -1396,6 +1469,7 @@ export function specFor(
 
 const TYPE_INTEREST: Record<InfrastructureAssetType, string[]> = {
   stand: ["Supporters' Director", "Chairman"],
+  cornerStand: ["Supporters' Director", "Chairman"],
   pitch: ["Football Director"],
   shop: ["Commercial Director"],
   parking: ["Supporters' Director"],
@@ -1442,7 +1516,7 @@ export function directorPositions(
     if (d.traits.includes("traditionalist")) score += 1;
     if (
       d.traits.includes("populist") &&
-      (a?.type === "stand" || a?.type === "sanitary" || a?.type === "fanZone")
+      (a?.type === "stand" || a?.type === "cornerStand" || a?.type === "sanitary" || a?.type === "fanZone")
     )
       score += 2;
     if (headroom < 0) score -= 2;
@@ -1688,6 +1762,8 @@ const RECORD_KIND: Partial<Record<CapitalProjectType, InfrastructureRecordKind>>
   replacement: "redevelopment",
   capacityExpansion: "expansion",
   standRedevelopment: "redevelopment",
+  cornerBuild: "expansion",
+  cornerExpansion: "expansion",
   facilityUpgrade: "newFacility",
 };
 
@@ -1896,6 +1972,8 @@ function subcategoryFor(type: CapitalProjectType, kind: ProjectPayment["kind"]):
     case "standRedevelopment":
       return "Redevelopment";
     case "capacityExpansion":
+    case "cornerBuild":
+    case "cornerExpansion":
       return "Stadium expansion";
     case "facilityUpgrade":
       return "New facility";
