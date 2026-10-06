@@ -1041,17 +1041,30 @@ const REPAIR_TYPES: CapitalProjectType[] = [
 ];
 export const isMinorWork = (t: CapitalProjectType) => t === "minorRepair";
 
-const STAND_TYPES: CapitalProjectType[] = [
+/**
+ * Stand projects are deliberately structural only.
+ *
+ * Ground Studio owns visible geometry: capacity, roof structure and full
+ * redevelopment. Non-visual capability (accessibility, hospitality, retail,
+ * concourse/service quality) belongs to the dedicated facility assets and is
+ * upgraded through Facilities. This prevents two competing upgrade systems.
+ */
+export const STAND_STRUCTURE_TYPES: CapitalProjectType[] = [
   "capacityExpansion",
   "roofUpgrade",
+  "standRedevelopment",
+];
+
+export const STAND_FACILITY_TYPES: CapitalProjectType[] = [
   "seatingRefurbishment",
   "concourseUpgrade",
   "accessibilityUpgrade",
   "hospitalityInstallation",
   "corporateBoxes",
   "retailExpansion",
-  "standRedevelopment",
 ];
+
+const STAND_TYPES = STAND_STRUCTURE_TYPES;
 
 function availableProjectTypes(a: InfrastructureAsset): CapitalProjectType[] {
   const out: CapitalProjectType[] = [];
