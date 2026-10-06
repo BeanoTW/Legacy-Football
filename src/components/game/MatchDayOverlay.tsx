@@ -447,6 +447,7 @@ export function MatchDayOverlay({
                   userColours={dotColours(ourKit)}
                   opponentColours={dotColours(theirKit)}
                   ground={groundPresentation ?? undefined}
+                  crowdHomeSide={home ? "us" : "them"}
                 />
                 {finishedReplay ? (
                   <>
