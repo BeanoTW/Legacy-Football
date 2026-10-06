@@ -78,8 +78,15 @@ export function whistle(ctx: Ctx, dest: AudioNode, t0: number, pattern: WhistleP
   return end;
 }
 
+export interface CrowdBedProfile {
+  density: number;
+  size: number;
+  enclosure: number;
+}
+
 export interface CrowdBed {
   setIntensity(value: number): void;
+  setProfile(profile: CrowdBedProfile): void;
   stop(): void;
 }
 
@@ -95,22 +102,64 @@ export function crowdBed(ctx: Ctx, dest: AudioNode, t0: number): CrowdBed {
   high.frequency.value = 90;
   const gain = ctx.createGain();
   gain.gain.setValueAtTime(0.0001, t0);
-  src.connect(high).connect(low).connect(gain).connect(dest);
+
+  // A short reflected path gives covered/enclosed grounds a little roof slap
+  // without turning the synthetic crowd into a cavernous reverb wash.
+  const echoDelay = ctx.createDelay(0.2);
+  const echoFilter = ctx.createBiquadFilter();
+  echoFilter.type = "lowpass";
+  echoFilter.frequency.value = 1800;
+  const echoGain = ctx.createGain();
+  echoGain.gain.setValueAtTime(0.0001, t0);
+
+  src.connect(high).connect(low).connect(gain);
+  gain.connect(dest);
+  gain.connect(echoDelay).connect(echoFilter).connect(echoGain).connect(dest);
   src.start(t0);
+
   let stopped = false;
+  let intensity = 0.25;
+  let profile: CrowdBedProfile = { density: 0.65, size: 0.25, enclosure: 0.25 };
+
+  const apply = () => {
+    if (stopped) return;
+    const v = clamp(intensity);
+    const density = clamp(profile.density);
+    const size = clamp(profile.size);
+    const enclosure = clamp(profile.enclosure);
+    const now = ctx.currentTime;
+
+    // A packed little covered ground can feel fierce without simply becoming
+    // louder than a 50,000-seat stadium. Size affects scale; density and
+    // enclosure affect presence and reflected energy.
+    const scale = (0.74 + size * 0.24) * (0.68 + density * 0.42) * (0.92 + enclosure * 0.16);
+    low.frequency.setTargetAtTime(620 + v * 1780 + enclosure * 220, now, 0.18);
+    gain.gain.setTargetAtTime((0.016 + v * 0.108) * scale, now, 0.22);
+    echoDelay.delayTime.setTargetAtTime(0.035 + enclosure * 0.045, now, 0.2);
+    echoFilter.frequency.setTargetAtTime(1250 + enclosure * 1450, now, 0.2);
+    echoGain.gain.setTargetAtTime(0.002 + enclosure * (0.012 + v * 0.024), now, 0.24);
+  };
+
+  apply();
   return {
     setIntensity(value: number) {
-      if (stopped) return;
-      const v = clamp(value);
-      const now = ctx.currentTime;
-      low.frequency.setTargetAtTime(650 + v * 1850, now, 0.18);
-      gain.gain.setTargetAtTime(0.018 + v * 0.11, now, 0.22);
+      intensity = clamp(value);
+      apply();
+    },
+    setProfile(next: CrowdBedProfile) {
+      profile = {
+        density: clamp(next.density),
+        size: clamp(next.size),
+        enclosure: clamp(next.enclosure),
+      };
+      apply();
     },
     stop() {
       if (stopped) return;
       stopped = true;
       const now = ctx.currentTime;
       gain.gain.setTargetAtTime(0.0001, now, 0.18);
+      echoGain.gain.setTargetAtTime(0.0001, now, 0.12);
       src.stop(now + 0.8);
     },
   };
