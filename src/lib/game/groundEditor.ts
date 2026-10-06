@@ -21,6 +21,7 @@ import {
   type CornerSlot,
   type GroundDesign,
   type GroundStandDesign,
+  standStructuralFootprint,
   type StandForm,
   type StandLook,
   type StandMaterial,
@@ -86,15 +87,13 @@ export function standSizeLimits(design: GroundDesign, side: StandSide, capacity?
 /** Canonical physical footprint for a purchased stand capacity.
  * Early growth extends along the touchline/end; once that envelope fills,
  * additional capacity drives depth and then height/structural level. */
-export function standFootprintForCapacity(design: GroundDesign, side: StandSide, capacity: number) {
-  const limits = standSizeLimits(design, side, capacity);
-  const cap = Math.max(0, capacity);
-  const longSide = isTouchline(side);
-  const widthCeiling = longSide ? 96 : 58;
-  const span = Math.min(widthCeiling, Math.max(18, Math.round(18 + cap * 0.04)));
-  const overflow = Math.max(0, cap - Math.max(0, (widthCeiling - 18) / 0.04));
-  const depth = Math.min(limits.depth.max, Math.max(4, Math.round(4 + overflow / 450)));
-  return { span: clamp(span, limits.span.min, limits.span.max), depth: clamp(depth, limits.depth.min, limits.depth.max) };
+export function standFootprintForCapacity(
+  design: GroundDesign,
+  side: StandSide,
+  capacity: number,
+  variant: "traditional" | "longLow" | "compact" = "traditional",
+) {
+  return standStructuralFootprint(side, capacity, design.stands[side].level, variant);
 }
 
 /** Which standing/roof choices make sense for a form. */

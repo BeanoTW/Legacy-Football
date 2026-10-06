@@ -89,7 +89,8 @@ export function StandBuildChooser({
   const capacityEffect = spec.effects.find((e) => e.kind === "capacity") as { add: number } | undefined;
   const standing = STANDING_OPTIONS.find((o) => o.id === build.standing)!;
   const roof = roofs.find((o) => o.id === build.roof);
-  const addedCapacity = capacityEffect ? Math.round((capacityEffect.add * standing.capacity * (roof?.capacity ?? 1)) / 50) * 50 : 0;
+  const variant = STAND_VARIANTS.find((o) => o.id === (build.variant ?? "traditional"));
+  const addedCapacity = capacityEffect ? Math.round((capacityEffect.add * standing.capacity * (roof?.capacity ?? 1) * (variant?.capacity ?? 1)) / 50) * 50 : 0;
 
   return (
     <div className="space-y-3">
@@ -433,13 +434,15 @@ function SelectionPanel({
         {d.form !== "open" && asset ? (
           <Field label="Physical structure">
             {(() => {
-              const footprint = standFootprintForCapacity(design, side, asset.capacity);
+              const build = standBuild(state, asset.id, asset.level);
+              const footprint = standFootprintForCapacity(design, side, asset.capacity, build.variant ?? "traditional");
+              const variantLabel = STAND_VARIANTS.find((option) => option.id === (build.variant ?? "traditional"))?.label ?? "Traditional";
               return (
                 <div className="rounded-xl border bg-muted/20 px-3 py-2">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <strong className="block text-xs">{asset.capacity.toLocaleString("en-GB")} places</strong>
-                      <span className="text-[10.5px] text-muted-foreground">Approx. {footprint.span}m × {footprint.depth}m built footprint</span>
+                      <span className="text-[10.5px] text-muted-foreground">Approx. {footprint.span}m × {footprint.depth}m · {variantLabel}</span>
                     </div>
                     <span className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Purchased</span>
                   </div>
