@@ -342,7 +342,6 @@ function StandDevelopmentPanel({
   asset: InfrastructureAsset;
   onApprove: (spec: ProjectSpec) => void;
   mode?: "all" | "maintenance";
-}
 }) {
   const projects = projectCatalogue(state, asset.id).filter((spec) =>
     (mode === "maintenance"
