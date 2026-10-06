@@ -37,6 +37,7 @@ import {
 import { fmtMoney, fmtMoneyExact } from "@/lib/game/engine";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { currentAbsoluteDay, upcomingTimelineEvents } from "@/lib/game/timeline";
 
 type View = "hub" | "market" | "free" | "shortlist" | "deals" | "history";
 
@@ -215,6 +216,90 @@ export function TransfersTab({
   );
 }
 
+function transferStageLabel(stage: ReturnType<typeof openNegotiations>[number]["stage"]): string {
+  switch (stage) {
+    case "enquiry": return "Enquiry";
+    case "clubTalks": return "Club talks";
+    case "playerTalks": return "Player talks";
+    case "agreed": return "Deal agreed";
+    case "registration": return "Medical & registration";
+    default: return stage;
+  }
+}
+
+function ActiveBusiness({ state, setView }: { state: GameState; setView: (view: View) => void }) {
+  const liveDeals = openNegotiations(state);
+  const now = currentAbsoluteDay(state);
+  const timeline = upcomingTimelineEvents(state, 28)
+    .filter((event) => event.absoluteDay >= now && (event.kind === "transfer" || event.kind === "scouting"));
+  const incoming = liveDeals.filter((deal) => deal.direction === "in");
+  const outgoing = liveDeals.filter((deal) => deal.direction === "out");
+  const scoutingDue = timeline.filter((event) => event.kind === "scouting");
+  const transferDue = timeline.filter((event) => event.kind === "transfer");
+  const nextDeadlines = timeline.slice(0, 4);
+
+  return (
+    <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+      <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">Active business</div>
+          <h3 className="font-display text-xl">Everything currently moving</h3>
+        </div>
+        <button onClick={() => setView("deals")} className="shrink-0 text-xs font-semibold text-primary">
+          Open negotiations →
+        </button>
+      </div>
+      <div className="grid grid-cols-4 divide-x border-b text-center">
+        <div className="px-2 py-2.5"><div className="font-display text-lg">{incoming.length}</div><div className="text-[9px] uppercase text-muted-foreground">Incoming</div></div>
+        <div className="px-2 py-2.5"><div className="font-display text-lg">{outgoing.length}</div><div className="text-[9px] uppercase text-muted-foreground">Outgoing</div></div>
+        <div className="px-2 py-2.5"><div className="font-display text-lg">{transferDue.length}</div><div className="text-[9px] uppercase text-muted-foreground">Transfer due</div></div>
+        <div className="px-2 py-2.5"><div className="font-display text-lg">{scoutingDue.length}</div><div className="text-[9px] uppercase text-muted-foreground">Scout due</div></div>
+      </div>
+
+      {liveDeals.length ? (
+        <div className="divide-y">
+          {liveDeals.slice(0, 5).map((deal) => {
+            const player = playerById(state, deal.playerId);
+            return (
+              <button key={deal.id} type="button" onClick={() => setView("deals")} className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-muted/30">
+                <span className={cn("grid size-8 shrink-0 place-items-center rounded-full text-xs font-black",
+                  deal.direction === "in" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-amber-500/10 text-amber-700 dark:text-amber-300")}>
+                  {deal.direction === "in" ? "IN" : "OUT"}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold">{player ? playerName(player) : "Player"}</span>
+                  <span className="block truncate text-[11px] text-muted-foreground">
+                    {transferStageLabel(deal.stage)} · {deal.fee > 0 ? fmtMoney(deal.fee) : "Free transfer"}
+                    {deal.competingClubId ? " · Rival bid active" : ""}
+                  </span>
+                </span>
+                <span className="shrink-0 text-[10px] font-semibold text-primary">View</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="px-4 py-3 text-sm text-muted-foreground">No negotiations are live right now.</div>
+      )}
+
+      {nextDeadlines.length > 0 && (
+        <div className="border-t bg-muted/20 px-4 py-3">
+          <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Next deadlines & returns</div>
+          <div className="grid gap-1.5 sm:grid-cols-2">
+            {nextDeadlines.map((event) => {
+              const days = Math.max(0, event.absoluteDay - now);
+              return <div key={event.id} className="flex min-w-0 items-center justify-between gap-2 rounded-lg bg-background/70 px-2.5 py-2 text-xs">
+                <span className="min-w-0 truncate"><strong>{event.label}</strong>{event.detail ? <span className="text-muted-foreground"> · {event.detail}</span> : null}</span>
+                <span className="shrink-0 text-muted-foreground">{days === 0 ? "Today" : days === 1 ? "Tomorrow" : `${days}d`}</span>
+              </div>;
+            })}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function TransferHub({ state, setView }: { state: GameState; setView: (view: View) => void }) {
   const liveDeals = openNegotiations(state);
   const recent = state.football?.transferHistory.slice(-3).reverse() ?? [];
@@ -243,44 +328,47 @@ function TransferHub({ state, setView }: { state: GameState; setView: (view: Vie
     ],
   ];
   return (
-    <div className="grid gap-4 lg:grid-cols-[1.4fr_0.8fr]">
-      <div className="grid gap-3 sm:grid-cols-2">
-        {cards.map(([target, title, detail]) => (
-          <button
-            key={target}
-            onClick={() => setView(target)}
-            className="rounded-xl border bg-card p-4 text-left shadow-sm transition hover:border-primary/50 hover:bg-muted/30"
-          >
-            <div className="font-display text-xl">{title}</div>
-            <p className="mt-1 text-sm text-muted-foreground">{detail}</p>
-            <div className="mt-4 text-xs font-semibold text-primary">Open →</div>
-          </button>
-        ))}
-      </div>
-      <aside className="rounded-xl border bg-card p-4 shadow-sm">
-        <div className="flex items-center justify-between">
-          <h3 className="font-display text-xl">Recent business</h3>
-          <button onClick={() => setView("history")} className="text-xs text-primary">
-            View all
-          </button>
-        </div>
-        <div className="mt-3 space-y-3">
-          {recent.map((record) => (
-            <div key={record.id} className="border-b pb-3 text-sm last:border-0">
-              <div className="font-semibold">{record.playerName}</div>
-              <div className="text-xs text-muted-foreground">
-                {record.fromClubId ?? "Free agent"} → {record.toClubId ?? "Released"}
-              </div>
-              <div className="mt-1 font-mono text-xs">{fmtMoney(record.fee)}</div>
-            </div>
+    <div className="space-y-4">
+      <ActiveBusiness state={state} setView={setView} />
+      <div className="grid gap-4 lg:grid-cols-[1.4fr_0.8fr]">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {cards.map(([target, title, detail]) => (
+            <button
+              key={target}
+              onClick={() => setView(target)}
+              className="rounded-xl border bg-card p-4 text-left shadow-sm transition hover:border-primary/50 hover:bg-muted/30"
+            >
+              <div className="font-display text-xl">{title}</div>
+              <p className="mt-1 text-sm text-muted-foreground">{detail}</p>
+              <div className="mt-4 text-xs font-semibold text-primary">Open →</div>
+            </button>
           ))}
-          {!recent.length && (
-            <p className="text-sm text-muted-foreground">
-              Your transfer story is waiting for its first signing.
-            </p>
-          )}
         </div>
-      </aside>
+        <aside className="rounded-xl border bg-card p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h3 className="font-display text-xl">Recent business</h3>
+            <button onClick={() => setView("history")} className="text-xs text-primary">
+              View all
+            </button>
+          </div>
+          <div className="mt-3 space-y-3">
+            {recent.map((record) => (
+              <div key={record.id} className="border-b pb-3 text-sm last:border-0">
+                <div className="font-semibold">{record.playerName}</div>
+                <div className="text-xs text-muted-foreground">
+                  {record.fromClubId ?? "Free agent"} → {record.toClubId ?? "Released"}
+                </div>
+                <div className="mt-1 font-mono text-xs">{fmtMoney(record.fee)}</div>
+              </div>
+            ))}
+            {!recent.length && (
+              <p className="text-sm text-muted-foreground">
+                Your transfer story is waiting for its first signing.
+              </p>
+            )}
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }
