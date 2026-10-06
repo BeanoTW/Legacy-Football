@@ -6,6 +6,7 @@ import { EVENT_VISUALS, EVENT_OUTCOME_LABEL, eventDateLabel, supporterEventOutco
 import { currentAbsoluteDay } from "@/lib/game/timeline";
 import { fmtMoneyExact } from "@/lib/game/format";
 import { cn } from "@/lib/utils";
+import { EventArtTexture, TurnoutIndicator } from "./EventVisualPrimitives";
 
 const MOTIF_ICONS = { pitch: Users, signing: Pencil, coaching: GraduationCap, school: School, tools: Paintbrush, forum: MessagesSquare, festival: Flag, shirt: Shirt, archive: Landmark, trophy: Trophy };
 
@@ -13,8 +14,9 @@ const MOTIF_ICONS = { pitch: Users, signing: Pencil, coaching: GraduationCap, sc
 export function SupporterEventArt({ eventId }: { eventId: SupporterEventId }) {
   const visual = EVENT_VISUALS[eventId];
   const Icon = MOTIF_ICONS[visual.motif];
-  return <div className={cn("lf-event-art", visual.tone)} aria-hidden="true">
-    <svg viewBox="0 0 160 100" focusable="false">
+  return <div className={cn("lf-event-art", visual.tone, `border-${visual.borderStyle}`)} aria-hidden="true">
+    <EventArtTexture pattern={visual.texturePattern} />
+    <svg viewBox="0 0 160 100" focusable="false" className="relative z-10">
       <path d="M0 76H160V100H0Z" fill="currentColor" opacity=".12" />
       <path d="M8 76V56H35V47H125V56H152V76M8 63H152M35 47L45 36H115L125 47" fill="none" stroke="currentColor" strokeWidth="2" opacity=".3" />
       <path d="M16 87H144M40 78V97M120 78V97" fill="none" stroke="currentColor" opacity=".3" />
@@ -42,12 +44,21 @@ export function SupporterEventSummary({ event }: { event: ScheduledSupporterEven
   const definition = SUPPORTER_EVENTS.find((entry) => entry.id === event.eventId);
   if (!definition) return null;
   const outcome = supporterEventOutcome(event);
-  return <article className="overflow-hidden rounded-lg border bg-card">
-    <div className="flex items-center gap-3 p-3"><div className="w-24 shrink-0"><SupporterEventArt eventId={event.eventId}/></div><div className="min-w-0">
-      <p className={cn("text-[10px] font-semibold uppercase", outcome === "strong" ? "text-income" : outcome === "weak" ? "text-chart-2" : "text-primary")}>{outcome ? EVENT_OUTCOME_LABEL[outcome] : event.status === "completed" ? "Event completed" : "Booked · coming up"}</p>
-      <h3 className="font-display text-xl leading-tight">{definition.name}</h3>
-      <p className="mt-1 text-[11px] text-muted-foreground">{eventDateLabel(event.scheduledAbsoluteDay)}</p>
-    </div></div>
+  const visual = EVENT_VISUALS[event.eventId];
+  return <article className={cn("lf-event-summary overflow-hidden rounded-lg border bg-card", `border-${visual.borderStyle}`, outcome && `outcome-${outcome}`)}>
+    <div className="flex items-center gap-3 p-3">
+      <div className="w-24 shrink-0"><SupporterEventArt eventId={event.eventId}/></div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          <p className={cn("text-[10px] font-semibold uppercase", outcome === "strong" ? "text-income" : outcome === "weak" ? "text-chart-2" : "text-primary")}>
+            {outcome ? EVENT_OUTCOME_LABEL[outcome] : event.status === "completed" ? "Event completed" : "Booked · coming up"}
+          </p>
+          <TurnoutIndicator outcome={outcome} size="sm" />
+        </div>
+        <h3 className="font-display text-xl leading-tight">{definition.name}</h3>
+        <p className="mt-1 text-[11px] text-muted-foreground">{eventDateLabel(event.scheduledAbsoluteDay)}</p>
+      </div>
+    </div>
     <div className="px-3 pb-3">{event.status === "completed" ? <ResultMetrics event={event}/> : <p className="border-t pt-2 text-xs text-muted-foreground">{fmtMoneyExact(event.cost)} committed</p>}</div>
   </article>;
 }
@@ -63,7 +74,7 @@ export function SupporterEventsPanel({ state, act }: { state: GameState; act: (f
     <section><h2 className="mb-2 text-xs font-semibold">Community & supporter events</h2><div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
       {SUPPORTER_EVENTS.map((event) => {
         const available = eventAvailable(state, event);
-        return <article key={event.id} className="flex min-w-0 flex-col overflow-hidden rounded-lg border bg-card">
+        return <article key={event.id} className={cn("lf-event-booking-card flex min-w-0 flex-col overflow-hidden rounded-lg border bg-card", `border-${EVENT_VISUALS[event.id].borderStyle}`, !available.ok && "is-unavailable")}>
           <div className="lf-event-card-top"><SupporterEventArt eventId={event.id}/><span className="text-[10px] font-semibold uppercase text-muted-foreground">{EVENT_VISUALS[event.id].category}</span></div>
           <div className="flex flex-1 flex-col p-3 pt-0"><h3 className="font-display text-xl leading-tight">{event.name}</h3><p className="mt-1 flex-1 text-xs leading-relaxed text-muted-foreground">{event.description}</p>
             <div className="mt-3 flex items-center justify-between gap-2"><strong className="text-xs tabular-nums">{fmtMoneyExact(eventCost(state,event))}</strong><Button size="sm" className="min-h-10" disabled={!available.ok} onClick={() => act((s) => scheduleSupporterEvent(s,event.id,7))}><CalendarPlus/>Schedule</Button></div>
