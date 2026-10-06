@@ -597,7 +597,7 @@ export function FacilitySheet({
 
 function ProjectsPanel({ state, projects, commitments, onCancel, onOpen }: { state: GameState; projects: CapitalProject[]; commitments: number; onCancel: (project: CapitalProject) => void; onOpen: (project: CapitalProject) => void }) {
   const [confirming, setConfirming] = useState<string | null>(null);
-  return <section className="space-y-2">
+  return <section className="space-y-2 pb-16 md:pb-2">
     <div className="flex items-baseline justify-between px-0.5"><h2 className="font-display text-base">Capital works</h2><span className="text-xs text-muted-foreground tnum">{fmtMoneyExact(commitments)} still to pay</span></div>
     {projects.length === 0 ? <p className="rounded-xl border bg-card p-3 text-xs text-muted-foreground">Nothing under way. Stands and corners are built in Ground Studio; services are upgraded from Services.</p> : projects.map((project) => {
       const asset = assetById(state, project.assetId);
@@ -608,7 +608,7 @@ function ProjectsPanel({ state, projects, commitments, onCancel, onOpen }: { sta
         </button>
         <div className="flex justify-end px-0.5">
           {confirming === project.id ? (
-            <span className="flex items-center gap-2 text-[11px]">
+            <span className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1 text-[11px]">
               <span className="text-muted-foreground">Cancel? 15% of what's left is charged.</span>
               <button type="button" className="font-semibold text-expense" onClick={() => { onCancel(project); setConfirming(null); }}>Cancel works</button>
               <button type="button" className="font-semibold" onClick={() => setConfirming(null)}>Keep</button>
