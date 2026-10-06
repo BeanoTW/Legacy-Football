@@ -470,7 +470,13 @@ function sideTargets(
       continue;
     }
     const speed = target || id === presser || id === nextReceiver ? SPRINT_SPEED : RUN_SPEED;
-    next.set(id, limitMove(from, to, speed * seconds));
+    const limited = limitMove(from, to, speed * seconds);
+    next.set(id, limited);
+    // Once a nominated receiver can physically reach the pass endpoint, keep
+    // that exact first-touch position fixed while spacing moves teammates
+    // around them. Otherwise spreadOut can nudge the receiver away from the
+    // ball after the speed limit has already been satisfied.
+    if (target && metres(limited, to) < 0.05) fixed.add(id);
   }
   if (!holdShape) spreadOut(next, side.lineup, fixed);
   return next;
