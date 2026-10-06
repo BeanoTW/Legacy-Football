@@ -1494,4 +1494,50 @@ function dugouts(scene: Scene, design: GroundDesign) {
   const chosen = design.fixtures?.dugouts ?? "auto";
   const style = chosen === "auto" ? (level >= 4 ? "perspex" : level >= 3 ? "brick" : "wooden") : chosen;
   for (const x of [-9, 9]) {
-    const x0 = x
+    const x0 = x - 3.6;
+    const x1 = x + 3.6;
+    const y0 = HALF_W + 2.2;
+    const y1 = HALF_W + 3.9;
+    const prims: ScenePrimitive[] = [];
+    if (style === "perspex") {
+      // Clear curved-look shell over a row of seats.
+      prims.push(...solid(boxFaces(x0 + 0.3, y0 + 0.5, 0, x1 - 0.3, y1 - 0.1, 0.7), "#2a3036"));
+      prims.push(...solid(prismFaces([[0, 0], [0, 2.1], [1.2, 2.3], [1.7, 1.6], [1.7, 0]], x0, x1, (a, o, z) => v(a, y0 + o, z)), "#a9d3e2").map((p) => ({ ...p, opacity: 0.5 })));
+    } else if (style === "brick") {
+      prims.push(...solid(boxFaces(x0, y0 + 0.9, 0, x1, y1, 2.1), "#9a5d42"));
+      prims.push(...solid(boxFaces(x0 - 0.2, y0 - 0.1, 2.1, x1 + 0.2, y1 + 0.1, 2.35), C.roofDark));
+      prims.push(...solid(boxFaces(x0 + 0.4, y0 + 0.2, 0, x1 - 0.4, y0 + 0.9, 0.6), "#2a3036"));
+    } else {
+      // Wooden hut with a dark open front.
+      prims.push(...solid(boxFaces(x0, y0, 0, x1, y1, 2), "#8a6a45"));
+      prims.push({ d: pathOf([v(x0 + 0.5, y0 - 0.02, 0.4), v(x1 - 0.5, y0 - 0.02, 0.4), v(x1 - 0.5, y0 - 0.02, 1.6), v(x0 + 0.5, y0 - 0.02, 1.6)]), fill: "#2b231b", opacity: 0.9 });
+    }
+    scene.shadowSolid([...rect(x0, y0, x1, y1), ...rect(x0, y0, x1, y1, 2.2)], 0.22);
+    scene.add(prims, v(x, (y0 + y1) / 2, 1));
+  }
+  select("dugouts", v(0, HALF_W + 3, 2.5), rect(-13, HALF_W + 2, 13, HALF_W + 4.2), 2.4);
+}
+
+function scoreboard(scene: Scene, design: GroundDesign) {
+  const level = maxStandLevel(design);
+  const chosen = design.fixtures?.scoreboard ?? "auto";
+  const style = chosen === "auto" ? (level >= 4 ? "electronic" : "manual") : chosen;
+  if (style === "none") return;
+  // Behind an open end if there is one, otherwise in the South-East corner.
+  const openEnd = (["N", "S"] as StandSide[]).find((side) => design.stands[side].form === "open");
+  const x = openEnd ? (openEnd === "N" ? 1 : -1) * (sideFront(openEnd, design.stands[openEnd]) + 9) : -(sideFront("S", design.stands.S) + 6);
+  const y = openEnd ? 18 : -(sideFront("E", design.stands.E) + 6);
+  const prims: ScenePrimitive[] = [];
+  const electronic = style === "electronic";
+  const legH = electronic ? 6 : 2.6;
+  const h = electronic ? 4 : 2.8;
+  const w = electronic ? 5 : 3.2;
+  for (const dy of [-w + 0.4, w - 0.4]) prims.push({ d: pathOf([v(x, y + dy, 0), v(x, y + dy, legH)], false), fill: "none", stroke: "#3b3f43", sw: widthAt(v(x, y, 0), electronic ? 1.1 : 0.8) });
+  // Face the pitch: the board's normal points towards x = 0.
+  const fx = x > 0 ? -0.06 : 0.06;
+  const board = [v(x, y - w, legH), v(x, y + w, legH), v(x, y + w, legH + h), v(x, y - w, legH + h)];
+  prims.push(...solid(prismFaces([[-0.25, legH], [-0.25, legH + h], [0.25, legH + h], [0.25, legH]], y - w, y + w, (a, o, z) => v(x + o, a, z)), electronic ? "#15181b" : "#1f2a24"));
+  if (electronic) {
+    // Lit amber score and a glow.
+    for (const [dy, tone] of [[-2.4, "#ffcf5a"], [-0.8, "#ffffff"], [0.8, "#ffffff"], [2.4, "#ffcf5a"]] as const) {
+      prims.push({ d: pathOf([v(x + fx * 5, y + dy - 0.55, 
