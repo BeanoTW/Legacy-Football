@@ -60,6 +60,8 @@ export interface GroundStandDesign {
 
 export interface GroundCornerDesign {
   form: CornerForm;
+  /** Cosmetic access tunnel through an existing corner stand. */
+  accessTunnel?: boolean;
   /** Optional: corner infill footprint. Defaults to small. */
   size?: CornerSize;
   /** Infill geometry. Angled chamfers the pitch-facing edge; rounded uses a faceted curve. */
