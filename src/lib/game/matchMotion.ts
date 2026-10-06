@@ -702,9 +702,21 @@ export function motionFrameForSequence({
     holdsShape(sequence, boundedIndex),
   );
 
+  const activeAction = sequence.actions[boundedIndex];
   const sideFrame = (side: MatchMotionSide, from: MatchPositionMap, to: MatchPositionMap) => {
     const frame = new Map<string, MatchPitchPoint>();
     for (const player of side.lineup) {
+      // A carry means player and ball are one moving object. Drive the carrier
+      // from the action's canonical start/end points so residual formation
+      // spacing from the previous action can never separate him from the ball.
+      if (
+        activeAction.kind === "carry" &&
+        activeAction.playerId === player.playerId &&
+        activeAction.side === sideId(side.ours)
+      ) {
+        frame.set(player.playerId, lerpPoint(activeAction.start, activeAction.end, localProgress));
+        continue;
+      }
       const a = from.get(player.playerId) ?? fallbackBase(side, player);
       const b = to.get(player.playerId) ?? a;
       frame.set(player.playerId, lerpPoint(a, b, localProgress));
