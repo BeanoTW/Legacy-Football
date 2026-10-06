@@ -553,7 +553,13 @@ function StandDevelopment({ state, asset, apply }: { state: GameState; asset: In
           <Field label="Develop corner">
             <div className="flex flex-wrap gap-1.5">
               {cornerFormOptions(design, slot).filter((option) => option.id !== "open").map((option) => (
-                <OptionChip key={option.id} active={false} disabled={!option.allowed || !expansion} title={option.reason ?? (!expansion ? "No physical expansion is currently available" : undefined)} onClick={() => {}}>
+                <OptionChip
+                  key={option.id}
+                  active={c.form === option.id}
+                  disabled={!option.allowed || !expansion}
+                  title={option.reason ?? (!expansion ? "No physical expansion is currently available" : undefined)}
+                  onClick={() => apply((s) => updateCorner(s, slot, { form: option.id }))}
+                >
                   {option.label}{!option.allowed || !expansion ? " 🔒" : ""}
                 </OptionChip>
               ))}
