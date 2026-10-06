@@ -6,6 +6,9 @@ import { playerLeagueId } from "./league";
 import { clubFootballStrength } from "./footballStrength";
 import { aiClubManager } from "./aiClubManager";
 import { managerFootballIdentity } from "./managerIdentity";
+import { supporterEventArticles } from "./supporterEventNews";
+import type { SupporterEventId } from "./supporterEvents";
+import type { EventOutcome } from "./supporterEventPresentation";
 
 export type NewsKind =
   | "matchReport"
@@ -53,6 +56,11 @@ export interface NewsArticle {
   scoreline?: NewsScoreline;
   facts?: { label: string; value: string }[];
   quote?: NewsQuote;
+  communityEvent?: {
+    eventId: SupporterEventId;
+    phase: "announcement" | "result";
+    outcome: EventOutcome | null;
+  };
   tags: string[];
   involvesUser: boolean;
   reactions: { likes: number; comments: number; shares: number };
@@ -586,6 +594,7 @@ export function newsFeed(state: GameState, limit = 60): NewsArticle[] {
 
   articles.push(...appointments(state));
   articles.push(...livingClubArticles(state));
+  articles.push(...supporterEventArticles(state));
   const table = tableWatch(state);
   if (table) articles.push(table);
   articles.push(...seasonVerdicts(state));
