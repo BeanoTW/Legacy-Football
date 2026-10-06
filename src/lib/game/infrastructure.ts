@@ -665,6 +665,45 @@ export function assetScore(a: InfrastructureAsset): number {
   return clamp(Math.round(levelPct * 0.6 + a.condition * 0.4), 0, 100);
 }
 
+export interface FacilityProgressionSpec {
+  role: string;
+  current: string;
+  next: string | null;
+  benefits: string[];
+  dependency: string | null;
+}
+
+/**
+ * Product-facing facility ladder. The simulation already consumes facility
+ * level + condition through facilityModifiers(); this describes what those
+ * levels mean and gives future UI/visual passes one canonical contract.
+ */
+export function facilityProgressionSpec(s: GameState, a: InfrastructureAsset): FacilityProgressionSpec {
+  const cfg = ASSET_CONFIG[a.type];
+  const current = cfg.levels[a.level - 1] ?? `Level ${a.level}`;
+  const next = a.level < cfg.maxLevel ? cfg.levels[a.level] : null;
+  const dependency =
+    a.type === "hospitality" && a.level >= 3 ? "Requires a developed covered stand envelope." :
+    a.type === "concessions" && a.level >= 2 ? "Requires sufficient concourse/service space." :
+    a.type === "sanitary" && a.level >= 2 ? "Requires modern spectator circulation and access." :
+    a.type === "shop" && a.level >= 2 ? "Requires permanent retail space at the ground." :
+    null;
+  const benefits: Record<InfrastructureAssetType, string[]> = {
+    stand: ["Matchday capacity", "Supporter demand", "Ground quality"],
+    pitch: ["Playing surface", "Sporting quality"],
+    shop: ["Commercial power", "Retail capability"],
+    parking: ["Matchday access", "Parking income"],
+    hospitality: ["Hospitality income", "Commercial power"],
+    concessions: ["Spend per supporter", "Supporter experience"],
+    sanitary: ["Accessibility", "Supporter experience"],
+    training: ["Player development", "Staff and recruitment attraction"],
+    medical: ["Medical capability", "Staff and recruitment attraction"],
+    offices: ["Commercial capability", "Club operations"],
+    fanZone: ["Supporter demand", "Matchday experience"],
+  };
+  return { role: cfg.label, current, next, benefits: benefits[a.type], dependency };
+}
+
 export interface FacilityModifiers {
   /** Multipliers around 1.0. */
   hospitalityIncome: number;
