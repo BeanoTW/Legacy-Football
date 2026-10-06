@@ -68,13 +68,18 @@ export function standFormOptions(design: GroundDesign, side: StandSide): FormOpt
   }));
 }
 
-/** Span and depth ranges the side's level supports (metres). */
-export function standSizeLimits(design: GroundDesign, side: StandSide) {
+/** Span/depth envelope the club has actually paid to build. A stand can be
+ * drawn smaller for character, never larger than its real capacity supports. */
+export function standSizeLimits(design: GroundDesign, side: StandSide, capacity?: number) {
   const level = design.stands[side].level;
-  const maxSpan = isTouchline(side) ? 100 : 64;
+  const structuralSpan = Math.min(isTouchline(side) ? 100 : 64, 30 + level * 16);
+  const structuralDepth = Math.min(26, 6 + level * 4);
+  const cap = Math.max(0, capacity ?? 0);
+  const capacitySpan = cap > 0 ? Math.round(Math.max(18, Math.min(isTouchline(side) ? 96 : 58, 16 + cap * 0.04))) : structuralSpan;
+  const capacityDepth = cap > 0 ? Math.round(Math.max(4, Math.min(24, 4 + cap / 180))) : structuralDepth;
   return {
-    span: { min: 14, max: Math.min(maxSpan, 30 + level * 16) },
-    depth: { min: 3, max: Math.min(26, 6 + level * 4) },
+    span: { min: 14, max: Math.max(14, Math.min(structuralSpan, capacitySpan)) },
+    depth: { min: 3, max: Math.max(3, Math.min(structuralDepth, capacityDepth)) },
   };
 }
 
@@ -145,7 +150,8 @@ export function updateStand(s: GameState, side: StandSide, patch: Partial<Omit<G
     const nextForm = patch.form ?? current.form;
     const option = standFormOptions(design, side).find((o) => o.id === nextForm);
     if (!option?.allowed) return option?.reason ?? "Not available";
-    const limits = standSizeLimits(design, side);
+    const asset = (s.infrastructure?.assets ?? []).find((candidate) => candidate.type === "stand" && candidate.location === side);
+    const limits = standSizeLimits(design, side, asset?.capacity);
     const standing = patch.standing ?? (standingOptions(nextForm).includes(current.standing) ? current.standing : standingOptions(nextForm)[0]);
     const roofs = roofOptions(nextForm);
     const roof = patch.roof && roofs.includes(patch.roof) ? patch.roof : roofs.includes(current.roof) && !patch.form ? current.roof : roofs[0];
@@ -163,7 +169,7 @@ export function updateStand(s: GameState, side: StandSide, patch: Partial<Omit<G
   });
 }
 
-export function updateCorner(s: GameState, slot: CornerSlot, patch: { form?: CornerForm; size?: CornerSize }): EditResult {
+export function updateCorner(s: GameState, slot: CornerSlot, patch: { form?: CornerForm; size?: CornerSize; shape?: "angled" | "rounded" }): EditResult {
   return editDesign(s, (design) => {
     if (patch.form) {
       const option = cornerFormOptions(design, slot).find((o) => o.id === patch.form);
