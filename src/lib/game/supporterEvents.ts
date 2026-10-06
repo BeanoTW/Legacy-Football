@@ -1,5 +1,5 @@
 import type { GameState, Staff } from "./types";
-import { postEntry } from "./finance";
+import { migrateLegacyLedger, postEntry } from "./finance";
 import { footballLevelOfUser } from "./footballLevel";
 import { currentAbsoluteDay } from "./timeline";
 
@@ -150,7 +150,12 @@ export function eventAvailable(s:GameState,d:SupporterEventDefinition):{ok:boole
   return {ok:true};
 }
 export function scheduleSupporterEvent(s:GameState,eventId:SupporterEventId,daysAhead=7):{state:GameState;message:string}{
-  const next=structuredClone(s); const d=eventDefinition(eventId); const avail=eventAvailable(next,d);
+  const next=structuredClone(s);
+  // A supporter event can be the first cash action on a brand-new career.
+  // Bootstrap the canonical ledger before spending so cash and finance entries
+  // reconcile immediately instead of waiting for the first weekly tick/load.
+  migrateLegacyLedger(next);
+  const d=eventDefinition(eventId); const avail=eventAvailable(next,d);
   if(!avail.ok) return {state:s,message:avail.reason??"Event unavailable"};
   const cost=eventCost(next,d); const now=currentAbsoluteDay(next); const day=now+clamp(Math.round(daysAhead),3,21);
   postEntry(next,{category:"Commercial",subcategory:"Supporter event",description:d.name,amount:cost,direction:"expense",sourceSystem:"commercial",dedupeKey:`supporter-event:${next.season}:${now}:${eventId}`});
