@@ -40,9 +40,9 @@ import { ClubConversationDialog } from "./ClubConversationDialog";
 const STAT_KEYS: (keyof Staff["stats"])[] = ["tactics", "attack", "defense", "development", "scouting", "negotiation", "medical", "motivation"];
 const STAT_LABEL: Record<keyof Staff["stats"], string> = { tactics: "Tac", attack: "Att", defense: "Def", development: "Dev", scouting: "Sct", negotiation: "Neg", medical: "Med", motivation: "Mot" };
 type StaffView = "home" | "team" | "market";
-const ROLES: StaffRole[] = ["Manager", "Assistant Manager", "Head Coach", "Goalkeeping Coach", "Fitness Coach", "Head of Youth", "Head of Transfers", "Chief Scout", "Scout", "Head Physio", "Sports Scientist"];
+const ROLES: StaffRole[] = ["Manager", "Assistant Manager", "Head Coach", "Goalkeeping Coach", "Fitness Coach", "Head of Youth", "Head of Transfers", "Chief Scout", "Scout", "Head Physio", "Sports Scientist", "Community & Events Officer"];
 const FOOTBALL_ROLES: StaffRole[] = ["Manager", "Assistant Manager", "Head Coach", "Goalkeeping Coach", "Fitness Coach"];
-const QUICK_ROLES: ("All" | StaffRole)[] = ["All", "Manager", "Head Coach", "Assistant Manager", "Head of Transfers", "Head Physio", "Chief Scout"];
+const QUICK_ROLES: ("All" | StaffRole)[] = ["All", "Manager", "Head Coach", "Assistant Manager", "Head of Transfers", "Head Physio", "Chief Scout", "Community & Events Officer"];
 
 function staffImpactLine(state: GameState, staff: Staff): string {
   const coaching = coachingSupport(state);
@@ -59,6 +59,7 @@ function staffImpactLine(state: GameState, staff: Staff): string {
     case "Scout": return `Adds scouting capacity, candidate reach and report quality`;
     case "Head Physio": return `Leads rehabilitation and injury prevention · medical team ${medicalSupport(state).score}/100`;
     case "Sports Scientist": return `Supports recovery and reduces preventable injury risk · medical team ${medicalSupport(state).score}/100`;
+    case "Community & Events Officer": return `Coordinates supporter and community events · cuts organising costs, improves turnout and shortens event cooldowns`;
   }
 }
 
