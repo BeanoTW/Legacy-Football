@@ -1124,4 +1124,181 @@ function compose(scene: Scene, input: SceneInput, anchors: Record<string, V3>) {
       stage === 1
         ? { side: "E", from: -14, to: 14, front: eastFront + 1, depth: 3.5, rake: 1.2, roof: true, seat: "#9aa3a8" }
         : stage === 2
-          ? { side: "E", from: -40, to: 40, front: eastFront, depth: 5, rake: 2.2
+          ? { side: "E", from: -40, to: 40, front: eastFront, depth: 5, rake: 2.2, roof: true, seat: "#9aa3a8" }
+          : stage <= 4
+            ? { side: "E", from: -48, to: 48, front: eastFront, depth: stage === 3 ? 9 : 11, rake: stage === 3 ? 4.5 : 6, roof: true, seat: C.seatAlt }
+            : { side: "E", from: -56, to: 56, front: eastFront, depth: 13, rake: 7, roof: true, seat: C.seatAlt, upper: stage === 6 ? { depth: 10, rake: 8 } : undefined };
+    anchors.stands = stand(scene, styled(east, stage));
+
+    if (lightStyle === "gantry" && stage >= 2) {
+      const z = 8 + Math.min(stage, 4) * 2.2;
+      gantryLights(scene, westFront - 1.4, z, -40, 40);
+      gantryLights(scene, -(eastFront - 1.4), z - 2, -40, 40);
+    }
+  }
+
+  /* ---- Ends ---- */
+  if (stage >= 2) {
+    const endSpec = (side: Side): StandSpec =>
+      stage === 2
+        ? { side, from: -24, to: 24, front: HALF_L + 7, depth: 4, rake: 1.6, roof: false, seat: "#a9b0b3" }
+        : stage === 3
+          ? { side, from: -30, to: 30, front: HALF_L + 7, depth: 8, rake: 4, roof: true, seat: C.seatAlt }
+          : { side, from: -34, to: 34, front: HALF_L + 7, depth: stage >= 5 ? 14 : 10, rake: stage >= 5 ? 8 : 5.5, roof: true, seat: C.seatAlt, upper: stage === 6 ? { depth: 8, rake: 7 } : undefined };
+    stand(scene, styled(endSpec("N"), stage));
+    stand(scene, styled(endSpec("S"), stage));
+  }
+  if (stage >= 4) {
+    // Corners filled with lower infill blocks.
+    for (const [sx, sy] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      const x0 = sx > 0 ? HALF_L + 7 : -HALF_L - 20;
+      const x1 = sx > 0 ? HALF_L + 20 : -HALF_L - 7;
+      const y0 = sy > 0 ? HALF_W + 7 : -HALF_W - 18;
+      const y1 = sy > 0 ? HALF_W + 18 : -HALF_W - 7;
+      building(scene, x0, y0, x1, y1, stage === 6 ? 16 : stage === 5 ? 12 : 8, C.cladding, { roof: C.roof });
+    }
+  }
+
+  /* ---- Club buildings ---- */
+  if (stage === 0) {
+    // Portacabins for offices and changing, a kiosk for the shop.
+    anchors.offices = building(scene, -80, -8, -68, -2, 2.8, C.cabin, { roof: "#8f8f8a" });
+    building(scene, -80, 2, -68, 8, 2.8, C.cabin, { roof: "#8f8f8a" });
+    anchors.shop = building(scene, -72, -36, -66, -31, 2.5, "#3d6a8a", { roof: "#8f8f8a" });
+    anchors.hospitality = building(scene, 64, 18, 72, 24, 2.6, "#e8e2d2", { roof: "#b04a3a" });
+  } else {
+    const clubhouseH = 4 + Math.min(stage, 4) * 1.5;
+    anchors.offices =
+      stage === 1
+        ? building(scene, -84, -10, -66, 12, clubhouseH, "#c8b89a", { pitched: true, roof: C.roofDark })
+        : building(scene, -106, -8, -84, 16, clubhouseH, C.brick, { pitched: stage === 2, roof: C.roofDark });
+    anchors.shop =
+      stage === 1
+        ? building(scene, -78, -40, -66, -30, 4.5, "#3d6a8a", { roof: C.roof })
+        : building(scene, -102, -30, -88, -18, 3.5 + Math.min(stage, 3), stage >= 3 ? "#1f6f69" : "#3d6a8a", { roof: C.roof });
+    anchors.hospitality =
+      stage <= 2
+        ? building(scene, 66, 16, 80, 28, 4, "#e8e2d2", { glassy: true })
+        : building(scene, 92, 14, 116, 40, 6 + stage * 2, C.cladding, { glassy: true, roof: C.roofDark });
+  }
+
+  // Turnstile block / entrance gate by the car park lane.
+  anchors.access =
+    stage >= 2
+      ? building(scene, -90, -56, -82, -50, 3.2, C.brick, { roof: C.roofDark })
+      : building(scene, -64, -46, -58, -40, 2.2, "#6f7b83", { roof: C.roofDark });
+
+  treeBelts(scene, rand);
+
+  for (const id of input.worksAt) {
+    const at = anchors[id];
+    if (!at) continue;
+    if (id === "pitch" || id === "parking") groundworks(scene, id === "pitch" ? v(-HALF_L + 22, 6, 0) : at);
+    else crane(scene, at);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Framing                                                             */
+/* ------------------------------------------------------------------ */
+
+
+/* ------------------------------------------------------------------ */
+/* Slot-based composition (GroundDesign)                               */
+/* ------------------------------------------------------------------ */
+/*
+ * Axes follow sideMapper (authoritative): +x = North end, -x = South end,
+ * +y = West (main) touchline, -y = East touchline, +z = up.
+ *
+ * Each side, corner, fence run, fixture and building is an independent object
+ * so painter-order sorting holds from any orbit angle. Every component also
+ * registers a selectable anchor and a footprint so Ground Studio can select and
+ * highlight it. Optional design fields fall back to "auto" choices that follow
+ * the ground's size, so old saves and generated away grounds keep rendering.
+ */
+
+const SIDE_SIGN: Record<CornerSlot, [number, number]> = { NW: [1, 1], NE: [1, -1], SW: [-1, 1], SE: [-1, -1] };
+const isTouchline = (side: StandSide) => side === "W" || side === "E";
+const clampN = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
+const sideFront = (side: StandSide, d: GroundStandDesign) => (isTouchline(side) ? HALF_W : HALF_L) + 3 + clampN(d.setback, 2, 10);
+
+/** Selectable components and their outlines, gathered while composing. */
+interface Selectable {
+  anchor: V3;
+  /** Ground footprint (closed polygon at z = 0). */
+  footprint: V3[];
+  /** Height of the highlight box (0 = flat outline). */
+  height: number;
+}
+let SELECTABLES: Record<string, Selectable> = {};
+const select = (id: string, anchor: V3, footprint: V3[], height = 0) => {
+  SELECTABLES[id] = { anchor, footprint, height };
+};
+
+interface SideColours { seat: string; seatAlt: string; roof: string; roofDark: string; cladding: string; own: boolean }
+function sideColours(side: StandSide): SideColours {
+  const own = LOOK?.standColours?.[side];
+  if (own) return { ...own, own: true };
+  return { seat: C.seat, seatAlt: C.seatAlt, roof: C.roof, roofDark: C.roofDark, cladding: C.brick, own: false };
+}
+
+const MATERIAL_TONE: Record<StandMaterial, string> = {
+  brick: "#9a5d42",
+  timber: "#8a6a45",
+  concrete: "#b5b1a6",
+  cladding: "#cfd3d6",
+};
+function defaultMaterialFor(form: GroundStandDesign["form"]): StandMaterial {
+  return form === "shelter" ? "timber" : form === "terrace" ? "concrete" : form === "traditional" ? "brick" : "cladding";
+}
+/** Back/fascia colour: a per-stand cladding colour wins; otherwise the material. */
+function backColour(side: StandSide, d: GroundStandDesign): string {
+  const colours = sideColours(side);
+  const material = d.material ?? defaultMaterialFor(d.form);
+  if (colours.own) return colours.cladding;
+  // The ground-wide "cladding" choice tints brick (as it always has).
+  if (material === "brick") return C.brick;
+  return MATERIAL_TONE[material];
+}
+
+function maxStandLevel(design: GroundDesign) {
+  return Math.max(...(["N", "E", "S", "W"] as StandSide[]).map((side) => design.stands[side].level));
+}
+
+/* ---------------- Stands ---------------- */
+
+function designedStandSpec(side: StandSide, d: GroundStandDesign): StandSpec | null {
+  if (d.form === "open") return null;
+  const maxSpan = isTouchline(side) ? 100 : 64;
+  const span = clampN(d.span, 12, maxSpan);
+  const front = sideFront(side, d);
+  const depth = clampN(d.depth, 3, 26);
+  const colours = sideColours(side);
+  const twoToneAlt = !colours.own && LOOK?.twoTone && side !== "W";
+  const base = {
+    side,
+    front,
+    seat: twoToneAlt ? colours.seatAlt : colours.seat,
+    terrace: d.standing === "terrace",
+    rearDetail: true,
+    back: backColour(side, d),
+    roofColour: colours.roof,
+    roofDark: colours.roofDark,
+  } as const;
+  let spec: StandSpec;
+  switch (d.form) {
+    case "shelter": {
+      const w = Math.min(span, 26);
+      spec = { ...base, from: -w / 2, to: w / 2, depth: 3, rake: 1.2, roof: true };
+      break;
+    }
+    case "terrace": {
+      const dd = clampN(depth * 0.8, 4, 16);
+      spec = { ...base, terrace: true, from: -span / 2, to: span / 2, depth: dd, rake: dd * 0.34, roof: d.roof !== "open" };
+      break;
+    }
+    case "traditional":
+      spec = { ...base, from: -span / 2, to: span / 2, depth, rake: depth * 0.55, roof: d.roof !== "open" };
+      break;
+    case "cantilever":
+      spec = {
