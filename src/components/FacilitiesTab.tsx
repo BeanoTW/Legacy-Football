@@ -451,7 +451,19 @@ export function FacilitySheet({ state, asset, onApprove, onApproveBuild }: { sta
             <div className="mt-1 flex flex-wrap gap-1">
               {progressionSpec.benefits.map((benefit) => <span key={benefit} className="rounded bg-muted px-1.5 py-0.5 text-[9.5px] font-semibold">{benefit}</span>)}
             </div>
-            {progressionSpec.dependency ? <p className="mt-1.5 text-[10px] text-muted-foreground">{progressionSpec.dependency}</p> : null}
+            {progressionSpec.dependency ? (
+              <p className={cn("mt-1.5 text-[10px]", progressionSpec.dependencyMet ? "text-muted-foreground" : "font-semibold text-rose-600")}>
+                {progressionSpec.dependencyMet ? "Structure ready · " : "Locked · "}{progressionSpec.dependency}
+              </p>
+            ) : null}
+            {progressionSpec.nextImpact.length > 0 ? (
+              <div className="mt-2 border-t pt-2">
+                <div className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Next upgrade changes</div>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {progressionSpec.nextImpact.map((impact) => <span key={impact} className="rounded bg-primary/10 px-1.5 py-0.5 text-[9.5px] font-semibold text-primary">{impact}</span>)}
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
