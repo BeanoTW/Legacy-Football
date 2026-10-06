@@ -42,11 +42,8 @@ import {
 } from "@/lib/game/groundIdentity";
 import {
   defaultMaterial,
-  roofOptions,
-  standFormOptions,
-   standFootprintForCapacity,
-  standingOptions,
-  updateCorner,
+     standFootprintForCapacity,
+   updateCorner,
   updateFixtures,
   updatePerimeter,
   updateStand,
@@ -185,8 +182,6 @@ const SIDES = ["W", "E", "N", "S"] as const;
 const CORNERS = ["NW", "NE", "SW", "SE"] as const;
 const CORNER_NAME: Record<string, string> = { NW: "North-West corner", NE: "North-East corner", SW: "South-West corner", SE: "South-East corner" };
 const FIXTURE_NAME: Record<string, string> = { pitch: "Pitch", lights: "Floodlights", perimeter: "Perimeter", dugouts: "Dugouts", scoreboard: "Scoreboard", surroundings: "Car park & buildings" };
-const STANDING_LABEL: Record<string, string> = { terrace: "Standing", safeStanding: "Safe standing", seated: "Seated" };
-const ROOF_LABEL: Record<string, string> = { pitched: "Pitched", cantilever: "Cantilever", twoTier: "Two-tier", open: "No roof" };
 const GATE_LABEL: Record<string, string> = { N: "North", E: "East", S: "South", W: "West" };
 
 export function GroundStudioSheet({
@@ -240,7 +235,7 @@ export function GroundStudioSheet({
       <SheetContent side="bottom" className="flex h-[96dvh] flex-col gap-0 rounded-t-2xl p-0">
         <div className="flex items-center justify-between gap-2 border-b px-4 py-2.5">
           <div className="min-w-0">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Ground Studio · free</div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Ground Studio</div>
             <SheetTitle className="truncate font-display text-xl leading-none">{identity.groundName ?? "Your ground"}</SheetTitle>
           </div>
           <Button size="sm" className="mr-9" onClick={() => onOpenChange(false)}>Done</Button>
@@ -314,7 +309,7 @@ function StandDevelopmentPanel({
     : undefined;
 
   return (
-    <Field label={mode === "maintenance" ? "Maintain this stand" : "Develop this stand"}>
+    <Field label={mode === "maintenance" ? `Maintain this ${asset.type === "cornerStand" ? "corner" : "stand"}` : "Develop this stand"}>
       {active ? (
         <div className="rounded-xl border bg-muted/35 px-3 py-2">
           <div className="flex items-center justify-between gap-2">
@@ -390,6 +385,7 @@ function SelectionPanel({
   const roofSwatch = (id: RoofColour) => (id === "club" ? kit.body : ROOF_COLOURS.find((r) => r.id === id)?.hex ?? "#56616c");
   const claddingSwatch = (id: Cladding) => (id === "club" ? kit.body : CLADDINGS.find((c) => c.id === id)?.hex ?? "#9a5d42");
   const [standWorkspace, setStandWorkspace] = useState<"customize" | "maintain" | "develop">("customize");
+  const [cornerWorkspace, setCornerWorkspace] = useState<"customize" | "maintain" | "develop">("customize");
 
   /* ---------- A stand ---------- */
   if (selection?.startsWith("stand:")) {
@@ -422,67 +418,25 @@ function SelectionPanel({
         ) : null}
         {standWorkspace === "customize" ? (
           <>
-        <Field label="Structure">
-          <div className="flex flex-wrap gap-1.5">
-            {standFormOptions(design, side).map((option) => (
-              <OptionChip key={option.id} active={d.form === option.id} disabled={!option.allowed} title={option.reason} onClick={() => apply((s) => updateStand(s, side, { form: option.id }))}>
-                {option.label}{!option.allowed ? " 🔒" : ""}
-              </OptionChip>
-            ))}
-          </div>
-          {standFormOptions(design, side).some((o) => !o.allowed) ? <p className="mt-1 text-[10.5px] text-muted-foreground">Bigger structures unlock through paid development on this stand.</p> : null}
-        </Field>
-        {standingOptions(d.form).length > 1 ? (
-          <Field label="Standing or seated">
-            <div className="flex flex-wrap gap-1.5">
-              {standingOptions(d.form).map((id) => <OptionChip key={id} active={d.standing === id} onClick={() => apply((s) => updateStand(s, side, { standing: id }))}>{STANDING_LABEL[id]}</OptionChip>)}
-            </div>
-          </Field>
-        ) : null}
-        {roofOptions(d.form).length > 1 ? (
-          <Field label="Roof">
-            <div className="flex flex-wrap gap-1.5">
-              {roofOptions(d.form).map((id) => <OptionChip key={id} active={d.roof === id} onClick={() => apply((s) => updateStand(s, side, { roof: id }))}>{ROOF_LABEL[id]}</OptionChip>)}
-            </div>
-          </Field>
-        ) : null}
-        {d.form !== "open" && asset ? (
-          <Field label="Physical structure">
-            {(() => {
-              const build = standBuild(state, asset.id, asset.level);
-              const footprint = standFootprintForCapacity(design, side, asset.capacity, build.variant ?? "traditional");
-              const variantLabel = STAND_VARIANTS.find((option) => option.id === (build.variant ?? "traditional"))?.label ?? "Traditional";
-              return (
-                <div className="rounded-xl border bg-muted/20 px-3 py-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <strong className="block text-xs">{asset.capacity.toLocaleString("en-GB")} places</strong>
-                      <span className="text-[10.5px] text-muted-foreground">Approx. {footprint.span}m × {footprint.depth}m · {variantLabel}</span>
-                    </div>
-                    <span className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Purchased</span>
-                  </div>
-                  <p className="mt-1.5 text-[10px] text-muted-foreground">Stand size is now driven by completed development. Early expansions extend the stand; later growth adds depth and taller structures.</p>
-                </div>
-              );
-            })()}
-          </Field>
-        ) : null}
-        {d.form !== "open" ? (
-          <div className="divide-y rounded-xl border">
-            <ExpandRow label="Material" value={STAND_MATERIALS.find((m) => m.id === (d.material ?? defaultMaterial(d.form)))?.label ?? ""}>
-              {(close) => <Swatches options={STAND_MATERIALS.map((m) => ({ id: m.id, label: m.label, colours: [MATERIAL_SWATCH[m.id]] }))} value={d.material ?? defaultMaterial(d.form)} onChange={(material) => { apply((s) => updateStand(s, side, { material: material as StandMaterial })); close(); }} />}
-            </ExpandRow>
-            <ExpandRow label="Seats" value={own.seats ? SEAT_SCHEMES.find((o) => o.id === own.seats)?.label ?? "" : "Ground default"} swatch={seatSwatch(own.seats ?? identity.seats)}>
-              {(close) => <Swatches withDefault options={SEAT_SCHEMES.map((o) => ({ id: o.id, label: o.label, colours: seatSwatch(o.id) }))} value={own.seats ?? "default"} onChange={(id) => { apply((s) => updateStandLook(s, side, { seats: id === "default" ? undefined : (id as SeatScheme) })); close(); }} />}
-            </ExpandRow>
-            <ExpandRow label="Roof colour" value={own.roof ? ROOF_COLOURS.find((o) => o.id === own.roof)?.label ?? "" : "Ground default"} swatch={[roofSwatch(own.roof ?? identity.roof)]}>
-              {(close) => <Swatches withDefault options={ROOF_COLOURS.map((o) => ({ id: o.id, label: o.label, colours: [roofSwatch(o.id)] }))} value={own.roof ?? "default"} onChange={(id) => { apply((s) => updateStandLook(s, side, { roof: id === "default" ? undefined : (id as RoofColour) })); close(); }} />}
-            </ExpandRow>
-            <ExpandRow label="Cladding & fascia" value={own.cladding ? CLADDINGS.find((o) => o.id === own.cladding)?.label ?? "" : "From material"} swatch={[own.cladding ? claddingSwatch(own.cladding) : MATERIAL_SWATCH[d.material ?? defaultMaterial(d.form)]]}>
-              {(close) => <Swatches withDefault defaultLabel="From material" options={CLADDINGS.map((o) => ({ id: o.id, label: o.label, colours: [claddingSwatch(o.id)] }))} value={own.cladding ?? "default"} onChange={(id) => { apply((s) => updateStandLook(s, side, { cladding: id === "default" ? undefined : (id as Cladding) })); close(); }} />}
-            </ExpandRow>
-          </div>
-        ) : null}
+            <Field label="Appearance">
+              <p className="text-[10.5px] text-muted-foreground">Cosmetic changes only. Capacity, structure, seating type and roof construction are changed through Develop.</p>
+            </Field>
+            {d.form !== "open" ? (
+              <div className="divide-y rounded-xl border">
+                <ExpandRow label="Material" value={STAND_MATERIALS.find((m) => m.id === (d.material ?? defaultMaterial(d.form)))?.label ?? ""}>
+                  {(close) => <Swatches options={STAND_MATERIALS.map((m) => ({ id: m.id, label: m.label, colours: [MATERIAL_SWATCH[m.id]] }))} value={d.material ?? defaultMaterial(d.form)} onChange={(material) => { apply((s) => updateStand(s, side, { material: material as StandMaterial })); close(); }} />}
+                </ExpandRow>
+                <ExpandRow label="Seats" value={own.seats ? SEAT_SCHEMES.find((o) => o.id === own.seats)?.label ?? "" : "Ground default"} swatch={seatSwatch(own.seats ?? identity.seats)}>
+                  {(close) => <Swatches withDefault options={SEAT_SCHEMES.map((o) => ({ id: o.id, label: o.label, colours: seatSwatch(o.id) }))} value={own.seats ?? "default"} onChange={(id) => { apply((s) => updateStandLook(s, side, { seats: id === "default" ? undefined : (id as SeatScheme) })); close(); }} />}
+                </ExpandRow>
+                <ExpandRow label="Roof colour" value={own.roof ? ROOF_COLOURS.find((o) => o.id === own.roof)?.label ?? "" : "Ground default"} swatch={[roofSwatch(own.roof ?? identity.roof)]}>
+                  {(close) => <Swatches withDefault options={ROOF_COLOURS.map((o) => ({ id: o.id, label: o.label, colours: [roofSwatch(o.id)] }))} value={own.roof ?? "default"} onChange={(id) => { apply((s) => updateStandLook(s, side, { roof: id === "default" ? undefined : (id as RoofColour) })); close(); }} />}
+                </ExpandRow>
+                <ExpandRow label="Cladding & fascia" value={own.cladding ? CLADDINGS.find((o) => o.id === own.cladding)?.label ?? "" : "From material"} swatch={[own.cladding ? claddingSwatch(own.cladding) : MATERIAL_SWATCH[d.material ?? defaultMaterial(d.form)]]}>
+                  {(close) => <Swatches withDefault defaultLabel="From material" options={CLADDINGS.map((o) => ({ id: o.id, label: o.label, colours: [claddingSwatch(o.id)] }))} value={own.cladding ?? "default"} onChange={(id) => { apply((s) => updateStandLook(s, side, { cladding: id === "default" ? undefined : (id as Cladding) })); close(); }} />}
+                </ExpandRow>
+              </div>
+            ) : null}
           </>
         ) : null}
         {standWorkspace === "develop" && asset ? <StandDevelopment state={state} asset={asset} apply={apply} /> : null}
@@ -496,10 +450,26 @@ function StandDevelopment({ state, asset, apply }: { state: GameState; asset: In
   const projects = projectCatalogue(state, asset.id).filter((spec) => ["capacityExpansion", "standRedevelopment", "roofUpgrade"].includes(spec.type));
   const nextStructuralStage = asset.level <= 2 ? "Extend" : asset.level <= 4 ? "Enlarge" : "Mature structure";
   if (!projects.length) return null;
+  const side = asset.location as StandSide;
+  const design = groundDesign(state);
+  const currentBuild = standBuild(state, asset.id, asset.level);
+  const footprint = standFootprintForCapacity(design, side, asset.capacity, currentBuild.variant ?? "traditional");
+  const variantLabel = STAND_VARIANTS.find((option) => option.id === (currentBuild.variant ?? "traditional"))?.label ?? "Traditional";
+  const currentStructure = `${currentBuild.standing === "terrace" ? "Terrace" : currentBuild.standing === "safeStanding" ? "Safe standing" : "Seated"} · ${currentBuild.roof === "twoTier" ? "Two-tier" : currentBuild.roof === "cantilever" ? "Cantilever roof" : "Traditional roof"}`;
   const capacityProject = projects.find((spec) => spec.type === "capacityExpansion");
   const capacityEffect = capacityProject?.effects.find((effect) => effect.kind === "capacity") as { kind: "capacity"; add: number } | undefined;
   if (choosing) return <div className="rounded-xl border bg-muted/20 p-3">{isLevelRaising(choosing.type) ? <StandBuildChooser state={state} asset={asset} spec={choosing} onCancel={() => setChoosing(null)} onConfirm={(build) => { apply((s) => approveStandBuild(s, asset.id, choosing.type, build)); setChoosing(null); }} /> : <div className="space-y-3"><div><div className="font-display text-base">{choosing.title.replace(`${asset.name} — `, "")}</div><div className="text-xs text-muted-foreground">{choosing.description}</div></div><div className="grid grid-cols-3 divide-x rounded-lg border bg-muted/30 text-center"><div className="p-2"><strong className="block">{fmtMoneyExact(choosing.cost)}</strong><span className="text-[9px] uppercase text-muted-foreground">Cost</span></div><div className="p-2"><strong className="block">{choosing.durationWeeks}w</strong><span className="text-[9px] uppercase text-muted-foreground">Build</span></div><div className="p-2"><strong className="block">{choosing.effects.find((e) => e.kind === "capacity") ? `+${(choosing.effects.find((e) => e.kind === "capacity") as { add: number }).add.toLocaleString("en-GB")}` : "—"}</strong><span className="text-[9px] uppercase text-muted-foreground">Places</span></div></div><div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => setChoosing(null)}>Back</Button><Button onClick={() => { apply((s) => approveProjectCompat(s, asset.id, choosing.type)); setChoosing(null); }}>Approve</Button></div></div>}</div>;
   return <Field label="Develop this stand">
+    <div className="mb-2 rounded-xl border bg-muted/20 px-3 py-2">
+      <div className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Current structure</div>
+      <div className="mt-0.5 flex items-start justify-between gap-3">
+        <div>
+          <strong className="block text-xs">{asset.capacity.toLocaleString("en-GB")} places · {variantLabel}</strong>
+          <span className="text-[10px] text-muted-foreground">{currentStructure}</span>
+        </div>
+        <span className="shrink-0 text-[10px] text-muted-foreground">{footprint.span}m × {footprint.depth}m</span>
+      </div>
+    </div>
     <div className="mb-2 rounded-xl border bg-muted/20 px-3 py-2">
       <div className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Next physical stage</div>
       <div className="mt-0.5 flex items-baseline justify-between gap-2">
@@ -536,76 +506,105 @@ function StandDevelopment({ state, asset, apply }: { state: GameState; asset: In
       : undefined;
     const evaluation = cornerAsset && project ? evaluateProject(state, cornerAsset.id, project.type) : null;
 
+    const DevelopmentCard = () => (
+      <Field label={builtInfill ? "Develop corner" : "Build corner stand"}>
+        <div className="rounded-xl border bg-muted/20 p-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                {builtInfill ? `Stage ${cornerAsset?.level ?? 1} · ${cornerAsset?.capacity.toLocaleString("en-GB") ?? 0} places` : "Empty corner"}
+              </div>
+              <strong className="text-xs">{project ? project.title.replace(`${cornerAsset?.name ?? ""} — `, "") : builtInfill ? "Corner fully developed" : "No build available"}</strong>
+              {project ? <p className="mt-1 text-[10.5px] text-muted-foreground">{project.description}</p> : null}
+            </div>
+            {project ? (
+              <div className="text-right">
+                <div className="font-display text-sm tnum">{fmtMoneyExact(project.cost)}</div>
+                <div className="text-[10px] text-muted-foreground">{project.durationWeeks} weeks</div>
+              </div>
+            ) : null}
+          </div>
+          {project && cornerAsset ? (
+            <Button
+              size="sm"
+              className="mt-2 w-full"
+              disabled={!evaluation?.allowed}
+              title={evaluation?.allowed ? undefined : evaluation?.reason}
+              onClick={() => apply((s) => approveProjectCompat(s, cornerAsset.id, project.type))}
+            >
+              {builtInfill ? "Approve expansion" : "Build corner stand"}
+            </Button>
+          ) : null}
+          {!evaluation?.allowed && project ? <p className="mt-1 text-[10px] text-muted-foreground">{evaluation?.reason}</p> : null}
+        </div>
+      </Field>
+    );
+
     return (
       <div className="space-y-3">
-        <PanelTitle title={labels[selection]} sub={builtInfill ? "Owned corner structure" : "Empty corner"} />
+        <PanelTitle
+          title={labels[selection]}
+          sub={builtInfill ? `${cornerAsset?.capacity.toLocaleString("en-GB")} places · Structure level ${cornerAsset?.level}` : "Empty corner · no spectator capacity"}
+        />
 
-        {builtInfill ? (
+        {!builtInfill ? (
           <>
-            <Field label="Corner style · free">
-              <div className="flex flex-wrap gap-1.5">
-                <OptionChip active={c.form === "terrace"} onClick={() => apply((s) => updateCorner(s, slot, { form: "terrace" }))}>Terrace</OptionChip>
-                <OptionChip active={c.form === "seated"} onClick={() => apply((s) => updateCorner(s, slot, { form: "seated" }))}>Seated</OptionChip>
-              </div>
-            </Field>
-            <Field label="Shape · free">
+            <Field label="Empty corner">
               <div className="flex gap-1.5">
-                <OptionChip active={(c.shape ?? "angled") === "angled"} onClick={() => apply((s) => updateCorner(s, slot, { shape: "angled" }))}>Angled</OptionChip>
-                <OptionChip active={c.shape === "rounded"} onClick={() => apply((s) => updateCorner(s, slot, { shape: "rounded" }))}>Rounded</OptionChip>
+                <OptionChip active={c.form === "open"} onClick={() => apply((s) => updateCorner(s, slot, { form: "open" }))}>Open</OptionChip>
+                <OptionChip active={c.form === "pylon"} onClick={() => apply((s) => updateCorner(s, slot, { form: "pylon" }))}>Floodlight pylon</OptionChip>
               </div>
+              <p className="mt-1 text-[10px] text-muted-foreground">These are free presentation choices while the corner is empty.</p>
             </Field>
-            <Field label="Access tunnel · free">
-              <div className="flex gap-1.5">
-                <OptionChip active={!c.accessTunnel} onClick={() => apply((s) => updateCorner(s, slot, { accessTunnel: false }))}>None</OptionChip>
-                <OptionChip active={Boolean(c.accessTunnel)} onClick={() => apply((s) => updateCorner(s, slot, { accessTunnel: true }))}>Tunnel</OptionChip>
-              </div>
-            </Field>
+            <DevelopmentCard />
           </>
         ) : (
-          <Field label="Corner use">
-            <div className="flex gap-1.5">
-              <OptionChip active={c.form === "open"} onClick={() => apply((s) => updateCorner(s, slot, { form: "open" }))}>Open</OptionChip>
-              <OptionChip active={c.form === "pylon"} onClick={() => apply((s) => updateCorner(s, slot, { form: "pylon" }))}>Floodlight pylon</OptionChip>
-            </div>
-          </Field>
-        )}
-
-        {cornerAsset ? (
-          <Field label={builtInfill ? "Develop corner" : "Build corner"}>
-            <div className="rounded-xl border bg-muted/20 p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                    {builtInfill ? `Stage ${cornerAsset.level} · ${cornerAsset.capacity.toLocaleString("en-GB")} places` : "No spectator structure"}
-                  </div>
-                  <strong className="text-xs">{project ? project.title.replace(`${cornerAsset.name} — `, "") : builtInfill ? "Corner fully developed" : "Corner development unavailable"}</strong>
-                  {project ? <p className="mt-1 text-[10.5px] text-muted-foreground">{project.description}</p> : null}
-                </div>
-                {project ? (
-                  <div className="text-right">
-                    <div className="font-display text-sm tnum">{fmtMoneyExact(project.cost)}</div>
-                    <div className="text-[10px] text-muted-foreground">{project.durationWeeks} weeks</div>
-                  </div>
-                ) : null}
-              </div>
-              {project ? (
-                <Button
-                  size="sm"
-                  className="mt-2 w-full"
-                  disabled={!evaluation?.allowed}
-                  title={evaluation?.allowed ? undefined : evaluation?.reason}
-                  onClick={() => apply((s) => approveProjectCompat(s, cornerAsset.id, project.type))}
+          <>
+            <div className="grid grid-cols-3 gap-1.5 rounded-xl border bg-muted/20 p-1">
+              {(["customize", "maintain", "develop"] as const).map((workspace) => (
+                <button
+                  key={workspace}
+                  type="button"
+                  onClick={() => setCornerWorkspace(workspace)}
+                  className={cn("rounded-lg px-2 py-2 text-xs font-semibold capitalize transition-colors", cornerWorkspace === workspace ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}
                 >
-                  {builtInfill ? "Approve corner expansion" : "Approve corner stand"}
-                </Button>
-              ) : null}
-              {!evaluation?.allowed && project ? <p className="mt-1 text-[10px] text-muted-foreground">{evaluation?.reason}</p> : null}
-              <p className="mt-1 text-[10px] text-muted-foreground">
-                Capacity and physical size are purchased. Shape, seating presentation and tunnel treatment are cosmetic within the owned structure.
-              </p>
+                  {workspace}
+                </button>
+              ))}
             </div>
-          </Field>
-        ) : null}
+
+            {cornerWorkspace === "customize" ? (
+              <>
+                <Field label="Appearance">
+                  <div className="flex flex-wrap gap-1.5">
+                    <OptionChip active={c.form === "terrace"} onClick={() => apply((s) => updateCorner(s, slot, { form: "terrace" }))}>Terrace look</OptionChip>
+                    <OptionChip active={c.form === "seated"} onClick={() => apply((s) => updateCorner(s, slot, { form: "seated" }))}>Seated look</OptionChip>
+                    <OptionChip active={(c.shape ?? "angled") === "angled"} onClick={() => apply((s) => updateCorner(s, slot, { shape: "angled" }))}>Angled</OptionChip>
+                    <OptionChip active={c.shape === "rounded"} onClick={() => apply((s) => updateCorner(s, slot, { shape: "rounded" }))}>Rounded</OptionChip>
+                  </div>
+                  <p className="mt-1 text-[10px] text-muted-foreground">These options do not change the corner's purchased capacity.</p>
+                </Field>
+                <Field label="Access tunnel">
+                  <div className="flex gap-1.5">
+                    <OptionChip active={!c.accessTunnel} onClick={() => apply((s) => updateCorner(s, slot, { accessTunnel: false }))}>None</OptionChip>
+                    <OptionChip active={Boolean(c.accessTunnel)} onClick={() => apply((s) => updateCorner(s, slot, { accessTunnel: true }))}>Tunnel</OptionChip>
+                  </div>
+                </Field>
+              </>
+            ) : null}
+
+            {cornerWorkspace === "maintain" && cornerAsset ? (
+              <StandDevelopmentPanel
+                state={state}
+                asset={cornerAsset}
+                mode="maintenance"
+                onApprove={(spec) => apply((s) => approveProjectCompat(s, cornerAsset.id, spec.type))}
+              />
+            ) : null}
+
+            {cornerWorkspace === "develop" ? <DevelopmentCard /> : null}
+          </>
+        )}
       </div>
     );
   }
