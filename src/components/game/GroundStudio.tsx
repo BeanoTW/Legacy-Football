@@ -274,6 +274,69 @@ export function GroundStudioSheet({
   );
 }
 
+function StandDevelopmentPanel({
+  state,
+  asset,
+  onApprove,
+}: {
+  state: GameState;
+  asset: InfrastructureAsset;
+  onApprove: (spec: ProjectSpec) => void;
+}) {
+  const projects = projectCatalogue(state, asset.id).filter((spec) =>
+    ["capacityExpansion", "roofUpgrade", "seatingRefurbishment", "concourseUpgrade", "accessibilityUpgrade", "hospitalityInstallation", "corporateBoxes", "retailExpansion", "standRedevelopment", "minorRepair", "majorRepair", "refurbishment", "replacement"].includes(spec.type),
+  );
+  const active = asset.activeProjectId
+    ? state.infrastructure?.projects.find((project) => project.id === asset.activeProjectId)
+    : undefined;
+
+  return (
+    <Field label="Develop this stand">
+      {active ? (
+        <div className="rounded-xl border bg-muted/35 px-3 py-2">
+          <div className="flex items-center justify-between gap-2">
+            <strong className="text-xs">{active.title}</strong>
+            <span className="text-[10px] font-semibold uppercase text-muted-foreground">{active.status}</span>
+          </div>
+          <div className="mt-1 text-[11px] text-muted-foreground">
+            {Math.round(active.progress)}% complete · {active.durationWeeks} week project
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-1.5">
+          {projects.map((spec) => {
+            const capacity = spec.effects.find((effect) => effect.kind === "capacity") as { kind: "capacity"; add: number } | undefined;
+            return (
+              <button
+                key={spec.type}
+                type="button"
+                onClick={() => onApprove(spec)}
+                className="rounded-xl border bg-background px-3 py-2 text-left transition-colors hover:bg-muted/45"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <strong className="block text-xs">{spec.title.replace(`${asset.name} — `, "")}</strong>
+                    <span className="mt-0.5 block text-[10.5px] text-muted-foreground">{spec.description}</span>
+                  </div>
+                  <strong className="shrink-0 text-xs tnum">{fmtMoneyExact(spec.cost)}</strong>
+                </div>
+                <div className="mt-1.5 flex flex-wrap gap-1.5 text-[10px] font-semibold">
+                  <span className="rounded-full bg-muted px-2 py-0.5">{spec.durationWeeks} wk{spec.durationWeeks === 1 ? "" : "s"}</span>
+                  {capacity?.add ? <span className="rounded-full bg-muted px-2 py-0.5">+{capacity.add.toLocaleString()} capacity</span> : null}
+                  <span className="rounded-full bg-muted px-2 py-0.5">{spec.major ? "Construction" : "Works"}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <p className="mt-1 text-[10.5px] text-muted-foreground">
+        Appearance changes remain free. Capacity, structural upgrades and repairs are real club projects with cost and construction time.
+      </p>
+    </Field>
+  );
+}
+
 function SelectionPanel({
   selection,
   state,
@@ -309,6 +372,19 @@ function SelectionPanel({
     return (
       <div className="space-y-3">
         <PanelTitle title={labels[selection]} sub={`${SIDE_LABEL[side]} · ${asset?.capacity?.toLocaleString() ?? "—"} capacity · Facilities level ${d.level}`} />
+        {asset ? (
+          <StandDevelopmentPanel
+            state={state}
+            asset={asset}
+            onApprove={(spec) =>
+              apply((s) =>
+                isLevelRaising(spec.type)
+                  ? approveStandBuild(s, asset.id, spec.type, standBuild(s, asset.id, asset.level))
+                  : approveProject(s, asset.id, spec.type)
+              )
+            }
+          />
+        ) : null}
         <Field label="Structure">
           <div className="flex flex-wrap gap-1.5">
             {standFormOptions(design, side).map((option) => (
