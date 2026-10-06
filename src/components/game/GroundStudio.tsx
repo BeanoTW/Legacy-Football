@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { fmtMoneyExact } from "@/lib/game/engine";
 import { clubKitFor } from "@/lib/game/clubKit";
 import { groundProgression } from "@/lib/game/groundPresentation";
-import { assetById, stands as standAssets, type ProjectSpec } from "@/lib/game/infrastructure";
+import { approveProject, assetById, evaluateProject, projectCatalogue, stands as standAssets, type ProjectSpec } from "@/lib/game/infrastructure";
 import {
   BUILDING_STYLES,
   CLADDINGS,
@@ -53,7 +53,7 @@ import {
   updateStandLook,
   updateSurroundings,
 } from "@/lib/game/groundEditor";
-import { buildQuote, renameStand, setGroundLook } from "@/lib/game/groundBuild";
+import { approveStandBuild, buildQuote, isLevelRaising, renameStand, setGroundLook } from "@/lib/game/groundBuild";
 import { StadiumGround } from "./StadiumGround";
 
 const SIDE_LABEL: Record<string, string> = { N: "North end", E: "East side", S: "South end", W: "West side (main)" };
@@ -355,10 +355,34 @@ function SelectionPanel({
             </ExpandRow>
           </div>
         ) : null}
+        {asset ? <StandDevelopment state={state} asset={asset} apply={apply} /> : null}
         {asset ? <RenameRow key={asset.id} initial={asset.name} onSave={(name) => apply((s) => renameStand(s, asset.id, name))} /> : null}
       </div>
     );
   }
+
+function StandDevelopment({ state, asset, apply }: { state: GameState; asset: InfrastructureAsset; apply: (edit: (s: GameState) => { state: GameState; ok: boolean; reason?: string }) => void }) {
+  const [choosing, setChoosing] = useState<ProjectSpec | null>(null);
+  const projects = projectCatalogue(state, asset.id).filter((spec) => ["capacityExpansion", "standRedevelopment", "roofUpgrade", "seatingRefurbishment", "concourseUpgrade", "accessibilityUpgrade", "hospitalityInstallation", "corporateBoxes", "retailExpansion"].includes(spec.type));
+  if (!projects.length) return null;
+  if (choosing && isLevelRaising(choosing.type)) return <div className="rounded-xl border bg-muted/20 p-3"><StandBuildChooser state={state} asset={asset} spec={choosing} onCancel={() => setChoosing(null)} onConfirm={(build) => { apply((s) => approveStandBuild(s, asset.id, choosing.type, build)); setChoosing(null); }} /></div>;
+  return <Field label="Develop this stand">
+    <div className="overflow-hidden rounded-xl border bg-card">
+      {projects.map((spec) => {
+        const evaluation = evaluateProject(state, asset.id, spec.type);
+        const capacity = spec.effects.find((effect) => effect.kind === "capacity") as { kind: "capacity"; add: number } | undefined;
+        return <div key={spec.type} className="flex items-center gap-2 border-t p-2.5 first:border-t-0">
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-xs font-semibold">{spec.title.replace(`${asset.name} — `, "")}</div>
+            <div className="text-[10px] text-muted-foreground">{capacity ? `+${capacity.add.toLocaleString("en-GB")} places · ` : ""}{spec.durationWeeks} weeks · {fmtMoneyExact(spec.cost)}</div>
+          </div>
+          <Button size="sm" variant="outline" disabled={!evaluation?.allowed} onClick={() => isLevelRaising(spec.type) ? setChoosing(spec) : apply((s) => approveProject(s, asset.id, spec.type))}>{evaluation?.allowed ? "Build" : "Locked"}</Button>
+        </div>;
+      })}
+    </div>
+    <p className="mt-1 text-[10.5px] text-muted-foreground">Style and shape remain free. Capacity and structural work create a real construction project.</p>
+  </Field>;
+}
 
   /* ---------- A corner ---------- */
   if (selection?.startsWith("corner:")) {
