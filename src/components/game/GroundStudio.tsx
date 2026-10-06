@@ -557,4 +557,55 @@ function ExpandRow({ label, value, swatch, children }: { label: string; value: s
   );
 }
 
-function Swatches<T extends string>({ options, value, onChange, withDefault, defaultLabel = "Ground default" }: { options: { id: T; label: string; colours: string[] }[]; v
+function Swatches<T extends string>({ options, value, onChange, withDefault, defaultLabel = "Ground default" }: { options: { id: T; label: string; colours: string[] }[]; value: T | "default"; onChange: (id: T | "default") => void; withDefault?: boolean; defaultLabel?: string }) {
+  const all = withDefault ? [{ id: "default" as const, label: defaultLabel, colours: ["repeating-linear-gradient(45deg,#ddd 0 4px,#fff 4px 8px)"] }, ...options] : options;
+  return (
+    <div className="grid grid-cols-4 gap-1.5">
+      {all.map((option) => (
+        <button key={option.id} type="button" onClick={() => onChange(option.id as T | "default")} aria-pressed={option.id === value} className={cn("flex flex-col items-center gap-1 rounded-lg border p-1.5 text-[10px] font-semibold", option.id === value ? "border-primary bg-primary/10" : "bg-background")}>
+          <span className="flex h-5 w-full overflow-hidden rounded border border-black/10">{option.colours.map((c, i) => <span key={i} className="flex-1" style={{ background: c }} />)}</span>
+          <span className="w-full truncate text-center">{option.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Slider({ label, value, min, max, unit, onChange }: { label: string; value: number; min: number; max: number; unit: string; onChange: (value: number) => void }) {
+  return (
+    <label className="block">
+      <span className="flex items-baseline justify-between text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+        {label}<span className="text-[12px] font-semibold normal-case tracking-normal text-foreground">{value}{unit}</span>
+      </span>
+      <input type="range" min={min} max={max} value={Math.max(min, Math.min(max, value))} onChange={(event) => onChange(Number(event.target.value))} className="mt-1 w-full accent-[var(--color-primary)]" />
+    </label>
+  );
+}
+
+function RenameRow({ initial, onSave, label = "Stand name", placeholder }: { initial: string; onSave: (name: string) => void; label?: string; placeholder?: string }) {
+  const [value, setValue] = useState(initial);
+  return (
+    <Field label={label}>
+      <div className="flex gap-2">
+        <input value={value} placeholder={placeholder} maxLength={40} onChange={(event) => setValue(event.target.value)} className="h-9 min-w-0 flex-1 rounded-lg border bg-background px-2.5 text-sm" />
+        <Button size="sm" variant="outline" className="h-9" disabled={value.trim() === initial.trim()} onClick={() => onSave(value)}>Save</Button>
+      </div>
+    </Field>
+  );
+}
+
+/** Tiny preview of each mowing pattern. */
+function MowingIcon({ pattern }: { pattern: Mowing }) {
+  const a = "#45a04b";
+  const b = "#33893a";
+  const cells: React.ReactNode[] = [];
+  if (pattern === "checks") for (let i = 0; i < 6; i++) for (let j = 0; j < 4; j++) cells.push(<rect key={`${i}-${j}`} x={i * 6} y={j * 5} width="6" height="5" fill={(i + j) % 2 ? a : b} />);
+  else if (pattern === "vertical") for (let j = 0; j < 5; j++) cells.push(<rect key={j} x="0" y={j * 4} width="36" height="4" fill={j % 2 ? a : b} />);
+  else if (pattern === "diagonal") { cells.push(<rect key="bg" width="36" height="20" fill={b} />); for (let k = -4; k < 8; k += 2) cells.push(<polygon key={k} points={`${k * 5},20 ${k * 5 + 5},20 ${k * 5 + 25},0 ${k * 5 + 20},0`} fill={a} />); }
+  else { const n = pattern === "wide" ? 3 : 6; for (let i = 0; i < n; i++) cells.push(<rect key={i} x={(i * 36) / n} y="0" width={36 / n} height="20" fill={i % 2 ? a : b} />); }
+  return <svg viewBox="0 0 36 20" className="h-6 w-full overflow-hidden rounded">{cells}</svg>;
+}
+
+export function standForAsset(state: GameState, assetId: string) {
+  return assetById(state, assetId);
+}
