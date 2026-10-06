@@ -185,7 +185,17 @@ export function groundDesign(s: GameState): GroundDesign {
       ? { ...live, material: mine.material }
       : { ...mine, level: live.level, span: live.span, depth: live.depth };
   }
-  return { ...saved, stands };
+  const corners = { ...saved.corners };
+  for (const slot of ["NW", "NE", "SW", "SE"] as CornerSlot[]) {
+    const live = derived.corners[slot];
+    const mine = saved.corners[slot];
+    if (!mine) { corners[slot] = live; continue; }
+    const built = live.form === "terrace" || live.form === "seated";
+    corners[slot] = built
+      ? { ...mine, form: mine.form === "terrace" || mine.form === "seated" ? mine.form : live.form, size: live.size }
+      : { ...mine, form: mine.form === "pylon" ? "pylon" : "open", size: undefined, accessTunnel: undefined };
+  }
+  return { ...saved, stands, corners };
 }
 
 /** The design implied by the club's real stands, used for old saves and as the live structure. */
@@ -218,13 +228,24 @@ function derivedGroundDesign(s: GameState): GroundDesign {
       roof: level === 0 ? "open" : build.roof,
     };
   }
+  const corners: Record<CornerSlot, GroundCornerDesign> = {
+    NW: { form: "open" },
+    NE: { form: "open" },
+    SW: { form: "open" },
+    SE: { form: "open" },
+  };
+  for (const asset of (s.infrastructure?.assets ?? []).filter((a) => a.type === "cornerStand")) {
+    const slot = asset.location as CornerSlot;
+    if (!(slot in corners) || asset.capacity <= 0) continue;
+    corners[slot] = {
+      form: asset.level >= 2 ? "seated" : "terrace",
+      size: asset.level >= 3 ? "large" : "small",
+    };
+  }
   return {
     version: 1,
     stands,
-    corners: {
-      NW: { form: "open" }, NE: { form: "open" },
-      SW: { form: "open" }, SE: { form: "open" },
-    },
+    corners,
     perimeter: { style: "rail", colour: "white" },
     surroundings: { carParkSurface: "gravel", carParkLocation: "SW" },
   };
