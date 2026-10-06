@@ -79,6 +79,7 @@ export const STAFF_ROLES: StaffRole[] = [
   "Scout",
   "Head Physio",
   "Sports Scientist",
+  "Community & Events Officer",
 ];
 
 export type StaffDepartmentStage = "grassroots" | "semiPro" | "professional" | "established" | "elite";
@@ -100,6 +101,7 @@ const ROLE_UNLOCK_STAGE: Record<StaffRole, StaffDepartmentStage> = {
   "Chief Scout": "professional",
   "Head Physio": "professional",
   "Sports Scientist": "established",
+  "Community & Events Officer": "grassroots",
 };
 
 const STAGE_ORDER: StaffDepartmentStage[] = ["grassroots", "semiPro", "professional", "established", "elite"];
@@ -135,6 +137,7 @@ const ROLE_WEIGHTS: Record<StaffRole, Partial<Record<keyof StaffStats, number>>>
   Scout: { scouting: 2 },
   "Head Physio": { medical: 3 },
   "Sports Scientist": { medical: 2, development: 2 },
+  "Community & Events Officer": { motivation: 3, negotiation: 2 },
 };
 
 // Base wage £/wk multiplier per role at rating 60
@@ -150,6 +153,7 @@ const ROLE_BASE_WAGE: Record<StaffRole, number> = {
   Scout: 1_100,
   "Head Physio": 2_100,
   "Sports Scientist": 2_300,
+  "Community & Events Officer": 1_600,
 };
 
 function makeStaffStats(
@@ -243,6 +247,7 @@ export function makeCandidatePool(rand01: () => number = Math.random): Staff[] {
     ["Scout", 36],
     ["Head Physio", 16],
     ["Sports Scientist", 16],
+    ["Community & Events Officer", 14],
   ];
   for (const [role, n] of spec) {
     for (let i = 0; i < n; i++) {
