@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { fmtMoneyExact } from "@/lib/game/engine";
 import { clubKitFor } from "@/lib/game/clubKit";
 import { groundProgression } from "@/lib/game/groundPresentation";
-import { approveProject as approveProjectCompat, assetById, evaluateProject, projectCatalogue, stands as standAssets, type ProjectSpec } from "@/lib/game/infrastructure";
+import { approveProject as approveProjectCompat, assetById, evaluateProject, expansionAllowance, projectCatalogue, stands as standAssets, type ProjectSpec } from "@/lib/game/infrastructure";
 import {
   BUILDING_STYLES,
   CLADDINGS,
@@ -274,6 +274,64 @@ export function GroundStudioSheet({
   );
 }
 
+function StandEnvelopeExpansion({
+  state,
+  asset,
+  builtSpan,
+  builtDepth,
+  apply,
+}: {
+  state: GameState;
+  asset: InfrastructureAsset;
+  builtSpan: number;
+  builtDepth: number;
+  apply: (edit: (s: GameState) => { state: GameState; ok: boolean; reason?: string }) => void;
+}) {
+  const allowance = expansionAllowance(state, asset);
+  const spec = projectCatalogue(state, asset.id).find((candidate) => candidate.type === "capacityExpansion");
+  if (!spec || allowance <= 0 || asset.activeProjectId) return null;
+  const capacityEffect = spec.effects.find((effect) => effect.kind === "capacity") as { kind: "capacity"; add: number } | undefined;
+  const extraPlaces = capacityEffect?.add ?? allowance;
+  const spanGain = Math.max(4, Math.round(extraPlaces / 180));
+  const depthGain = Math.max(2, Math.round(extraPlaces / 900));
+  const proposedSpan = builtSpan + spanGain;
+  const proposedDepth = builtDepth + depthGain;
+  const evaluation = evaluateProject(state, asset.id, spec.type);
+
+  return (
+    <div className="rounded-xl border border-dashed bg-muted/20 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Built envelope</div>
+          <div className="mt-0.5 text-xs font-semibold">{builtSpan}m × {builtDepth}m</div>
+          <div className="mt-1 text-[11px] text-muted-foreground">
+            Expand to roughly {proposedSpan}m × {proposedDepth}m · +{extraPlaces.toLocaleString()} places
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="font-display text-sm tnum">{fmtMoneyExact(spec.cost)}</div>
+          <div className="text-[10px] text-muted-foreground">{spec.durationWeeks} weeks</div>
+        </div>
+      </div>
+      <Button
+        size="sm"
+        className="mt-2 w-full"
+        disabled={!evaluation.ok}
+        title={evaluation.ok ? undefined : evaluation.reasons.join(" · ")}
+        onClick={() =>
+          apply((s) =>
+            approveStandBuild(s, asset.id, spec.type, standBuild(s, asset.id, asset.level))
+          )
+        }
+      >
+        Preview & approve physical expansion
+      </Button>
+      {!evaluation.ok ? <p className="mt-1 text-[10px] text-muted-foreground">{evaluation.reasons[0]}</p> : null}
+      <p className="mt-1 text-[10px] text-muted-foreground">Moving the sliders inside {builtSpan}m × {builtDepth}m remains free. This project increases the permanent envelope and capacity.</p>
+    </div>
+  );
+}
+
 function StandDevelopmentPanel({
   state,
   asset,
@@ -410,10 +468,13 @@ function SelectionPanel({
           </Field>
         ) : null}
         {d.form !== "open" ? (
-          <div className="grid grid-cols-2 gap-3">
-            <Slider label="Width" value={d.span} min={limits.span.min} max={limits.span.max} unit="m" onChange={(span) => apply((s) => updateStand(s, side, { span }))} />
-            {d.form !== "shelter" ? <Slider label="Depth" value={d.depth} min={limits.depth.min} max={limits.depth.max} unit="m" onChange={(depth) => apply((s) => updateStand(s, side, { depth }))} /> : null}
-          </div>
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <Slider label="Width" value={d.span} min={limits.span.min} max={limits.span.max} unit="m" onChange={(span) => apply((s) => updateStand(s, side, { span }))} />
+              {d.form !== "shelter" ? <Slider label="Depth" value={d.depth} min={limits.depth.min} max={limits.depth.max} unit="m" onChange={(depth) => apply((s) => updateStand(s, side, { depth }))} /> : null}
+            </div>
+            {asset ? <StandEnvelopeExpansion state={state} asset={asset} builtSpan={limits.span.max} builtDepth={limits.depth.max} apply={apply} /> : null}
+          </>
         ) : null}
         {d.form !== "open" ? (
           <div className="divide-y rounded-xl border">
