@@ -15,6 +15,7 @@ const MIN_ATTAINABLE: Record<StaffRole, number> = {
   Scout: 0,
   "Head Physio": 0,
   "Sports Scientist": 0,
+  "Community & Events Officer": 0,
 };
 
 function isWilling(state: GameState, staff: Staff): boolean {
