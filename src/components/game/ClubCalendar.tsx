@@ -9,6 +9,8 @@ import { ClubBadge } from "./ClubKitArt";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { clubKitFor, clubKitForReference } from "@/lib/game/clubKit";
 
+type CalendarDay = ReturnType<typeof calendarRail>[number] & { __state: GameState };
+
 const FULL_DAY = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"] as const;
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -33,8 +35,8 @@ export function ClubCalendar({ state }: { state: GameState }) {
   </div>;
 }
 
-function MonthGrid({days}:{days:any[]}) {
-  const weeks:any[][]=[]; for(const day of days){const last=weeks[weeks.length-1]; if(last&&last[0].week===day.week)last.push(day);else weeks.push([day]);}
+function MonthGrid({days}:{days:CalendarDay[]}) {
+  const weeks:CalendarDay[][]=[]; for(const day of days){const last=weeks[weeks.length-1]; if(last&&last[0].week===day.week)last.push(day);else weeks.push([day]);}
   return <div className="space-y-3">{weeks.map(week=><section key={week[0].week} className="overflow-hidden rounded-2xl border bg-card shadow-sm">
     <div className="flex justify-between border-b px-4 py-2"><strong>Week {week[0].week}</strong><span className="text-xs text-muted-foreground">{week[0].month}</span></div>
     <div className="grid grid-cols-7">{week.map(day=><div key={day.absoluteDay} className={cn("min-h-24 min-w-0 overflow-hidden border-r p-1 last:border-r-0",day.isToday&&"bg-primary/10",day.isPast&&"opacity-45")}>
@@ -44,9 +46,9 @@ function MonthGrid({days}:{days:any[]}) {
   </section>)}</div>;
 }
 
-function DayMarks({day,state}:{day:any;state:GameState}) { return <div className="mt-1 space-y-1">
+function DayMarks({day,state}:{day:CalendarDay;state:GameState}) { return <div className="mt-1 space-y-1">
   {day.windowOpen && !day.deadlineDay ? <div className="flex items-center gap-1 text-[8px] font-medium text-violet-400" title="Transfer window open"><RefreshCw className="size-2.5"/><span className="sr-only">Transfer window open</span></div> : null}
-  {day.fixtures.slice(0,1).map((f:any,i:number)=>{
+  {day.fixtures.slice(0,1).map((f,i)=>{
     const ours=clubKitFor(state), theirs=clubKitForReference(state,f.opponentRef);
     const home=f.home?{kit:ours,name:state.clubName}:{kit:theirs,name:f.opponent};
     const away=f.home?{kit:theirs,name:f.opponent}:{kit:ours,name:state.clubName};
@@ -57,11 +59,11 @@ function DayMarks({day,state}:{day:any;state:GameState}) { return <div className
       <div className="mt-1 text-center text-[10px] uppercase tracking-wide text-muted-foreground">Home · Away</div>
     </PopoverContent></Popover>
   })}
-  {day.events.slice(0,2).map((e:any)=><div key={e.id} className="truncate rounded bg-violet-500/10 px-1 py-0.5 text-[9px] text-violet-700 dark:text-violet-300">● {e.label}</div>)}
+  {day.events.slice(0,2).map((e)=><div key={e.id} className="truncate rounded bg-violet-500/10 px-1 py-0.5 text-[9px] text-violet-700 dark:text-violet-300">● {e.label}</div>)}
   {day.deadlineDay&&<div className="rounded bg-amber-500/15 px-1 py-0.5 text-[9px] font-bold text-amber-700 dark:text-amber-300">● Deadline</div>}
 </div>}
 
-function Agenda({days}:{days:any[]}) {const active=days.filter(d=>d.fixtures.length||d.events.length||d.deadlineDay);return <div className="space-y-2">{active.length?active.map(day=><div key={day.absoluteDay} className="flex gap-3 rounded-2xl border bg-card p-3">
+function Agenda({days}:{days:CalendarDay[]}) {const active=days.filter(d=>d.fixtures.length||d.events.length||d.deadlineDay);return <div className="space-y-2">{active.length?active.map(day=><div key={day.absoluteDay} className="flex gap-3 rounded-2xl border bg-card p-3">
   <div className="w-14 shrink-0 text-center"><div className="text-[10px] uppercase text-muted-foreground">{FULL_DAY[day.day].slice(0,3)}</div><div className="font-display text-2xl">{day.date}</div><div className="text-[10px] text-muted-foreground">{day.month}</div></div>
-  <div className="min-w-0 flex-1 space-y-1">{day.fixtures.map((f:any,i:number)=><div key={i} className="text-sm"><Circle className="mr-2 inline size-2 fill-emerald-500 text-emerald-500"/><strong>{f.home?"Home to":"Away at"} {f.opponent}</strong></div>)}{day.events.map((e:any)=><div key={e.id} className="text-sm"><Circle className="mr-2 inline size-2 fill-violet-500 text-violet-500"/>{e.label}{e.detail?<span className="text-muted-foreground"> · {e.detail}</span>:null}</div>)}{day.deadlineDay?<div className="text-sm font-semibold text-amber-600">● Transfer deadline day</div>:null}</div>
+  <div className="min-w-0 flex-1 space-y-1">{day.fixtures.map((f,i)=><div key={i} className="text-sm"><Circle className="mr-2 inline size-2 fill-emerald-500 text-emerald-500"/><strong>{f.home?"Home to":"Away at"} {f.opponent}</strong></div>)}{day.events.map((e)=><div key={e.id} className="text-sm"><Circle className="mr-2 inline size-2 fill-violet-500 text-violet-500"/>{e.label}{e.detail?<span className="text-muted-foreground"> · {e.detail}</span>:null}</div>)}{day.deadlineDay?<div className="text-sm font-semibold text-amber-600">● Transfer deadline day</div>:null}</div>
 </div>):<div className="rounded-2xl border bg-card p-8 text-center text-muted-foreground">Nothing scheduled in the current horizon.</div>}</div>}

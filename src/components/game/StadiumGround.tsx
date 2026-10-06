@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { InfrastructureAsset } from "@/lib/game/types";
 import { conditionBand } from "@/lib/game/infrastructure";
 import { buildGroundScene } from "@/lib/game/groundScene";
-import type { GroundCameraMode, GroundDesign, SceneLook } from "@/lib/game/groundIdentity";
+import type { GroundCameraMode, GroundDesign, SceneLook, StandSide } from "@/lib/game/groundIdentity";
 import { cn } from "@/lib/utils";
 
 export interface GroundHotspot {
@@ -128,6 +128,22 @@ function useViewportSize(ref: RefObject<HTMLDivElement | null>) {
 
 const DEFAULT_CAMERA = { azimuthDeg: -122, elevationDeg: 50, zoom: 1, panX: 0, panY: 0 };
 
+/** Ground Studio pin states: what a component needs, readable at a glance. */
+export type ComponentMarker = "empty" | "works" | "attention" | "urgent";
+
+const PIN_CSS = `
+@keyframes lf-pin-pulse { 0% { box-shadow: 0 0 0 0 rgb(167 139 250 / 55%); } 70% { box-shadow: 0 0 0 9px rgb(167 139 250 / 0%); } 100% { box-shadow: 0 0 0 0 rgb(167 139 250 / 0%); } }
+.lf-pin { position: absolute; transform: translate(-50%, -50%); display: grid; place-items: center; border-radius: 999px; transition: all .18s ease; }
+.lf-pin-idle { width: 10px; height: 10px; border: 2px solid rgb(255 255 255 / 90%); background: rgb(255 255 255 / 40%); }
+.lf-pin-empty { width: 22px; height: 22px; border: 1.5px dashed rgb(221 214 254); background: rgb(76 29 149 / 72%); color: #fff; font: 700 14px/1 system-ui, sans-serif; animation: lf-pin-pulse 2.4s ease-out infinite; }
+.lf-pin-works { width: 16px; height: 16px; border: 2px solid #fff; background: repeating-linear-gradient(-45deg, #f59e0b 0 3px, #1f2937 3px 6px); }
+.lf-pin-attention { width: 12px; height: 12px; border: 2px solid #fff; background: #facc15; }
+.lf-pin-urgent { width: 13px; height: 13px; border: 2px solid #fff; background: #f43f5e; box-shadow: 0 0 0 3px rgb(244 63 94 / 30%); }
+.lf-pin-active { width: 16px; height: 16px; border: 2px solid #fff; background: #ffc53d; box-shadow: 0 0 0 5px rgb(255 197 61 / 32%); animation: none; }
+@media (prefers-reduced-motion: reduce) { .lf-pin-empty { animation: none; } }
+.lf-pin-label { position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); white-space: nowrap; border-radius: 6px; background: rgb(6 18 15 / 82%); padding: 2px 8px; font: 700 10px/1.5 system-ui, sans-serif; color: #fff; letter-spacing: .01em; }
+`;
+
 export function StadiumGround({
   stage,
   hotspots,
@@ -140,6 +156,10 @@ export function StadiumGround({
   selection = null,
   onSelectComponent,
   componentLabels,
+  componentMarkers,
+  works,
+  wear,
+  pitchCondition: pitchConditionOverride,
 }: {
   stage: number;
   hotspots: GroundHotspot[];
@@ -157,6 +177,14 @@ export function StadiumGround({
   onSelectComponent?: (id: string | null) => void;
   /** Friendly names for selectable components (shown on the selected pin). */
   componentLabels?: Record<string, string>;
+  /** Ground Studio: per-component pin state (empty corner, works, needs attention). */
+  componentMarkers?: Record<string, ComponentMarker>;
+  /** Extra works locations by selectable id ("stand:N", "corner:SE"). */
+  works?: string[];
+  /** Per-side stand condition for restrained visible wear. */
+  wear?: Partial<Record<StandSide, number>>;
+  /** Pitch condition when no pitch hotspot is supplied. */
+  pitchCondition?: number;
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const { width, height } = useViewportSize(viewportRef);
@@ -167,12 +195,15 @@ export function StadiumGround({
 
   // Keep Facilities resilient when a legacy save or editor render has no hotspot list yet.
   const safeHotspots = Array.isArray(hotspots) ? hotspots : [];
-  const pitchCondition = Math.round((safeHotspots.find((h) => h.id === "pitch")?.asset?.condition ?? 80) / 5) * 5;
-  const worksKey = safeHotspots
-    .filter((h) => h.asset.activeProjectId)
-    .map((h) => h.id)
+  const pitchCondition = Math.round((safeHotspots.find((h) => h.id === "pitch")?.asset?.condition ?? pitchConditionOverride ?? 80) / 5) * 5;
+  const worksKey = [...new Set([
+    ...safeHotspots.filter((h) => h.asset.activeProjectId).map((h) => h.id),
+    ...(works ?? []),
+  ])]
     .sort()
     .join(",");
+  // Wear is quantised so a week's slow decay doesn't rebuild the scene.
+  const wearKey = wear ? JSON.stringify(Object.fromEntries(Object.entries(wear).map(([side, value]) => [side, Math.round((value ?? 100) / 5) * 5]))) : "";
   // Rebuild only when the look actually changes, not on every render.
   const lookKey = look ? JSON.stringify(look) : "";
   const designKey = design ? JSON.stringify(design) : "";
@@ -189,8 +220,9 @@ export function StadiumGround({
         design: designKey ? (JSON.parse(designKey) as GroundDesign) : undefined,
         camera: { ...camera, mode: cameraMode },
         highlight: selection ?? undefined,
+        wear: wearKey ? (JSON.parse(wearKey) as Partial<Record<StandSide, number>>) : undefined,
       }),
-    [camera, cameraMode, designKey, height, lookKey, pitchCondition, selection, stage, width, worksKey],
+    [camera, cameraMode, designKey, height, lookKey, pitchCondition, selection, stage, wearKey, width, worksKey],
   );
 
   // Frame the selected component (once per selection change).
@@ -321,7 +353,7 @@ export function StadiumGround({
         setCamera((current) => ({ ...current, zoom: Math.max(0.75, Math.min(2.6, current.zoom - event.deltaY * 0.0015)) }));
       } : undefined}
     >
-      <style>{SCENE_CSS}</style>
+      <style>{SCENE_CSS + (onSelectComponent ? PIN_CSS : "")}</style>
       <div className="lf-ground-scene-heading">
         <span className="lf-ground-scene-stage">Stage {stage + 1}</span>
       </div>
@@ -342,16 +374,18 @@ export function StadiumGround({
           {Object.entries(scene.selectables).map(([id, at]) => {
             if (at.x < 0.02 || at.x > 0.98 || at.y < 0.02 || at.y > 0.98) return null;
             const active = id === selection;
+            const marker = componentMarkers?.[id];
+            const tone = active ? "lf-pin-active" : marker ? `lf-pin-${marker}` : "lf-pin-idle";
             return (
               <span
                 key={id}
                 data-selectable={id}
-                className={cn("absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 transition-all", active ? "size-3.5 border-white bg-amber-400 shadow-[0_0_0_4px_rgba(255,197,61,.35)]" : "size-2.5 border-white/90 bg-white/45")}
+                data-marker={marker}
+                className={cn("lf-pin", tone)}
                 style={{ left: `${at.x * 100}%`, top: `${at.y * 100}%` }}
               >
-                {active && componentLabels?.[id] ? (
-                  <span className="absolute bottom-full left-1/2 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-black/75 px-2 py-0.5 text-[10px] font-bold text-white">{componentLabels[id]}</span>
-                ) : null}
+                {marker === "empty" && !active ? "+" : null}
+                {active && componentLabels?.[id] ? <span className="lf-pin-label">{componentLabels[id]}</span> : null}
               </span>
             );
           })}

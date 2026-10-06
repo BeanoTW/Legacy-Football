@@ -1,11 +1,36 @@
 import { useMemo, useState } from "react";
-import { BriefcaseBusiness, Building2, Check, ChevronDown, CircleAlert, Hammer, History, Palette, ShieldCheck, Wrench, X } from "lucide-react";
+import {
+  Accessibility,
+  ArrowRight,
+  BriefcaseBusiness,
+  Building2,
+  Car,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  CircleAlert,
+  Dumbbell,
+  Flag,
+  Hammer,
+  HardHat,
+  History,
+  ShieldCheck,
+  ShoppingBag,
+  Sprout,
+  Stethoscope,
+  UtensilsCrossed,
+  Wine,
+  Wrench,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { StadiumGround, type GroundHotspot } from "@/components/game/StadiumGround";
-import { GroundStudioSheet, StandBuildChooser } from "@/components/game/GroundStudio";
+import { GroundStudioSheet } from "@/components/game/GroundStudio";
+import { BAND_HEX, ConditionDot, ConditionLabel, ConditionMeter, KitStyles, ProjectProgress, WorkCard, priceLabel } from "@/components/game/StudioKit";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import type { CapitalProject, CapitalProjectType, GameState, InfrastructureAsset } from "@/lib/game/types";
+import type { CapitalProject, CapitalProjectType, GameState, InfrastructureAsset, InfrastructureAssetType } from "@/lib/game/types";
 import {
   ASSET_CONFIG,
   BAND_LABEL,
@@ -17,25 +42,30 @@ import {
   cancelProject,
   conditionBand,
   evaluateProject,
+  facilityProgressionSpec,
   infrastructureSnapshot,
   maintenanceCostUnder,
   projectCatalogue,
   projectedSeasonDecay,
   setMaintenancePolicy,
-  type ProjectSpec,
-  facilityProgressionSpec,
 } from "@/lib/game/infrastructure";
-import { facilityCurrentEffect, groundProgression } from "@/lib/game/groundPresentation";
-import { fmtMoney, fmtMoneyExact } from "@/lib/game/engine";
-import { fromAbsoluteWeek } from "@/lib/game/time";
+import { groundProgression } from "@/lib/game/groundPresentation";
+import { fmtMoneyExact } from "@/lib/game/engine";
 import { stadiumAccreditation } from "@/lib/game/stadiumAccreditation";
 import { clubOperatingModel, professionaliseUserClub, userProfessionalisationReadiness } from "@/lib/game/employment";
 import { userClubReference } from "@/lib/game/clubReference";
 import { clubKitFor } from "@/lib/game/clubKit";
-import { groundDesign, sceneLook, type StandBuild } from "@/lib/game/groundIdentity";
-import { approveStandBuild, isLevelRaising } from "@/lib/game/groundBuild";
+import { groundDesign, sceneLook, type StandBuild, type StandSide } from "@/lib/game/groundIdentity";
+import { activeProjectFor, conditionSummary, facilityNeed, lockReason, maintenanceOptions, standToDevelopFor, type ProjectOption } from "@/lib/game/stadiumUx";
 
-type SupportingView = "ground" | "projects" | "maintenance" | "history";
+/*
+ * Facilities is the capability layer: hospitality, food, toilets and
+ * accessibility, retail, parking, fan zone, pitch, training, medical, offices.
+ * Physical spectator structures (stands and corners) live in Ground Studio;
+ * tapping one here opens it there, so there is one place to build them.
+ */
+
+type SupportingView = "services" | "projects" | "maintenance" | "status" | "history";
 
 const BAND_TONE: Record<string, string> = {
   excellent: "text-income",
@@ -46,17 +76,48 @@ const BAND_TONE: Record<string, string> = {
   closed: "text-muted-foreground",
 };
 
+const SERVICE_ICON: Partial<Record<InfrastructureAssetType, LucideIcon>> = {
+  hospitality: Wine,
+  concessions: UtensilsCrossed,
+  sanitary: Accessibility,
+  shop: ShoppingBag,
+  parking: Car,
+  fanZone: Flag,
+  pitch: Sprout,
+  training: Dumbbell,
+  medical: Stethoscope,
+  offices: BriefcaseBusiness,
+};
+
+const SERVICE_GROUPS: { label: string; types: InfrastructureAssetType[] }[] = [
+  { label: "Matchday", types: ["hospitality", "concessions", "sanitary", "shop", "parking", "fanZone"] },
+  { label: "Football", types: ["pitch", "training", "medical"] },
+  { label: "Club", types: ["offices"] },
+];
+
+const isStructure = (asset: InfrastructureAsset) => asset.type === "stand" || asset.type === "cornerStand";
+const studioId = (asset: InfrastructureAsset) => (asset.type === "cornerStand" ? `corner:${asset.location}` : `stand:${asset.location}`);
+
 function chooseAsset(list: InfrastructureAsset[], id: string, fallbackType: InfrastructureAsset["type"], excludeId?: string) {
   return list.find((asset) => asset.id === id)
     ?? list.find((asset) => asset.type === fallbackType && asset.id !== excludeId)
     ?? list[0];
 }
 
-export function FacilitiesTab({ state, update }: { state: GameState; update: (fn: (s: GameState) => GameState) => void }) {
-  const [view, setView] = useState<SupportingView>("ground");
+export function FacilitiesTab({
+  state,
+  update,
+  onOpenStudio,
+}: {
+  state: GameState;
+  update: (fn: (s: GameState) => GameState) => void;
+  /** Open Ground Studio on a component ("stand:E", "corner:SW"). Omitted: this tab hosts its own studio. */
+  onOpenStudio?: (selection?: string) => void;
+}) {
+  const [view, setView] = useState<SupportingView>("services");
   const [openAssetId, setOpenAssetId] = useState<string | null>(null);
   const [requirementsOpen, setRequirementsOpen] = useState(false);
-  const [studioOpen, setStudioOpen] = useState(false);
+  const [ownStudio, setOwnStudio] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const snap = useMemo(() => state.infrastructure ? infrastructureSnapshot(state) : null, [state]);
   const progression = useMemo(() => state.infrastructure ? groundProgression(state) : null, [state]);
@@ -72,6 +133,9 @@ export function FacilitiesTab({ state, update }: { state: GameState; update: (fn
   if (!state.infrastructure || !snap || !progression) {
     return <div className="rounded-lg border bg-card p-6 text-sm text-muted-foreground">The club's physical assets have not been surveyed yet. Advance a week to open the ground.</div>;
   }
+
+  const openStudio = (selection?: string) => (onOpenStudio ? onOpenStudio(selection) : setOwnStudio(selection ?? "stand:W"));
+  const openAsset = (asset: InfrastructureAsset) => (isStructure(asset) ? openStudio(studioId(asset)) : setOpenAssetId(asset.id));
 
   const list = allAssets(state);
   const mainStand = chooseAsset(list, "stand-W", "stand");
@@ -97,74 +161,80 @@ export function FacilitiesTab({ state, update }: { state: GameState; update: (fn
   const open = openAssetId ? assetById(state, openAssetId) : null;
   const nextRequirements = progression.next?.requirements ?? [];
   const metCount = nextRequirements.filter((requirement) => requirement.met).length;
-  const unmetCount = Math.max(0, nextRequirements.length - metCount);
   const evolutionPercent = progression.next && nextRequirements.length
     ? Math.round((metCount / nextRequirements.length) * 100)
     : 100;
   const nextUnlock = nextRequirements.find((requirement) => !requirement.met) ?? null;
+  const wear = Object.fromEntries(list.filter((asset) => asset.type === "stand").map((asset) => [asset.location, asset.condition])) as Partial<Record<StandSide, number>>;
+  const works = list.filter((asset) => asset.activeProjectId && isStructure(asset)).map(studioId);
 
   return (
-    <div className="lf-ground-screen flex h-full min-h-0 flex-col gap-2">
+    <div className="lf-ground-screen lfk flex h-full min-h-0 flex-col gap-2">
+      <KitStyles />
       <header className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
         <div className="min-w-0">
           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Facilities</div>
           <h1 className="truncate font-display text-2xl leading-none md:text-3xl">{progression.current.name}</h1>
         </div>
         <div className="text-right">
-          <div className="text-[10px] uppercase text-muted-foreground">Overall condition</div>
+          <div className="text-[10px] uppercase text-muted-foreground">Ground condition</div>
           <div className={cn("font-display text-xl leading-none", BAND_TONE[conditionBand(snap.averageStadiumCondition)])}>{snap.averageStadiumCondition.toFixed(0)}%</div>
           <div className="mt-0.5 text-[9px] uppercase tracking-wide text-muted-foreground">{BAND_LABEL[conditionBand(snap.averageStadiumCondition)]}</div>
         </div>
       </header>
 
       {note ? (
-        <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border border-primary/30 bg-secondary px-3 py-2 text-xs">
-          <span className="min-w-0 truncate">{note}</span>
+        <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-primary/30 bg-secondary px-3 py-2 text-xs">
+          <span className="min-w-0">{note}</span>
           <Button variant="ghost" size="icon" className="size-6" aria-label="Dismiss message" onClick={() => setNote(null)}><X /></Button>
         </div>
       ) : null}
 
-      <div className="flex shrink-0 justify-end">
-        <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => setStudioOpen(true)}>
-          <Palette className="size-3.5" /> Ground Studio
-        </Button>
-      </div>
+      {!onOpenStudio ? (
+        <div className="flex shrink-0 justify-end">
+          <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => openStudio()}>
+            <Building2 className="size-3.5" /> Ground Studio
+          </Button>
+        </div>
+      ) : null}
 
       <div className="lf-ground-layout min-h-0 flex-1">
-        <StadiumGround stage={progression.visualStage} hotspots={hotspots} selectedId={openAssetId} onSelect={(hotspot) => setOpenAssetId(hotspot.asset.id)} look={look} design={design} />
+        <StadiumGround
+          stage={progression.visualStage}
+          hotspots={hotspots}
+          selectedId={openAssetId}
+          onSelect={(hotspot) => openAsset(hotspot.asset)}
+          look={look}
+          design={design}
+          works={works}
+          wear={wear}
+        />
 
         <aside className="lf-ground-sidebar space-y-2 pt-2 md:pt-0">
-          <section className="border bg-card">
+          <section className="overflow-hidden rounded-xl border bg-card">
             <div className="grid grid-cols-3 divide-x border-b">
-              <GroundMetric label="Capacity" value={snap.capacity.toLocaleString()} />
-              <GroundMetric label="Open capacity" value={snap.usableCapacity.toLocaleString()} />
-              <GroundMetric label="Weekly cost" value={fmtMoneyExact(snap.weeklyMaintenance + snap.weeklyOperating)} />
+              <GroundMetric label="Capacity" value={snap.capacity.toLocaleString("en-GB")} />
+              <GroundMetric label="Open now" value={snap.usableCapacity.toLocaleString("en-GB")} tone={snap.usableCapacity < snap.capacity ? "text-expense" : undefined} />
+              <GroundMetric label="Running / wk" value={fmtMoneyExact(snap.weeklyMaintenance + snap.weeklyOperating)} />
             </div>
-            <Button variant="ghost" className="h-auto w-full justify-between rounded-none px-3 py-2 text-left" onClick={() => setRequirementsOpen((value) => !value)}>
-              <span className="min-w-0">
-                <span className="block text-[10px] uppercase text-muted-foreground">Next evolution</span>
+            <button type="button" className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left" onClick={() => setRequirementsOpen((value) => !value)} aria-expanded={requirementsOpen}>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[10px] uppercase tracking-wide text-muted-foreground">Next ground grade</span>
                 <span className="block truncate font-display text-base">{progression.next?.name ?? "Elite standard reached"}</span>
                 {progression.next ? (
-                  <span className="block text-[11px] text-muted-foreground">
-                    {metCount} / {nextRequirements.length} requirements met · {unmetCount} remaining
+                  <span className="mt-1 block">
+                    <span className="lf-ground-evolution-track block" aria-label={`${evolutionPercent}% of next ground grade requirements met`}>
+                      <span className="lf-ground-evolution-fill block" style={{ width: `${evolutionPercent}%` }} />
+                    </span>
+                    <span className="mt-1 flex justify-between gap-2 text-[10.5px] text-muted-foreground">
+                      <span className="truncate">{nextUnlock ? `Next: ${nextUnlock.label}` : "All requirements met"}</span>
+                      <span className="shrink-0 tnum">{metCount}/{nextRequirements.length}</span>
+                    </span>
                   </span>
                 ) : null}
               </span>
-              <ChevronDown className={cn("size-4 shrink-0 transition-transform", requirementsOpen && "rotate-180")} />
-            </Button>
-            {progression.next ? (
-              <div className="px-3 pb-3">
-                <div className="lf-ground-evolution-track" aria-label={`${evolutionPercent}% of next ground evolution requirements met`}>
-                  <div className="lf-ground-evolution-fill" style={{ width: `${evolutionPercent}%` }} />
-                </div>
-                {nextUnlock ? (
-                  <div className="mt-1.5 flex items-center justify-between gap-2 text-[9px] uppercase tracking-wide text-muted-foreground">
-                    <span className="truncate">Next unlock · {nextUnlock.label}</span>
-                    <span className="shrink-0 font-mono normal-case tracking-normal">{nextUnlock.value}</span>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
+              <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", requirementsOpen && "rotate-180")} />
+            </button>
             {requirementsOpen && progression.next ? (
               <div className="grid gap-1 border-t p-2">
                 {nextRequirements.map((requirement) => (
@@ -178,28 +248,29 @@ export function FacilitiesTab({ state, update }: { state: GameState; update: (fn
             ) : null}
           </section>
 
-          <nav className="grid grid-cols-4 gap-1" aria-label="Facilities sections">
+          <nav className="grid grid-cols-5 gap-1 rounded-xl bg-muted/60 p-1" aria-label="Facilities sections">
             {([
-              ["ground", Building2, "Ground"],
+              ["services", Building2, "Services"],
               ["projects", Hammer, "Works"],
               ["maintenance", Wrench, "Upkeep"],
+              ["status", ShieldCheck, "Status"],
               ["history", History, "History"],
             ] as const).map(([key, Icon, label]) => (
-              <Button key={key} variant={view === key ? "default" : "outline"} className="h-12 min-w-0 flex-col gap-0 rounded-sm px-1 text-[10px]" onClick={() => setView(key)}>
+              <button
+                key={key}
+                type="button"
+                className={cn("relative flex h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg text-[10.5px] font-semibold", view === key ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}
+                aria-pressed={view === key}
+                onClick={() => setView(key)}
+              >
                 <Icon className="size-4" /><span className="truncate">{label}</span>
-              </Button>
+                {key === "projects" && snap.activeProjects.length ? <span className="absolute right-2 top-1.5 size-1.5 rounded-full bg-amber-500" /> : null}
+              </button>
             ))}
           </nav>
 
-          {view === "ground" ? <>
-            <GroundStatus snap={snap} assets={list} onOpen={(asset) => setOpenAssetId(asset.id)} critical={snap.criticalAssets} />
-            {accreditation && professional ? <ClubStatusPanel state={state} accreditation={accreditation} professional={professional} onProfessionalise={() => {
-              const outcome = professionaliseUserClub(state);
-              setNote(outcome.result.reason);
-              if (outcome.result.ok) update(() => outcome.state);
-            }} /> : null}
-          </> : null}
-          {view === "projects" ? <ProjectsPanel state={state} projects={snap.activeProjects} commitments={snap.commitments} onCancel={(project) => {
+          {view === "services" ? <ServicesPanel state={state} onOpen={(asset) => setOpenAssetId(asset.id)} /> : null}
+          {view === "projects" ? <ProjectsPanel state={state} projects={snap.activeProjects} commitments={snap.commitments} onOpen={(project) => { const asset = assetById(state, project.assetId); if (asset) openAsset(asset); }} onCancel={(project) => {
             const result = cancelProject(state, project.id);
             setNote(result.ok ? `${project.title} cancelled — a penalty was booked.` : (result.reason ?? "Unable to cancel project."));
             if (result.ok) update(() => result.state);
@@ -208,24 +279,28 @@ export function FacilitiesTab({ state, update }: { state: GameState; update: (fn
             update(() => setMaintenancePolicy(state, policy));
             setNote(`Maintenance policy set to ${policy}.`);
           }} /> : null}
+          {view === "status" ? <>
+            <GroundStatus snap={snap} assets={list} onOpen={openAsset} critical={snap.criticalAssets} />
+            {accreditation && professional ? <ClubStatusPanel state={state} accreditation={accreditation} professional={professional} onProfessionalise={() => {
+              const outcome = professionaliseUserClub(state);
+              setNote(outcome.result.reason);
+              if (outcome.result.ok) update(() => outcome.state);
+            }} /> : null}
+          </> : null}
           {view === "history" ? <HistoryPanel state={state} /> : null}
         </aside>
       </div>
 
-      <GroundStudioSheet open={studioOpen} onOpenChange={setStudioOpen} state={state} update={update} />
+      {!onOpenStudio && ownStudio ? <GroundStudioSheet open onOpenChange={(isOpen) => { if (!isOpen) setOwnStudio(null); }} state={state} update={update} initialSelection={ownStudio} /> : null}
 
       <Sheet open={Boolean(open)} onOpenChange={(isOpen) => { if (!isOpen) setOpenAssetId(null); }}>
         {open ? <FacilitySheet
           state={state}
           asset={open}
+          onOpenStudio={(selection) => { setOpenAssetId(null); openStudio(selection); }}
           onApprove={(type) => {
             const result = approveProject(state, open.id, type);
-            setNote(result.ok ? `Project approved on ${open.name}.` : (result.reason ?? "Unable to approve project."));
-            if (result.ok) { update(() => result.state); setOpenAssetId(null); }
-          }}
-          onApproveBuild={(type, build) => {
-            const result = approveStandBuild(state, open.id, type, build);
-            setNote(result.reason);
+            setNote(result.ok ? `Approved · ${open.name}.` : (result.reason ?? "Unable to approve project."));
             if (result.ok) { update(() => result.state); setOpenAssetId(null); }
           }}
         /> : null}
@@ -234,53 +309,130 @@ export function FacilitiesTab({ state, update }: { state: GameState; update: (fn
   );
 }
 
-function GroundMetric({ label, value }: { label: string; value: string }) {
-  return <div className="min-w-0 px-2 py-2"><div className="truncate text-[9px] uppercase text-muted-foreground">{label}</div><div className="truncate font-display text-sm tnum">{value}</div></div>;
+function GroundMetric({ label, value, tone }: { label: string; value: string; tone?: string }) {
+  return <div className="min-w-0 px-2.5 py-2"><div className="truncate text-[9px] uppercase tracking-wide text-muted-foreground">{label}</div><div className={cn("truncate font-display text-[15px] tnum", tone)}>{value}</div></div>;
 }
 
+/* ------------------------------------------------------------------ */
+/* Services: the capability layer                                      */
+/* ------------------------------------------------------------------ */
+
+function ServicesPanel({ state, onOpen }: { state: GameState; onOpen: (asset: InfrastructureAsset) => void }) {
+  const list = allAssets(state);
+  return (
+    <div className="space-y-3">
+      {SERVICE_GROUPS.map((group) => {
+        const items = group.types.flatMap((type) => list.filter((asset) => asset.type === type));
+        if (!items.length) return null;
+        return (
+          <section key={group.label}>
+            <div className="lfk-eyebrow mb-1.5 px-0.5">{group.label}</div>
+            <div className="overflow-hidden rounded-xl border bg-card">
+              {items.map((asset) => <ServiceRow key={asset.id} state={state} asset={asset} onOpen={() => onOpen(asset)} />)}
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+function ServiceRow({ state, asset, onOpen }: { state: GameState; asset: InfrastructureAsset; onOpen: () => void }) {
+  const config = ASSET_CONFIG[asset.type];
+  const Icon = SERVICE_ICON[asset.type] ?? Building2;
+  const condition = conditionSummary(asset);
+  const project = activeProjectFor(state, asset.id);
+  const upgrade = projectCatalogue(state, asset.id).find((spec) => spec.type === "facilityUpgrade");
+  const need = facilityNeed(state, asset);
+  const lock = upgrade ? lockReason(state, asset.id, upgrade, evaluateProject(state, asset.id, upgrade.type)) : null;
+  return (
+    <button type="button" onClick={onOpen} className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-t px-3 py-2.5 text-left first:border-t-0 hover:bg-muted/40">
+      <span className="grid size-9 place-items-center rounded-lg bg-muted/70"><Icon className="size-4" /></span>
+      <span className="min-w-0">
+        <span className="flex items-center gap-1.5">
+          <strong className="truncate text-[13px]">{config.label}</strong>
+          {condition.attention ? <ConditionDot band={condition.band} size={7} /> : null}
+        </span>
+        <span className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <span className="truncate">{config.levels[asset.level - 1]}</span>
+          <LevelPips level={asset.level} max={config.maxLevel} />
+        </span>
+        <span className="mt-0.5 block truncate text-[11px] font-semibold">
+          {project ? (
+            <span className="inline-flex items-center gap-1 text-amber-700"><HardHat className="size-3" />Upgrading · {Math.round(project.progress)}%</span>
+          ) : !upgrade ? (
+            <span className="text-income">Top standard</span>
+          ) : need ? (
+            <span className="text-muted-foreground">Next: {config.levels[asset.level]} · {need.replace("Needs", "needs")}</span>
+          ) : (
+            <span style={{ color: "var(--k-paid-text)" }}>Next: {config.levels[asset.level]} · {priceLabel(upgrade.cost)}{lock && lock.kind !== "dependency" ? <span className="text-muted-foreground"> · {SHORT_LOCK[lock.kind] ?? lock.text}</span> : null}</span>
+          )}
+        </span>
+      </span>
+      <ChevronRight className="size-4 text-muted-foreground" />
+    </button>
+  );
+}
+
+const SHORT_LOCK: Partial<Record<string, string>> = { reserve: "breaks reserve", club: "after current works", asset: "work under way" };
+
+function LevelPips({ level, max }: { level: number; max: number }) {
+  return (
+    <span className="inline-flex shrink-0 gap-0.5" aria-label={`Level ${level} of ${max}`}>
+      {Array.from({ length: max }, (_, index) => <i key={index} className={cn("block h-1.5 w-2.5 rounded-full", index < level ? "bg-primary" : "bg-muted")} />)}
+    </span>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Status (ground report + club status)                                */
+/* ------------------------------------------------------------------ */
+
 function GroundStatus({ snap, assets, critical, onOpen }: { snap: ReturnType<typeof infrastructureSnapshot>; assets: InfrastructureAsset[]; critical: InfrastructureAsset[]; onOpen: (asset: InfrastructureAsset) => void }) {
-  const watchlist = [...assets].sort((a, b) => a.condition - b.condition).slice(0, 3);
+  const watchlist = [...assets].sort((a, b) => a.condition - b.condition).slice(0, 4);
   const availabilityLoss = Math.max(0, snap.capacity - snap.usableCapacity);
-  return <section className="border bg-card p-3">
+  return <section className="rounded-xl border bg-card p-3">
     <div className="flex items-center gap-2">
       <ShieldCheck className={cn("size-4", critical.length ? "text-expense" : "text-income")} />
       <h2 className="font-display text-base">Ground report</h2>
       <span className="ml-auto text-xs text-muted-foreground">Risk: {snap.riskLabel}</span>
     </div>
     <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
-      <div className="rounded-sm bg-muted/45 px-2 py-1.5">
-        <span className="block text-[9px] uppercase text-muted-foreground">Capacity unavailable</span>
-        <strong className={cn("font-display text-sm tnum", availabilityLoss ? "text-expense" : "text-income")}>{availabilityLoss.toLocaleString()}</strong>
+      <div className="rounded-lg bg-muted/45 px-2 py-1.5">
+        <span className="block text-[9px] uppercase text-muted-foreground">Places unusable</span>
+        <strong className={cn("font-display text-sm tnum", availabilityLoss ? "text-expense" : "text-income")}>{availabilityLoss.toLocaleString("en-GB")}</strong>
       </div>
-      <div className="rounded-sm bg-muted/45 px-2 py-1.5">
+      <div className="rounded-lg bg-muted/45 px-2 py-1.5">
         <span className="block text-[9px] uppercase text-muted-foreground">Live works</span>
         <strong className="font-display text-sm tnum">{snap.activeProjects.length}</strong>
       </div>
     </div>
     <div className="mt-2 border-t pt-2">
-      <div className="mb-1 flex items-center justify-between">
-        <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">{critical.length ? "Needs attention" : "Lowest condition"}</span>
-        <span className="text-[9px] text-muted-foreground">Tap to inspect</span>
-      </div>
+      <div className="mb-1 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">{critical.length ? "Needs attention" : "Lowest condition"}</div>
       <div className="grid gap-1">
-        {(critical.length ? critical.slice(0, 3) : watchlist).map((asset) => (
-          <button key={asset.id} type="button" className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-sm px-1 py-1 text-left hover:bg-muted/60" onClick={() => onOpen(asset)}>
-            <span className="min-w-0 truncate text-xs">{asset.name}</span>
-            <span className={cn("font-mono text-[10px]", BAND_TONE[conditionBand(asset.condition)])}>{asset.condition.toFixed(0)}%</span>
-          </button>
-        ))}
+        {(critical.length ? critical.slice(0, 4) : watchlist).map((asset) => {
+          const summary = conditionSummary(asset);
+          return (
+            <button key={asset.id} type="button" className="grid w-full grid-cols-[minmax(0,1fr)_72px_auto] items-center gap-2 rounded-md px-1 py-1 text-left hover:bg-muted/60" onClick={() => onOpen(asset)}>
+              <span className="min-w-0 truncate text-xs">{asset.name}{isStructure(asset) ? <span className="text-muted-foreground"> · Ground Studio</span> : null}</span>
+              <ConditionMeter summary={summary} />
+              <span className="w-9 text-right font-mono text-[10px]" style={{ color: BAND_HEX[summary.band] }}>{summary.pct}%</span>
+            </button>
+          );
+        })}
       </div>
     </div>
     <div className="mt-2 border-t pt-2 text-[10px] text-muted-foreground">{fmtMoneyExact(snap.totalCapitalSpend)} invested in the ground to date</div>
   </section>;
 }
+
 function ClubStatusPanel({ state, accreditation, professional, onProfessionalise }: { state: GameState; accreditation: ReturnType<typeof stadiumAccreditation>; professional: ReturnType<typeof userProfessionalisationReadiness>; onProfessionalise: () => void }) {
   const fullTime = clubOperatingModel(state, userClubReference(state)) === "FullTime";
-  return <section className="border bg-card p-3">
+  return <section className="rounded-xl border bg-card p-3">
     <div className="flex items-center gap-2"><BriefcaseBusiness className={cn("size-4", fullTime ? "text-income" : "text-muted-foreground")} /><h2 className="font-display text-base">Club status</h2><span className={cn("ml-auto text-xs font-semibold", fullTime ? "text-income" : "text-muted-foreground")}>{fullTime ? "Full-time" : "Semi-professional"}</span></div>
     <div className="mt-2 grid grid-cols-2 gap-2 text-[11px]">
-      <div className="rounded-sm bg-muted/45 px-2 py-1.5"><span className="block text-[9px] uppercase text-muted-foreground">Ground accreditation</span><strong className="font-display text-sm">{accreditation.faCapacityLabel}</strong></div>
-      <div className="rounded-sm bg-muted/45 px-2 py-1.5"><span className="block text-[9px] uppercase text-muted-foreground">EFL qualification</span><strong className={cn("font-display text-sm", accreditation.eflQualificationReady ? "text-income" : "text-muted-foreground")}>{accreditation.eflQualificationReady ? "Ready" : "Not yet"}</strong></div>
+      <div className="rounded-lg bg-muted/45 px-2 py-1.5"><span className="block text-[9px] uppercase text-muted-foreground">Ground accreditation</span><strong className="font-display text-sm">{accreditation.faCapacityLabel}</strong></div>
+      <div className="rounded-lg bg-muted/45 px-2 py-1.5"><span className="block text-[9px] uppercase text-muted-foreground">EFL qualification</span><strong className={cn("font-display text-sm", accreditation.eflQualificationReady ? "text-income" : "text-muted-foreground")}>{accreditation.eflQualificationReady ? "Ready" : "Not yet"}</strong></div>
     </div>
     {!fullTime ? <div className="mt-2 border-t pt-2">
       <div className="mb-1.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Full-time requirements</div>
@@ -296,286 +448,195 @@ function StatusRequirement({ label, met, current, required }: { label: string; m
   return <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 py-0.5 text-[10px]">{met ? <Check className="size-3.5 text-income" /> : <CircleAlert className="size-3.5 text-muted-foreground" />}<span className="truncate">{label}</span><span className="text-right font-mono text-muted-foreground">{current} / {required}</span></div>;
 }
 
-type WorksGroup = "repair" | "improve" | "rebuild";
+/* ------------------------------------------------------------------ */
+/* One facility                                                        */
+/* ------------------------------------------------------------------ */
 
-const GROUP_OF: Partial<Record<CapitalProjectType, WorksGroup>> = {
-  minorRepair: "repair",
-  majorRepair: "repair",
-  refurbishment: "repair",
-  replacement: "rebuild",
-  capacityExpansion: "rebuild",
-  standRedevelopment: "rebuild",
-  cornerBuild: "rebuild",
-  cornerExpansion: "rebuild",
-};
-const GROUP_LABEL: Record<WorksGroup, string> = { repair: "Repair", improve: "Improve", rebuild: "Rebuild & expand" };
-
-const BAND_CHIP: Record<string, string> = {
-  excellent: "bg-emerald-500 text-white",
-  good: "bg-emerald-500 text-white",
-  worn: "bg-amber-400 text-amber-950",
-  poor: "bg-rose-500 text-white",
-  critical: "bg-rose-600 text-white",
-  closed: "bg-slate-500 text-white",
-};
-const BAND_BAR: Record<string, string> = {
-  excellent: "bg-emerald-500",
-  good: "bg-emerald-500",
-  worn: "bg-amber-400",
-  poor: "bg-rose-500",
-  critical: "bg-rose-600",
-  closed: "bg-slate-400",
-};
-
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
-
-/** What a piece of work actually does, as short chips. */
-function effectChips(spec: ProjectSpec, asset: InfrastructureAsset): string[] {
-  const out: string[] = [];
-  for (const effect of spec.effects) {
-    if (effect.kind === "condition") {
-      if (effect.to != null) out.push(`Condition to ${effect.to}%`);
-      else if ((effect.add ?? 0) > 0) out.push(`+${effect.add} condition`);
-    } else if (effect.kind === "level") out.push(effect.add > 1 ? `+${effect.add} levels` : "+1 level");
-    else if (effect.kind === "capacity") out.push(`+${effect.add.toLocaleString("en-GB")} ${asset.type === "stand" ? "places" : "capacity"}`);
-    else if (effect.kind === "quality") out.push(`Quality +${effect.add}`);
-    else if (effect.kind === "resetAge") out.push("Like new");
-    else if (effect.kind === "metadata") {
-      const amount = "add" in effect && typeof effect.add === "number" ? effect.add : 0;
-      const label: Record<string, string> = {
-        roofQuality: "Better roof",
-        seatingQuality: "New seats",
-        concourseQuality: "Better concourse",
-        accessibility: "Fully accessible",
-        hospitalityCapacity: amount ? `+${amount} hospitality places` : "Hospitality",
-        commercialSpace: "More retail space",
-      };
-      if (label[effect.key]) out.push(label[effect.key]);
-    }
-  }
-  return [...new Set(out)].slice(0, 4);
-}
-
-function riskLevel(risk: number) {
-  return risk >= 50 ? { label: "High risk", tone: "text-rose-600" } : risk >= 25 ? { label: "Medium risk", tone: "text-amber-600" } : { label: "Low risk", tone: "text-emerald-600" };
-}
-
-/** A short, human reason a project can't go ahead. */
-function blockedReason(state: GameState, spec: ProjectSpec, evaluation: NonNullable<ReturnType<typeof evaluateProject>>): string {
-  if (!evaluation.assetFree) return "Work already under way here";
-  if (!evaluation.capacityOk) return spec.major ? "One major project at a time" : "A minor repair is already running";
-  const shortfall = spec.cost - Math.round(state.cash);
-  if (shortfall > 0) return `${fmtMoney(shortfall)} short`;
-  const reserve = state.finance?.minimumCashReserve ?? 0;
-  if (reserve > 0) return `Would break the board's ${fmtMoney(reserve)} reserve`;
-  return evaluation.reason;
-}
-
-export function FacilitySheet({ state, asset, onApprove, onApproveBuild }: { state: GameState; asset: InfrastructureAsset; onApprove: (type: CapitalProjectType) => void; onApproveBuild: (type: CapitalProjectType, build: StandBuild) => void }) {
+export function FacilitySheet({
+  state,
+  asset,
+  onApprove,
+  onOpenStudio,
+}: {
+  state: GameState;
+  asset: InfrastructureAsset;
+  onApprove: (type: CapitalProjectType) => void;
+  /** Kept for older callers; stand builds are chosen in Ground Studio. */
+  onApproveBuild?: (type: CapitalProjectType, build: StandBuild) => void;
+  /** Jump to Ground Studio (structural dependencies, stands and corners). */
+  onOpenStudio?: (selection?: string) => void;
+}) {
   const config = ASSET_CONFIG[asset.type];
-  const catalogue = projectCatalogue(state, asset.id);
-  // Structural stand development is owned by Ground Studio. Facilities owns
-  // non-visual capability and every non-stand facility upgrade.
-  const visibleCatalogue = asset.type === "stand" || asset.type === "cornerStand"
-    ? catalogue.filter((spec) => ["minorRepair", "majorRepair", "refurbishment", "replacement"].includes(spec.type))
-    : catalogue;
-  const band = conditionBand(asset.condition);
-  const progressionSpec = facilityProgressionSpec(state, asset);
-  const activeProject = asset.activeProjectId
-    ? state.infrastructure?.projects.find((project) => project.id === asset.activeProjectId) ?? null
-    : null;
-  // Raising a stand's level asks how it should be built first.
-  const [choosing, setChoosing] = useState<ProjectSpec | null>(null);
-  const groupOf = (type: CapitalProjectType): WorksGroup => GROUP_OF[type] ?? "improve";
-  const groups = (["repair", "improve", "rebuild"] as WorksGroup[]).filter((group) => visibleCatalogue.some((spec) => groupOf(spec.type) === group));
-  const [group, setGroup] = useState<WorksGroup>(() => (asset.condition < 60 && groups.includes("repair") ? "repair" : groups.includes("improve") ? "improve" : groups[0] ?? "repair"));
-  const [expanded, setExpanded] = useState<CapitalProjectType | null>(null);
+  const condition = conditionSummary(asset);
+  const project = activeProjectFor(state, asset.id);
+  const progressionSpec = useMemo(() => facilityProgressionSpec(state, asset), [state, asset]);
+  const upgradeSpec = projectCatalogue(state, asset.id).find((spec) => spec.type === "facilityUpgrade");
+  const upgradeEvaluation = upgradeSpec ? evaluateProject(state, asset.id, upgradeSpec.type) : null;
+  const upgrade: ProjectOption | null = upgradeSpec ? {
+    spec: upgradeSpec,
+    evaluation: upgradeEvaluation,
+    lock: lockReason(state, asset.id, upgradeSpec, upgradeEvaluation),
+    title: config.levels[asset.level] ?? "Upgrade",
+    addsPlaces: 0,
+    toLevel: asset.level + 1,
+    conditionAfter: null,
+    choosesBuild: false,
+  } : null;
+  const repairs = maintenanceOptions(state, asset);
+  const [showRepairs, setShowRepairs] = useState(condition.attention);
+  const developStand = standToDevelopFor(state, asset);
+  const Icon = SERVICE_ICON[asset.type] ?? Building2;
+  const supporters = upgradeEvaluation?.positions.filter((position) => position.stance === "supports").length ?? 0;
+  const opponents = upgradeEvaluation?.positions.filter((position) => position.stance === "opposes").length ?? 0;
 
-  const rows = visibleCatalogue
-    .filter((spec) => groupOf(spec.type) === group)
-    .map((spec) => ({ spec, evaluation: evaluateProject(state, asset.id, spec.type) }))
-    .filter((row): row is { spec: ProjectSpec; evaluation: NonNullable<ReturnType<typeof evaluateProject>> } => Boolean(row.evaluation))
-    // What you can do first, then by cost.
-    .sort((a, b) => Number(b.evaluation.allowed) - Number(a.evaluation.allowed) || a.spec.cost - b.spec.cost);
-
-  return <SheetContent side="bottom" className="lf-ground-sheet">
+  return <SheetContent side="bottom" className="lf-ground-sheet lfk">
+    <KitStyles />
     <div className="border-b bg-panel px-4 pb-3 pt-3 text-panel-foreground">
       <div className="flex items-center gap-2 pr-9 text-[10px] font-semibold uppercase tracking-[0.16em] opacity-70">
-        <span>{config.label}</span><span>·</span><span className="truncate">{asset.location}</span>
+        <Icon className="size-3.5" /><span>{config.label}</span><span>·</span><span className="truncate">{asset.location}</span>
       </div>
       <div className="mt-0.5 flex items-center justify-between gap-3 pr-9">
         <SheetTitle className="min-w-0 truncate font-display text-2xl text-panel-foreground">{asset.name}</SheetTitle>
-        <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase", BAND_CHIP[band])}>{BAND_LABEL[band]}</span>
       </div>
       {/* The ladder of standards this facility can reach. */}
       <div className="mt-2.5 flex gap-1" aria-label={`Level ${asset.level} of ${config.maxLevel}`}>
         {config.levels.map((name, index) => (
           <div key={name} className="min-w-0 flex-1">
-            <div className={cn("h-1.5 rounded-full", index < asset.level ? "bg-emerald-400" : "bg-white/20")} />
-            <div className={cn("mt-1 truncate text-[8px] font-bold uppercase tracking-wide", index === asset.level - 1 ? "text-white" : "text-white/45")}>{name}</div>
+            <div className={cn("h-1.5 rounded-full", index < asset.level ? "bg-emerald-400" : index === asset.level ? "bg-violet-400/70" : "bg-white/20")} />
+            <div className={cn("mt-1 truncate text-[8px] font-bold uppercase tracking-wide", index === asset.level - 1 ? "text-white" : index === asset.level ? "text-violet-200" : "text-white/45")}>{name}</div>
           </div>
         ))}
       </div>
     </div>
     <div className="lf-ground-sheet-scroll space-y-3 p-3">
-      {choosing ? (
-        <StandBuildChooser
-          state={state}
-          asset={asset}
-          spec={choosing}
-          onCancel={() => setChoosing(null)}
-          onConfirm={(build) => { onApproveBuild(choosing.type, build); setChoosing(null); }}
-        />
-      ) : <>
-      <div className="rounded-lg border bg-card p-3">
-        <div className="flex items-baseline justify-between gap-2">
+      <div className="lfk-card p-3">
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Now</div>
-            <div className="truncate font-display text-base leading-tight">{config.levels[asset.level - 1] ?? `Level ${asset.level}`}</div>
+            <div className="lfk-eyebrow">Now</div>
+            <div className="font-display text-[17px] leading-tight">{config.levels[asset.level - 1] ?? `Level ${asset.level}`}</div>
           </div>
-          <div className="text-right">
-            <div className="font-display text-base leading-tight tnum">{asset.capacity ? asset.usableCapacity.toLocaleString("en-GB") : `${asset.qualityRating}/100`}</div>
-            <div className="text-[9px] uppercase text-muted-foreground">{asset.capacity ? (asset.type === "stand" ? "Usable places" : "Capacity") : "Quality"}</div>
-          </div>
+          <ConditionLabel summary={condition} className="text-[12px]" />
         </div>
-        <div className="mt-2 flex items-center gap-2">
-          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-            <div className={cn("h-full rounded-full", BAND_BAR[band])} style={{ width: `${Math.max(2, Math.min(100, asset.condition))}%` }} />
+        <ConditionMeter summary={condition} className="mt-2" />
+        <div className="mt-1.5 text-[11.5px] text-muted-foreground">{condition.consequence}</div>
+        {isStructure(asset) ? null : (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {progressionSpec.benefits.map((benefit) => <span key={benefit} className="lfk-tag lfk-tag-plain">{benefit}</span>)}
           </div>
-          <span className="shrink-0 whitespace-nowrap text-right text-[10px] font-semibold tnum text-muted-foreground">{asset.condition.toFixed(0)}% condition</span>
-        </div>
-        {asset.level < config.maxLevel && !activeProject ? (
-          <div className="mt-1.5 text-[10.5px] text-muted-foreground">Next standard: <strong className="text-foreground">{progressionSpec.next}</strong></div>
-        ) : null}
-        {asset.type !== "stand" ? (
-          <div className="mt-2 border-t pt-2">
-            <div className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">What this facility does</div>
-            <div className="mt-1 flex flex-wrap gap-1">
-              {progressionSpec.benefits.map((benefit) => <span key={benefit} className="rounded bg-muted px-1.5 py-0.5 text-[9.5px] font-semibold">{benefit}</span>)}
-            </div>
-            {progressionSpec.dependency ? (
-              <p className={cn("mt-1.5 text-[10px]", progressionSpec.dependencyMet ? "text-muted-foreground" : "font-semibold text-rose-600")}>
-                {progressionSpec.dependencyMet ? "Structure ready · " : "Locked · "}{progressionSpec.dependency}
-              </p>
-            ) : null}
-            {progressionSpec.nextImpact.length > 0 ? (
-              <div className="mt-2 border-t pt-2">
-                <div className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Next upgrade changes</div>
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {progressionSpec.nextImpact.map((impact) => <span key={impact} className="rounded bg-primary/10 px-1.5 py-0.5 text-[9.5px] font-semibold text-primary">{impact}</span>)}
-                </div>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+        )}
       </div>
 
-      {activeProject ? (
-        <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-[9px] font-semibold uppercase tracking-wide text-primary">Work in progress</div>
-              <div className="truncate text-sm font-semibold">{activeProject.title.replace(`${asset.name} — `, "")}</div>
-            </div>
-            <strong className="font-mono text-xs">{Math.round(activeProject.progress)}%</strong>
-          </div>
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-            <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(2, Math.round(activeProject.progress))}%` }} />
-          </div>
-        </div>
+      {isStructure(asset) && onOpenStudio ? (
+        <button type="button" className="lfk-btn-quiet w-full" onClick={() => onOpenStudio(studioId(asset))}>
+          Open in Ground Studio <ArrowRight className="size-4" />
+        </button>
       ) : null}
 
-      <div>
-        {groups.length > 1 && (
-          <div className="mb-2 flex rounded-lg bg-muted/60 p-0.5" role="tablist" aria-label="Kind of work">
-            {groups.map((id) => {
-              const count = visibleCatalogue.filter((spec) => groupOf(spec.type) === id).length;
-              return (
-                <button key={id} type="button" role="tab" aria-selected={group === id} onClick={() => { setGroup(id); setExpanded(null); }}
-                  className={cn("flex-1 rounded-md px-1 py-1.5 text-[11px] font-bold", group === id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>
-                  {GROUP_LABEL[id]} <span className="font-semibold opacity-60">{count}</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
+      {project ? <ProjectProgress state={state} project={project} assetName={asset.name} /> : null}
 
-        {visibleCatalogue.length === 0 ? <p className="rounded-lg bg-muted/35 p-3 text-sm text-muted-foreground">{asset.type === "stand" || asset.type === "cornerStand" ? "Structural development is handled in Ground Studio. Facilities tracks condition and maintenance." : "No further work can be raised here right now."}</p> : (
-          <div className="overflow-hidden rounded-lg border bg-card">
-            {rows.map(({ spec, evaluation }) => {
-              const choosesBuild = asset.type === "stand" && isLevelRaising(spec.type);
-              const risk = riskLevel(spec.risk);
-              const open = expanded === spec.type;
-              const chips = effectChips(spec, asset);
-              const supporters = evaluation.positions.filter((p) => p.stance === "supports").length;
-              const opponents = evaluation.positions.filter((p) => p.stance === "opposes").length;
-              const title = spec.title.replace(`${asset.name} — `, "");
-              return (
-                <div key={spec.type} className={cn("border-t first:border-t-0", !evaluation.allowed && "bg-muted/25")}>
-                  <button type="button" onClick={() => setExpanded(open ? null : spec.type)} className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left" aria-expanded={open}>
-                    <span className="min-w-0 flex-1">
-                      <span className={cn("block text-[13px] font-semibold first-letter:uppercase", !evaluation.allowed && "text-muted-foreground")}>{title}</span>
-                      <span className="mt-1 flex flex-wrap gap-1">
-                        {chips.map((chip) => (
-                          <span key={chip} className={cn("rounded px-1.5 py-0.5 text-[9.5px] font-bold", evaluation.allowed ? "bg-emerald-50 text-emerald-800" : "bg-muted text-muted-foreground")}>{chip}</span>
-                        ))}
-                        {choosesBuild && <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9.5px] font-bold text-primary">You choose the build</span>}
-                      </span>
-                      <span className="mt-1 flex flex-wrap gap-x-2 text-[10px] text-muted-foreground">
-                        <span>{plural(spec.durationWeeks, "week")}</span>
-                        <span className={risk.tone}>{risk.label}</span>
-                        {spec.disruption.capacityFactor < 1 && <span>{Math.round((1 - spec.disruption.capacityFactor) * 100)}% closed during works</span>}
-                      </span>
-                    </span>
-                    <span className="shrink-0 text-right">
-                      <span className={cn("block font-display text-[15px] leading-tight tnum", !evaluation.allowed && "text-muted-foreground")}>{fmtMoneyExact(spec.cost)}</span>
-                      {!evaluation.allowed ? (
-                        <span className="mt-0.5 block max-w-[8.5rem] text-[10px] font-semibold leading-tight text-rose-600">{blockedReason(state, spec, evaluation)}</span>
-                      ) : evaluation.affordability.verdict === "affordableButRisky" ? (
-                        <span className="mt-0.5 block text-[10px] font-semibold text-amber-600">Stretches the budget</span>
-                      ) : (
-                        <ChevronDown className={cn("ml-auto mt-1 size-4 text-muted-foreground transition-transform", open && "rotate-180")} />
-                      )}
-                    </span>
-                  </button>
-                  {open && (
-                    <div className="space-y-2 px-3 pb-3">
-                      <p className="text-[11.5px] leading-snug text-muted-foreground">{spec.description}</p>
-                      {evaluation.positions.length > 0 && (
-                        <div className="text-[10.5px] text-muted-foreground">
-                          Board: <span className="font-semibold text-emerald-700">{supporters} for</span> · <span className="font-semibold text-rose-700">{opponents} against</span> · {evaluation.positions.length - supporters - opponents} undecided
-                        </div>
-                      )}
-                      {evaluation.allowed && evaluation.affordability.verdict === "affordableButRisky" && (
-                        <p className="text-[10.5px] text-amber-700">{evaluation.reason}</p>
-                      )}
-                      <Button className="w-full" size="sm" disabled={!evaluation.allowed} onClick={() => choosesBuild ? setChoosing(spec) : onApprove(spec.type)}>
-                        {!evaluation.allowed ? blockedReason(state, spec, evaluation) : choosesBuild ? "Choose the build…" : `Approve · ${fmtMoneyExact(spec.cost)}`}
-                      </Button>
-                    </div>
-                  )}
+      {upgrade && !project ? (
+        <WorkCard
+          featured
+          eyebrow="Upgrade to"
+          option={upgrade}
+          onApprove={() => onApprove("facilityUpgrade")}
+          extra={
+            <div className="space-y-2">
+              {progressionSpec.nextImpact.length ? (
+                <div className="flex flex-wrap gap-1">
+                  {progressionSpec.nextImpact.map((impact) => <span key={impact} className="lfk-tag lfk-tag-paid lfk-num">{impact}</span>)}
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-      </>}
+              ) : null}
+              {upgrade.lock?.kind === "dependency" ? (
+                <div className="lfk-sunk space-y-2 p-2.5">
+                  <div className="text-[11.5px] leading-snug">
+                    This upgrade is fitted out inside a bigger stand.
+                    {developStand ? <> Your most developed is <strong>{developStand.name}</strong> ({ASSET_CONFIG.stand.levels[developStand.level - 1]}).</> : null}
+                  </div>
+                  {developStand && onOpenStudio ? (
+                    <button type="button" className="lfk-btn-quiet h-9 w-full text-[12.5px]" onClick={() => onOpenStudio(`stand:${developStand.location}`)}>
+                      Develop {developStand.name} <ArrowRight className="size-4" />
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+              {upgradeEvaluation?.positions.length ? (
+                <div className="text-[11px] text-muted-foreground">Board: <span className="font-semibold text-income">{supporters} for</span> · <span className="font-semibold text-expense">{opponents} against</span></div>
+              ) : null}
+              {upgradeEvaluation?.allowed && upgradeEvaluation.affordability.verdict === "affordableButRisky" ? (
+                <div className="text-[11px] font-semibold text-amber-700">Stretches the budget · {upgradeEvaluation.reason}</div>
+              ) : null}
+            </div>
+          }
+        />
+      ) : !upgrade && !project ? (
+        <div className="lfk-sunk flex items-center gap-2 px-3 py-2.5 text-[12.5px] font-semibold"><Check className="size-4 text-income" />Top standard reached</div>
+      ) : null}
+
+      <section className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="lfk-eyebrow">Maintain</div>
+          {!condition.attention && repairs.length ? (
+            <button type="button" className="text-[11px] font-semibold text-muted-foreground" onClick={() => setShowRepairs((value) => !value)}>{showRepairs ? "Hide" : "Show"} optional work ({repairs.length})</button>
+          ) : null}
+        </div>
+        {!condition.attention ? (
+          <div className="lfk-sunk flex items-center gap-2 px-3 py-2.5 text-[12.5px] font-semibold"><Check className="size-4 text-income" />{repairs.some((option) => option.spec.type === "minorRepair") ? "No urgent work" : "No maintenance needed"}</div>
+        ) : null}
+        {showRepairs ? repairs.map((option) => (
+          <WorkCard key={option.spec.type} option={option} condition={asset.condition} onApprove={() => onApprove(option.spec.type)} />
+        )) : null}
+      </section>
     </div>
   </SheetContent>;
 }
-function ProjectsPanel({ state, projects, commitments, onCancel }: { state: GameState; projects: CapitalProject[]; commitments: number; onCancel: (project: CapitalProject) => void }) {
-  return <section className="space-y-2 border bg-card p-3"><div className="flex justify-between"><h2 className="font-display text-base">Capital works</h2><span className="text-xs text-muted-foreground">{fmtMoneyExact(commitments)} committed</span></div>{projects.length === 0 ? <p className="text-xs text-muted-foreground">No work in progress. Select an area of the ground to begin.</p> : projects.map((project) => {
-    const eta = project.expectedCompletionAbsoluteWeek == null ? null : fromAbsoluteWeek(project.expectedCompletionAbsoluteWeek);
-    return <div key={project.id} className="border-t pt-2"><div className="flex justify-between gap-2 text-xs"><span className="truncate font-medium">{project.title}</span><span className="tnum">{Math.round(project.progress * 100)}%</span></div><div className="mt-1 h-1 bg-secondary"><div className="h-full bg-primary" style={{ width: `${Math.max(2, Math.round(project.progress * 100))}%` }} /></div><div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground"><span>{eta ? `Due S${eta.season} W${eta.week}` : "Schedule pending"}</span><Button variant="link" className="h-auto p-0 text-[10px]" onClick={() => onCancel(project)}>Cancel</Button></div></div>;
-  })}</section>;
+
+/* ------------------------------------------------------------------ */
+/* Works, upkeep, history                                              */
+/* ------------------------------------------------------------------ */
+
+function ProjectsPanel({ state, projects, commitments, onCancel, onOpen }: { state: GameState; projects: CapitalProject[]; commitments: number; onCancel: (project: CapitalProject) => void; onOpen: (project: CapitalProject) => void }) {
+  const [confirming, setConfirming] = useState<string | null>(null);
+  return <section className="space-y-2">
+    <div className="flex items-baseline justify-between px-0.5"><h2 className="font-display text-base">Capital works</h2><span className="text-xs text-muted-foreground tnum">{fmtMoneyExact(commitments)} still to pay</span></div>
+    {projects.length === 0 ? <p className="rounded-xl border bg-card p-3 text-xs text-muted-foreground">Nothing under way. Stands and corners are built in Ground Studio; services are upgraded from Services.</p> : projects.map((project) => {
+      const asset = assetById(state, project.assetId);
+      return <div key={project.id} className="space-y-1.5">
+        <button type="button" className="block w-full text-left" onClick={() => onOpen(project)} aria-label={`Open ${asset?.name ?? "project"}`}>
+          <div className="mb-1 px-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{asset?.name}</div>
+          <ProjectProgress state={state} project={project} assetName={asset?.name} />
+        </button>
+        <div className="flex justify-end px-0.5">
+          {confirming === project.id ? (
+            <span className="flex items-center gap-2 text-[11px]">
+              <span className="text-muted-foreground">Cancel? 15% of what's left is charged.</span>
+              <button type="button" className="font-semibold text-expense" onClick={() => { onCancel(project); setConfirming(null); }}>Cancel works</button>
+              <button type="button" className="font-semibold" onClick={() => setConfirming(null)}>Keep</button>
+            </span>
+          ) : (
+            <button type="button" className="text-[11px] font-semibold text-muted-foreground" onClick={() => setConfirming(project.id)}>Cancel…</button>
+          )}
+        </div>
+      </div>;
+    })}
+  </section>;
 }
 
 function MaintenancePanel({ state, current, onAdopt }: { state: GameState; current: GameState["infrastructure"] extends infer T ? T extends { maintenancePolicy: infer P } ? P : never : never; onAdopt: (policy: (typeof MAINTENANCE_POLICIES)[number]) => void }) {
-  return <section className="space-y-2 border bg-card p-3"><h2 className="font-display text-base">Maintenance policy</h2>{MAINTENANCE_POLICIES.map((policy) => <Button key={policy} variant={current === policy ? "default" : "outline"} className="h-auto w-full justify-between px-3 py-2 text-left" disabled={current === policy} onClick={() => onAdopt(policy)}><span><span className="block text-xs font-semibold">{policy}</span><span className="block whitespace-normal text-[10px] opacity-70">{POLICY_CONFIG[policy].label}</span></span><span className="ml-2 text-right text-[10px] tnum">{fmtMoneyExact(maintenanceCostUnder(state, policy))}/wk<br />−{projectedSeasonDecay(state, policy).toFixed(1)} pts</span></Button>)}</section>;
+  return <section className="space-y-2 rounded-xl border bg-card p-3">
+    <div><h2 className="font-display text-base">Upkeep policy</h2><p className="text-[11px] text-muted-foreground">Applies to the whole ground. More upkeep costs more each week and slows wear.</p></div>
+    {MAINTENANCE_POLICIES.map((policy) => {
+      const active = current === policy;
+      return <button key={policy} type="button" disabled={active} onClick={() => onAdopt(policy)} className={cn("grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border px-3 py-2 text-left", active ? "border-primary bg-primary/10" : "bg-background")}>
+        <span className="min-w-0"><span className="flex items-center gap-1.5 text-xs font-semibold">{policy}{active ? <Check className="size-3.5 text-primary" /> : null}</span><span className="block text-[10.5px] text-muted-foreground">{POLICY_CONFIG[policy].label}</span></span>
+        <span className="text-right text-[10.5px] tnum"><strong className="block text-xs">{fmtMoneyExact(maintenanceCostUnder(state, policy))}/wk</strong><span className="text-muted-foreground">−{projectedSeasonDecay(state, policy).toFixed(1)} pts/season</span></span>
+      </button>;
+    })}
+  </section>;
 }
 
 function HistoryPanel({ state }: { state: GameState }) {
   const records = [...(state.infrastructure?.history ?? [])].sort((a, b) => b.absoluteWeek - a.absoluteWeek).slice(0, 12);
-  return <section className="space-y-2 border bg-card p-3"><h2 className="font-display text-base">Works history</h2>{records.length === 0 ? <p className="text-xs text-muted-foreground">No works recorded yet.</p> : records.map((record) => <div key={record.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 border-t pt-2 text-xs"><div className="min-w-0"><div className="truncate">{record.description}</div><div className="text-[10px] text-muted-foreground">S{record.season} W{record.week} · {record.assetName}</div></div><span className="tnum text-expense">{record.cost ? fmtMoneyExact(record.cost) : "—"}</span></div>)}</section>;
+  return <section className="space-y-2 rounded-xl border bg-card p-3"><h2 className="font-display text-base">Works history</h2>{records.length === 0 ? <p className="text-xs text-muted-foreground">No works recorded yet.</p> : records.map((record) => <div key={record.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 border-t pt-2 text-xs"><div className="min-w-0"><div className="truncate">{record.description}</div><div className="text-[10px] text-muted-foreground">S{record.season} W{record.week} · {record.assetName}</div></div><span className="tnum text-expense">{record.cost ? fmtMoneyExact(record.cost) : "—"}</span></div>)}</section>;
 }
+

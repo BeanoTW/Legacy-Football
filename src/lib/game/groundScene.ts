@@ -19,8 +19,17 @@ export interface SceneInput {
   stage: number;
   /** Pitch condition 0-100; below ~75 wear starts to show. */
   pitchCondition: number;
-  /** Hotspot ids with capital works in progress (a crane is drawn there). */
+  /**
+   * Ids with capital works in progress (a crane is drawn there). Hotspot ids
+   * ("main", "pitch", …) and, on designed grounds, selectable ids
+   * ("stand:N", "corner:SE") are both accepted.
+   */
   worksAt: string[];
+  /**
+   * Optional condition (0-100) per designed stand side, e.g. { W: 38 }. Worn
+   * stands fade their roof, seats and cladding slightly. Omitted: no wear.
+   */
+  wear?: Partial<Record<StandSide, number>>;
   /** Viewport size in CSS pixels, used to frame the scene. */
   width: number;
   height: number;
@@ -1236,10 +1245,26 @@ const select = (id: string, anchor: V3, footprint: V3[], height = 0) => {
 };
 
 interface SideColours { seat: string; seatAlt: string; roof: string; roofDark: string; cladding: string; own: boolean }
+let WEAR: SceneInput["wear"];
+/** Restrained weathering: nothing above ~65% condition, at most a 45% fade when critical. */
+function weathered(colours: SideColours, side: StandSide): SideColours {
+  const condition = WEAR?.[side];
+  if (condition == null) return colours;
+  const t = clampN((65 - condition) / 55, 0, 0.45);
+  if (t <= 0) return colours;
+  return {
+    ...colours,
+    roof: mix(colours.roof, "#8b8579", t),
+    roofDark: mix(colours.roofDark, "#5d5850", t),
+    seat: mix(colours.seat, "#9c9a91", t * 0.8),
+    seatAlt: mix(colours.seatAlt, "#8e8c84", t * 0.8),
+    cladding: mix(colours.cladding, "#7b746b", t * 0.5),
+  };
+}
 function sideColours(side: StandSide): SideColours {
   const own = LOOK?.standColours?.[side];
-  if (own) return { ...own, own: true };
-  return { seat: C.seat, seatAlt: C.seatAlt, roof: C.roof, roofDark: C.roofDark, cladding: C.brick, own: false };
+  if (own) return weathered({ ...own, own: true }, side);
+  return weathered({ seat: C.seat, seatAlt: C.seatAlt, roof: C.roof, roofDark: C.roofDark, cladding: C.brick, own: false }, side);
 }
 
 const MATERIAL_TONE: Record<StandMaterial, string> = {
@@ -1853,11 +1878,18 @@ function composeDesigned(scene: Scene, input: SceneInput, design: GroundDesign, 
   designedSurroundings(scene, design, rand, anchors);
   treeBelts(scene, rand);
 
-  for (const id of input.worksAt) {
-    const at = anchors[id];
+  // Hotspot ids and Ground Studio ids can both name the same stand; draw one crane.
+  const alias: Record<string, string> = { main: "stand:W", stands: "stand:E" };
+  const works = new Set(input.worksAt.map((id) => alias[id] ?? id));
+  for (const id of works) {
+    const at = anchors[id] ?? SELECTABLES[id]?.anchor;
     if (!at) continue;
     if (id === "pitch" || id === "parking") groundworks(scene, id === "pitch" ? v(-HALF_L + 22, 6, 0) : at);
-    else crane(scene, at);
+    else if (id.startsWith("corner:") && design.corners[id.slice(7) as CornerSlot]?.form !== "terrace" && design.corners[id.slice(7) as CornerSlot]?.form !== "seated") {
+      // A corner being built from scratch: site hoarding, plant and a crane.
+      groundworks(scene, v(at.x, at.y, 0));
+      crane(scene, at);
+    } else crane(scene, at);
   }
 }
 
@@ -1896,6 +1928,7 @@ export function buildGroundScene(input: SceneInput): SceneOutput {
   // Reset the palette and look for this build (pure: same input, same picture).
   Object.assign(C, BASE_C, { field: [...BASE_C.field] });
   LOOK = input.look;
+  WEAR = input.wear;
   if (LOOK) {
     C.seat = LOOK.seat;
     C.seatAlt = LOOK.seatAlt;
