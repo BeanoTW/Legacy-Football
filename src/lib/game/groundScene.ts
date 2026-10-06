@@ -1364,8 +1364,18 @@ function corner(scene: Scene, slot: CornerSlot, design: GroundDesign) {
   const f = cornerFrame(slot, design);
   const large = c.size === "large";
   const half = Math.max(3, Math.min(large ? f.gap / 2 : 6, f.gap / 2));
-  const foot = (depth: number) => [f.mapper(-half, 0, 0), f.mapper(half, 0, 0), f.mapper(half, depth, 0), f.mapper(-half, depth, 0)];
-  const anchor = f.mapper(0, 4, 2);
+  // Corner infill must stay outside the playing rectangle. Pull the inner edge
+  // away from the pitch and taper it rather than drawing a straight stand chord
+  // through the corner of the field.
+  const safeFront = Math.max(2.4, Math.min(5.5, f.neighbourDepth * 0.42));
+  const shape = c.shape ?? "angled";
+  const cornerMapper = (a: number, o: number, z: number) => {
+    const t = Math.min(1, Math.abs(a) / Math.max(1, half));
+    const curve = shape === "rounded" ? 1 - Math.sqrt(Math.max(0, 1 - t * t)) : t;
+    return f.mapper(a, o + safeFront * (1 - curve), z);
+  };
+  const foot = (depth: number) => [cornerMapper(-half, 0, 0), cornerMapper(half, 0, 0), f.mapper(half, depth + safeFront, 0), f.mapper(-half, depth + safeFront, 0)];
+  const anchor = cornerMapper(0, 4, 2);
   switch (c.form) {
     case "access": {
       // A gate in the corner, a path out and a little turnstile hut.
@@ -1387,14 +1397,14 @@ function corner(scene: Scene, slot: CornerSlot, design: GroundDesign) {
     case "terrace":
       {
         const depth = large ? Math.max(7, f.neighbourDepth * 0.8) : 6;
-        stand(scene, { side: f.end, front: 0, mapper: f.mapper, from: -half, to: half, depth, rake: depth * 0.36, roof: false, seat: C.terrace, terrace: true, rearDetail: false, back: MATERIAL_TONE.concrete });
+        stand(scene, { side: f.end, front: 0, mapper: cornerMapper, from: -half, to: half, depth, rake: depth * 0.36, roof: false, seat: C.terrace, terrace: true, rearDetail: false, back: MATERIAL_TONE.concrete });
         select(`corner:${slot}`, anchor, foot(depth), depth * 0.36 + 1);
       }
       return;
     case "seated": {
       const colours = sideColours(f.touch);
       const depth = large ? Math.max(9, f.neighbourDepth * 0.85) : 8;
-      stand(scene, { side: f.end, front: 0, mapper: f.mapper, from: -half, to: half, depth, rake: depth * 0.5, roof: true, cantilever: true, seat: colours.seatAlt, back: MATERIAL_TONE.cladding, rearDetail: true, roofColour: colours.roof, roofDark: colours.roofDark });
+      stand(scene, { side: f.end, front: 0, mapper: cornerMapper, from: -half, to: half, depth, rake: depth * 0.5, roof: true, cantilever: true, seat: colours.seatAlt, back: MATERIAL_TONE.cladding, rearDetail: true, roofColour: colours.roof, roofDark: colours.roofDark });
       select(`corner:${slot}`, anchor, foot(depth), depth * 0.5 + 4.8);
       return;
     }
