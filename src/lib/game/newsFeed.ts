@@ -60,6 +60,8 @@ export interface NewsArticle {
     eventId: SupporterEventId;
     phase: "announcement" | "result";
     outcome: EventOutcome | null;
+    sarahFeatured?: boolean;
+    sarahRole?: string;
   };
   tags: string[];
   involvesUser: boolean;
