@@ -322,4 +322,74 @@ function SelectionPanel({
         {standingOptions(d.form).length > 1 ? (
           <Field label="Standing or seated">
             <div className="flex flex-wrap gap-1.5">
-              {standingOptions(d.form).map((id) => <OptionChip key={id} active={d.standing === id} onClick={() => apply((s) => updateStand(s, side, { s
+              {standingOptions(d.form).map((id) => <OptionChip key={id} active={d.standing === id} onClick={() => apply((s) => updateStand(s, side, { standing: id }))}>{STANDING_LABEL[id]}</OptionChip>)}
+            </div>
+          </Field>
+        ) : null}
+        {roofOptions(d.form).length > 1 ? (
+          <Field label="Roof">
+            <div className="flex flex-wrap gap-1.5">
+              {roofOptions(d.form).map((id) => <OptionChip key={id} active={d.roof === id} onClick={() => apply((s) => updateStand(s, side, { roof: id }))}>{ROOF_LABEL[id]}</OptionChip>)}
+            </div>
+          </Field>
+        ) : null}
+        {d.form !== "open" ? (
+          <div className="grid grid-cols-2 gap-3">
+            <Slider label="Width" value={d.span} min={limits.span.min} max={limits.span.max} unit="m" onChange={(span) => apply((s) => updateStand(s, side, { span }))} />
+            {d.form !== "shelter" ? <Slider label="Depth" value={d.depth} min={limits.depth.min} max={limits.depth.max} unit="m" onChange={(depth) => apply((s) => updateStand(s, side, { depth }))} /> : null}
+          </div>
+        ) : null}
+        {d.form !== "open" ? (
+          <div className="divide-y rounded-xl border">
+            <ExpandRow label="Material" value={STAND_MATERIALS.find((m) => m.id === (d.material ?? defaultMaterial(d.form)))?.label ?? ""}>
+              {(close) => <Swatches options={STAND_MATERIALS.map((m) => ({ id: m.id, label: m.label, colours: [MATERIAL_SWATCH[m.id]] }))} value={d.material ?? defaultMaterial(d.form)} onChange={(material) => { apply((s) => updateStand(s, side, { material: material as StandMaterial })); close(); }} />}
+            </ExpandRow>
+            <ExpandRow label="Seats" value={own.seats ? SEAT_SCHEMES.find((o) => o.id === own.seats)?.label ?? "" : "Ground default"} swatch={seatSwatch(own.seats ?? identity.seats)}>
+              {(close) => <Swatches withDefault options={SEAT_SCHEMES.map((o) => ({ id: o.id, label: o.label, colours: seatSwatch(o.id) }))} value={own.seats ?? "default"} onChange={(id) => { apply((s) => updateStandLook(s, side, { seats: id === "default" ? undefined : (id as SeatScheme) })); close(); }} />}
+            </ExpandRow>
+            <ExpandRow label="Roof colour" value={own.roof ? ROOF_COLOURS.find((o) => o.id === own.roof)?.label ?? "" : "Ground default"} swatch={[roofSwatch(own.roof ?? identity.roof)]}>
+              {(close) => <Swatches withDefault options={ROOF_COLOURS.map((o) => ({ id: o.id, label: o.label, colours: [roofSwatch(o.id)] }))} value={own.roof ?? "default"} onChange={(id) => { apply((s) => updateStandLook(s, side, { roof: id === "default" ? undefined : (id as RoofColour) })); close(); }} />}
+            </ExpandRow>
+            <ExpandRow label="Cladding & fascia" value={own.cladding ? CLADDINGS.find((o) => o.id === own.cladding)?.label ?? "" : "From material"} swatch={[own.cladding ? claddingSwatch(own.cladding) : MATERIAL_SWATCH[d.material ?? defaultMaterial(d.form)]]}>
+              {(close) => <Swatches withDefault defaultLabel="From material" options={CLADDINGS.map((o) => ({ id: o.id, label: o.label, colours: [claddingSwatch(o.id)] }))} value={own.cladding ?? "default"} onChange={(id) => { apply((s) => updateStandLook(s, side, { cladding: id === "default" ? undefined : (id as Cladding) })); close(); }} />}
+            </ExpandRow>
+          </div>
+        ) : null}
+        {asset ? <RenameRow key={asset.id} initial={asset.name} onSave={(name) => apply((s) => renameStand(s, asset.id, name))} /> : null}
+      </div>
+    );
+  }
+
+  /* ---------- A corner ---------- */
+  if (selection?.startsWith("corner:")) {
+    const slot = selection.slice(7) as CornerSlot;
+    const c = design.corners[slot];
+    return (
+      <div className="space-y-3">
+        <PanelTitle title={labels[selection]} sub="Corners develop once the stands beside them do" />
+        <Field label="Corner">
+          <div className="flex flex-wrap gap-1.5">
+            {cornerFormOptions(design, slot).map((option) => (
+              <OptionChip key={option.id} active={c.form === option.id} disabled={!option.allowed} title={option.reason} onClick={() => apply((s) => updateCorner(s, slot, { form: option.id }))}>
+                {option.label}{!option.allowed ? " 🔒" : ""}
+              </OptionChip>
+            ))}
+          </div>
+          {cornerFormOptions(design, slot).filter((o) => !o.allowed).map((o) => <p key={o.id} className="mt-1 text-[10.5px] text-muted-foreground">{o.label}: {o.reason}.</p>)}
+        </Field>
+        {c.form === "terrace" || c.form === "seated" ? (
+          <Field label="Infill">
+            <div className="flex gap-1.5">
+              {(["small", "large"] as const).map((size) => <OptionChip key={size} active={(c.size ?? "small") === size} onClick={() => apply((s) => updateCorner(s, slot, { size }))}>{size === "small" ? "Small piece" : "Fill the corner"}</OptionChip>)}
+            </div>
+          </Field>
+        ) : null}
+      </div>
+    );
+  }
+
+  /* ---------- Fixtures ---------- */
+  if (selection === "pitch") {
+    return (
+      <div className="space-y-3">
+        <PanelTitle title="Pitch" sub="Mo
