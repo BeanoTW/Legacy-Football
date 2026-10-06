@@ -949,4 +949,179 @@ function car(scene: Scene, x: number, y: number, along: "x" | "y", colour: strin
   const [hx, hy] = along === "x" ? [2.1, 0.9] : [0.9, 2.1];
   const body = solid(boxFaces(x - hx, y - hy, 0.2, x + hx, y + hy, 1), colour, { outline: false });
   const cab = solid(boxFaces(x - hx * 0.55, y - hy * 0.8, 1, x + hx * 0.45, y + hy * 0.8, 1.45), shade(colour, 0.7).replace("rgb", "rgb"), { outline: false });
-  scene.shadowSolid([...
+  scene.shadowSolid([...rect(x - hx, y - hy, x + hx, y + hy, 0), ...rect(x - hx, y - hy, x + hx, y + hy, 1.4)], 0.22);
+  scene.add([...body, ...cab.map((p) => ({ ...p, fill: "#2d3a44" }))], v(x, y, 0.7));
+}
+
+function carPark(scene: Scene, stage: number, rand: () => number): V3 {
+  const x0 = -118;
+  const x1 = stage >= 2 ? -90 : -94;
+  const y0 = -76;
+  const y1 = stage >= 2 ? -36 : -30;
+  scene.flat(rect(x0, y0, x1, y1), stage >= 1 ? C.tarmac : C.gravel);
+  if (stage >= 1) {
+    for (let y = y0 + 3; y <= y1 - 3; y += 2.6) {
+      scene.flatLine([v(x0 + 1, y), v(x0 + 6, y)], "#e9e9e2", 0.8, 0.7);
+      scene.flatLine([v(x1 - 6, y), v(x1 - 1, y)], "#e9e9e2", 0.8, 0.7);
+    }
+  }
+  const palette = ["#b8322c", "#dfe3e6", "#23324a", "#8a9097", "#1d1f22", "#3d6ea5", "#c9b27a"];
+  const fill = 0.35 + stage * 0.08;
+  for (let y = y0 + 3.5; y <= y1 - 3; y += 2.6) {
+    if (rand() < fill) car(scene, x0 + 3.5, y, "x", palette[Math.floor(rand() * palette.length)]);
+    if (rand() < fill) car(scene, x1 - 3.5, y, "x", palette[Math.floor(rand() * palette.length)]);
+  }
+  return v((x0 + x1) / 2, (y0 + y1) / 2, 0);
+}
+
+function crane(scene: Scene, at: V3) {
+  const base = v(at.x + 4, at.y - 3, 0);
+  const h = Math.max(18, at.z + 12);
+  const top = v(base.x, base.y, h);
+  const jibEnd = v(base.x - 16, base.y + 6, h);
+  const counter = v(base.x + 6, base.y - 2, h);
+  scene.shadowLine(base, top, 1.6, 0.25);
+  scene.shadowLine(counter, jibEnd, 1.2, 0.2);
+  const line = (a: V3, b: V3, w: number, colour = C.crane) => ({
+    d: pathOf([a, b], false),
+    fill: "none",
+    stroke: colour,
+    sw: widthAt(a, w),
+    cap: "round" as const,
+  });
+  scene.add(
+    [
+      line(base, top, 2.2),
+      line(counter, jibEnd, 1.6),
+      line(v(base.x, base.y, h + 3), jibEnd, 0.6, "#555"),
+      line(v(base.x, base.y, h + 3), counter, 0.6, "#555"),
+      line(top, v(base.x, base.y, h + 3), 1.4),
+      line(v(jibEnd.x + 4, jibEnd.y - 1.5, h), v(jibEnd.x + 4, jibEnd.y - 1.5, h - 7), 0.5, "#333"),
+    ],
+    v(base.x, base.y, h / 2),
+  );
+}
+
+/** Surface works: a roller, a tractor and a line of barriers. */
+function groundworks(scene: Scene, at: V3) {
+  const tractor = solid(boxFaces(at.x - 2, at.y - 1.1, 0, at.x + 1.2, at.y + 1.1, 1.6), "#d8641f");
+  const cab = solid(boxFaces(at.x - 1.8, at.y - 0.9, 1.6, at.x - 0.2, at.y + 0.9, 2.8), "#c9d3d8");
+  const roller = solid(boxFaces(at.x + 1.6, at.y - 1.6, 0, at.x + 3, at.y + 1.6, 1.1), "#6c7378");
+  scene.shadowSolid([...rect(at.x - 2, at.y - 1.6, at.x + 3, at.y + 1.6), ...rect(at.x - 2, at.y - 1.6, at.x + 3, at.y + 1.6, 2.8)], 0.25);
+  scene.add([...roller, ...tractor, ...cab], v(at.x, at.y, 1));
+  const barriers: ScenePrimitive[] = [];
+  for (let i = 0; i < 6; i += 1) {
+    const x = at.x - 12 + i * 4.2;
+    const y = at.y - 7;
+    barriers.push({ d: pathOf([v(x, y, 0.9), v(x + 3.2, y, 0.9), v(x + 3.2, y, 0.3), v(x, y, 0.3)]), fill: i % 2 ? "#f2f2f2" : "#e8591a", stroke: "#8a3a12", sw: 0.4 });
+  }
+  scene.add(barriers, v(at.x - 2, at.y - 7, 0.5));
+}
+
+/* ------------------------------------------------------------------ */
+/* Stage composition                                                   */
+/* ------------------------------------------------------------------ */
+
+function compose(scene: Scene, input: SceneInput, anchors: Record<string, V3>) {
+  const stage = Math.max(0, Math.min(6, Math.round(input.stage)));
+  const rand = rng(0x5eed + stage * 7919);
+
+  countryside(scene, rng(20260924));
+  neighbourPitch(scene, stage);
+
+  // Paths and hard standing around the pitch.
+  const ring = stage >= 2 ? 44 : 41;
+  scene.flat(rect(-HALF_L - 11, -ring, HALF_L + 11, ring), stage >= 1 ? C.path : "#a8ad93");
+  scene.flat(rect(-HALF_L - 7.5, -ring + 3, HALF_L + 7.5, ring - 3), "#6e9b44");
+  pitch(scene, stage, input.pitchCondition);
+  anchors.pitch = v(0, 0, 0);
+
+  goal(scene, -HALF_L, 1);
+  goal(scene, HALF_L, -1);
+
+  // Access lane from the car park to the ground.
+  if (stage >= 2) scene.flat([v(-90, -50), v(-90, -44), v(-70, -44), v(-70, -50)], C.path);
+  else scene.flat([v(-92, -46), v(-92, -40), v(-60, -38), v(-60, -44)], C.path);
+
+  anchors.parking = carPark(scene, stage, rand);
+
+  if (stage <= 1) {
+    // Ball-stop fence like a community 3G: tall behind the goals, lower along the sides.
+    fenceRun(scene, rect(-HALF_L - 5.5, -HALF_W - 5.5, HALF_L + 5.5, HALF_W + 5.5), stage === 0 ? 4.5 : 3.2);
+    // Spare training goals stacked outside the far fence.
+    for (let i = 0; i < 5; i += 1) goal(scene, -30 + i * 14, -1, true, HALF_W + 9);
+  } else {
+    // Perimeter rail with advertising boards.
+    const boards = rect(-HALF_L - 4.5, -HALF_W - 4.5, HALF_L + 4.5, HALF_W + 4.5);
+    for (let i = 0; i < 4; i += 1) {
+      const a = boards[i];
+      const b = boards[(i + 1) % 4];
+      const face = [a, b, v(b.x, b.y, 0.9), v(a.x, a.y, 0.9)];
+      scene.add(
+        [{ d: pathOf(face), fill: i % 2 ? "#1f6f69" : "#2a7f78", stroke: "#e7f2ef", sw: 0.6 }],
+        v((a.x + b.x) / 2, (a.y + b.y) / 2, 0.5),
+      );
+    }
+  }
+
+  // Dugouts on the near (East) touchline.
+  for (const x of [-10, 10]) {
+    const x0 = x - 4;
+    const x1 = x + 4;
+    const y0 = -HALF_W - 4;
+    const y1 = -HALF_W - 2.4;
+    scene.add(solid(boxFaces(x0, y0, 0, x1, y1, 2.2), "#cfd6da"), v(x, (y0 + y1) / 2, 1));
+    scene.shadowSolid([...rect(x0, y0, x1, y1), ...rect(x0, y0, x1, y1, 2.2)], 0.22);
+  }
+
+  /* ---- Floodlights ---- */
+  const lightStyle = stage <= 1 ? "auto" : LOOK?.floodlights ?? "auto";
+  if (stage <= 1) {
+    const h = stage === 0 ? 15 : 18;
+    for (const x of [-38, 0, 38]) {
+      floodlight(scene, x, HALF_W + 7, h, x, 0);
+      floodlight(scene, x, -HALF_W - 7, h, x, 0);
+    }
+  } else if (lightStyle === "pylons" || (lightStyle === "auto" && stage >= 5)) {
+    const h = stage >= 5 ? 44 : 34;
+    for (const [x, y] of [[-76, 60], [76, 60], [76, -58], [-76, -58]]) floodlight(scene, x, y, h, 0, 0, true);
+  } else if (lightStyle === "masts" || lightStyle === "auto") {
+    const h = 20 + Math.min(stage, 4) * 3;
+    const westY = stage === 2 ? 51 : stage === 3 ? 54 : 64;
+    const eastY = stage === 2 ? -47 : stage === 3 ? -51 : -53;
+    for (const x of [-42, -14, 14, 42]) {
+      floodlight(scene, x, westY, h + 6, x, 0);
+      floodlight(scene, x, eastY, h, x, 0);
+    }
+  }
+  // Gantries are drawn on the roof fronts once the stands exist (below).
+
+  /* ---- West (main) and East sides ---- */
+  const westFront = HALF_W + 7;
+  const eastFront = HALF_W + 7;
+  if (stage === 0) {
+    // Open hard standing with a small shelter and benches.
+    const shelter = stand(scene, { side: "W", from: -9, to: 9, front: westFront + 2, depth: 3, rake: 1.4, roof: true, seat: C.seat });
+    anchors.main = shelter;
+    for (const x of [-30, -20, 20, 30]) {
+      scene.add(solid(boxFaces(x - 1.5, westFront + 1.5, 0, x + 1.5, westFront + 2.1, 0.5), "#8a6a45"), v(x, westFront + 2, 0.3));
+    }
+    anchors.stands = v(0, -HALF_W - 9, 1);
+  } else {
+    const main: StandSpec =
+      stage === 1
+        ? { side: "W", from: -18, to: 18, front: westFront, depth: 6, rake: 3.2, roof: true, seat: C.seat }
+        : stage === 2
+          ? { side: "W", from: -34, to: 34, front: westFront, depth: 9, rake: 5, roof: true, seat: C.seat, back: C.brick }
+          : stage === 3
+            ? { side: "W", from: -48, to: 48, front: westFront, depth: 12, rake: 6.5, roof: true, seat: C.seat, back: C.brick }
+            : stage === 4
+              ? { side: "W", from: -52, to: 52, front: westFront, depth: 13, rake: 7, roof: true, seat: C.seat, upper: { depth: 8, rake: 6 } }
+              : { side: "W", from: -56, to: 56, front: westFront, depth: 14, rake: 7.5, roof: true, seat: C.seat, upper: { depth: 12, rake: 10 } };
+    anchors.main = stand(scene, styled(main, stage));
+
+    const east: StandSpec =
+      stage === 1
+        ? { side: "E", from: -14, to: 14, front: eastFront + 1, depth: 3.5, rake: 1.2, roof: true, seat: "#9aa3a8" }
+        : stage === 2
+          ? { side: "E", from: -40, to: 40, front: eastFront, depth: 5, rake: 2.2
