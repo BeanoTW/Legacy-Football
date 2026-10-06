@@ -251,7 +251,8 @@ export type StaffRole =
   | "Chief Scout"
   | "Scout"
   | "Head Physio"
-  | "Sports Scientist";
+  | "Sports Scientist"
+  | "Community & Events Officer";
 
 export interface StaffStats {
   tactics: number;
