@@ -100,6 +100,7 @@ export type InboxEffect =
   | { kind: "ticketPriceScale"; multiplier: number }
   | { kind: "mediaRelationship"; journalistId: string; delta: number }
   | { kind: "boardNegotiateObjective"; objectiveId: string }
+  | { kind: "communityEventsOnboarding"; mode: "volunteer" | "paid" }
 
   /* Recruitment. Every one of these routes into the canonical engine
      functions in recruitment.ts — the inbox never mutates football state. */
@@ -251,7 +252,8 @@ export type StaffRole =
   | "Chief Scout"
   | "Scout"
   | "Head Physio"
-  | "Sports Scientist";
+  | "Sports Scientist"
+  | "Community & Events Officer";
 
 export interface StaffStats {
   tactics: number;
