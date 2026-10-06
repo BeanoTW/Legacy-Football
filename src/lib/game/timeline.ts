@@ -2,6 +2,7 @@ import type { GameState, TransferNegotiation } from "./types";
 import { calendarDay } from "./calendar";
 import { absoluteWeek } from "./time";
 import { transferAbsoluteDay } from "./transferResponses";
+import { eventDefinition } from "./supporterEvents";
 
 export type TimelineEventKind = "fixture" | "scouting" | "transfer" | "club" | "supporters";
 
@@ -146,7 +147,7 @@ export function upcomingTimelineEvents(state: GameState, horizonDays = 42): Time
   for (const event of state.supporterEvents ?? []) {
     if (event.status !== "scheduled" || event.scheduledAbsoluteDay < now || event.scheduledAbsoluteDay > end) continue;
     const date = seasonWeekFromAbsoluteDay(state, event.scheduledAbsoluteDay);
-    events.push({ id: `supporters:${event.id}`, kind: "supporters", absoluteDay: event.scheduledAbsoluteDay, week: date.week, day: date.day, label: "Supporter event", detail: event.eventId });
+    events.push({ id: `supporters:${event.id}`, kind: "supporters", absoluteDay: event.scheduledAbsoluteDay, week: date.week, day: date.day, label: eventDefinition(event.eventId).name, detail: "Community event" });
   }
 
   for (const negotiation of state.football?.negotiations ?? []) {
