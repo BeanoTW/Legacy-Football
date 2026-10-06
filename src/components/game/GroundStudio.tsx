@@ -9,8 +9,14 @@ import { clubKitFor } from "@/lib/game/clubKit";
 import { groundProgression } from "@/lib/game/groundPresentation";
 import { assetById, stands as standAssets, type ProjectSpec } from "@/lib/game/infrastructure";
 import {
+  BUILDING_STYLES,
   CLADDINGS,
+  DUGOUT_STYLES,
   FLOODLIGHT_STYLES,
+  PERIMETER_COLOURS,
+  PERIMETER_STYLES,
+  SCOREBOARD_STYLES,
+  STAND_MATERIALS,
   MOWING_PATTERNS,
   ROOF_COLOURS,
   SEAT_SCHEMES,
@@ -22,9 +28,31 @@ import {
   groundDesign,
   sceneLook,
   standBuild,
+  type Cladding,
+  type CornerSlot,
+  type GroundDesign,
   type GroundIdentityState,
+  type Mowing,
+  type RoofColour,
+  type SeatScheme,
   type StandBuild,
+  type StandMaterial,
+  type StandSide,
 } from "@/lib/game/groundIdentity";
+import {
+  cornerFormOptions,
+  defaultMaterial,
+  roofOptions,
+  standFormOptions,
+  standSizeLimits,
+  standingOptions,
+  updateCorner,
+  updateFixtures,
+  updatePerimeter,
+  updateStand,
+  updateStandLook,
+  updateSurroundings,
+} from "@/lib/game/groundEditor";
 import { buildQuote, renameStand, setGroundLook } from "@/lib/game/groundBuild";
 import { StadiumGround } from "./StadiumGround";
 
@@ -104,229 +132,4 @@ function OptionGroup<T extends string>({
 }) {
   return (
     <div>
-      <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{title}</div>
-      <div className="grid gap-1.5">
-        {options.map((option) => {
-          const active = option.id === value;
-          return (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => onChange(option.id)}
-              className={cn("rounded-lg border px-3 py-2 text-left transition-colors", active ? "border-primary bg-primary/10" : "bg-background hover:bg-muted/50")}
-              aria-pressed={active}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <strong className="text-sm">{option.label}</strong>
-                <span className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground">
-                  {option.cost === 1 ? "Base cost" : `${option.cost > 1 ? "+" : ""}${Math.round((option.cost - 1) * 100)}%`}
-                  {active && <Check className="size-3.5 text-primary" />}
-                </span>
-              </div>
-              <div className="text-[11px] text-muted-foreground">{option.blurb}</div>
-              <div className="mt-1 text-[10px]"><span className="text-income">+ {option.pros}</span><span className="text-muted-foreground"> · </span><span className="text-expense">− {option.cons}</span></div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Ground Studio: name, stand names and the look                       */
-/* ------------------------------------------------------------------ */
-
-type LookDraft = Pick<GroundIdentityState, "seats" | "roof" | "cladding" | "floodlights" | "mowing" | "homeEnd">;
-
-export function GroundStudioSheet({
-  open,
-  onOpenChange,
-  state,
-  update,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  state: GameState;
-  update: (fn: (s: GameState) => GameState) => void;
-}) {
-  const identity = groundIdentity(state);
-  const kit = clubKitFor(state).home;
-  const [draft, setDraft] = useState<LookDraft>({
-    seats: identity.seats,
-    roof: identity.roof,
-    cladding: identity.cladding,
-    floodlights: identity.floodlights,
-    mowing: identity.mowing,
-    homeEnd: identity.homeEnd,
-  });
-  const [groundName, setGroundName] = useState(identity.groundName ?? "");
-  const [names, setNames] = useState<Record<string, string>>({});
-  const [note, setNote] = useState<string | null>(null);
-  const [focus, setFocus] = useState<"stands" | "pitch" | "lights" | "identity">("stands");
-  const stage = state.infrastructure ? groundProgression(state).visualStage : 0;
-  const cost = cosmeticCost(state, draft);
-  const preview = useMemo(() => {
-    const previewState = { ...state, groundIdentity: { ...identity, ...draft } } as GameState;
-    return sceneLook(previewState, { body: kit.body, secondary: kit.secondary });
-  }, [state, identity, draft, kit.body, kit.secondary]);
-  const changed = (Object.keys(draft) as (keyof LookDraft)[]).some((key) => draft[key] !== identity[key]) || (groundName.trim() || undefined) !== identity.groundName;
-
-  const apply = () =>
-    update((current) => {
-      const result = setGroundLook(current, { ...draft, groundName });
-      setNote(result.reason);
-      return result.ok ? result.state : current;
-    });
-
-  const rename = (asset: InfrastructureAsset) =>
-    update((current) => {
-      const result = renameStand(current, asset.id, names[asset.id] ?? asset.name);
-      setNote(result.reason);
-      return result.ok ? result.state : current;
-    });
-
-  const roofSwatch = (id: string) => (id === "club" ? kit.body : ROOF_COLOURS.find((r) => r.id === id)?.hex ?? "#56616c");
-  const seatSwatch = (id: string) => { if (id === "club") return [kit.body, kit.body]; if (id === "twoTone") return [kit.body, kit.secondary]; return SEAT_SCHEMES.find((option) => option.id === id)?.colours ?? ["#1f6f69", "#185a55"]; };
-
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="max-h-[92dvh] overflow-y-auto rounded-t-2xl p-0">
-        <div className="sticky top-0 z-10 border-b bg-card px-4 py-3">
-          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Make it yours</div>
-          <SheetTitle className="font-display text-2xl leading-none">Ground Studio</SheetTitle>
-        </div>
-
-        <div className="sticky top-14 z-[9] h-56 overflow-hidden border-b bg-card">
-          <StadiumGround stage={stage} hotspots={[]} selectedId={null} onSelect={() => {}} look={preview} design={groundDesign(state)} />
-        </div>
-
-        <div className="space-y-4 p-4">
-          {note && <div className="rounded-lg border bg-muted/40 px-3 py-2 text-xs">{note}</div>}
-
-          <div className="grid grid-cols-4 gap-1.5">
-            {[
-              { id: "stands", label: "Stands", icon: Rows3 },
-              { id: "pitch", label: "Pitch", icon: Trophy },
-              { id: "lights", label: "Lights", icon: Lightbulb },
-              { id: "identity", label: "Identity", icon: Trees },
-            ].map((item) => {
-              const Icon = item.icon;
-              return (
-                <button key={item.id} type="button" onClick={() => setFocus(item.id as typeof focus)} className={cn("rounded-xl border px-1 py-2 text-center text-[10px] font-semibold", focus === item.id ? "border-primary bg-primary/10 text-primary" : "bg-background")}>
-                  <Icon className="mx-auto mb-1 size-4" />{item.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {focus === "stands" && <>
-            <section>
-              <SectionTitle icon={<Paintbrush className="size-3.5" />} title="Roof colour" note="Live · free" />
-              <Swatches options={ROOF_COLOURS.map((r) => ({ id: r.id, label: r.label, colours: [roofSwatch(r.id), roofSwatch(r.id)] }))} value={draft.roof} onChange={(roof) => setDraft((d) => ({ ...d, roof }))} />
-            </section>
-            <section>
-              <SectionTitle title="Seats" note="Live · free" />
-              <Swatches options={SEAT_SCHEMES.map((option) => ({ id: option.id, label: option.label, colours: seatSwatch(option.id) }))} value={draft.seats} onChange={(seats) => setDraft((d) => ({ ...d, seats }))} />
-            </section>
-            <section>
-              <SectionTitle title="Stand & building finish" note="Live · free" />
-              <Swatches options={CLADDINGS.map((c) => ({ id: c.id, label: c.label, colours: [c.id === "club" ? kit.body : c.hex, c.id === "club" ? kit.body : c.hex] }))} value={draft.cladding} onChange={(cladding) => setDraft((d) => ({ ...d, cladding }))} />
-            </section>
-            <section>
-              <SectionTitle title="Home end" note="Atmosphere identity" />
-              <Chips options={[{ id: "none", label: "None" }, { id: "N", label: "North end" }, { id: "S", label: "South end" }]} value={draft.homeEnd ?? "none"} onChange={(id) => setDraft((d) => ({ ...d, homeEnd: id === "none" ? null : (id as "N" | "S") }))} />
-            </section>
-          </>}
-
-          {focus === "pitch" && <section>
-            <SectionTitle title="Pitch mowing" note="Live · free" />
-            <Chips options={MOWING_PATTERNS} value={draft.mowing} onChange={(mowing) => setDraft((d) => ({ ...d, mowing }))} />
-          </section>}
-
-          {focus === "lights" && <section>
-            <SectionTitle title="Floodlights" note="Live · free" />
-            <Chips options={FLOODLIGHT_STYLES} value={draft.floodlights} onChange={(floodlights) => setDraft((d) => ({ ...d, floodlights }))} />
-          </section>}
-
-          {focus === "identity" && <>
-            <section>
-              <SectionTitle icon={<Flag className="size-3.5" />} title="Ground name" />
-              <input value={groundName} onChange={(event) => setGroundName(event.target.value)} placeholder="e.g. Station Park" maxLength={40} className="h-10 w-full rounded-lg border bg-background px-3 text-sm" />
-            </section>
-            <section>
-              <SectionTitle icon={<PencilLine className="size-3.5" />} title="Stand names" />
-              <div className="grid gap-1.5">
-                {standAssets(state).map((asset) => (
-                  <div key={asset.id} className="flex items-center gap-2">
-                    <span className="w-20 shrink-0 text-[10px] font-semibold uppercase text-muted-foreground">{SIDE_LABEL[asset.location] ?? asset.location}</span>
-                    <input value={names[asset.id] ?? asset.name} onChange={(event) => setNames((n) => ({ ...n, [asset.id]: event.target.value }))} maxLength={32} className="h-9 min-w-0 flex-1 rounded-lg border bg-background px-2.5 text-sm" />
-                    <Button size="sm" variant="outline" className="h-9" disabled={(names[asset.id] ?? asset.name).trim() === asset.name} onClick={() => rename(asset)}>Save</Button>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </>}
-        </div>
-        <div className="sticky bottom-0 grid grid-cols-[auto_minmax(0,1fr)] gap-2 border-t bg-card p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-          <Button variant="outline" size="icon" aria-label="Reset cosmetic changes" disabled={!changed} onClick={() => { setDraft({ seats: identity.seats, roof: identity.roof, cladding: identity.cladding, floodlights: identity.floodlights, mowing: identity.mowing, homeEnd: identity.homeEnd }); setGroundName(identity.groundName ?? ""); }}><RotateCcw className="size-4" /></Button>
-          <Button className="w-full" disabled={!changed} onClick={apply}>
-            {changed ? (cost > 0 ? `Apply · ${fmtMoneyExact(cost)}` : "Apply · free") : "No changes"}
-          </Button>
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
-}
-
-function SectionTitle({ icon, title, note }: { icon?: React.ReactNode; title: string; note?: string }) {
-  return (
-    <div className="mb-1.5 flex items-baseline justify-between gap-2">
-      <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{icon}{title}</span>
-      {note && <span className="text-[10px] text-muted-foreground">{note}</span>}
-    </div>
-  );
-}
-
-function Swatches<T extends string>({ options, value, onChange }: { options: { id: T; label: string; colours: string[] }[]; value: T; onChange: (id: T) => void }) {
-  return (
-    <div className="grid grid-cols-4 gap-1.5">
-      {options.map((option) => (
-        <button
-          key={option.id}
-          type="button"
-          onClick={() => onChange(option.id)}
-          aria-pressed={option.id === value}
-          className={cn("flex flex-col items-center gap-1 rounded-lg border p-1.5 text-[10px] font-semibold", option.id === value ? "border-primary bg-primary/10" : "bg-background")}
-        >
-          <span className="flex h-6 w-full overflow-hidden rounded-md border border-black/10">
-            {option.colours.map((colour, index) => <span key={index} className="flex-1" style={{ background: colour }} />)}
-          </span>
-          <span className="w-full truncate text-center">{option.label}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function Chips<T extends string>({ options, value, onChange }: { options: readonly { id: T; label: string }[]; value: T; onChange: (id: T) => void }) {
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {options.map((option) => (
-        <button
-          key={option.id}
-          type="button"
-          onClick={() => onChange(option.id)}
-          aria-pressed={option.id === value}
-          className={cn("rounded-full border px-3 py-1.5 text-[12px] font-semibold", option.id === value ? "border-primary bg-primary text-primary-foreground" : "bg-background")}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-export function standForAsset(state: GameState, assetId: string) {
-  return assetById(state, assetId);
-}
+      <div cl
