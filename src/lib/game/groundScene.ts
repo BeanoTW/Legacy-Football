@@ -1449,4 +1449,49 @@ function perimeter(scene: Scene, design: GroundDesign) {
           prims.push({ d: pathOf([m0, m1], false), fill: "none", stroke: "#6f777c", sw: widthAt(m0, 0.25), opacity: 0.6 });
         }
         prims.push({ d: pathOf([v(p0.x, p0.y, h), v(p1.x, p1.y, h)], false), fill: "none", stroke: "#4f575c", sw: widthAt(p0, 0.6) });
-        for (cons
+        for (const p of [p0, p1]) prims.push({ d: pathOf([p, v(p.x, p.y, h)], false), fill: "none", stroke: "#4f575c", sw: widthAt(p, 0.7) });
+        scene.shadowPoly([p0, p1, v(p1.x, p1.y, h), v(p0.x, p0.y, h)], 0.08);
+      } else if (style === "brick") {
+        const nx = -(p1.y - p0.y) / len;
+        const ny = (p1.x - p0.x) / len;
+        const at = (t: number, o: number, z: number) => v(p0.x + (p1.x - p0.x) * t + nx * o, p0.y + (p1.y - p0.y) * t + ny * o, z);
+        prims.push(...solid(prismFaces([[-0.17, 0], [-0.17, 1.1], [0.17, 1.1], [0.17, 0]], 0, 1, (t, o, z) => at(t, o, z)), "#9a5d42"));
+        prims.push({ d: pathOf([at(0, 0, 1.12), at(1, 0, 1.12)], false), fill: "none", stroke: "#cfc6b6", sw: widthAt(p0, 0.6) });
+        scene.shadowPoly([p0, p1, v(p1.x, p1.y, 1.1), v(p0.x, p0.y, 1.1)], 0.12);
+      } else if (style === "hoardings") {
+        const tones = ["#1f6f69", "#c8102e", "#f2c14e", "#23324a", "#ffffff", tone];
+        const fill = tones[(i * 5 + k * 3) % tones.length];
+        prims.push({ d: pathOf([p0, p1, v(p1.x, p1.y, 0.95), v(p0.x, p0.y, 0.95)]), fill, stroke: "#e7f2ef", sw: 0.5 });
+        const s0 = v(p0.x + (p1.x - p0.x) * 0.2, p0.y + (p1.y - p0.y) * 0.2, 0.45);
+        const s1 = v(p0.x + (p1.x - p0.x) * 0.8, p0.y + (p1.y - p0.y) * 0.8, 0.45);
+        prims.push({ d: pathOf([s0, s1], false), fill: "none", stroke: fill === "#ffffff" || fill === "#f2c14e" ? "#23324a" : "#ffffff", sw: widthAt(s0, 1.1), opacity: 0.9 });
+        scene.shadowPoly([p0, p1, v(p1.x, p1.y, 0.95), v(p0.x, p0.y, 0.95)], 0.14);
+      } else {
+        // Tubular rail, or heavier crush barriers.
+        const barrier = style === "barrier";
+        const h = barrier ? 1.15 : 1.05;
+        const w = barrier ? 1.3 : 0.85;
+        const rail = barrier ? (tone === "#f1f3f0" ? "#59636b" : tone) : tone;
+        prims.push({ d: pathOf([v(p0.x, p0.y, h), v(p1.x, p1.y, h)], false), fill: "none", stroke: rail, sw: widthAt(p0, w), cap: "round" });
+        if (barrier) prims.push({ d: pathOf([v(p0.x, p0.y, 0.55), v(p1.x, p1.y, 0.55)], false), fill: "none", stroke: rail, sw: widthAt(p0, 0.8), cap: "round" });
+        for (let q = 0; q <= (barrier ? 2 : 3); q += 1) {
+          const t = q / (barrier ? 2 : 3);
+          const p = v(p0.x + (p1.x - p0.x) * t, p0.y + (p1.y - p0.y) * t);
+          prims.push({ d: pathOf([p, v(p.x, p.y, h)], false), fill: "none", stroke: rail, sw: widthAt(p, w * 0.8), cap: "round" });
+        }
+        scene.shadowLine(v(p0.x, p0.y, h), v(p1.x, p1.y, h), w, 0.16);
+      }
+      scene.add(prims, v(mid.x, mid.y, 0.5));
+    }
+  }
+  select("perimeter", v(0, -HALF_W - inset, 1.2), loop, 1.2);
+}
+
+/* ---------------- Fixtures ---------------- */
+
+function dugouts(scene: Scene, design: GroundDesign) {
+  const level = maxStandLevel(design);
+  const chosen = design.fixtures?.dugouts ?? "auto";
+  const style = chosen === "auto" ? (level >= 4 ? "perspex" : level >= 3 ? "brick" : "wooden") : chosen;
+  for (const x of [-9, 9]) {
+    const x0 = x
