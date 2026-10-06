@@ -469,4 +469,92 @@ function SelectionPanel({
         </Field>
         <Field label="Club buildings">
           <div className="flex flex-wrap gap-1.5">
-            {BUILDING_STYLES.map((style) => <OptionChip key={style.id} active={(sur.buildings ?? "auto") === style.id} onClick={() => apply((s) => updateSurroundings(s, { buildings: style.id
+            {BUILDING_STYLES.map((style) => <OptionChip key={style.id} active={(sur.buildings ?? "auto") === style.id} onClick={() => apply((s) => updateSurroundings(s, { buildings: style.id }))}>{style.label}</OptionChip>)}
+          </div>
+        </Field>
+      </div>
+    );
+  }
+
+  /* ---------- Whole ground ---------- */
+  return (
+    <div className="space-y-3">
+      <PanelTitle title="Whole ground" sub="Defaults every stand uses unless you change it" />
+      <RenameRow key={`ground-${identity.groundName ?? ""}`} label="Ground name" placeholder="e.g. Station Park" initial={identity.groundName ?? ""} onSave={(groundName) => applyLook({ groundName })} />
+      <div className="divide-y rounded-xl border">
+        <ExpandRow label="Seats" value={SEAT_SCHEMES.find((o) => o.id === identity.seats)?.label ?? ""} swatch={seatSwatch(identity.seats)}>
+          {(close) => <Swatches options={SEAT_SCHEMES.map((o) => ({ id: o.id, label: o.label, colours: seatSwatch(o.id) }))} value={identity.seats} onChange={(seats) => { applyLook({ seats: seats as SeatScheme }); close(); }} />}
+        </ExpandRow>
+        <ExpandRow label="Roof colour" value={ROOF_COLOURS.find((o) => o.id === identity.roof)?.label ?? ""} swatch={[roofSwatch(identity.roof)]}>
+          {(close) => <Swatches options={ROOF_COLOURS.map((o) => ({ id: o.id, label: o.label, colours: [roofSwatch(o.id)] }))} value={identity.roof} onChange={(roof) => { applyLook({ roof: roof as RoofColour }); close(); }} />}
+        </ExpandRow>
+        <ExpandRow label="Brick & buildings" value={CLADDINGS.find((o) => o.id === identity.cladding)?.label ?? ""} swatch={[claddingSwatch(identity.cladding)]}>
+          {(close) => <Swatches options={CLADDINGS.map((o) => ({ id: o.id, label: o.label, colours: [claddingSwatch(o.id)] }))} value={identity.cladding} onChange={(cladding) => { applyLook({ cladding: cladding as Cladding }); close(); }} />}
+        </ExpandRow>
+      </div>
+      <Field label="Home end (the Kop)">
+        <div className="flex gap-1.5">
+          {([null, "N", "S"] as const).map((end) => <OptionChip key={String(end)} active={identity.homeEnd === end} onClick={() => applyLook({ homeEnd: end })}>{end === null ? "None" : end === "N" ? "North end" : "South end"}</OptionChip>)}
+        </div>
+      </Field>
+    </div>
+  );
+}
+
+/* ---------- Small pieces ---------- */
+
+const MATERIAL_SWATCH: Record<StandMaterial, string> = { brick: "#9a5d42", timber: "#8a6a45", concrete: "#b5b1a6", cladding: "#cfd3d6" };
+
+function PanelTitle({ title, sub }: { title: string; sub?: string }) {
+  return (
+    <div data-panel-title={title}>
+      <div className="font-display text-lg leading-tight">{title}</div>
+      {sub ? <div className="text-[11px] text-muted-foreground">{sub}</div> : null}
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{label}</div>
+      {children}
+    </div>
+  );
+}
+
+function PickChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button type="button" onClick={onClick} className={cn("shrink-0 rounded-full border px-3 py-1 text-[12px] font-semibold", active ? "border-amber-400 bg-amber-100 text-amber-900" : "bg-background")} aria-pressed={active}>
+      {children}
+    </button>
+  );
+}
+
+function OptionChip({ active, disabled, title, onClick, children }: { active: boolean; disabled?: boolean; title?: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button type="button" disabled={disabled} title={title} onClick={onClick} aria-pressed={active} className={cn("rounded-full border px-3 py-1.5 text-[12px] font-semibold disabled:opacity-45", active ? "border-primary bg-primary text-primary-foreground" : "bg-background")}>
+      {children}
+    </button>
+  );
+}
+
+/** A collapsed row: "Roof colour   Slate ›". Tap to expand the palette; choosing collapses it. */
+function ExpandRow({ label, value, swatch, children }: { label: string; value: string; swatch?: string[]; children: (close: () => void) => React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <button type="button" onClick={() => setOpen((o) => !o)} className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left" aria-expanded={open}>
+        <span className="text-[13px] font-semibold">{label}</span>
+        <span className="flex items-center gap-2 text-[12px] text-muted-foreground">
+          {swatch ? <span className="flex h-4 w-6 overflow-hidden rounded border border-black/10">{swatch.map((c, i) => <span key={i} className="flex-1" style={{ background: c }} />)}</span> : null}
+          {value}
+          <span className={cn("transition-transform", open && "rotate-90")}>›</span>
+        </span>
+      </button>
+      {open ? <div className="px-3 pb-3">{children(() => setOpen(false))}</div> : null}
+    </div>
+  );
+}
+
+function Swatches<T extends string>({ options, value, onChange, withDefault, defaultLabel = "Ground default" }: { options: { id: T; label: string; colours: string[] }[]; v
