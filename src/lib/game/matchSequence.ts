@@ -1739,6 +1739,17 @@ function buildFlowOnce(input: MatchFlowSequenceInput, gap: number, userShare: nu
           commentary: `${surname(receiver.name)} gathers the loose ball.`,
         });
       } else if (current.playerId !== receiver.playerId) {
+        const desiredPlan = planFor(desiredSide);
+        const receiverShape = teamShape(
+          desiredLineup,
+          baseShape(desiredLineup, desiredSide, desiredPlan.formation),
+          desiredSide,
+          currentPoint,
+          true,
+          desiredPlan,
+        );
+        const receiverNow = receiverShape.get(receiver.playerId) ?? nextAction.start;
+        const receiverRunWeight = metres(receiverNow, nextAction.start) / (9.2 * 1.5);
         push({
           kind: "pass",
           side: desiredSide,
@@ -1749,7 +1760,12 @@ function buildFlowOnce(input: MatchFlowSequenceInput, gap: number, userShare: nu
           targetPlayerName: receiver.name,
           start: currentPoint,
           end: nextAction.start,
-          weight: (0.38 + metres(currentPoint, nextAction.start) * 0.012) * tempoScale(planFor(desiredSide)),
+          weight:
+            Math.max(
+              0.5,
+              0.38 + metres(currentPoint, nextAction.start) * 0.012,
+              receiverRunWeight,
+            ) * tempoScale(desiredPlan),
           commentary: `${surname(current.name)} works it on to ${surname(receiver.name)}.`,
         });
       }
