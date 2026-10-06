@@ -1601,4 +1601,64 @@ function latticePylon(scene: Scene, x: number, y: number, h: number) {
 function lampPost(scene: Scene, x: number, y: number, h: number) {
   const base = v(x, y, 0);
   const top = v(x, y, h);
-  const head = [v(x - 0.7, y, h), v(x + 0.7, y, h), v(x + 0.7,
+  const head = [v(x - 0.7, y, h), v(x + 0.7, y, h), v(x + 0.7, y, h + 0.6), v(x - 0.7, y, h + 0.6)];
+  scene.shadowLine(base, top, 0.9, 0.22);
+  scene.add([
+    { d: pathOf([base, top], false), fill: "none", stroke: "#8d949a", sw: widthAt(base, 0.9), cap: "round" },
+    { d: pathOf(head), fill: C.lightHead, stroke: "#3b4148", sw: 0.5 },
+  ], v(x, y, h / 2));
+}
+
+function designedLights(scene: Scene, design: GroundDesign) {
+  const level = maxStandLevel(design);
+  const chosen = LOOK?.floodlights ?? "auto";
+  const roofedTouchlines = (["W", "E"] as StandSide[]).filter((side) => {
+    const d = design.stands[side];
+    return d.form !== "open" && d.roof !== "open" && d.form !== "shelter";
+  });
+  const style = chosen === "auto"
+    ? level <= 1 ? "posts" : level <= 3 ? "pylons" : roofedTouchlines.length === 2 ? "gantry" : "masts"
+    : chosen === "gantry" && roofedTouchlines.length === 0 ? "masts" : chosen;
+  const marks: V3[] = [];
+  // Pylon corners always carry a pylon, whatever the style.
+  const pylonAt = (slot: CornerSlot) => {
+    const [sx, sy] = SIDE_SIGN[slot];
+    const end: StandSide = sx > 0 ? "N" : "S";
+    const touch: StandSide = sy > 0 ? "W" : "E";
+    const px = sx * (sideFront(end, design.stands[end]) + Math.min(10, standReach(end, design.stands[end]) * 0.4) + 5);
+    const py = sy * (sideFront(touch, design.stands[touch]) + Math.min(10, standReach(touch, design.stands[touch]) * 0.4) + 5);
+    // A corner chosen as a pylon corner gets a taller landmark pylon on a concrete base,
+    // so the choice reads even when the whole ground already uses pylons.
+    const landmark = design.corners[slot].form === "pylon";
+    const h = (level >= 4 ? 36 : 26) + (landmark ? 8 : 0);
+    if (landmark) {
+      scene.add(solid(boxFaces(px - 3.2, py - 3.2, 0, px + 3.2, py + 3.2, 1.2), MATERIAL_TONE.concrete), v(px, py, 0.6));
+      scene.shadowSolid([...rect(px - 3.2, py - 3.2, px + 3.2, py + 3.2), ...rect(px - 3.2, py - 3.2, px + 3.2, py + 3.2, 1.2)], 0.2);
+    }
+    latticePylon(scene, px, py, h);
+    marks.push(v(px, py, h));
+  };
+  const corners = ["NW", "NE", "SW", "SE"] as CornerSlot[];
+  for (const slot of corners) if (design.corners[slot].form === "pylon" || style === "pylons") pylonAt(slot);
+  if (style === "posts") {
+    for (const x of [-36, 0, 36]) {
+      for (const sy of [1, -1]) {
+        const y = sy * (HALF_W + 6);
+        lampPost(scene, x, y, 12);
+        marks.push(v(x, y, 12));
+      }
+    }
+  } else if (style === "masts") {
+    for (const x of [-42, -14, 14, 42]) {
+      const yW = sideFront("W", design.stands.W) + standReach("W", design.stands.W) + 3;
+      const yE = -(sideFront("E", design.stands.E) + standReach("E", design.stands.E) + 3);
+      floodlight(scene, x, yW, 26, x, 0);
+      floodlight(scene, x, yE, 24, x, 0);
+      marks.push(v(x, yW, 26), v(x, yE, 24));
+    }
+  } else if (style === "gantry") {
+    for (const side of roofedTouchlines) {
+      const spec = designedStandSpec(side, design.stands[side]);
+      if (!spec) continue;
+      const z = standHeight(spec) - 1.2;
+     
