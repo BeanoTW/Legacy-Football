@@ -525,34 +525,64 @@ function StandDevelopment({ state, asset, apply }: { state: GameState; asset: In
   if (selection?.startsWith("corner:")) {
     const slot = selection.slice(7) as CornerSlot;
     const c = design.corners[slot];
+    const [endSide, touchSide] = [slot.startsWith("N") ? "N" : "S", slot.endsWith("W") ? "W" : "E"] as StandSide[];
+    const adjacent = [standBySide.get(endSide), standBySide.get(touchSide)].filter(Boolean) as InfrastructureAsset[];
+    const host = adjacent.sort((a, b) => b.capacity - a.capacity)[0];
+    const expansion = host ? projectCatalogue(state, host.id).find((spec) => spec.type === "capacityExpansion") : undefined;
+    const builtInfill = c.form === "terrace" || c.form === "seated";
     return (
       <div className="space-y-3">
-        <PanelTitle title={labels[selection]} sub="Corners develop once the stands beside them do" />
-        <Field label="Corner">
-          <div className="flex flex-wrap gap-1.5">
-            {cornerFormOptions(design, slot).map((option) => (
-              <OptionChip key={option.id} active={c.form === option.id} disabled={!option.allowed} title={option.reason} onClick={() => apply((s) => updateCorner(s, slot, { form: option.id }))}>
-                {option.label}{!option.allowed ? " 🔒" : ""}
-              </OptionChip>
-            ))}
+        <PanelTitle title={labels[selection]} sub="Design the corner here; physical infill is a real ground project" />
+        <Field label="Shape · free">
+          <div className="flex gap-1.5">
+            <OptionChip active={(c.shape ?? "angled") === "angled"} onClick={() => apply((s) => updateCorner(s, slot, { shape: "angled" }))}>Angled</OptionChip>
+            <OptionChip active={c.shape === "rounded"} onClick={() => apply((s) => updateCorner(s, slot, { shape: "rounded" }))}>Rounded</OptionChip>
           </div>
-          {cornerFormOptions(design, slot).filter((o) => !o.allowed).map((o) => <p key={o.id} className="mt-1 text-[10.5px] text-muted-foreground">{o.label}: {o.reason}.</p>)}
+          <p className="mt-1 text-[10.5px] text-muted-foreground">Changing the geometry never costs money, including after this corner has been built.</p>
         </Field>
-        {c.form === "terrace" || c.form === "seated" ? (
+        {builtInfill ? (
           <>
-            <Field label="Infill">
+            <Field label="Built infill">
               <div className="flex gap-1.5">
-                {(["small", "large"] as const).map((size) => <OptionChip key={size} active={(c.size ?? "small") === size} onClick={() => apply((s) => updateCorner(s, slot, { size }))}>{size === "small" ? "Small piece" : "Fill the corner"}</OptionChip>)}
+                {(["small", "large"] as const).map((size) => <OptionChip key={size} active={(c.size ?? "small") === size} onClick={() => apply((s) => updateCorner(s, slot, { size }))}>{size === "small" ? "Compact" : "Full corner"}</OptionChip>)}
               </div>
-            </Field>
-            <Field label="Shape">
-              <div className="flex gap-1.5">
-                <OptionChip active={(c.shape ?? "angled") === "angled"} onClick={() => apply((s) => updateCorner(s, slot, { shape: "angled" }))}>Angled</OptionChip>
-                <OptionChip active={c.shape === "rounded"} onClick={() => apply((s) => updateCorner(s, slot, { shape: "rounded" }))}>Rounded</OptionChip>
-              </div>
+              <p className="mt-1 text-[10.5px] text-muted-foreground">You already own this corner capacity, so its presentation can be compacted or reshaped freely.</p>
             </Field>
           </>
-        ) : null}
+        ) : (
+          <Field label="Develop corner">
+            <div className="flex flex-wrap gap-1.5">
+              {cornerFormOptions(design, slot).filter((option) => option.id !== "open").map((option) => (
+                <OptionChip key={option.id} active={false} disabled={!option.allowed || !expansion} title={option.reason ?? (!expansion ? "No physical expansion is currently available" : undefined)} onClick={() => {}}>
+                  {option.label}{!option.allowed || !expansion ? " 🔒" : ""}
+                </OptionChip>
+              ))}
+            </div>
+            {expansion && host ? (
+              <div className="mt-2 rounded-xl border border-dashed bg-muted/20 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Physical corner infill</div>
+                    <strong className="text-xs">Build from {host.name}</strong>
+                    <p className="mt-1 text-[10.5px] text-muted-foreground">Creates real spectator capacity in this empty corner. Choose its angled or rounded presentation freely before or after construction.</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-display text-sm tnum">{fmtMoneyExact(expansion.cost)}</div>
+                    <div className="text-[10px] text-muted-foreground">{expansion.durationWeeks} weeks</div>
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  className="mt-2 w-full"
+                  disabled={!evaluateProject(state, host.id, expansion.type).ok}
+                  onClick={() => apply((s) => approveStandBuild(s, host.id, expansion.type, standBuild(s, host.id, host.level)))}
+                >
+                  Approve corner infill
+                </Button>
+              </div>
+            ) : null}
+          </Field>
+        )}
       </div>
     );
   }
