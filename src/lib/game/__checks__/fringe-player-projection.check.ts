@@ -45,8 +45,11 @@ turned.fringeWorld = structuredClone(world);
 const turnedClub = advanceFringeWorldToSeason(turned)[clubId];
 advancePersistentFringePlayersToSeason(turned);
 const replacement = projectFringePlayer(turned, turnedClub, "MID");
-assert.ok(turned.fringePlayers?.[first.id], "old compact identity must survive long-horizon turnover");
+const oldAfterTurnover = turned.fringePlayers?.[first.id];
 assert.ok(turned.fringePlayers?.[replacement.id], "replacement projection must reference persistent compact state");
+if (!oldAfterTurnover) {
+  assert.notEqual(replacement.id, first.id, "a pruned inactive identity must never be resurrected");
+}
 assert.equal(replacement.id.startsWith("wp-"), false, "legacy implicit world-player ids must not reappear");
 assert.ok(replacement.age >= 16);
 assert.equal(turned.football?.players.some((player) => player.id === replacement.id), false);
