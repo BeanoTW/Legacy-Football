@@ -1663,6 +1663,17 @@ export function evaluateProject(
     reason = spec.major
       ? "The club can only run one major construction project at a time."
       : "A minor repair is already under way.";
+  } else if (spec.type === "facilityUpgrade" && a) {
+    const dependency = facilityDependencyStatus(s, a);
+    if (!dependency.met) {
+      allowed = false;
+      reason = dependency.text ?? "The ground is not ready for this facility upgrade.";
+    } else if (!affordability.allowed) {
+      allowed = false;
+      reason = affordability.reason;
+    } else if (affordability.verdict === "affordableButRisky") {
+      reason = affordability.reason;
+    }
   } else if (!affordability.allowed) {
     allowed = false;
     reason = affordability.reason;
