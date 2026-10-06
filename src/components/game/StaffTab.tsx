@@ -32,6 +32,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { OverviewScreen, WorkflowTile } from "./shared/layout";
 import { medicalSupport } from "@/lib/game/playerHealth";
 import { coachingSupport, transferSupport } from "@/lib/game/staffImpact";
+import { SARAH_MALIK_FLAG, SARAH_MALIK_ID } from "@/lib/game/supporterEvents";
 import { CharacterPortrait } from "./CharacterPortrait";
 import { CharacterPortraitStudio } from "./CharacterPortraitStudio";
 import { useCharacterName } from "@/hooks/useCharacterName";
@@ -379,6 +380,7 @@ function StaffCard({state,staff,terms,onAction,onRenew,onSpeak,action,affordable
   const [portraitEditing,setPortraitEditing] = useState(false);
   const displayName = useCharacterName(staff.id, staff.name);
   const manager = staff.role === "Manager";
+  const sarahVolunteer = staff.id === SARAH_MALIK_ID && state.inboxFlags?.[SARAH_MALIK_FLAG] === "volunteer";
   const contractLabel = staff.contractWeeks <= 52 ? "Final season" : `${Math.ceil(staff.contractWeeks / 52)} seasons left`;
   const identity = manager ? managerFootballIdentity(staff) : null;
   const fit = manager ? managerSquadFit(state,staff) : null;
@@ -395,7 +397,7 @@ function StaffCard({state,staff,terms,onAction,onRenew,onSpeak,action,affordable
         <div className="truncate text-[11px] text-muted-foreground">{staff.role} · {staff.age} · Rating {staff.rating}</div>
       </div>
       <div className="shrink-0 text-right text-[11px]">
-        <div className="font-semibold tnum">{fmtMoneyExact(terms?.wageDemand ?? staff.wage)}/wk</div>
+        <div className="font-semibold tnum">{sarahVolunteer && !terms ? "Volunteer" : `${fmtMoneyExact(terms?.wageDemand ?? staff.wage)}/wk`}</div>
         <div className="text-muted-foreground">{terms ? `${fmtMoneyExact(terms.signingBonus)} sign-on` : contractLabel}</div>
       </div>
     </div>
