@@ -1,0 +1,44 @@
+name: Claude Stadium UI Pack
+
+on:
+  push:
+    branches:
+      - handoff/claude-stadium-ui-pack
+
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build focused stadium UI pack
+        run: |
+          mkdir -p claude-stadium-ui-pack
+          cp HANDOFF_CLAUDE.md claude-stadium-ui-pack/
+          cp package.json claude-stadium-ui-pack/
+          mkdir -p claude-stadium-ui-pack/src/components/game
+          mkdir -p claude-stadium-ui-pack/src/components
+          mkdir -p claude-stadium-ui-pack/src/lib/game/__checks__
+          cp src/components/game/GroundStudio.tsx claude-stadium-ui-pack/src/components/game/
+          cp src/components/game/StadiumGround.tsx claude-stadium-ui-pack/src/components/game/
+          cp src/components/game/FacilitiesFlow.tsx claude-stadium-ui-pack/src/components/game/
+          cp src/components/FacilitiesTab.tsx claude-stadium-ui-pack/src/components/
+          cp src/lib/game/groundIdentity.ts claude-stadium-ui-pack/src/lib/game/
+          cp src/lib/game/groundEditor.ts claude-stadium-ui-pack/src/lib/game/
+          cp src/lib/game/groundScene.ts claude-stadium-ui-pack/src/lib/game/
+          cp src/lib/game/groundPresentation.ts claude-stadium-ui-pack/src/lib/game/
+          cp src/lib/game/groundBuild.ts claude-stadium-ui-pack/src/lib/game/
+          cp src/lib/game/infrastructure.ts claude-stadium-ui-pack/src/lib/game/
+          cp src/lib/game/stadiumAccreditation.ts claude-stadium-ui-pack/src/lib/game/
+          cp src/lib/game/types.ts claude-stadium-ui-pack/src/lib/game/
+          cp src/lib/game/__checks__/ground-identity.check.ts claude-stadium-ui-pack/src/lib/game/__checks__/
+          cp src/lib/game/__checks__/ground-studio.check.ts claude-stadium-ui-pack/src/lib/game/__checks__/
+          cp src/lib/game/__checks__/ground-supporter-demand.check.ts claude-stadium-ui-pack/src/lib/game/__checks__/
+          cp src/lib/game/__checks__/infrastructure.check.ts claude-stadium-ui-pack/src/lib/game/__checks__/
+          cp src/lib/game/__checks__/matchday-ground-presentation.check.ts claude-stadium-ui-pack/src/lib/game/__checks__/
+          zip -r Legacy-Football-Claude-Stadium-UI-Pack.zip claude-stadium-ui-pack
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Legacy-Football-Claude-Stadium-UI-Pack
+          path: Legacy-Football-Claude-Stadium-UI-Pack.zip
+          if-no-files-found: error
+          retention-days: 7
