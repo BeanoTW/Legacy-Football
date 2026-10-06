@@ -101,10 +101,12 @@ function withAbilityBenchmark(
 
 export function createChairmanMultiScoutingBrief(
   state: GameState,
-  input: Pick<ScoutingBriefInput, "id"> & { positionBriefs: ChairmanScoutingPositionBrief[] },
+  input: Pick<ScoutingBriefInput, "id" | "delegatedBy" | "delegatedLabel"> & { positionBriefs: ChairmanScoutingPositionBrief[] },
 ): GameState {
   return createScoutingBrief(state, {
     id: input.id,
+    delegatedBy: input.delegatedBy,
+    delegatedLabel: input.delegatedLabel,
     positionBriefs: input.positionBriefs.map((target) => withAbilityBenchmark(state, target)),
   });
 }

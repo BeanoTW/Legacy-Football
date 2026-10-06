@@ -9,7 +9,7 @@ export type InboxDestination =
   | { tab: "recruitment"; view: "reports"; playerId: string; label: string }
   | { tab: "recruitment"; view: "find"; briefId: string; memoEventKey?: string; label: "View scouting results" | "Assign to Recruitment" }
   | { tab: "recruitment"; view: "operations"; negotiationId: string; label: "View negotiation" }
-  | { tab: "recruitment"; view: "operations"; label: "Open transfers" }
+  | { tab: "recruitment"; view: "operations"; label: "Open transfers" | "Review contracts" }
   | { tab: "squad"; playerId: string; label: string }
   | { tab: "staff"; staffId?: string; label: string }
   | { tab: "board"; label: string }
