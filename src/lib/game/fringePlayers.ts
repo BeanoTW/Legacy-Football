@@ -338,5 +338,9 @@ export function previewFringePlayersForClub(
 export function fringePlayersForClub(state: GameState, clubId: string): CompactFringePlayer[] {
   return Object.values(ensurePersistentFringePlayers(state))
     .filter((player) => isActive(player) && sameClubReference(state, player.currentClubId, clubId))
-    .sort((a, b) => a.playerId.localeCompare(b.playerId));
+    .sort(
+      (a, b) =>
+        (a.createdSeason ?? 0) - (b.createdSeason ?? 0) ||
+        a.playerId.localeCompare(b.playerId),
+    );
 }
