@@ -1713,4 +1713,53 @@ function designedSurroundings(scene: Scene, design: GroundDesign, rand: () => nu
   const chosen = design.surroundings.buildings ?? "auto";
   const style = chosen === "auto" ? (level <= 1 ? "portacabins" : level === 2 ? "clubhouse" : level === 3 ? "brickClubhouse" : "modern") : chosen;
   const bx = sx > 0 ? 82 : -104;
-  co
+  const by0 = sy > 0 ? 8 : -40;
+  if (style === "portacabins") {
+    anchors.offices = building(scene, bx, by0 + 12, bx + 12, by0 + 18, 2.8, C.cabin, { roof: "#8f8f8a" });
+    building(scene, bx, by0 + 20, bx + 12, by0 + 26, 2.8, "#c9b27a", { roof: "#8f8f8a" });
+    building(scene, bx + 14, by0 + 14, bx + 20, by0 + 24, 2.6, "#7a8b6f", { roof: "#8f8f8a" });
+  } else if (style === "clubhouse") {
+    anchors.offices = building(scene, bx, by0 + 10, bx + 20, by0 + 28, 4, "#8a6a45", { pitched: true, roof: C.roofDark });
+  } else if (style === "brickClubhouse") {
+    anchors.offices = building(scene, bx, by0 + 10, bx + 22, by0 + 30, 5, "#9a5d42", { pitched: true, roof: C.roofDark });
+  } else {
+    anchors.offices = building(scene, bx - 2, by0 + 8, bx + 22, by0 + 32, 8, C.cladding, { glassy: true, roof: C.roofDark });
+  }
+  anchors.shop = building(scene, bx + 2, by0, bx + 10, by0 + 6, 3, "#3d6a8a", { roof: C.roof });
+  anchors.hospitality = anchors.offices;
+  // Turnstile hut by the end nearest the car park.
+  const tx = sx * (HALF_L + 7.5);
+  anchors.access = building(scene, tx - 2, sy * 14 - 2.5, tx + 2, sy * 14 + 2.5, 2.6, C.brick, { roof: C.roofDark });
+  select("surroundings", v((x0 + x1) / 2, (y0 + y1) / 2, 2), [v(Math.min(x0, bx - 2), Math.min(y0, by0), 0), v(Math.max(x1, bx + 22), Math.min(y0, by0), 0), v(Math.max(x1, bx + 22), Math.max(y1, by0 + 32), 0), v(Math.min(x0, bx - 2), Math.max(y1, by0 + 32), 0)], 0);
+}
+
+/* ---------------- Composition ---------------- */
+
+function composeDesigned(scene: Scene, input: SceneInput, design: GroundDesign, anchors: Record<string, V3>) {
+  const stage = clampN(Math.round(input.stage), 0, 6);
+  const rand = rng(0x5eed + stage * 7919);
+  const level = maxStandLevel(design);
+  countryside(scene, rng(20260924));
+  neighbourPitch(scene, stage);
+  scene.flat(rect(-HALF_L - 9, -HALF_W - 8, HALF_L + 9, HALF_W + 8), level >= 2 ? C.path : "#a8ad93");
+  scene.flat(rect(-HALF_L - 6.5, -HALF_W - 5.5, HALF_L + 6.5, HALF_W + 5.5), "#6e9b44");
+  pitch(scene, stage, input.pitchCondition);
+  anchors.pitch = v(0, 0, 0);
+  select("pitch", v(0, 0, 0.5), rect(-HALF_L, -HALF_W, HALF_L, HALF_W), 0);
+  goal(scene, -HALF_L, 1);
+  goal(scene, HALF_L, -1);
+  perimeter(scene, design);
+  dugouts(scene, design);
+
+  for (const side of ["W", "E", "N", "S"] as StandSide[]) {
+    const d = design.stands[side];
+    const spec = designedStandSpec(side, d);
+    const anchor = spec ? stand(scene, spec) : openSide(scene, side, d);
+    if (side === "W") anchors.main = anchor;
+    if (side === "E") anchors.stands = anchor;
+    const W = sideMapper(side, sideFront(side, d));
+    const half = spec ? (spec.to - spec.from) / 2 : isTouchline(side) ? 44 : 28;
+    const reach = spec ? standReach(side, d) : 6.5;
+    select(`stand:${side}`, spec ? anchor : W(0, 3, 1.5), [W(-half, 0, 0), W(half, 0, 0), W(half, reach, 0), W(-half, reach, 0)], spec ? standHeight(spec) : 0.6);
+  }
+  for (const slot of ["NW", "NE", "SW", "SE"] as CornerSlot[]) corner(scene, slot, des
