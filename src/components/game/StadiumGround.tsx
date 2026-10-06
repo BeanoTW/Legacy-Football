@@ -60,6 +60,7 @@ export function layoutLabels(
     const w = Math.min(maxW, 30 + item.label.length * charW);
     return { id: item.id, w, ax: item.ax, ay: item.ay, x: item.ax - w / 2, y: item.ay - LABEL_H - 12 };
   });
+  // The stage badge in the top-right corner is a fixed obstacle.
   const badge = { x: width - 104, y: 0, w: 104, h: 44 };
 
   const clamp = (b: LabelBox) => {
@@ -109,6 +110,7 @@ function useViewportSize(ref: RefObject<HTMLDivElement | null>) {
     const node = ref.current;
     if (!node) return;
     const measure = (width: number, height: number) => {
+      // Round so tiny layout jitters don't rebuild the scene.
       const next = { width: Math.max(200, Math.round(width / 4) * 4), height: Math.max(200, Math.round(height / 4) * 4) };
       setSize((current) => (current.width === next.width && current.height === next.height ? current : next));
     };
@@ -143,17 +145,23 @@ export function StadiumGround({
   hotspots: GroundHotspot[];
   selectedId: string | null;
   onSelect: (hotspot: GroundHotspot) => void;
+  /** The club's own look (groundIdentity.sceneLook). Optional. */
   look?: SceneLook;
+  /** Slot-based ground design (groundIdentity.groundDesign). Omitted: legacy stage drawing. */
   design?: GroundDesign;
   interactiveCamera?: boolean;
   cameraMode?: GroundCameraMode;
+  /** Ground Studio: the selected component ("stand:W", "corner:NE", "pitch", …). */
   selection?: string | null;
+  /** Ground Studio: tap a component to select it (null when tapping empty ground). */
   onSelectComponent?: (id: string | null) => void;
+  /** Friendly names for selectable components (shown on the selected pin). */
   componentLabels?: Record<string, string>;
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const { width, height } = useViewportSize(viewportRef);
   const [camera, setCamera] = useState(DEFAULT_CAMERA);
+  // Gesture state: one finger orbits, two fingers pinch-zoom, a quick tap selects.
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const gesture = useRef<{ az: number; el: number; zoom: number; x: number; y: number; dist: number; moved: boolean; t: number; pinch: boolean } | null>(null);
 
@@ -163,6 +171,7 @@ export function StadiumGround({
     .map((h) => h.id)
     .sort()
     .join(",");
+  // Rebuild only when the look actually changes, not on every render.
   const lookKey = look ? JSON.stringify(look) : "";
   const designKey = design ? JSON.stringify(design) : "";
 
@@ -182,6 +191,7 @@ export function StadiumGround({
     [camera, cameraMode, designKey, height, lookKey, pitchCondition, selection, stage, width, worksKey],
   );
 
+  // Frame the selected component (once per selection change).
   const focusedFor = useRef<string | null>(null);
   useEffect(() => {
     if (!onSelectComponent || selection === focusedFor.current) return;
@@ -233,7 +243,8 @@ export function StadiumGround({
       className={cn("lf-ground-viewport rounded-lg", `lf-ground-stage-${stage}`)}
       style={{ background: scene.background, touchAction: interactiveCamera ? "none" : undefined }}
       onPointerDown={interactiveCamera ? (event) => {
-        try { event.currentTarget.setPointerCapture(event.pointerId); } catch { }
+        // Capture can fail (synthetic or already-released pointers); gestures still work.
+        try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* ignore */ }
         pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
         const pts = [...pointers.current.values()];
         const pinch = pts.length >= 2;
@@ -273,6 +284,7 @@ export function StadiumGround({
       onPointerUp={interactiveCamera ? (event) => {
         const g = gesture.current;
         pointers.current.delete(event.pointerId);
+        // A quick tap that didn't move selects the nearest component.
         if (g && !g.moved && !g.pinch && onSelectComponent && Date.now() - g.t < 600) {
           const rect = event.currentTarget.getBoundingClientRect();
           const fx = (event.clientX - rect.left) / rect.width;
@@ -287,6 +299,7 @@ export function StadiumGround({
         }
         if (pointers.current.size === 0) gesture.current = null;
         else if (g) {
+          // One finger left after a pinch: continue as an orbit from here, never as a tap.
           const [rest] = [...pointers.current.values()];
           gesture.current = { ...g, pinch: false, moved: true, x: rest.x, y: rest.y, az: camera.azimuthDeg, el: camera.elevationDeg, zoom: camera.zoom };
         }
@@ -350,6 +363,7 @@ export function StadiumGround({
         </button>
       ) : null}
 
+      {/* Leader lines from each label to the part of the ground it describes. */}
       <svg className="pointer-events-none absolute inset-0 z-[5] h-full w-full" aria-hidden="true">
         {labels.map((box) => {
           const hotspot = byId.get(box.id);
