@@ -23,6 +23,7 @@ import {
   projectedSeasonDecay,
   setMaintenancePolicy,
   type ProjectSpec,
+  facilityProgressionSpec,
 } from "@/lib/game/infrastructure";
 import { facilityCurrentEffect, groundProgression } from "@/lib/game/groundPresentation";
 import { fmtMoney, fmtMoneyExact } from "@/lib/game/engine";
@@ -377,6 +378,7 @@ export function FacilitySheet({ state, asset, onApprove, onApproveBuild }: { sta
     ? catalogue.filter((spec) => ["minorRepair", "majorRepair", "refurbishment", "replacement"].includes(spec.type))
     : catalogue;
   const band = conditionBand(asset.condition);
+  const progressionSpec = facilityProgressionSpec(state, asset);
   const activeProject = asset.activeProjectId
     ? state.infrastructure?.projects.find((project) => project.id === asset.activeProjectId) ?? null
     : null;
@@ -441,7 +443,16 @@ export function FacilitySheet({ state, asset, onApprove, onApproveBuild }: { sta
           <span className="shrink-0 whitespace-nowrap text-right text-[10px] font-semibold tnum text-muted-foreground">{asset.condition.toFixed(0)}% condition</span>
         </div>
         {asset.level < config.maxLevel && !activeProject ? (
-          <div className="mt-1.5 text-[10.5px] text-muted-foreground">Next standard: <strong className="text-foreground">{config.levels[asset.level]}</strong></div>
+          <div className="mt-1.5 text-[10.5px] text-muted-foreground">Next standard: <strong className="text-foreground">{progressionSpec.next}</strong></div>
+        ) : null}
+        {asset.type !== "stand" ? (
+          <div className="mt-2 border-t pt-2">
+            <div className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">What this facility does</div>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {progressionSpec.benefits.map((benefit) => <span key={benefit} className="rounded bg-muted px-1.5 py-0.5 text-[9.5px] font-semibold">{benefit}</span>)}
+            </div>
+            {progressionSpec.dependency ? <p className="mt-1.5 text-[10px] text-muted-foreground">{progressionSpec.dependency}</p> : null}
+          </div>
         ) : null}
       </div>
 
