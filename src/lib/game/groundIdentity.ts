@@ -33,6 +33,7 @@ export type CarParkLocation = "NW" | "NE" | "SW" | "SE";
 export type GroundCameraMode = "orbit" | "matchday";
 export type StandMaterial = "brick" | "cladding" | "timber" | "concrete";
 export type CornerSize = "small" | "large";
+export type CornerShape = "angled" | "rounded";
 export type DugoutStyle = "auto" | "wooden" | "brick" | "perspex";
 export type ScoreboardStyle = "auto" | "none" | "manual" | "electronic";
 export type GroundBuildings = "auto" | "portacabins" | "clubhouse" | "brickClubhouse" | "modern";
@@ -61,6 +62,8 @@ export interface GroundCornerDesign {
   form: CornerForm;
   /** Optional: corner infill footprint. Defaults to small. */
   size?: CornerSize;
+  /** Infill geometry. Angled chamfers the pitch-facing edge; rounded uses a faceted curve. */
+  shape?: CornerShape;
 }
 
 /**
