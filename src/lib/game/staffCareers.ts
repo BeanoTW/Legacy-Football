@@ -17,6 +17,7 @@ const ROLE_WEIGHTS: Record<StaffRole, Partial<Record<keyof StaffStats, number>>>
   Scout: { scouting: 2 },
   "Head Physio": { medical: 3 },
   "Sports Scientist": { medical: 2, development: 2 },
+  "Community & Events Officer": { motivation: 3, negotiation: 2 },
 };
 
 function overallFor(role: StaffRole, stats: StaffStats): number {
