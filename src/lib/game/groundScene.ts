@@ -786,4 +786,167 @@ function stand(scene: Scene, spec: StandSpec): V3 {
   // Seat rows, or crush barriers on a terrace.
   const rows = frontFacing ? Math.max(3, Math.round(spec.depth / 1.6)) : 0;
   for (let r = 1; r < rows; r += 1) {
-    if (spec.terrace && r % 2) continu
+    if (spec.terrace && r % 2) continue;
+    const t = r / rows;
+    const z = 1.1 + (lowerTop - 1.1) * t;
+    if (spec.terrace) {
+      for (let g = spec.from + 2; g < spec.to - 2; g += 9) {
+        const a = W(g, spec.depth * t, z + 0.9);
+        const b = W(Math.min(spec.to - 2, g + 6), spec.depth * t, z + 0.9);
+        prims.push({ d: pathOf([a, b], false), fill: "none", stroke: C.barrier, sw: widthAt(a, 0.7), opacity: 0.95 });
+      }
+    } else {
+      const a = W(spec.from + 0.5, spec.depth * t, z);
+      const b = W(spec.to - 0.5, spec.depth * t, z);
+      prims.push({ d: pathOf([a, b], false), fill: "none", stroke: shade(spec.seat, 0.72), sw: widthAt(a, 0.8), opacity: 0.9 });
+    }
+  }
+  // Gangways.
+  for (let g = spec.from + 12; frontFacing && g < spec.to - 6; g += 14) {
+    const a = W(g, 0.3, 1.2);
+    const b = W(g, spec.depth - 0.3, lowerTop);
+    prims.push({ d: pathOf([a, b], false), fill: "none", stroke: C.concrete, sw: widthAt(a, 1.3), opacity: 0.9 });
+  }
+
+  let depth = spec.depth;
+  let top = lowerTop;
+  if (spec.upper) {
+    // Hospitality band with glazing, then the upper tier.
+    const band: Array<[number, number]> = [[depth, 0], [depth, top + 3.5], [depth + 2.5, top + 3.5], [depth + 2.5, 0]];
+    prims.push(...solid(prismFaces(band, spec.from, spec.to, W), back));
+    const glass = [W(spec.from + 1, depth - 0.05, top + 0.6), W(spec.to - 1, depth - 0.05, top + 0.6), W(spec.to - 1, depth - 0.05, top + 3), W(spec.from + 1, depth - 0.05, top + 3)];
+    if (frontFacing) prims.push({ d: pathOf(glass), fill: C.glass, opacity: 0.85 });
+    const u0 = depth + 1;
+    const uBase = top + 3.5;
+    const uTop = uBase + spec.upper.rake;
+    const upper: Array<[number, number]> = [[u0, 0], [u0, uBase + 1], [u0 + spec.upper.depth, uTop], [u0 + spec.upper.depth, 0]];
+    prims.push(...solid(prismFaces(upper, spec.from + 2, spec.to - 2, W), C.concrete, { faceColors: [back, back, C.concrete, C.concrete, spec.seat, back] }));
+    const uRows = frontFacing ? Math.round(spec.upper.depth / 1.7) : 0;
+    for (let r = 1; r < uRows; r += 1) {
+      const t = r / uRows;
+      const a = W(spec.from + 2.5, u0 + spec.upper.depth * t, uBase + 1 + (uTop - uBase - 1) * t);
+      const b = W(spec.to - 2.5, u0 + spec.upper.depth * t, uBase + 1 + (uTop - uBase - 1) * t);
+      prims.push({ d: pathOf([a, b], false), fill: "none", stroke: shade(spec.seat, 0.72), sw: widthAt(a, 0.8), opacity: 0.9 });
+    }
+    depth = u0 + spec.upper.depth;
+    top = uTop;
+  }
+
+  const roofZ = top + 3.2;
+  if (spec.roof) {
+    // Back wall up to the roof, supporting columns, then the roof slab.
+    const wall: Array<[number, number]> = [[depth, 0], [depth, roofZ], [depth + 0.6, roofZ], [depth + 0.6, 0]];
+    prims.push(...solid(prismFaces(wall, spec.from, spec.to, W), back));
+    if (!spec.cantilever && frontFacing) {
+      for (let c = spec.from + 2; c <= spec.to - 2; c += Math.max(12, (spec.to - spec.from) / 5)) {
+        const a = W(c, 0.4, 1.1);
+        const b = W(c, 0.4, roofZ - 0.6);
+        prims.push({ d: pathOf([a, b], false), fill: "none", stroke: "#e7e9ea", sw: widthAt(a, 1.1) });
+      }
+    }
+    const roof: Array<[number, number]> = [[-1.5, roofZ - 0.5], [-1.5, roofZ], [depth + 0.8, roofZ + 1.6], [depth + 0.8, roofZ + 0.9]];
+    prims.push(...solid(prismFaces(roof, spec.from - 0.5, spec.to + 0.5, W), roofC, { faceColors: [roofD, roofD, roofD, roofC, roofD, roofD] }));
+    // Roof sheeting ribs.
+    for (let c = spec.from + 3; c < spec.to; c += 4) {
+      const a = W(c, -1.4, roofZ + 0.02);
+      const b = W(c, depth + 0.7, roofZ + 1.62);
+      prims.push({ d: pathOf([a, b], false), fill: "none", stroke: shade(roofC, 0.82), sw: widthAt(a, 0.5), opacity: 0.8 });
+    }
+    shadowPts.push(W(spec.from, -1.5, roofZ), W(spec.to, -1.5, roofZ), W(spec.from, depth + 0.8, roofZ + 1.6), W(spec.to, depth + 0.8, roofZ + 1.6));
+  } else {
+    shadowPts.push(W(spec.from, depth, top), W(spec.to, depth, top));
+  }
+  shadowPts.push(W(spec.from, 0, 0), W(spec.to, 0, 0), W(spec.from, depth + 0.8, 0), W(spec.to, depth + 0.8, 0));
+  scene.shadowSolid(shadowPts, 0.3);
+
+  if (spec.rearDetail && !frontFacing) {
+    const backOut = depth + (spec.roof ? 0.65 : 0.05);
+    const span = spec.to - spec.from;
+    const doors = Math.max(1, Math.round(span / 16));
+    for (let i = 0; i < doors; i += 1) {
+      const d = spec.from + ((i + 0.5) * span) / doors;
+      prims.push({ d: pathOf([W(d - 0.9, backOut, 0), W(d + 0.9, backOut, 0), W(d + 0.9, backOut, 2.3), W(d - 0.9, backOut, 2.3)]), fill: "#2b2f33", opacity: 0.92 });
+    }
+  }
+
+  const anchor = W((spec.from + spec.to) / 2, (depth + 0.6) / 2, spec.roof ? roofZ + 1 : top + 1);
+  scene.add(prims, W((spec.from + spec.to) / 2, depth / 2, top / 2));
+  return anchor;
+}
+
+/** Apply the club's build for this side to a default stand spec. */
+function styled(spec: StandSpec, stage: number): StandSpec {
+  const build = LOOK?.stands?.[spec.side];
+  const out: StandSpec = { ...spec };
+  if (LOOK?.twoTone && (spec.side === "E" || spec.side === "N" || spec.side === "S")) out.seat = C.seatAlt;
+  if (build) {
+    out.terrace = build.terrace;
+    if (stage >= 3 && spec.roof) {
+      if (build.roof === "cantilever") {
+        out.cantilever = true;
+        out.upper = undefined;
+      } else if (build.roof === "pitched") {
+        out.upper = undefined;
+      } else if (build.roof === "twoTier" && !out.upper) {
+        out.upper = { depth: 7, rake: 5.5 };
+      }
+    }
+  }
+  // The home end: a deep, single-tier Kop.
+  if (LOOK?.homeEnd === spec.side && stage >= 2) {
+    out.depth = spec.depth + 3;
+    out.rake = spec.rake + 1.5;
+    out.roof = true;
+    out.upper = undefined;
+  }
+  return out;
+}
+
+/** Simple building with a pitched or flat roof. Returns the roof anchor. */
+function building(
+  scene: Scene,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  h: number,
+  wall: string,
+  opts: { pitched?: boolean; roof?: string; windows?: string; glassy?: boolean } = {},
+): V3 {
+  const prims: ScenePrimitive[] = [];
+  prims.push(...solid(boxFaces(x0, y0, 0, x1, y1, h), wall));
+  // Window strip on the two faces most likely to be seen.
+  const winZ0 = h * 0.35;
+  const winZ1 = opts.glassy ? h * 0.9 : h * 0.62;
+  const glassColour = opts.windows ?? C.glass;
+  const windowFaces = [
+    [v(x0 + 1, y0 - 0.05, winZ0), v(x1 - 1, y0 - 0.05, winZ0), v(x1 - 1, y0 - 0.05, winZ1), v(x0 + 1, y0 - 0.05, winZ1)],
+    [v(x0 - 0.05, y0 + 1, winZ0), v(x0 - 0.05, y1 - 1, winZ0), v(x0 - 0.05, y1 - 1, winZ1), v(x0 - 0.05, y0 + 1, winZ1)],
+    [v(x1 + 0.05, y0 + 1, winZ0), v(x1 + 0.05, y1 - 1, winZ0), v(x1 + 0.05, y1 - 1, winZ1), v(x1 + 0.05, y0 + 1, winZ1)],
+  ];
+  const normals = [v(0, -1, 0), v(-1, 0, 0), v(1, 0, 0)];
+  windowFaces.forEach((face, i) => {
+    if (dot(normals[i], sub(CAM, centroid(face))) > 0) prims.push({ d: pathOf(face), fill: glassColour, opacity: 0.8 });
+  });
+  let top = h;
+  if (opts.pitched) {
+    const ridge = h + Math.min(4, (y1 - y0) * 0.35);
+    const ym = (y0 + y1) / 2;
+    const section: Array<[number, number]> = [[y0 - 0.5, h], [ym, ridge], [y1 + 0.5, h]];
+    const roofFaces = prismFaces(section, x0 - 0.5, x1 + 0.5, (along, out, z) => v(along, out, z));
+    prims.push(...solid(roofFaces, opts.roof ?? C.roofDark));
+    top = ridge;
+  } else {
+    prims.push(...solid(boxFaces(x0 - 0.2, y0 - 0.2, h, x1 + 0.2, y1 + 0.2, h + 0.4), opts.roof ?? C.roof));
+    top = h + 0.4;
+  }
+  scene.shadowSolid([...rect(x0, y0, x1, y1, 0), ...rect(x0, y0, x1, y1, top)], 0.3);
+  scene.add(prims, v((x0 + x1) / 2, (y0 + y1) / 2, h / 2));
+  return v((x0 + x1) / 2, (y0 + y1) / 2, top);
+}
+
+function car(scene: Scene, x: number, y: number, along: "x" | "y", colour: string) {
+  const [hx, hy] = along === "x" ? [2.1, 0.9] : [0.9, 2.1];
+  const body = solid(boxFaces(x - hx, y - hy, 0.2, x + hx, y + hy, 1), colour, { outline: false });
+  const cab = solid(boxFaces(x - hx * 0.55, y - hy * 0.8, 1, x + hx * 0.45, y + hy * 0.8, 1.45), shade(colour, 0.7).replace("rgb", "rgb"), { outline: false });
+  scene.shadowSolid([...
