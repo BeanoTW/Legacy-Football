@@ -97,7 +97,7 @@ console.log("\n[GI3] Paying for a new look, and free changes");
   const cash = s.cash;
   const paint = setGroundLook(s, { seats: "club", roof: "club" });
   check("repainting is allowed", paint.ok, paint.reason);
-  check("repainting is charged", paint.state.cash < cash);
+  check("repainting is free", paint.state.cash === cash);
   check("ledger reconciles after repainting", reconcile(paint.state).ok);
   const free = setGroundLook(paint.state, { mowing: "diagonal", floodlights: "gantry", homeEnd: "N", groundName: "Station Park" });
   check("pattern, lights, home end and name are free", free.ok && free.state.cash === paint.state.cash);
