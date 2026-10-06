@@ -305,10 +305,10 @@ function SelectionPanel({
     const d = design.stands[side];
     const asset = standBySide.get(side);
     const own = identity.standLooks?.[side] ?? {};
-    const limits = standSizeLimits(design, side);
+    const limits = standSizeLimits(design, side, asset?.capacity);
     return (
       <div className="space-y-3">
-        <PanelTitle title={labels[selection]} sub={`${SIDE_LABEL[side]} · Facilities level ${d.level}`} />
+        <PanelTitle title={labels[selection]} sub={`${SIDE_LABEL[side]} · ${asset?.capacity?.toLocaleString() ?? "—"} capacity · Facilities level ${d.level}`} />
         <Field label="Structure">
           <div className="flex flex-wrap gap-1.5">
             {standFormOptions(design, side).map((option) => (
@@ -378,11 +378,19 @@ function SelectionPanel({
           {cornerFormOptions(design, slot).filter((o) => !o.allowed).map((o) => <p key={o.id} className="mt-1 text-[10.5px] text-muted-foreground">{o.label}: {o.reason}.</p>)}
         </Field>
         {c.form === "terrace" || c.form === "seated" ? (
-          <Field label="Infill">
-            <div className="flex gap-1.5">
-              {(["small", "large"] as const).map((size) => <OptionChip key={size} active={(c.size ?? "small") === size} onClick={() => apply((s) => updateCorner(s, slot, { size }))}>{size === "small" ? "Small piece" : "Fill the corner"}</OptionChip>)}
-            </div>
-          </Field>
+          <>
+            <Field label="Infill">
+              <div className="flex gap-1.5">
+                {(["small", "large"] as const).map((size) => <OptionChip key={size} active={(c.size ?? "small") === size} onClick={() => apply((s) => updateCorner(s, slot, { size }))}>{size === "small" ? "Small piece" : "Fill the corner"}</OptionChip>)}
+              </div>
+            </Field>
+            <Field label="Shape">
+              <div className="flex gap-1.5">
+                <OptionChip active={(c.shape ?? "angled") === "angled"} onClick={() => apply((s) => updateCorner(s, slot, { shape: "angled" }))}>Angled</OptionChip>
+                <OptionChip active={c.shape === "rounded"} onClick={() => apply((s) => updateCorner(s, slot, { shape: "rounded" }))}>Rounded</OptionChip>
+              </div>
+            </Field>
+          </>
         ) : null}
       </div>
     );

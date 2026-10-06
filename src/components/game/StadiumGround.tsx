@@ -227,10 +227,16 @@ export function StadiumGround({
   );
 
   const labels = useMemo(() => {
-    const items = hotspots.flatMap((hotspot) => {
+    const facilityHotspots = hotspots.filter((hotspot) => !["shop", "offices", "hospitality", "access"].includes(hotspot.id));
+    const items = facilityHotspots.flatMap((hotspot) => {
       const anchor = scene.anchors[hotspot.id];
       return anchor ? [{ id: hotspot.id, label: hotspot.label, ax: anchor.x * width, ay: anchor.y * height }] : [];
     });
+    const facilities = hotspots.filter((hotspot) => ["shop", "offices", "hospitality", "access"].includes(hotspot.id));
+    if (facilities.length) {
+      const anchors = facilities.map((hotspot) => scene.anchors[hotspot.id]).filter(Boolean);
+      if (anchors.length) items.push({ id: "__facilities", label: "Facilities", ax: anchors.reduce((sum,a)=>sum+a.x*width,0)/anchors.length, ay: anchors.reduce((sum,a)=>sum+a.y*height,0)/anchors.length });
+    }
     return layoutLabels(items, width, height);
   }, [height, hotspots, scene.anchors, width]);
 
@@ -367,6 +373,7 @@ export function StadiumGround({
       <svg className="pointer-events-none absolute inset-0 z-[5] h-full w-full" aria-hidden="true">
         {labels.map((box) => {
           const hotspot = byId.get(box.id);
+          if (box.id === "__facilities") return <line key={box.id} x1={box.x + box.w / 2} y1={box.y + LABEL_H} x2={box.ax} y2={box.ay} stroke="white" strokeOpacity={0.55} strokeWidth={1.2} />;
           if (!hotspot) return null;
           const colour = BAND_COLOUR[conditionBand(hotspot.asset.condition)] ?? "white";
           const lx = Math.max(box.x + 10, Math.min(box.x + box.w - 10, box.ax));
@@ -383,6 +390,15 @@ export function StadiumGround({
 
       {labels.map((box) => {
         const hotspot = byId.get(box.id);
+        if (box.id === "__facilities") {
+          const facilities = hotspots.filter((item) => ["shop", "offices", "hospitality", "access"].includes(item.id));
+          return <details key={box.id} className="absolute z-[6]" style={{ left: box.x, top: box.y, width: box.w }}>
+            <summary className="lf-ground-label lf-ground-scene-label cursor-pointer list-none" style={{ position: "relative", left: 0, top: 0, width: box.w }}><span className="lf-ground-label-dot" aria-hidden="true" /><span>Facilities</span></summary>
+            <div className="mt-1 overflow-hidden rounded-lg border border-white/15 bg-black/80 p-1 text-[10px] text-white shadow-xl backdrop-blur-sm">
+              {facilities.map((item) => <button key={item.id} type="button" onClick={() => onSelect(item)} className="block w-full rounded px-2 py-1.5 text-left hover:bg-white/10">{item.label}</button>)}
+            </div>
+          </details>;
+        }
         if (!hotspot) return null;
         const selected = selectedId === hotspot.asset.id;
         return (
