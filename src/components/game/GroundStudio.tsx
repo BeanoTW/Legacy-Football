@@ -511,92 +511,83 @@ function StandDevelopment({ state, asset, apply }: { state: GameState; asset: In
   if (selection?.startsWith("corner:")) {
     const slot = selection.slice(7) as CornerSlot;
     const c = design.corners[slot];
-    const [endSide, touchSide] = [slot.startsWith("N") ? "N" : "S", slot.endsWith("W") ? "W" : "E"] as StandSide[];
-    const adjacent = [standBySide.get(endSide), standBySide.get(touchSide)].filter(Boolean) as InfrastructureAsset[];
-    const host = adjacent.sort((a, b) => b.capacity - a.capacity)[0];
-    const expansion = host ? projectCatalogue(state, host.id).find((spec) => spec.type === "capacityExpansion") : undefined;
-    const builtInfill = c.form === "terrace" || c.form === "seated";
+    const cornerAsset = state.infrastructure?.assets.find((asset) => asset.id === `corner-${slot}`);
+    const builtInfill = Boolean(cornerAsset && cornerAsset.capacity > 0);
+    const project = cornerAsset
+      ? projectCatalogue(state, cornerAsset.id).find((spec) => spec.type === (builtInfill ? "cornerExpansion" : "cornerBuild"))
+      : undefined;
+    const evaluation = cornerAsset && project ? evaluateProject(state, cornerAsset.id, project.type) : null;
+
     return (
       <div className="space-y-3">
-        <PanelTitle title={labels[selection]} sub="Design the corner here; physical infill is a real ground project" />
-        <Field label="Shape · free">
-          <div className="flex gap-1.5">
-            <OptionChip active={(c.shape ?? "angled") === "angled"} onClick={() => apply((s) => updateCorner(s, slot, { shape: "angled" }))}>Angled</OptionChip>
-            <OptionChip active={c.shape === "rounded"} onClick={() => apply((s) => updateCorner(s, slot, { shape: "rounded" }))}>Rounded</OptionChip>
-          </div>
-          <p className="mt-1 text-[10.5px] text-muted-foreground">Changing the geometry never costs money, including after this corner has been built.</p>
-        </Field>
-        <Field label="Corner use">
-          <div className="flex flex-wrap gap-1.5">
-            {cornerFormOptions(design, slot).filter((option) => option.id !== "access").map((option) => (
-              <OptionChip
-                key={option.id}
-                active={c.form === option.id}
-                disabled={!option.allowed}
-                title={option.reason}
-                onClick={() => apply((s) => updateCorner(s, slot, { form: option.id }))}
-              >
-                {option.label}{!option.allowed ? " 🔒" : ""}
-              </OptionChip>
-            ))}
-          </div>
-        </Field>
+        <PanelTitle title={labels[selection]} sub={builtInfill ? "Owned corner structure" : "Empty corner"} />
+
         {builtInfill ? (
           <>
+            <Field label="Corner style · free">
+              <div className="flex flex-wrap gap-1.5">
+                <OptionChip active={c.form === "terrace"} onClick={() => apply((s) => updateCorner(s, slot, { form: "terrace" }))}>Terrace</OptionChip>
+                <OptionChip active={c.form === "seated"} onClick={() => apply((s) => updateCorner(s, slot, { form: "seated" }))}>Seated</OptionChip>
+              </div>
+            </Field>
+            <Field label="Shape · free">
+              <div className="flex gap-1.5">
+                <OptionChip active={(c.shape ?? "angled") === "angled"} onClick={() => apply((s) => updateCorner(s, slot, { shape: "angled" }))}>Angled</OptionChip>
+                <OptionChip active={c.shape === "rounded"} onClick={() => apply((s) => updateCorner(s, slot, { shape: "rounded" }))}>Rounded</OptionChip>
+              </div>
+            </Field>
             <Field label="Access tunnel · free">
               <div className="flex gap-1.5">
                 <OptionChip active={!c.accessTunnel} onClick={() => apply((s) => updateCorner(s, slot, { accessTunnel: false }))}>None</OptionChip>
                 <OptionChip active={Boolean(c.accessTunnel)} onClick={() => apply((s) => updateCorner(s, slot, { accessTunnel: true }))}>Tunnel</OptionChip>
               </div>
-              <p className="mt-1 text-[10.5px] text-muted-foreground">A presentation option through the corner stand, not a separate corner type.</p>
-            </Field>
-            <Field label="Built infill">
-              <div className="flex gap-1.5">
-                {(["small", "large"] as const).map((size) => <OptionChip key={size} active={(c.size ?? "small") === size} onClick={() => apply((s) => updateCorner(s, slot, { size }))}>{size === "small" ? "Compact" : "Full corner"}</OptionChip>)}
-              </div>
-              <p className="mt-1 text-[10.5px] text-muted-foreground">You already own this corner capacity, so its presentation can be compacted or reshaped freely.</p>
             </Field>
           </>
         ) : (
-          <Field label="Develop corner">
-            <div className="flex flex-wrap gap-1.5">
-              {cornerFormOptions(design, slot).filter((option) => option.id !== "open").map((option) => (
-                <OptionChip
-                  key={option.id}
-                  active={c.form === option.id}
-                  disabled={!option.allowed || !expansion}
-                  title={option.reason ?? (!expansion ? "No physical expansion is currently available" : undefined)}
-                  onClick={() => apply((s) => updateCorner(s, slot, { form: option.id }))}
-                >
-                  {option.label}{!option.allowed || !expansion ? " 🔒" : ""}
-                </OptionChip>
-              ))}
+          <Field label="Corner use">
+            <div className="flex gap-1.5">
+              <OptionChip active={c.form === "open"} onClick={() => apply((s) => updateCorner(s, slot, { form: "open" }))}>Open</OptionChip>
+              <OptionChip active={c.form === "pylon"} onClick={() => apply((s) => updateCorner(s, slot, { form: "pylon" }))}>Floodlight pylon</OptionChip>
             </div>
-            {expansion && host ? (
-              <div className="mt-2 rounded-xl border border-dashed bg-muted/20 p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Physical corner infill</div>
-                    <strong className="text-xs">Build from {host.name}</strong>
-                    <p className="mt-1 text-[10.5px] text-muted-foreground">Creates real spectator capacity in this empty corner. Choose its angled or rounded presentation freely before or after construction.</p>
+          </Field>
+        )}
+
+        {cornerAsset ? (
+          <Field label={builtInfill ? "Develop corner" : "Build corner"}>
+            <div className="rounded-xl border bg-muted/20 p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    {builtInfill ? `Stage ${cornerAsset.level} · ${cornerAsset.capacity.toLocaleString("en-GB")} places` : "No spectator structure"}
                   </div>
-                  <div className="text-right">
-                    <div className="font-display text-sm tnum">{fmtMoneyExact(expansion.cost)}</div>
-                    <div className="text-[10px] text-muted-foreground">{expansion.durationWeeks} weeks</div>
-                  </div>
+                  <strong className="text-xs">{project ? project.title.replace(`${cornerAsset.name} — `, "") : builtInfill ? "Corner fully developed" : "Corner development unavailable"}</strong>
+                  {project ? <p className="mt-1 text-[10.5px] text-muted-foreground">{project.description}</p> : null}
                 </div>
+                {project ? (
+                  <div className="text-right">
+                    <div className="font-display text-sm tnum">{fmtMoneyExact(project.cost)}</div>
+                    <div className="text-[10px] text-muted-foreground">{project.durationWeeks} weeks</div>
+                  </div>
+                ) : null}
+              </div>
+              {project ? (
                 <Button
                   size="sm"
                   className="mt-2 w-full"
-                  disabled={!evaluateProject(state, host.id, expansion.type)?.allowed}
-                  onClick={() => apply((s) => approveStandBuild(s, host.id, expansion.type, standBuild(s, host.id, host.level)))}
+                  disabled={!evaluation?.allowed}
+                  title={evaluation?.allowed ? undefined : evaluation?.reason}
+                  onClick={() => apply((s) => approveProjectCompat(s, cornerAsset.id, project.type))}
                 >
-                  Approve corner infill
+                  {builtInfill ? "Approve corner expansion" : "Approve corner stand"}
                 </Button>
-              </div>
-            ) : null}
+              ) : null}
+              {!evaluation?.allowed && project ? <p className="mt-1 text-[10px] text-muted-foreground">{evaluation?.reason}</p> : null}
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                Capacity and physical size are purchased. Shape, seating presentation and tunnel treatment are cosmetic within the owned structure.
+              </p>
+            </div>
           </Field>
-        )}
+        ) : null}
       </div>
     );
   }
