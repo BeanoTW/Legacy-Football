@@ -44,6 +44,7 @@ import {
   playReaction,
   playWhistle,
   setCrowdIntensity,
+  setCrowdProfile,
   soundSettings,
   unlockAudio,
   updateSoundSettings,
@@ -1254,6 +1255,7 @@ export function MatchPitchViewer({
   userColours,
   opponentColours,
   ground,
+  crowdHomeSide = "us",
 }: {
   events: MatchEvent[];
   usName: string;
@@ -1277,8 +1279,10 @@ export function MatchPitchViewer({
   /** Kit colours for each side's player dots. Falls back to green and red. */
   userColours?: DotColours;
   opponentColours?: DotColours;
-  /** Home ground only. Omitted for away fixtures so we never pretend the user's stadium travelled. */
+  /** Stadium presentation used for match visuals and acoustic profile. */
   ground?: MatchdayGroundPresentation;
+  /** Which side the stadium crowd primarily supports. */
+  crowdHomeSide?: "us" | "them";
 }) {
   const [viewMode, setViewMode] = useState<ViewMode>("condensed");
   const groundScene = useMemo(
@@ -1297,6 +1301,37 @@ export function MatchPitchViewer({
         : null,
     [ground],
   );
+  const crowdProfile = useMemo(() => {
+    if (!ground) return { density: 0.55, size: 0.25, enclosure: 0.2 };
+    const stands = Object.values(ground.design.stands);
+    const totalSpan = Math.max(1, stands.reduce((sum, stand) => sum + Math.max(1, stand.span), 0));
+    const coveredSpan = stands.reduce(
+      (sum, stand) => sum + (stand.roof === "open" ? 0 : Math.max(1, stand.span)),
+      0,
+    );
+    const enclosedCorners = Object.values(ground.design.corners).filter(
+      (corner) => corner.form === "terrace" || corner.form === "seated",
+    ).length;
+    const enclosure = Math.max(
+      0,
+      Math.min(1, (coveredSpan / totalSpan) * 0.75 + (enclosedCorners / 4) * 0.25),
+    );
+    const minCapacity = 1_200;
+    const maxCapacity = 55_000;
+    const size = Math.max(
+      0,
+      Math.min(
+        1,
+        (Math.log10(Math.max(minCapacity, ground.capacity)) - Math.log10(minCapacity)) /
+          (Math.log10(maxCapacity) - Math.log10(minCapacity)),
+      ),
+    );
+    return {
+      density: Math.max(0, Math.min(1, ground.fillPercent / 100)),
+      size,
+      enclosure,
+    };
+  }, [ground]);
   const matchPitchStyle = groundScene
     ? {
         left: `${groundScene.pitchBounds.left * 100}%`,
@@ -1368,6 +1403,9 @@ export function MatchPitchViewer({
     enterMatch();
     return () => exitMatch();
   }, []);
+  useEffect(() => {
+    setCrowdProfile(crowdProfile);
+  }, [crowdProfile]);
   const [soundOn, setSoundOn] = useState(() => {
     const s = soundSettings();
     return s.effects || s.crowd;
@@ -1629,6 +1667,7 @@ export function MatchPitchViewer({
           eventCount={events.length}
           minute={view.minute}
           onOurGoal={() => setCelebrate((n) => n + 1)}
+          crowdHomeSide={crowdHomeSide}
         />
 
         {celebrating && (
@@ -1837,6 +1876,7 @@ function MatchSoundCues({
   eventCount,
   minute,
   onOurGoal,
+  crowdHomeSide,
 }: {
   live: boolean;
   cueKey: string;
@@ -1849,6 +1889,7 @@ function MatchSoundCues({
   eventCount: number;
   minute: number;
   onOurGoal: () => void;
+  crowdHomeSide: "us" | "them";
 }) {
   const firedCue = useRef("");
   const firedCut = useRef("");
@@ -1872,20 +1913,16 @@ function MatchSoundCues({
         intensity = 0.95;
         break;
       case "goal":
-        if (action.side === "us") {
-          playReaction("goal");
-          onOurGoal();
-        } else {
-          playReaction("concede");
-        }
+        playReaction(action.side === crowdHomeSide ? "goal" : "concede");
+        if (action.side === "us") onOurGoal();
         window.setTimeout(() => playWhistle("short"), 1_400);
-        intensity = action.side === "us" ? 0.9 : 0.2;
+        intensity = action.side === crowdHomeSide ? 0.9 : 0.2;
         break;
       case "save":
       case "miss":
       case "block":
-        // Our near miss is an "ooh"; theirs is relieved applause.
-        playReaction(attacking === "us" ? "ooh" : "applause");
+        // The home crowd gasps at its own attack and applauds defensive relief.
+        playReaction(attacking === crowdHomeSide ? "ooh" : "applause");
         intensity = 0.55;
         break;
       case "cross":
