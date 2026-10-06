@@ -1,6 +1,7 @@
 # Roadmap
 
 ## In progress
+- [ ] Extend existing supporter-event visuals, results, news and calendar labels; run focused checks once.
 - [ ] Expand and refine club badge and kit customization options, including all previews and save sanitization.
 - [x] Replace default app branding with Legacy Football icons, splash artwork, and install metadata.
 - [x] Enable Lovable Cloud for Legacy Football — done; backend healthy.
