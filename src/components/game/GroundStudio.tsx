@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { fmtMoneyExact } from "@/lib/game/engine";
 import { clubKitFor } from "@/lib/game/clubKit";
 import { groundProgression } from "@/lib/game/groundPresentation";
-import { approveProject as approveProjectCompat, assetById, evaluateProject, expansionAllowance, projectCatalogue, stands as standAssets, type ProjectSpec } from "@/lib/game/infrastructure";
+import { approveProject as approveProjectCompat, assetById, evaluateProject, projectCatalogue, stands as standAssets, type ProjectSpec } from "@/lib/game/infrastructure";
 import {
   BUILDING_STYLES,
   CLADDINGS,
@@ -41,12 +41,10 @@ import {
   type StandSide,
 } from "@/lib/game/groundIdentity";
 import {
-  cornerFormOptions,
   defaultMaterial,
   roofOptions,
   standFormOptions,
-  standSizeLimits,
-  standFootprintForCapacity,
+   standFootprintForCapacity,
   standingOptions,
   updateCorner,
   updateFixtures,
@@ -381,8 +379,7 @@ function SelectionPanel({
     const d = design.stands[side];
     const asset = standBySide.get(side);
     const own = identity.standLooks?.[side] ?? {};
-    const limits = standSizeLimits(design, side, asset?.capacity);
-    return (
+     return (
       <div className="space-y-3">
         <PanelTitle title={labels[selection]} sub={`${SIDE_LABEL[side]} · ${asset?.capacity?.toLocaleString() ?? "—"} capacity · Structure level ${d.level}`} />
         <div className="grid grid-cols-3 gap-1.5 rounded-xl border bg-muted/20 p-1">
