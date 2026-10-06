@@ -97,9 +97,13 @@ export interface GroundDesign {
   };
 }
 
+export type StandVariant = "traditional" | "longLow" | "compact";
+
 export interface StandBuild {
   standing: Standing;
   roof: RoofStyle;
+  /** Structural character chosen at a development milestone. Optional on old saves. */
+  variant?: StandVariant;
 }
 
 export interface GroundIdentityState {
@@ -237,6 +241,12 @@ export function ensureGroundDesign(s: GameState): GroundDesign {
 /* Build options                                                       */
 /* ------------------------------------------------------------------ */
 
+export const STAND_VARIANTS = [
+  { id: "traditional", label: "Traditional", blurb: "Balanced width, depth and height.", cost: 1, capacity: 1, pros: "Balanced footprint", cons: "No specialist advantage" },
+  { id: "longLow", label: "Long & low", blurb: "Uses available touchline length before building upward.", cost: 0.96, capacity: 1.05, pros: "More places per pound", cons: "Needs more site length" },
+  { id: "compact", label: "Compact", blurb: "A deeper, taller footprint where side-to-side space is tight.", cost: 1.08, capacity: 0.98, pros: "Preserves site width", cons: "Higher structural cost" },
+] as const;
+
 export interface BuildOption<T extends string> {
   id: T;
   label: string;
@@ -325,13 +335,15 @@ export function roofOptionsFor(resultingLevel: number): BuildOption<RoofStyle>[]
 export function buildCostMultiplier(build: StandBuild, resultingLevel: number): number {
   const standing = STANDING_OPTIONS.find((o) => o.id === build.standing)?.cost ?? 1;
   const roof = resultingLevel >= 3 ? ROOF_OPTIONS.find((o) => o.id === build.roof)?.cost ?? 1 : 1;
-  return Math.round(standing * roof * 1000) / 1000;
+  const variant = STAND_VARIANTS.find((o) => o.id === (build.variant ?? "traditional"))?.cost ?? 1;
+  return Math.round(standing * roof * variant * 1000) / 1000;
 }
 
 export function buildCapacityMultiplier(build: StandBuild, resultingLevel: number): number {
   const standing = STANDING_OPTIONS.find((o) => o.id === build.standing)?.capacity ?? 1;
   const roof = resultingLevel >= 3 ? ROOF_OPTIONS.find((o) => o.id === build.roof)?.capacity ?? 1 : 1;
-  return standing * roof;
+  const variant = STAND_VARIANTS.find((o) => o.id === (build.variant ?? "traditional"))?.capacity ?? 1;
+  return standing * roof * variant;
 }
 
 /** The build in force for a stand (pending builds count once their project completes). */
