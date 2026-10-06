@@ -400,6 +400,14 @@ console.log("\n[H7] Hot-core size at S5 / S10 / S20");
     console.log(`  · S${t} hot core: ${kb} KB`);
   }
   const s20 = marks.get(20)!.hot;
+  const breakdown = saveSizeBreakdown(s);
+  console.log(
+    "  · S20 largest hot-core fields: " +
+      breakdown.entries
+        .slice(0, 8)
+        .map((entry) => `${entry.key} ${(entry.bytes / 1024).toFixed(0)} KB`)
+        .join(" · "),
+  );
   const worldClubs = s.leagues.reduce((total, league) => total + league.clubIds.length, 0);
   const hotCoreBudget = 2 * 1024 * 1024 + Math.max(0, worldClubs - 40) * 14 * 1024;
   check(
