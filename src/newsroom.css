@@ -320,3 +320,193 @@
 .lf-newgame-chairman { display: flex; align-items: center; gap: .9rem; padding: .8rem; border-radius: 1rem; background: color-mix(in oklab, var(--nr-teal) 8%, transparent); }
 .lf-newgame-edit-look { display: inline-flex; align-items: center; gap: .3rem; border: 0; background: none; color: var(--nr-teal); font-size: .78rem; font-weight: 800; }
 .lf-newgame-edit-look svg { width: .85rem; height: .85rem; }
+
+
+/* Community event media — programme/poster language shared by Commercial and Newsroom. */
+.lf-event-art {
+  position: relative;
+  display: grid;
+  aspect-ratio: 8 / 5;
+  place-items: center;
+  overflow: hidden;
+  border-radius: .75rem;
+  background:
+    linear-gradient(145deg, color-mix(in oklab, currentColor 10%, var(--color-card)), color-mix(in oklab, currentColor 4%, var(--color-card)));
+  isolation: isolate;
+}
+.lf-event-art.border-dashed { border: 1px dashed color-mix(in oklab, currentColor 42%, var(--color-border)); }
+.lf-event-art.border-accent { border-left: 3px solid currentColor; border-radius: .35rem .75rem .75rem .35rem; }
+.lf-event-art.border-solid,
+.lf-event-art.border-rounded { border: 1px solid color-mix(in oklab, currentColor 24%, var(--color-border)); }
+.lf-event-art.border-rounded { border-radius: 1rem; }
+.lf-event-art svg { width: 100%; height: 100%; }
+.lf-event-art-icon {
+  position: absolute;
+  z-index: 12;
+  width: 1.75rem;
+  height: 1.75rem;
+  opacity: .72;
+  filter: drop-shadow(0 1px 0 rgb(255 255 255 / 30%));
+}
+
+.lf-event-texture {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: .14;
+  color: currentColor;
+}
+.lf-event-texture.is-grid {
+  background-image:
+    linear-gradient(currentColor 1px, transparent 1px),
+    linear-gradient(90deg, currentColor 1px, transparent 1px);
+  background-size: 12px 12px;
+}
+.lf-event-texture.is-dots {
+  background-image: radial-gradient(circle, currentColor 1px, transparent 1.25px);
+  background-size: 9px 9px;
+}
+.lf-event-texture.is-script {
+  background:
+    repeating-linear-gradient(-10deg, transparent 0 12px, currentColor 12.5px 13px, transparent 13.5px 24px);
+}
+.lf-event-texture.is-school {
+  background-image:
+    linear-gradient(currentColor 1px, transparent 1px),
+    linear-gradient(90deg, currentColor 1px, transparent 1px);
+  background-size: 18px 9px;
+}
+.lf-event-texture.is-herringbone {
+  background:
+    linear-gradient(45deg, transparent 46%, currentColor 47% 51%, transparent 52%) 0 0 / 16px 16px,
+    linear-gradient(-45deg, transparent 46%, currentColor 47% 51%, transparent 52%) 8px 0 / 16px 16px;
+}
+.lf-event-texture.is-quote {
+  background:
+    radial-gradient(ellipse at 20% 25%, currentColor 0 3px, transparent 3.5px),
+    radial-gradient(ellipse at 28% 25%, currentColor 0 3px, transparent 3.5px);
+  background-size: 34px 28px;
+}
+.lf-event-texture.is-bunting {
+  background:
+    linear-gradient(150deg, transparent 45%, currentColor 46% 52%, transparent 53%) 0 0 / 24px 18px,
+    linear-gradient(210deg, transparent 45%, currentColor 46% 52%, transparent 53%) 12px 0 / 24px 18px;
+}
+.lf-event-texture.is-chevron {
+  background:
+    linear-gradient(135deg, transparent 43%, currentColor 44% 49%, transparent 50%) 0 0 / 20px 20px,
+    linear-gradient(45deg, transparent 43%, currentColor 44% 49%, transparent 50%) 10px 0 / 20px 20px;
+}
+.lf-event-texture.is-timeline {
+  background:
+    radial-gradient(circle at 50% 50%, currentColor 0 1.5px, transparent 2px) 0 0 / 24px 24px,
+    linear-gradient(90deg, transparent 49%, currentColor 49% 51%, transparent 51%) 0 0 / 24px 24px;
+}
+.lf-event-texture.is-laurel {
+  background:
+    radial-gradient(ellipse at 35% 50%, transparent 0 4px, currentColor 4.5px 5.5px, transparent 6px) 0 0 / 28px 18px;
+}
+
+.lf-event-booking-card,
+.lf-event-summary {
+  transition: border-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+}
+.lf-event-booking-card.border-dashed { border-style: dashed; }
+.lf-event-booking-card.border-accent,
+.lf-event-summary.border-accent { border-left: 3px solid currentColor; }
+.lf-event-booking-card.is-unavailable { opacity: .64; }
+.lf-event-card-top { position: relative; padding: .5rem .5rem .1rem; }
+.lf-event-card-top > span { display: block; margin: .35rem .2rem 0; letter-spacing: .09em; }
+.lf-event-summary.outcome-strong { border-color: color-mix(in oklab, var(--color-income) 45%, var(--color-border)); }
+.lf-event-summary.outcome-weak { border-color: color-mix(in oklab, var(--color-chart-2) 42%, var(--color-border)); }
+
+.lf-turnout-indicator {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 999px;
+}
+.lf-turnout-indicator svg { width: 100%; height: 100%; }
+.lf-turnout-indicator.is-sm { width: .9rem; height: .9rem; }
+.lf-turnout-indicator.is-md { width: 1.15rem; height: 1.15rem; }
+.lf-turnout-indicator.is-lg { width: 1.4rem; height: 1.4rem; }
+.lf-turnout-indicator.is-strong { color: var(--color-income); }
+.lf-turnout-indicator.is-average { color: var(--color-primary); }
+.lf-turnout-indicator.is-weak { color: var(--color-chart-2); }
+
+.lf-event-news-hero {
+  position: relative;
+  margin-top: .7rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, currentColor 20%, var(--nr-line));
+  border-top: 3px solid currentColor;
+  border-radius: .85rem;
+  background: color-mix(in oklab, currentColor 6%, var(--nr-card));
+}
+.lf-event-news-hero .lf-event-art {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.lf-event-news-rubric {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .6rem;
+  padding: .45rem .6rem;
+  border-bottom: 1px solid color-mix(in oklab, currentColor 16%, var(--nr-line));
+  background: color-mix(in oklab, var(--nr-card) 88%, transparent);
+  color: currentColor;
+  font-size: .58rem;
+  font-weight: 800;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+.lf-event-news-outcome { display: inline-flex; align-items: center; gap: .25rem; }
+.lf-event-sarah {
+  position: absolute;
+  right: .5rem;
+  bottom: .5rem;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  max-width: calc(100% - 1rem);
+  padding: .3rem .5rem .3rem .3rem;
+  border: 1px solid color-mix(in oklab, currentColor 26%, var(--nr-line));
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--nr-card) 92%, transparent);
+  color: var(--nr-ink);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 12%);
+  backdrop-filter: blur(6px);
+}
+.lf-event-sarah svg { flex: 0 0 auto; border-radius: 999px; }
+.lf-event-sarah span { display: flex; min-width: 0; flex-direction: column; line-height: 1.05; }
+.lf-event-sarah strong { font-size: .65rem; white-space: nowrap; }
+.lf-event-sarah small { margin-top: .12rem; color: var(--nr-soft); font-size: .55rem; text-transform: capitalize; }
+.lf-event-news-hero.is-large { margin: .85rem 0 .35rem; border-color: rgb(28 26 23 / 22%); background: #f2ede2; }
+.lf-event-news-hero.is-large .lf-event-news-rubric {
+  background: rgb(247 243 234 / 88%);
+  border-color: rgb(28 26 23 / 14%);
+}
+.lf-event-news-hero.is-large .lf-event-sarah {
+  background: rgb(247 243 234 / 93%);
+  border-color: rgb(28 26 23 / 18%);
+}
+.lf-event-news-hero.outcome-strong { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-income) 16%, transparent); }
+.lf-event-news-hero.outcome-weak { filter: saturate(.88); }
+
+@media (hover: hover) {
+  .lf-event-booking-card:not(.is-unavailable):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 22px rgb(8 34 40 / 9%);
+  }
+}
+@media (max-width: 640px) {
+  .lf-event-art-icon { width: 1.4rem; height: 1.4rem; }
+  .lf-event-news-rubric { font-size: .54rem; }
+  .lf-event-sarah strong { font-size: .61rem; }
+}
