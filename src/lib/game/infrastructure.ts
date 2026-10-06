@@ -343,7 +343,7 @@ export const BAND_LABEL: Record<ConditionBand, string> = {
 };
 
 /** Operating-cost multiplier caused by a degraded asset. */
-const BAND_COST: Record<ConditionBand, number> = {
+export const BAND_COST: Record<ConditionBand, number> = {
   excellent: 1,
   good: 1,
   worn: 1.08,
@@ -704,7 +704,7 @@ export interface FacilityProgressionSpec {
  * level + condition through facilityModifiers(); this describes what those
  * levels mean and gives future UI/visual passes one canonical contract.
  */
-function facilityDependencyStatus(s: GameState, a: InfrastructureAsset): { text: string | null; met: boolean } {
+export function facilityDependencyStatus(s: GameState, a: InfrastructureAsset): { text: string | null; met: boolean } {
   if (a.type === "stand" || a.type === "cornerStand" || a.type === "pitch") return { text: null, met: true };
   const nextLevel = a.level + 1;
   const highestStandLevel = stands(s).reduce((max, stand) => Math.max(max, stand.level), 0);
