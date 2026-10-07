@@ -3,7 +3,7 @@
    groundIdentity.ts). All money moves through finance.postEntry. */
 
 import type { CapitalProjectType, GameState } from "./types";
-import { approveProjectInPlace, assetById, projectById, recomputeDerived, syncLegacyStadium } from "./infrastructure";
+import { approveProjectInPlace, assetById, projectById, queueProject, recomputeDerived, syncLegacyStadium } from "./infrastructure";
 import { assessSpend, postEntry } from "./finance";
 import {
   buildCapacityMultiplier,
@@ -97,25 +97,52 @@ export function approveStandBuild(s: GameState, assetId: string, type: CapitalPr
 
 /** Add a chosen stand build to the approved development plan without starting it yet. */
 export function queueStandBuild(s: GameState, assetId: string, type: CapitalProjectType, build: StandBuild): GroundActionResult {
-  const result = approveStandBuild(s, assetId, type, build);
-  if (!result.ok || result.state === s) return result;
-  const next = result.state;
-  const pending = groundIdentity(next).pending[assetId];
-  const project = pending ? projectById(next, pending.projectId) : undefined;
-  const asset = assetById(next, assetId);
-  if (!project || !asset) return { state: s, ok: false, reason: "Unable to add that build to the development plan." };
+  const asset = assetById(s, assetId);
+  if (!asset || asset.type !== "stand") return { state: s, ok: false, reason: "Builds are chosen for stands only." };
+  if (!isLevelRaising(type)) return { state: s, ok: false, reason: "That work doesn't change how the stand is built." };
 
-  project.status = "proposed";
-  project.approvedAtAbsoluteWeek = null;
-  project.startedAtAbsoluteWeek = null;
-  project.expectedCompletionAbsoluteWeek = null;
-  project.history = [{ absoluteWeek: next.infrastructure?.lastTickAbsoluteWeek ?? 0, note: "Added to the ground development plan." }];
-  asset.activeProjectId = null;
+  const queued = queueProject(s, assetId, type);
+  if (!queued.ok || !queued.projectId) return { state: s, ok: false, reason: queued.reason ?? "Unable to add that build to the development plan." };
+  const next = queued.state;
+  const project = projectById(next, queued.projectId)!;
+  const resulting = levelAfterProject(type, asset.level);
+  const costMultiplier = buildCostMultiplier(build, resulting);
+  const capacityMultiplier = buildCapacityMultiplier(build, resulting);
+  const newCost = Math.round(project.baseCost * costMultiplier);
+
+  const check = assessSpend(s, newCost);
+  if (!check.allowed) return { state: s, ok: false, reason: `This build costs £${newCost.toLocaleString("en-GB")}: ${check.reason}` };
+
+  const scale = newCost / Math.max(1, project.baseCost);
+  let allocated = 0;
+  const instalments = project.paymentSchedule.filter((pay) => pay.kind === "instalment");
+  instalments.forEach((pay, index) => {
+    pay.amount = index === instalments.length - 1 ? newCost - allocated : Math.floor(pay.amount * scale);
+    allocated += index === instalments.length - 1 ? 0 : pay.amount;
+  });
+  for (const pay of project.paymentSchedule) if (pay.kind === "overrun") pay.amount = Math.round(pay.amount * scale);
+  project.costOverrun = Math.round(project.costOverrun * scale);
+  project.baseCost = newCost;
+  project.approvedBudget = newCost;
+  project.effectsOnCompletion = project.effectsOnCompletion.map((effect) =>
+    effect.kind === "capacity" ? { ...effect, add: Math.round((effect.add * capacityMultiplier) / 50) * 50 } : effect,
+  );
+  if (resulting >= 4 && build.roof === "twoTier") {
+    project.effectsOnCompletion.push({ kind: "metadata", key: "hospitalityCapacity", add: 150 });
+  }
+
+  const variantLabel = build.variant === "compact" ? "compact" : build.variant === "longLow" ? "long & low" : "traditional";
+  const label = `${variantLabel} ${build.standing === "terrace" ? "covered terrace" : build.standing === "safeStanding" ? "safe standing" : "all-seater"}${resulting >= 3 ? `, ${build.roof === "twoTier" ? "two tiers" : build.roof === "cantilever" ? "cantilever roof" : "traditional roof"}` : ""}`;
+  project.title = `${project.title} (${label})`;
+  project.history.push({ absoluteWeek: next.infrastructure?.lastTickAbsoluteWeek ?? 0, note: `Planned as ${label}.` });
+
+  const identity = { ...groundIdentity(next) };
+  identity.pending = { ...identity.pending, [assetId]: { ...build, projectId: project.id } };
+  next.groundIdentity = identity;
   recomputeDerived(next);
   syncLegacyStadium(next);
-  return { state: next, ok: true, reason: `Added: ${asset.name} to the ground development plan.` };
+  return { state: next, ok: true, reason: `Added: ${asset.name} as ${label} · £${newCost.toLocaleString("en-GB")}.` };
 }
-
 
 /** Change how the ground looks. Paint and cladding cost money; names and patterns are free. */
 export function setGroundLook(s: GameState, change: Partial<Omit<GroundIdentityState, "stands" | "pending" | "changes">>): GroundActionResult {

@@ -23,6 +23,7 @@ import type { CapitalProjectType, GameState, InfrastructureAsset } from "@/lib/g
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { fmtMoneyExact } from "@/lib/game/engine";
+import { assessSpend } from "@/lib/game/finance";
 import { clubKitFor } from "@/lib/game/clubKit";
 import { groundProgression } from "@/lib/game/groundPresentation";
 import {
@@ -502,6 +503,11 @@ export function GroundStudioSheet({
   };
 
   const approveDevelopmentPlan = () => {
+    const combinedSpend = assessSpend(state, planCost);
+    if (!combinedSpend.allowed) {
+      setToast({ tone: "error", text: `Development plan · ${combinedSpend.reason}` });
+      return;
+    }
     let next = state;
     for (const item of planItems) {
       const result = item.build
@@ -520,7 +526,7 @@ export function GroundStudioSheet({
     setPlanning(null);
     setReviewingPlan(false);
     setShowPlanned(false);
-    setToast({ tone: "ok", text: "Development plan approved. Construction will progress one major stage at a time." });
+    setToast({ tone: "ok", text: "Development plan approved. Free major and minor construction lanes will start now; remaining stages stay queued." });
   };
 
   return (
