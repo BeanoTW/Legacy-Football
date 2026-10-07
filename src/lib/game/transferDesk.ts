@@ -422,10 +422,9 @@ function deskDealForLoanNegotiation(state: GameState, negotiation: LoanNegotiati
 /* ------------------------------------------------------------------ */
 
 function historyKind(state: GameState, record: GameState["football"]["transferHistory"][number]): DeskDealKind {
-  if (record.outcome === "Signed") return "recruiting";
-  if (record.outcome === "Sold") return "selling";
-  const fromUs = isUserClubReference(state, record.fromClubId);
-  return fromUs ? "selling" : "recruiting";
+  if (record.toClubId && isUserClubReference(state, record.toClubId)) return "recruiting";
+  if (record.fromClubId && isUserClubReference(state, record.fromClubId)) return "selling";
+  return record.fromClubId ? "selling" : "recruiting";
 }
 
 function deskDealsFromHistory(state: GameState): DeskDeal[] {
@@ -454,13 +453,22 @@ function deskDealsFromHistory(state: GameState): DeskDeal[] {
         stages,
         stageIndex: stages.length - 1,
         headline:
-          record.outcome === "Signed"
-            ? `Signed for ${fmtMoney(record.fee)}`
-            : record.outcome === "Sold"
-              ? `Sold for ${fmtMoney(record.fee)}`
-              : record.outcome,
+          record.type === "release"
+            ? "Released"
+            : record.type === "contractExpiry"
+              ? "Contract expired"
+              : recruiting
+                ? `Signed for ${fmtMoney(record.fee)}`
+                : `Sold for ${fmtMoney(record.fee)}`,
         amount: record.fee > 0 ? fmtMoney(record.fee) : undefined,
-        outcome: record.outcome,
+        outcome:
+          record.type === "release"
+            ? "Released"
+            : record.type === "contractExpiry"
+              ? "Contract expired"
+              : recruiting
+                ? "Signed"
+                : "Sold",
         expiring: false,
         sortKey: -record.absoluteWeek,
       };
@@ -548,13 +556,13 @@ export function transferDeskWindow(state: GameState): DeskWindowStatus {
     };
   }
   if (!open) {
-    const targetWeek = state.week < WINDOW_PRESEASON_END ? 1 : CALENDAR.winterWindowStart;
+    const targetWeek = state.week < WINDOW_PRESEASON_END ? WINDOW_PRESEASON_END : CALENDAR.midSeasonStart;
     const weeks =
       state.week < WINDOW_PRESEASON_END
         ? Math.max(0, WINDOW_PRESEASON_END - state.week + 1)
-        : state.week < CALENDAR.winterWindowStart
-          ? Math.max(0, CALENDAR.winterWindowStart - state.week)
-          : Math.max(0, CALENDAR.seasonEndWeek - state.week + 1);
+        : state.week < CALENDAR.midSeasonStart
+          ? Math.max(0, CALENDAR.midSeasonStart - state.week)
+          : Math.max(0, CALENDAR.seasonEnd - state.week + 1);
     const first = state.week < WINDOW_PRESEASON_END ? "Closes" : "Opens";
     return {
       open: false,
@@ -567,7 +575,7 @@ export function transferDeskWindow(state: GameState): DeskWindowStatus {
 
   const daysRemainingInWeek = Math.max(1, 7 - calendarDay(state));
   const deadlineWeek = isTransferDeadlineWeek(state);
-  const targetWeek = state.week <= CALENDAR.preseasonWindowEnd ? CALENDAR.preseasonWindowEnd : CALENDAR.winterWindowEnd;
+  const targetWeek = state.week <= WINDOW_PRESEASON_END ? WINDOW_PRESEASON_END : CALENDAR.midSeasonEnd;
   const fullWeeks = Math.max(0, targetWeek - state.week);
   const totalDays = fullWeeks * 7 + daysRemainingInWeek;
   const countdown =
@@ -605,14 +613,16 @@ export function priorityLevelLabel(priority: ManagerRecruitmentPriority): string
       ? "Starter"
       : priority.playerLevel === "firstTeam"
         ? "First team"
-        : priority.playerLevel === "prospect"
-          ? "Prospect"
-          : "Depth";
+        : priority.playerLevel === "firstTeamPotential"
+          ? "First-team potential"
+          : priority.playerLevel === "starPotential"
+            ? "Star potential"
+            : "Depth";
 }
 
 export function transferDeskHeader(state: GameState): TransferDeskHeader {
   const cash = remainingTransferBudget(state);
-  const minimumReserve = state.finance?.budgets?.minimumCashReserve ?? 0;
+  const minimumReserve = state.finance?.minimumCashReserve ?? 0;
   const wageBillWeekly = userWageBill(state);
   const wageBudgetWeekly = state.finance?.budgets?.wages ?? 0;
   const window = transferDeskWindow(state);
@@ -773,7 +783,7 @@ export function squadContractRows(
 
 /** Human-readable operating model for the Squad & Contracts summary. */
 export function clubEmploymentLabel(state: GameState): string {
-  return clubOperatingModel(state) === "FullTime" ? "Full-time" : "Part-time";
+  return clubOperatingModel(state, userClubReference(state)) === "FullTime" ? "Full-time" : "Part-time";
 }
 
 /* ------------------------------------------------------------------ */
@@ -819,8 +829,9 @@ function managerPriorityRank(state: GameState, player: FootballPlayer): number |
   const priorities = managerRecruitmentBrief(state, manager).priorities;
   const unit = player.primaryPosition;
   const tactical = tacticalPositionProfile(player);
+  const tacticalPositions = new Set([tactical.primary, ...tactical.secondary, ...tactical.natural]);
   const index = priorities.findIndex(
-    (p) => p.position === unit || (p.tacticalPosition && tactical.all.includes(p.tacticalPosition)),
+    (p) => p.position === unit || (p.tacticalPosition && tacticalPositions.has(p.tacticalPosition)),
   );
   return index >= 0 ? index : null;
 }
@@ -868,7 +879,7 @@ export function transferMarketRows(state: GameState): MarketRow[] {
       clubId: registered,
       clubName: registered ? clubDisplayName(state, registered) : "Free agent",
       overallLabel: identity?.knowledge === "public" ? "?" : presentation.label,
-      valueRange: identity?.knowledge === "public" ? null : estimate ? [estimate.feeRange[0], estimate.feeRange[1]] : null,
+      valueRange: identity?.knowledge === "public" ? null : estimate?.valueRange ? [estimate.valueRange[0], estimate.valueRange[1]] : null,
       knowledgePct,
       scouting: identity?.knowledge === "public" ? "none" : assignment?.status ?? "none",
       reportComplete: identity?.knowledge !== "public" && assignment?.status === "complete",
