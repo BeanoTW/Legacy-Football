@@ -5,7 +5,7 @@ import { managerSquadFit } from "./managerSquadFit";
 import { positionEffectiveness, positionUnit } from "./positions";
 import { userClubReference } from "./clubReference";
 import { createChairmanMultiScoutingBrief, type ScoutingPlayerLevel } from "./chairmanScoutingBrief";
-import { clubStaffStage, staffRoleAvailable } from "./staff";
+
 
 export interface ManagerRecruitmentPriority {
   position: Position;
@@ -127,12 +127,21 @@ export interface RecruitmentDelegationAvailability {
 }
 
 export function recruitmentDelegationAvailability(state: GameState): RecruitmentDelegationAvailability {
-  if (!staffRoleAvailable(state, "Head of Transfers")) return { available: false, reason: `Recruitment delegation unlocks once the club reaches professional department status. Current structure: ${clubStaffStage(state)}.` };
-  const head = state.hiredStaff.find((staff) => staff.role === "Head of Transfers");
-  if (!head) return { available: false, reason: "Appoint a Head of Transfers before delegating recruitment." };
-  const scouts = state.hiredStaff.filter((staff) => staff.role === "Scout" || staff.role === "Chief Scout");
-  if (!scouts.length) return { available: false, reason: "Recruitment needs at least one Scout or Chief Scout to execute the search." };
-  return { available: true, head };
+  const scouts = state.hiredStaff
+    .filter((staff) => staff.role === "Scout" || staff.role === "Chief Scout")
+    .sort((a, b) => b.stats.scouting - a.stats.scouting || b.rating - a.rating);
+  if (!scouts.length) {
+    return {
+      available: false,
+      reason: "Appoint at least one Scout or Chief Scout to send recruitment assignments.",
+    };
+  }
+
+  // Non-league clubs can still scout. A Head of Transfers improves the
+  // department later, but professionalism is not a gate on basic recruitment.
+  const headOfTransfers = state.hiredStaff.find((staff) => staff.role === "Head of Transfers");
+  const chiefScout = state.hiredStaff.find((staff) => staff.role === "Chief Scout");
+  return { available: true, head: headOfTransfers ?? chiefScout ?? scouts[0] };
 }
 
 export function managerRecruitmentAssignmentId(state: GameState, manager: Staff): string {
