@@ -207,11 +207,13 @@ export function advancePersistentFringePlayersToSeason(state: GameState): Fringe
         player.lastDevelopedSeason = season;
         break;
       }
-      player.currentAbility = clamp(
-        player.currentAbility + seasonalAbilityDelta(state, player, season),
-        20,
-        player.potentialAbility,
-      );
+      const profile = clubOverallProfile(state, player.currentClubId);
+      const developed = player.currentAbility + seasonalAbilityDelta(state, player, season);
+      // Preserve individual development while preventing whole compact squads
+      // from drifting several divisions above their current competitive level.
+      const excess = developed - profile.star;
+      const calibrated = excess > 0 ? developed - Math.max(1, Math.round(excess * 0.35)) : developed;
+      player.currentAbility = clamp(calibrated, 20, player.potentialAbility);
       player.lastDevelopedSeason = season;
     }
   }
