@@ -68,8 +68,13 @@ console.log("\n[D1] Basic IndexedDB store");
   check("current save writes successfully", (await store.save(s)).length === 0);
   const storedCore = JSON.parse((await records.get([K.core]))[K.core]!) as { leagueSchedule?: unknown[] };
   check(
-    "stored hot core omits reconstructible league schedule",
-    s.leagueSchedule.length > 0 && Array.isArray(storedCore.leagueSchedule) && storedCore.leagueSchedule.length === 0,
+    "stored hot core omits reconstructible league fixtures",
+    s.leagueSchedule.some((fixture) => (fixture.competition ?? "league") === "league") &&
+      Array.isArray(storedCore.leagueSchedule) &&
+      storedCore.leagueSchedule.every((fixture) => {
+        const item = fixture as { competition?: string };
+        return (item.competition ?? "league") !== "league";
+      }),
   );
   const loaded = await store.load();
   check("save reads back byte-equivalent", serializeSave(loaded.state!) === serializeSave(s));
