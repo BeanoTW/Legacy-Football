@@ -212,7 +212,7 @@ export function advancePersistentFringePlayersToSeason(state: GameState): Fringe
       // Preserve individual development while preventing whole compact squads
       // from drifting several divisions above their current competitive level.
       const excess = developed - profile.star;
-      const calibrated = excess > 0 ? developed - Math.max(1, Math.round(excess * 0.35)) : developed;
+      const calibrated = excess > 0 ? developed - Math.max(1, Math.round(excess * 0.45)) : developed;
       player.currentAbility = clamp(calibrated, 20, player.potentialAbility);
       player.lastDevelopedSeason = season;
     }
