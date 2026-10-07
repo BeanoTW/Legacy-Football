@@ -3,7 +3,7 @@ import { transferSupport } from "./staffImpact";
 import { hashString } from "./rng";
 import { absoluteWeek } from "./time";
 import { calendarDay } from "./calendar";
-import { ageOf, BASE_YEAR } from "./recruitment";
+import { ageOf, BASE_YEAR, playerInterestAssessment } from "./recruitment";
 import { ensureFringeWorldState } from "./fringe";
 import { projectFringePlayer } from "./fringePlayerProjection";
 import {
@@ -157,7 +157,12 @@ export function scoutingSearchPlan(state: GameState): ScoutingSearchPlan {
   const scoutCount = state.hiredStaff.filter((staff) => staff.role === "Scout" || staff.role === "Chief Scout").length;
   const searchDays = quality >= 80 ? 2 : quality >= 55 ? 3 : 4;
   const initialKnowledgeDays = quality >= 80 ? 4 : quality >= 55 ? 3 : 2;
-  const candidateLimit = Math.max(10, Math.min(32, 8 + Math.floor(quality / 6) + Math.min(8, scoutCount * 2)));
+  // Staff bring back a shortlist, not a database dump. Better departments
+  // improve hit-rate and breadth a little, but even elite scouting stays human-sized.
+  const candidateLimit = Math.max(
+    4,
+    Math.min(10, 3 + Math.floor(quality / 20) + Math.min(2, Math.floor(scoutCount / 2))),
+  );
   const positionCapacity = quality >= 80 ? 4 : quality >= 65 ? 3 : quality >= 45 ? 2 : 1;
   return { quality, searchDays, initialKnowledgeDays, candidateLimit, positionCapacity };
 }
@@ -204,8 +209,36 @@ function discoveryScore(state: GameState, candidate: DiscoveryCandidate, input: 
   const affordableReference = Math.max(25_000, state.cash * 0.8);
   const affordability = candidate.currentClubId === null ? 6 : candidate.marketValue <= affordableReference ? 5 : -Math.min(28, Math.log2(Math.max(1, candidate.marketValue / affordableReference)) * 9);
   const ageFit = input.playerLevel === "firstTeamPotential" || input.playerLevel === "starPotential" ? 0 : candidate.age <= 24 ? 3 : candidate.age >= 32 ? -3 : 0;
+
+  // Recruitment quality is primarily about bringing back plausible moves.
+  // Strong scouts heavily suppress players who are unlikely to view this club
+  // as a satisfactory move; weaker departments can still waste a slot on one.
+  let moveFit = 0;
+  if (candidate.source === "detailed") {
+    const interest = playerInterestAssessment(state, candidate.player);
+    moveFit =
+      interest.level === "keen"
+        ? 16
+        : interest.level === "open"
+          ? 10
+          : interest.level === "uncertain"
+            ? -2
+            : -28;
+  } else {
+    const clubLevel = 32 + state.reputation * 0.62;
+    const abilityGap = candidate.currentAbility - clubLevel;
+    moveFit = abilityGap <= 6 ? 8 : abilityGap <= 12 ? 0 : -16 - (abilityGap - 12) * 1.5;
+  }
+  const moveWeight = 0.45 + decisionQuality / 70;
+
   const noise = (unsignedHash(`${state.saveSeed}|brief:${input.id}|${candidate.id}`) % 101) - 50;
-  return semanticFit * (0.6 + decisionQuality / 120) + affordability + ageFit + noise * (1.05 - decisionQuality / 125);
+  return (
+    semanticFit * (0.6 + decisionQuality / 120) +
+    affordability +
+    ageFit +
+    moveFit * moveWeight +
+    noise * (1.05 - decisionQuality / 125)
+  );
 }
 function ranked(state: GameState, candidates: DiscoveryCandidate[], input: ScoutingBriefInput): DiscoveryCandidate[] {
   return candidates.filter((candidate) => eligible(state, candidate, input)).sort((a, b) => discoveryScore(state, b, input) - discoveryScore(state, a, input) || a.id.localeCompare(b.id));
