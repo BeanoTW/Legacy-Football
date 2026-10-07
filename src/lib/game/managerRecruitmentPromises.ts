@@ -10,6 +10,7 @@ import { isTransferWindowOpen } from "./calendar";
 import {
   currentManager,
   managerPersonality,
+  managerReplacementExpectation,
 } from "./managerRelationship";
 import { managerRecruitmentBrief } from "./managerRecruitmentBrief";
 import {
@@ -161,6 +162,121 @@ export function managerRecruitmentRequestItems(state: GameState): InboxItem[] {
       consequenceOnExpire: [
         { kind: "managerRelationship", managerId: manager.id, trust: -1, backing: -2 },
         { kind: "flag", key: cooldownKey, value: nowAbs },
+      ],
+    }),
+  ];
+}
+
+
+export function managerReplacementExpectationItems(state: GameState): InboxItem[] {
+  const manager = currentManager(state);
+  if (!manager) return [];
+
+  const expectation = managerReplacementExpectation(state, manager);
+  if (!expectation.active || expectation.stage === 0 || !expectation.position) return [];
+
+  const role = POSITION_LABEL[expectation.position] ?? expectation.position;
+  const personality = managerPersonality(manager);
+  const sold = expectation.soldPlayerName || "the player you sold";
+  const eventKey =
+    "manager-replacement-expectation:" +
+    manager.id +
+    ":" +
+    expectation.createdAtAbsoluteWeek +
+    ":stage" +
+    expectation.stage;
+
+  if (expectation.stage === 1) {
+    return [
+      makeItem(state, "manager-replacement-expectation", {
+        eventKey,
+        conversationKey: "manager:" + manager.id + ":replacement",
+        relatedEntityId: manager.id,
+        sender: manager.name,
+        department: "Manager",
+        category: "staff",
+        priority: "high",
+        subject: "Manager wants the " + role + " gap replaced",
+        body:
+          "We sold " + sold + ", and the squad is still carrying that gap at " + role + ". " +
+          "I accepted the decision, but I need to see that it was part of a football plan rather than just a sale.",
+        expiresInWeeks: 2,
+        choices: [
+          {
+            id: "prioritise-replacement",
+            label: "Make the replacement a priority",
+            hint: "Back the football need now. The pressure only fully clears when a suitable replacement actually arrives.",
+            effects: [
+              { kind: "managerRelationship", managerId: manager.id, trust: 2, backing: 3, autonomy: 1 },
+            ],
+          },
+          {
+            id: "explain-rebuild",
+            label: "Explain the wider rebuild",
+            hint:
+              personality.financialPragmatism === "High"
+                ? "He is pragmatic about trading players if the wider squad benefits."
+                : "He may accept the logic, but he still wants the football gap fixed.",
+            effects: [
+              {
+                kind: "managerRelationship",
+                managerId: manager.id,
+                trust: personality.financialPragmatism === "High" ? 1 : 0,
+                backing: -1,
+              },
+            ],
+          },
+          {
+            id: "trust-current-squad",
+            label: "Trust the current squad",
+            hint: "Refuse to treat a replacement as urgent.",
+            effects: [
+              { kind: "managerRelationship", managerId: manager.id, trust: -1, backing: -3, autonomy: -1 },
+            ],
+          },
+        ],
+        consequenceOnExpire: [
+          { kind: "managerRelationship", managerId: manager.id, trust: -1, backing: -2 },
+        ],
+      }),
+    ];
+  }
+
+  return [
+    makeItem(state, "manager-replacement-expectation", {
+      eventKey,
+      conversationKey: "manager:" + manager.id + ":replacement",
+      relatedEntityId: manager.id,
+      sender: manager.name,
+      department: "Manager",
+      category: "staff",
+      priority: "urgent",
+      subject: "Replacement still missing after sale of " + sold,
+      body:
+        "This has gone beyond one transfer decision. We sold " + sold +
+        " and still have not restored the squad at " + role + ". " +
+        "The manager now sees the unresolved gap as evidence that his football needs are not being backed.",
+      expiresInWeeks: 1,
+      choices: [
+        {
+          id: "accept-urgency",
+          label: "Accept the urgency",
+          hint: "Acknowledge that the replacement has taken too long and put football need first.",
+          effects: [
+            { kind: "managerRelationship", managerId: manager.id, trust: 2, backing: 4, autonomy: 1 },
+          ],
+        },
+        {
+          id: "defend-sale",
+          label: "Defend the sale",
+          hint: "Stand by the original call and accept the relationship cost.",
+          effects: [
+            { kind: "managerRelationship", managerId: manager.id, trust: -2, backing: -4, autonomy: -2 },
+          ],
+        },
+      ],
+      consequenceOnExpire: [
+        { kind: "managerRelationship", managerId: manager.id, trust: -2, backing: -4 },
       ],
     }),
   ];
