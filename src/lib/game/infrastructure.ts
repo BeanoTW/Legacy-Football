@@ -1917,37 +1917,44 @@ export function queueProject(
 /** Start the next queued project when the relevant construction slot is free. */
 export function activateNextQueuedProjectInPlace(s: GameState): CapitalProject | null {
   ensureInfrastructure(s);
-  const live = activeProjects(s);
   const nowAbs = absoluteWeek(s.season, s.week);
-  const queued = s.infrastructure.projects.find((p) => {
-    if (p.status !== "proposed") return false;
-    const sameKindBusy = live.some((x) => x.major === p.major);
-    return !sameKindBusy && !projectForAsset(s, p.assetId);
-  });
-  if (!queued) return null;
+  let firstStarted: CapitalProject | null = null;
 
-  const asset = assetById(s, queued.assetId);
-  if (!asset) {
-    queued.status = "cancelled";
-    queued.history.push({ absoluteWeek: nowAbs, note: "Cancelled because the asset no longer exists." });
-    return null;
+  // Fill every free construction lane in one pass. Normally that means one
+  // major and one minor project may begin together, while preserving FIFO
+  // order within each lane.
+  for (const queued of s.infrastructure.projects) {
+    if (queued.status !== "proposed") continue;
+    const live = activeProjects(s);
+    if (live.some((x) => x.major === queued.major) || projectForAsset(s, queued.assetId)) continue;
+
+    const asset = assetById(s, queued.assetId);
+    if (!asset) {
+      queued.status = "cancelled";
+      queued.history.push({ absoluteWeek: nowAbs, note: "Cancelled because the asset no longer exists." });
+      continue;
+    }
+
+    queued.status = "approved";
+    queued.approvedAtAbsoluteWeek = nowAbs;
+    queued.startedAtAbsoluteWeek = nowAbs;
+    queued.expectedCompletionAbsoluteWeek = nowAbs + queued.durationWeeks + queued.delayWeeks;
+    for (const pay of queued.paymentSchedule) {
+      pay.paid = false;
+      pay.dueAbsoluteWeek = pay.kind === "overrun"
+        ? nowAbs + queued.durationWeeks + queued.delayWeeks - 1
+        : nowAbs + pay.index;
+    }
+    queued.history.push({ absoluteWeek: nowAbs, note: "Construction stage started from the approved development plan." });
+    asset.activeProjectId = queued.id;
+    firstStarted ??= queued;
   }
 
-  queued.status = "approved";
-  queued.approvedAtAbsoluteWeek = nowAbs;
-  queued.startedAtAbsoluteWeek = nowAbs;
-  queued.expectedCompletionAbsoluteWeek = nowAbs + queued.durationWeeks + queued.delayWeeks;
-  for (const pay of queued.paymentSchedule) {
-    pay.paid = false;
-    pay.dueAbsoluteWeek = pay.kind === "overrun"
-      ? nowAbs + queued.durationWeeks + queued.delayWeeks - 1
-      : nowAbs + pay.index;
+  if (firstStarted) {
+    recomputeDerived(s);
+    syncLegacyStadium(s);
   }
-  queued.history.push({ absoluteWeek: nowAbs, note: "Construction stage started from the approved development plan." });
-  asset.activeProjectId = queued.id;
-  recomputeDerived(s);
-  syncLegacyStadium(s);
-  return queued;
+  return firstStarted;
 }
 
 const RECORD_KIND: Partial<Record<CapitalProjectType, InfrastructureRecordKind>> = {
@@ -2402,7 +2409,10 @@ export function totalCapitalSpend(s: GameState): number {
 export function infrastructureSnapshot(s: GameState): InfrastructureSnapshot {
   const live = activeProjects(s);
   const crit = criticalAssets(s);
-  const commitments = live.reduce(
+  const committedProjects = (s.infrastructure?.projects ?? []).filter(
+    (p) => p.status === "proposed" || p.status === "approved" || p.status === "active" || p.status === "delayed",
+  );
+  const commitments = committedProjects.reduce(
     (t, p) => t + Math.max(0, p.approvedBudget + p.costOverrun - p.spentToDate),
     0,
   );
