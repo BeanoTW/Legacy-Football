@@ -5,7 +5,6 @@ import { tacticalPositionProfile } from "@/lib/game/positions";
 import { openPlayerProfile } from "./shared/PlayerProfileSheet";
 import {
   activeContract,
-  arrangeUserPlayerLoanOut,
   playerById,
   playerName,
 } from "@/lib/game/recruitment";
@@ -13,6 +12,7 @@ import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { absoluteWeek, fromAbsoluteWeek } from "@/lib/game/time";
 import { fmtMoneyExact } from "@/lib/game/engine";
 import { terminateUserPlayerLoan } from "@/lib/game/loans";
+import { openLoanNegotiation } from "@/lib/game/loanNegotiations";
 import { isTransferWindowOpen, windowStatus } from "@/lib/game/calendar";
 
 /* Loan work surfaces for the Transfer Desk.
@@ -46,7 +46,7 @@ export function LoanOutForm({
       <div className="flex items-baseline justify-between gap-2">
         <strong className="text-xs">Offer for loan</strong>
         <span className="text-[10px] text-muted-foreground">
-          Recruitment finds the strongest club willing to meet the terms
+          Send terms to the loan market and wait for a club response
         </span>
       </div>
       {!open && (
@@ -103,7 +103,7 @@ export function LoanOutForm({
         className="mt-2 h-9 w-full"
         disabled={!open}
         onClick={() => {
-          const outcome = arrangeUserPlayerLoanOut(state, playerId, {
+          const outcome = openLoanNegotiation(state, "out", playerId, {
             durationWeeks: duration,
             loanClubWageContributionPct: contribution,
             playingTimeExpectation: role,
@@ -115,7 +115,7 @@ export function LoanOutForm({
           }
         }}
       >
-        Find loan club
+        Send loan proposal
       </Button>
       {note && <div className="mt-1.5 text-[11px] text-muted-foreground">{note}</div>}
     </div>
