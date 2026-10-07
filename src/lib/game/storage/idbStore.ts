@@ -11,6 +11,7 @@
  */
 import type { GameState } from "../types";
 import { controlledClubId } from "../ids";
+import { ensureLeagueScheduleInPlace } from "../schedule";
 import type { Diagnostic, LoadResult, SaveStore } from "./types";
 import type { LegacySource, RecordStore, StoredRecord } from "./records";
 import { compactState } from "./compaction";
@@ -126,7 +127,16 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
       };
     }
     try {
+      const storageProjection = parsed.__storageProjection;
+      const rebuildLeagueSchedule =
+        !!storageProjection &&
+        typeof storageProjection === "object" &&
+        !Array.isArray(storageProjection) &&
+        (storageProjection as Record<string, unknown>).leagueSchedule === "deterministic";
+      delete parsed.__storageProjection;
+
       const migrated = deps.migrate(parsed);
+      if (rebuildLeagueSchedule) ensureLeagueScheduleInPlace(migrated);
       const state = deps.afterMigrate ? deps.afterMigrate(migrated, v) : migrated;
       return { state, diagnostics };
     } catch (e) {
