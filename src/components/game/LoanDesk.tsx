@@ -12,7 +12,14 @@ import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { absoluteWeek, fromAbsoluteWeek } from "@/lib/game/time";
 import { fmtMoneyExact } from "@/lib/game/engine";
 import { terminateUserPlayerLoan } from "@/lib/game/loans";
-import { openLoanNegotiation } from "@/lib/game/loanNegotiations";
+import {
+  acceptLoanCounter,
+  completeLoanNegotiation,
+  openLoanNegotiation,
+  reviseLoanNegotiation,
+  withdrawLoanNegotiation,
+  type LoanNegotiation,
+} from "@/lib/game/loanNegotiations";
 import { isTransferWindowOpen, windowStatus } from "@/lib/game/calendar";
 
 /* Loan work surfaces for the Transfer Desk.
@@ -239,5 +246,124 @@ function Mini({ label, value }: { label: string; value: string }) {
       <div className="truncate text-xs font-semibold tabular-nums">{value}</div>
       <div className="text-[9px] uppercase text-muted-foreground">{label}</div>
     </div>
+  );
+}
+
+
+export function LoanNegotiationCard({
+  state,
+  update,
+  negotiation,
+}: {
+  state: GameState;
+  update: (fn: (s: GameState) => GameState) => void;
+  negotiation: LoanNegotiation;
+}) {
+  const [duration, setDuration] = useState(negotiation.terms.durationWeeks);
+  const [contribution, setContribution] = useState(negotiation.terms.loanClubWageContributionPct);
+  const [role, setRole] = useState<LoanPlayingTimeExpectation>(negotiation.terms.playingTimeExpectation);
+  const [note, setNote] = useState<string | null>(null);
+  const player = playerById(state, negotiation.playerId);
+  if (!player) return null;
+
+  const counter = negotiation.counterTerms;
+  const run = (outcome: ReturnType<typeof acceptLoanCounter>) => {
+    setNote(outcome.result.reason);
+    if (outcome.result.ok) update(() => outcome.state);
+  };
+  const statusLabel =
+    negotiation.status === "awaitingClub"
+      ? "Awaiting club response"
+      : negotiation.status === "countered"
+        ? "Counter-offer received"
+        : negotiation.status === "ready"
+          ? "Terms agreed"
+          : negotiation.status === "completed"
+            ? "Registered"
+            : negotiation.status === "rejected"
+              ? "Rejected"
+              : "Withdrawn";
+
+  return (
+    <section className="overflow-hidden rounded-2xl border bg-card">
+      <div className="panel-strip p-4">
+        <div className="text-[10px] uppercase tracking-[0.2em] opacity-70">
+          {negotiation.direction === "in" ? "Loan in" : "Loan out"} · {statusLabel}
+        </div>
+        <button type="button" onClick={() => openPlayerProfile(player.id)} className="font-display text-2xl leading-tight hover:underline">
+          {playerName(player)}
+        </button>
+        <div className="text-sm opacity-80">
+          {tacticalPositionProfile(player).primary} · {negotiation.terms.durationWeeks}w · {negotiation.terms.loanClubWageContributionPct}% wages · {negotiation.terms.playingTimeExpectation}
+        </div>
+      </div>
+      <div className="space-y-3 p-4">
+        {negotiation.status === "awaitingClub" && (
+          <p className="text-sm text-muted-foreground">
+            Proposal sent. Advance time for the club to respond.
+          </p>
+        )}
+        {counter && negotiation.status === "countered" && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-200">Club counter</div>
+            <div className="mt-1 font-display text-lg">
+              {counter.durationWeeks} weeks · {counter.loanClubWageContributionPct}% wages · {counter.playingTimeExpectation}
+            </div>
+            {negotiation.responseReason && <p className="mt-1 text-xs text-muted-foreground">{negotiation.responseReason}</p>}
+          </div>
+        )}
+        {(negotiation.status === "countered" || negotiation.status === "ready") && (
+          <div className="grid grid-cols-3 gap-1.5">
+            <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Length
+              <select value={duration} onChange={(event) => setDuration(Number(event.target.value))} className="h-9 rounded-md border bg-background px-2 text-sm normal-case text-foreground">
+                {LOAN_WEEKS.map((weeks) => <option key={weeks} value={weeks}>{weeks} weeks</option>)}
+              </select>
+            </label>
+            <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Loan club pays
+              <select value={contribution} onChange={(event) => setContribution(Number(event.target.value))} className="h-9 rounded-md border bg-background px-2 text-sm normal-case text-foreground">
+                {WAGE_SHARES.map((pct) => <option key={pct} value={pct}>{pct}%</option>)}
+              </select>
+            </label>
+            <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Minutes
+              <select value={role} onChange={(event) => setRole(event.target.value as LoanPlayingTimeExpectation)} className="h-9 rounded-md border bg-background px-2 text-sm normal-case text-foreground">
+                {PLAYING_TIME.map((value) => <option key={value} value={value}>{value}</option>)}
+              </select>
+            </label>
+          </div>
+        )}
+        <div className="flex flex-wrap gap-2">
+          {negotiation.status === "countered" && (
+            <Button size="sm" onClick={() => run(acceptLoanCounter(state, negotiation.id))}>Accept counter</Button>
+          )}
+          {(negotiation.status === "countered" || negotiation.status === "ready") && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => run(reviseLoanNegotiation(state, negotiation.id, {
+                durationWeeks: duration,
+                loanClubWageContributionPct: contribution,
+                playingTimeExpectation: role,
+              }))}
+            >
+              Send revised terms
+            </Button>
+          )}
+          {negotiation.status === "ready" && (
+            <Button size="sm" onClick={() => run(completeLoanNegotiation(state, negotiation.id))}>
+              Register loan
+            </Button>
+          )}
+          {["awaitingClub", "countered", "ready"].includes(negotiation.status) && (
+            <Button size="sm" variant="ghost" onClick={() => run(withdrawLoanNegotiation(state, negotiation.id))}>
+              Withdraw
+            </Button>
+          )}
+        </div>
+        {note && <p className="text-xs text-muted-foreground">{note}</p>}
+      </div>
+    </section>
   );
 }
