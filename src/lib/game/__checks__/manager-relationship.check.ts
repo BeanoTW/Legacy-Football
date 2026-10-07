@@ -9,6 +9,7 @@ import {
   managerPersonality,
   managerRelationship,
   managerRelationshipClimate,
+  managerReplacementExpectation,
   recordCompletedTransferManagerReactionInPlace,
 } from "../managerRelationship";
 import type { GameState, Staff } from "../types";
@@ -98,6 +99,30 @@ console.log("\n[MR3] Selling a key player creates remembered tension");
     const repeated = handleInboxChoice(resolved, meeting.id, "hear-him-out");
     check("meeting cannot double-apply", managerRelationship(repeated, manager).trust === trustAfterMeeting);
   }
+
+  check("major sale creates a persistent replacement expectation", managerReplacementExpectation(withReaction, manager).active);
+
+  let pressureState = structuredClone(withReaction);
+  pressureState.week += 1;
+  pressureState = runWeeklyGenerators(pressureState);
+  pressureState.week += 1;
+  pressureState = runWeeklyGenerators(pressureState);
+  const replacementPressure = managerReplacementExpectation(pressureState, manager);
+  check("unreplaced key-player sale escalates after two weeks", replacementPressure.stage === 1);
+  const replacementItem = pressureState.inbox.find(
+    (item) => item.generatorId === "manager-replacement-expectation" && item.subject.includes("gap replaced"),
+  );
+  check("replacement pressure becomes an actionable manager issue", !!replacementItem && replacementItem.status === "awaitingDecision");
+
+  const backingBeforeReplacement = managerRelationship(pressureState, manager).backing;
+  recordCompletedTransferManagerReactionInPlace(pressureState, {
+    direction: "in",
+    player,
+    playerName: `Replacement ${player.lastName}`,
+    fee: Math.max(1, player.marketValue),
+  });
+  check("same-position signing clears replacement expectation", !managerReplacementExpectation(pressureState, manager).active);
+  check("delivering the replacement repairs backing", managerRelationship(pressureState, manager).backing > backingBeforeReplacement);
 }
 
 console.log("\n[MR4] Sustained strain escalates into club-level consequences");

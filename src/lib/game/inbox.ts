@@ -113,6 +113,7 @@ import { RANDOM_INCIDENTS, pressChoicesForIncident, randomIncidentById } from ".
 import {
   adjustManagerRelationshipInPlace,
   advanceManagerRelationshipClimateInPlace,
+  advanceManagerReplacementExpectationInPlace,
   currentManager,
   latestManagerRelationshipEvent,
   managerPersonality,
@@ -120,7 +121,11 @@ import {
   managerRelationshipClimate,
   managerRelationshipFlag,
 } from "./managerRelationship";
-import { managerRecruitmentRequestItems, managerRecruitmentPromiseReviewItems } from "./managerRecruitmentPromises";
+import {
+  managerRecruitmentRequestItems,
+  managerRecruitmentPromiseReviewItems,
+  managerReplacementExpectationItems,
+} from "./managerRecruitmentPromises";
 import { avgTicketPrice } from "./sim";
 import { ticketPriceReference } from "./ticketForecast";
 import { priceDemandFactor, scaleTicketPricesInPlace } from "./ticketPricing";
@@ -2776,6 +2781,11 @@ const G_MANAGER_RELATIONSHIP_REACTION: Generator = {
   },
 };
 
+const G_MANAGER_REPLACEMENT_EXPECTATION: Generator = {
+  id: "manager-replacement-expectation",
+  run: (s) => managerReplacementExpectationItems(s),
+};
+
 const G_MANAGER_RELATIONSHIP_CLIMATE: Generator = {
   id: "manager-relationship-climate",
   run: (s) => {
@@ -2911,6 +2921,7 @@ const GENERATORS: Generator[] = [
   G_MANAGER_RECRUITMENT_REQUEST,
   G_MANAGER_RECRUITMENT_PROMISE_REVIEW,
   G_MANAGER_RELATIONSHIP_REACTION,
+  G_MANAGER_REPLACEMENT_EXPECTATION,
   G_MANAGER_RELATIONSHIP_CLIMATE,
   G_CLUB_CONVERSATIONS,
   G_FINANCE_WEEKLY,
@@ -2990,8 +3001,9 @@ export function runWeeklyGenerators(prev: GameState): GameState {
     }
   }
 
-  // Sustained relationship pressure advances once per absolute week. This is
-  // idempotent, so repeated inbox refreshes in the same week cannot escalate it.
+  // Unresolved replacement pressure and sustained relationship pressure advance
+  // on the weekly axis. Both are idempotent, so inbox refreshes cannot escalate them.
+  advanceManagerReplacementExpectationInPlace(s);
   advanceManagerRelationshipClimateInPlace(s);
 
   // 2. Pull scheduled entries that are due now, grouped by generatorId.

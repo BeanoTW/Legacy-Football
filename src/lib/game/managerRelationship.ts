@@ -41,6 +41,7 @@ export type ManagerRelationshipEventType =
   | "priority-signing"
   | "useful-signing"
   | "chairman-signing"
+  | "replacement-signing"
   | "key-sale"
   | "first-team-sale"
   | "squad-sale"
@@ -56,6 +57,15 @@ export interface ManagerRelationshipEvent {
 export interface ManagerTransferContext {
   managerId: string;
   priorityPositions: Position[];
+}
+
+export interface ManagerReplacementExpectation {
+  active: boolean;
+  position: Position | "";
+  soldPlayerName: string;
+  previousRole: SquadRole | "";
+  createdAtAbsoluteWeek: number;
+  stage: 0 | 1 | 2;
 }
 
 export function managerTransferContext(state: GameState): ManagerTransferContext | null {
@@ -226,6 +236,66 @@ export function managerRelationshipFlag(managerId: string, field: string): strin
   return key(managerId, field);
 }
 
+export function managerReplacementExpectation(
+  state: GameState,
+  manager: Staff,
+): ManagerReplacementExpectation {
+  const position = String(state.inboxFlags[key(manager.id, "replacementPosition")] ?? "") as Position | "";
+  const role = String(state.inboxFlags[key(manager.id, "replacementRole")] ?? "") as SquadRole | "";
+  return {
+    active: Boolean(state.inboxFlags[key(manager.id, "replacementActive")]),
+    position,
+    soldPlayerName: String(state.inboxFlags[key(manager.id, "replacementPlayer")] ?? ""),
+    previousRole: role,
+    createdAtAbsoluteWeek: Math.max(0, Number(state.inboxFlags[key(manager.id, "replacementCreatedAbs")] ?? 0)),
+    stage: Math.max(0, Math.min(2, Number(state.inboxFlags[key(manager.id, "replacementStage")] ?? 0))) as 0 | 1 | 2,
+  };
+}
+
+function setManagerReplacementExpectationInPlace(
+  state: GameState,
+  manager: Staff,
+  input: { position: Position; playerName: string; previousRole: SquadRole },
+): void {
+  state.inboxFlags[key(manager.id, "replacementActive")] = true;
+  state.inboxFlags[key(manager.id, "replacementPosition")] = input.position;
+  state.inboxFlags[key(manager.id, "replacementPlayer")] = input.playerName;
+  state.inboxFlags[key(manager.id, "replacementRole")] = input.previousRole;
+  state.inboxFlags[key(manager.id, "replacementCreatedAbs")] = absoluteWeek(state.season, state.week);
+  state.inboxFlags[key(manager.id, "replacementStage")] = 0;
+}
+
+function clearManagerReplacementExpectationInPlace(state: GameState, manager: Staff): void {
+  state.inboxFlags[key(manager.id, "replacementActive")] = false;
+  state.inboxFlags[key(manager.id, "replacementStage")] = 0;
+}
+
+export function advanceManagerReplacementExpectationInPlace(
+  state: GameState,
+): ManagerReplacementExpectation | null {
+  const manager = currentManager(state);
+  if (!manager) return null;
+  const expectation = managerReplacementExpectation(state, manager);
+  if (!expectation.active) return expectation;
+
+  const age = Math.max(0, absoluteWeek(state.season, state.week) - expectation.createdAtAbsoluteWeek);
+  const firstThreshold = expectation.previousRole === "Key Player" ? 2 : 3;
+  const secondThreshold = expectation.previousRole === "Key Player" ? 4 : 5;
+  const targetStage: 0 | 1 | 2 =
+    age >= secondThreshold ? 2 : age >= firstThreshold ? 1 : 0;
+
+  if (targetStage > expectation.stage) {
+    if (targetStage === 1) {
+      adjustManagerRelationshipInPlace(state, manager.id, { trust: -1, backing: -2 });
+    } else {
+      adjustManagerRelationshipInPlace(state, manager.id, { trust: -2, backing: -4, autonomy: -1 });
+    }
+    state.inboxFlags[key(manager.id, "replacementStage")] = targetStage;
+  }
+
+  return managerReplacementExpectation(state, manager);
+}
+
 
 export interface ManagerRelationshipClimate {
   episode: number;
@@ -328,6 +398,11 @@ export function recordCompletedTransferManagerReactionInPlace(
     const matchesNeed = priorities.includes(input.player.primaryPosition);
     const young = (2000 + state.season - 1 - input.player.dateOfBirth.year) <= 21;
     const youthBonus = young && identity.youthWillingness === "High" ? 2 : 0;
+    const replacement = managerReplacementExpectation(state, manager);
+    const replacesSoldPlayer =
+      replacement.active && replacement.position === input.player.primaryPosition;
+    if (replacesSoldPlayer) clearManagerReplacementExpectationInPlace(state, manager);
+
     const fulfilledPromise = markManagerRecruitmentCommitmentFulfilledInPlace(
       state,
       manager.id,
@@ -341,6 +416,16 @@ export function recordCompletedTransferManagerReactionInPlace(
         playerName: input.playerName,
         message: `The chairman promised ${manager.name} reinforcement in this position and delivered ${input.playerName} before the deadline.`,
         delta: { trust: 6, backing: 12 + youthBonus, autonomy: 3 },
+      });
+      return;
+    }
+
+    if (replacesSoldPlayer) {
+      recordEvent(state, manager, {
+        type: "replacement-signing",
+        playerName: input.playerName,
+        message: `${input.playerName} fills the ${replacement.position} gap created by the sale of ${replacement.soldPlayerName || "a first-team player"}.`,
+        delta: { trust: 4, backing: 9 + youthBonus, autonomy: 2 },
       });
       return;
     }
@@ -387,6 +472,11 @@ export function recordCompletedTransferManagerReactionInPlace(
         : 0;
 
   if (role === "Key Player") {
+    setManagerReplacementExpectationInPlace(state, manager, {
+      position: input.player.primaryPosition,
+      playerName: input.playerName,
+      previousRole: role,
+    });
     recordEvent(state, manager, {
       type: "key-sale",
       playerName: input.playerName,
@@ -401,6 +491,11 @@ export function recordCompletedTransferManagerReactionInPlace(
   }
 
   if (role === "First Team") {
+    setManagerReplacementExpectationInPlace(state, manager, {
+      position: input.player.primaryPosition,
+      playerName: input.playerName,
+      previousRole: role,
+    });
     recordEvent(state, manager, {
       type: "first-team-sale",
       playerName: input.playerName,
