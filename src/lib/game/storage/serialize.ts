@@ -27,7 +27,11 @@ export function serializeStorageCore(state: GameState): string {
   const retainedFixtures = state.leagueSchedule.filter(
     (fixture) => (fixture.competition ?? "league") !== "league",
   );
-  return JSON.stringify({ ...state, leagueSchedule: retainedFixtures });
+  return JSON.stringify({
+    ...state,
+    leagueSchedule: retainedFixtures,
+    __storageProjection: { leagueSchedule: "deterministic" },
+  });
 }
 
 /**
