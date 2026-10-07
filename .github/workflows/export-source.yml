@@ -1,0 +1,21 @@
+name: Export source handoff
+
+on:
+  push:
+    branches:
+      - handoff/transfer-hub-export
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build source zip
+        run: |
+          zip -qr Legacy-Football-main.zip . -x ".git/*" ".github/workflows/export-source.yml"
+      - name: Upload source zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: Legacy-Football-main
+          path: Legacy-Football-main.zip
+          if-no-files-found: error
