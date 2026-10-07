@@ -229,6 +229,7 @@ export function PlayerProfileSheet({
   const [renewWage, setRenewWage] = useState(0);
   const [renewSeasons, setRenewSeasons] = useState(2);
   const [renewRole, setRenewRole] = useState<SquadRole>("First Team");
+  const [renewBonus, setRenewBonus] = useState(0);
   const [statsView, setStatsView] = useState<"season" | "form" | "career">("season");
   const [attributeTab, setAttributeTab] = useState<PlayerAttributeCategory | null>(null);
   const [conversationOpen, setConversationOpen] = useState(false);
@@ -436,6 +437,7 @@ export function PlayerProfileSheet({
     setRenewWage(proposedRenewal.weeklyWage);
     setRenewSeasons(proposedRenewal.seasons);
     setRenewRole(proposedRenewal.role);
+    setRenewBonus(proposedRenewal.signingBonus);
     setShowContract((value) => !value);
     setShowLoanOut(false);
     setReleaseConfirm(false);
@@ -449,7 +451,7 @@ export function PlayerProfileSheet({
         weeklyWage: renewWage,
         seasons: renewSeasons,
         role: renewRole,
-        signingBonus: proposedRenewal.signingBonus,
+        signingBonus: renewBonus,
       });
       setNote(result.reason);
       if (result.ok) setShowContract(false);
@@ -672,7 +674,7 @@ export function PlayerProfileSheet({
                         onChange={(event) => setRenewSeasons(Number(event.target.value))}
                         className="mt-1 h-9 w-full rounded-lg border bg-background px-2 text-sm text-foreground"
                       >
-                        {[1, 2, 3, 4].map((years) => (
+                        {[1, 2, 3, 4, 5].map((years) => (
                           <option key={years} value={years}>
                             {years} yr{years === 1 ? "" : "s"}
                           </option>
@@ -692,7 +694,7 @@ export function PlayerProfileSheet({
                       </select>
                     </label>
                   </div>
-                  <p className="mt-1.5 text-[10px] text-muted-foreground">The player can reject terms below his expectations.</p>
+                  <label className="mt-2 block text-[10px] font-semibold text-muted-foreground">\n                    Signing bonus\n                    <input\n                      type="number"\n                      min={0}\n                      value={renewBonus}\n                      onChange={(event) => setRenewBonus(Math.max(0, Number(event.target.value)))}\n                      className="mt-1 h-9 w-full rounded-lg border bg-background px-2 text-sm text-foreground"\n                    />\n                  </label>\n                  <p className="mt-1.5 text-[10px] text-muted-foreground">The player can reject terms below his expectations.</p>
                   <Button className="mt-2 h-9 w-full" onClick={negotiateContract}>Offer contract</Button>
                 </div>
               )}
@@ -747,7 +749,7 @@ export function PlayerProfileSheet({
                   <div>{note}</div>
                   {startedNegotiationId && (
                     <div className="mt-1 text-[10px] text-muted-foreground">
-                      The enquiry is now live under <strong>Transfers → Negotiations</strong>. Advance time for the club and player&apos;s camp to respond.
+                      The enquiry is now live under <strong>Transfers → Live Business</strong>. Advance time for the club and player&apos;s camp to respond.
                     </div>
                   )}
                 </div>
