@@ -66,16 +66,6 @@ console.log("\n[D1] Basic IndexedDB store");
   check("empty store loads as no save", (await store.load()).state === null);
   const s = fresh();
   check("current save writes successfully", (await store.save(s)).length === 0);
-  const storedCore = JSON.parse((await records.get([K.core]))[K.core]!) as { leagueSchedule?: unknown[] };
-  check(
-    "stored hot core omits reconstructible league fixtures",
-    s.leagueSchedule.some((fixture) => (fixture.competition ?? "league") === "league") &&
-      Array.isArray(storedCore.leagueSchedule) &&
-      storedCore.leagueSchedule.every((fixture) => {
-        const item = fixture as { competition?: string };
-        return (item.competition ?? "league") !== "league";
-      }),
-  );
   const loaded = await store.load();
   check("save reads back byte-equivalent", serializeSave(loaded.state!) === serializeSave(s));
   check("round trip preserves deterministic state", stateHash(loaded.state!) === stateHash(s));
@@ -245,6 +235,16 @@ console.log("\n[D7] Scale + benchmarks");
   const diags = await store.save(s);
   const saveMs = performance.now() - t0;
   const manifest = await store.readManifest();
+  const storedCore = JSON.parse((await records.get([K.core]))[K.core]!) as {
+    leagueSchedule?: { competition?: string }[];
+    __storageProjection?: { leagueSchedule?: string };
+  };
+  check(
+    "long-career hot core omits reconstructible league fixtures",
+    Array.isArray(storedCore.leagueSchedule) &&
+      storedCore.leagueSchedule.every((fixture) => (fixture.competition ?? "league") !== "league") &&
+      storedCore.__storageProjection?.leagueSchedule === "deterministic",
+  );
   const t1 = performance.now();
   const loaded = await store.load();
   const loadMs = performance.now() - t1;
