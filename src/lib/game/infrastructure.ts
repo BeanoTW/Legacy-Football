@@ -1827,27 +1827,91 @@ export function approveProject(
   return r.ok ? { state: ns, ...r } : { state: s, ...r };
 }
 
-/** Queue a capital project without starting construction yet. */
+/** Queue a capital project without consuming a construction slot yet. */
 export function queueProject(
   s: GameState,
   assetId: string,
   type: CapitalProjectType,
 ): { state: GameState; ok: boolean; reason?: string; projectId?: string } {
   const ns = structuredClone(s);
-  const r = approveProjectInPlace(ns, assetId, type);
-  if (!r.ok || !r.projectId) return { state: s, ...r };
-  const p = projectById(ns, r.projectId);
-  const a = assetById(ns, assetId);
-  if (!p || !a) return { state: s, ok: false, reason: "Unable to queue the project." };
-  p.status = "proposed";
-  p.approvedAtAbsoluteWeek = null;
-  p.startedAtAbsoluteWeek = null;
-  p.expectedCompletionAbsoluteWeek = null;
-  p.history = [{ absoluteWeek: absoluteWeek(ns.season, ns.week), note: "Added to the ground development plan." }];
-  a.activeProjectId = null;
+  ensureInfrastructure(ns);
+  const spec = specFor(ns, assetId, type);
+  const asset = assetById(ns, assetId);
+  if (!spec || !asset) return { state: s, ok: false, reason: "That project is not available on this asset." };
+
+  // A plan is a committed future stage, not live construction. Ignore the
+  // major/minor slot here, but still protect the same asset and club finances.
+  if (projectForAsset(ns, assetId) || ns.infrastructure.projects.some((p) => p.status === "proposed" && p.assetId === assetId)) {
+    return { state: s, ok: false, reason: "This asset already has work in progress or in the development plan." };
+  }
+  const affordability = assessSpend(ns, spec.cost);
+  if (!affordability.allowed) return { state: s, ok: false, reason: affordability.reason };
+  if (spec.type === "facilityUpgrade") {
+    const dependency = facilityDependencyStatus(ns, asset);
+    if (!dependency.met) return { state: s, ok: false, reason: dependency.text ?? "The ground is not ready for this facility upgrade." };
+  }
+
+  const infra = ns.infrastructure;
+  const id = `CP-${String(infra.nextProjectId).padStart(4, "0")}`;
+  infra.nextProjectId += 1;
+  const nowAbs = absoluteWeek(ns.season, ns.week);
+  const risk = riskOutcome(ns.saveSeed ?? "seed", id, spec);
+  const overrun = int(spec.cost * risk.overrunPct);
+  const instalments = Math.max(1, spec.durationWeeks);
+  const per = Math.floor(spec.cost / instalments);
+  const paymentSchedule: ProjectPayment[] = [];
+  for (let i = 0; i < instalments; i++) {
+    paymentSchedule.push({
+      index: i,
+      dueAbsoluteWeek: nowAbs + i,
+      amount: i === instalments - 1 ? spec.cost - per * (instalments - 1) : per,
+      paid: false,
+      kind: "instalment",
+    });
+  }
+  if (overrun > 0) {
+    paymentSchedule.push({
+      index: instalments,
+      dueAbsoluteWeek: nowAbs + spec.durationWeeks + risk.delayWeeks - 1,
+      amount: overrun,
+      paid: false,
+      kind: "overrun",
+    });
+  }
+
+  const project: CapitalProject = {
+    id,
+    type,
+    assetId,
+    title: spec.title,
+    description: spec.description,
+    status: "proposed",
+    requestedBy: "Chairman",
+    approvedAtAbsoluteWeek: null,
+    startedAtAbsoluteWeek: null,
+    expectedCompletionAbsoluteWeek: null,
+    completedAtAbsoluteWeek: null,
+    baseCost: spec.cost,
+    approvedBudget: spec.cost,
+    spentToDate: 0,
+    paymentSchedule,
+    durationWeeks: spec.durationWeeks,
+    weeksWorked: 0,
+    progress: 0,
+    disruption: spec.disruption,
+    riskProfile: spec.risk,
+    effectsOnCompletion: spec.effects,
+    delayWeeks: risk.delayWeeks,
+    costOverrun: overrun,
+    major: spec.major,
+    directorPositions: directorPositions(ns, assetId, spec),
+    history: [{ absoluteWeek: nowAbs, note: "Added to the ground development plan." }],
+    eventKey: `infra-project:${id}`,
+  };
+  infra.projects.push(project);
   recomputeDerived(ns);
   syncLegacyStadium(ns);
-  return { state: ns, ok: true, reason: "Added to the ground development plan.", projectId: p.id };
+  return { state: ns, ok: true, reason: "Added to the ground development plan.", projectId: id };
 }
 
 /** Start the next queued project when the relevant construction slot is free. */
