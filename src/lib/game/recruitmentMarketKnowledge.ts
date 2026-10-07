@@ -5,7 +5,7 @@ import {
 } from "./chairmanRecruitmentView";
 import { isChairmanShortlisted } from "./recruitmentKnowledge";
 import { scoutingAssignment, scoutingReportById } from "./scouting";
-import { buildWorldSimulationPlan } from "./worldFocusPolicy";
+import { buildWorldSimulationPlan } from "./world";
 import { isUserClubReference } from "./clubReference";
 import { playerOwnerClubId, playerRegisteredClubId } from "./playerRegistration";
 
