@@ -145,8 +145,8 @@ export function ScoutingBriefBuilder({
 
   return (
     <DetailScreen
-      title="Scouting brief"
-      subtitle="Tell the recruitment team what kind of player you want. Nothing is searched until you send the brief."
+      title="New scouting assignment"
+      subtitle="Tell your scouts what kind of player you need. They will return with a small, realistic shortlist."
       actions={
         <Button variant="ghost" size="sm" onClick={onBack}>
           <ArrowLeft className="mr-1.5 size-4" /> Back
@@ -154,7 +154,7 @@ export function ScoutingBriefBuilder({
       }
     >
       <section className="lf-brief max-w-2xl rounded-xl border bg-card p-3 shadow-sm md:p-4">
-        <p className="text-xs text-muted-foreground">Set a broad brief. Staff judge what "first-team" or "star" means for your squad.</p>
+        <p className="text-xs text-muted-foreground">Set the assignment. Staff judge what "first-team" or "star" means for your squad and prioritise players who are realistic moves.</p>
         {manager && managerFit && recruitmentBrief && (
           <div className="mt-2.5 rounded-lg border border-primary/20 bg-primary/[0.04] px-2.5 py-2">
             <div className="flex items-center gap-2">
