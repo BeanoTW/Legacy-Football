@@ -66,6 +66,11 @@ console.log("\n[D1] Basic IndexedDB store");
   check("empty store loads as no save", (await store.load()).state === null);
   const s = fresh();
   check("current save writes successfully", (await store.save(s)).length === 0);
+  const storedCore = JSON.parse((await records.get([K.core]))[K.core]!) as { leagueSchedule?: unknown[] };
+  check(
+    "stored hot core omits reconstructible league schedule",
+    s.leagueSchedule.length > 0 && Array.isArray(storedCore.leagueSchedule) && storedCore.leagueSchedule.length === 0,
+  );
   const loaded = await store.load();
   check("save reads back byte-equivalent", serializeSave(loaded.state!) === serializeSave(s));
   check("round trip preserves deterministic state", stateHash(loaded.state!) === stateHash(s));
