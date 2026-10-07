@@ -15,9 +15,19 @@ export function serializeSave(state: GameState): string {
  */
 export function serializeStorageCore(state: GameState): string {
   if (!state.leagues?.length || !state.leagueSchedule?.length) return JSON.stringify(state);
+
   const regenerated = makePyramidSchedule(state.leagues, `${state.saveSeed}|season${state.season}`);
-  if (JSON.stringify(regenerated) !== JSON.stringify(state.leagueSchedule)) return JSON.stringify(state);
-  return JSON.stringify({ ...state, leagueSchedule: [] });
+  const liveLeagueFixtures = state.leagueSchedule.filter(
+    (fixture) => (fixture.competition ?? "league") === "league",
+  );
+  if (JSON.stringify(regenerated) !== JSON.stringify(liveLeagueFixtures)) return JSON.stringify(state);
+
+  // Keep tiny non-league additions (pre-season today, future side events
+  // tomorrow) verbatim. Only the deterministic league fixture bulk is omitted.
+  const retainedFixtures = state.leagueSchedule.filter(
+    (fixture) => (fixture.competition ?? "league") !== "league",
+  );
+  return JSON.stringify({ ...state, leagueSchedule: retainedFixtures });
 }
 
 /**
