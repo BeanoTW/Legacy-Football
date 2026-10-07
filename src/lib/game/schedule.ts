@@ -24,6 +24,24 @@ export function makeLeagueSchedule(leagues: League[], seed: string): ScheduledFi
   return makePyramidSchedule(leagues, seed);
 }
 
+/**
+ * Restore the current-season league schedule when persistence deliberately
+ * omitted it. The schedule is a deterministic projection of league membership,
+ * save seed and season, so keeping thousands of fixture objects in the hot
+ * stored core is unnecessary.
+ */
+export function ensureLeagueScheduleInPlace(s: GameState): void {
+  if (!s.leagues?.length) return;
+  const existing = Array.isArray(s.leagueSchedule) ? s.leagueSchedule : [];
+  const hasLeagueFixtures = existing.some((fixture) => (fixture.competition ?? "league") === "league");
+  if (hasLeagueFixtures) return;
+  const leagueFixtures = makePyramidSchedule(s.leagues, `${s.saveSeed}|season${s.season}`);
+  // Persistence may retain tiny non-league additions (for example the
+  // deterministic pre-season invitational) while omitting the much larger
+  // reconstructible league fixture set.
+  s.leagueSchedule = [...leagueFixtures, ...existing];
+}
+
 /** User-club fixtures for a fresh tier-1 season (kept for legacy callers/tests). */
 export function makeFixtures(clubName: string, seed: string) {
   const leagues = makeLeagues(clubName);

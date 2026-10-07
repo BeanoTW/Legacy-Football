@@ -11,11 +11,12 @@
  */
 import type { GameState } from "../types";
 import { controlledClubId } from "../ids";
+import { ensureLeagueScheduleInPlace } from "../schedule";
 import type { Diagnostic, LoadResult, SaveStore } from "./types";
 import type { LegacySource, RecordStore, StoredRecord } from "./records";
 import { compactState } from "./compaction";
 import { createHistoryRepository, historyChunkKey, type HistoryRepository } from "./history";
-import { parseSave, serializeSave, byteLength } from "./serialize";
+import { parseSave, serializeSave, serializeStorageCore, byteLength } from "./serialize";
 import {
   DEFAULT_SAVE_ID,
   STORAGE_FORMAT_VERSION,
@@ -126,7 +127,16 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
       };
     }
     try {
+      const storageProjection = parsed.__storageProjection;
+      const rebuildLeagueSchedule =
+        !!storageProjection &&
+        typeof storageProjection === "object" &&
+        !Array.isArray(storageProjection) &&
+        (storageProjection as Record<string, unknown>).leagueSchedule === "deterministic";
+      delete parsed.__storageProjection;
+
       const migrated = deps.migrate(parsed);
+      if (rebuildLeagueSchedule) ensureLeagueScheduleInPlace(migrated);
       const state = deps.afterMigrate ? deps.afterMigrate(migrated, v) : migrated;
       return { state, diagnostics };
     } catch (e) {
@@ -165,7 +175,7 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
   async function commit(state: GameState): Promise<{ diagnostics: Diagnostic[]; core: string }> {
     /* Compaction is PURE: `state` is never mutated, only read. */
     const { core: compactCore, chunks } = compactState(state);
-    const core = serializeSave(compactCore);
+    const core = serializeStorageCore(compactCore);
 
     const chunkRecords: StoredRecord[] = [];
     const pendingEntries: ChunkManifestEntry[] = [];

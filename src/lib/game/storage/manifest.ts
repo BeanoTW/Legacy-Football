@@ -8,7 +8,7 @@ import { hashString } from "../rng";
 
 /** Layout version of the persistence format. Deliberately SEPARATE from
  *  GameState.version (the game schema), which the migration registry owns. */
-export const STORAGE_FORMAT_VERSION = 1;
+export const STORAGE_FORMAT_VERSION = 2;
 
 /** The single slot used today. Records are keyed by saveId so multi-slot
  *  saves are a later feature, not a later redesign. */

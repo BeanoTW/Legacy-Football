@@ -235,6 +235,16 @@ console.log("\n[D7] Scale + benchmarks");
   const diags = await store.save(s);
   const saveMs = performance.now() - t0;
   const manifest = await store.readManifest();
+  const storedCore = JSON.parse((await records.get([K.core]))[K.core]!) as {
+    leagueSchedule?: { competition?: string }[];
+    __storageProjection?: { leagueSchedule?: string };
+  };
+  check(
+    "long-career hot core omits reconstructible league fixtures",
+    Array.isArray(storedCore.leagueSchedule) &&
+      storedCore.leagueSchedule.every((fixture) => (fixture.competition ?? "league") !== "league") &&
+      storedCore.__storageProjection?.leagueSchedule === "deterministic",
+  );
   const t1 = performance.now();
   const loaded = await store.load();
   const loadMs = performance.now() - t1;
