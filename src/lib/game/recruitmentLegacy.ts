@@ -1151,7 +1151,7 @@ export function wageDemand(
   const attraction = clamp(facilityModifiers(s).recruitmentAttraction, -15, 15);
   // Facilities should help a club recruit, not become a substitute for its
   // football standing. Keep the wage effect deliberately secondary.
-  const facilityFactor = clamp(1 - attraction / 260, 0.95, 1.05);
+  const facilityFactor = clamp(1 - attraction / 220, 0.94, 1.06);
   const growth = clubGrowthFactor(s);
   const employmentFactor = employmentNegotiationWageFactorFor(
     clubOperatingModel(s, userClubReference(s)),
