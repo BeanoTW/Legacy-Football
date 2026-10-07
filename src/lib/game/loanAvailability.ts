@@ -141,11 +141,11 @@ export function clearLoanAvailabilityInPlace(state: GameState, playerId: string)
  * registration still requires an explicit negotiation and final approval.
  */
 export function progressLoanAvailabilityInterestInPlace(state: GameState): number {
-  ensureLoanAvailabilityInPlace(state);
+  if (!state.football?.loanAvailability?.length) return 0;
   const today = transferAbsoluteDay(state);
   let added = 0;
 
-  for (const listing of state.football.loanAvailability!) {
+  for (const listing of state.football.loanAvailability) {
     if (listing.lastInterestCheckDay !== undefined && listing.lastInterestCheckDay >= today) continue;
     listing.lastInterestCheckDay = today;
     if (today <= listing.listedAtDay) continue;
