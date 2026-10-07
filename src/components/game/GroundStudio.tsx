@@ -27,11 +27,13 @@ import { clubKitFor } from "@/lib/game/clubKit";
 import { groundProgression } from "@/lib/game/groundPresentation";
 import {
   ASSET_CONFIG,
+  activateNextQueuedProjectInPlace,
   approveProject as approveProjectCompat,
   assetById,
   ensureInfrastructure,
   evaluateProject,
   projectCatalogue,
+  queueProject,
   stadiumCapacity,
   stands as standAssets,
   type ProjectSpec,
@@ -72,7 +74,7 @@ import {
   type StandVariant,
 } from "@/lib/game/groundIdentity";
 import { cornerFormOptions, defaultMaterial, updateCorner, updateFixtures, updatePerimeter, updateStand, updateStandLook, updateSurroundings } from "@/lib/game/groundEditor";
-import { approveStandBuild, buildQuote, renameStand, setGroundLook } from "@/lib/game/groundBuild";
+import { buildQuote, queueStandBuild, renameStand, setGroundLook } from "@/lib/game/groundBuild";
 import {
   CORNER_LADDER,
   STAND_LADDER,
@@ -123,6 +125,41 @@ import {
 type Tab = "customize" | "maintain" | "develop";
 type ApplyResult = { state: GameState; ok: boolean; reason?: string };
 type Apply = (edit: (s: GameState) => ApplyResult, success?: string) => void;
+
+type DevelopmentPlanItem = {
+  id: string;
+  assetId: string;
+  assetName: string;
+  spec: ProjectSpec;
+  build?: StandBuild;
+};
+
+function previewDevelopmentState(state: GameState, items: DevelopmentPlanItem[]): GameState {
+  if (!items.length) return state;
+  const next = structuredClone(state);
+  for (const item of items) {
+    const asset = assetById(next, item.assetId);
+    if (!asset) continue;
+    const resultingLevel = item.build ? levelAfterProject(item.spec.type, asset.level) : null;
+    for (const effect of item.spec.effects) {
+      if (effect.kind === "capacity") {
+        const multiplier = item.build && resultingLevel != null ? buildCapacityMultiplier(item.build, resultingLevel) : 1;
+        asset.capacity = Math.max(0, asset.capacity + Math.round((effect.add * multiplier) / 50) * 50);
+        asset.usableCapacity = asset.capacity;
+      } else if (effect.kind === "level") {
+        asset.level = Math.min(ASSET_CONFIG[asset.type].maxLevel, asset.level + effect.add);
+      } else if (effect.kind === "condition") {
+        asset.condition = Math.min(asset.maximumCondition, effect.to ?? asset.condition + (effect.add ?? 0));
+      }
+    }
+    if (resultingLevel != null) asset.level = resultingLevel;
+    if (item.build) {
+      const identity = groundIdentity(next);
+      next.groundIdentity = { ...identity, stands: { ...identity.stands, [item.assetId]: { ...item.build } } };
+    }
+  }
+  return next;
+}
 
 const SIDES: StandSide[] = ["W", "E", "N", "S"];
 const CORNERS: CornerSlot[] = ["NW", "NE", "SE", "SW"];
@@ -212,16 +249,19 @@ export function StandBuildChooser({
   spec,
   onConfirm,
   onCancel,
+  onBuildChange,
 }: {
   state: GameState;
   asset: InfrastructureAsset;
   spec: ProjectSpec;
   onConfirm: (build: StandBuild) => void;
   onCancel: () => void;
+  onBuildChange?: (build: StandBuild) => void;
 }) {
   const resulting = levelAfterProject(spec.type, asset.level);
   const roofs = roofOptionsFor(resulting);
   const [build, setBuild] = useState<StandBuild>(() => defaultBuild(state, asset, spec));
+  useEffect(() => { onBuildChange?.(build); }, [build, onBuildChange]);
   const quote = buildQuote(state, spec.cost, asset.id, spec.type as CapitalProjectType, build);
   const capacityEffect = spec.effects.find((e) => e.kind === "capacity") as { add: number } | undefined;
   const addedCapacity = capacityEffect ? Math.round((capacityEffect.add * buildCapacityMultiplier(build, resulting)) / 50) * 50 : 0;
@@ -283,7 +323,7 @@ export function StandBuildChooser({
         </div>
         {lock ? <LockChip lock={lock} className="mt-1 px-1" /> : null}
         <button type="button" className="lfk-btn-paid mt-2 w-full" disabled={Boolean(lock)} onClick={() => onConfirm(build)}>
-          {lock ? <><Lock className="size-4" /> Not available yet</> : `Approve · ${fmtMoneyExact(quote.cost)}`}
+          {lock ? <><Lock className="size-4" /> Not available yet</> : `Add to plan · ${fmtMoneyExact(quote.cost)}`}
         </button>
       </div>
     </div>
@@ -348,6 +388,10 @@ export function GroundStudioSheet({
   const [planning, setPlanning] = useState<{ assetId: string; spec: ProjectSpec } | null>(null);
   const [toast, setToast] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [touched, setTouched] = useState(false);
+  const [planItems, setPlanItems] = useState<DevelopmentPlanItem[]>([]);
+  const [draftBuild, setDraftBuild] = useState<StandBuild | null>(null);
+  const [showPlanned, setShowPlanned] = useState(true);
+  const [reviewingPlan, setReviewingPlan] = useState(false);
   const hasCornerAssets = Boolean(state.infrastructure?.assets.some((asset) => asset.type === "cornerStand"));
 
   // Old saves may already have infrastructure but pre-date dedicated corner
@@ -377,13 +421,25 @@ export function GroundStudioSheet({
   }, [toast]);
 
   const identity = groundIdentity(state);
-  const design = groundDesign(state);
   const kit = clubKitFor(state).home;
   const look = useMemo(() => sceneLook(state, { body: kit.body, secondary: kit.secondary }), [state, kit.body, kit.secondary]);
-  const stage = state.infrastructure ? groundProgression(state).visualStage : 0;
+  const planningAssetLive = planning ? assetById(state, planning.assetId) : undefined;
+  const draftItem: DevelopmentPlanItem | null = planning && planningAssetLive && draftBuild
+    ? { id: `draft:${planning.assetId}`, assetId: planning.assetId, assetName: planningAssetLive.name, spec: planning.spec, build: draftBuild }
+    : null;
+  const previewItems = draftItem ? [...planItems.filter((item) => item.assetId !== draftItem.assetId), draftItem] : planItems;
+  const previewState = useMemo(() => previewDevelopmentState(state, previewItems), [state, previewItems]);
+  const displayState = showPlanned && previewItems.length ? previewState : state;
+  const design = groundDesign(displayState);
+  const stage = displayState.infrastructure ? groundProgression(displayState).visualStage : 0;
   const components = useMemo(() => groundComponents(state), [state]);
   const standBySide = new Map(standAssets(state).map((asset) => [asset.location, asset]));
   const totalPlaces = stadiumCapacity(state);
+  const plannedPlaces = stadiumCapacity(previewState);
+  const planCost = planItems.reduce((sum, item) => {
+    if (!item.build) return sum + item.spec.cost;
+    return sum + buildQuote(state, item.spec.cost, item.assetId, item.spec.type as CapitalProjectType, item.build).cost;
+  }, 0);
 
   const labels: Record<string, string> = {
     ...Object.fromEntries(SIDES.map((side) => [`stand:${side}`, standBySide.get(side)?.name ?? SIDE_ROLE[side]])),
@@ -406,6 +462,7 @@ export function GroundStudioSheet({
   const choose = (id: string | null) => {
     const next = id ?? "ground";
     setPlanning(null);
+    setDraftBuild(null);
     setPicker(false);
     setSelection(next);
     setTabState(tabFor(next) ?? userTab);
@@ -432,6 +489,40 @@ export function GroundStudioSheet({
   const status = components[selection];
   const planningAsset = planning ? assetById(state, planning.assetId) : undefined;
 
+  const addSimplePlan = (asset: InfrastructureAsset, option: ProjectOption) => {
+    setPlanItems((items) => [...items.filter((item) => item.assetId !== asset.id), {
+      id: `${asset.id}:${option.spec.type}`,
+      assetId: asset.id,
+      assetName: asset.name,
+      spec: option.spec,
+    }]);
+    setShowPlanned(true);
+    setReviewingPlan(false);
+    setToast({ tone: "ok", text: `Added ${asset.name} to the development plan.` });
+  };
+
+  const approveDevelopmentPlan = () => {
+    let next = state;
+    for (const item of planItems) {
+      const result = item.build
+        ? queueStandBuild(next, item.assetId, item.spec.type as CapitalProjectType, item.build)
+        : queueProject(next, item.assetId, item.spec.type as CapitalProjectType);
+      if (!result.ok) {
+        setToast({ tone: "error", text: `${item.assetName}: ${result.reason ?? "Unable to queue project."}` });
+        return;
+      }
+      next = result.state;
+    }
+    activateNextQueuedProjectInPlace(next);
+    update(() => next);
+    setPlanItems([]);
+    setDraftBuild(null);
+    setPlanning(null);
+    setReviewingPlan(false);
+    setShowPlanned(false);
+    setToast({ tone: "ok", text: "Development plan approved. Construction will progress one major stage at a time." });
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="lf-studio lfk flex h-[96dvh] flex-col gap-0 overflow-hidden rounded-t-2xl border-0 bg-[#0a1713] p-0 text-[#e7f1ec] [color-scheme:dark]">
@@ -445,8 +536,8 @@ export function GroundStudioSheet({
             <SheetTitle className="truncate font-display text-[21px] leading-tight text-[var(--lf-fg)]">{identity.groundName ?? "Your ground"}</SheetTitle>
           </div>
           <div className="mr-9 shrink-0 text-right">
-            <div className="lfk-num font-display text-[17px] leading-none">{totalPlaces.toLocaleString("en-GB")}</div>
-            <div className="lfk-eyebrow mt-0.5">places</div>
+            <div className="lfk-num font-display text-[17px] leading-none">{(showPlanned && previewItems.length ? plannedPlaces : totalPlaces).toLocaleString("en-GB")}</div>
+            <div className="lfk-eyebrow mt-0.5">{showPlanned && previewItems.length ? "planned places" : "places"}</div>
           </div>
         </header>
 
@@ -485,6 +576,23 @@ export function GroundStudioSheet({
           ) : null}
         </div>
 
+        {planItems.length || draftItem ? (
+          <div className="lf-studio-bar flex items-center gap-2 px-2.5 py-2">
+            <div className="lf-seg min-w-0 flex-1 !grid-cols-2">
+              <button type="button" aria-selected={!showPlanned} onClick={() => setShowPlanned(false)}>Current</button>
+              <button type="button" aria-selected={showPlanned} onClick={() => setShowPlanned(true)}>Planned</button>
+            </div>
+            <button
+              type="button"
+              className="lfk-btn-paid h-10 shrink-0 px-3"
+              disabled={!planItems.length}
+              onClick={() => { setReviewingPlan(true); setPlanning(null); setDraftBuild(null); }}
+            >
+              {planItems.length ? `Review plan · ${planItems.length}` : "Previewing"}
+            </button>
+          </div>
+        ) : null}
+
         {/* Selected component: name, status, quick stepping, full map. */}
         <div className="lf-studio-bar flex items-center gap-2 px-2.5 py-2">
           <button
@@ -517,18 +625,34 @@ export function GroundStudioSheet({
               state={state}
               asset={planningAsset}
               spec={planning.spec}
-              onCancel={() => setPlanning(null)}
+              onCancel={() => { setPlanning(null); setDraftBuild(null); }}
+              onBuildChange={(build) => { setDraftBuild(build); setShowPlanned(true); }}
               onConfirm={(build) => {
-                const preview = approveStandBuild(state, planningAsset.id, planning.spec.type, build);
-                if (!preview.ok) { setToast({ tone: "error", text: preview.reason }); return; }
-                update((current) => {
-                  const result = approveStandBuild(current, planningAsset.id, planning.spec.type, build);
-                  return result.ok ? result.state : current;
-                });
-                setToast({ tone: "ok", text: preview.reason });
+                const quote = buildQuote(state, planning.spec.cost, planningAsset.id, planning.spec.type as CapitalProjectType, build);
+                setPlanItems((items) => [...items.filter((item) => item.assetId !== planningAsset.id), {
+                  id: `${planningAsset.id}:${planning.spec.type}`,
+                  assetId: planningAsset.id,
+                  assetName: planningAsset.name,
+                  spec: planning.spec,
+                  build,
+                }]);
+                setToast({ tone: "ok", text: `Added ${planningAsset.name} · ${fmtMoneyExact(quote.cost)} to the development plan.` });
+                setDraftBuild(null);
                 setPlanning(null);
+                setShowPlanned(true);
                 setTab("develop");
               }}
+            />
+          ) : reviewingPlan ? (
+            <DevelopmentPlanReview
+              items={planItems}
+              state={state}
+              currentPlaces={totalPlaces}
+              plannedPlaces={plannedPlaces}
+              totalCost={planCost}
+              onRemove={(id) => setPlanItems((items) => items.filter((item) => item.id !== id))}
+              onBack={() => setReviewingPlan(false)}
+              onApprove={approveDevelopmentPlan}
             />
           ) : (
             <SelectionPanel
@@ -542,7 +666,8 @@ export function GroundStudioSheet({
               apply={apply}
               approve={approve}
               applyLook={applyLook}
-              plan={(asset, spec) => setPlanning({ assetId: asset.id, spec })}
+              plan={(asset, spec) => { setReviewingPlan(false); setPlanning({ assetId: asset.id, spec }); setDraftBuild(null); }}
+              planSimple={addSimplePlan}
               standBySide={standBySide}
               totalPlaces={totalPlaces}
             />
@@ -564,6 +689,91 @@ export function GroundStudioSheet({
         ) : null}
       </SheetContent>
     </Sheet>
+  );
+}
+
+function DevelopmentPlanReview({
+  items,
+  state,
+  currentPlaces,
+  plannedPlaces,
+  totalCost,
+  onRemove,
+  onBack,
+  onApprove,
+}: {
+  items: DevelopmentPlanItem[];
+  state: GameState;
+  currentPlaces: number;
+  plannedPlaces: number;
+  totalCost: number;
+  onRemove: (id: string) => void;
+  onBack: () => void;
+  onApprove: () => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-start gap-2">
+        <button type="button" onClick={onBack} className="lfk-btn-quiet size-10 shrink-0 p-0" aria-label="Back"><ChevronLeft className="size-5" /></button>
+        <div className="min-w-0 flex-1">
+          <div className="lfk-eyebrow" style={{ color: "var(--k-paid-text)" }}>Development plan</div>
+          <div className="font-display text-[20px] leading-tight">Review before approval</div>
+          <div className="mt-1 text-[11.5px] lfk-muted">Nothing below is permanent until you approve the plan.</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        <div className="lfk-sunk px-2.5 py-2">
+          <div className="lfk-eyebrow">Projects</div>
+          <div className="lfk-num font-display text-[19px]">{items.length}</div>
+        </div>
+        <div className="lfk-sunk px-2.5 py-2">
+          <div className="lfk-eyebrow">Capacity</div>
+          <div className="lfk-num font-display text-[19px]">+{Math.max(0, plannedPlaces - currentPlaces).toLocaleString("en-GB")}</div>
+        </div>
+        <div className="lfk-sunk px-2.5 py-2">
+          <div className="lfk-eyebrow">Planned cost</div>
+          <div className="lfk-num font-display text-[16px]">{priceLabel(totalCost)}</div>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {items.map((item, index) => {
+          const asset = assetById(state, item.assetId);
+          const quote = item.build
+            ? buildQuote(state, item.spec.cost, item.assetId, item.spec.type as CapitalProjectType, item.build).cost
+            : item.spec.cost;
+          return (
+            <div key={item.id} className="lfk-card flex items-center gap-3 p-3">
+              <div className="grid size-8 shrink-0 place-items-center rounded-full bg-violet-500/15 text-[12px] font-black text-violet-200">{index + 1}</div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[13px] font-bold">{asset?.name ?? item.assetName}</div>
+                <div className="truncate text-[11px] lfk-muted">{item.spec.title.replace(`${asset?.name ?? item.assetName} — `, "")} · {weeksLabel(item.spec.durationWeeks)}</div>
+                {item.build ? (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    <span className="lfk-tag lfk-tag-plain">{item.build.variant ?? "traditional"}</span>
+                    <span className="lfk-tag lfk-tag-plain">{item.build.standing}</span>
+                    <span className="lfk-tag lfk-tag-plain">{item.build.roof}</span>
+                  </div>
+                ) : null}
+              </div>
+              <div className="shrink-0 text-right">
+                <div className="lfk-num text-[12px] font-bold">{fmtMoneyExact(quote)}</div>
+                <button type="button" className="mt-1 text-[10.5px] font-semibold text-rose-300" onClick={() => onRemove(item.id)}>Remove</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="lfk-sunk px-3 py-2.5 text-[11.5px] lfk-muted">
+        Major stadium work is staged. The first project starts now; each remaining major project stays queued and begins automatically when the previous stage finishes.
+      </div>
+
+      <button type="button" className="lfk-btn-paid w-full" disabled={!items.length} onClick={onApprove}>
+        <Check className="size-4" /> Approve development plan · {fmtMoneyExact(totalCost)}
+      </button>
+    </div>
   );
 }
 
@@ -699,6 +909,7 @@ interface PanelProps {
   approve: (asset: InfrastructureAsset, option: ProjectOption) => void;
   applyLook: (change: Parameters<typeof setGroundLook>[1]) => void;
   plan: (asset: InfrastructureAsset, spec: ProjectSpec) => void;
+  planSimple: (asset: InfrastructureAsset, option: ProjectOption) => void;
   standBySide: Map<string, InfrastructureAsset>;
   totalPlaces: number;
 }
@@ -959,7 +1170,7 @@ function Maintain({ asset, condition, state, approve }: PanelProps & { asset: In
 /* ---------------- Corner ---------------- */
 
 function CornerPanel({ asset, slot, ...props }: PanelProps & { asset: InfrastructureAsset; slot: CornerSlot }) {
-  const { state, design, tab, setTab, apply, approve, totalPlaces } = props;
+  const { state, design, tab, setTab, apply, approve, planSimple, totalPlaces } = props;
   const c = design.corners[slot];
   const project = activeProjectFor(state, asset.id);
   const built = asset.capacity > 0;
@@ -982,8 +1193,8 @@ function CornerPanel({ asset, slot, ...props }: PanelProps & { asset: Infrastruc
             featured
             eyebrow="Build"
             option={next}
-            approveLabel={`Build corner stand · ${fmtMoneyExact(next.spec.cost)}`}
-            onApprove={() => approve(asset, next)}
+            approveLabel={`Add corner to plan · ${fmtMoneyExact(next.spec.cost)}`}
+            onApprove={() => planSimple(asset, next)}
             extra={<CapacityGrowth from={totalPlaces} add={next.addsPlaces} />}
           />
         ) : null}
@@ -1056,8 +1267,8 @@ function CornerPanel({ asset, slot, ...props }: PanelProps & { asset: Infrastruc
               featured
               eyebrow="Next stage · Expand"
               option={next}
-              approveLabel={`Approve · ${fmtMoneyExact(next.spec.cost)}`}
-              onApprove={() => approve(asset, next)}
+              approveLabel={`Add to plan · ${fmtMoneyExact(next.spec.cost)}`}
+              onApprove={() => planSimple(asset, next)}
               extra={<CapacityGrowth from={asset.capacity} add={next.addsPlaces} />}
             />
           ) : (

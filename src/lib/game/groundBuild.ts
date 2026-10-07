@@ -95,6 +95,28 @@ export function approveStandBuild(s: GameState, assetId: string, type: CapitalPr
   return { state: next, ok: true, reason: `Approved: ${asset.name} as ${label} · £${newCost.toLocaleString("en-GB")}.` };
 }
 
+/** Add a chosen stand build to the approved development plan without starting it yet. */
+export function queueStandBuild(s: GameState, assetId: string, type: CapitalProjectType, build: StandBuild): GroundActionResult {
+  const result = approveStandBuild(s, assetId, type, build);
+  if (!result.ok || result.state === s) return result;
+  const next = result.state;
+  const pending = groundIdentity(next).pending[assetId];
+  const project = pending ? projectById(next, pending.projectId) : undefined;
+  const asset = assetById(next, assetId);
+  if (!project || !asset) return { state: s, ok: false, reason: "Unable to add that build to the development plan." };
+
+  project.status = "proposed";
+  project.approvedAtAbsoluteWeek = null;
+  project.startedAtAbsoluteWeek = null;
+  project.expectedCompletionAbsoluteWeek = null;
+  project.history = [{ absoluteWeek: next.infrastructure?.lastTickAbsoluteWeek ?? 0, note: "Added to the ground development plan." }];
+  asset.activeProjectId = null;
+  recomputeDerived(next);
+  syncLegacyStadium(next);
+  return { state: next, ok: true, reason: `Added: ${asset.name} to the ground development plan.` };
+}
+
+
 /** Change how the ground looks. Paint and cladding cost money; names and patterns are free. */
 export function setGroundLook(s: GameState, change: Partial<Omit<GroundIdentityState, "stands" | "pending" | "changes">>): GroundActionResult {
   const cost = cosmeticCost(s, change);

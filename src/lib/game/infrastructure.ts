@@ -1827,6 +1827,65 @@ export function approveProject(
   return r.ok ? { state: ns, ...r } : { state: s, ...r };
 }
 
+/** Queue a capital project without starting construction yet. */
+export function queueProject(
+  s: GameState,
+  assetId: string,
+  type: CapitalProjectType,
+): { state: GameState; ok: boolean; reason?: string; projectId?: string } {
+  const ns = structuredClone(s);
+  const r = approveProjectInPlace(ns, assetId, type);
+  if (!r.ok || !r.projectId) return { state: s, ...r };
+  const p = projectById(ns, r.projectId);
+  const a = assetById(ns, assetId);
+  if (!p || !a) return { state: s, ok: false, reason: "Unable to queue the project." };
+  p.status = "proposed";
+  p.approvedAtAbsoluteWeek = null;
+  p.startedAtAbsoluteWeek = null;
+  p.expectedCompletionAbsoluteWeek = null;
+  p.history = [{ absoluteWeek: absoluteWeek(ns.season, ns.week), note: "Added to the ground development plan." }];
+  a.activeProjectId = null;
+  recomputeDerived(ns);
+  syncLegacyStadium(ns);
+  return { state: ns, ok: true, reason: "Added to the ground development plan.", projectId: p.id };
+}
+
+/** Start the next queued project when the relevant construction slot is free. */
+export function activateNextQueuedProjectInPlace(s: GameState): CapitalProject | null {
+  ensureInfrastructure(s);
+  const live = activeProjects(s);
+  const nowAbs = absoluteWeek(s.season, s.week);
+  const queued = s.infrastructure.projects.find((p) => {
+    if (p.status !== "proposed") return false;
+    const sameKindBusy = live.some((x) => x.major === p.major);
+    return !sameKindBusy && !projectForAsset(s, p.assetId);
+  });
+  if (!queued) return null;
+
+  const asset = assetById(s, queued.assetId);
+  if (!asset) {
+    queued.status = "cancelled";
+    queued.history.push({ absoluteWeek: nowAbs, note: "Cancelled because the asset no longer exists." });
+    return null;
+  }
+
+  queued.status = "approved";
+  queued.approvedAtAbsoluteWeek = nowAbs;
+  queued.startedAtAbsoluteWeek = nowAbs;
+  queued.expectedCompletionAbsoluteWeek = nowAbs + queued.durationWeeks + queued.delayWeeks;
+  for (const pay of queued.paymentSchedule) {
+    pay.paid = false;
+    pay.dueAbsoluteWeek = pay.kind === "overrun"
+      ? nowAbs + queued.durationWeeks + queued.delayWeeks - 1
+      : nowAbs + pay.index;
+  }
+  queued.history.push({ absoluteWeek: nowAbs, note: "Construction stage started from the approved development plan." });
+  asset.activeProjectId = queued.id;
+  recomputeDerived(s);
+  syncLegacyStadium(s);
+  return queued;
+}
+
 const RECORD_KIND: Partial<Record<CapitalProjectType, InfrastructureRecordKind>> = {
   minorRepair: "repair",
   majorRepair: "repair",
@@ -2196,6 +2255,10 @@ export function runInfrastructureWeek(s: GameState): void {
 
   applyDeterioration(s);
   advanceProjects(s);
+  // A development plan may contain several major works. Once one finishes,
+  // the next queued stage starts automatically without allowing parallel
+  // major construction.
+  activateNextQueuedProjectInPlace(s);
   recomputeDerived(s);
 
   // Critical assets shut themselves down; recovered ones come back.
