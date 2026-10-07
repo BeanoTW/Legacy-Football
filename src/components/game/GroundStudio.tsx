@@ -388,6 +388,10 @@ export function GroundStudioSheet({
   const [planning, setPlanning] = useState<{ assetId: string; spec: ProjectSpec } | null>(null);
   const [toast, setToast] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [touched, setTouched] = useState(false);
+  const [planItems, setPlanItems] = useState<DevelopmentPlanItem[]>([]);
+  const [draftBuild, setDraftBuild] = useState<StandBuild | null>(null);
+  const [showPlanned, setShowPlanned] = useState(true);
+  const [reviewingPlan, setReviewingPlan] = useState(false);
   const hasCornerAssets = Boolean(state.infrastructure?.assets.some((asset) => asset.type === "cornerStand"));
 
   // Old saves may already have infrastructure but pre-date dedicated corner
@@ -417,13 +421,25 @@ export function GroundStudioSheet({
   }, [toast]);
 
   const identity = groundIdentity(state);
-  const design = groundDesign(state);
   const kit = clubKitFor(state).home;
   const look = useMemo(() => sceneLook(state, { body: kit.body, secondary: kit.secondary }), [state, kit.body, kit.secondary]);
-  const stage = state.infrastructure ? groundProgression(state).visualStage : 0;
+  const planningAssetLive = planning ? assetById(state, planning.assetId) : undefined;
+  const draftItem: DevelopmentPlanItem | null = planning && planningAssetLive && draftBuild
+    ? { id: `draft:${planning.assetId}`, assetId: planning.assetId, assetName: planningAssetLive.name, spec: planning.spec, build: draftBuild }
+    : null;
+  const previewItems = draftItem ? [...planItems.filter((item) => item.assetId !== draftItem.assetId), draftItem] : planItems;
+  const previewState = useMemo(() => previewDevelopmentState(state, previewItems), [state, previewItems]);
+  const displayState = showPlanned && previewItems.length ? previewState : state;
+  const design = groundDesign(displayState);
+  const stage = displayState.infrastructure ? groundProgression(displayState).visualStage : 0;
   const components = useMemo(() => groundComponents(state), [state]);
   const standBySide = new Map(standAssets(state).map((asset) => [asset.location, asset]));
   const totalPlaces = stadiumCapacity(state);
+  const plannedPlaces = stadiumCapacity(previewState);
+  const planCost = planItems.reduce((sum, item) => {
+    if (!item.build) return sum + item.spec.cost;
+    return sum + buildQuote(state, item.spec.cost, item.assetId, item.spec.type as CapitalProjectType, item.build).cost;
+  }, 0);
 
   const labels: Record<string, string> = {
     ...Object.fromEntries(SIDES.map((side) => [`stand:${side}`, standBySide.get(side)?.name ?? SIDE_ROLE[side]])),
@@ -446,6 +462,7 @@ export function GroundStudioSheet({
   const choose = (id: string | null) => {
     const next = id ?? "ground";
     setPlanning(null);
+    setDraftBuild(null);
     setPicker(false);
     setSelection(next);
     setTabState(tabFor(next) ?? userTab);
@@ -471,6 +488,40 @@ export function GroundStudioSheet({
   };
   const status = components[selection];
   const planningAsset = planning ? assetById(state, planning.assetId) : undefined;
+
+  const addSimplePlan = (asset: InfrastructureAsset, option: ProjectOption) => {
+    setPlanItems((items) => [...items.filter((item) => item.assetId !== asset.id), {
+      id: `${asset.id}:${option.spec.type}`,
+      assetId: asset.id,
+      assetName: asset.name,
+      spec: option.spec,
+    }]);
+    setShowPlanned(true);
+    setReviewingPlan(false);
+    setToast({ tone: "ok", text: `Added ${asset.name} to the development plan.` });
+  };
+
+  const approveDevelopmentPlan = () => {
+    let next = state;
+    for (const item of planItems) {
+      const result = item.build
+        ? queueStandBuild(next, item.assetId, item.spec.type as CapitalProjectType, item.build)
+        : queueProject(next, item.assetId, item.spec.type as CapitalProjectType);
+      if (!result.ok) {
+        setToast({ tone: "error", text: `${item.assetName}: ${result.reason ?? "Unable to queue project."}` });
+        return;
+      }
+      next = result.state;
+    }
+    activateNextQueuedProjectInPlace(next);
+    update(() => next);
+    setPlanItems([]);
+    setDraftBuild(null);
+    setPlanning(null);
+    setReviewingPlan(false);
+    setShowPlanned(false);
+    setToast({ tone: "ok", text: "Development plan approved. Construction will progress one major stage at a time." });
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
