@@ -276,7 +276,7 @@ export function advanceManagerReplacementExpectationInPlace(
   const manager = currentManager(state);
   if (!manager) return null;
   const expectation = managerReplacementExpectation(state, manager);
-  if (!expectation.active || !expectation.createdAtAbsoluteWeek) return expectation;
+  if (!expectation.active) return expectation;
 
   const age = Math.max(0, absoluteWeek(state.season, state.week) - expectation.createdAtAbsoluteWeek);
   const firstThreshold = expectation.previousRole === "Key Player" ? 2 : 3;
