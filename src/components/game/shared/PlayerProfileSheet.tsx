@@ -6,8 +6,6 @@ import { Button } from "@/components/ui/button";
 import {
   activeContract,
   ageOf,
-  arrangeUserPlayerLoanIn,
-  arrangeUserPlayerLoanOut,
   loanInAvailabilityReason,
   playerName,
   releasePlayerInPlace,
@@ -25,6 +23,7 @@ import {
 import { knownPlayerDetail } from "@/lib/game/knownPlayerDetail";
 import { tacticalPositionProfile, positionFamiliarity, positionDevelopment, positionUnit } from "@/lib/game/positions";
 import { activeLoanForPlayer, terminateUserPlayerLoan } from "@/lib/game/loans";
+import { openLoanNegotiation } from "@/lib/game/loanNegotiations";
 import { playerOwnerClubId } from "@/lib/game/playerRegistration";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { fmtMoney, fmtMoneyExact } from "@/lib/game/engine";
@@ -406,7 +405,7 @@ export function PlayerProfileSheet({
 
   const requestLoan = () => {
     if (owned || freeAgent) return;
-    const result = arrangeUserPlayerLoanIn(state, player.id, {
+    const result = openLoanNegotiation(state, "in", player.id, {
       durationWeeks: loanDuration,
       loanClubWageContributionPct: loanContribution,
       playingTimeExpectation: loanRole,
@@ -461,7 +460,7 @@ export function PlayerProfileSheet({
 
   const sendLoanOut = () => {
     if (!userOwnsPlayer) return;
-    const result = arrangeUserPlayerLoanOut(state, player.id, {
+    const result = openLoanNegotiation(state, "out", player.id, {
       durationWeeks: loanDuration,
       loanClubWageContributionPct: loanContribution,
       playingTimeExpectation: loanRole,
