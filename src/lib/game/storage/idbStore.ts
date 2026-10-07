@@ -15,7 +15,7 @@ import type { Diagnostic, LoadResult, SaveStore } from "./types";
 import type { LegacySource, RecordStore, StoredRecord } from "./records";
 import { compactState } from "./compaction";
 import { createHistoryRepository, historyChunkKey, type HistoryRepository } from "./history";
-import { parseSave, serializeSave, byteLength } from "./serialize";
+import { parseSave, serializeSave, serializeStorageCore, byteLength } from "./serialize";
 import {
   DEFAULT_SAVE_ID,
   STORAGE_FORMAT_VERSION,
@@ -165,7 +165,7 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
   async function commit(state: GameState): Promise<{ diagnostics: Diagnostic[]; core: string }> {
     /* Compaction is PURE: `state` is never mutated, only read. */
     const { core: compactCore, chunks } = compactState(state);
-    const core = serializeSave(compactCore);
+    const core = serializeStorageCore(compactCore);
 
     const chunkRecords: StoredRecord[] = [];
     const pendingEntries: ChunkManifestEntry[] = [];
