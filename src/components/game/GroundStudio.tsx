@@ -536,8 +536,8 @@ export function GroundStudioSheet({
             <SheetTitle className="truncate font-display text-[21px] leading-tight text-[var(--lf-fg)]">{identity.groundName ?? "Your ground"}</SheetTitle>
           </div>
           <div className="mr-9 shrink-0 text-right">
-            <div className="lfk-num font-display text-[17px] leading-none">{totalPlaces.toLocaleString("en-GB")}</div>
-            <div className="lfk-eyebrow mt-0.5">places</div>
+            <div className="lfk-num font-display text-[17px] leading-none">{(showPlanned && previewItems.length ? plannedPlaces : totalPlaces).toLocaleString("en-GB")}</div>
+            <div className="lfk-eyebrow mt-0.5">{showPlanned && previewItems.length ? "planned places" : "places"}</div>
           </div>
         </header>
 
@@ -576,6 +576,23 @@ export function GroundStudioSheet({
           ) : null}
         </div>
 
+        {planItems.length || draftItem ? (
+          <div className="lf-studio-bar flex items-center gap-2 px-2.5 py-2">
+            <div className="lf-seg min-w-0 flex-1 !grid-cols-2">
+              <button type="button" aria-selected={!showPlanned} onClick={() => setShowPlanned(false)}>Current</button>
+              <button type="button" aria-selected={showPlanned} onClick={() => setShowPlanned(true)}>Planned</button>
+            </div>
+            <button
+              type="button"
+              className="lfk-btn-paid h-10 shrink-0 px-3"
+              disabled={!planItems.length}
+              onClick={() => { setReviewingPlan(true); setPlanning(null); setDraftBuild(null); }}
+            >
+              {planItems.length ? `Review plan · ${planItems.length}` : "Previewing"}
+            </button>
+          </div>
+        ) : null}
+
         {/* Selected component: name, status, quick stepping, full map. */}
         <div className="lf-studio-bar flex items-center gap-2 px-2.5 py-2">
           <button
@@ -608,18 +625,34 @@ export function GroundStudioSheet({
               state={state}
               asset={planningAsset}
               spec={planning.spec}
-              onCancel={() => setPlanning(null)}
+              onCancel={() => { setPlanning(null); setDraftBuild(null); }}
+              onBuildChange={(build) => { setDraftBuild(build); setShowPlanned(true); }}
               onConfirm={(build) => {
-                const preview = approveStandBuild(state, planningAsset.id, planning.spec.type, build);
-                if (!preview.ok) { setToast({ tone: "error", text: preview.reason }); return; }
-                update((current) => {
-                  const result = approveStandBuild(current, planningAsset.id, planning.spec.type, build);
-                  return result.ok ? result.state : current;
-                });
-                setToast({ tone: "ok", text: preview.reason });
+                const quote = buildQuote(state, planning.spec.cost, planningAsset.id, planning.spec.type as CapitalProjectType, build);
+                setPlanItems((items) => [...items.filter((item) => item.assetId !== planningAsset.id), {
+                  id: `${planningAsset.id}:${planning.spec.type}`,
+                  assetId: planningAsset.id,
+                  assetName: planningAsset.name,
+                  spec: planning.spec,
+                  build,
+                }]);
+                setToast({ tone: "ok", text: `Added ${planningAsset.name} · ${fmtMoneyExact(quote.cost)} to the development plan.` });
+                setDraftBuild(null);
                 setPlanning(null);
+                setShowPlanned(true);
                 setTab("develop");
               }}
+            />
+          ) : reviewingPlan ? (
+            <DevelopmentPlanReview
+              items={planItems}
+              state={state}
+              currentPlaces={totalPlaces}
+              plannedPlaces={plannedPlaces}
+              totalCost={planCost}
+              onRemove={(id) => setPlanItems((items) => items.filter((item) => item.id !== id))}
+              onBack={() => setReviewingPlan(false)}
+              onApprove={approveDevelopmentPlan}
             />
           ) : (
             <SelectionPanel
@@ -633,7 +666,8 @@ export function GroundStudioSheet({
               apply={apply}
               approve={approve}
               applyLook={applyLook}
-              plan={(asset, spec) => setPlanning({ assetId: asset.id, spec })}
+              plan={(asset, spec) => { setReviewingPlan(false); setPlanning({ assetId: asset.id, spec }); setDraftBuild(null); }}
+              planSimple={addSimplePlan}
               standBySide={standBySide}
               totalPlaces={totalPlaces}
             />
@@ -790,6 +824,7 @@ interface PanelProps {
   approve: (asset: InfrastructureAsset, option: ProjectOption) => void;
   applyLook: (change: Parameters<typeof setGroundLook>[1]) => void;
   plan: (asset: InfrastructureAsset, spec: ProjectSpec) => void;
+  planSimple: (asset: InfrastructureAsset, option: ProjectOption) => void;
   standBySide: Map<string, InfrastructureAsset>;
   totalPlaces: number;
 }
@@ -1050,7 +1085,7 @@ function Maintain({ asset, condition, state, approve }: PanelProps & { asset: In
 /* ---------------- Corner ---------------- */
 
 function CornerPanel({ asset, slot, ...props }: PanelProps & { asset: InfrastructureAsset; slot: CornerSlot }) {
-  const { state, design, tab, setTab, apply, approve, totalPlaces } = props;
+  const { state, design, tab, setTab, apply, approve, planSimple, totalPlaces } = props;
   const c = design.corners[slot];
   const project = activeProjectFor(state, asset.id);
   const built = asset.capacity > 0;
@@ -1073,8 +1108,8 @@ function CornerPanel({ asset, slot, ...props }: PanelProps & { asset: Infrastruc
             featured
             eyebrow="Build"
             option={next}
-            approveLabel={`Build corner stand · ${fmtMoneyExact(next.spec.cost)}`}
-            onApprove={() => approve(asset, next)}
+            approveLabel={`Add corner to plan · ${fmtMoneyExact(next.spec.cost)}`}
+            onApprove={() => planSimple(asset, next)}
             extra={<CapacityGrowth from={totalPlaces} add={next.addsPlaces} />}
           />
         ) : null}
@@ -1147,8 +1182,8 @@ function CornerPanel({ asset, slot, ...props }: PanelProps & { asset: Infrastruc
               featured
               eyebrow="Next stage · Expand"
               option={next}
-              approveLabel={`Approve · ${fmtMoneyExact(next.spec.cost)}`}
-              onApprove={() => approve(asset, next)}
+              approveLabel={`Add to plan · ${fmtMoneyExact(next.spec.cost)}`}
+              onApprove={() => planSimple(asset, next)}
               extra={<CapacityGrowth from={asset.capacity} add={next.addsPlaces} />}
             />
           ) : (
