@@ -228,6 +228,8 @@ function transferStageLabel(stage: ReturnType<typeof openNegotiations>[number]["
 }
 
 function ActiveBusiness({ state, setView }: { state: GameState; setView: (view: View) => void }) {
+  type Bucket = "incoming" | "outgoing" | "transfer" | "scouting";
+  const [openBucket, setOpenBucket] = useState<Bucket | null>(null);
   const liveDeals = openNegotiations(state);
   const now = currentAbsoluteDay(state);
   const timeline = upcomingTimelineEvents(state, 28)
@@ -237,6 +239,21 @@ function ActiveBusiness({ state, setView }: { state: GameState; setView: (view: 
   const scoutingDue = timeline.filter((event) => event.kind === "scouting");
   const transferDue = timeline.filter((event) => event.kind === "transfer");
   const nextDeadlines = timeline.slice(0, 4);
+
+  const buckets: { id: Bucket; label: string; count: number }[] = [
+    { id: "incoming", label: "Incoming", count: incoming.length },
+    { id: "outgoing", label: "Outgoing", count: outgoing.length },
+    { id: "transfer", label: "Transfer due", count: transferDue.length },
+    { id: "scouting", label: "Scout due", count: scoutingDue.length },
+  ];
+
+  const selectedDeals = openBucket === "incoming" ? incoming : openBucket === "outgoing" ? outgoing : [];
+  const selectedEvents = openBucket === "transfer" ? transferDue : openBucket === "scouting" ? scoutingDue : [];
+
+  const daysLabel = (absoluteDay: number) => {
+    const days = Math.max(0, absoluteDay - now);
+    return days === 0 ? "Today" : days === 1 ? "Tomorrow" : `${days}d`;
+  };
 
   return (
     <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
@@ -249,12 +266,87 @@ function ActiveBusiness({ state, setView }: { state: GameState; setView: (view: 
           Open negotiations →
         </button>
       </div>
+
       <div className="grid grid-cols-4 divide-x border-b text-center">
-        <div className="px-2 py-2.5"><div className="font-display text-lg">{incoming.length}</div><div className="text-[9px] uppercase text-muted-foreground">Incoming</div></div>
-        <div className="px-2 py-2.5"><div className="font-display text-lg">{outgoing.length}</div><div className="text-[9px] uppercase text-muted-foreground">Outgoing</div></div>
-        <div className="px-2 py-2.5"><div className="font-display text-lg">{transferDue.length}</div><div className="text-[9px] uppercase text-muted-foreground">Transfer due</div></div>
-        <div className="px-2 py-2.5"><div className="font-display text-lg">{scoutingDue.length}</div><div className="text-[9px] uppercase text-muted-foreground">Scout due</div></div>
+        {buckets.map((bucket) => (
+          <button
+            key={bucket.id}
+            type="button"
+            aria-expanded={openBucket === bucket.id}
+            onClick={() => setOpenBucket((current) => current === bucket.id ? null : bucket.id)}
+            className={cn(
+              "px-1.5 py-2.5 transition-colors hover:bg-muted/40",
+              openBucket === bucket.id && "bg-primary/10 text-primary",
+            )}
+          >
+            <div className="font-display text-lg">{bucket.count}</div>
+            <div className="text-[9px] uppercase text-muted-foreground">{bucket.label}</div>
+          </button>
+        ))}
       </div>
+
+      {openBucket ? (
+        <div className="border-b bg-muted/15">
+          <div className="flex items-center justify-between gap-2 px-4 py-2">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              {buckets.find((bucket) => bucket.id === openBucket)?.label} · preview
+            </div>
+            <button type="button" onClick={() => setOpenBucket(null)} className="text-[10px] font-semibold text-muted-foreground">Close</button>
+          </div>
+
+          {selectedDeals.length ? (
+            <div className="divide-y">
+              {selectedDeals.map((deal) => {
+                const player = playerById(state, deal.playerId);
+                return (
+                  <button key={deal.id} type="button" onClick={() => setView("deals")} className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-muted/40">
+                    <span className={cn("grid size-9 shrink-0 place-items-center rounded-full text-[10px] font-black",
+                      deal.direction === "in" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-amber-500/10 text-amber-700 dark:text-amber-300")}>
+                      {player?.position ?? (deal.direction === "in" ? "IN" : "OUT")}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold">{player ? playerName(player) : "Player"}</span>
+                      <span className="block truncate text-[11px] text-muted-foreground">
+                        {transferStageLabel(deal.stage)} · {deal.fee > 0 ? fmtMoney(deal.fee) : "Free transfer"}
+                        {deal.competingClubId ? " · Rival bid active" : ""}
+                      </span>
+                    </span>
+                    {player ? <span className="shrink-0 text-right"><span className="block font-display text-base">{player.overall}</span><span className="block text-[9px] uppercase text-muted-foreground">OVR</span></span> : null}
+                    <span className="shrink-0 text-[10px] font-semibold text-primary">Open →</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : selectedEvents.length ? (
+            <div className="divide-y">
+              {selectedEvents.map((event) => {
+                const playerId = event.id.startsWith("scouting:player:")
+                  ? event.id.split(":")[2]
+                  : event.id.startsWith("transfer:")
+                    ? liveDeals.find((deal) => event.id.includes(deal.id))?.playerId
+                    : undefined;
+                const player = playerId ? playerById(state, playerId) : undefined;
+                const destination: View = openBucket === "scouting" ? (player ? "market" : "market") : "deals";
+                return (
+                  <button key={event.id} type="button" onClick={() => setView(destination)} className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-muted/40">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-[10px] font-black text-primary">
+                      {player?.position ?? (openBucket === "scouting" ? "SC" : "TR")}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold">{player ? playerName(player) : event.detail ?? event.label}</span>
+                      <span className="block truncate text-[11px] text-muted-foreground">{event.label}{player && event.detail ? ` · ${event.detail}` : ""}</span>
+                    </span>
+                    <span className="shrink-0 text-[10px] font-semibold text-muted-foreground">{daysLabel(event.absoluteDay)}</span>
+                    <span className="shrink-0 text-[10px] font-semibold text-primary">Open →</span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="px-4 py-4 text-sm text-muted-foreground">Nothing is sitting in this category right now.</div>
+          )}
+        </div>
+      ) : null}
 
       {liveDeals.length ? (
         <div className="divide-y">
@@ -286,20 +378,18 @@ function ActiveBusiness({ state, setView }: { state: GameState; setView: (view: 
         <div className="border-t bg-muted/20 px-4 py-3">
           <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Next deadlines & returns</div>
           <div className="grid gap-1.5 sm:grid-cols-2">
-            {nextDeadlines.map((event) => {
-              const days = Math.max(0, event.absoluteDay - now);
-              return <div key={event.id} className="flex min-w-0 items-center justify-between gap-2 rounded-lg bg-background/70 px-2.5 py-2 text-xs">
+            {nextDeadlines.map((event) => (
+              <div key={event.id} className="flex min-w-0 items-center justify-between gap-2 rounded-lg bg-background/70 px-2.5 py-2 text-xs">
                 <span className="min-w-0 truncate"><strong>{event.label}</strong>{event.detail ? <span className="text-muted-foreground"> · {event.detail}</span> : null}</span>
-                <span className="shrink-0 text-muted-foreground">{days === 0 ? "Today" : days === 1 ? "Tomorrow" : `${days}d`}</span>
-              </div>;
-            })}
+                <span className="shrink-0 text-muted-foreground">{daysLabel(event.absoluteDay)}</span>
+              </div>
+            ))}
           </div>
         </div>
       )}
     </section>
   );
 }
-
 function TransferHub({ state, setView }: { state: GameState; setView: (view: View) => void }) {
   const liveDeals = openNegotiations(state);
   const recent = state.football?.transferHistory.slice(-3).reverse() ?? [];
