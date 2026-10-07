@@ -302,7 +302,7 @@ function ActiveBusiness({ state, setView }: { state: GameState; setView: (view: 
                   <button key={deal.id} type="button" onClick={() => setView("deals")} className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-muted/40">
                     <span className={cn("grid size-9 shrink-0 place-items-center rounded-full text-[10px] font-black",
                       deal.direction === "in" ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-amber-500/10 text-amber-700 dark:text-amber-300")}>
-                      {player?.position ?? (deal.direction === "in" ? "IN" : "OUT")}
+                      {player?.primaryPosition ?? (deal.direction === "in" ? "IN" : "OUT")}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold">{player ? playerName(player) : "Player"}</span>
@@ -311,7 +311,7 @@ function ActiveBusiness({ state, setView }: { state: GameState; setView: (view: 
                         {deal.competingClubId ? " · Rival bid active" : ""}
                       </span>
                     </span>
-                    {player ? <span className="shrink-0 text-right"><span className="block font-display text-base">{player.overall}</span><span className="block text-[9px] uppercase text-muted-foreground">OVR</span></span> : null}
+                    {player ? <span className="shrink-0 text-right"><span className="block font-display text-base">{rangeLabel(scoutingView(state, player).ability)}</span><span className="block text-[9px] uppercase text-muted-foreground">Ability</span></span> : null}
                     <span className="shrink-0 text-[10px] font-semibold text-primary">Open →</span>
                   </button>
                 );
@@ -330,7 +330,7 @@ function ActiveBusiness({ state, setView }: { state: GameState; setView: (view: 
                 return (
                   <button key={event.id} type="button" onClick={() => setView(destination)} className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-muted/40">
                     <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-[10px] font-black text-primary">
-                      {player?.position ?? (openBucket === "scouting" ? "SC" : "TR")}
+                      {player?.primaryPosition ?? (openBucket === "scouting" ? "SC" : "TR")}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold">{player ? playerName(player) : event.detail ?? event.label}</span>
