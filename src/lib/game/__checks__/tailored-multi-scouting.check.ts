@@ -8,6 +8,7 @@ import {
   progressScoutingDiscoveryDayInPlace,
   scoutingSearchPlan,
 } from "../scoutingDiscovery";
+import { makeStaff } from "../staff";
 
 let passed = 0;
 let failed = 0;
@@ -27,6 +28,12 @@ console.log("\n[TAILORED-MULTI-SCOUTING] Each position keeps its own requirement
 const elite = newGame("Tailored Scouts", "Director", "TAILORED-SCOUT");
 elite.hiredStaff = [];
 elite.football.department.recruitmentRating = 90;
+const eliteChief = makeStaff("Chief Scout", 90, () => 0.8);
+eliteChief.stats.scouting = 95;
+eliteChief.stats.negotiation = 85;
+const eliteScout = makeStaff("Scout", 90, () => 0.8);
+eliteScout.stats.scouting = 95;
+elite.hiredStaff = [eliteChief, eliteScout];
 check("elite department can run four position briefs", scoutingSearchPlan(elite).positionCapacity === 4);
 
 const configured = createChairmanMultiScoutingBrief(elite, {
