@@ -49,7 +49,7 @@ import {
 } from "./recruitment";
 import { transferTargetPlayer } from "./recruitmentTargetBridge";
 import { chairmanRecruitmentEstimate, chairmanShortlistIds } from "./recruitmentKnowledge";
-import { chairmanRecruitmentPlayerIds } from "./chairmanRecruitmentView";
+import { recruitmentMarketAwarenessPlayerIds, recruitmentMarketIdentity } from "./recruitmentMarketKnowledge";
 import { scoutingAssignment, scoutingReport } from "./scouting";
 import { scoutedOverallPresentation } from "./scoutingPresentation";
 import { scoutingBriefDaysRemaining } from "./scoutingDiscovery";
@@ -67,8 +67,10 @@ import {
 } from "./managerRecruitmentBrief";
 import { managerMatchStyle } from "./managerMatchStyle";
 import type { InboxDestination } from "./inboxNavigation";
-import { userMatchBench, userMatchLineup } from "./matchLineup";
+import { managerPlayerAssessment } from "./managerPlayerAssessment";
 import { clubOperatingModel, contractEmploymentType } from "./employment";
+import { loanNegotiations, type LoanNegotiation } from "./loanNegotiations";
+import { loanAvailabilityForPlayer } from "./loanAvailability";
 
 /* ------------------------------------------------------------------ */
 /* Shared vocabulary                                                  */
@@ -150,6 +152,7 @@ export interface DeskDeal {
   outcome?: string;
   negotiationId?: string;
   loanId?: string;
+  loanNegotiationId?: string;
   /** True when talks or the player are at risk of lapsing this week. */
   expiring: boolean;
   sortKey: number;
@@ -348,6 +351,72 @@ function deskDealForLoan(state: GameState, loan: PlayerLoanAgreement): DeskDeal 
   };
 }
 
+function deskDealForLoanNegotiation(state: GameState, negotiation: LoanNegotiation): DeskDeal | null {
+  const player = transferTargetPlayer(state, negotiation.playerId);
+  if (!player) return null;
+  if (negotiation.status === "completed" && negotiation.linkedLoanId) return null;
+
+  const incoming = negotiation.direction === "in";
+  const parentClub = playerOwnerClubId(player);
+  const counterparty =
+    incoming && parentClub ? clubDisplayName(state, parentClub) : "Loan market";
+  const stages = ["Proposal sent", "Club response", "Terms agreed", "Registration"] as const;
+  const today = transferAbsoluteDay(state);
+  const dueDay = negotiation.pendingResponseAtDay;
+  const dueLabel =
+    negotiation.pendingResponseAtHour !== undefined
+      ? `by ${String(negotiation.pendingResponseAtHour).padStart(2, "0")}:00`
+      : dayLabel(state, dueDay);
+
+  let priority: DeskPriority = "waiting";
+  let stageIndex = 0;
+  let headline = "Loan proposal sent";
+  if (negotiation.status === "countered") {
+    priority = "action";
+    stageIndex = 1;
+    const terms = negotiation.counterTerms!;
+    headline = `Club countered · ${terms.loanClubWageContributionPct}% wages · ${terms.playingTimeExpectation}`;
+  } else if (negotiation.status === "ready") {
+    priority = "action";
+    stageIndex = 2;
+    headline = "Loan terms agreed · register the move";
+  } else if (negotiation.status === "rejected") {
+    priority = "completed";
+    stageIndex = 1;
+    headline = negotiation.responseReason ?? "Loan proposal rejected";
+  } else if (negotiation.status === "withdrawn") {
+    priority = "completed";
+    stageIndex = 1;
+    headline = "Loan talks withdrawn";
+  } else if (negotiation.status === "completed") {
+    priority = "completed";
+    stageIndex = 3;
+    headline = negotiation.responseReason ?? "Loan completed";
+  } else if (dueDay !== undefined && dueDay <= today) {
+    priority = "today";
+  }
+
+  return {
+    id: `loan-neg:${negotiation.id}`,
+    kind: incoming ? "loanIn" : "loanOut",
+    priority,
+    playerId: negotiation.playerId,
+    playerName: playerName(player),
+    position: tacticalPositionProfile(player).primary,
+    counterparty,
+    stages,
+    stageIndex,
+    headline,
+    amount: `${negotiation.terms.loanClubWageContributionPct}% wages`,
+    dueLabel,
+    dueDay,
+    outcome: priority === "completed" ? negotiation.status : undefined,
+    loanNegotiationId: negotiation.id,
+    expiring: false,
+    sortKey: dueDay ?? negotiation.updatedAtDay,
+  };
+}
+
 /* ------------------------------------------------------------------ */
 /* Completed transfer history → deals                                 */
 /* ------------------------------------------------------------------ */
@@ -409,6 +478,9 @@ export function transferDealStream(state: GameState): DeskDeal[] {
     .map((n) => deskDealForNegotiation(state, n))
     .filter((deal): deal is DeskDeal => Boolean(deal));
   const activeNegotiationIds = new Set(negotiations.map((deal) => deal.playerId));
+  const loanTalks = loanNegotiations(state)
+    .map((negotiation) => deskDealForLoanNegotiation(state, negotiation))
+    .filter((deal): deal is DeskDeal => Boolean(deal));
   const loans = (state.football.loans ?? [])
     .filter((loan) =>
       isUserClubReference(state, loan.parentClubId) || isUserClubReference(state, loan.loanClubId),
@@ -418,7 +490,7 @@ export function transferDealStream(state: GameState): DeskDeal[] {
   const history = deskDealsFromHistory(state).filter(
     (deal) => !activeNegotiationIds.has(deal.playerId),
   );
-  return [...negotiations, ...loans, ...history].sort((a, b) => {
+  return [...negotiations, ...loanTalks, ...loans, ...history].sort((a, b) => {
     const pa = DESK_PRIORITY_ORDER.indexOf(a.priority);
     const pb = DESK_PRIORITY_ORDER.indexOf(b.priority);
     return pa - pb || a.sortKey - b.sortKey || a.playerName.localeCompare(b.playerName);
@@ -587,7 +659,12 @@ export interface SquadContractRow {
   employment: string | null;
   managerUse: ManagerUse;
   managerRole?: string;
+  managerAssessmentRole?: string;
+  managerFit?: string;
+  managerSummary?: string;
   listed: boolean;
+  loanAvailable: boolean;
+  loanInterestCount: number;
   liveDeal?: DeskDeal;
   loan?: {
     id: string;
@@ -607,24 +684,11 @@ export function contractRisk(state: GameState, contract?: PlayerContract | null)
   return "secure";
 }
 
-function managerUseMap(state: GameState): Map<string, { use: ManagerUse; role?: string }> {
-  const map = new Map<string, { use: ManagerUse; role?: string }>();
-  const manager = userManager(state);
-  if (!manager || !state.football) return map;
-  const formation = managerMatchStyle(state).formation;
-  const lineup = userMatchLineup(state, formation);
-  const bench = userMatchBench(state, lineup);
-  for (const player of lineup) map.set(player.playerId, { use: "starter", role: player.role });
-  for (const player of bench) map.set(player.playerId, { use: "bench", role: player.role });
-  return map;
-}
-
 export function squadContractRows(
   state: GameState,
   deals: DeskDeal[] = transferDealStream(state),
 ): SquadContractRow[] {
   if (!state.football) return [];
-  const useMap = managerUseMap(state);
   const liveByPlayer = new Map(
     deals
       .filter((deal) => deal.priority !== "completed" && deal.negotiationId)
@@ -647,9 +711,15 @@ export function squadContractRows(
       const loan = loanByPlayer.get(player.id);
       const registeredHere = isUserClubReference(state, playerRegisteredClubId(player));
       const ownerHere = isUserClubReference(state, playerOwnerClubId(player));
+      const assessment = registeredHere ? managerPlayerAssessment(state, player.id) : null;
       const use = !registeredHere
-        ? { use: "away" as const }
-        : (useMap.get(player.id) ?? { use: "outside" as const });
+        ? { use: "away" as const, role: undefined as string | undefined }
+        : assessment?.plannedUse === "Starter"
+          ? { use: "starter" as const, role: assessment.bestRole }
+          : assessment?.plannedUse === "Bench"
+            ? { use: "bench" as const, role: assessment.bestRole }
+            : { use: "outside" as const, role: assessment?.bestRole };
+      const availability = loanAvailabilityForPlayer(state, player.id);
       const direction: "in" | "out" | undefined = loan
         ? isUserClubReference(state, loan.parentClubId)
           ? "out"
@@ -670,7 +740,12 @@ export function squadContractRows(
         employment: contract && ownerHere ? contractEmploymentType(state, contract) : null,
         managerUse: use.use,
         managerRole: use.role,
+        managerAssessmentRole: assessment?.role,
+        managerFit: assessment?.fit,
+        managerSummary: assessment?.summary,
         listed: player.transferStatus === "listed",
+        loanAvailable: Boolean(availability),
+        loanInterestCount: availability?.interestedClubIds.length ?? 0,
         liveDeal: liveByPlayer.get(player.id),
         loan:
           loan && direction
@@ -768,7 +843,7 @@ export function transferMarketRows(state: GameState): MarketRow[] {
   if (!state.football) return [];
   const shortlist = new Set(chairmanShortlistIds(state));
   const recommended = recommendedPlayerIds(state);
-  const knownIds = chairmanRecruitmentPlayerIds(state);
+  const knownIds = recruitmentMarketAwarenessPlayerIds(state);
   const negotiations = openNegotiations(state);
   const rows: MarketRow[] = [];
   for (const playerId of knownIds) {
@@ -778,9 +853,10 @@ export function transferMarketRows(state: GameState): MarketRow[] {
     if (registered && isUserClubReference(state, registered)) continue;
     const contract = activeContract(state, player.id);
     const assignment = scoutingAssignment(state, player.id);
-    const report = scoutingReport(state, player.id);
-    const knowledgePct = Math.round(report.knowledge * 100);
-    const presentation = scoutedOverallPresentation(state, player);
+    const report = scoutingReport(state, player);
+    const identity = recruitmentMarketIdentity(state, player.id);
+    const knowledgePct = report.knowledgePct;
+    const presentation = scoutedOverallPresentation(state, player, report);
     const estimate = chairmanRecruitmentEstimate(state, player.id);
     const availability = loanInAvailabilityReason(state, player.id);
     rows.push({
@@ -791,8 +867,8 @@ export function transferMarketRows(state: GameState): MarketRow[] {
       tacticalPosition: tacticalPositionProfile(player).primary,
       clubId: registered,
       clubName: registered ? clubDisplayName(state, registered) : "Free agent",
-      overallLabel: presentation.label,
-      valueRange: estimate ? [estimate.feeRange[0], estimate.feeRange[1]] : null,
+      overallLabel: identity?.knowledge === "public" ? "?" : presentation.label,
+      valueRange: identity?.knowledge === "public" ? null : estimate ? [estimate.feeRange[0], estimate.feeRange[1]] : null,
       knowledgePct,
       scouting: assignment?.status ?? "none",
       reportComplete: assignment?.status === "complete",
