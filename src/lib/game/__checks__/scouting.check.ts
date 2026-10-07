@@ -47,4 +47,32 @@ assert(
 );
 assert(activeScoutingAssignments(later) === 0, "completed reports release assignment capacity");
 
-console.log("\n7 passed, 0 failed");
+console.log("\n[SC2] Recruitment staff share scouting workload");
+const staffed = newGame("Staffing Town", "Scout Tester", "scouting-staff-check");
+const candidates = staffed.staffCandidates.filter((member) =>
+  ["Scout", "Chief Scout", "Head of Transfers"].includes(member.role),
+);
+assert(candidates.length >= 2, "opening staff market provides recruitment staff");
+const firstStaff = structuredClone(candidates[0]);
+const secondStaff = structuredClone(candidates[1]);
+firstStaff.id = "SCOUT-WORKLOAD-A";
+secondStaff.id = "SCOUT-WORKLOAD-B";
+firstStaff.rating = Math.max(firstStaff.rating, secondStaff.rating + 10);
+staffed.hiredStaff.push(firstStaff, secondStaff);
+
+const workloadTargets = freeAgents(staffed).slice(0, 3);
+assert(workloadTargets.length === 3, "staffed fixture provides three scouting targets");
+
+const firstJob = assignScout(staffed, workloadTargets[0].id);
+const secondJob = assignScout(firstJob.state, workloadTargets[1].id);
+const thirdJob = assignScout(secondJob.state, workloadTargets[2].id);
+assert(firstJob.result.ok && secondJob.result.ok && thirdJob.result.ok, "three scouting jobs can be assigned");
+
+const firstReport = thirdJob.state.football.scoutingReports.find((report) => report.playerId === workloadTargets[0].id);
+const secondReport = thirdJob.state.football.scoutingReports.find((report) => report.playerId === workloadTargets[1].id);
+const thirdReport = thirdJob.state.football.scoutingReports.find((report) => report.playerId === workloadTargets[2].id);
+assert(firstReport?.scoutId === firstStaff.id, "best available recruitment staff gets the first job");
+assert(secondReport?.scoutId === secondStaff.id, "second available staff member gets the next job");
+assert(thirdReport?.scoutId === firstStaff.id, "higher-rated staff takes the next job once workloads are level");
+
+console.log("\n13 passed, 0 failed");
