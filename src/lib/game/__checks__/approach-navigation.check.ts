@@ -12,7 +12,8 @@ function assert(condition: unknown, message: string): asserts condition {
 console.log("\n[APPROACH-NAVIGATION] Successful approaches open live talks");
 
 const browser = readFileSync("src/components/game/ScoutingBrowser.tsx", "utf8");
-const flow = readFileSync("src/components/game/RecruitmentFlow.tsx", "utf8");
+const desk = readFileSync("src/components/game/TransferDesk.tsx", "utf8");
+const market = readFileSync("src/components/game/TransferMarket.tsx", "utf8");
 
 assert(
   browser.includes("onNegotiationStarted?: (negotiationId: string) => void"),
@@ -23,12 +24,13 @@ assert(
   "approach navigation only fires after a successful negotiation is created",
 );
 assert(
-  flow.includes("setSelectedNegotiationId(negotiationId)") &&
-    flow.includes('setView("operations")'),
-  "recruitment flow opens the negotiations workspace after approach",
+  market.includes("onNegotiationStarted={onNegotiationStarted}") &&
+    desk.includes('go({ lens: "live", negotiationId })') &&
+    desk.includes("onNegotiationStarted={openNegotiation}"),
+  "transfer desk opens Live Business after a Market approach",
 );
 assert(
-  flow.includes("initialNegotiationId={selectedNegotiationId}"),
+  desk.includes("`neg:${request.negotiationId}`"),
   "the newly-created negotiation is selected automatically",
 );
 
