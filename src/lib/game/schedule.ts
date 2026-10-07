@@ -32,8 +32,14 @@ export function makeLeagueSchedule(leagues: League[], seed: string): ScheduledFi
  */
 export function ensureLeagueScheduleInPlace(s: GameState): void {
   if (!s.leagues?.length) return;
-  if (Array.isArray(s.leagueSchedule) && s.leagueSchedule.length > 0) return;
-  s.leagueSchedule = makePyramidSchedule(s.leagues, `${s.saveSeed}|season${s.season}`);
+  const existing = Array.isArray(s.leagueSchedule) ? s.leagueSchedule : [];
+  const hasLeagueFixtures = existing.some((fixture) => (fixture.competition ?? "league") === "league");
+  if (hasLeagueFixtures) return;
+  const leagueFixtures = makePyramidSchedule(s.leagues, `${s.saveSeed}|season${s.season}`);
+  // Persistence may retain tiny non-league additions (for example the
+  // deterministic pre-season invitational) while omitting the much larger
+  // reconstructible league fixture set.
+  s.leagueSchedule = [...leagueFixtures, ...existing];
 }
 
 /** User-club fixtures for a fresh tier-1 season (kept for legacy callers/tests). */
