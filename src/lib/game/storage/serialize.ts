@@ -1,9 +1,23 @@
 /* Pure serialization helpers. No storage backend knowledge lives here. */
 import type { GameState } from "../types";
+import { makePyramidSchedule } from "../pyramid";
 import type { Diagnostic } from "./types";
 
 export function serializeSave(state: GameState): string {
   return JSON.stringify(state);
+}
+
+/**
+ * IndexedDB hot-core representation. A canonical current-season league
+ * schedule is fully reconstructible from (leagues, saveSeed, season), so omit
+ * it only when it exactly matches the deterministic generator. Any customised
+ * or future-rescheduled schedule stays persisted verbatim.
+ */
+export function serializeStorageCore(state: GameState): string {
+  if (!state.leagues?.length || !state.leagueSchedule?.length) return JSON.stringify(state);
+  const regenerated = makePyramidSchedule(state.leagues, `${state.saveSeed}|season${state.season}`);
+  if (JSON.stringify(regenerated) !== JSON.stringify(state.leagueSchedule)) return JSON.stringify(state);
+  return JSON.stringify({ ...state, leagueSchedule: [] });
 }
 
 /**
