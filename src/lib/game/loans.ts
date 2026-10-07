@@ -131,6 +131,11 @@ export function startPlayerLoanInPlace(
   };
 
   state.football.loans!.push(loan);
+  if (state.football.loanAvailability) {
+    state.football.loanAvailability = state.football.loanAvailability.filter(
+      (row) => row.playerId !== playerId,
+    );
+  }
   setPlayerClubIdentityInPlace(player, parentClubId, loanClubId);
   return { ok: true, reason: "Loan started", loan };
 }
