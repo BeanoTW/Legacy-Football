@@ -693,7 +693,17 @@ export function PlayerProfileSheet({
                       </select>
                     </label>
                   </div>
-                  <label className="mt-2 block text-[10px] font-semibold text-muted-foreground">\n                    Signing bonus\n                    <input\n                      type="number"\n                      min={0}\n                      value={renewBonus}\n                      onChange={(event) => setRenewBonus(Math.max(0, Number(event.target.value)))}\n                      className="mt-1 h-9 w-full rounded-lg border bg-background px-2 text-sm text-foreground"\n                    />\n                  </label>\n                  <p className="mt-1.5 text-[10px] text-muted-foreground">The player can reject terms below his expectations.</p>
+                  <label className="mt-2 block text-[10px] font-semibold text-muted-foreground">
+                    Signing bonus
+                    <input
+                      type="number"
+                      min={0}
+                      value={renewBonus}
+                      onChange={(event) => setRenewBonus(Math.max(0, Number(event.target.value)))}
+                      className="mt-1 h-9 w-full rounded-lg border bg-background px-2 text-sm text-foreground"
+                    />
+                  </label>
+                  <p className="mt-1.5 text-[10px] text-muted-foreground">The player can reject terms below his expectations.</p>
                   <Button className="mt-2 h-9 w-full" onClick={negotiateContract}>Offer contract</Button>
                 </div>
               )}
