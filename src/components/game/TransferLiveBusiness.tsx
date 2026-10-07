@@ -21,7 +21,7 @@ import {
   type DeskPriority,
 } from "@/lib/game/transferDesk";
 import { TransferNegotiationRoom } from "./TransferNegotiationDesk";
-import { LoanAgreementCard } from "./LoanDesk";
+import { LoanAgreementCard, LoanNegotiationCard } from "./LoanDesk";
 import { TransferHistory } from "./TransferHistory";
 import { DealKindTag, DealPriorityDot, DealStageLadder } from "./TransferDealStage";
 import { openPlayerProfile } from "./shared/PlayerProfileSheet";
@@ -277,6 +277,14 @@ function DealSurface({
   run: RunAction;
   deal: DeskDeal;
 }) {
+  if (deal.loanNegotiationId) {
+    const negotiation = state.football?.loanNegotiations?.find(
+      (candidate) => candidate.id === deal.loanNegotiationId,
+    );
+    return negotiation ? (
+      <LoanNegotiationCard state={state} update={update} negotiation={negotiation} />
+    ) : null;
+  }
   if (deal.loanId) {
     const loan = state.football?.loans?.find((candidate) => candidate.id === deal.loanId);
     return loan ? <LoanAgreementCard loan={loan} state={state} update={update} /> : null;
