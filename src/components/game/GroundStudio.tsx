@@ -74,7 +74,7 @@ import {
   type StandVariant,
 } from "@/lib/game/groundIdentity";
 import { cornerFormOptions, defaultMaterial, updateCorner, updateFixtures, updatePerimeter, updateStand, updateStandLook, updateSurroundings } from "@/lib/game/groundEditor";
-import { approveStandBuild, buildQuote, queueStandBuild, renameStand, setGroundLook } from "@/lib/game/groundBuild";
+import { buildQuote, queueStandBuild, renameStand, setGroundLook } from "@/lib/game/groundBuild";
 import {
   CORNER_LADDER,
   STAND_LADDER,
@@ -689,6 +689,91 @@ export function GroundStudioSheet({
         ) : null}
       </SheetContent>
     </Sheet>
+  );
+}
+
+function DevelopmentPlanReview({
+  items,
+  state,
+  currentPlaces,
+  plannedPlaces,
+  totalCost,
+  onRemove,
+  onBack,
+  onApprove,
+}: {
+  items: DevelopmentPlanItem[];
+  state: GameState;
+  currentPlaces: number;
+  plannedPlaces: number;
+  totalCost: number;
+  onRemove: (id: string) => void;
+  onBack: () => void;
+  onApprove: () => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-start gap-2">
+        <button type="button" onClick={onBack} className="lfk-btn-quiet size-10 shrink-0 p-0" aria-label="Back"><ChevronLeft className="size-5" /></button>
+        <div className="min-w-0 flex-1">
+          <div className="lfk-eyebrow" style={{ color: "var(--k-paid-text)" }}>Development plan</div>
+          <div className="font-display text-[20px] leading-tight">Review before approval</div>
+          <div className="mt-1 text-[11.5px] lfk-muted">Nothing below is permanent until you approve the plan.</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        <div className="lfk-sunk px-2.5 py-2">
+          <div className="lfk-eyebrow">Projects</div>
+          <div className="lfk-num font-display text-[19px]">{items.length}</div>
+        </div>
+        <div className="lfk-sunk px-2.5 py-2">
+          <div className="lfk-eyebrow">Capacity</div>
+          <div className="lfk-num font-display text-[19px]">+{Math.max(0, plannedPlaces - currentPlaces).toLocaleString("en-GB")}</div>
+        </div>
+        <div className="lfk-sunk px-2.5 py-2">
+          <div className="lfk-eyebrow">Planned cost</div>
+          <div className="lfk-num font-display text-[16px]">{priceLabel(totalCost)}</div>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        {items.map((item, index) => {
+          const asset = assetById(state, item.assetId);
+          const quote = item.build
+            ? buildQuote(state, item.spec.cost, item.assetId, item.spec.type as CapitalProjectType, item.build).cost
+            : item.spec.cost;
+          return (
+            <div key={item.id} className="lfk-card flex items-center gap-3 p-3">
+              <div className="grid size-8 shrink-0 place-items-center rounded-full bg-violet-500/15 text-[12px] font-black text-violet-200">{index + 1}</div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[13px] font-bold">{asset?.name ?? item.assetName}</div>
+                <div className="truncate text-[11px] lfk-muted">{item.spec.title.replace(`${asset?.name ?? item.assetName} — `, "")} · {weeksLabel(item.spec.durationWeeks)}</div>
+                {item.build ? (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    <span className="lfk-tag lfk-tag-plain">{item.build.variant ?? "traditional"}</span>
+                    <span className="lfk-tag lfk-tag-plain">{item.build.standing}</span>
+                    <span className="lfk-tag lfk-tag-plain">{item.build.roof}</span>
+                  </div>
+                ) : null}
+              </div>
+              <div className="shrink-0 text-right">
+                <div className="lfk-num text-[12px] font-bold">{fmtMoneyExact(quote)}</div>
+                <button type="button" className="mt-1 text-[10.5px] font-semibold text-rose-300" onClick={() => onRemove(item.id)}>Remove</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="lfk-sunk px-3 py-2.5 text-[11.5px] lfk-muted">
+        Major stadium work is staged. The first project starts now; each remaining major project stays queued and begins automatically when the previous stage finishes.
+      </div>
+
+      <button type="button" className="lfk-btn-paid w-full" disabled={!items.length} onClick={onApprove}>
+        <Check className="size-4" /> Approve development plan · {fmtMoneyExact(totalCost)}
+      </button>
+    </div>
   );
 }
 
