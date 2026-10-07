@@ -855,7 +855,7 @@ export function transferMarketRows(state: GameState): MarketRow[] {
     const assignment = scoutingAssignment(state, player.id);
     const report = scoutingReport(state, player);
     const identity = recruitmentMarketIdentity(state, player.id);
-    const knowledgePct = report.knowledgePct;
+    const knowledgePct = identity?.knowledge === "public" ? 0 : report.knowledgePct;
     const presentation = scoutedOverallPresentation(state, player, report);
     const estimate = chairmanRecruitmentEstimate(state, player.id);
     const availability = loanInAvailabilityReason(state, player.id);
@@ -870,8 +870,8 @@ export function transferMarketRows(state: GameState): MarketRow[] {
       overallLabel: identity?.knowledge === "public" ? "?" : presentation.label,
       valueRange: identity?.knowledge === "public" ? null : estimate ? [estimate.feeRange[0], estimate.feeRange[1]] : null,
       knowledgePct,
-      scouting: assignment?.status ?? "none",
-      reportComplete: assignment?.status === "complete",
+      scouting: identity?.knowledge === "public" ? "none" : assignment?.status ?? "none",
+      reportComplete: identity?.knowledge !== "public" && assignment?.status === "complete",
       shortlisted: shortlist.has(player.id),
       freeAgent: !contract && !registered,
       listed: player.transferStatus === "listed",
