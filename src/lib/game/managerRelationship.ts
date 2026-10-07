@@ -226,6 +226,78 @@ export function managerRelationshipFlag(managerId: string, field: string): strin
   return key(managerId, field);
 }
 
+
+export interface ManagerRelationshipClimate {
+  episode: number;
+  stage: 0 | 1 | 2;
+  strainedWeeks: number;
+  lastProcessedAbsoluteWeek: number;
+}
+
+/**
+ * Weekly, idempotent relationship climate. One bad transfer can cause a private
+ * argument; sustained strain becomes a club-level problem. The episode counter
+ * lets a future breakdown create fresh events after a genuine recovery.
+ */
+export function advanceManagerRelationshipClimateInPlace(state: GameState): ManagerRelationshipClimate | null {
+  const manager = currentManager(state);
+  if (!manager) return null;
+
+  const now = absoluteWeek(state.season, state.week);
+  const lastKey = key(manager.id, "climateLastAbs");
+  const streakKey = key(manager.id, "climateStrainedWeeks");
+  const stageKey = key(manager.id, "climateStage");
+  const episodeKey = key(manager.id, "climateEpisode");
+
+  const last = Number(state.inboxFlags[lastKey] ?? 0);
+  const existing: ManagerRelationshipClimate = {
+    episode: Number(state.inboxFlags[episodeKey] ?? 0),
+    stage: Math.max(0, Math.min(2, Number(state.inboxFlags[stageKey] ?? 0))) as 0 | 1 | 2,
+    strainedWeeks: Math.max(0, Number(state.inboxFlags[streakKey] ?? 0)),
+    lastProcessedAbsoluteWeek: last,
+  };
+  if (last === now) return existing;
+
+  const relationship = managerRelationship(state, manager);
+  const personality = managerPersonality(manager);
+  let strainedWeeks = existing.strainedWeeks;
+  let stage: 0 | 1 | 2 = existing.stage;
+  let episode = existing.episode;
+
+  if (relationship.band === "Strained") strainedWeeks += 1;
+  else if (relationship.band === "Uneasy") strainedWeeks = Math.max(0, strainedWeeks - 1);
+  else {
+    if (stage > 0) episode += 1;
+    strainedWeeks = 0;
+    stage = 0;
+  }
+
+  const fastEscalator =
+    personality.temperament === "Fiery" || personality.ambition === "Relentless";
+  const firstThreshold = fastEscalator ? 2 : 3;
+  const crisisThreshold = fastEscalator ? 4 : 5;
+  if (relationship.band === "Strained") {
+    if (strainedWeeks >= crisisThreshold) stage = 2;
+    else if (strainedWeeks >= firstThreshold && stage < 1) stage = 1;
+  }
+
+  state.inboxFlags[lastKey] = now;
+  state.inboxFlags[streakKey] = strainedWeeks;
+  state.inboxFlags[stageKey] = stage;
+  state.inboxFlags[episodeKey] = episode;
+
+  return { episode, stage, strainedWeeks, lastProcessedAbsoluteWeek: now };
+}
+
+export function managerRelationshipClimate(state: GameState, manager: Staff): ManagerRelationshipClimate {
+  return {
+    episode: Math.max(0, Number(state.inboxFlags[key(manager.id, "climateEpisode")] ?? 0)),
+    stage: Math.max(0, Math.min(2, Number(state.inboxFlags[key(manager.id, "climateStage")] ?? 0))) as 0 | 1 | 2,
+    strainedWeeks: Math.max(0, Number(state.inboxFlags[key(manager.id, "climateStrainedWeeks")] ?? 0)),
+    lastProcessedAbsoluteWeek: Math.max(0, Number(state.inboxFlags[key(manager.id, "climateLastAbs")] ?? 0)),
+  };
+}
+
 export function recordCompletedTransferManagerReactionInPlace(
   state: GameState,
   input: {
