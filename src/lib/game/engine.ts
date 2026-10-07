@@ -10,6 +10,7 @@ import type { GameState } from "./types";
 import { runWeeklyGenerators } from "./inbox";
 import { processDueTransferResponsesInPlace, runRecruitmentWeek } from "./recruitment";
 import { processDuePlayerLoansInPlace } from "./loans";
+import { processDueLoanNegotiationResponsesInPlace } from "./loanNegotiations";
 import {
   compactDepartingFocusPlayersInPlace,
   repairFreshFocusHydrationInPlace,
@@ -125,6 +126,7 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
 
   // A response due on Sunday must land before weekly football settlement.
   processDueTransferResponsesInPlace(s);
+  processDueLoanNegotiationResponsesInPlace(s);
 
   // Loan contributions affect the payroll booked for this exact week. Close
   // any agreement due at the current absolute week before recurring wages are
@@ -216,6 +218,7 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   // Monday replies scheduled across the week boundary should already be in the
   // chairman's Inbox when the new week opens.
   processDueTransferResponsesInPlace(s);
+  processDueLoanNegotiationResponsesInPlace(s);
 
   return runWeeklyGenerators(s);
 }
@@ -293,6 +296,7 @@ export function advanceDay(prev: GameState): GameState {
       // Deadline-day club replies can surface between hourly chairman actions;
       // the canonical due-response processor remains idempotent.
       processDueTransferResponsesInPlace(next);
+      processDueLoanNegotiationResponsesInPlace(next);
       return next;
     }
     return advanceWeek(prev);
@@ -304,6 +308,7 @@ export function advanceDay(prev: GameState): GameState {
     setCalendarDay(next, day + 1);
     progressScoutingDayInPlace(next);
     processDueTransferResponsesInPlace(next);
+    processDueLoanNegotiationResponsesInPlace(next);
     // AI cup ties resolve on their real calendar date even when the user's
     // club has a bye. User ties remain untouched for the watch-or-sim choice.
     resolveAllAiDomesticCups(next);
