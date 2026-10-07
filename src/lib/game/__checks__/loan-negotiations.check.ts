@@ -15,7 +15,7 @@ import {
   squadOf,
   userSquad,
 } from "../recruitmentLegacy";
-import { buildWorldSimulationPlan } from "../worldFocusPolicy";
+import { buildWorldSimulationPlan } from "../world";
 import { isUserClubReference } from "../clubReference";
 import { playerOwnerClubId } from "../playerRegistration";
 
