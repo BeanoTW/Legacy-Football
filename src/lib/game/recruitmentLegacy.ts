@@ -785,6 +785,24 @@ function scoutingStaff(s: GameState) {
     .sort((a, b) => b.rating - a.rating || a.id.localeCompare(b.id));
 }
 
+function activeAssignmentsForScout(s: GameState, scoutId: string): number {
+  return (s.football?.scoutingReports ?? []).filter((report) => {
+    if (report.scoutId !== scoutId) return false;
+    const player = playerById(s, report.playerId);
+    return player ? !scoutingView(s, player).complete : false;
+  }).length;
+}
+
+function nextAvailableScoutingStaff(s: GameState) {
+  return scoutingStaff(s)
+    .filter((member) => activeAssignmentsForScout(s, member.id) < 2)
+    .sort((a, b) => {
+      const loadA = activeAssignmentsForScout(s, a.id);
+      const loadB = activeAssignmentsForScout(s, b.id);
+      return loadA - loadB || b.rating - a.rating || a.id.localeCompare(b.id);
+    })[0];
+}
+
 /** Knowledge is derived from persistent assignment time, so advancing a week is enough. */
 export function scoutingView(s: GameState, player: FootballPlayer): ScoutingView {
   if (
@@ -866,7 +884,7 @@ export function assignScout(
       result: { ok: false, reason: "All scouting assignments are currently occupied" },
     };
   }
-  const scout = scoutingStaff(next)[0];
+  const scout = nextAvailableScoutingStaff(next);
   next.football.scoutingReports.push({
     playerId,
     assignedAbsoluteWeek: absoluteWeek(next.season, next.week),
