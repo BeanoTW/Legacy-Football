@@ -249,16 +249,19 @@ export function StandBuildChooser({
   spec,
   onConfirm,
   onCancel,
+  onBuildChange,
 }: {
   state: GameState;
   asset: InfrastructureAsset;
   spec: ProjectSpec;
   onConfirm: (build: StandBuild) => void;
   onCancel: () => void;
+  onBuildChange?: (build: StandBuild) => void;
 }) {
   const resulting = levelAfterProject(spec.type, asset.level);
   const roofs = roofOptionsFor(resulting);
   const [build, setBuild] = useState<StandBuild>(() => defaultBuild(state, asset, spec));
+  useEffect(() => { onBuildChange?.(build); }, [build, onBuildChange]);
   const quote = buildQuote(state, spec.cost, asset.id, spec.type as CapitalProjectType, build);
   const capacityEffect = spec.effects.find((e) => e.kind === "capacity") as { add: number } | undefined;
   const addedCapacity = capacityEffect ? Math.round((capacityEffect.add * buildCapacityMultiplier(build, resulting)) / 50) * 50 : 0;
@@ -320,7 +323,7 @@ export function StandBuildChooser({
         </div>
         {lock ? <LockChip lock={lock} className="mt-1 px-1" /> : null}
         <button type="button" className="lfk-btn-paid mt-2 w-full" disabled={Boolean(lock)} onClick={() => onConfirm(build)}>
-          {lock ? <><Lock className="size-4" /> Not available yet</> : `Approve · ${fmtMoneyExact(quote.cost)}`}
+          {lock ? <><Lock className="size-4" /> Not available yet</> : `Add to plan · ${fmtMoneyExact(quote.cost)}`}
         </button>
       </div>
     </div>
