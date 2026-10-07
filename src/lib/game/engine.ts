@@ -11,6 +11,7 @@ import { runWeeklyGenerators } from "./inbox";
 import { processDueTransferResponsesInPlace, runRecruitmentWeek } from "./recruitment";
 import { processDuePlayerLoansInPlace } from "./loans";
 import { processDueLoanNegotiationResponsesInPlace } from "./loanNegotiations";
+import { progressLoanAvailabilityInterestInPlace } from "./loanAvailability";
 import {
   compactDepartingFocusPlayersInPlace,
   repairFreshFocusHydrationInPlace,
@@ -127,6 +128,7 @@ export function advanceWeek(prev: GameState, override?: MatchOverride): GameStat
   // A response due on Sunday must land before weekly football settlement.
   processDueTransferResponsesInPlace(s);
   processDueLoanNegotiationResponsesInPlace(s);
+  progressLoanAvailabilityInterestInPlace(s);
 
   // Loan contributions affect the payroll booked for this exact week. Close
   // any agreement due at the current absolute week before recurring wages are
@@ -297,6 +299,7 @@ export function advanceDay(prev: GameState): GameState {
       // the canonical due-response processor remains idempotent.
       processDueTransferResponsesInPlace(next);
       processDueLoanNegotiationResponsesInPlace(next);
+      progressLoanAvailabilityInterestInPlace(next);
       return next;
     }
     return advanceWeek(prev);
@@ -309,6 +312,7 @@ export function advanceDay(prev: GameState): GameState {
     progressScoutingDayInPlace(next);
     processDueTransferResponsesInPlace(next);
     processDueLoanNegotiationResponsesInPlace(next);
+    progressLoanAvailabilityInterestInPlace(next);
     // AI cup ties resolve on their real calendar date even when the user's
     // club has a bye. User ties remain untouched for the watch-or-sim choice.
     resolveAllAiDomesticCups(next);
