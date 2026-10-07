@@ -22,6 +22,7 @@ import facilitiesGroundCss from "../facilities-ground.css?url";
 import homeConceptCss from "../home-concept.css?url";
 import newsroomCss from "../newsroom.css?url";
 import departmentCss from "../department.css?url";
+import transferDeskCss from "../transfer-desk.css?url";
 import homeArtCss from "../home-art.css?url";
 import funCss from "../fun.css?url";
 import mobileDockCss from "../mobile-dock.css?url";
@@ -92,6 +93,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       // Chairman's office, newsroom and chairman studio.
       { rel: "stylesheet", href: newsroomCss },
       { rel: "stylesheet", href: departmentCss },
+      { rel: "stylesheet", href: transferDeskCss },
       { rel: "stylesheet", href: homeArtCss },
       { rel: "stylesheet", href: funCss },
       // Phones: navigation and Continue share one bottom dock.
