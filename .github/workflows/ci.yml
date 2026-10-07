@@ -1,10 +1,12 @@
 name: CI
 
 on:
+  # Feature branches are validated by their pull request. Running the same
+  # workflow again for the branch push duplicates the full simulation suite
+  # and can cancel the PR run through the shared concurrency group.
   push:
     branches:
       - main
-      - 'chatgpt/**'
   pull_request:
 
 concurrency:
