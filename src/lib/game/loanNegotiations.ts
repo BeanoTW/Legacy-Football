@@ -431,9 +431,9 @@ export function withdrawLoanNegotiation(
 }
 
 export function processDueLoanNegotiationResponsesInPlace(state: GameState): number {
-  ensureLoanNegotiationsInPlace(state);
+  if (!state.football?.loanNegotiations?.length) return 0;
   let processed = 0;
-  for (const negotiation of state.football.loanNegotiations!) {
+  for (const negotiation of state.football.loanNegotiations) {
     if (negotiation.status !== "awaitingClub" || !isResponseDue(state, negotiation)) continue;
     resolveClubResponseInPlace(state, negotiation);
     processed++;
