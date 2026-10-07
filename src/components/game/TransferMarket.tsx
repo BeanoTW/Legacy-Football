@@ -89,6 +89,11 @@ export function TransferMarket({
   const briefs = state.football?.scoutingDiscovery?.briefs ?? [];
   const activeBrief = briefs.find((candidate) => candidate.status === "active") ?? null;
   const completeBriefs = briefs.filter((candidate) => candidate.status === "complete");
+  const latestCompleteBrief = [...completeBriefs].sort(
+    (a, b) =>
+      (b.createdAtDay ?? b.createdAtAbsoluteWeek * 7) -
+      (a.createdAtDay ?? a.createdAtAbsoluteWeek * 7),
+  )[0] ?? null;
 
   if (surface) {
     const back = () => onSurface(null);
@@ -210,9 +215,9 @@ export function TransferMarket({
                 return d <= 0 ? "today" : d === 1 ? "tomorrow" : `in ${d} days`;
               })()}
             </>
-          ) : completeBriefs.length ? (
+          ) : latestCompleteBrief ? (
             <>
-              <strong>Latest search is back</strong> · {completeBriefs.length} on file
+              <strong>Latest assignment returned</strong> · {latestCompleteBrief.candidateIds.length} option{latestCompleteBrief.candidateIds.length === 1 ? "" : "s"}
             </>
           ) : (
             <>
