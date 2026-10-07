@@ -5,7 +5,6 @@ import { SUPPORTER_EVENTS, eventAvailable, scheduleSupporterEvent, supporterEven
 let passed=0,failed=0;
 const check=(label:string,ok:boolean)=>{if(ok){passed++;console.log("  ✓ "+label)}else{failed++;console.log("  ✗ "+label)}};
 const s=newGame("Community Town","Director Test");
-s.cash=250000;
 console.log("\n[SUPPORTER EVENTS]");
 check("catalogue has a meaningful spread",SUPPORTER_EVENTS.length>=8);
 const r=scheduleSupporterEvent(s,"open-training",7);

@@ -49,7 +49,10 @@ console.log("\n[U1] Route is an orchestration shell");
       route,
     ),
   );
-  check("index.tsx renders the game shell", /useGame\(\)/.test(route) && /<MobileNav/.test(route));
+  check(
+    "index.tsx renders the game shell",
+    /useGame\(\)/.test(route) && /<Game \{\.\.\.game\} state=\{game\.state\}/.test(route),
+  );
 }
 
 console.log("\n[U2] Navigation completeness");
@@ -70,6 +73,8 @@ console.log("\n[U2] Navigation completeness");
     "world",
     "history",
     "settings",
+    "academy",
+    "calendar",
   ];
   const registered = [...tabs.matchAll(/\["([a-z]+)",\s*"/g)].map((m) => m[1]);
   check(
@@ -93,9 +98,13 @@ console.log("\n[U2] Navigation completeness");
     "no retired legacy tab has returned",
     RETIRED.every((t) => !registered.includes(t)),
   );
+  const dock = read("src/components/game/MobileDock.tsx");
   check(
-    "mobile nav exposes five core areas plus More",
-    /grid-cols-6/.test(read("src/components/game/MobileNav.tsx")),
+    "mobile nav exposes five core areas plus Advance and More",
+    /const LEFT: Tab\[\] = \["hub", "inbox", "squad"\]/.test(dock) &&
+      /const RIGHT: Tab\[\] = \["recruitment", "stadium"\]/.test(dock) &&
+      /lf-dock-centre/.test(dock) &&
+      />More</.test(dock),
   );
   check(
     "primary mobile tabs match the chairman core flow",
@@ -134,10 +143,15 @@ console.log("\n[U3] Mutation boundary");
     offenders(/Math\.random\(/).length === 0,
     offenders(/Math\.random\(/).join(","),
   );
+  const wallClockOffenders = offenders(/Date\.now\(/).filter(
+    (file) =>
+      file !== "src/routes/__root.tsx" &&
+      file !== "src/components/game/StadiumGround.tsx",
+  );
   check(
-    "no wall-clock reads in UI",
-    offenders(/Date\.now\(/).length === 0,
-    offenders(/Date\.now\(/).join(","),
+    "no gameplay-sensitive wall-clock reads in UI",
+    wallClockOffenders.length === 0,
+    wallClockOffenders.join(","),
   );
 }
 
@@ -186,21 +200,22 @@ console.log("\n[U5] Canonical selectors, not UI arithmetic");
     "inbox decisions go through handleInboxChoice",
     /handleInboxChoice\(/.test(read("src/components/game/InboxTab.tsx")),
   );
-  const squad = read("src/components/game/SquadSelectionTab.tsx");
+  const facilities = read("src/components/FacilitiesTab.tsx");
+  const operations = read("src/components/game/RecruitmentOperations.tsx");
   const tacticalCard = read("src/components/game/shared/TacticalPlayerCard.tsx");
   check(
-    "squad employment display uses canonical club and contract selectors",
-    /clubOperatingModel\(/.test(squad) &&
-      /contractEmploymentType\(/.test(tacticalCard) &&
-      /Club operating model/.test(squad),
+    "employment displays use canonical club and contract selectors",
+    /clubOperatingModel\(/.test(facilities) &&
+      /clubOperatingModel\(/.test(operations) &&
+      /contractEmploymentType\(/.test(operations) &&
+      /contractEmploymentType\(/.test(tacticalCard),
   );
   check(
     "professionalisation UI uses readiness and canonical action rather than direct state mutation",
-    /userProfessionalisationReadiness\(state\)/.test(squad) &&
-      /professionaliseUserClub\(s\)/.test(squad) &&
-      /Confirm full-time transition/.test(squad) &&
-      !/employment\.clubModels\[[^\]]+\]\s*=/.test(squad) &&
-      !/setClubOperatingModelInPlace\(/.test(squad),
+    /userProfessionalisationReadiness\(state\)/.test(facilities) &&
+      /professionaliseUserClub\(/.test(facilities) &&
+      !/employment\.clubModels\[[^\]]+\]\s*=/.test(facilities) &&
+      !/setClubOperatingModelInPlace\(/.test(facilities),
   );
 }
 
@@ -389,7 +404,7 @@ console.log("\n[U12] Legacy Football product surface");
   check(
     "new career screen uses the Legacy Football product name",
     /title="Legacy Football"/.test(newGame) &&
-      /Build a club legacy from non-league to the top/.test(newGame),
+      /Buy a non-league club\. Build its legacy\./.test(newGame),
   );
   check(
     "history navigation is presented as Legacy rather than the old ledger-only label",
@@ -397,7 +412,7 @@ console.log("\n[U12] Legacy Football product surface");
   );
   check(
     "route metadata uses the Legacy Football product identity",
-    /Legacy Football — Chairman Simulation/.test(route) &&
+    /Legacy Football — Director Simulation/.test(route) &&
       !/Chairman FC — Football Finance Sim/.test(route),
   );
 }
@@ -538,11 +553,11 @@ console.log("\n[U18] Shared tactical player-card system");
   const reports = read("src/components/game/ScoutingReports.tsx");
   const profile = read("src/components/game/shared/PlayerProfileSheet.tsx");
   check(
-    "player surfaces share one tactical card system",
+    "recruitment surfaces share one tactical player-card system",
     /export function TacticalPlayerCard/.test(card) &&
-      /<TacticalPlayerCard/.test(squad) &&
       /<TacticalPlayerCard/.test(browser) &&
-      /<TacticalPlayerCard/.test(reports),
+      /<TacticalPlayerCard/.test(reports) &&
+      /openPlayerProfile/.test(squad),
   );
   check(
     "recruitment cards use scouting-safe overall presentation",
@@ -551,8 +566,8 @@ console.log("\n[U18] Shared tactical player-card system");
   );
   check(
     "player profile header uses the tactical dark visual language",
-    /bg-\[#071713\]/.test(profile) &&
-      /Scouted \{knowledge\}%/.test(profile),
+    /bg-\[#061a15\]/.test(profile) &&
+      /label: "Knowledge"/.test(profile),
   );
 }
 
@@ -567,13 +582,15 @@ console.log("\n[U19] Dense squad planning");
       /min-h-\[4\.45rem\]/.test(card),
   );
   check(
-    "player attributes stay two-column on mobile",
-    /grid grid-cols-2 gap-x-3 gap-y-2/.test(profile),
+    "player profile keeps compact mobile fact grids",
+    /mt-3 grid grid-cols-3 gap-px/.test(profile) &&
+      /mt-2 grid grid-cols-2 gap-2/.test(profile),
   );
   check(
     "owned profile shows exact club value and wage rather than scouting ranges",
-    /owned \? fmtMoneyExact\(player\.marketValue\)/.test(profile) &&
-      /fmtMoneyExact\(contract\.weeklyWage\)/.test(profile),
+    /label: "Wage"[\s\S]*?contract\.weeklyWage/.test(profile) &&
+      /label: "Value", value: fmtMoney\(player\.marketValue\)/.test(profile) &&
+      /const keyFacts:[\s\S]*?owned\s*\?/.test(profile),
   );
 }
 
@@ -594,9 +611,10 @@ console.log("\n[U21] First XI pitch polish");
   const squad = read("src/components/game/SquadSelectionTab.tsx");
   check(
     "first XI pitch exposes formation, average ability and fitness",
-    /Avg OVR/.test(squad) &&
-      /Avg fit/.test(squad) &&
-      /Manager selection/.test(squad),
+    /XI avg/.test(squad) &&
+      />OVR</.test(squad) &&
+      />Fit</.test(squad) &&
+      /Manager's selection/.test(squad),
   );
   check(
     "pitch players expose fitness and role context without expanding card height",

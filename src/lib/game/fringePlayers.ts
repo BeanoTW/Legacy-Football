@@ -207,11 +207,13 @@ export function advancePersistentFringePlayersToSeason(state: GameState): Fringe
         player.lastDevelopedSeason = season;
         break;
       }
-      player.currentAbility = clamp(
-        player.currentAbility + seasonalAbilityDelta(state, player, season),
-        20,
-        player.potentialAbility,
-      );
+      const profile = clubOverallProfile(state, player.currentClubId);
+      const developed = player.currentAbility + seasonalAbilityDelta(state, player, season);
+      // Preserve individual development while preventing whole compact squads
+      // from drifting several divisions above their current competitive level.
+      const excess = developed - profile.star;
+      const calibrated = excess > 0 ? developed - Math.max(1, Math.round(excess * 0.5)) : developed;
+      player.currentAbility = clamp(calibrated, 20, player.potentialAbility);
       player.lastDevelopedSeason = season;
     }
   }
@@ -232,8 +234,22 @@ export function advancePersistentFringePlayersToSeason(state: GameState): Fringe
  */
 export function ensurePersistentFringePlayers(state: GameState): FringePlayerWorld {
   const world = state.fringePlayers ?? {};
+  const detailedIds = new Set((state.football?.players ?? []).map((player) => player.id));
+  const detailedClubKeys = new Set(
+    (state.football?.players ?? [])
+      .map((player) => player.currentClubId)
+      .filter((clubId): clubId is string => Boolean(clubId))
+      .map((clubId) => canonicalClubReference(state, clubId)),
+  );
   const grouped = new Map<string, CompactFringePlayer[]>();
-  for (const player of Object.values(world)) {
+  for (const [playerId, player] of Object.entries(world)) {
+    // A detailed player is already the canonical Focus representation. Drop
+    // its compact mirror; Focus→Fringe reconciliation recreates the compact row
+    // from the detailed player before detailed fidelity is removed.
+    if (detailedIds.has(playerId)) {
+      delete world[playerId];
+      continue;
+    }
     const key = canonicalClubReference(state, player.currentClubId);
     const group = grouped.get(key) ?? [];
     group.push(player);
@@ -242,6 +258,9 @@ export function ensurePersistentFringePlayers(state: GameState): FringePlayerWor
 
   for (const club of Object.values(state.fringeWorld ?? {})) {
     const clubKey = canonicalClubReference(state, club.clubId);
+    // Do not seed/fill a second 30-player compact squad while this club is
+    // already represented in the detailed Focus store.
+    if (detailedClubKeys.has(clubKey)) continue;
     const existing = grouped.get(clubKey) ?? [];
     const existingIds = new Set(existing.map((player) => player.playerId));
     let activeCount = existing.filter(isActive).length;
@@ -338,5 +357,9 @@ export function previewFringePlayersForClub(
 export function fringePlayersForClub(state: GameState, clubId: string): CompactFringePlayer[] {
   return Object.values(ensurePersistentFringePlayers(state))
     .filter((player) => isActive(player) && sameClubReference(state, player.currentClubId, clubId))
-    .sort((a, b) => a.playerId.localeCompare(b.playerId));
+    .sort(
+      (a, b) =>
+        (a.createdSeason ?? 0) - (b.createdSeason ?? 0) ||
+        a.playerId.localeCompare(b.playerId),
+    );
 }

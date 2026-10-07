@@ -2,6 +2,7 @@ import { strict as assert } from "node:assert";
 import { newGame } from "../engine";
 import { isUserClubReference } from "../clubReference";
 import { playerRecentForm } from "../playerForm";
+import { tacticalPositionProfile } from "../positions";
 import { userMatchLineup } from "../matchLineup";
 import { userSelectionStrengthPenalty } from "../matchStrength";
 import { applyMatchLoadInPlace, recoverPlayerHealthWeekInPlace } from "../playerHealth";
@@ -15,11 +16,23 @@ const squad = formState.football.players.filter((player) =>
 );
 const outfield = squad.filter((player) => player.primaryPosition !== "GK");
 assert(outfield.length >= 2);
-const hot = outfield[0];
-const cold = outfield[1];
+const supportedRoles = new Set(["LB", "CB", "RB", "LM", "CM", "RM", "ST"]);
+const pair = outfield
+  .map((player) => ({ player, role: tacticalPositionProfile(player).primary }))
+  .find(({ player, role }, index, rows) =>
+    supportedRoles.has(role) &&
+    rows.some((candidate, candidateIndex) => candidateIndex > index && candidate.role === role && candidate.player.id !== player.id),
+  );
+assert(pair, "form regression needs two players with the same tactical role");
+const hot = pair.player;
+const cold = outfield.find(
+  (player) => player.id !== hot.id && tacticalPositionProfile(player).primary === pair.role,
+)!;
+for (const player of outfield) player.currentAbility = 40;
 hot.currentAbility = 60;
 cold.currentAbility = 60;
-cold.primaryPosition = hot.primaryPosition;
+hot.fitness = 100;
+cold.fitness = 100;
 
 formState.playerMatchHistory = {};
 for (let week = 1; week <= 4; week++) {

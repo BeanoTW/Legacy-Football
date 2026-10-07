@@ -17,6 +17,7 @@ import { createLegacyLocalSource, STORAGE_KEY, MIGRATED_KEY } from "../storage/l
 import { serializeSave } from "../storage/serialize";
 import { coreKey, manifestKey } from "../storage/manifest";
 import { stateHash } from "../diagnostics/stateHash";
+import { compactState } from "../storage/compaction";
 
 let passed = 0;
 let failed = 0;
@@ -110,9 +111,10 @@ console.log("\n[R2] SaveStore on real IndexedDB, with a legacy localStorage save
   const tl = performance.now();
   const back = await store.load();
   const loadMs = performance.now() - tl;
+  const expectedCore = compactState(s2).core;
   check(
-    "save/load on real IndexedDB is state-identical",
-    diags.length === 0 && stateHash(back.state!) === stateHash(s2),
+    "save/load on real IndexedDB matches the persisted compact core",
+    diags.length === 0 && stateHash(back.state!) === stateHash(expectedCore),
   );
   console.log(`  · new-game save ${saveMs.toFixed(1)} ms | load ${loadMs.toFixed(1)} ms`);
 

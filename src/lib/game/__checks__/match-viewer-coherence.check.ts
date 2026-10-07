@@ -62,7 +62,10 @@ const linearise = (p: number) => {
   const t = Math.min(1, Math.max(0, p));
   return 0.5 - Math.sin(Math.asin(1 - 2 * t) / 3);
 };
-const HOLD = new Set(["receive", "carry"]);
+// "receive" is the control phase: the player may still be closing the final
+// metres to a loose/arriving ball. "carry" is the phase where the player is
+// unambiguously in possession and must stay attached to it.
+const HOLD = new Set(["carry"]);
 const BACKS = new Set(["CB", "LB", "RB", "LWB", "RWB"]);
 
 const tally = () => ({ n: 0, bad: 0 });

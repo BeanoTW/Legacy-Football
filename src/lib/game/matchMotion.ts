@@ -470,7 +470,13 @@ function sideTargets(
       continue;
     }
     const speed = target || id === presser || id === nextReceiver ? SPRINT_SPEED : RUN_SPEED;
-    next.set(id, limitMove(from, to, speed * seconds));
+    const limited = limitMove(from, to, speed * seconds);
+    next.set(id, limited);
+    // Once a nominated receiver can physically reach the pass endpoint, keep
+    // that exact first-touch position fixed while spacing moves teammates
+    // around them. Otherwise spreadOut can nudge the receiver away from the
+    // ball after the speed limit has already been satisfied.
+    if (target && metres(limited, to) < 0.05) fixed.add(id);
   }
   if (!holdShape) spreadOut(next, side.lineup, fixed);
   return next;
@@ -696,9 +702,21 @@ export function motionFrameForSequence({
     holdsShape(sequence, boundedIndex),
   );
 
+  const activeAction = sequence.actions[boundedIndex];
   const sideFrame = (side: MatchMotionSide, from: MatchPositionMap, to: MatchPositionMap) => {
     const frame = new Map<string, MatchPitchPoint>();
     for (const player of side.lineup) {
+      // A carry means player and ball are one moving object. Drive the carrier
+      // from the action's canonical start/end points so residual formation
+      // spacing from the previous action can never separate him from the ball.
+      if (
+        activeAction.kind === "carry" &&
+        activeAction.playerId === player.playerId &&
+        activeAction.side === sideId(side.ours)
+      ) {
+        frame.set(player.playerId, lerpPoint(activeAction.start, activeAction.end, localProgress));
+        continue;
+      }
       const a = from.get(player.playerId) ?? fallbackBase(side, player);
       const b = to.get(player.playerId) ?? a;
       frame.set(player.playerId, lerpPoint(a, b, localProgress));

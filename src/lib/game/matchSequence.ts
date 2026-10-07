@@ -855,12 +855,11 @@ class Possession {
     const base = kind === "cross" ? 1 : kind === "switch" ? 0.62 : 0.38;
     const receiverNow = this.attackPositions().get(receiver.playerId) ?? point;
     const runnerDistance = metres(receiverNow, point);
-    // A lofted switch/overlap must leave enough visual time for the receiver's
-    // run. This prevents a full-back being forced to outrun the movement model.
-    const runnerWeight =
-      kind === "switch" || kind === "overlap"
-        ? runnerDistance / (9.2 * 1.5)
-        : 0;
+    // Every pass must leave enough visual time for the receiver to reach the
+    // nominated endpoint. Without this, a normal or through pass can arrive
+    // before the receiver, so the next "receive" frame claims possession while
+    // the player is still several metres away from the ball.
+    const runnerWeight = runnerDistance / (9.2 * 1.5);
     const weight = Math.max(kind === "switch" ? 0.85 : 0.5, base + distance * 0.012, runnerWeight) * this.tempo;
     this.push({
       kind,
@@ -1740,6 +1739,17 @@ function buildFlowOnce(input: MatchFlowSequenceInput, gap: number, userShare: nu
           commentary: `${surname(receiver.name)} gathers the loose ball.`,
         });
       } else if (current.playerId !== receiver.playerId) {
+        const desiredPlan = planFor(desiredSide);
+        const receiverShape = teamShape(
+          desiredLineup,
+          baseShape(desiredLineup, desiredSide, desiredPlan.formation),
+          desiredSide,
+          currentPoint,
+          true,
+          desiredPlan,
+        );
+        const receiverNow = receiverShape.get(receiver.playerId) ?? nextAction.start;
+        const receiverRunWeight = metres(receiverNow, nextAction.start) / (9.2 * 1.5);
         push({
           kind: "pass",
           side: desiredSide,
@@ -1750,7 +1760,12 @@ function buildFlowOnce(input: MatchFlowSequenceInput, gap: number, userShare: nu
           targetPlayerName: receiver.name,
           start: currentPoint,
           end: nextAction.start,
-          weight: (0.38 + metres(currentPoint, nextAction.start) * 0.012) * tempoScale(planFor(desiredSide)),
+          weight:
+            Math.max(
+              0.5,
+              0.38 + metres(currentPoint, nextAction.start) * 0.012,
+              receiverRunWeight,
+            ) * tempoScale(desiredPlan),
           commentary: `${surname(current.name)} works it on to ${surname(receiver.name)}.`,
         });
       }

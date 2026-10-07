@@ -50,7 +50,7 @@ export const LATEST_MIGRATED_VERSION = MIGRATIONS.reduce((m, s) => Math.max(m, s
  * defaults the old inline chain applied at the top, plus the removal of retired
  * legacy fields. Idempotent and version-independent by design.
  */
-function normalise(p: AnySave, deps: MigrationDeps) {
+function normalise(p: AnySave) {
   // Versioning arrived late, so an absent version means "the very first schema".
   if (typeof p.version !== "number" || !Number.isFinite(p.version)) p.version = 1;
 
@@ -58,8 +58,10 @@ function normalise(p: AnySave, deps: MigrationDeps) {
   const raw = p as unknown as Record<string, unknown>;
 
   p.hiredStaff = arr(p.hiredStaff, []);
-  if (!Array.isArray(p.staffCandidates))
-    p.staffCandidates = deps.staffPoolFor(p as unknown as GameState);
+  // Staff-market generation now consults pyramid/facility context. Very old
+  // saves may not have those fields until their schema steps run, so defer
+  // market reconstruction until after the migration chain has restored the
+  // canonical world shape.
   if (p.staffMarketRefreshedWeek == null) p.staffMarketRefreshedWeek = p.week;
   if (p.transferBudget == null) p.transferBudget = 500_000;
   if (p.wageBudgetWeekly == null) p.wageBudgetWeekly = 5_000;
@@ -98,7 +100,8 @@ export function runMigrations(
   deps: MigrationDeps,
 ): RunMigrationsResult {
   const p = parsed as unknown as AnySave;
-  normalise(p, deps);
+  const needsStaffCandidates = !Array.isArray(p.staffCandidates);
+  normalise(p);
 
   const fromVersion = p.version;
   if (fromVersion > targetVersion) {
@@ -140,5 +143,8 @@ export function runMigrations(
 
   // Every registered step has run: the save is at the current schema.
   p.version = targetVersion;
+  if (needsStaffCandidates) {
+    p.staffCandidates = deps.staffPoolFor(p as unknown as GameState);
+  }
   return { state: p as GameState, fromVersion, applied, diagnostics };
 }
