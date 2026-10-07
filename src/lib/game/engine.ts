@@ -24,6 +24,7 @@ import { runSustainabilityWeek } from "./sustainability";
 import { runCommercialWeek } from "./commercial";
 import { runAcademyWeek } from "./academy";
 import { resolveWeek, syncTable } from "./league";
+import { ensureLeagueScheduleInPlace } from "./schedule";
 import { runMigrations, type MigrationDeps, type RunMigrationsResult } from "./migrations";
 import { ensureBoard, maybeRunMidSeasonReview } from "./board";
 import { ensureFinance, postRecurringWeek, syncWeekLedger } from "./finance";
@@ -383,6 +384,7 @@ export function migrateSave(parsed: Record<string, unknown>): GameState {
           : ""),
     );
   }
+  ensureLeagueScheduleInPlace(result.state);
   return result.state;
 }
 
