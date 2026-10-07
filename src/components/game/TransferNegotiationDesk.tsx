@@ -118,7 +118,7 @@ function NegotiationRoom({ state, n, act }: { state: GameState; n: TransferNegot
         )}
         </div>
       )}
-      {incoming && <div className={cn("mx-4 mb-4 rounded-xl border p-3", interestTone(n.playerInterest))}><div className="flex items-center gap-2 text-sm font-semibold"><UserRound className="size-4" /> Player interest · {INTEREST_LABEL[n.playerInterest]}</div></div>}
+      {incoming && n.playerInterest && <div className={cn("mx-4 mb-4 rounded-xl border p-3", interestTone(n.playerInterest))}><div className="flex items-center gap-2 text-sm font-semibold"><UserRound className="size-4" /> Player interest · {INTEREST_LABEL[n.playerInterest]}</div></div>}
       {n.competingClubId && <div className="mx-4 mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm"><div className="flex items-center gap-2 font-semibold text-amber-800 dark:text-amber-200"><TriangleAlert className="size-4" /> Rival bid · {clubDisplayName(state, n.competingClubId)}</div></div>}
       {incoming && (n.stage === "agreed" || n.stage === "registration") && registration && <div className="mx-4 mb-4 rounded-xl border bg-muted/30 p-3 text-sm"><div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Medical & registration</div><div className="mt-1">{registration.allowed ? n.stage === "registration" ? "Registration is open and the deal still satisfies the current squad, window and financial checks." : "Terms are agreed. The deal is eligible to enter medical and registration." : registration.reason}</div></div>}
     </section>
