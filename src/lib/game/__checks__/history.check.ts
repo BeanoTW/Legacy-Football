@@ -20,6 +20,7 @@ import { buildWorldSimulationPlan } from "../world";
 import { isUserClubReference } from "../clubReference";
 import type { GameState, FinanceEntry } from "../types";
 import { playerCareerTotals, playerSeasonSummary } from "../playerSeasonStats";
+import { FRINGE_SQUAD_SIZE } from "../fringePlayers";
 
 let passed = 0;
 let failed = 0;
@@ -417,7 +418,15 @@ console.log("\n[H7] Hot-core size at S5 / S10 / S20");
         .join(" · "),
   );
   const worldClubs = s.leagues.reduce((total, league) => total + league.clubIds.length, 0);
-  const hotCoreBudget = 2 * 1024 * 1024 + Math.max(0, worldClubs - 40) * 14 * 1024;
+  // The original 14 KB/club guard was calibrated when compact world squads
+  // contained 20 players. Persistent squads are now deliberately 30 deep, so
+  // scale only the per-club player allowance with that canonical footprint.
+  // 0.32 KB per extra compact slot covers the persisted identity row plus the
+  // corresponding Focus-side player/contract pressure without making the
+  // fixed 2 MB non-player allowance any looser.
+  const extraPlayerKbPerClub = Math.max(0, FRINGE_SQUAD_SIZE - 20) * 0.32;
+  const perClubBudget = (14 + extraPlayerKbPerClub) * 1024;
+  const hotCoreBudget = 2 * 1024 * 1024 + Math.max(0, worldClubs - 40) * perClubBudget;
   check(
     "S20 hot core stays within the scalable per-club budget",
     s20 < hotCoreBudget,
