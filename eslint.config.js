@@ -37,6 +37,12 @@ export default tseslint.config(
     },
   },
   {
+    // Lovable owns this generated preview-auth bridge. Its source can be
+    // regenerated independently of gameplay code, so don't fail release CI on
+    // stylistic lint from that generated file.
+    ignores: ["src/integrations/supabase/previewAuthStorage.ts"],
+  },
+  {
     // UI code reads canonical selectors, never legacy compatibility projections.
     files: ["src/components/**/*.{ts,tsx}", "src/routes/**/*.{ts,tsx}"],
     rules: {
