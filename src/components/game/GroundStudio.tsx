@@ -27,11 +27,13 @@ import { clubKitFor } from "@/lib/game/clubKit";
 import { groundProgression } from "@/lib/game/groundPresentation";
 import {
   ASSET_CONFIG,
+  activateNextQueuedProjectInPlace,
   approveProject as approveProjectCompat,
   assetById,
   ensureInfrastructure,
   evaluateProject,
   projectCatalogue,
+  queueProject,
   stadiumCapacity,
   stands as standAssets,
   type ProjectSpec,
@@ -72,7 +74,7 @@ import {
   type StandVariant,
 } from "@/lib/game/groundIdentity";
 import { cornerFormOptions, defaultMaterial, updateCorner, updateFixtures, updatePerimeter, updateStand, updateStandLook, updateSurroundings } from "@/lib/game/groundEditor";
-import { approveStandBuild, buildQuote, renameStand, setGroundLook } from "@/lib/game/groundBuild";
+import { approveStandBuild, buildQuote, queueStandBuild, renameStand, setGroundLook } from "@/lib/game/groundBuild";
 import {
   CORNER_LADDER,
   STAND_LADDER,
@@ -123,6 +125,41 @@ import {
 type Tab = "customize" | "maintain" | "develop";
 type ApplyResult = { state: GameState; ok: boolean; reason?: string };
 type Apply = (edit: (s: GameState) => ApplyResult, success?: string) => void;
+
+type DevelopmentPlanItem = {
+  id: string;
+  assetId: string;
+  assetName: string;
+  spec: ProjectSpec;
+  build?: StandBuild;
+};
+
+function previewDevelopmentState(state: GameState, items: DevelopmentPlanItem[]): GameState {
+  if (!items.length) return state;
+  const next = structuredClone(state);
+  for (const item of items) {
+    const asset = assetById(next, item.assetId);
+    if (!asset) continue;
+    const resultingLevel = item.build ? levelAfterProject(item.spec.type, asset.level) : null;
+    for (const effect of item.spec.effects) {
+      if (effect.kind === "capacity") {
+        const multiplier = item.build && resultingLevel != null ? buildCapacityMultiplier(item.build, resultingLevel) : 1;
+        asset.capacity = Math.max(0, asset.capacity + Math.round((effect.add * multiplier) / 50) * 50);
+        asset.usableCapacity = asset.capacity;
+      } else if (effect.kind === "level") {
+        asset.level = Math.min(ASSET_CONFIG[asset.type].maxLevel, asset.level + effect.add);
+      } else if (effect.kind === "condition") {
+        asset.condition = Math.min(asset.maximumCondition, effect.to ?? asset.condition + (effect.add ?? 0));
+      }
+    }
+    if (resultingLevel != null) asset.level = resultingLevel;
+    if (item.build) {
+      const identity = groundIdentity(next);
+      next.groundIdentity = { ...identity, stands: { ...identity.stands, [item.assetId]: { ...item.build } } };
+    }
+  }
+  return next;
+}
 
 const SIDES: StandSide[] = ["W", "E", "N", "S"];
 const CORNERS: CornerSlot[] = ["NW", "NE", "SE", "SW"];
