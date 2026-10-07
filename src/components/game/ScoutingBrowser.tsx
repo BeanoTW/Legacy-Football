@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import type { GameState, LoanPlayingTimeExpectation } from "@/lib/game/types";
 import {
-  arrangeUserPlayerLoanIn,
   canAuthorisePurchase,
   canAuthoriseWage,
   loanInAvailabilityReason,
@@ -24,6 +23,7 @@ import {
   userWageBill,
 } from "@/lib/game/recruitment";
 import { scoutingAssignment, scoutingReport, startScouting } from "@/lib/game/scouting";
+import { openLoanNegotiation } from "@/lib/game/loanNegotiations";
 import { scoutedOverallPresentation } from "@/lib/game/scoutingPresentation";
 import { scoutingBriefDaysRemaining } from "@/lib/game/scoutingDiscovery";
 import {
@@ -131,7 +131,7 @@ export function ScoutingBrowser({
     });
 
   const requestLoan = (playerId: string) => {
-    const result = arrangeUserPlayerLoanIn(state, playerId, {
+    const result = openLoanNegotiation(state, "in", playerId, {
       durationWeeks: loanDuration,
       loanClubWageContributionPct: loanContribution,
       playingTimeExpectation: loanRole,
