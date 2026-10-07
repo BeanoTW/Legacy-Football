@@ -16,6 +16,7 @@ import {
   type SquadContractRow,
 } from "@/lib/game/transferDesk";
 import { LoanOutForm } from "./LoanDesk";
+import { removePlayerLoanAvailability, setPlayerAvailableForLoan } from "@/lib/game/loanAvailability";
 import { DealKindTag } from "./TransferDealStage";
 import { openPlayerProfile } from "./shared/PlayerProfileSheet";
 import type { RunAction } from "./TransferDesk";
@@ -54,6 +55,9 @@ function runway(weeks: number | null): string {
 
 function managerUseLabel(row: SquadContractRow): string {
   if (row.managerUse === "away") return `On loan · ${row.loan?.clubName ?? ""}`;
+  if (row.managerAssessmentRole) {
+    return `${row.managerAssessmentRole}${row.managerFit ? ` · ${row.managerFit}` : ""}`;
+  }
   if (row.managerUse === "starter")
     return `Starts${row.managerRole ? ` · ${row.managerRole}` : ""}`;
   if (row.managerUse === "bench") return "Bench";
@@ -232,6 +236,9 @@ function SquadRow({
             <span className="flex min-w-0 items-center gap-1">
               <span className="truncate font-display text-[0.95rem] leading-tight">{row.name}</span>
               {row.listed && <span className="lf-desk-flag is-listed">Listed</span>}
+              {row.loanAvailable && (
+                <span className="lf-desk-flag">Loan available{row.loanInterestCount ? ` · ${row.loanInterestCount} interested` : ""}</span>
+              )}
               {row.loan && (
                 <span className="lf-desk-flag">{loanedIn ? "Loan in" : "Loan out"}</span>
               )}
@@ -273,6 +280,9 @@ function SquadRow({
             <span>
               Manager · <strong className="text-foreground">{managerUseLabel(row)}</strong>
             </span>
+            {row.managerSummary && (
+              <span className="basis-full text-[10px]">{row.managerSummary}</span>
+            )}
             {canManage && (
               <span>
                 Asking price · <strong className="text-foreground">{fmtMoneyExact(ask)}</strong>
@@ -326,12 +336,31 @@ function SquadRow({
               </label>
               <Button
                 size="sm"
+                variant={row.loanAvailable ? "secondary" : "outline"}
+                className="h-8 px-2.5 text-xs"
+                onClick={() =>
+                  run((s) => {
+                    const outcome = row.loanAvailable
+                      ? removePlayerLoanAvailability(s, row.player.id)
+                      : setPlayerAvailableForLoan(s, row.player.id);
+                    return {
+                      state: outcome.state,
+                      result: { ok: outcome.ok, reason: outcome.reason },
+                    };
+                  })
+                }
+              >
+                <Repeat2 className="mr-1 size-3.5" />
+                {row.loanAvailable ? "Remove loan availability" : "Available for loan"}
+              </Button>
+              <Button
+                size="sm"
                 variant="outline"
                 className="h-8 px-2.5 text-xs"
                 onClick={() => setLoanOpen((value) => !value)}
               >
-                <Repeat2 className="mr-1 size-3.5" />
-                Loan out
+                <Handshake className="mr-1 size-3.5" />
+                Open loan talks
               </Button>
               <Button
                 size="sm"
