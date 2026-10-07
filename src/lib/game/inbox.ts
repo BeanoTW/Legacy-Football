@@ -110,7 +110,16 @@ import { postEntry } from "./finance";
 import { archivedInboxGuardKeys } from "./archive";
 import { postMatchReaction } from "./matchReaction";
 import { RANDOM_INCIDENTS, pressChoicesForIncident, randomIncidentById } from "./randomIncidents";
-import { adjustManagerRelationshipInPlace, currentManager, latestManagerRelationshipEvent, managerRelationship } from "./managerRelationship";
+import {
+  adjustManagerRelationshipInPlace,
+  advanceManagerRelationshipClimateInPlace,
+  currentManager,
+  latestManagerRelationshipEvent,
+  managerPersonality,
+  managerRelationship,
+  managerRelationshipClimate,
+  managerRelationshipFlag,
+} from "./managerRelationship";
 import { managerRecruitmentRequestItems, managerRecruitmentPromiseReviewItems } from "./managerRecruitmentPromises";
 import { avgTicketPrice } from "./sim";
 import { ticketPriceReference } from "./ticketForecast";
@@ -2767,6 +2776,126 @@ const G_MANAGER_RELATIONSHIP_REACTION: Generator = {
   },
 };
 
+const G_MANAGER_RELATIONSHIP_CLIMATE: Generator = {
+  id: "manager-relationship-climate",
+  run: (s) => {
+    const manager = currentManager(s);
+    if (!manager) return [];
+    const climate = managerRelationshipClimate(s, manager);
+    if (climate.stage === 0) return [];
+
+    const relationship = managerRelationship(s, manager);
+    const personality = managerPersonality(manager);
+    const episode = climate.episode;
+    const stage = climate.stage;
+    const eventKey = `manager-relationship-climate:${manager.id}:e${episode}:stage${stage}`;
+    const streakKey = managerRelationshipFlag(manager.id, "climateStrainedWeeks");
+
+    if (stage === 1) {
+      return [
+        mk(s, "manager-relationship-climate", {
+          eventKey,
+          conversationKey: `manager:${manager.id}:relationship-climate`,
+          relatedEntityId: manager.id,
+          sender: manager.name,
+          department: "Manager",
+          category: "staff",
+          priority: "high",
+          subject: "Working relationship is deteriorating",
+          body:
+            `The disagreement is no longer about one decision. The relationship with ${manager.name} has remained strained for ${climate.strainedWeeks} weeks.\n\n` +
+            `${personality.summary} At ${relationship.overall}/100, repeated clashes are beginning to affect how the football operation works around you.`,
+          expiresInWeeks: 2,
+          choices: [
+            {
+              id: "reset-working-method",
+              label: "Reset how we work together",
+              hint: "Acknowledge the pattern, agree clearer responsibilities and lower the temperature.",
+              effects: [
+                { kind: "managerRelationship", managerId: manager.id, trust: 5, backing: 4, autonomy: 3 },
+                { kind: "flag", key: streakKey, value: 0 },
+              ],
+            },
+            {
+              id: "back-football-plan",
+              label: "Back his football plan",
+              hint: "Give the manager visible football backing without surrendering the director role.",
+              effects: [
+                { kind: "managerRelationship", managerId: manager.id, trust: 3, backing: 7, autonomy: 4 },
+                { kind: "flag", key: streakKey, value: 0 },
+              ],
+            },
+            {
+              id: "hold-line",
+              label: "Hold the line",
+              hint: "Keep the current structure. The relationship may continue to deteriorate.",
+              effects: [
+                { kind: "managerRelationship", managerId: manager.id, trust: -1, autonomy: -2 },
+              ],
+            },
+          ],
+          consequenceOnExpire: [
+            { kind: "managerRelationship", managerId: manager.id, trust: -3, backing: -2 },
+          ],
+        }),
+      ];
+    }
+
+    return [
+      mk(s, "manager-relationship-climate", {
+        eventKey,
+        conversationKey: `manager:${manager.id}:relationship-climate`,
+        relatedEntityId: manager.id,
+        sender: "Club Communications",
+        department: "Media",
+        category: "media",
+        priority: "urgent",
+        subject: `Relationship crisis — questions around ${manager.name}`,
+        body:
+          `The strained working relationship with ${manager.name} has now persisted for ${climate.strainedWeeks} weeks. Staff are aware of it and journalists have begun asking whether the football operation is split.\n\n` +
+          `This is now a club-level issue, not just a private disagreement. ${personality.mediaStyle === "Confrontational" ? "His confrontational media style makes a public flare-up more likely." : "He has kept his public comments controlled so far, but that restraint is not guaranteed indefinitely."}`,
+        expiresInWeeks: 1,
+        choices: [
+          {
+            id: "public-backing",
+            label: "Publicly back the manager",
+            hint: "Close ranks publicly and repair the working relationship behind the scenes.",
+            effects: [
+              { kind: "managerRelationship", managerId: manager.id, trust: 6, backing: 8, autonomy: 4 },
+              { kind: "fanHappiness", delta: 1 },
+              { kind: "flag", key: streakKey, value: 0 },
+            ],
+          },
+          {
+            id: "private-reset",
+            label: "Keep it private and reset",
+            hint: "Refuse the media story but make a genuine private attempt to repair the relationship.",
+            effects: [
+              { kind: "managerRelationship", managerId: manager.id, trust: 4, backing: 4, autonomy: 3 },
+              { kind: "flag", key: streakKey, value: 0 },
+            ],
+          },
+          {
+            id: "assert-director-authority",
+            label: "Assert director authority",
+            hint: "Make clear the football department answers to you. Supporters may see an avoidable power struggle.",
+            effects: [
+              { kind: "managerRelationship", managerId: manager.id, trust: -5, backing: -4, autonomy: -6 },
+              { kind: "reputation", delta: -1 },
+              { kind: "fanHappiness", delta: -2 },
+            ],
+          },
+        ],
+        consequenceOnExpire: [
+          { kind: "managerRelationship", managerId: manager.id, trust: -4, backing: -3 },
+          { kind: "reputation", delta: -1 },
+          { kind: "fanHappiness", delta: -2 },
+        ],
+      }),
+    ];
+  },
+};
+
 const G_CLUB_CONVERSATIONS: Generator = {
   id: "club-conversations",
   run: (s) => proactiveClubConversationItems(s),
@@ -2782,6 +2911,7 @@ const GENERATORS: Generator[] = [
   G_MANAGER_RECRUITMENT_REQUEST,
   G_MANAGER_RECRUITMENT_PROMISE_REVIEW,
   G_MANAGER_RELATIONSHIP_REACTION,
+  G_MANAGER_RELATIONSHIP_CLIMATE,
   G_CLUB_CONVERSATIONS,
   G_FINANCE_WEEKLY,
   G_ROOF,
@@ -2859,6 +2989,10 @@ export function runWeeklyGenerators(prev: GameState): GameState {
       });
     }
   }
+
+  // Sustained relationship pressure advances once per absolute week. This is
+  // idempotent, so repeated inbox refreshes in the same week cannot escalate it.
+  advanceManagerRelationshipClimateInPlace(s);
 
   // 2. Pull scheduled entries that are due now, grouped by generatorId.
   //    Entries with a missing/NaN due time are treated as due immediately
