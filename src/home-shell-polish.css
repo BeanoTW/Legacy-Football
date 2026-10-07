@@ -325,3 +325,205 @@ html:has(.lf-home-main), body:has(.lf-home-main),
   outline: 2px solid hsl(var(--primary));
   outline-offset: 2px;
 }
+
+/* Desktop density pass — keep tablet/mobile proportions intact, but use wide
+   screens as a management workspace rather than scaling the tablet shell up. */
+@media (min-width: 1280px) {
+  .lf-masthead header {
+    min-height: 4rem !important;
+  }
+
+  .lf-masthead header > div {
+    padding-top: .48rem !important;
+    padding-bottom: .48rem !important;
+  }
+
+  .lf-masthead header h1 {
+    font-size: 1.32rem !important;
+    line-height: 1.05;
+  }
+
+  .lf-masthead .lf-club-crest {
+    width: 4.15rem !important;
+    height: 4.15rem !important;
+    flex-basis: 4.15rem !important;
+  }
+
+  .lf-masthead .lf-club-crest > svg {
+    width: 4.15rem !important;
+    height: 4.15rem !important;
+  }
+
+  .lf-masthead .lf-director-card {
+    width: 4.35rem !important;
+    height: 4.75rem !important;
+    border-radius: .9rem !important;
+  }
+
+  .lf-masthead .lf-director-card > svg {
+    width: 64px !important;
+    height: 77px !important;
+    transform: translateY(.14rem) !important;
+  }
+
+  .lf-masthead .lf-director-reputation-value {
+    top: .22rem !important;
+    left: .22rem !important;
+    min-width: 1.25rem !important;
+    height: 1.08rem !important;
+    font-size: .78rem !important;
+  }
+
+  .lf-masthead .lf-director-reputation-stars {
+    right: .2rem !important;
+    bottom: .2rem !important;
+    left: .2rem !important;
+    min-height: .88rem !important;
+  }
+
+  .lf-masthead .lf-director-reputation-stars .lf-rep-star {
+    width: .52rem !important;
+    height: .52rem !important;
+  }
+
+  .lf-kpi-ribbon > div {
+    padding-top: .3rem !important;
+    padding-bottom: .3rem !important;
+    gap: .4rem !important;
+  }
+
+  .lf-kpi-ribbon > div > div {
+    min-height: 2.4rem;
+    padding-block: .3rem !important;
+    padding-inline: .6rem !important;
+  }
+
+  .lf-primary-nav > div {
+    padding-top: .3rem !important;
+    padding-bottom: .3rem !important;
+    gap: .4rem !important;
+  }
+
+  .lf-primary-nav button {
+    min-height: 2.25rem !important;
+    padding-top: .28rem !important;
+    padding-bottom: .28rem !important;
+    border-radius: .62rem !important;
+  }
+
+  .game-main.lf-home-main {
+    padding-top: .45rem !important;
+    padding-bottom: 4.3rem !important;
+  }
+
+  .game-main.lf-home-main .lf-home-dashboard {
+    padding: .38rem !important;
+    row-gap: .36rem !important;
+  }
+
+  .game-main.lf-home-main .lf-command-grid,
+  .game-main.lf-home-main .lf-vital-grid,
+  .game-main.lf-home-main .lf-home-bottom-pair,
+  .game-main.lf-home-main .lf-home-desk {
+    gap: .45rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-card,
+  .game-main.lf-home-main .lf-club-pulse,
+  .game-main.lf-home-main .lf-vital-card,
+  .game-main.lf-home-main .lf-home-panel,
+  .game-main.lf-home-main .lf-suggested-next {
+    border-radius: .9rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-card {
+    padding: .72rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-card .lf-match-inner {
+    min-height: 9.6rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-kicker {
+    margin-bottom: .42rem !important;
+    font-size: .6rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-copy h2 {
+    font-size: 1.32rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-copy p {
+    margin-top: .2rem !important;
+    font-size: .72rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-brief {
+    margin-top: .5rem !important;
+    padding: .45rem .55rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-actions {
+    margin-top: .5rem !important;
+    gap: .35rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-actions button {
+    min-height: 2.1rem !important;
+    padding-inline: .7rem !important;
+    font-size: .72rem !important;
+  }
+
+  .game-main.lf-home-main .lf-team-mark {
+    width: 3.15rem !important;
+    height: 3.15rem !important;
+    border-radius: .9rem !important;
+  }
+
+  .game-main.lf-home-main .lf-vs {
+    width: 2.1rem !important;
+    height: 2.1rem !important;
+  }
+
+  .game-main.lf-home-main .lf-home-panel-heading {
+    min-height: 2.15rem;
+    padding: .45rem .65rem !important;
+  }
+
+  .game-main.lf-home-main .lf-task-row,
+  .game-main.lf-home-main .lf-suggested-row {
+    min-height: 2.65rem !important;
+    padding: .48rem .65rem !important;
+  }
+
+  .game-main.lf-home-main .lf-vital-card {
+    min-height: 4.7rem !important;
+    padding: .62rem .7rem !important;
+  }
+
+  .game-main.lf-home-main .lf-vital-card > strong {
+    font-size: 1.2rem !important;
+  }
+
+  .game-main.lf-home-main .lf-action-tile {
+    min-height: 4rem !important;
+    padding: .55rem .65rem !important;
+  }
+
+  .lf-continue-bar {
+    width: min(64rem, calc(100vw - 4rem)) !important;
+    bottom: .65rem !important;
+    padding: .3rem !important;
+    border-radius: .8rem !important;
+  }
+
+  .lf-continue-bar .lf-continue-button,
+  .lf-continue-bar .lf-continue-more {
+    height: 2.65rem !important;
+  }
+
+  .lf-continue-bar .lf-continue-button {
+    padding-inline: 1rem !important;
+    font-size: .95rem !important;
+  }
+}
