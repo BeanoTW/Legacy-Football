@@ -6,8 +6,6 @@ import { Button } from "@/components/ui/button";
 import {
   activeContract,
   ageOf,
-  arrangeUserPlayerLoanIn,
-  arrangeUserPlayerLoanOut,
   loanInAvailabilityReason,
   playerName,
   releasePlayerInPlace,
@@ -25,6 +23,7 @@ import {
 import { knownPlayerDetail } from "@/lib/game/knownPlayerDetail";
 import { tacticalPositionProfile, positionFamiliarity, positionDevelopment, positionUnit } from "@/lib/game/positions";
 import { activeLoanForPlayer, terminateUserPlayerLoan } from "@/lib/game/loans";
+import { openLoanNegotiation } from "@/lib/game/loanNegotiations";
 import { playerOwnerClubId } from "@/lib/game/playerRegistration";
 import { clubDisplayName, isUserClubReference } from "@/lib/game/clubReference";
 import { fmtMoney, fmtMoneyExact } from "@/lib/game/engine";
@@ -229,6 +228,7 @@ export function PlayerProfileSheet({
   const [renewWage, setRenewWage] = useState(0);
   const [renewSeasons, setRenewSeasons] = useState(2);
   const [renewRole, setRenewRole] = useState<SquadRole>("First Team");
+  const [renewBonus, setRenewBonus] = useState(0);
   const [statsView, setStatsView] = useState<"season" | "form" | "career">("season");
   const [attributeTab, setAttributeTab] = useState<PlayerAttributeCategory | null>(null);
   const [conversationOpen, setConversationOpen] = useState(false);
@@ -405,7 +405,7 @@ export function PlayerProfileSheet({
 
   const requestLoan = () => {
     if (owned || freeAgent) return;
-    const result = arrangeUserPlayerLoanIn(state, player.id, {
+    const result = openLoanNegotiation(state, "in", player.id, {
       durationWeeks: loanDuration,
       loanClubWageContributionPct: loanContribution,
       playingTimeExpectation: loanRole,
@@ -436,6 +436,7 @@ export function PlayerProfileSheet({
     setRenewWage(proposedRenewal.weeklyWage);
     setRenewSeasons(proposedRenewal.seasons);
     setRenewRole(proposedRenewal.role);
+    setRenewBonus(proposedRenewal.signingBonus);
     setShowContract((value) => !value);
     setShowLoanOut(false);
     setReleaseConfirm(false);
@@ -449,7 +450,7 @@ export function PlayerProfileSheet({
         weeklyWage: renewWage,
         seasons: renewSeasons,
         role: renewRole,
-        signingBonus: proposedRenewal.signingBonus,
+        signingBonus: renewBonus,
       });
       setNote(result.reason);
       if (result.ok) setShowContract(false);
@@ -459,7 +460,7 @@ export function PlayerProfileSheet({
 
   const sendLoanOut = () => {
     if (!userOwnsPlayer) return;
-    const result = arrangeUserPlayerLoanOut(state, player.id, {
+    const result = openLoanNegotiation(state, "out", player.id, {
       durationWeeks: loanDuration,
       loanClubWageContributionPct: loanContribution,
       playingTimeExpectation: loanRole,
@@ -672,7 +673,7 @@ export function PlayerProfileSheet({
                         onChange={(event) => setRenewSeasons(Number(event.target.value))}
                         className="mt-1 h-9 w-full rounded-lg border bg-background px-2 text-sm text-foreground"
                       >
-                        {[1, 2, 3, 4].map((years) => (
+                        {[1, 2, 3, 4, 5].map((years) => (
                           <option key={years} value={years}>
                             {years} yr{years === 1 ? "" : "s"}
                           </option>
@@ -692,6 +693,16 @@ export function PlayerProfileSheet({
                       </select>
                     </label>
                   </div>
+                  <label className="mt-2 block text-[10px] font-semibold text-muted-foreground">
+                    Signing bonus
+                    <input
+                      type="number"
+                      min={0}
+                      value={renewBonus}
+                      onChange={(event) => setRenewBonus(Math.max(0, Number(event.target.value)))}
+                      className="mt-1 h-9 w-full rounded-lg border bg-background px-2 text-sm text-foreground"
+                    />
+                  </label>
                   <p className="mt-1.5 text-[10px] text-muted-foreground">The player can reject terms below his expectations.</p>
                   <Button className="mt-2 h-9 w-full" onClick={negotiateContract}>Offer contract</Button>
                 </div>
@@ -747,7 +758,7 @@ export function PlayerProfileSheet({
                   <div>{note}</div>
                   {startedNegotiationId && (
                     <div className="mt-1 text-[10px] text-muted-foreground">
-                      The enquiry is now live under <strong>Transfers → Negotiations</strong>. Advance time for the club and player&apos;s camp to respond.
+                      The enquiry is now live under <strong>Transfers → Live Business</strong>. Advance time for the club and player&apos;s camp to respond.
                     </div>
                   )}
                 </div>

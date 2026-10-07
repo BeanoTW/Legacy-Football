@@ -201,13 +201,14 @@ console.log("\n[U5] Canonical selectors, not UI arithmetic");
     /handleInboxChoice\(/.test(read("src/components/game/InboxTab.tsx")),
   );
   const facilities = read("src/components/FacilitiesTab.tsx");
-  const operations = read("src/components/game/RecruitmentOperations.tsx");
+  // Transfers' squad view reads employment through the desk selector.
+  const transferDesk = read("src/lib/game/transferDesk.ts");
   const tacticalCard = read("src/components/game/shared/TacticalPlayerCard.tsx");
   check(
     "employment displays use canonical club and contract selectors",
     /clubOperatingModel\(/.test(facilities) &&
-      /clubOperatingModel\(/.test(operations) &&
-      /contractEmploymentType\(/.test(operations) &&
+      /clubOperatingModel\(/.test(transferDesk) &&
+      /contractEmploymentType\(/.test(transferDesk) &&
       /contractEmploymentType\(/.test(tacticalCard),
   );
   check(
@@ -236,17 +237,20 @@ console.log("\n[U6] Recruitment knowledge boundary");
     "contracted scouting approaches use the explicit enquiry action",
     /submitTransferEnquiry\(/.test(browser) && /submitTransferEnquiry\(/.test(reports),
   );
-  const operations = read("src/components/game/RecruitmentOperations.tsx");
+  const deskModel = read("src/lib/game/transferDesk.ts");
+  const squadLens = read("src/components/game/TransferSquadContracts.tsx");
+  const liveBusiness = read("src/components/game/TransferLiveBusiness.tsx");
   const negotiations = read("src/components/game/TransferNegotiationDesk.tsx");
   check(
     "recruitment squad views use canonical employment selectors",
-    /clubOperatingModel\(/.test(operations) &&
-      /contractEmploymentType\(/.test(operations) &&
-      /ProfileFact label="Employment"/.test(operations),
+    /clubOperatingModel\(/.test(deskModel) &&
+      /contractEmploymentType\(/.test(deskModel) &&
+      /clubEmploymentLabel\(state\)/.test(squadLens) &&
+      /label="Employment"/.test(squadLens),
   );
   check(
     "the live negotiations screen exposes the enquiry-to-bid action",
-    /TransferNegotiationDesk/.test(operations) && /submitEnquiryOffer\(/.test(negotiations),
+    /TransferNegotiationRoom/.test(liveBusiness) && /submitEnquiryOffer\(/.test(negotiations),
   );
   check(
     "negotiation controls use canonical level-aware fee and wage steps",
