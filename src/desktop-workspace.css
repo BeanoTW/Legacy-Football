@@ -1,0 +1,686 @@
+/*
+ * Legacy Football desktop workspace layer.
+ *
+ * This file is intentionally last in the stylesheet stack and desktop-only.
+ * It changes composition instead of shrinking the mobile/tablet UI.
+ */
+@media (min-width: 1024px) {
+  /* ---------- shared desktop workspace ---------- */
+  .game-main {
+    min-height: 0;
+  }
+
+  .game-main > .game-screen {
+    min-height: 0;
+  }
+
+  .game-main:not(.lf-home-main) > .game-screen {
+    padding: .55rem .65rem .7rem !important;
+  }
+
+  .lf-desktop-workspace,
+  .lf-staff-view,
+  .lf-board,
+  .lf-commercial,
+  .lf-tickets,
+  .lf-transfer-desk,
+  .lf-inbox-shell {
+    min-height: 0;
+  }
+
+  /* ---------- Home: PC control room ---------- */
+  .game-main.lf-home-main .lf-home-dashboard {
+    display: grid !important;
+    grid-template-columns: minmax(0, 2fr) minmax(18rem, .72fr) !important;
+    grid-template-areas:
+      "command command"
+      "calendar vitals"
+      "desk world"
+      "shortcuts shortcuts" !important;
+    align-content: start !important;
+    gap: .42rem !important;
+    padding: .42rem !important;
+  }
+
+  .game-main.lf-home-main .lf-command-grid {
+    grid-area: command;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.75fr) minmax(19rem, .7fr) !important;
+    gap: .42rem !important;
+  }
+
+  .game-main.lf-home-main .lf-home-calendar {
+    grid-area: calendar;
+    min-width: 0;
+  }
+
+  .game-main.lf-home-main .lf-vital-grid {
+    grid-area: vitals;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+    gap: .35rem !important;
+  }
+
+  .game-main.lf-home-main .lf-home-bottom-pair {
+    grid-area: desk;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    gap: .42rem !important;
+    min-width: 0;
+  }
+
+  .game-main.lf-home-main .lf-around-grounds {
+    grid-area: world;
+    min-width: 0;
+  }
+
+  .game-main.lf-home-main .lf-management-grid {
+    grid-area: shortcuts;
+    display: grid !important;
+    grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+    gap: .35rem !important;
+  }
+
+  /* The separate large league panel duplicates the compact league snapshot in
+     the command area on desktop. */
+  .game-main.lf-home-main > .hidden.xl\:block {
+    display: none !important;
+  }
+
+  /* Restore readable PC typography after the earlier emergency shrink passes. */
+  .game-main.lf-home-main .lf-match-card,
+  .game-main.lf-home-main .lf-match-inner,
+  .game-main.lf-home-main .lf-club-pulse {
+    min-height: 7.25rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-card {
+    padding: 0 !important;
+  }
+
+  .game-main.lf-home-main .lf-match-inner {
+    grid-template-columns: minmax(13rem, .8fr) minmax(16rem, 1.2fr) !important;
+    gap: .8rem !important;
+    padding: .65rem .8rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-kicker {
+    margin: 0 !important;
+    font-size: .6rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-copy h2 {
+    margin-top: .2rem !important;
+    font-size: 1.55rem !important;
+    line-height: .92 !important;
+  }
+
+  .game-main.lf-home-main .lf-match-copy > p {
+    margin-top: .2rem !important;
+    font-size: .68rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-brief {
+    margin-top: .38rem !important;
+    padding-top: .34rem !important;
+    gap: .5rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-brief span {
+    font-size: .52rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-brief strong,
+  .game-main.lf-home-main .lf-match-fit {
+    font-size: .66rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-fit small {
+    font-size: .5rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-actions {
+    gap: .35rem !important;
+    margin-top: .4rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-actions button,
+  .game-main.lf-home-main .lf-match-primary,
+  .game-main.lf-home-main .lf-match-secondary {
+    min-height: 1.95rem !important;
+    height: 1.95rem !important;
+    padding: .25rem .65rem !important;
+    font-size: .62rem !important;
+  }
+
+  .game-main.lf-home-main .lf-team-mark {
+    width: 3rem !important;
+    height: 3.25rem !important;
+  }
+
+  .game-main.lf-home-main .lf-team-mark svg {
+    width: 2.2rem !important;
+    height: 2.2rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-team .font-display {
+    margin-top: .22rem !important;
+    font-size: .72rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-team > span {
+    font-size: .48rem !important;
+  }
+
+  .game-main.lf-home-main .lf-vs {
+    width: 1.55rem !important;
+    height: 1.55rem !important;
+    font-size: .48rem !important;
+  }
+
+  /* Command-side status becomes a compact three-column desktop dashboard. */
+  .game-main.lf-home-main .lf-club-pulse {
+    display: grid !important;
+    grid-template-columns: .72fr 1.05fr 1.2fr !important;
+    grid-template-rows: 1fr !important;
+    overflow: hidden;
+  }
+
+  .game-main.lf-home-main .lf-pulse-block {
+    grid-row: auto !important;
+    border-right: 1px solid var(--lf-line) !important;
+    border-bottom: 0 !important;
+    padding: .65rem !important;
+  }
+
+  .game-main.lf-home-main .lf-pulse-side {
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    min-width: 0;
+    border-right: 1px solid var(--lf-line);
+  }
+
+  .game-main.lf-home-main .lf-pulse-manager,
+  .game-main.lf-home-main .lf-pulse-news {
+    min-height: 0 !important;
+    padding: .5rem .6rem !important;
+  }
+
+  .game-main.lf-home-main .lf-pulse-manager {
+    border-bottom: 1px solid var(--lf-line) !important;
+  }
+
+  .game-main.lf-home-main .lf-pulse-table {
+    display: flex !important;
+    padding: .45rem .55rem !important;
+  }
+
+  .game-main.lf-home-main .lf-pulse-label {
+    font-size: .52rem !important;
+  }
+
+  .game-main.lf-home-main .lf-standing-value {
+    margin-top: .12rem !important;
+    font-size: 1.75rem !important;
+  }
+
+  .game-main.lf-home-main .lf-pulse-manager strong,
+  .game-main.lf-home-main .lf-pulse-news strong {
+    margin-top: .1rem !important;
+    font-size: .68rem !important;
+  }
+
+  .game-main.lf-home-main .lf-pulse-manager small,
+  .game-main.lf-home-main .lf-pulse-news small,
+  .game-main.lf-home-main .lf-form-strip small {
+    font-size: .52rem !important;
+  }
+
+  .game-main.lf-home-main .lf-pulse-table > span {
+    padding: .22rem .28rem !important;
+    font-size: .56rem !important;
+  }
+
+  /* ---------- true desktop calendar ---------- */
+  .game-main.lf-home-main .lf-continue-calendar {
+    border-radius: .8rem !important;
+    overflow: hidden;
+  }
+
+  .game-main.lf-home-main .lf-continue-calendar-head {
+    min-height: 2rem;
+    padding: .35rem .55rem !important;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .game-main.lf-home-main .lf-continue-calendar-head h3 {
+    font-size: .72rem !important;
+  }
+
+  .game-main.lf-home-main .lf-continue-calendar-head button {
+    font-size: .6rem !important;
+  }
+
+  .lf-desktop-calendar {
+    grid-template-columns: minmax(0, 1fr) minmax(13.5rem, .34fr);
+    min-height: 0;
+  }
+
+  .lf-desktop-calendar-weeks {
+    display: grid;
+    gap: .28rem;
+    padding: .38rem;
+  }
+
+  .lf-desktop-calendar-week {
+    min-width: 0;
+  }
+
+  .lf-desktop-calendar-week .lf-continue-calendar-week-head {
+    margin-bottom: .16rem !important;
+    font-size: .52rem !important;
+  }
+
+  .lf-desktop-calendar-days {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: .22rem;
+  }
+
+  .lf-desktop-day {
+    position: relative;
+    display: grid;
+    min-width: 0;
+    min-height: 3.35rem;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto 1fr auto;
+    align-items: center;
+    gap: .05rem .24rem;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: .55rem;
+    padding: .34rem .38rem .38rem;
+    text-align: left;
+    transition: border-color 120ms ease, background-color 120ms ease;
+  }
+
+  .lf-desktop-day-name {
+    grid-column: 1;
+    grid-row: 1;
+    font-size: .48rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    opacity: .7;
+  }
+
+  .lf-desktop-day-date {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: start;
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    line-height: 1;
+  }
+
+  .lf-desktop-fixture-chip {
+    position: relative;
+    grid-column: 2;
+    grid-row: 1 / 3;
+    display: flex;
+    min-width: 0;
+    max-width: 100%;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: .35rem;
+    padding: .18rem .28rem .18rem .4rem;
+    font-size: .52rem;
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  .lf-desktop-day-empty {
+    grid-column: 2;
+    grid-row: 1 / 3;
+  }
+
+  .lf-desktop-day-events {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    display: flex;
+    height: .7rem;
+    align-items: center;
+    gap: .16rem;
+    opacity: .72;
+  }
+
+  .lf-desktop-day-events svg {
+    width: .58rem;
+    height: .58rem;
+  }
+
+  .lf-desktop-day-events b {
+    font-size: .46rem;
+  }
+
+  .lf-desktop-day-window {
+    position: absolute;
+    inset: auto 0 0;
+    height: .15rem;
+  }
+
+  .lf-desktop-day-progress {
+    position: absolute;
+    inset: 0 .4rem auto;
+    height: .12rem;
+    border-radius: 999px;
+    background: currentColor;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+
+  .lf-desktop-calendar-detail {
+    min-width: 0;
+    border-left: 1px solid var(--color-border);
+    background: color-mix(in oklab, var(--color-muted) 34%, transparent);
+  }
+
+  .lf-desktop-calendar-detail .lf-continue-calendar-detail {
+    padding: .6rem .65rem !important;
+  }
+
+  .lf-desktop-calendar-detail button {
+    min-height: 1.9rem;
+    height: 1.9rem;
+    padding-inline: .5rem;
+    font-size: .58rem;
+  }
+
+  /* ---------- Home secondary cards ---------- */
+  .game-main.lf-home-main .lf-vital-card {
+    min-height: 0 !important;
+    height: auto !important;
+    padding: .55rem .65rem !important;
+    border-radius: .7rem !important;
+  }
+
+  .game-main.lf-home-main .lf-vital-heading {
+    font-size: .56rem !important;
+  }
+
+  .game-main.lf-home-main .lf-vital-card > strong {
+    margin-top: .12rem !important;
+    font-size: 1rem !important;
+  }
+
+  .game-main.lf-home-main .lf-vital-card > small {
+    margin-top: .12rem !important;
+    font-size: .52rem !important;
+  }
+
+  .game-main.lf-home-main .lf-home-panel-heading {
+    min-height: 2rem !important;
+    padding: .42rem .55rem !important;
+    font-size: .58rem !important;
+  }
+
+  .game-main.lf-home-main .lf-task-list,
+  .game-main.lf-home-main .lf-suggested-list {
+    padding: .24rem !important;
+  }
+
+  .game-main.lf-home-main .lf-task-row,
+  .game-main.lf-home-main .lf-suggested-row {
+    min-height: 2.65rem !important;
+    gap: .45rem !important;
+    padding: .4rem .48rem !important;
+  }
+
+  .game-main.lf-home-main .lf-task-icon {
+    width: 1.7rem !important;
+    height: 1.7rem !important;
+  }
+
+  .game-main.lf-home-main .lf-task-row strong,
+  .game-main.lf-home-main .lf-suggested-row strong {
+    font-size: .68rem !important;
+  }
+
+  .game-main.lf-home-main .lf-task-row small,
+  .game-main.lf-home-main .lf-suggested-row small {
+    font-size: .54rem !important;
+  }
+
+  .game-main.lf-home-main .lf-around-feed {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  .game-main.lf-home-main .lf-around-story {
+    min-height: 2.35rem !important;
+    padding: .38rem .5rem !important;
+  }
+
+  .game-main.lf-home-main .lf-around-story + .lf-around-story {
+    border-left: 0 !important;
+    border-top: 1px solid var(--lf-line) !important;
+  }
+
+  .game-main.lf-home-main .lf-around-story strong {
+    font-size: .62rem !important;
+  }
+
+  .game-main.lf-home-main .lf-around-story small {
+    font-size: .5rem !important;
+  }
+
+  .game-main.lf-home-main .lf-action-tile {
+    min-height: 3.5rem !important;
+    gap: .35rem !important;
+    padding: .45rem .5rem !important;
+    border-radius: .65rem !important;
+  }
+
+  .game-main.lf-home-main .lf-action-icon {
+    width: 1.65rem !important;
+    height: 1.65rem !important;
+  }
+
+  .game-main.lf-home-main .lf-action-title,
+  .game-main.lf-home-main .lf-action-sub {
+    font-size: .5rem !important;
+  }
+
+  .game-main.lf-home-main .lf-action-value {
+    font-size: .66rem !important;
+  }
+
+  /* ---------- Inbox: desktop communications board ---------- */
+  .lf-inbox-shell {
+    height: calc(100dvh - 13.5rem);
+    min-height: 28rem;
+    gap: .38rem;
+  }
+
+  .lf-inbox-header {
+    padding: .55rem .75rem .2rem;
+  }
+
+  .lf-inbox-header h1 {
+    font-size: 1.55rem;
+  }
+
+  .lf-attention-rail {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .lf-attention-stat {
+    height: 2.7rem;
+    padding: .35rem .55rem;
+  }
+
+  .lf-inbox-tools {
+    padding-inline: .55rem;
+  }
+
+  .lf-inbox-feed {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
+    gap: .55rem;
+    overflow-y: auto;
+    padding: 0 .55rem .55rem;
+  }
+
+  .lf-inbox-lane + .lf-inbox-lane {
+    margin-top: 0;
+  }
+
+  .lf-inbox-lane-heading {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--inbox-ink);
+  }
+
+  .lf-message-row {
+    min-height: 3.55rem;
+    grid-template-columns: 1.7rem minmax(0, 1fr) auto;
+    gap: .45rem;
+    padding: .42rem .45rem .42rem .38rem;
+  }
+
+  .lf-message-source {
+    width: 1.7rem;
+    height: 1.7rem;
+  }
+
+  .lf-message-main > strong {
+    font-size: .88rem;
+  }
+
+  .lf-briefing-sheet {
+    width: min(48rem, 62vw) !important;
+    max-width: none !important;
+  }
+
+  /* ---------- Transfers: executive desk ---------- */
+  .lf-transfer-desk {
+    height: calc(100dvh - 13.5rem);
+    min-height: 30rem;
+  }
+
+  .lf-desk-briefing {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+
+  .lf-desk-brief {
+    min-width: 12rem;
+    max-width: none;
+    flex: 1 1 12rem;
+  }
+
+  .lf-desk-lenses > button {
+    min-height: 2rem;
+  }
+
+  /* ---------- Staff ---------- */
+  .lf-staff-view .lf-staff-grid,
+  .lf-staff-view > .grid.gap-2.md\:grid-cols-2 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .lf-staff-card {
+    min-height: 0;
+  }
+
+  /* ---------- Facilities ---------- */
+  .lf-facilities-workspace {
+    height: calc(100dvh - 13.5rem);
+    min-height: 30rem;
+  }
+
+  .lf-facilities-workspace > section:first-child {
+    grid-template-columns: minmax(0, 1fr) 7.5rem !important;
+  }
+
+  .lf-ground-viewport {
+    height: min(48dvh, 28rem);
+  }
+
+  .lf-studio {
+    width: min(74rem, calc(100vw - 3rem)) !important;
+    max-width: none !important;
+    height: min(90dvh, 52rem) !important;
+    margin-inline: auto;
+    border-radius: 1rem 1rem 0 0 !important;
+  }
+
+  /* ---------- Finances / Board / Commercial / Tickets ---------- */
+  .lf-board,
+  .lf-commercial,
+  .lf-tickets {
+    max-width: none;
+  }
+
+  .lf-board > .grid.md\:grid-cols-2,
+  .lf-commercial > .grid,
+  .lf-tickets > section .md\:grid-cols-2 {
+    gap: .55rem !important;
+  }
+
+  .lf-tickets .lf-stand-row {
+    padding-block: .55rem !important;
+  }
+
+  /* ---------- Fixtures / World ---------- */
+  .lf-fixtures-workspace {
+    grid-template-columns: minmax(0, 1.15fr) minmax(22rem, .85fr) !important;
+    gap: .65rem !important;
+  }
+
+  .lf-world-workspace {
+    height: calc(100dvh - 13.5rem);
+  }
+
+  /* ---------- History / Settings ---------- */
+  .lf-history-workspace,
+  .lf-settings-workspace {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: .65rem !important;
+  }
+
+  .lf-history-workspace > section:first-child,
+  .lf-settings-workspace > section:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .lf-history-workspace table,
+  .lf-settings-workspace {
+    font-size: .78rem;
+  }
+}
+
+@media (min-width: 1440px) {
+  .game-main.lf-home-main .lf-home-dashboard {
+    grid-template-columns: minmax(0, 2.2fr) minmax(20rem, .68fr) !important;
+  }
+
+  .lf-inbox-feed {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .lf-history-workspace,
+  .lf-settings-workspace {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .lf-history-workspace > section:first-child,
+  .lf-settings-workspace > section:first-child {
+    grid-column: span 2;
+  }
+}
