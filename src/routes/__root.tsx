@@ -27,6 +27,7 @@ import homeArtCss from "../home-art.css?url";
 import funCss from "../fun.css?url";
 import mobileDockCss from "../mobile-dock.css?url";
 import homeShellPolishCss from "../home-shell-polish.css?url";
+import desktopWorkspaceCss from "../desktop-workspace.css?url";
 import { installAudioUnlock } from "../lib/audio/soundscape";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { applyLatestBuild, cleanUpdateParams, fetchLatestBuildId } from "../lib/appUpdate";
@@ -99,6 +100,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       // Phones: navigation and Continue share one bottom dock.
       { rel: "stylesheet", href: mobileDockCss },
       { rel: "stylesheet", href: homeShellPolishCss },
+      // PC-only composition layer: loaded last so desktop is a workspace, not a scaled mobile layout.
+      { rel: "stylesheet", href: desktopWorkspaceCss },
       { rel: "manifest", href: "/manifest.webmanifest?v=3" },
       { rel: "icon", href: "/favicon.ico?v=3", sizes: "any" },
       { rel: "icon", href: "/favicon.png?v=3", type: "image/png", sizes: "64x64" },
