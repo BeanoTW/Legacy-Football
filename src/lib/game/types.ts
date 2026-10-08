@@ -1350,6 +1350,8 @@ export interface PlayerLoanAgreement {
   endAbsoluteWeek: number;
   /** Percentage of the parent contract wage funded by the loan club, 0-100. */
   loanClubWageContributionPct: number;
+  /** One-off fee paid by the loan club to the parent club. Optional for legacy saves. */
+  loanFee?: number;
   playingTimeExpectation: LoanPlayingTimeExpectation;
   status: PlayerLoanStatus;
   endedAbsoluteWeek?: number;
