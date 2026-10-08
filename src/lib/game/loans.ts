@@ -78,6 +78,7 @@ export function startPlayerLoanInPlace(
   durationWeeks: number,
   loanClubWageContributionPct: number,
   playingTimeExpectation: LoanPlayingTimeExpectation,
+  loanFee = 0,
 ): LoanActionResult {
   ensureLoanStateInPlace(state);
   const player = state.football.players.find((row) => row.id === playerId);
@@ -98,6 +99,9 @@ export function startPlayerLoanInPlace(
     loanClubWageContributionPct > 100
   ) {
     return { ok: false, reason: "Loan wage contribution must be between 0% and 100%" };
+  }
+  if (!Number.isFinite(loanFee) || loanFee < 0) {
+    return { ok: false, reason: "Loan fee cannot be negative" };
   }
   if (activeLoanForPlayer(state, playerId))
     return { ok: false, reason: "Player already has an active loan" };
@@ -126,6 +130,7 @@ export function startPlayerLoanInPlace(
     startAbsoluteWeek,
     endAbsoluteWeek,
     loanClubWageContributionPct: Math.round(loanClubWageContributionPct),
+    loanFee: Math.round(loanFee),
     playingTimeExpectation,
     status: "Active",
   };
