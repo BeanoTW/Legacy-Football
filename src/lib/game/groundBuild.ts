@@ -3,7 +3,7 @@
    groundIdentity.ts). All money moves through finance.postEntry. */
 
 import type { CapitalProjectType, GameState } from "./types";
-import { approveProjectInPlace, assetById, projectById, queueProject, recomputeDerived, syncLegacyStadium } from "./infrastructure";
+import { approveProjectInPlace, assetById, projectById, projectCatalogue, queueProject, recomputeDerived, syncLegacyStadium } from "./infrastructure";
 import { assessSpend, postEntry } from "./finance";
 import {
   buildCapacityMultiplier,
@@ -40,35 +40,20 @@ export function approveStandBuild(s: GameState, assetId: string, type: CapitalPr
   if (!asset || asset.type !== "stand") return { state: s, ok: false, reason: "Builds are chosen for stands only." };
   if (!isLevelRaising(type)) return { state: s, ok: false, reason: "That work doesn't change how the stand is built." };
 
+  const spec = projectCatalogue(s, assetId).find((candidate) => candidate.type === type);
+  if (!spec) return { state: s, ok: false, reason: "That project is not available on this stand." };
+  const quote = buildQuote(s, spec.cost, assetId, type, build);
+
   const next = structuredClone(s);
-  const result = approveProjectInPlace(next, assetId, type);
+  const result = approveProjectInPlace(next, assetId, type, quote.cost);
   if (!result.ok || !result.projectId) return { state: s, ok: false, reason: result.reason ?? "Unable to approve the project." };
+
   const project = projectById(next, result.projectId)!;
   const resulting = levelAfterProject(type, asset.level);
-  const costMultiplier = buildCostMultiplier(build, resulting);
   const capacityMultiplier = buildCapacityMultiplier(build, resulting);
 
-  // A dearer build must still be affordable at its real price.
-  const newCost = Math.round(project.baseCost * costMultiplier);
-  if (newCost > project.baseCost) {
-    const check = assessSpend(s, newCost);
-    if (!check.allowed) return { state: s, ok: false, reason: `This build costs £${newCost.toLocaleString("en-GB")}: ${check.reason}` };
-  }
-
-  // Rescale the payment schedule (nothing has been paid yet at approval).
-  const scale = newCost / Math.max(1, project.baseCost);
-  let allocated = 0;
-  const instalments = project.paymentSchedule.filter((pay) => pay.kind === "instalment");
-  instalments.forEach((pay, index) => {
-    pay.amount = index === instalments.length - 1 ? newCost - allocated : Math.floor(pay.amount * scale);
-    allocated += index === instalments.length - 1 ? 0 : pay.amount;
-  });
-  for (const pay of project.paymentSchedule) if (pay.kind === "overrun") pay.amount = Math.round(pay.amount * scale);
-  project.costOverrun = Math.round(project.costOverrun * scale);
-  project.baseCost = newCost;
-  project.approvedBudget = newCost;
-
-  // Capacity the work adds follows the build; two tiers add hospitality.
+  // Capacity follows the chosen build. Price, payment schedule, overrun and
+  // affordability already use quote.cost inside the canonical project system.
   project.effectsOnCompletion = project.effectsOnCompletion.map((effect) =>
     effect.kind === "capacity" ? { ...effect, add: Math.round((effect.add * capacityMultiplier) / 50) * 50 } : effect,
   );
@@ -87,12 +72,9 @@ export function approveStandBuild(s: GameState, assetId: string, type: CapitalPr
   identity.pending = { ...identity.pending, [assetId]: { ...build, projectId: project.id } };
   next.groundIdentity = identity;
 
-  // The chosen build stays pending until the capital project completes.
-  // Ground geometry is derived from the live purchased capacity, so it grows
-  // on completion rather than when the director presses Approve.
   recomputeDerived(next);
   syncLegacyStadium(next);
-  return { state: next, ok: true, reason: `Approved: ${asset.name} as ${label} · £${newCost.toLocaleString("en-GB")}.` };
+  return { state: next, ok: true, reason: `Approved: ${asset.name} as ${label} · £${quote.cost.toLocaleString("en-GB")}.` };
 }
 
 /** Add a chosen stand build to the approved development plan without starting it yet. */
@@ -101,29 +83,17 @@ export function queueStandBuild(s: GameState, assetId: string, type: CapitalProj
   if (!asset || asset.type !== "stand") return { state: s, ok: false, reason: "Builds are chosen for stands only." };
   if (!isLevelRaising(type)) return { state: s, ok: false, reason: "That work doesn't change how the stand is built." };
 
-  const queued = queueProject(s, assetId, type);
+  const spec = projectCatalogue(s, assetId).find((candidate) => candidate.type === type);
+  if (!spec) return { state: s, ok: false, reason: "That project is not available on this stand." };
+  const quote = buildQuote(s, spec.cost, assetId, type, build);
+
+  const queued = queueProject(s, assetId, type, quote.cost);
   if (!queued.ok || !queued.projectId) return { state: s, ok: false, reason: queued.reason ?? "Unable to add that build to the development plan." };
   const next = queued.state;
   const project = projectById(next, queued.projectId)!;
   const resulting = levelAfterProject(type, asset.level);
-  const costMultiplier = buildCostMultiplier(build, resulting);
   const capacityMultiplier = buildCapacityMultiplier(build, resulting);
-  const newCost = Math.round(project.baseCost * costMultiplier);
 
-  const check = assessSpend(s, newCost);
-  if (!check.allowed) return { state: s, ok: false, reason: `This build costs £${newCost.toLocaleString("en-GB")}: ${check.reason}` };
-
-  const scale = newCost / Math.max(1, project.baseCost);
-  let allocated = 0;
-  const instalments = project.paymentSchedule.filter((pay) => pay.kind === "instalment");
-  instalments.forEach((pay, index) => {
-    pay.amount = index === instalments.length - 1 ? newCost - allocated : Math.floor(pay.amount * scale);
-    allocated += index === instalments.length - 1 ? 0 : pay.amount;
-  });
-  for (const pay of project.paymentSchedule) if (pay.kind === "overrun") pay.amount = Math.round(pay.amount * scale);
-  project.costOverrun = Math.round(project.costOverrun * scale);
-  project.baseCost = newCost;
-  project.approvedBudget = newCost;
   project.effectsOnCompletion = project.effectsOnCompletion.map((effect) =>
     effect.kind === "capacity" ? { ...effect, add: Math.round((effect.add * capacityMultiplier) / 50) * 50 } : effect,
   );
@@ -141,7 +111,7 @@ export function queueStandBuild(s: GameState, assetId: string, type: CapitalProj
   next.groundIdentity = identity;
   recomputeDerived(next);
   syncLegacyStadium(next);
-  return { state: next, ok: true, reason: `Added: ${asset.name} as ${label} · £${newCost.toLocaleString("en-GB")}.` };
+  return { state: next, ok: true, reason: `Added: ${asset.name} as ${label} · £${quote.cost.toLocaleString("en-GB")}.` };
 }
 
 /** Change how the ground looks. Paint and cladding cost money; names and patterns are free. */

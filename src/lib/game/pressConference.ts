@@ -1,6 +1,8 @@
 import type { GameState, InboxEffect } from "./types";
 import type { RandomIncidentDefinition } from "./randomIncidents";
 import { journalistQuestionPressure, type JournalistProfile } from "./mediaRelations";
+import { primaryInfrastructureIssue } from "./infrastructureNarrative";
+import { isUserClubReference } from "./clubReference";
 
 export type PressTone = "transparent" | "reassure" | "dismiss";
 export type CalendarPressContext =
@@ -388,6 +390,55 @@ export function calendarPressRound(
   const pressure = journalist ? journalistQuestionPressure(state, journalist) : "normal";
   const combative = previousTones.includes("dismiss");
   const club = state.clubName;
+
+  // Serious maintenance becomes part of the club's public world rather than
+  // another Facilities-only number. Use the final question so it appears
+  // contextually without hijacking every press conference.
+  const maintenanceIssue = round === 3 ? primaryInfrastructureIssue(state, "concern") : null;
+  if (maintenanceIssue) {
+    const latestSpend = [...(state.football?.transferHistory ?? [])]
+      .reverse()
+      .find(
+        (record) =>
+          record.season === state.season &&
+          record.fee > 0 &&
+          record.toClubId != null &&
+          isUserClubReference(state, record.toClubId),
+      );
+    const fee =
+      latestSpend && context.includes("window")
+        ? latestSpend.fee >= 1_000_000
+          ? `£${(latestSpend.fee / 1_000_000).toFixed(1)}m`
+          : `£${Math.round(latestSpend.fee / 1_000)}k`
+        : null;
+    const question = fee
+      ? `You've spent ${fee} in the transfer market while ${maintenanceIssue.pressLine}. Why should supporters believe the club has its priorities right?`
+      : `Supporters say ${maintenanceIssue.pressLine}. When are you going to deal with it properly?`;
+    const answers: PressAnswer[] = [
+      {
+        id: "maintenance-transparent",
+        tone: "transparent",
+        label: `They're right to raise it. ${maintenanceIssue.assetName} needs attention and we will deal with the underlying problem rather than pretend it is cosmetic.`,
+        hint: "",
+        effects: answerEffects(3, "transparent", true),
+      },
+      {
+        id: "maintenance-reassure",
+        tone: "reassure",
+        label: "We have a maintenance plan and we will sequence the work responsibly. The issue is being managed alongside the rest of the club's needs.",
+        hint: "",
+        effects: answerEffects(3, "reassure", true),
+      },
+      {
+        id: "maintenance-dismiss",
+        tone: "dismiss",
+        label: "Running a football club means dealing with more than one priority at once. We will spend where the club needs it and I am not going to manufacture a crisis.",
+        hint: "",
+        effects: answerEffects(3, "dismiss", true),
+      },
+    ];
+    return { question, answers };
+  }
 
   const roundTwoQuestions: Record<CalendarPressContext, string> = {
     "summer-window-open": state.season === 1

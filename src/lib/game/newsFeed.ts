@@ -9,6 +9,12 @@ import { managerFootballIdentity } from "./managerIdentity";
 import { supporterEventArticles } from "./supporterEventNews";
 import type { SupporterEventId } from "./supporterEvents";
 import type { EventOutcome } from "./supporterEventPresentation";
+import {
+  infrastructureStoryKey,
+  infrastructureStoryTiming,
+  primaryInfrastructureIssue,
+  recentInfrastructureResolutions,
+} from "./infrastructureNarrative";
 
 export type NewsKind =
   | "matchReport"
@@ -593,6 +599,74 @@ function livingClubArticles(state: GameState): NewsArticle[] {
   return articles;
 }
 
+function infrastructureArticles(state: GameState): NewsArticle[] {
+  const articles: NewsArticle[] = [];
+  const us = clubPresentationName(state.clubName);
+  const issue =
+    state.season > 1 || state.week > 4 ? primaryInfrastructureIssue(state) : null;
+
+  if (issue) {
+    const key = infrastructureStoryKey(state, issue);
+    const when = infrastructureStoryTiming(state, issue);
+    const severe = issue.severity === "severe";
+    const concern = issue.severity === "concern";
+    articles.push({
+      id: key,
+      kind: "clubIncident",
+      season: when.season,
+      week: when.week,
+      publication: PUBLICATIONS.local,
+      byline: pick(`${key}|byline`, REPORTERS),
+      headline: issue.headline,
+      standfirst:
+        issue.severity === "mention"
+          ? `Routine wear at ${us} has started to become noticeable.`
+          : concern
+            ? `Supporters are asking when ${us} will address the problem.`
+            : `Maintenance at ${us} is becoming a visible club issue.`,
+      body: [
+        issue.detail,
+        issue.severity === "mention"
+          ? "The issue is not yet disrupting operations, but regulars have begun to notice the ground and facilities showing their age."
+          : concern
+            ? "The problem has moved beyond ordinary wear and is beginning to affect the matchday impression of the club."
+            : "The condition is now poor enough that further delay risks closures, disruption or a larger repair bill.",
+      ],
+      facts: [
+        { label: "Facility", value: issue.assetName },
+        { label: "Condition", value: `${issue.condition}%` },
+      ],
+      tags: [us, "Facilities", "Maintenance", issue.assetName],
+      involvesUser: true,
+      reactions: reactions(key, severe ? 2.4 : concern ? 1.6 : 0.8),
+    });
+  }
+
+  for (const resolution of recentInfrastructureResolutions(state)) {
+    const key = `infrastructure-resolution:${resolution.projectId}`;
+    articles.push({
+      id: key,
+      kind: "clubIncident",
+      season: resolution.season,
+      week: resolution.week,
+      publication: PUBLICATIONS.local,
+      byline: pick(`${key}|byline`, REPORTERS),
+      headline: resolution.headline,
+      standfirst: `${us} have completed work after a period of maintenance concern.`,
+      body: [
+        resolution.detail,
+        "Supporters will see the improvement reflected in the condition and day-to-day operation of the facility.",
+      ],
+      facts: [{ label: "Facility", value: resolution.assetName }],
+      tags: [us, "Facilities", "Maintenance", "Repairs"],
+      involvesUser: true,
+      reactions: reactions(key, 1.25),
+    });
+  }
+
+  return articles;
+}
+
 const KIND_PRIORITY: Record<NewsKind, number> = {
   matchReport: 0,
   pressConference: 1,
@@ -634,6 +708,7 @@ export function newsFeed(state: GameState, limit = 60): NewsArticle[] {
 
   articles.push(...appointments(state));
   articles.push(...livingClubArticles(state));
+  articles.push(...infrastructureArticles(state));
   articles.push(...supporterEventArticles(state));
   const table = tableWatch(state);
   if (table) articles.push(table);
