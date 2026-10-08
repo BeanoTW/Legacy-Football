@@ -183,7 +183,10 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
   const chairman = chairmanStyle(state);
   const userReputation = clubReputation(state, state.clubName);
   const crestDesign = clubKitFor(state).badge;
-  const onboarding = activeOnboardingChapter(state, tab);
+  const onboarding = activeOnboardingChapter(
+    state,
+    tab === "leagues" ? "world" : tab,
+  );
 
   useEffect(() => {
     if (blockingDecisions.length === 0 || (!isContinuing && !continueReason)) return;
@@ -234,7 +237,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
       replayOnboardingChapterInPlace(next, chapterId);
       return next;
     });
-    if (targetTab !== "welcome") setTab(targetTab as Tab);
+    setTab(targetTab as Tab);
   };
 
   const restartTutorial = () => {
