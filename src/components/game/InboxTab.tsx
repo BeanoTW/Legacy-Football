@@ -589,7 +589,7 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
             <div className="lf-briefing-from">
               {isPersonSender(item.sender) ? (
                 <span className="lf-briefing-avatar">
-                  <CharacterPortrait identity={{ id: `sender-${item.sender}`, subject: item.department === "Board of Directors" ? "board" : "staff" }} size={34} title={item.sender} />
+                  <CharacterPortrait identity={{ id: `sender-${item.sender}`, subject: item.department === "Board of Directors" ? "board" : "staff", sex: item.sender === "Sarah Malik" ? "female" : undefined }} size={34} title={item.sender} />
                 </span>
               ) : (
                 <span className="lf-briefing-avatar is-department"><DepartmentIcon /></span>
@@ -656,7 +656,7 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
             </Button>
           ) : null}
 
-          {item.reward && (
+          {item.reward && !decision && (
             <aside className="lf-briefing-note"><CircleCheck /><div><strong>Potential outcome</strong><p>{item.reward}</p></div></aside>
           )}
 
@@ -677,7 +677,6 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
                           <Button key={choice.id} variant="ghost" onClick={() => availability.available && onChoose(choice.id)} disabled={!availability.available} className="lf-decision-card lf-choice-tile">
                             <span className="lf-choice-tile-copy">
                               <strong>{choice.label}</strong>
-                              {choice.hint && <small>{choice.hint}</small>}
                             </span>
                             <span className="lf-choice-tile-arrow" aria-hidden="true"><ChevronRight /></span>
                           </Button>
@@ -691,7 +690,7 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
                       >
                         <span className="lf-choice-tile-copy">
                           <strong>Negotiate one term</strong>
-                          <small>The board will soften one objective. Choose the target you want changed.</small>
+                          <small>Open a discussion with the board about one objective.</small>
                         </span>
                         <span className="lf-choice-tile-arrow" aria-hidden="true"><ChevronRight className={cn("transition-transform", showObjectiveNegotiation && "rotate-90")} /></span>
                       </Button>
@@ -699,7 +698,7 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
                         <div className="col-span-full space-y-2 rounded-2xl border bg-muted/30 p-2">
                           <div className="px-2 py-1">
                             <strong className="text-sm">Which term do you want to renegotiate?</strong>
-                            <p className="mt-0.5 text-xs text-muted-foreground">You get one concession. The other objectives stay exactly as issued.</p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">Choose which term you want to raise with the board.</p>
                           </div>
                           {item.choices.filter((choice) => choice.id.startsWith("negotiate-")).map((choice) => {
                             const availability = evaluateChoice(state, choice);
@@ -730,7 +729,6 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
                           <Button key={choice.id} variant="ghost" onClick={() => availability.available && onChoose(choice.id)} disabled={!availability.available} className="lf-decision-card lf-choice-tile">
                             <span className="lf-choice-tile-copy">
                               <strong>{choice.label}</strong>
-                              {choice.hint && <small>{choice.hint}</small>}
                               {!availability.available && <em>{availability.reasons.join(" ")}</em>}
                             </span>
                             <span className="lf-choice-tile-arrow" aria-hidden="true"><ChevronRight /></span>

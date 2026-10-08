@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { newGame } from "../engine";
 import { handleInboxChoice } from "../inbox";
 import { newsFeed } from "../newsFeed";
@@ -15,7 +16,11 @@ console.log("\n[SARAH MALIK ONBOARDING]");
 const volunteerStart=newGame("Community Town","Director Test","sarah-volunteer-seed");
 const volunteerItem=volunteerStart.inbox.find((item)=>item.generatorId==="community-events-onboarding");
 check("Sarah introduces the event system in week one",Boolean(volunteerItem));
-check("opening message offers two choices",volunteerItem?.choices?.length===2);
+check("opening message offers three choices",volunteerItem?.choices?.length===3);
+check(
+  "Sarah choices do not preview hidden outcomes",
+  Boolean(volunteerItem?.choices?.every((choice)=>!choice.hint)),
+);
 
 const volunteer=volunteerItem
   ? handleInboxChoice(volunteerStart,volunteerItem.id,"volunteer")
@@ -38,6 +43,24 @@ check("paid role has the intended starter wage",paidSarah?.wage===275);
 check("paid status is persisted",paid.inboxFlags?.[SARAH_MALIK_FLAG]==="paid");
 check("paid appointment creates positive media coverage",newsFeed(paid).some((article)=>article.headline.includes("Sarah Malik")&&article.headline.includes("payroll")));
 check("paid appointment gives stronger event support",eventCoordinationSupport(paid).score>eventCoordinationSupport(volunteer).score);
+
+const dismissedStart=newGame("Community Town","Director Test","sarah-dismissed-seed");
+const dismissedItem=dismissedStart.inbox.find((item)=>item.generatorId==="community-events-onboarding");
+const dismissed=dismissedItem
+  ? handleInboxChoice(dismissedStart,dismissedItem.id,"dismissed")
+  : dismissedStart;
+check("dismissal status is persisted",dismissed.inboxFlags?.[SARAH_MALIK_FLAG]==="dismissed");
+check("dismissal removes Sarah from club staff",!dismissed.hiredStaff.some((staff)=>staff.id===SARAH_MALIK_ID));
+check("dismissal leaves events director-led",!eventCoordinationSupport(dismissed).coordinator);
+check(
+  "dismissal becomes visible only after the decision",
+  newsFeed(dismissed).some((article)=>article.headline.includes("Sarah Malik")&&article.headline.includes("leaves")),
+);
+
+const inboxUi=readFileSync(new URL("../../../components/game/InboxTab.tsx",import.meta.url),"utf8");
+check("decision UI never renders choice hint spoilers",!inboxUi.includes("choice.hint"));
+check("potential outcome preview is hidden while a decision is pending",inboxUi.includes("item.reward && !decision"));
+check("Sarah inbox portrait is explicitly female",inboxUi.includes('item.sender === "Sarah Malik" ? "female"'));
 
 console.log(`\n=== ${passed} passed, ${failed} failed ===`);
 if(failed) process.exit(1);

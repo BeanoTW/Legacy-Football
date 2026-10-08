@@ -792,7 +792,6 @@ const G_COMMUNITY_EVENTS_ONBOARDING: Generator = {
           {
             id: "volunteer",
             label: "Please carry on as a volunteer",
-            hint: "No wage. Sarah keeps the events programme going, but some supporters may question leaving the role unpaid.",
             effects: [
               { kind: "communityEventsOnboarding", mode: "volunteer" },
               { kind: "fanHappiness", delta: -1 },
@@ -801,11 +800,17 @@ const G_COMMUNITY_EVENTS_ONBOARDING: Generator = {
           {
             id: "paid",
             label: "Make it a paid role — £275/wk",
-            hint: "Appoint Sarah as Community & Events Officer. Small goodwill boost and more time for the job.",
             effects: [
               { kind: "communityEventsOnboarding", mode: "paid" },
               { kind: "fanHappiness", delta: 2 },
               { kind: "reputation", delta: 1 },
+            ],
+          },
+          {
+            id: "dismissed",
+            label: "Relieve Sarah of her duties",
+            effects: [
+              { kind: "communityEventsOnboarding", mode: "dismissed" },
             ],
           },
         ],

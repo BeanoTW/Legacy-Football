@@ -73,9 +73,13 @@ export function sarahMalikStarter(mode: "volunteer" | "paid"): Staff {
   };
 }
 
-export function applySarahMalikDecisionInPlace(s: GameState, mode: "volunteer" | "paid"): void {
+export function applySarahMalikDecisionInPlace(s: GameState, mode: "volunteer" | "paid" | "dismissed"): void {
   s.inboxFlags ??= {};
   s.inboxFlags[SARAH_MALIK_FLAG] = mode;
+  if (mode === "dismissed") {
+    s.hiredStaff = (s.hiredStaff ?? []).filter((member) => member.id !== SARAH_MALIK_ID);
+    return;
+  }
   const existing = (s.hiredStaff ?? []).find((member) => member.id === SARAH_MALIK_ID);
   const sarah = existing ?? sarahMalikStarter(mode);
   sarah.wage = mode === "paid" ? 275 : 0;

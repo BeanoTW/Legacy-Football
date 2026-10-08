@@ -389,7 +389,7 @@ function StaffCard({state,staff,terms,onAction,onRenew,onSpeak,action,affordable
       <button type="button" onClick={() => setPortraitEditing(true)}
         className="relative shrink-0 overflow-hidden rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-500"
         aria-label={`Edit ${displayName} appearance`}>
-        <CharacterPortrait identity={{id:staff.id,subject:manager?"manager":"staff"}} size={40} title={`${displayName} portrait`} />
+        <CharacterPortrait identity={{id:staff.id,subject:manager?"manager":"staff",sex:staff.id===SARAH_MALIK_ID?"female":undefined}} size={40} title={`${displayName} portrait`} />
         <Pencil className="absolute bottom-0 right-0 size-3 rounded-tl bg-black/70 p-0.5 text-white" aria-hidden="true" />
       </button>
       <div className="min-w-0 flex-1">
@@ -447,7 +447,7 @@ function StaffCard({state,staff,terms,onAction,onRenew,onSpeak,action,affordable
         {onRenew && staff.contractWeeks <= 52 && <Button size="sm" onClick={onRenew} className="h-8 flex-1">Renew</Button>}
       </>}
     </div>
-    <CharacterPortraitStudio identity={{id:staff.id,subject:manager?"manager":"staff"}} name={staff.name}
+    <CharacterPortraitStudio identity={{id:staff.id,subject:manager?"manager":"staff",sex:staff.id===SARAH_MALIK_ID?"female":undefined}} name={staff.name}
       open={portraitEditing} onOpenChange={setPortraitEditing} />
   </div>;
 }
