@@ -694,3 +694,454 @@ html:has(.lf-home-main), body:has(.lf-home-main),
     font-size: .7rem !important;
   }
 }
+
+
+/* Ultra-dense PC Home — desktop should surface information, not make the user
+   scroll through tablet-sized cards. Deliberately aggressive from 1024px up. */
+@media (min-width: 1024px) {
+  .game-main.lf-home-main {
+    padding-top: .24rem !important;
+    padding-bottom: .24rem !important;
+  }
+
+  .game-main.lf-home-main .lf-home-dashboard {
+    gap: .24rem !important;
+    row-gap: .24rem !important;
+    padding: .22rem !important;
+  }
+
+  .game-main.lf-home-main .lf-command-grid {
+    grid-template-columns: minmax(0, 2.25fr) minmax(13rem, .62fr) !important;
+    gap: .28rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-card,
+  .game-main.lf-home-main .lf-match-inner {
+    min-height: 6.9rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-inner {
+    grid-template-columns: minmax(11rem, .7fr) minmax(14rem, 1.3fr) !important;
+    gap: .7rem !important;
+    padding: .48rem .72rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-kicker {
+    margin: 0 !important;
+    font-size: .48rem !important;
+    letter-spacing: .08em !important;
+  }
+
+  .game-main.lf-home-main .lf-match-copy h2 {
+    margin-top: .18rem !important;
+    font-size: 1.45rem !important;
+    line-height: .9 !important;
+  }
+
+  .game-main.lf-home-main .lf-match-copy > p {
+    margin-top: .18rem !important;
+    font-size: .58rem !important;
+    line-height: 1.05 !important;
+  }
+
+  .game-main.lf-home-main .lf-match-brief {
+    min-height: 0 !important;
+    gap: .45rem !important;
+    margin-top: .28rem !important;
+    padding-top: .28rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-brief > div:first-child {
+    gap: .35rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-brief svg,
+  .game-main.lf-home-main .lf-match-brief [class*="size-9"] {
+    width: 1.55rem !important;
+    height: 1.55rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-brief span {
+    font-size: .43rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-brief strong,
+  .game-main.lf-home-main .lf-match-fit {
+    font-size: .56rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-fit small {
+    font-size: .42rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-actions {
+    gap: .25rem !important;
+    margin-top: .3rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-actions button,
+  .game-main.lf-home-main .lf-match-primary,
+  .game-main.lf-home-main .lf-match-secondary {
+    min-height: 1.72rem !important;
+    height: 1.72rem !important;
+    gap: .25rem !important;
+    padding: .2rem .52rem !important;
+    border-radius: .45rem !important;
+    font-size: .54rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-actions svg {
+    width: .68rem !important;
+    height: .68rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-versus {
+    gap: .32rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-team {
+    min-width: 4rem !important;
+  }
+
+  .game-main.lf-home-main .lf-team-mark {
+    width: 2.7rem !important;
+    height: 2.95rem !important;
+    border-radius: .65rem .65rem .82rem .82rem !important;
+    border-width: 1px !important;
+  }
+
+  .game-main.lf-home-main .lf-team-mark svg {
+    width: 2rem !important;
+    height: 2rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-team .font-display {
+    margin-top: .15rem !important;
+    max-width: 7rem !important;
+    font-size: .64rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-team > span {
+    font-size: .42rem !important;
+  }
+
+  .game-main.lf-home-main .lf-vs {
+    width: 1.45rem !important;
+    height: 1.45rem !important;
+    font-size: .46rem !important;
+  }
+
+  .game-main.lf-home-main .lf-club-pulse {
+    grid-template-rows: auto auto !important;
+    grid-template-columns: .72fr 1.28fr !important;
+    min-height: 6.9rem !important;
+  }
+
+  .game-main.lf-home-main .lf-pulse-block {
+    grid-row: 1 / 3;
+    border-right: 1px solid var(--lf-line) !important;
+    border-bottom: 0 !important;
+  }
+
+  .game-main.lf-home-main .lf-pulse-block,
+  .game-main.lf-home-main .lf-pulse-manager,
+  .game-main.lf-home-main .lf-pulse-news {
+    min-height: 0 !important;
+    padding: .42rem .5rem !important;
+  }
+
+  .game-main.lf-home-main .lf-pulse-manager,
+  .game-main.lf-home-main .lf-pulse-news {
+    border-bottom: 0 !important;
+  }
+
+  .game-main.lf-home-main .lf-pulse-manager {
+    border-bottom: 1px solid var(--lf-line) !important;
+  }
+
+  .game-main.lf-home-main .lf-pulse-label {
+    gap: .2rem !important;
+    font-size: .44rem !important;
+  }
+
+  .game-main.lf-home-main .lf-pulse-label svg {
+    width: .65rem !important;
+    height: .65rem !important;
+  }
+
+  .game-main.lf-home-main .lf-standing-value {
+    margin-top: .1rem !important;
+    font-size: 1.45rem !important;
+  }
+
+  .game-main.lf-home-main .lf-form-strip {
+    min-height: .8rem !important;
+    gap: .12rem !important;
+    margin-top: .18rem !important;
+  }
+
+  .game-main.lf-home-main .lf-form-strip span {
+    width: .9rem !important;
+    height: .9rem !important;
+    font-size: .4rem !important;
+  }
+
+  .game-main.lf-home-main .lf-form-strip small,
+  .game-main.lf-home-main .lf-pulse-manager small,
+  .game-main.lf-home-main .lf-pulse-news small {
+    margin-top: .04rem !important;
+    font-size: .43rem !important;
+    line-height: 1 !important;
+  }
+
+  .game-main.lf-home-main .lf-pulse-manager strong,
+  .game-main.lf-home-main .lf-pulse-news strong {
+    margin-top: .08rem !important;
+    font-size: .58rem !important;
+    line-height: 1 !important;
+  }
+
+  .game-main.lf-home-main .lf-pulse-table {
+    display: none !important;
+  }
+
+  .game-main.lf-home-main .lf-home-calendar {
+    min-height: 0 !important;
+  }
+
+  .game-main.lf-home-main .lf-week-cards {
+    gap: .18rem !important;
+    grid-template-columns: repeat(6, minmax(6.2rem, 1fr)) minmax(4.8rem, .6fr) !important;
+  }
+
+  .game-main.lf-home-main .lf-week-card,
+  .game-main.lf-home-main .lf-full-schedule {
+    min-height: 2.65rem !important;
+    padding: .28rem .34rem !important;
+    border-radius: .34rem !important;
+  }
+
+  .game-main.lf-home-main .lf-week-number {
+    font-size: .58rem !important;
+  }
+
+  .game-main.lf-home-main .lf-week-head > span,
+  .game-main.lf-home-main .lf-week-type,
+  .game-main.lf-home-main .lf-full-schedule {
+    font-size: .42rem !important;
+  }
+
+  .game-main.lf-home-main .lf-week-meta {
+    display: none !important;
+  }
+
+  .game-main.lf-home-main .lf-week-fixtures {
+    gap: .08rem !important;
+    margin-top: .1rem !important;
+  }
+
+  .game-main.lf-home-main .lf-week-fixture {
+    border-left-width: 2px !important;
+    gap: .12rem !important;
+    padding-left: .16rem !important;
+    font-size: .4rem !important;
+  }
+
+  .game-main.lf-home-main .lf-vital-grid {
+    gap: .24rem !important;
+  }
+
+  .game-main.lf-home-main .lf-vital-card {
+    min-height: 3.2rem !important;
+    padding: .36rem .48rem !important;
+    border-radius: .48rem !important;
+  }
+
+  .game-main.lf-home-main .lf-vital-heading {
+    gap: .24rem !important;
+    font-size: .44rem !important;
+  }
+
+  .game-main.lf-home-main .lf-vital-heading svg {
+    width: .68rem !important;
+    height: .68rem !important;
+  }
+
+  .game-main.lf-home-main .lf-vital-card > strong {
+    margin-top: .12rem !important;
+    font-size: .92rem !important;
+  }
+
+  .game-main.lf-home-main .lf-vital-card > small {
+    margin-top: .1rem !important;
+    font-size: .44rem !important;
+  }
+
+  .game-main.lf-home-main .lf-vital-card > i {
+    height: .12rem !important;
+    margin-top: .18rem !important;
+  }
+
+  .game-main.lf-home-main .lf-home-bottom-pair {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    gap: .24rem !important;
+  }
+
+  .game-main.lf-home-main .lf-home-desk {
+    display: block !important;
+  }
+
+  .game-main.lf-home-main .lf-home-panel-heading {
+    min-height: 1.45rem !important;
+    padding: .24rem .4rem !important;
+    font-size: .46rem !important;
+  }
+
+  .game-main.lf-home-main .lf-home-panel-heading svg {
+    width: .65rem !important;
+    height: .65rem !important;
+  }
+
+  .game-main.lf-home-main .lf-home-panel-heading button,
+  .game-main.lf-home-main .lf-home-panel-heading small {
+    font-size: .42rem !important;
+  }
+
+  .game-main.lf-home-main .lf-task-list,
+  .game-main.lf-home-main .lf-suggested-list {
+    padding: .14rem !important;
+  }
+
+  .game-main.lf-home-main .lf-task-row,
+  .game-main.lf-home-main .lf-suggested-row {
+    min-height: 2rem !important;
+    gap: .32rem !important;
+    padding: .28rem .36rem !important;
+    border-radius: .42rem !important;
+  }
+
+  .game-main.lf-home-main .lf-task-row.is-clear {
+    min-height: 2rem !important;
+  }
+
+  .game-main.lf-home-main .lf-task-icon {
+    width: 1.35rem !important;
+    height: 1.35rem !important;
+    border-radius: .38rem !important;
+  }
+
+  .game-main.lf-home-main .lf-task-icon svg {
+    width: .7rem !important;
+    height: .7rem !important;
+  }
+
+  .game-main.lf-home-main .lf-task-row strong,
+  .game-main.lf-home-main .lf-suggested-row strong {
+    font-size: .54rem !important;
+    line-height: 1 !important;
+  }
+
+  .game-main.lf-home-main .lf-task-row small,
+  .game-main.lf-home-main .lf-suggested-row small {
+    margin-top: .04rem !important;
+    font-size: .42rem !important;
+    line-height: 1 !important;
+  }
+
+  .game-main.lf-home-main .lf-around-grounds {
+    border-radius: .55rem !important;
+  }
+
+  .game-main.lf-home-main .lf-around-feed {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 0 !important;
+  }
+
+  .game-main.lf-home-main .lf-around-story {
+    min-height: 2.35rem !important;
+    gap: .24rem !important;
+    padding: .3rem .4rem !important;
+  }
+
+  .game-main.lf-home-main .lf-around-story + .lf-around-story {
+    border-top: 0 !important;
+    border-left: 1px solid var(--lf-line) !important;
+  }
+
+  .game-main.lf-home-main .lf-around-tag {
+    font-size: .38rem !important;
+    padding: .12rem .2rem !important;
+  }
+
+  .game-main.lf-home-main .lf-around-story strong {
+    font-size: .5rem !important;
+    line-height: 1 !important;
+  }
+
+  .game-main.lf-home-main .lf-around-story small {
+    margin-top: .04rem !important;
+    font-size: .4rem !important;
+    line-height: 1 !important;
+  }
+
+  .game-main.lf-home-main .lf-around-ticker {
+    min-height: 1.25rem !important;
+    padding: .16rem .35rem !important;
+    font-size: .4rem !important;
+  }
+
+  .game-main.lf-home-main .lf-management-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+    gap: .2rem !important;
+  }
+
+  .game-main.lf-home-main .lf-action-tile {
+    min-height: 3.2rem !important;
+    gap: .3rem !important;
+    padding: .34rem .4rem !important;
+    border-radius: .48rem !important;
+  }
+
+  .game-main.lf-home-main .lf-action-icon {
+    width: 1.45rem !important;
+    height: 1.45rem !important;
+    border-radius: .4rem !important;
+  }
+
+  .game-main.lf-home-main .lf-action-icon svg {
+    width: .75rem !important;
+    height: .75rem !important;
+  }
+
+  .game-main.lf-home-main .lf-action-title,
+  .game-main.lf-home-main .lf-action-sub {
+    font-size: .4rem !important;
+    line-height: 1 !important;
+  }
+
+  .game-main.lf-home-main .lf-action-value {
+    margin-top: .08rem !important;
+    font-size: .58rem !important;
+    line-height: 1 !important;
+  }
+
+  .game-main.lf-home-main .lf-action-tile > svg {
+    display: none !important;
+  }
+
+  .game-main.lf-home-main > .hidden.xl\:block {
+    max-height: 7.5rem !important;
+    overflow: hidden !important;
+  }
+
+  .game-main.lf-home-main > .hidden.xl\:block table {
+    font-size: .5rem !important;
+  }
+
+  .game-main.lf-home-main > .hidden.xl\:block td {
+    padding-top: .18rem !important;
+    padding-bottom: .18rem !important;
+  }
+}

@@ -970,3 +970,21 @@ console.log("\n[U35] Desktop shell density");
     /\.game-shell \{[\s\S]*?padding-bottom: 3\.15rem !important;/.test(shell),
   );
 }
+
+
+console.log("\n[U36] Ultra-dense PC Home");
+{
+  const shell = read("src/home-shell-polish.css");
+  check(
+    "desktop Home fixture is compact",
+    /@media \(min-width: 1024px\)[\s\S]*?\.lf-match-card,[\s\S]*?min-height: 6\.9rem !important;/.test(shell),
+  );
+  check(
+    "desktop Home calendar cards are compact",
+    /\.lf-week-card,[\s\S]*?min-height: 2\.65rem !important;/.test(shell),
+  );
+  check(
+    "desktop Home management shortcuts fit one row",
+    /\.lf-management-grid \{[\s\S]*?grid-template-columns: repeat\(7, minmax\(0, 1fr\)\) !important;/.test(shell),
+  );
+}
