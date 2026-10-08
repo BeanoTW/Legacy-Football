@@ -108,6 +108,14 @@ import {
   managerTransferContext,
   recordCompletedTransferManagerReactionInPlace,
 } from "./managerRelationship";
+import {
+  aiClubAttractionGap,
+  aiClubBidInterestScore,
+  aiClubRecruitmentScore,
+  aiClubRenewalChance,
+  aiClubStrategy,
+  aiClubTargetSquadSize,
+} from "./aiClubStrategy";
 
 const int = (n: number) => Math.round(n) || 0;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -2781,15 +2789,16 @@ export function setTransferStatusInPlace(
 /** Would an AI club keep this player? Deterministic, football-shaped. */
 function aiRenews(s: GameState, c: PlayerContract, p: FootballPlayer): boolean {
   const squad = squadOf(s, c.clubId);
-  if (squad.length > SQUAD_SIZE + 2) return false;
+  const strategy = aiClubStrategy(s, c.clubId);
+  const targetSquadSize = aiClubTargetSquadSize(strategy);
+  if (squad.length > targetSquadSize + 2) return false;
   const rng = seededRng(s.saveSeed, "aiRenew", c.id, s.season);
   const rep = clubReputation(s, c.clubId);
   const age = ageOf(p, s.season);
   const wanted = p.currentAbility >= rep * 0.6 + 25;
-  const tooOld = age >= 35;
-  if (tooOld) return false;
-  if (squad.length <= MIN_SQUAD_SIZE + 2) return true;
-  return wanted ? rng() < 0.85 : rng() < 0.45;
+  if (age >= 36) return false;
+  const depthBoost = squad.length <= MIN_SQUAD_SIZE + 1 ? 0.12 : 0;
+  return rng() < Math.min(0.98, aiClubRenewalChance(strategy, p, age, wanted) + depthBoost);
 }
 
 /** Roll one AI contract over onto fresh, level-appropriate terms. */
@@ -2920,11 +2929,16 @@ function generateIncomingOffers(s: GameState, windowOpen: boolean): void {
 
   const rivals = buildWorldSimulationPlan(s).focusClubIds.filter((c) => !isUserClubReference(s, c));
   if (!rivals.length) return;
-  // Clubs that can plausibly afford him show interest first.
-  const suitors = rivals.filter((c) => clubReputation(s, c) >= p.reputation - 12);
-  const buyer = (suitors.length ? suitors : rivals)[
-    rngInt(rng, 0, (suitors.length ? suitors : rivals).length - 1)
-  ];
+  // Club direction now matters as well as raw reputation. Promotion pushes and
+  // well-funded challengers are more likely to enter the market; cost-cutting
+  // clubs need a much stronger football reason to bid.
+  const rankedSuitors = rivals
+    .map((clubId) => ({ clubId, score: aiClubBidInterestScore(s, clubId, p) }))
+    .filter(({ score }) => score >= -12)
+    .sort((a, b) => b.score - a.score || a.clubId.localeCompare(b.clubId));
+  const candidateSuitors = rankedSuitors.length ? rankedSuitors : rivals.map((clubId) => ({ clubId, score: -99 }));
+  const buyerWindow = Math.min(candidateSuitors.length, 4);
+  const buyer = candidateSuitors[rngInt(rng, 0, buyerWindow - 1)].clubId;
 
   const listedBoost = p.transferStatus === "listed" ? 1.0 : rngRange(rng, 0.72, 1.02);
   const fee = recruitmentNormaliseTransferFeeForUser(
@@ -3006,18 +3020,36 @@ function runAiRecruitment(s: GameState, windowOpen: boolean): void {
   const rng = seededRng(s.saveSeed, "aiRecruit", s.season, s.week);
   const clubs = buildWorldSimulationPlan(s).focusClubIds.filter((c) => !isUserClubReference(s, c));
 
-  // Two clubs act each week, chosen deterministically by rotation.
+  // Two clubs act each week, chosen deterministically by rotation. Their
+  // derived strategy decides whether they actually have a recruitment need
+  // and which type of free agent best fits the club's current cycle.
   const start = (s.season * WEEKS_PER_SEASON + s.week) % Math.max(1, clubs.length);
   for (let k = 0; k < 2 && clubs.length; k++) {
     const club = clubs[(start + k) % clubs.length];
     const squad = squadOf(s, club);
-    if (squad.length >= MIN_SQUAD_SIZE + 2) continue;
+    const strategy = aiClubStrategy(s, club);
+    const targetSquadSize = aiClubTargetSquadSize(strategy);
+    if (squad.length >= targetSquadSize) continue;
     const rep = clubReputation(s, club);
+    const attractionGap = aiClubAttractionGap(strategy);
     const pool = freeAgents(s)
-      .filter((p) => p.reputation <= rep + 8)
-      .sort((a, b) => b.currentAbility - a.currentAbility || a.id.localeCompare(b.id));
+      .filter((p) => p.reputation <= rep + attractionGap)
+      .map((player) => ({
+        player,
+        score: aiClubRecruitmentScore(strategy, player, ageOf(player, s.season)),
+      }))
+      .sort((a, b) => b.score - a.score || a.player.id.localeCompare(b.player.id));
     if (!pool.length) continue;
-    const pick = pool[Math.min(pool.length - 1, rngInt(rng, 0, 2))];
+    const choiceWindow = Math.min(pool.length, strategy.financialPosture === "spend" ? 2 : 4);
+    const pick = pool[rngInt(rng, 0, choiceWindow - 1)].player;
+    const contractLength =
+      strategy.squadCycle === "develop" || strategy.squadCycle === "rebuild"
+        ? rngInt(rng, 2, 4)
+        : rngInt(rng, 1, 3);
+    const role: SquadRole =
+      strategy.ambition === "promotion" && pick.currentAbility >= (squad[0]?.currentAbility ?? pick.currentAbility)
+        ? "First Team"
+        : "Rotation";
     const c = issueContract(
       s,
       pick.id,
@@ -3029,8 +3061,8 @@ function runAiRecruitment(s: GameState, windowOpen: boolean): void {
         ageOf(pick, s.season),
         pick.potentialAbility,
       ),
-      rngInt(rng, 1, 3),
-      "Rotation",
+      contractLength,
+      role,
       0,
       0,
     );

@@ -605,8 +605,8 @@ console.log("\n[U20] Squad planning views");
     "redundant squad details tab is removed",
     !/setView\("details"\)/.test(squad) &&
       !/Squad details & contracts/.test(squad) &&
-      /setView\("pitch"\)/.test(squad) &&
-      /setView\("stats"\)/.test(squad),
+      /onView\("pitch"\)/.test(squad) &&
+      /onView\("stats"\)/.test(squad),
   );
 }
 
