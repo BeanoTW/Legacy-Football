@@ -83,8 +83,9 @@
   }
 
   /* The separate large league panel duplicates the compact league snapshot in
-     the command area on desktop. */
-  .game-main.lf-home-main > .hidden.xl\:block {
+     the command area on normal laptop/desktop heights. It actually lives inside
+     lf-home-dashboard, not directly under game-main. */
+  .game-main.lf-home-main .lf-home-dashboard > .hidden.xl\:block {
     display: none !important;
   }
 
@@ -525,16 +526,25 @@
   }
 
   .lf-inbox-feed {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    align-items: start;
-    gap: .55rem;
+    display: block;
     overflow-y: auto;
     padding: 0 .55rem .55rem;
   }
 
+  .lf-inbox-lane {
+    width: 100%;
+    min-width: 0;
+  }
+
   .lf-inbox-lane + .lf-inbox-lane {
-    margin-top: 0;
+    margin-top: .7rem;
+  }
+
+  .lf-inbox-lane-list {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .4rem;
+    padding-top: .4rem;
   }
 
   .lf-inbox-lane-heading {
@@ -557,7 +567,13 @@
   }
 
   .lf-message-main > strong {
+    display: -webkit-box;
+    overflow: hidden;
     font-size: .88rem;
+    line-height: 1.08;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
   }
 
   .lf-briefing-sheet {
@@ -670,7 +686,7 @@
     grid-template-columns: minmax(0, 2.2fr) minmax(20rem, .68fr) !important;
   }
 
-  .lf-inbox-feed {
+  .lf-inbox-lane-list {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
@@ -682,5 +698,94 @@
   .lf-history-workspace > section:first-child,
   .lf-settings-workspace > section:first-child {
     grid-column: span 2;
+  }
+}
+
+
+/* First post-287 PC layout pass: short laptops need less vertical air, not
+   smaller text. Keep the control room readable while pulling Desk and
+   shortcuts closer to the first viewport. */
+@media (min-width: 1024px) and (min-height: 700px) and (max-height: 860px) {
+  .game-main.lf-home-main .lf-home-dashboard {
+    gap: .3rem !important;
+    padding: .3rem !important;
+  }
+
+  .game-main.lf-home-main .lf-command-grid,
+  .game-main.lf-home-main .lf-home-bottom-pair {
+    gap: .3rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-card,
+  .game-main.lf-home-main .lf-match-inner,
+  .game-main.lf-home-main .lf-club-pulse {
+    min-height: 6.35rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-inner {
+    padding: .45rem .65rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-brief {
+    margin-top: .24rem !important;
+    padding-top: .24rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-actions {
+    margin-top: .28rem !important;
+  }
+
+  .lf-desktop-calendar-weeks {
+    gap: .2rem;
+    padding: .3rem;
+  }
+
+  .lf-desktop-day {
+    min-height: 3rem;
+    padding: .26rem .32rem .32rem;
+  }
+
+  .game-main.lf-home-main .lf-vital-grid {
+    gap: .28rem !important;
+  }
+
+  .game-main.lf-home-main .lf-vital-card {
+    padding: .42rem .55rem !important;
+  }
+
+  .game-main.lf-home-main .lf-task-row,
+  .game-main.lf-home-main .lf-suggested-row {
+    min-height: 2.35rem !important;
+    padding: .32rem .42rem !important;
+  }
+
+  .game-main.lf-home-main .lf-around-story {
+    min-height: 2.1rem !important;
+    padding: .3rem .42rem !important;
+  }
+
+  .game-main.lf-home-main .lf-action-tile {
+    min-height: 3.05rem !important;
+    padding: .35rem .42rem !important;
+  }
+}
+
+/* On genuinely tall desktop viewports the detailed league table earns its
+   space again as a full-width band beneath the control-room grid. */
+@media (min-width: 1024px) and (min-height: 1000px) {
+  .game-main.lf-home-main .lf-home-dashboard {
+    grid-template-areas:
+      "command command"
+      "calendar vitals"
+      "desk world"
+      "shortcuts shortcuts"
+      "league league" !important;
+  }
+
+  .game-main.lf-home-main .lf-home-dashboard > .hidden.xl\:block {
+    display: block !important;
+    grid-area: league;
+    max-height: none !important;
+    overflow: visible !important;
   }
 }
