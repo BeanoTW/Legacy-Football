@@ -235,39 +235,41 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
       <PlayerProfileSheet state={state} update={update} />
       <ChairmanStudio open={chairmanStudioOpen} onOpenChange={setChairmanStudioOpen} showName={false} />
       <ClubIdentitySheet open={clubIdentityOpen} onOpenChange={setClubIdentityOpen} state={state} update={update} />
-      <div className="lf-masthead shrink-0">
-        <TopBar
-          title={state.clubName}
-          subtitle={clubNickname(state)}
-          detail={`Season ${state.season} · Week ${state.week}/${CALENDAR.seasonEnd} · ${phaseLabel}`}
-          crest={
-            <button
-              type="button"
-              className="lf-masthead-club-badge-button"
-              title="Edit club badge & kits"
-              aria-label="Edit club badge and kits"
-              onClick={() => setClubIdentityOpen(true)}
-            >
-              <ClubBadge design={crestDesign} clubName={state.clubName} size={84} />
-            </button>
-          }
-          right={
-            <div className="lf-masthead-persona">
+      {tab !== "recruitment" && (
+        <div className="lf-masthead shrink-0">
+          <TopBar
+            title={state.clubName}
+            subtitle={clubNickname(state)}
+            detail={`Season ${state.season} · Week ${state.week}/${CALENDAR.seasonEnd} · ${phaseLabel}`}
+            crest={
               <button
                 type="button"
-                className="lf-director-card"
-                title={`${chairman.detail} · Edit director appearance`}
-                aria-label={`Director reputation ${Math.round(userReputation)}. Edit director appearance`}
-                onClick={() => setChairmanStudioOpen(true)}
+                className="lf-masthead-club-badge-button"
+                title="Edit club badge & kits"
+                aria-label="Edit club badge and kits"
+                onClick={() => setClubIdentityOpen(true)}
               >
-                <CharacterPortrait avatar={chairmanProfile.avatar} size={78} framed={false} title={`${state.managerName} portrait`} />
-                <span className="lf-director-reputation-value">{Math.round(userReputation)}</span>
-                <span className="lf-director-reputation-stars"><ReputationStars value={userReputation} /></span>
+                <ClubBadge design={crestDesign} clubName={state.clubName} size={84} />
               </button>
-            </div>
-          }
-        />
-      </div>
+            }
+            right={
+              <div className="lf-masthead-persona">
+                <button
+                  type="button"
+                  className="lf-director-card"
+                  title={`${chairman.detail} · Edit director appearance`}
+                  aria-label={`Director reputation ${Math.round(userReputation)}. Edit director appearance`}
+                  onClick={() => setChairmanStudioOpen(true)}
+                >
+                  <CharacterPortrait avatar={chairmanProfile.avatar} size={78} framed={false} title={`${state.managerName} portrait`} />
+                  <span className="lf-director-reputation-value">{Math.round(userReputation)}</span>
+                  <span className="lf-director-reputation-stars"><ReputationStars value={userReputation} /></span>
+                </button>
+              </div>
+            }
+          />
+        </div>
+      )}
 
       <div className="lf-kpi-ribbon shrink-0 border-b bg-panel text-panel-foreground hidden xl:block">
         <div className="mx-auto max-w-[1600px] px-5 py-1.5 grid grid-cols-4 gap-2 tnum">
