@@ -3,7 +3,6 @@ import { newGame } from "../newGame";
 import { advanceDay } from "../engine";
 import { userSquad } from "../recruitmentLegacy";
 import { chairmanRecruitmentPlayerIds } from "../chairmanRecruitmentView";
-import { recruitmentMarketAwarenessPlayerIds } from "../recruitmentMarketKnowledge";
 import { managerPlayerAssessment } from "../managerPlayerAssessment";
 import { loanAvailabilityForPlayer, setPlayerAvailableForLoan } from "../loanAvailability";
 import { loanNegotiationById, openLoanNegotiation } from "../loanNegotiations";
@@ -17,15 +16,16 @@ console.log("\n[TRANSFER-DESK-INTEGRATION]");
 
 const state = newGame("Executive Desk FC", "Director", "EXECUTIVE_TRANSFER_DESK");
 
-const aware = recruitmentMarketAwarenessPlayerIds(state);
 const discovered = new Set(chairmanRecruitmentPlayerIds(state));
-const publicId = aware.find((id) => !discovered.has(id));
-assert.ok(publicId, "fixture exposes at least one public-but-undiscovered player");
-const publicRow = transferMarketRows(state).find((row) => row.player.id === publicId);
-assert.ok(publicRow, "public market identity appears in the Transfer Desk");
-assert.equal(publicRow!.overallLabel, "?", "public identity does not leak overall");
-assert.equal(publicRow!.valueRange, null, "public identity does not leak valuation certainty");
-assert.equal(publicRow!.knowledgePct, 0, "public identity starts with no scouting progress");
+const initialMarket = transferMarketRows(state);
+assert.ok(
+  initialMarket.every((row) => discovered.has(row.player.id)),
+  "Transfer Desk never exposes the broad public-awareness database",
+);
+assert.ok(
+  initialMarket.length < 50,
+  "fresh Market is a human-sized working set rather than a world player list",
+);
 
 const ourPlayer = userSquad(state)[0];
 assert.ok(ourPlayer, "fixture has a user player");

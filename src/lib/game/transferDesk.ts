@@ -41,6 +41,7 @@ import {
   ageOf,
   loanInAvailabilityReason,
   openNegotiations,
+  playerInterestAssessment,
   playerName,
   remainingTransferBudget,
   transferRegistrationReadiness,
@@ -49,7 +50,7 @@ import {
 } from "./recruitment";
 import { transferTargetPlayer } from "./recruitmentTargetBridge";
 import { chairmanRecruitmentEstimate, chairmanShortlistIds } from "./recruitmentKnowledge";
-import { recruitmentMarketAwarenessPlayerIds, recruitmentMarketIdentity } from "./recruitmentMarketKnowledge";
+import { chairmanRecruitmentPlayerIds } from "./chairmanRecruitmentView";
 import { scoutingAssignment, scoutingReport } from "./scouting";
 import { scoutedOverallPresentation } from "./scoutingPresentation";
 import { scoutingBriefDaysRemaining } from "./scoutingDiscovery";
@@ -792,7 +793,7 @@ export function clubEmploymentLabel(state: GameState): string {
 
 export type MarketFilter = "all" | "shortlist" | "scouted" | "free" | "listed" | "loans";
 export const MARKET_FILTER_LABEL: Record<MarketFilter, string> = {
-  all: "All",
+  all: "Staff picks",
   shortlist: "Shortlist",
   scouted: "Scouted",
   free: "Free",
@@ -821,6 +822,8 @@ export interface MarketRow {
   /** Manager priority rank (0 = top priority), null when it does not match a need. */
   priorityRank: number | null;
   negotiationId?: string;
+  interestLabel: string;
+  interestReason: string;
 }
 
 function managerPriorityRank(state: GameState, player: FootballPlayer): number | null {
@@ -836,13 +839,34 @@ function managerPriorityRank(state: GameState, player: FootballPlayer): number |
   return index >= 0 ? index : null;
 }
 
+function recentCompletedBriefs(state: GameState) {
+  return [...(state.football?.scoutingDiscovery?.briefs ?? [])]
+    .filter((brief) => brief.status === "complete")
+    .sort(
+      (a, b) =>
+        (b.createdAtDay ?? b.createdAtAbsoluteWeek * 7) -
+        (a.createdAtDay ?? a.createdAtAbsoluteWeek * 7),
+    )
+    .slice(0, 3);
+}
+
 function recommendedPlayerIds(state: GameState): Set<string> {
-  const briefs = state.football?.scoutingDiscovery?.briefs ?? [];
-  return new Set(
-    briefs
-      .filter((brief) => brief.status === "complete")
-      .flatMap((brief) => brief.candidateIds),
-  );
+  return new Set(recentCompletedBriefs(state).flatMap((brief) => brief.candidateIds));
+}
+
+/**
+ * The Director's market is a staff-curated working set, never a world database.
+ * Recent recruitment returns age out naturally unless the player is shortlisted,
+ * being scouted or already in live talks.
+ */
+function curatedMarketPlayerIds(state: GameState): string[] {
+  const ids = recommendedPlayerIds(state);
+  for (const id of chairmanShortlistIds(state)) ids.add(id);
+  for (const negotiation of openNegotiations(state)) ids.add(negotiation.playerId);
+  for (const id of chairmanRecruitmentPlayerIds(state)) {
+    if (scoutingAssignment(state, id)) ids.add(id);
+  }
+  return [...ids];
 }
 
 /**
@@ -854,7 +878,7 @@ export function transferMarketRows(state: GameState): MarketRow[] {
   if (!state.football) return [];
   const shortlist = new Set(chairmanShortlistIds(state));
   const recommended = recommendedPlayerIds(state);
-  const knownIds = recruitmentMarketAwarenessPlayerIds(state);
+  const knownIds = curatedMarketPlayerIds(state);
   const negotiations = openNegotiations(state);
   const rows: MarketRow[] = [];
   for (const playerId of knownIds) {
@@ -865,9 +889,9 @@ export function transferMarketRows(state: GameState): MarketRow[] {
     const contract = activeContract(state, player.id);
     const assignment = scoutingAssignment(state, player.id);
     const report = scoutingReport(state, player);
-    const identity = recruitmentMarketIdentity(state, player.id);
-    const knowledgePct = identity?.knowledge === "public" ? 0 : report.knowledgePct;
+    const knowledgePct = report.knowledgePct;
     const presentation = scoutedOverallPresentation(state, player, report);
+    const interest = playerInterestAssessment(state, player);
     const estimate = chairmanRecruitmentEstimate(state, player.id);
     const availability = loanInAvailabilityReason(state, player.id);
     rows.push({
@@ -878,11 +902,11 @@ export function transferMarketRows(state: GameState): MarketRow[] {
       tacticalPosition: tacticalPositionProfile(player).primary,
       clubId: registered,
       clubName: registered ? clubDisplayName(state, registered) : "Free agent",
-      overallLabel: identity?.knowledge === "public" ? "?" : presentation.label,
-      valueRange: identity?.knowledge === "public" ? null : estimate?.valueRange ? [estimate.valueRange[0], estimate.valueRange[1]] : null,
+      overallLabel: presentation.label,
+      valueRange: estimate?.valueRange ? [estimate.valueRange[0], estimate.valueRange[1]] : null,
       knowledgePct,
-      scouting: identity?.knowledge === "public" ? "none" : assignment?.status ?? "none",
-      reportComplete: identity?.knowledge !== "public" && assignment?.status === "complete",
+      scouting: assignment?.status ?? "none",
+      reportComplete: assignment?.status === "complete",
       shortlisted: shortlist.has(player.id),
       freeAgent: !contract && !registered,
       listed: player.transferStatus === "listed",
@@ -890,6 +914,8 @@ export function transferMarketRows(state: GameState): MarketRow[] {
       recommended: recommended.has(player.id),
       priorityRank: managerPriorityRank(state, player),
       negotiationId: negotiations.find((n) => n.playerId === player.id)?.id,
+      interestLabel: interest.label,
+      interestReason: interest.reason,
     });
   }
   return rows.sort((a, b) => {

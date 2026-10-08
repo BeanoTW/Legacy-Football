@@ -276,8 +276,8 @@ console.log("\n[U7] Loan chairman boundary");
     "loan UI never calls the low-level registration primitive",
     !/startPlayerLoanInPlace\(/.test(loanUi),
   );
-  check("loan-out UI uses the chairman market action", /arrangeUserPlayerLoanOut\(/.test(loanDesk));
-  check("loan-in UI uses the chairman market action", /arrangeUserPlayerLoanIn\(/.test(browser));
+  check("loan-out UI uses negotiated chairman loan talks", /openLoanNegotiation\(state, "out"/.test(loanDesk));
+  check("loan-in UI uses negotiated chairman loan talks", /openLoanNegotiation\(state, "in"/.test(browser));
   check(
     "loan termination UI uses the chairman-authorised action",
     /terminateUserPlayerLoan\(/.test(loanDesk) && !/terminatePlayerLoan\(/.test(loanDesk),

@@ -5,14 +5,12 @@ import {
   FileText,
   Handshake,
   Plus,
-  Search,
   Send,
   Star,
   UserRound,
 } from "lucide-react";
 import type { GameState, Position } from "@/lib/game/types";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { fmtMoney } from "@/lib/game/engine";
 import { submitTransferEnquiry, submitTransferOffer } from "@/lib/game/recruitment";
@@ -80,7 +78,6 @@ export function TransferMarket({
   onSurface: (surface: MarketSurface | null) => void;
   onNegotiationStarted: (negotiationId: string) => void;
 }) {
-  const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const rows = useMemo(() => transferMarketRows(state), [state]);
   const manager = userManager(state);
@@ -92,6 +89,11 @@ export function TransferMarket({
   const briefs = state.football?.scoutingDiscovery?.briefs ?? [];
   const activeBrief = briefs.find((candidate) => candidate.status === "active") ?? null;
   const completeBriefs = briefs.filter((candidate) => candidate.status === "complete");
+  const latestCompleteBrief = [...completeBriefs].sort(
+    (a, b) =>
+      (b.createdAtDay ?? b.createdAtAbsoluteWeek * 7) -
+      (a.createdAtDay ?? a.createdAtAbsoluteWeek * 7),
+  )[0] ?? null;
 
   if (surface) {
     const back = () => onSurface(null);
@@ -121,14 +123,8 @@ export function TransferMarket({
     );
   }
 
-  const needle = query.trim().toLowerCase();
   const visible = rows.filter(
-    (row) =>
-      marketRowMatches(row, filter) &&
-      (!position || row.position === position) &&
-      (!needle ||
-        row.name.toLowerCase().includes(needle) ||
-        row.clubName.toLowerCase().includes(needle)),
+    (row) => marketRowMatches(row, filter) && (!position || row.position === position),
   );
 
   const approach = (row: MarketRow) =>
@@ -219,9 +215,9 @@ export function TransferMarket({
                 return d <= 0 ? "today" : d === 1 ? "tomorrow" : `in ${d} days`;
               })()}
             </>
-          ) : completeBriefs.length ? (
+          ) : latestCompleteBrief ? (
             <>
-              <strong>Latest search is back</strong> · {completeBriefs.length} on file
+              <strong>Latest assignment returned</strong> · {latestCompleteBrief.candidateIds.length} option{latestCompleteBrief.candidateIds.length === 1 ? "" : "s"}
             </>
           ) : (
             <>
@@ -250,21 +246,11 @@ export function TransferMarket({
         </Button>
         <Button size="sm" className="h-8 px-2 text-xs" onClick={() => onSurface({ kind: "brief" })}>
           <Plus className="mr-1 size-3.5" />
-          Wider search
+          New scouting assignment
         </Button>
       </section>
 
       <div className="flex shrink-0 flex-col gap-1">
-        <label className="relative block">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search known players or clubs"
-            aria-label="Search known players"
-            className="h-9 pl-8 text-sm"
-          />
-        </label>
         <div className="flex gap-1 overflow-x-auto pb-0.5" role="group" aria-label="Market filter">
           {FILTERS.map((value) => {
             const count = rows.filter(
@@ -301,15 +287,15 @@ export function TransferMarket({
           <div className="lf-desk-empty">
             <Binoculars className="size-7 text-muted-foreground" />
             <h2 className="font-display text-lg">
-              {rows.length ? "No known players match" : "Your market is empty"}
+              {rows.length ? "No staff recommendations match" : "No players on your desk"}
             </h2>
             <p>
-              The club only knows the players its scouts have found or you have tracked. Commission
-              a wider search to bring new names in.
+              Recruitment only puts realistic options on your desk. Send the scouts a new assignment
+              to bring back a small shortlist that fits your club and the manager's needs.
             </p>
             <Button size="sm" onClick={() => onSurface({ kind: "brief" })}>
               <Plus className="mr-1.5 size-4" />
-              Brief the scouts
+              New scouting assignment
             </Button>
           </div>
         ) : (
@@ -392,6 +378,7 @@ function MarketRowView({
               </span>
             )}
             {row.recommended && <span>Recommended</span>}
+            <span title={row.interestReason}>{row.interestLabel}</span>
             {row.freeAgent && <span>Free</span>}
             {row.listed && <span>Listed</span>}
             {row.loanAvailable && <span>Loan</span>}
