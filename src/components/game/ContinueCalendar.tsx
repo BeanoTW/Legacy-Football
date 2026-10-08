@@ -85,8 +85,8 @@ export function ContinueCalendar({
   const target = dayTarget(state, selectedDay);
 
   return (
-    <section className="overflow-hidden rounded-2xl border bg-card shadow-sm" aria-label="Club calendar">
-      <div className="flex items-center justify-between gap-2 px-3 pb-1 pt-2.5">
+    <section className="lf-continue-calendar overflow-hidden rounded-2xl border bg-card shadow-sm" aria-label="Club calendar">
+      <div className="lf-continue-calendar-head flex items-center justify-between gap-2 px-3 pb-1 pt-2.5">
         <h3 className="flex items-center gap-1.5 text-sm font-semibold">
           <CalendarDays className="size-4 text-primary" /> Calendar
         </h3>
@@ -97,17 +97,17 @@ export function ContinueCalendar({
         ) : null}
       </div>
 
-      <div className="flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain px-2 pb-2 [scrollbar-width:none]">
+      <div className="lf-continue-calendar-rail flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain px-2 pb-2 [scrollbar-width:none]">
         {weeks.map((week) => (
-          <div key={week[0].week} className="w-full min-w-full shrink-0 snap-start px-1 md:min-w-[26rem] md:w-auto">
-            <div className="mb-1 flex items-baseline justify-between px-0.5 text-[11px]">
+          <div key={week[0].week} className="lf-continue-calendar-week w-full min-w-full shrink-0 snap-start px-1 md:min-w-[26rem] md:w-auto">
+            <div className="lf-continue-calendar-week-head mb-1 flex items-baseline justify-between px-0.5 text-[11px]">
               <span className="font-semibold">Week {week[0].week}</span>
               <span className="text-muted-foreground">
                 {PHASE_LABEL[week[0].phase]}
                 {week[0].windowOpen ? " · window open" : ""}
               </span>
             </div>
-            <div className="grid grid-cols-7 gap-1">
+            <div className="lf-continue-calendar-days grid grid-cols-7 gap-1">
               {week.map((day) => (
                 <DayCell
                   key={day.absoluteDay}
@@ -151,7 +151,7 @@ function DayCell({ day, selected, advancing, onSelect }: { day: RailDay; selecte
       aria-pressed={selected}
       aria-label={summary}
       className={cn(
-        "relative flex min-h-[5.6rem] min-w-0 flex-col items-center overflow-hidden rounded-lg border px-0.5 pb-2 pt-1.5 text-center transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary",
+        "lf-continue-calendar-day relative flex min-h-[5.6rem] min-w-0 flex-col items-center overflow-hidden rounded-lg border px-0.5 pb-2 pt-1.5 text-center transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary",
         day.isToday ? "border-primary bg-primary text-primary-foreground" : day.isPast ? "border-transparent bg-muted/50 text-muted-foreground" : "bg-background hover:bg-muted/60",
         selected && !day.isToday && "border-primary ring-1 ring-primary",
         selected && day.isToday && "ring-2 ring-primary/40 ring-offset-1 ring-offset-card",
@@ -216,7 +216,7 @@ function DayDetail({
 }) {
   const nothing = day.fixtures.length === 0 && day.events.length === 0 && !day.deadlineDay;
   return (
-    <div className="border-t bg-muted/25 px-3 py-2.5">
+    <div className="lf-continue-calendar-detail border-t bg-muted/25 px-3 py-2.5">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <div className="text-sm font-semibold">
