@@ -44,6 +44,7 @@ export function LoanOutForm({
 }) {
   const [duration, setDuration] = useState(12);
   const [contribution, setContribution] = useState(50);
+  const [loanFee, setLoanFee] = useState(0);
   const [role, setRole] = useState<LoanPlayingTimeExpectation>("Rotation");
   const [note, setNote] = useState<string | null>(null);
   const open = isTransferWindowOpen(state);
@@ -61,7 +62,7 @@ export function LoanOutForm({
           {window.label} · {window.detail}
         </div>
       )}
-      <div className="mt-2 grid grid-cols-3 gap-1.5">
+      <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
         <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
           Length
           <select
@@ -91,6 +92,17 @@ export function LoanOutForm({
           </select>
         </label>
         <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Fee
+          <input
+            type="number"
+            min={0}
+            step={100}
+            value={loanFee}
+            onChange={(event) => setLoanFee(Math.max(0, Number(event.target.value) || 0))}
+            className="h-9 rounded-md border bg-background px-2 text-sm normal-case tracking-normal text-foreground"
+          />
+        </label>
+        <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
           Minutes
           <select
             value={role}
@@ -113,6 +125,7 @@ export function LoanOutForm({
           const outcome = openLoanNegotiation(state, "out", playerId, {
             durationWeeks: duration,
             loanClubWageContributionPct: contribution,
+            loanFee,
             playingTimeExpectation: role,
           });
           setNote(outcome.result.reason);
@@ -178,8 +191,9 @@ export function LoanAgreementCard({
           <div className="text-[9px] uppercase opacity-70">{active ? "remaining" : "loan"}</div>
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-2 p-3 text-center">
+      <div className="grid grid-cols-2 gap-2 p-3 text-center sm:grid-cols-4">
         <Mini label="Wage share" value={`${loan.loanClubWageContributionPct}%`} />
+        <Mini label="Loan fee" value={fmtMoneyExact(loan.loanFee ?? 0)} />
         <Mini
           label={userIsBorrower ? "Our cost /wk" : "Their share /wk"}
           value={borrowerShare == null ? "—" : fmtMoneyExact(borrowerShare)}
@@ -261,6 +275,7 @@ export function LoanNegotiationCard({
 }) {
   const [duration, setDuration] = useState(negotiation.terms.durationWeeks);
   const [contribution, setContribution] = useState(negotiation.terms.loanClubWageContributionPct);
+  const [loanFee, setLoanFee] = useState(negotiation.terms.loanFee ?? 0);
   const [role, setRole] = useState<LoanPlayingTimeExpectation>(negotiation.terms.playingTimeExpectation);
   const [note, setNote] = useState<string | null>(null);
   const player = playerById(state, negotiation.playerId);
@@ -294,7 +309,7 @@ export function LoanNegotiationCard({
           {playerName(player)}
         </button>
         <div className="text-sm opacity-80">
-          {tacticalPositionProfile(player).primary} · {negotiation.terms.durationWeeks}w · {negotiation.terms.loanClubWageContributionPct}% wages · {negotiation.terms.playingTimeExpectation}
+          {tacticalPositionProfile(player).primary} · {negotiation.terms.durationWeeks}w · {fmtMoneyExact(negotiation.terms.loanFee ?? 0)} fee · {negotiation.terms.loanClubWageContributionPct}% wages · {negotiation.terms.playingTimeExpectation}
         </div>
       </div>
       <div className="space-y-3 p-4">
@@ -307,13 +322,13 @@ export function LoanNegotiationCard({
           <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
             <div className="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-200">Club counter</div>
             <div className="mt-1 font-display text-lg">
-              {counter.durationWeeks} weeks · {counter.loanClubWageContributionPct}% wages · {counter.playingTimeExpectation}
+              {counter.durationWeeks} weeks · {fmtMoneyExact(counter.loanFee ?? 0)} fee · {counter.loanClubWageContributionPct}% wages · {counter.playingTimeExpectation}
             </div>
             {negotiation.responseReason && <p className="mt-1 text-xs text-muted-foreground">{negotiation.responseReason}</p>}
           </div>
         )}
         {(negotiation.status === "countered" || negotiation.status === "ready") && (
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
             <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
               Length
               <select value={duration} onChange={(event) => setDuration(Number(event.target.value))} className="h-9 rounded-md border bg-background px-2 text-sm normal-case text-foreground">
@@ -325,6 +340,17 @@ export function LoanNegotiationCard({
               <select value={contribution} onChange={(event) => setContribution(Number(event.target.value))} className="h-9 rounded-md border bg-background px-2 text-sm normal-case text-foreground">
                 {WAGE_SHARES.map((pct) => <option key={pct} value={pct}>{pct}%</option>)}
               </select>
+            </label>
+            <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Fee
+              <input
+                type="number"
+                min={0}
+                step={100}
+                value={loanFee}
+                onChange={(event) => setLoanFee(Math.max(0, Number(event.target.value) || 0))}
+                className="h-9 rounded-md border bg-background px-2 text-sm normal-case text-foreground"
+              />
             </label>
             <label className="grid gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
               Minutes
@@ -345,6 +371,7 @@ export function LoanNegotiationCard({
               onClick={() => run(reviseLoanNegotiation(state, negotiation.id, {
                 durationWeeks: duration,
                 loanClubWageContributionPct: contribution,
+                loanFee,
                 playingTimeExpectation: role,
               }))}
             >
