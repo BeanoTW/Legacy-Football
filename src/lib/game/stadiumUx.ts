@@ -220,8 +220,6 @@ export interface StandOwnership {
   variant: string;
   span: number;
   depth: number;
-  /** 0-100, if the save records it. */
-  roofCondition: number | null;
 }
 
 export function standOwnership(state: GameState, asset: InfrastructureAsset): StandOwnership {
@@ -255,7 +253,6 @@ export function standOwnership(state: GameState, asset: InfrastructureAsset): St
     variant: STAND_VARIANTS.find((option) => option.id === variant)?.label ?? "Traditional",
     span: footprint.span,
     depth: footprint.depth,
-    roofCondition: typeof asset.metadata?.roofQuality === "number" ? Math.round(asset.metadata.roofQuality) : null,
   };
 }
 
@@ -347,8 +344,8 @@ function optionFor(state: GameState, asset: InfrastructureAsset, spec: ProjectSp
  * Deliberately not here:
  *  - a stand's Replacement raises its level and needs a chosen build, so it
  *    is a rebuild and lives in Develop;
- *  - Roof Upgrade: it only sets roofQuality, which nothing in the simulation
- *    reads, so offering it would sell the player nothing (see handoff notes).
+ *  - roof structure is chosen as part of the Ground Studio build itself.
+ *    Maintenance owns the condition of the finished stand as a whole.
  */
 export function maintenanceOptions(state: GameState, asset: InfrastructureAsset): ProjectOption[] {
   const catalogue = projectCatalogue(state, asset.id);

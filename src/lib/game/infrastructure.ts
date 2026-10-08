@@ -372,7 +372,6 @@ export function capacityFactorFor(type: InfrastructureAssetType, condition: numb
 ========================================================================= */
 
 const STAND_META = () => ({
-  roofQuality: 60,
   seatingQuality: 60,
   concourseQuality: 55,
   accessibility: 50,
@@ -507,7 +506,9 @@ export function ensureInfrastructure(s: GameState): void {
       );
       a.ageYears = Math.floor(rngRange(rng, 8, 40));
       a.openedSeason = Math.max(1, season - a.ageYears);
-      a.metadata.roofQuality = clamp(int(rngRange(rng, 35, 80)), 0, 100);
+      // Preserve the historical RNG draw so removing the obsolete roofQuality
+      // field does not shift the rest of deterministic world generation.
+      rngRange(rng, 35, 80);
       a.metadata.seatingQuality = clamp(int(st.condition * 0.8 + 10), 0, 100);
       a.metadata.concourseQuality = clamp(int(rngRange(rng, 30, 72)), 0, 100);
       a.metadata.accessibility = clamp(int(rngRange(rng, 28, 68)), 0, 100);
@@ -621,6 +622,22 @@ export function ensureInfrastructure(s: GameState): void {
   if (typeof infra.lastTickAbsoluteWeek !== "number") infra.lastTickAbsoluteWeek = nowAbs;
   if (typeof infra.nextProjectId !== "number") infra.nextProjectId = infra.projects.length + 1;
   if (typeof infra.nextRecordId !== "number") infra.nextRecordId = infra.history.length + 1;
+
+  // One-time migration for saves created while project quality wrote only to
+  // the derived qualityRating cache. Reconstruct the intended durable uplift
+  // from completed project effects, then future effects maintain it directly.
+  for (const asset of infra.assets) {
+    if (asset.metadata?.qualityUpliftMigrated === 1) continue;
+    const historicalUplift = infra.projects
+      .filter((project) => project.assetId === asset.id && project.effectsApplied)
+      .flatMap((project) => project.effectsOnCompletion)
+      .filter((effect): effect is Extract<ProjectEffect, { kind: "quality" }> => effect.kind === "quality")
+      .reduce((sum, effect) => sum + effect.add, 0);
+    if (historicalUplift !== 0) {
+      asset.metadata.qualityUplift = clamp(historicalUplift, -30, 40);
+      asset.metadata.qualityUpliftMigrated = 1;
+    }
+  }
 
   recomputeDerived(s);
   syncLegacyStadium(s);
@@ -920,11 +937,10 @@ export function recomputeDerived(s: GameState): void {
     const costs = assetCosts(s, a);
     a.weeklyOperatingCost = costs.operating;
     a.weeklyMaintenanceCost = costs.maintenance;
-    a.qualityRating = clamp(
-      int(((a.level - 1) / Math.max(1, cfg.maxLevel - 1)) * 70 + a.condition * 0.3),
-      0,
-      100,
-    );
+    const structuralQuality =
+      ((a.level - 1) / Math.max(1, cfg.maxLevel - 1)) * 70 + a.condition * 0.3;
+    const durableQualityUplift = a.metadata?.qualityUplift ?? 0;
+    a.qualityRating = clamp(int(structuralQuality + durableQualityUplift), 0, 100);
     a.usableCapacity = usableCapacityOf(s, a);
     a.upgradePath = availableProjectTypes(a);
     const live = projectForAsset(s, a.id);
@@ -1181,7 +1197,6 @@ export const isMinorWork = (t: CapitalProjectType) => t === "minorRepair";
  */
 export const STAND_STRUCTURE_TYPES: CapitalProjectType[] = [
   "capacityExpansion",
-  "roofUpgrade",
   "standRedevelopment",
 ];
 
@@ -1328,21 +1343,6 @@ export function projectCatalogue(s: GameState, assetId: string): ProjectSpec[] {
           { kind: "level", add: 1 },
         ],
       });
-    if (has("roofUpgrade"))
-      out.push({
-        type: "roofUpgrade",
-        title: `${a.name} — roof upgrade`,
-        description: "Replace the roof structure and cladding. Supporters stay dry, wear slows.",
-        cost: projectCost(s, "roofUpgrade", 180_000 * scale),
-        durationWeeks: 6,
-        major: true,
-        risk: 34,
-        disruption: { capacityFactor: 0.8, revenueFactor: 0.9, fanHappiness: -1 },
-        effects: [
-          { kind: "metadata", key: "roofQuality", to: 95 },
-          { kind: "quality", add: 5 },
-        ],
-      });
     if (has("seatingRefurbishment"))
       out.push({
         type: "seatingRefurbishment",
@@ -1448,7 +1448,6 @@ export function projectCatalogue(s: GameState, assetId: string): ProjectSpec[] {
           { kind: "capacity", add: Math.max(1_500, Math.round((a.capacity * 0.35) / 250) * 250) },
           { kind: "level", add: 2 },
           { kind: "quality", add: 18 },
-          { kind: "metadata", key: "roofQuality", to: 98 },
           { kind: "metadata", key: "seatingQuality", to: 96 },
         ],
       });
@@ -1602,20 +1601,35 @@ export interface ProjectCapacity {
   canStartMinor: boolean;
 }
 
-export const MAJOR_PROJECT_LIMIT = 1;
-export const MINOR_PROJECT_LIMIT = 1;
-
+/**
+ * Construction bandwidth grows with the club rather than being a permanent
+ * one-project rule. Small non-league clubs still have one major lane; larger,
+ * higher-level organisations can coordinate more work in parallel.
+ */
 export function projectCapacity(s: GameState): ProjectCapacity {
   const live = activeProjects(s);
   const majorActive = live.filter((p) => p.major).length;
   const minorActive = live.filter((p) => !p.major).length;
+  const level = footballLevelOfUser(s);
+  const capacity = stadiumCapacity(s);
+  const reputation = s.reputation ?? 0;
+
+  let majorLimit = 1;
+  if (level <= 5 || capacity >= 10_000 || reputation >= 55) majorLimit += 1;
+  if (level <= 2 || capacity >= 30_000 || reputation >= 80) majorLimit += 1;
+  majorLimit = Math.min(3, majorLimit);
+
+  let minorLimit = 1;
+  if (level <= 5 || capacity >= 10_000 || reputation >= 55) minorLimit += 1;
+  minorLimit = Math.min(2, minorLimit);
+
   return {
     majorActive,
     minorActive,
-    majorLimit: MAJOR_PROJECT_LIMIT,
-    minorLimit: MINOR_PROJECT_LIMIT,
-    canStartMajor: majorActive < MAJOR_PROJECT_LIMIT,
-    canStartMinor: minorActive < MINOR_PROJECT_LIMIT,
+    majorLimit,
+    minorLimit,
+    canStartMajor: majorActive < majorLimit,
+    canStartMinor: minorActive < minorLimit,
   };
 }
 
@@ -1636,9 +1650,14 @@ export function evaluateProject(
   s: GameState,
   assetId: string,
   type: CapitalProjectType,
+  approvedCost?: number,
 ): ProjectEvaluation | null {
-  const spec = specFor(s, assetId, type);
-  if (!spec) return null;
+  const catalogueSpec = specFor(s, assetId, type);
+  if (!catalogueSpec) return null;
+  const spec =
+    approvedCost == null || approvedCost === catalogueSpec.cost
+      ? catalogueSpec
+      : { ...catalogueSpec, cost: Math.max(0, int(approvedCost)) };
   const a = assetById(s, assetId);
   const cap = projectCapacity(s);
   const capacityOk = spec.major ? cap.canStartMajor : cap.canStartMinor;
@@ -1658,8 +1677,8 @@ export function evaluateProject(
   } else if (!capacityOk) {
     allowed = false;
     reason = spec.major
-      ? "The club can only run one major construction project at a time."
-      : "A minor repair is already under way.";
+      ? `All ${cap.majorLimit} major construction lane${cap.majorLimit === 1 ? "" : "s"} are currently occupied.`
+      : `All ${cap.minorLimit} minor works lane${cap.minorLimit === 1 ? "" : "s"} are currently occupied.`;
   } else if (spec.type === "facilityUpgrade" && a) {
     const dependency = facilityDependencyStatus(s, a);
     if (!dependency.met) {
@@ -1744,9 +1763,10 @@ export function approveProjectInPlace(
   s: GameState,
   assetId: string,
   type: CapitalProjectType,
+  approvedCost?: number,
 ): ProjectActionResult {
   ensureInfrastructure(s);
-  const evaluation = evaluateProject(s, assetId, type);
+  const evaluation = evaluateProject(s, assetId, type, approvedCost);
   if (!evaluation) return { ok: false, reason: "That project is not available on this asset." };
   if (!evaluation.allowed) return { ok: false, reason: evaluation.reason };
 
@@ -1832,10 +1852,17 @@ export function queueProject(
   s: GameState,
   assetId: string,
   type: CapitalProjectType,
+  approvedCost?: number,
 ): { state: GameState; ok: boolean; reason?: string; projectId?: string } {
   const ns = structuredClone(s);
   ensureInfrastructure(ns);
-  const spec = specFor(ns, assetId, type);
+  const catalogueSpec = specFor(ns, assetId, type);
+  const spec =
+    catalogueSpec == null
+      ? null
+      : approvedCost == null || approvedCost === catalogueSpec.cost
+        ? catalogueSpec
+        : { ...catalogueSpec, cost: Math.max(0, int(approvedCost)) };
   const asset = assetById(ns, assetId);
   if (!spec || !asset) return { state: s, ok: false, reason: "That project is not available on this asset." };
 
@@ -1993,7 +2020,10 @@ function applyProjectEffects(s: GameState, p: CapitalProject): void {
         a.level = clamp(a.level + e.add, 1, ASSET_CONFIG[a.type].maxLevel);
         break;
       case "quality":
-        a.qualityRating = clamp(a.qualityRating + e.add, 0, 100);
+        // Project quality is a durable improvement to the asset standard.
+        // qualityRating itself is derived, so persist the uplift rather than
+        // writing a cached value that recomputeDerived would immediately erase.
+        a.metadata.qualityUplift = clamp((a.metadata.qualityUplift ?? 0) + e.add, -30, 40);
         a.maintenanceRequirement = clamp(a.maintenanceRequirement - e.add * 0.3, 10, 100);
         break;
       case "metadata":

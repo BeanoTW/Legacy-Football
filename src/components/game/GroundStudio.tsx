@@ -1070,7 +1070,7 @@ function StandDevelop({ asset, state, plan }: PanelProps & { asset: Infrastructu
   return (
     <div className="space-y-3">
       <section>
-        <SectionHead title="Structure" right={<span className="text-[10.5px] font-semibold lfk-muted">Roof grows with the stand</span>} />
+        <SectionHead title="Structure" right={<span className="text-[10.5px] font-semibold lfk-muted">Roof is part of the build</span>} />
         <Ladder steps={STAND_LADDER} current={asset.level} next={next && !project ? next.toLevel : null} currentSub={owned.roof} />
       </section>
       <div className="flex flex-wrap gap-1.5">
