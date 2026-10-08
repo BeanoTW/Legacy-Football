@@ -1007,3 +1007,48 @@ console.log("\n[U37] PC Home density pass 2");
     /\.lf-match-card,[\s\S]*?min-height: 5\.15rem !important;/.test(shell),
   );
 }
+
+
+console.log("\n[U38] Desktop workspace architecture");
+{
+  const root = read("src/routes/__root.tsx");
+  const desktop = read("src/desktop-workspace.css");
+  const calendar = read("src/components/game/ContinueCalendar.tsx");
+  const facilities = read("src/components/game/FacilitiesFlow.tsx");
+  const fixtures = read("src/components/game/FixturesTab.tsx");
+  const history = read("src/components/game/HistoryTab.tsx");
+  const settings = read("src/components/game/SettingsTab.tsx");
+
+  check(
+    "desktop workspace stylesheet loads after legacy Home polish",
+    root.indexOf('href: homeShellPolishCss') < root.indexOf('href: desktopWorkspaceCss'),
+  );
+  check(
+    "PC calendar has a dedicated non-rail rendering",
+    calendar.includes("lf-desktop-calendar") &&
+      calendar.includes("lf-desktop-calendar-days") &&
+      calendar.includes("hidden lg:grid"),
+  );
+  check(
+    "mobile calendar rail remains isolated below desktop breakpoint",
+    calendar.includes('className="lg:hidden"') &&
+      calendar.includes("snap-x snap-mandatory"),
+  );
+  check(
+    "desktop Home is composed as a workspace grid",
+    desktop.includes('grid-template-areas:') &&
+      desktop.includes('"calendar vitals"') &&
+      desktop.includes('"desk world"'),
+  );
+  check(
+    "desktop departments expose workspace hooks",
+    facilities.includes("lf-facilities-workspace") &&
+      fixtures.includes("lf-fixtures-workspace") &&
+      history.includes("lf-history-workspace") &&
+      settings.includes("lf-settings-workspace"),
+  );
+  check(
+    "desktop workspace rules are desktop-only",
+    desktop.includes("@media (min-width: 1024px)"),
+  );
+}

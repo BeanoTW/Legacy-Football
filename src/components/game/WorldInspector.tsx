@@ -80,7 +80,7 @@ export function WorldInspector({
   };
 
   return (
-    <div className="flex min-h-0 flex-col gap-3 lg:h-full">
+    <div className="lf-world-workspace flex min-h-0 flex-col gap-3 lg:h-full">
       <header className="flex shrink-0 items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground sm:text-xs">

@@ -67,7 +67,7 @@ export function FixturesTab({
   }, new Map<number, GameState["fixtures"]>());
 
   return (
-    <div className="grid min-h-full content-start gap-4 pb-4 md:h-full md:min-h-0 md:grid-cols-[minmax(0,1.06fr)_minmax(0,.94fr)] md:pb-0">
+    <div className="lf-fixtures-workspace grid min-h-full content-start gap-4 pb-4 md:h-full md:min-h-0 md:grid-cols-[minmax(0,1.06fr)_minmax(0,.94fr)] md:pb-0">
       <Section title="Fixtures">
         {currentWeekFixtures.length > 0 && (
           <div className="mb-3 grid grid-cols-3 gap-2 rounded-xl border bg-muted/20 p-2 text-center text-xs">
