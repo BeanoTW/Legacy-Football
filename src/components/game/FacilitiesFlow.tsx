@@ -24,7 +24,7 @@ export function FacilitiesFlow({ state, update }: { state: GameState; update: (f
   const places = state.infrastructure ? stadiumCapacity(state) : 0;
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2">
+    <div className="lf-facilities-workspace flex h-full min-h-0 flex-col gap-2">
       <section className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] gap-2" aria-label="Club areas">
         <button
           type="button"
