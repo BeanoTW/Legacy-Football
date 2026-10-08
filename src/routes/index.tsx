@@ -48,6 +48,16 @@ import { PlayerProfileSheet, openPlayerProfile } from "@/components/game/shared/
 import { CharacterPortrait, PortraitKitProvider } from "@/components/game/CharacterPortrait";
 import { ChairmanStudio, useChairmanProfile } from "@/components/game/ChairmanStudio";
 import { AppLaunchSplash } from "@/components/game/AppLaunchSplash";
+import { OnboardingOverlay } from "@/components/game/OnboardingOverlay";
+import {
+  activeOnboardingChapter,
+  completeOnboardingChapterInPlace,
+  onboardingChapter,
+  replayOnboardingChapterInPlace,
+  restartOnboardingInPlace,
+  skipAllOnboardingInPlace,
+  type OnboardingChapterId,
+} from "@/lib/game/onboarding";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -173,6 +183,10 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
   const chairman = chairmanStyle(state);
   const userReputation = clubReputation(state, state.clubName);
   const crestDesign = clubKitFor(state).badge;
+  const onboarding = activeOnboardingChapter(
+    state,
+    tab === "leagues" ? "world" : tab,
+  );
 
   useEffect(() => {
     if (blockingDecisions.length === 0 || (!isContinuing && !continueReason)) return;
@@ -213,6 +227,27 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
     if (state.liveMatch || continueReason?.toLowerCase().includes("matchday")) {
       stopContinue();
     }
+  };
+
+  const replayTutorial = (chapterId: OnboardingChapterId) => {
+    const chapter = onboardingChapter(chapterId);
+    const targetTab = chapter.area === "welcome" ? "hub" : chapter.area;
+    update((current) => {
+      const next = structuredClone(current);
+      replayOnboardingChapterInPlace(next, chapterId);
+      return next;
+    });
+    setTab(targetTab as Tab);
+  };
+
+  const restartTutorial = () => {
+    update((current) => {
+      const next = structuredClone(current);
+      restartOnboardingInPlace(next);
+      return next;
+    });
+    setDecisionQueue(false);
+    setTab("hub");
   };
 
   const requestContinue = (target?: AdvanceTarget | null) => {
@@ -306,7 +341,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
       </nav>
 
       <main className={cn("game-main", tab === "hub" && "lf-home-main")}>
-        <div className="game-screen">
+        <div className="game-screen" data-tutorial-area={tab}>
           <ScreenBoundary name={ALL_TABS.find(([id]) => id === tab)?.[1] ?? tab}>
             {tab === "inbox" && <ChairmansOffice state={state} update={update} decisionQueue={decisionQueue} onDecisionQueueCleared={() => { setDecisionQueue(false); setTab("hub"); }} onNavigate={navigateFromInbox} />}
             {tab === "hub" && <ClubHub state={state} update={update} setTab={setTab} isContinuing={isContinuing} onAdvanceTo={requestContinue} />}
@@ -324,7 +359,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
             {tab === "commercial" && <CommercialTab state={state} update={update} />}
             {tab === "world" && <WorldInspector state={state} update={update} />}
             {tab === "history" && <HistoryTab state={state} />}
-            {tab === "settings" && <SettingsTab state={state} update={update} activeSlot={activeSlot} slots={saveSlots} onSwitch={switchSlot} onDelete={deleteSlot} onSaveNow={saveNow} />}
+            {tab === "settings" && <SettingsTab state={state} update={update} activeSlot={activeSlot} slots={saveSlots} onSwitch={switchSlot} onDelete={deleteSlot} onSaveNow={saveNow} onReplayTutorial={replayTutorial} onRestartTutorial={restartTutorial} />}
           </ScreenBoundary>
         </div>
       </main>
@@ -379,6 +414,25 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
         />
       )}
       {state.liveMatch && <MatchDayOverlay state={state} update={update} />}
+      {onboarding && (
+        <OnboardingOverlay
+          chapter={onboarding}
+          onFinish={() =>
+            update((current) => {
+              const next = structuredClone(current);
+              completeOnboardingChapterInPlace(next, onboarding.id);
+              return next;
+            })
+          }
+          onSkipAll={() =>
+            update((current) => {
+              const next = structuredClone(current);
+              skipAllOnboardingInPlace(next);
+              return next;
+            })
+          }
+        />
+      )}
       </div>
     </PortraitKitProvider>
   );

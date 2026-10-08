@@ -26,6 +26,7 @@ import { ensureLoanStateInPlace } from "./loans";
 import { initialiseSeasonCups } from "./cupEntry";
 import { syncUserCupFixtures } from "./cupFixtures";
 import { initialisePreseasonFixtures } from "./preseason";
+import { NEW_CAREER_ONBOARDING } from "./onboarding";
 
 
 /**
@@ -138,6 +139,7 @@ function _newGameSeed(
     cash: 220_000,
     reputation: openingReputation,
     fanHappiness: 70,
+    onboarding: structuredClone(NEW_CAREER_ONBOARDING),
     stands,
     pitchCondition: 76,
     trainingRating: 34,

@@ -31,7 +31,7 @@ const WEEKS_PER_SEASON = 46;
 // state changes; migration suites separately protect schema evolution.
 const SNAPSHOT_SCHEMA_BASELINE = 12;
 
-type SnapshotState = Omit<GameState, "version"> & { version: number };
+type SnapshotState = Omit<GameState, "version" | "onboarding"> & { version: number };
 
 function run(weeks: number): GameState {
   let s = newGame("Snapshot Town", "A. Baseline", SEED);
@@ -40,7 +40,10 @@ function run(weeks: number): GameState {
 }
 
 function gameplayState(state: GameState): SnapshotState {
-  return { ...structuredClone(state), version: SNAPSHOT_SCHEMA_BASELINE };
+  const clone = structuredClone(state);
+  // Tutorial progress is persisted UI guidance, not simulation state.
+  delete clone.onboarding;
+  return { ...clone, version: SNAPSHOT_SCHEMA_BASELINE };
 }
 
 function gameplayHash(state: GameState): string {
@@ -50,6 +53,7 @@ function gameplayHash(state: GameState): string {
 function gameplayHashParts(state: GameState): Record<string, string> {
   const parts = stateHashParts(gameplayState(state) as GameState);
   delete parts.version;
+  delete parts.onboarding;
   return parts;
 }
 
