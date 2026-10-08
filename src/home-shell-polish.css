@@ -1145,3 +1145,254 @@ html:has(.lf-home-main), body:has(.lf-home-main),
     padding-bottom: .18rem !important;
   }
 }
+
+
+/* PC Home density pass 2 — another full step smaller after live 1280x720 QA.
+   This also targets ContinueCalendar's real component structure. */
+@media (min-width: 1024px) {
+  .game-main.lf-home-main .lf-home-dashboard {
+    gap: .16rem !important;
+    row-gap: .16rem !important;
+    padding: .14rem !important;
+  }
+
+  .game-main.lf-home-main .lf-command-grid {
+    gap: .18rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-card,
+  .game-main.lf-home-main .lf-match-inner,
+  .game-main.lf-home-main .lf-club-pulse {
+    min-height: 5.15rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-inner {
+    gap: .42rem !important;
+    padding: .3rem .48rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-copy h2 {
+    font-size: 1.08rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-copy > p {
+    font-size: .48rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-brief {
+    margin-top: .16rem !important;
+    padding-top: .16rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-brief svg,
+  .game-main.lf-home-main .lf-match-brief [class*="size-9"] {
+    width: 1.2rem !important;
+    height: 1.2rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-actions {
+    margin-top: .18rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-actions button,
+  .game-main.lf-home-main .lf-match-primary,
+  .game-main.lf-home-main .lf-match-secondary {
+    min-height: 1.45rem !important;
+    height: 1.45rem !important;
+    padding: .12rem .38rem !important;
+    font-size: .46rem !important;
+  }
+
+  .game-main.lf-home-main .lf-team-mark {
+    width: 2.1rem !important;
+    height: 2.3rem !important;
+  }
+
+  .game-main.lf-home-main .lf-team-mark svg {
+    width: 1.55rem !important;
+    height: 1.55rem !important;
+  }
+
+  .game-main.lf-home-main .lf-match-team .font-display {
+    font-size: .52rem !important;
+  }
+
+  .game-main.lf-home-main .lf-vs {
+    width: 1.18rem !important;
+    height: 1.18rem !important;
+    font-size: .38rem !important;
+  }
+
+  .game-main.lf-home-main .lf-pulse-block,
+  .game-main.lf-home-main .lf-pulse-manager,
+  .game-main.lf-home-main .lf-pulse-news {
+    padding: .28rem .36rem !important;
+  }
+
+  .game-main.lf-home-main .lf-standing-value {
+    font-size: 1.12rem !important;
+  }
+
+  .game-main.lf-home-main .lf-continue-calendar {
+    border-radius: .5rem !important;
+  }
+
+  .game-main.lf-home-main .lf-continue-calendar-head {
+    padding: .32rem .48rem .16rem !important;
+  }
+
+  .game-main.lf-home-main .lf-continue-calendar-head h3 {
+    gap: .24rem !important;
+    font-size: .58rem !important;
+  }
+
+  .game-main.lf-home-main .lf-continue-calendar-head h3 svg {
+    width: .72rem !important;
+    height: .72rem !important;
+  }
+
+  .game-main.lf-home-main .lf-continue-calendar-head button {
+    padding: .12rem .3rem !important;
+    font-size: .48rem !important;
+  }
+
+  .game-main.lf-home-main .lf-continue-calendar-rail {
+    padding: 0 .28rem .26rem !important;
+  }
+
+  .game-main.lf-home-main .lf-continue-calendar-week {
+    min-width: 20rem !important;
+    padding-inline: .12rem !important;
+  }
+
+  .game-main.lf-home-main .lf-continue-calendar-week-head {
+    margin-bottom: .14rem !important;
+    font-size: .46rem !important;
+  }
+
+  .game-main.lf-home-main .lf-continue-calendar-days {
+    gap: .16rem !important;
+  }
+
+  .game-main.lf-home-main .lf-continue-calendar-day {
+    min-height: 3.15rem !important;
+    border-radius: .36rem !important;
+    padding: .24rem .1rem .32rem !important;
+  }
+
+  .game-main.lf-home-main .lf-continue-calendar-day > span:first-child {
+    font-size: .44rem !important;
+  }
+
+  .game-main.lf-home-main .lf-continue-calendar-day > span:nth-child(2) {
+    margin-top: .08rem !important;
+    font-size: .72rem !important;
+  }
+
+  .game-main.lf-home-main .lf-continue-calendar-day > span:nth-child(3) {
+    font-size: .38rem !important;
+  }
+
+  .game-main.lf-home-main .lf-continue-calendar-day > span:nth-last-child(2) {
+    height: .42rem !important;
+    padding-top: .05rem !important;
+  }
+
+  .game-main.lf-home-main .lf-continue-calendar-day .mt-1\.5 {
+    margin-top: .18rem !important;
+    max-width: 2.2rem !important;
+    font-size: .4rem !important;
+    line-height: .8rem !important;
+  }
+
+  .game-main.lf-home-main .lf-continue-calendar-detail {
+    padding: .3rem .48rem !important;
+  }
+
+  .game-main.lf-home-main .lf-continue-calendar-detail > div:first-child > div:first-child > div {
+    font-size: .58rem !important;
+  }
+
+  .game-main.lf-home-main .lf-continue-calendar-detail ul {
+    margin-top: .18rem !important;
+    gap: .12rem !important;
+    font-size: .46rem !important;
+  }
+
+  .game-main.lf-home-main .lf-continue-calendar-detail button {
+    min-height: 1.45rem !important;
+    height: 1.45rem !important;
+    padding-inline: .4rem !important;
+    font-size: .46rem !important;
+  }
+
+  .game-main.lf-home-main .lf-vital-grid {
+    gap: .16rem !important;
+  }
+
+  .game-main.lf-home-main .lf-vital-card {
+    min-height: 2.35rem !important;
+    padding: .24rem .34rem !important;
+  }
+
+  .game-main.lf-home-main .lf-vital-card > strong {
+    margin-top: .06rem !important;
+    font-size: .74rem !important;
+  }
+
+  .game-main.lf-home-main .lf-vital-card > small {
+    margin-top: .04rem !important;
+    font-size: .38rem !important;
+  }
+
+  .game-main.lf-home-main .lf-vital-card > i {
+    margin-top: .1rem !important;
+  }
+
+  .game-main.lf-home-main .lf-home-bottom-pair {
+    gap: .16rem !important;
+  }
+
+  .game-main.lf-home-main .lf-task-row,
+  .game-main.lf-home-main .lf-suggested-row {
+    min-height: 1.6rem !important;
+    padding: .2rem .28rem !important;
+  }
+
+  .game-main.lf-home-main .lf-task-row.is-clear {
+    min-height: 1.6rem !important;
+  }
+
+  .game-main.lf-home-main .lf-task-icon {
+    width: 1.05rem !important;
+    height: 1.05rem !important;
+  }
+
+  .game-main.lf-home-main .lf-around-story {
+    min-height: 1.75rem !important;
+    padding: .2rem .28rem !important;
+  }
+
+  .game-main.lf-home-main .lf-around-ticker {
+    min-height: .95rem !important;
+    padding: .1rem .26rem !important;
+  }
+
+  .game-main.lf-home-main .lf-action-tile {
+    min-height: 2.35rem !important;
+    padding: .24rem .28rem !important;
+  }
+
+  .game-main.lf-home-main .lf-action-icon {
+    width: 1.08rem !important;
+    height: 1.08rem !important;
+  }
+
+  .game-main.lf-home-main .lf-action-value {
+    font-size: .48rem !important;
+  }
+
+  .game-main.lf-home-main > .hidden.xl\:block {
+    max-height: 5.5rem !important;
+  }
+}
