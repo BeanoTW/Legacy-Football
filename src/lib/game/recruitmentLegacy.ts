@@ -39,7 +39,7 @@ import type {
 import { hashString, seededRng, rngInt, rngRange } from "./rng";
 import { absoluteWeek, WEEKS_PER_SEASON } from "./time";
 import { isTransferWindowOpen } from "./calendar";
-import { postEntry } from "./finance";
+import { assessSpend, postEntry } from "./finance";
 import { clubReputation } from "./reputation";
 import { facilityModifiers } from "./infrastructure";
 import { buildWorldSimulationPlan } from "./world";
@@ -2264,6 +2264,8 @@ export function completeTransferInPlace(s: GameState, negotiationId: string): Ne
 export interface LoanOutOfferTerms {
   durationWeeks: number;
   loanClubWageContributionPct: number;
+  /** One-off fee requested from the borrowing club. Missing means free for legacy callers. */
+  loanFee?: number;
   playingTimeExpectation: LoanPlayingTimeExpectation;
 }
 
@@ -2304,6 +2306,10 @@ export function arrangeUserPlayerLoanOutInPlace(
   ) {
     return { ok: false, reason: "Loan wage contribution must be between 0% and 100%" };
   }
+  const loanFee = Math.max(0, int(terms.loanFee ?? 0));
+  if (!Number.isFinite(terms.loanFee ?? 0) || (terms.loanFee ?? 0) < 0) {
+    return { ok: false, reason: "Loan fee cannot be negative" };
+  }
 
   const candidates = buildWorldSimulationPlan(s).focusClubIds
     .filter((clubId) => !isUserClubReference(s, clubId))
@@ -2331,6 +2337,11 @@ export function arrangeUserPlayerLoanOutInPlace(
         terms.playingTimeExpectation === "Rotation" ||
         positionalNeed > 0 ||
         upgradeNeed >= (terms.playingTimeExpectation === "Important" ? 6 : 3);
+      const maxLoanFee = int(
+        contract.weeklyWage *
+          Math.min(terms.durationWeeks, 24) *
+          (0.35 + positionalNeed * 0.12 + Math.min(0.35, upgradeNeed * 0.02)),
+      );
       return {
         clubId,
         squadSize: squad.length,
@@ -2338,6 +2349,7 @@ export function arrangeUserPlayerLoanOutInPlace(
         upgradeNeed,
         reputationGap,
         maxContributionPct,
+        maxLoanFee,
         roleFeasible,
       };
     })
@@ -2346,6 +2358,7 @@ export function arrangeUserPlayerLoanOutInPlace(
         candidate.squadSize < MAX_SQUAD_SIZE &&
         candidate.roleFeasible &&
         candidate.maxContributionPct >= terms.loanClubWageContributionPct &&
+        candidate.maxLoanFee >= loanFee &&
         (candidate.positionalNeed > 0 || candidate.upgradeNeed >= 2),
     )
     .sort(
@@ -2371,8 +2384,21 @@ export function arrangeUserPlayerLoanOutInPlace(
     terms.durationWeeks,
     terms.loanClubWageContributionPct,
     terms.playingTimeExpectation,
+    loanFee,
   );
   if (!started.ok) return started;
+  if (loanFee > 0 && started.loan) {
+    postEntry(s, {
+      category: "Transfers",
+      subcategory: "Loan fee",
+      description: `Loan fee — ${playerName(player)} to ${clubDisplayName(s, destination.clubId)}`,
+      amount: loanFee,
+      direction: "income",
+      sourceSystem: "transfers",
+      linkedEntityId: started.loan.id,
+      dedupeKey: `loan:${started.loan.id}:fee`,
+    });
+  }
   return {
     ...started,
     reason: `Loan agreed with ${clubDisplayName(s, destination.clubId)}`,
@@ -2393,6 +2419,8 @@ export function arrangeUserPlayerLoanOut(
 export interface LoanInOfferTerms {
   durationWeeks: number;
   loanClubWageContributionPct: number;
+  /** One-off fee paid to the parent club. Missing means free for legacy callers. */
+  loanFee?: number;
   playingTimeExpectation: LoanPlayingTimeExpectation;
 }
 
@@ -2459,6 +2487,11 @@ export function arrangeUserPlayerLoanInInPlace(
   ) {
     return { ok: false, reason: "Loan wage contribution must be between 0% and 100%" };
   }
+  const hasExplicitLoanFee = terms.loanFee !== undefined;
+  const loanFee = Math.max(0, int(terms.loanFee ?? 0));
+  if (!Number.isFinite(terms.loanFee ?? 0) || (terms.loanFee ?? 0) < 0) {
+    return { ok: false, reason: "Loan fee cannot be negative" };
+  }
 
   const parentSquad = squadOf(s, parentClubId);
   if (parentSquad.length <= MIN_SQUAD_SIZE)
@@ -2487,6 +2520,26 @@ export function arrangeUserPlayerLoanInInPlace(
           ? 45
           : 25;
   const requiredContribution = clamp(roleContributionFloor - (surplus ? 20 : 0), 20, 100);
+  const roleFeeFactor =
+    contract.squadRole === "Key Player"
+      ? 0.35
+      : contract.squadRole === "First Team"
+        ? 0.25
+        : contract.squadRole === "Rotation"
+          ? 0.15
+          : 0.08;
+  const requiredLoanFee = int(
+    contract.weeklyWage *
+      Math.min(terms.durationWeeks, 12) *
+      roleFeeFactor *
+      (surplus ? 0.5 : 1),
+  );
+  if (hasExplicitLoanFee && loanFee < requiredLoanFee) {
+    return {
+      ok: false,
+      reason: `${clubDisplayName(s, parentClubId)} want at least £${requiredLoanFee.toLocaleString()} loan fee`,
+    };
+  }
   if (terms.loanClubWageContributionPct < requiredContribution) {
     return {
       ok: false,
@@ -2522,6 +2575,10 @@ export function arrangeUserPlayerLoanInInPlace(
   if (!wageAuthority.allowed) {
     return { ok: false, reason: wageAuthority.reason };
   }
+  const feeAuthority = assessSpend(s, loanFee, { recurringWeekly: userWeeklyCost });
+  if (!feeAuthority.allowed) {
+    return { ok: false, reason: feeAuthority.reason };
+  }
 
   const started = startPlayerLoanInPlace(
     s,
@@ -2530,8 +2587,21 @@ export function arrangeUserPlayerLoanInInPlace(
     terms.durationWeeks,
     terms.loanClubWageContributionPct,
     terms.playingTimeExpectation,
+    loanFee,
   );
   if (!started.ok) return started;
+  if (loanFee > 0 && started.loan) {
+    postEntry(s, {
+      category: "Transfers",
+      subcategory: "Loan fee",
+      description: `Loan fee — ${playerName(player)} from ${clubDisplayName(s, parentClubId)}`,
+      amount: loanFee,
+      direction: "expense",
+      sourceSystem: "transfers",
+      linkedEntityId: started.loan.id,
+      dedupeKey: `loan:${started.loan.id}:fee`,
+    });
+  }
   return {
     ...started,
     reason: `Loan agreed with ${clubDisplayName(s, parentClubId)}`,

@@ -13,6 +13,7 @@ import { playerOwnerClubId, playerRegisteredClubId } from "./playerRegistration"
 export interface LoanAvailabilityTerms {
   durationWeeks: number;
   loanClubWageContributionPct: number;
+  loanFee?: number;
   playingTimeExpectation: LoanPlayingTimeExpectation;
 }
 
@@ -34,6 +35,7 @@ declare module "./types" {
 const DEFAULT_TERMS: LoanAvailabilityTerms = {
   durationWeeks: 12,
   loanClubWageContributionPct: 40,
+  loanFee: 0,
   playingTimeExpectation: "Rotation",
 };
 
@@ -62,6 +64,9 @@ function validateTerms(terms: LoanAvailabilityTerms): string | null {
     terms.loanClubWageContributionPct > 100
   ) {
     return "Loan wage contribution must be between 0% and 100%";
+  }
+  if (!Number.isFinite(terms.loanFee ?? 0) || (terms.loanFee ?? 0) < 0) {
+    return "Loan fee cannot be negative";
   }
   return null;
 }

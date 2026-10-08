@@ -5,6 +5,7 @@ import {
   activeLoanForPlayer,
 } from "../loans";
 import {
+  acceptLoanCounter,
   completeLoanNegotiation,
   loanNegotiationById,
   openLoanNegotiation,
@@ -18,6 +19,7 @@ import {
 import { buildWorldSimulationPlan } from "../world";
 import { isUserClubReference } from "../clubReference";
 import { playerOwnerClubId } from "../playerRegistration";
+import { reconcile } from "../finance";
 
 function advanceUntilReply(state: ReturnType<typeof newGame>, negotiationId: string) {
   let next = state;
@@ -41,6 +43,7 @@ const openedOut = openLoanNegotiation(
   {
     durationWeeks: 4,
     loanClubWageContributionPct: 20,
+    loanFee: 100,
     playingTimeExpectation: "Backup",
   },
 );
@@ -63,8 +66,19 @@ assert.equal(
   "ready",
   "acceptable outgoing terms become ready only after a dated reply",
 );
+const cashBeforeOut = repliedOut.cash;
 const completedOut = completeLoanNegotiation(repliedOut, outId);
 assert.equal(completedOut.result.ok, true, completedOut.result.reason);
+assert.equal(completedOut.state.cash, cashBeforeOut + 100, "outgoing fee is received once");
+assert.equal(activeLoanForPlayer(completedOut.state, outgoingPlayer.id)?.loanFee, 100);
+assert.equal(
+  completedOut.state.financeLedger.filter(
+    (entry) => entry.subcategory === "Loan fee" && entry.direction === "income",
+  ).length,
+  1,
+  "outgoing fee posts one transfer-income ledger entry",
+);
+assert.equal(reconcile(completedOut.state).ok, true, "outgoing loan fee keeps finance reconciled");
 assert.ok(
   activeLoanForPlayer(completedOut.state, outgoingPlayer.id),
   "agreed outgoing loan registers only after chairman completion",
@@ -97,6 +111,7 @@ const weak = openLoanNegotiation(
   {
     durationWeeks: 4,
     loanClubWageContributionPct: 0,
+    loanFee: 0,
     playingTimeExpectation: "Backup",
   },
 );
@@ -108,17 +123,46 @@ const countered = loanNegotiationById(repliedWeak, weakId);
 assert.equal(countered?.status, "countered", "weak terms produce a counter rather than an instant loan");
 assert.ok(countered?.counterTerms, "club counter contains concrete revised terms");
 assert.ok(
-  countered!.counterTerms!.loanClubWageContributionPct > 0 ||
+  (countered!.counterTerms!.loanFee ?? 0) > 0 ||
+    countered!.counterTerms!.loanClubWageContributionPct > 0 ||
     countered!.counterTerms!.playingTimeExpectation !== "Backup",
   "counter materially improves the borrowing offer",
 );
+assert.ok((countered!.counterTerms!.loanFee ?? 0) > 0, "parent club can counter with a loan fee");
 assert.equal(
   activeLoanForPlayer(repliedWeak, borrowPlayer.id),
   undefined,
   "countered talks still do not alter player registration",
 );
 
-console.log("\n[LN3] Due processor is idempotent");
+console.log("\n[LN3] Incoming agreed fees are charged once");
+const acceptedWeak = acceptLoanCounter(repliedWeak, weakId);
+assert.equal(acceptedWeak.result.ok, true, acceptedWeak.result.reason);
+const agreedIn = loanNegotiationById(acceptedWeak.state, weakId)!;
+const incomingFee = agreedIn.terms.loanFee ?? 0;
+assert.ok(incomingFee > 0, "accepted counter retains the negotiated fee");
+const cashBeforeIn = acceptedWeak.state.cash;
+const completedIn = completeLoanNegotiation(acceptedWeak.state, weakId);
+assert.equal(completedIn.result.ok, true, completedIn.result.reason);
+assert.equal(completedIn.state.cash, cashBeforeIn - incomingFee, "incoming fee is paid once");
+assert.equal(activeLoanForPlayer(completedIn.state, borrowPlayer.id)?.loanFee, incomingFee);
+assert.equal(
+  completedIn.state.financeLedger.filter(
+    (entry) => entry.subcategory === "Loan fee" && entry.direction === "expense",
+  ).length,
+  1,
+  "incoming fee posts one transfer-expense ledger entry",
+);
+assert.equal(reconcile(completedIn.state).ok, true, "incoming loan fee keeps finance reconciled");
+const duplicateComplete = completeLoanNegotiation(completedIn.state, weakId);
+assert.equal(duplicateComplete.result.ok, false, "completed loan cannot be charged twice");
+assert.equal(
+  duplicateComplete.state.financeLedger.filter((entry) => entry.subcategory === "Loan fee").length,
+  1,
+  "repeat completion adds no second fee entry",
+);
+
+console.log("\n[LN4] Due processor is idempotent");
 const snapshot = structuredClone(repliedWeak);
 assert.equal(processDueLoanNegotiationResponsesInPlace(snapshot), 0);
 assert.equal(
@@ -127,4 +171,4 @@ assert.equal(
   "settled response is not processed twice",
 );
 
-console.log("\n12 passed, 0 failed");
+console.log("\n24 passed, 0 failed");

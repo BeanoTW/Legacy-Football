@@ -28,6 +28,8 @@ export type LoanNegotiationStatus =
 export type LoanNegotiationTerms = {
   durationWeeks: number;
   loanClubWageContributionPct: number;
+  /** One-off fee paid by the loan club. Optional only for legacy/runtime callers. */
+  loanFee?: number;
   playingTimeExpectation: LoanPlayingTimeExpectation;
 };
 
@@ -124,7 +126,10 @@ function isResponseDue(state: GameState, negotiation: LoanNegotiation): boolean 
 }
 
 function cloneTerms(terms: LoanNegotiationTerms): LoanNegotiationTerms {
-  return { ...terms };
+  return {
+    ...terms,
+    loanFee: Math.max(0, Math.round(terms.loanFee ?? 0)),
+  };
 }
 
 function probe(
@@ -151,12 +156,17 @@ function weakerRole(role: LoanPlayingTimeExpectation): LoanPlayingTimeExpectatio
 function counterCandidates(
   direction: LoanNegotiationDirection,
   terms: LoanNegotiationTerms,
+  responseReason?: string,
 ): LoanNegotiationTerms[] {
   const candidates: LoanNegotiationTerms[] = [];
+  const currentFee = Math.max(0, Math.round(terms.loanFee ?? 0));
+  const feeMatch = responseReason?.match(/£([\d,]+) loan fee/i);
+  const requestedFee = feeMatch ? Number(feeMatch[1].replace(/,/g, "")) : 0;
   if (direction === "in") {
     candidates.push(
       {
         ...terms,
+        loanFee: Math.max(currentFee, requestedFee),
         loanClubWageContributionPct: Math.min(
           100,
           Math.max(terms.loanClubWageContributionPct + 15, 50),
@@ -164,6 +174,7 @@ function counterCandidates(
       },
       {
         ...terms,
+        loanFee: Math.max(currentFee, requestedFee),
         loanClubWageContributionPct: Math.min(
           100,
           Math.max(terms.loanClubWageContributionPct + 25, 65),
@@ -172,6 +183,7 @@ function counterCandidates(
       },
       {
         ...terms,
+        loanFee: Math.max(currentFee, requestedFee),
         loanClubWageContributionPct: 100,
         playingTimeExpectation: "Important",
       },
@@ -180,6 +192,7 @@ function counterCandidates(
     candidates.push(
       {
         ...terms,
+        loanFee: Math.round(currentFee * 0.75),
         loanClubWageContributionPct: Math.max(
           0,
           terms.loanClubWageContributionPct - 15,
@@ -187,6 +200,7 @@ function counterCandidates(
       },
       {
         ...terms,
+        loanFee: Math.round(currentFee * 0.5),
         loanClubWageContributionPct: Math.max(
           0,
           terms.loanClubWageContributionPct - 30,
@@ -195,6 +209,7 @@ function counterCandidates(
       },
       {
         ...terms,
+        loanFee: 0,
         loanClubWageContributionPct: 0,
         playingTimeExpectation: "Backup",
       },
@@ -205,6 +220,7 @@ function counterCandidates(
       all.findIndex(
         (other) =>
           other.durationWeeks === candidate.durationWeeks &&
+          (other.loanFee ?? 0) === (candidate.loanFee ?? 0) &&
           other.loanClubWageContributionPct === candidate.loanClubWageContributionPct &&
           other.playingTimeExpectation === candidate.playingTimeExpectation,
       ) === index,
@@ -232,7 +248,11 @@ function resolveClubResponseInPlace(
     return;
   }
 
-  for (const candidate of counterCandidates(negotiation.direction, negotiation.terms)) {
+  for (const candidate of counterCandidates(
+    negotiation.direction,
+    negotiation.terms,
+    accepted.reason,
+  )) {
     const counter = probe(state, negotiation.direction, negotiation.playerId, candidate);
     if (!counter.ok) continue;
     negotiation.status = "countered";
