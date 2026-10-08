@@ -1744,6 +1744,8 @@ export interface GameState {
   fanHappiness: number;
   /** Community/supporter events booked by the club. Optional for legacy saves. */
   supporterEvents?: import("./supporterEvents").ScheduledSupporterEvent[];
+  /** Progressive tutorial state. Absent on legacy careers so updates never force onboarding. */
+  onboarding?: import("./onboarding").OnboardingProgress;
 
   stands: Stand[];
   pitchCondition: number;
