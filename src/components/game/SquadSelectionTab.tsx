@@ -218,12 +218,13 @@ export function SquadSelectionTab({
             <span className="min-w-0 text-[10px] text-muted-foreground">Change shape without affecting the manager.</span>
           </div>
         </div>
-      ) : (
-        <div className="flex shrink-0 items-center justify-between gap-2">
-          {onBack ? <Button className="w-fit" variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="mr-2 size-4" /> Back to transfers</Button> : <div><div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Football department</div><h1 className="font-display text-2xl">Squad</h1></div>}
-          <div className="flex rounded-lg border bg-card p-1"><button onClick={() => setView("pitch")} className={cn("rounded-md px-3 py-1.5 text-xs font-semibold", view === "pitch" && "bg-primary text-primary-foreground")}>Pitch</button><button onClick={() => setView("stats")} className={cn("rounded-md px-3 py-1.5 text-xs font-semibold", view === "stats" && "bg-primary text-primary-foreground")}>Stats</button></div>
+      ) : onBack ? (
+        <div className="flex shrink-0 items-center">
+          <Button className="w-fit" variant="ghost" size="sm" onClick={onBack}>
+            <ArrowLeft className="mr-2 size-4" /> Back to transfers
+          </Button>
         </div>
-      )}
+      ) : null}
       <div className={cn(
         "contained-scroll touch-pan-y grid min-h-0 flex-1 auto-rows-max gap-3 pr-0.5",
         planner ? "grid-cols-1" : "lg:grid-cols-[minmax(0,0.9fr)_minmax(22rem,1.1fr)] lg:grid-rows-[auto_auto_minmax(0,1fr)]",
@@ -341,6 +342,8 @@ export function SquadSelectionTab({
             selected={selected}
             kit={kit}
             displayName={displayName}
+            view={view}
+            onView={setView}
             className="lg:col-start-2 lg:row-span-3 lg:row-start-1"
           />
         )}
@@ -355,6 +358,8 @@ function SquadPositionRails({
   selected,
   kit,
   displayName,
+  view,
+  onView,
   className,
 }: {
   state: GameState;
@@ -362,16 +367,42 @@ function SquadPositionRails({
   selected: Set<string>;
   kit: PortraitKit;
   displayName: (player: FootballPlayer) => string;
+  view: SquadView;
+  onView: (view: SquadView) => void;
   className?: string;
 }) {
   return (
     <section className={cn("overflow-hidden rounded-xl border bg-card shadow-sm", className)}>
-      <div className="flex items-baseline justify-between border-b px-3 py-2.5">
-        <div>
-          <div className="font-display text-xl leading-none">Squad</div>
+      <div className="flex items-center justify-between gap-3 border-b px-3 py-2.5">
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-baseline gap-2">
+            <div className="font-display text-xl leading-none">Squad</div>
+            <div className="truncate text-[10px] text-muted-foreground">{squad.length} players · {selected.size} in XI</div>
+          </div>
           <div className="mt-0.5 text-[10px] text-muted-foreground">Swipe each position group horizontally.</div>
         </div>
-        <div className="text-[10px] text-muted-foreground">{squad.length} players · {selected.size} in XI</div>
+        <div className="flex shrink-0 rounded-lg border bg-muted/40 p-0.5">
+          <button
+            type="button"
+            onClick={() => onView("pitch")}
+            className={cn(
+              "rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors",
+              view === "pitch" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground",
+            )}
+          >
+            Pitch
+          </button>
+          <button
+            type="button"
+            onClick={() => onView("stats")}
+            className={cn(
+              "rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors",
+              view === "stats" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground",
+            )}
+          >
+            Stats
+          </button>
+        </div>
       </div>
       <div className="divide-y">
         {UNIT_GROUPS.map(({ unit, label, minimum }) => {
