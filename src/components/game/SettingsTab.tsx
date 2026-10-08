@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, Cloud, Download, HardDrive, LogOut, Mail, Palette, RefreshCw, Save, Trash2 } from "lucide-react";
+import { BookOpen, Check, Cloud, Download, HardDrive, LogOut, Mail, Palette, RefreshCw, RotateCcw, Save, Trash2 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import type { SaveSlotId, SaveSlotSummary } from "@/lib/game/engine";
 import type { GameState } from "@/lib/game/types";
@@ -11,6 +11,7 @@ import { SoundSettingsPanel } from "./SoundSettingsPanel";
 import { CareerSyncConflict, cloudClient, cloudConfigured, syncAllCareers, type SyncConflictResolution } from "@/lib/cloud/sync";
 import { DeveloperModePanel } from "./DeveloperModePanel";
 import { developerModeEnabled, setDeveloperModeEnabled } from "@/lib/game/developerMode";
+import { ONBOARDING_CHAPTERS, type OnboardingChapterId } from "@/lib/game/onboarding";
 
 type Theme = "club" | "heritage" | "floodlights";
 type Appearance = "light" | "dark" | "system";
@@ -38,6 +39,8 @@ export function SettingsTab({
   onSwitch,
   onDelete,
   onSaveNow,
+  onReplayTutorial,
+  onRestartTutorial,
 }: {
   state: GameState;
   update: (fn: (s: GameState) => GameState) => void;
@@ -46,6 +49,8 @@ export function SettingsTab({
   onSwitch: (slot: SaveSlotId) => void;
   onDelete: (slot: SaveSlotId) => Promise<void>;
   onSaveNow: () => Promise<{ local: boolean; cloud: boolean }>;
+  onReplayTutorial: (chapterId: OnboardingChapterId) => void;
+  onRestartTutorial: () => void;
 }) {
   const [theme, setTheme] = useState<Theme>("club");
   const [appearance, setAppearance] = useState<Appearance>("system");
@@ -318,6 +323,42 @@ export function SettingsTab({
       </section>
 
       <SoundSettingsPanel />
+
+      <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
+        <div className="banner-strip flex items-center justify-between gap-3 px-3 py-2 text-sm">
+          <span className="flex items-center gap-2"><BookOpen className="size-4" /> How this game works</span>
+          <span className="text-[10px] font-semibold text-muted-foreground">
+            {state.onboarding?.completedChapterIds.length ?? 0}/{ONBOARDING_CHAPTERS.length} seen
+          </span>
+        </div>
+        <div className="p-3">
+          <p className="text-xs leading-5 text-muted-foreground">
+            Replay any tutorial chapter without changing your career. These explain mechanics and philosophy — never the hidden outcome of a decision.
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {ONBOARDING_CHAPTERS.map((chapter) => {
+              const completed = state.onboarding?.completedChapterIds.includes(chapter.id) ?? false;
+              return (
+                <button
+                  key={chapter.id}
+                  type="button"
+                  onClick={() => onReplayTutorial(chapter.id)}
+                  className="rounded-xl border bg-background/50 p-3 text-left transition-colors hover:bg-muted/60"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <strong className="text-sm">{chapter.title}</strong>
+                    {completed && <Check className="size-4 shrink-0 text-emerald-600" aria-label="Completed" />}
+                  </div>
+                  <p className="mt-1 text-[11px] leading-4 text-muted-foreground">{chapter.summary}</p>
+                </button>
+              );
+            })}
+          </div>
+          <Button type="button" size="sm" variant="outline" className="mt-3" onClick={onRestartTutorial}>
+            <RotateCcw className="size-4" /> Restart full onboarding
+          </Button>
+        </div>
+      </section>
 
       {developerAuthorized && (
         <>
