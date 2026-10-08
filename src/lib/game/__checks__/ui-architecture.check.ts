@@ -1052,3 +1052,31 @@ console.log("\n[U38] Desktop workspace architecture");
     desktop.includes("@media (min-width: 1024px)"),
   );
 }
+
+
+console.log("\n[U39] First PC layout refinement");
+{
+  const desktop = read("src/desktop-workspace.css");
+
+  check(
+    "Inbox lanes span the workspace and flow messages into four-card rows",
+    desktop.includes(".lf-inbox-lane-list") &&
+      desktop.includes("grid-template-columns: repeat(4, minmax(0, 1fr));"),
+  );
+
+  check(
+    "Home league table selector targets the dashboard child",
+    desktop.includes(".lf-home-dashboard > .hidden.xl\\:block"),
+  );
+
+  check(
+    "short laptop Home tuning is height-scoped",
+    desktop.includes("@media (min-width: 1024px) and (min-height: 700px) and (max-height: 860px)"),
+  );
+
+  check(
+    "detailed league band only returns on tall desktop viewports",
+    desktop.includes("@media (min-width: 1024px) and (min-height: 1000px)") &&
+      desktop.includes('"league league"'),
+  );
+}
