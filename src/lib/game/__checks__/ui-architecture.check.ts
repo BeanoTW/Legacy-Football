@@ -988,3 +988,22 @@ console.log("\n[U36] Ultra-dense PC Home");
     /\.lf-management-grid \{[\s\S]*?grid-template-columns: repeat\(7, minmax\(0, 1fr\)\) !important;/.test(shell),
   );
 }
+
+
+console.log("\n[U37] PC Home density pass 2");
+{
+  const shell = read("src/home-shell-polish.css");
+  const calendar = read("src/components/game/ContinueCalendar.tsx");
+  check(
+    "calendar exposes desktop density hooks",
+    calendar.includes("lf-continue-calendar-day") && calendar.includes("lf-continue-calendar-detail"),
+  );
+  check(
+    "desktop calendar day cells are heavily compacted",
+    /\.lf-continue-calendar-day \{[\s\S]*?min-height: 3\.15rem !important;/.test(shell),
+  );
+  check(
+    "desktop fixture hero is reduced again",
+    /\.lf-match-card,[\s\S]*?min-height: 5\.15rem !important;/.test(shell),
+  );
+}
