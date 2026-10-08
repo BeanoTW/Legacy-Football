@@ -187,7 +187,7 @@ export function SettingsTab({
     <DetailScreen
       title="Settings"
       subtitle="Manage careers, appearance and cross-device play."
-      className="touch-pan-y space-y-3"
+      className="lf-settings-workspace touch-pan-y space-y-3"
     >
       <section className="overflow-hidden rounded-xl border bg-card shadow-sm">
         <div className="panel-strip flex items-center gap-2 px-3 py-2 text-sm font-semibold">
