@@ -100,7 +100,7 @@ export type InboxEffect =
   | { kind: "ticketPriceScale"; multiplier: number }
   | { kind: "mediaRelationship"; journalistId: string; delta: number }
   | { kind: "boardNegotiateObjective"; objectiveId: string }
-  | { kind: "communityEventsOnboarding"; mode: "volunteer" | "paid" }
+  | { kind: "communityEventsOnboarding"; mode: "volunteer" | "paid" | "dismissed" }
 
   /* Recruitment. Every one of these routes into the canonical engine
      functions in recruitment.ts — the inbox never mutates football state. */
@@ -1350,8 +1350,6 @@ export interface PlayerLoanAgreement {
   endAbsoluteWeek: number;
   /** Percentage of the parent contract wage funded by the loan club, 0-100. */
   loanClubWageContributionPct: number;
-  /** One-off fee paid by the loan club to the parent club. Optional for legacy saves. */
-  loanFee?: number;
   playingTimeExpectation: LoanPlayingTimeExpectation;
   status: PlayerLoanStatus;
   endedAbsoluteWeek?: number;

@@ -451,7 +451,12 @@ function livingClubArticles(state: GameState): NewsArticle[] {
     if (item.generatorId === "community-events-onboarding" && (item.status === "completed" || item.status === "expired")) {
       const key = `community-events-onboarding|${item.eventKey}`;
       const paid = item.chosenChoiceId === "paid";
-      const decision = paid ? "Paid appointment" : "Volunteer arrangement";
+      const dismissed = item.chosenChoiceId === "dismissed";
+      const decision = paid
+        ? "Paid appointment"
+        : dismissed
+          ? "Role ended"
+          : "Volunteer arrangement";
       articles.push({
         id: key,
         kind: "clubIncident",
@@ -461,27 +466,39 @@ function livingClubArticles(state: GameState): NewsArticle[] {
         byline: pick(`${key}|byline`, REPORTERS),
         headline: paid
           ? `${us} put community volunteer Sarah Malik on the payroll`
-          : `Sarah Malik to continue unpaid community role at ${us}`,
+          : dismissed
+            ? `Sarah Malik leaves community role at ${us}`
+            : `Sarah Malik to continue unpaid community role at ${us}`,
         standfirst: paid
-          ? "Supporters welcome the new owner's decision to turn a long-running volunteer role into paid work."
-          : "The long-serving volunteer will stay on, though the decision has drawn a mixed reaction from supporters.",
+          ? "The club has formalised its community-events role."
+          : dismissed
+            ? "The new owner has decided to end the volunteer arrangement."
+            : "Sarah Malik will continue helping the club on a voluntary basis.",
         body: paid
           ? [
               "Sarah Malik, who had been organising community activity at the club on a voluntary basis, has been appointed Community & Events Officer.",
               "The move gives the club a permanent point of contact for school visits, supporter evenings, open days and other community events.",
             ]
-          : [
-              "Sarah Malik will continue coordinating community activity on a voluntary basis after offering to help the new owner settle in.",
-              "Many supporters value the continuity, although some have questioned why the club has not made the role a paid position.",
-            ],
+          : dismissed
+            ? [
+                "Sarah Malik's volunteer involvement with the club's community programme has ended following a decision by the new owner.",
+                "Community and supporter events will now be handled without a dedicated coordinator unless the club appoints someone else.",
+              ]
+            : [
+                "Sarah Malik will continue coordinating community activity on a voluntary basis after offering to help the new owner settle in.",
+                "The arrangement remains informal, with Sarah continuing to support the club's community programme.",
+              ],
         facts: [
           { label: "Role", value: "Community & Events Officer" },
-          { label: "Arrangement", value: paid ? "£275 per week" : "Volunteer" },
+          {
+            label: "Arrangement",
+            value: paid ? "£275 per week" : dismissed ? "Ended" : "Volunteer",
+          },
           { label: "Decision", value: decision },
         ],
         tags: [us, "Community", "Supporters", "Sarah Malik"],
         involvesUser: true,
-        reactions: reactions(key, paid ? 1.9 : 1.6),
+        reactions: reactions(key, paid ? 1.9 : dismissed ? 1.45 : 1.6),
       });
       continue;
     }
