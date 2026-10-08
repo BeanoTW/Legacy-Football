@@ -111,6 +111,7 @@ const fixture = () => {
   const state = fixture();
   const pitch = assetById(state, "pitch")!;
   pitch.condition = 45;
+  state.week = 5;
   recomputeDerived(state);
   const issue = primaryInfrastructureIssue(state, "concern");
   assert.equal(issue?.assetId, "pitch", "poor pitch becomes a narrative maintenance issue");
