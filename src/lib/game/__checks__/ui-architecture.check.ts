@@ -952,3 +952,21 @@ console.log("\n[U34] Fluid match-view handoff");
 
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) process.exit(1);
+
+
+console.log("\n[U35] Desktop shell density");
+{
+  const shell = read("src/home-shell-polish.css");
+  check(
+    "desktop masthead overrides legacy hero height",
+    /@media \(min-width: 1024px\)[\s\S]*?\.lf-masthead,[\s\S]*?min-height: 5rem !important;[\s\S]*?height: 5rem !important;/.test(shell),
+  );
+  check(
+    "desktop Continue dock stays compact",
+    /\.lf-continue-bar \.lf-continue-button,[\s\S]*?height: 2\.25rem !important;/.test(shell),
+  );
+  check(
+    "desktop shell reserves less bottom space",
+    /\.game-shell \{[\s\S]*?padding-bottom: 3\.15rem !important;/.test(shell),
+  );
+}
