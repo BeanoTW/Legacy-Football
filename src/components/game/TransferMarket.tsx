@@ -225,6 +225,15 @@ export function TransferMarket({
             </>
           )}
         </div>
+        <Button
+          size="sm"
+          className="h-7 px-1.5 text-[11px] sm:h-8 sm:px-2 sm:text-xs"
+          onClick={() => onSurface({ kind: "brief" })}
+        >
+          <Plus className="mr-1 size-3.5" />
+          <span className="sm:hidden">New assignment</span>
+          <span className="hidden sm:inline">New scouting assignment</span>
+        </Button>
         {(activeBrief || completeBriefs.length > 0) && (
           <Button
             size="sm"
@@ -243,15 +252,6 @@ export function TransferMarket({
         >
           <FileText className="mr-1 size-3.5" />
           Reports
-        </Button>
-        <Button
-          size="sm"
-          className="h-7 px-1.5 text-[11px] sm:h-8 sm:px-2 sm:text-xs"
-          onClick={() => onSurface({ kind: "brief" })}
-        >
-          <Plus className="mr-1 size-3.5" />
-          <span className="sm:hidden">New assignment</span>
-          <span className="hidden sm:inline">New scouting assignment</span>
         </Button>
       </section>
 
