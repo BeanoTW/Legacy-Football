@@ -527,3 +527,170 @@ html:has(.lf-home-main), body:has(.lf-home-main),
     font-size: .95rem !important;
   }
 }
+
+
+/* PC shell density correction — the previous desktop pass only shrank inner
+   masthead content while the outer shell retained the legacy 11.5rem hero
+   minimum. Keep phone proportions untouched; reclaim vertical workspace on
+   laptops/desktops. */
+@media (min-width: 1024px) {
+  .lf-masthead,
+  .lf-masthead .panel-strip,
+  .lf-masthead header {
+    min-height: 5rem !important;
+    height: 5rem !important;
+  }
+
+  .lf-masthead .panel-strip {
+    align-items: center !important;
+  }
+
+  .lf-masthead .panel-strip > div,
+  .lf-masthead header > div {
+    min-height: 0 !important;
+    height: 100%;
+    gap: .7rem !important;
+    padding-top: .34rem !important;
+    padding-bottom: .34rem !important;
+    align-items: center !important;
+  }
+
+  .lf-masthead .lf-brand-kicker {
+    display: none;
+  }
+
+  .lf-masthead header h1,
+  .lf-masthead h1 {
+    font-size: 1.2rem !important;
+    line-height: 1 !important;
+  }
+
+  .lf-masthead .lf-club-subtitle {
+    margin-top: .1rem !important;
+    font-size: .72rem !important;
+  }
+
+  .lf-masthead .lf-club-detail {
+    margin-top: .1rem !important;
+    font-size: .62rem !important;
+  }
+
+  .lf-masthead .lf-club-crest {
+    width: 3.45rem !important;
+    height: 3.45rem !important;
+    flex: 0 0 3.45rem !important;
+  }
+
+  .lf-masthead .lf-club-crest > svg {
+    width: 3.45rem !important;
+    height: 3.45rem !important;
+  }
+
+  .lf-masthead .lf-director-card {
+    width: 3.65rem !important;
+    height: 4rem !important;
+    border-radius: .72rem !important;
+  }
+
+  .lf-masthead .lf-director-card > svg {
+    width: 55px !important;
+    height: 66px !important;
+    transform: translateY(.16rem) !important;
+  }
+
+  .lf-masthead .lf-director-reputation-value {
+    top: .16rem !important;
+    left: .16rem !important;
+    min-width: 1.08rem !important;
+    height: .94rem !important;
+    padding-inline: .2rem !important;
+    font-size: .68rem !important;
+  }
+
+  .lf-masthead .lf-director-reputation-stars {
+    right: .15rem !important;
+    bottom: .15rem !important;
+    left: .15rem !important;
+    min-height: .74rem !important;
+  }
+
+  .lf-masthead .lf-director-reputation-stars .lf-rep-star {
+    width: .44rem !important;
+    height: .44rem !important;
+  }
+
+  .lf-kpi-ribbon > div {
+    padding-top: .18rem !important;
+    padding-bottom: .18rem !important;
+    gap: .3rem !important;
+  }
+
+  .lf-kpi-ribbon > div > div {
+    min-height: 2rem !important;
+    gap: .45rem !important;
+    padding: .18rem .48rem !important;
+  }
+
+  .lf-kpi-ribbon > div > div > div:last-child > div:first-child {
+    font-size: .52rem !important;
+  }
+
+  .lf-kpi-ribbon > div > div > div:last-child > div:last-child {
+    font-size: .88rem !important;
+  }
+
+  .lf-primary-nav > div {
+    padding-top: .2rem !important;
+    padding-bottom: .2rem !important;
+    gap: .3rem !important;
+  }
+
+  .lf-primary-nav button {
+    min-height: 2.05rem !important;
+    height: 2.05rem !important;
+    padding-top: .18rem !important;
+    padding-bottom: .18rem !important;
+    border-radius: .55rem !important;
+  }
+
+  .game-shell {
+    padding-bottom: 3.15rem !important;
+  }
+
+  .game-main {
+    padding-top: .42rem !important;
+    padding-bottom: .42rem !important;
+  }
+
+  .lf-continue-bar {
+    width: min(56rem, calc(100vw - 4rem)) !important;
+    bottom: .4rem !important;
+    padding: .22rem !important;
+    border-radius: .68rem !important;
+  }
+
+  .lf-continue-bar .lf-continue-button,
+  .lf-continue-bar .lf-continue-more {
+    height: 2.25rem !important;
+    min-height: 2.25rem !important;
+  }
+
+  .lf-continue-bar .lf-continue-button {
+    padding-inline: .8rem !important;
+    font-size: .82rem !important;
+  }
+
+  .lf-continue-bar .lf-continue-label {
+    gap: .38rem !important;
+  }
+
+  .lf-continue-bar .lf-continue-label svg,
+  .lf-continue-bar .lf-continue-more svg {
+    width: .9rem !important;
+    height: .9rem !important;
+  }
+
+  .lf-continue-bar .lf-continue-hint {
+    font-size: .7rem !important;
+  }
+}
