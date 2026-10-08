@@ -229,7 +229,7 @@ export function TransferMarket({
           <Button
             size="sm"
             variant="ghost"
-            className="h-8 px-2 text-xs"
+            className="h-7 px-1.5 text-[11px] sm:h-8 sm:px-2 sm:text-xs"
             onClick={() => onSurface({ kind: "recommended" })}
           >
             Recommended
@@ -238,15 +238,20 @@ export function TransferMarket({
         <Button
           size="sm"
           variant="ghost"
-          className="h-8 px-2 text-xs"
+          className="h-7 px-1.5 text-[11px] sm:h-8 sm:px-2 sm:text-xs"
           onClick={() => onSurface({ kind: "reports" })}
         >
           <FileText className="mr-1 size-3.5" />
           Reports
         </Button>
-        <Button size="sm" className="h-8 px-2 text-xs" onClick={() => onSurface({ kind: "brief" })}>
+        <Button
+          size="sm"
+          className="h-7 px-1.5 text-[11px] sm:h-8 sm:px-2 sm:text-xs"
+          onClick={() => onSurface({ kind: "brief" })}
+        >
           <Plus className="mr-1 size-3.5" />
-          New scouting assignment
+          <span className="sm:hidden">New assignment</span>
+          <span className="hidden sm:inline">New scouting assignment</span>
         </Button>
       </section>
 
