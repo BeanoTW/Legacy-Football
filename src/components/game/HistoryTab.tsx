@@ -28,7 +28,7 @@ export function HistoryTab({ state }: { state: GameState }) {
   const seasonRows = [...(clubRecord?.leagueHistory ?? [])].sort((a, b) => b.season - a.season);
 
   return (
-    <div className="space-y-4">
+    <div className="lf-history-workspace space-y-4">
       <Section title="Player season record">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <p className="max-w-xl text-xs text-muted-foreground">
