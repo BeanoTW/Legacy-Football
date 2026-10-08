@@ -27,7 +27,7 @@ assert(
   "free agents can be approached directly from their profile",
 );
 assert(
-  profile.includes("arrangeUserPlayerLoanIn") && profile.includes("Send loan request"),
+  profile.includes('openLoanNegotiation(state, "in", player.id') && profile.includes("Send loan request"),
   "contracted players expose the canonical loan route from their profile",
 );
 assert(
@@ -48,8 +48,8 @@ assert(
   "owned-player profile exposes contract negotiation",
 );
 assert(
-  profile.includes("arrangeUserPlayerLoanOut") && profile.includes("Find loan club"),
-  "owned-player profile can arrange an outgoing loan",
+  profile.includes('openLoanNegotiation(state, "out", player.id') && profile.includes("Find loan club"),
+  "owned-player profile can open outgoing loan talks",
 );
 assert(
   profile.includes("releasePlayerInPlace") && profile.includes("Confirm release"),
