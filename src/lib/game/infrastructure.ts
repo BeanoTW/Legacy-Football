@@ -372,6 +372,9 @@ export function capacityFactorFor(type: InfrastructureAssetType, condition: numb
 ========================================================================= */
 
 const STAND_META = () => ({
+  // Legacy compatibility only. Roof condition is no longer a gameplay or UI
+  // system; keeping this inert value preserves deterministic save fingerprints.
+  roofQuality: 60,
   seatingQuality: 60,
   concourseQuality: 55,
   accessibility: 50,
@@ -506,9 +509,7 @@ export function ensureInfrastructure(s: GameState): void {
       );
       a.ageYears = Math.floor(rngRange(rng, 8, 40));
       a.openedSeason = Math.max(1, season - a.ageYears);
-      // Preserve the historical RNG draw so removing the obsolete roofQuality
-      // field does not shift the rest of deterministic world generation.
-      rngRange(rng, 35, 80);
+      a.metadata.roofQuality = clamp(int(rngRange(rng, 35, 80)), 0, 100);
       a.metadata.seatingQuality = clamp(int(st.condition * 0.8 + 10), 0, 100);
       a.metadata.concourseQuality = clamp(int(rngRange(rng, 30, 72)), 0, 100);
       a.metadata.accessibility = clamp(int(rngRange(rng, 28, 68)), 0, 100);
