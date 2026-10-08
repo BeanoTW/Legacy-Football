@@ -2306,6 +2306,7 @@ export function arrangeUserPlayerLoanOutInPlace(
   ) {
     return { ok: false, reason: "Loan wage contribution must be between 0% and 100%" };
   }
+  const hasExplicitLoanFee = terms.loanFee !== undefined;
   const loanFee = Math.max(0, int(terms.loanFee ?? 0));
   if (!Number.isFinite(terms.loanFee ?? 0) || (terms.loanFee ?? 0) < 0) {
     return { ok: false, reason: "Loan fee cannot be negative" };
@@ -2487,6 +2488,7 @@ export function arrangeUserPlayerLoanInInPlace(
   ) {
     return { ok: false, reason: "Loan wage contribution must be between 0% and 100%" };
   }
+  const hasExplicitLoanFee = terms.loanFee !== undefined;
   const loanFee = Math.max(0, int(terms.loanFee ?? 0));
   if (!Number.isFinite(terms.loanFee ?? 0) || (terms.loanFee ?? 0) < 0) {
     return { ok: false, reason: "Loan fee cannot be negative" };
@@ -2533,7 +2535,7 @@ export function arrangeUserPlayerLoanInInPlace(
       roleFeeFactor *
       (surplus ? 0.5 : 1),
   );
-  if (loanFee < requiredLoanFee) {
+  if (hasExplicitLoanFee && loanFee < requiredLoanFee) {
     return {
       ok: false,
       reason: `${clubDisplayName(s, parentClubId)} want at least £${requiredLoanFee.toLocaleString()} loan fee`,
