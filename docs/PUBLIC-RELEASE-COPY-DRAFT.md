@@ -15,7 +15,7 @@ Legacy Football stores careers and preferences in your browser. Local careers
 include the fictional director/club information you enter and your game progress.
 The game supports three local career slots. It uses IndexedDB, with localStorage
 as a fallback where available. Browser storage limits and browser/device clearing
-can affect availability; export a career before moving or clearing a device.
+can affect availability. Confirm an authenticated cloud copy before moving or clearing a device. The current Settings UI offers protected recovery-copy export for unreadable saves; a general playable-career export was not verified.
 Unreadable or newer-format save records are protected for recovery rather than
 silently replaced.
 
@@ -61,8 +61,8 @@ cloud features require an authenticated account. Keep control of the email
 account you use for sign-in. Local careers remain on the device after sign-out.
 
 During beta, defects and changes may affect game progress or save compatibility.
-The release notes identify known issues and compatibility limits. Export a save
-before updating or clearing browser storage. An older client may refuse a save
+The release notes identify known issues and compatibility limits. Preserve a verified backup
+before updating or clearing browser storage. Do not promise a general career-export feature until its deployed UI has been verified. An older client may refuse a save
 written with a newer schema.
 
 **[Legal/business review must supply permitted use and game-content rights,
@@ -94,7 +94,7 @@ and Lovable attribution obligations against the actual agreements.]**
 
 - [ ] Supply legal operator and support/privacy contact.
 - [ ] Approve audience/account eligibility and Terms provisions.
-- [ ] Identify public origin, host/CDN, telemetry and provider retention.
+- [ ] Identify host/CDN, telemetry and provider retention. Public game origin confirmed: https://legacy-football.lovable.app/.
 - [ ] Verify live isolation, account deletion, sign-out and local preservation.
 - [ ] Complete font, asset and dependency notice review.
 - [ ] Approve final text and integrate the player-facing legal/credits surfaces.

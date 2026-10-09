@@ -1,8 +1,31 @@
 # Final release checklist
 
-Candidate commit/build: **not signed off**. Latest verified merged gameplay fix: #300,
-40aa5745f799896d657ee19e5be12a752b92ddf7 (all eight PR CI jobs passed). Validation ledger:
-release-validation-2026-10-09.md. Gameplay feature work remains frozen.
+Candidate commit/build: **not signed off**. Gameplay feature work remains frozen.
+The successful 15-season Actions run 37963939196 belongs exactly to
+b1d12d79d5a9b8342a687312d64cc3bcaa9c1a26. PRs #304–#306 require full CI before
+merge and a fresh 15-season Actions run on the resulting main; this document does
+not claim that later gate passed.
+
+Evidence: release-actions-validation-2026-10-09.md (actual Actions log),
+deployed-validation-2026-10-09.md (signed-out browser results),
+long-career-persistence-2026-10-09.md (automated fake-IndexedDB evidence),
+cloud-deletion-ordering-2026-10-09.md (mock reproduction and fix).
+Each report identifies its tested source and limitations. Proposed next version:
+0.9.0-beta.1, channel beta; unpublished, deployment metadata/rollback unverified.
+
+## Evidence completed before final candidate selection
+
+- [x] Actual 15-season Actions soak, checkpoint 5, fixed release seed, on b1d12d79.
+- [x] Automated storage/migration/protection/rollback/save-queue checks.
+- [x] Automated cloud planning, upload acknowledgements and deletion-order regression.
+- [x] Separate local 15-season persisted IndexedDB core/history checksum validation.
+- [x] Signed-out deployed local save/reload and three-slot isolation smoke.
+- [x] Production RLS/FK/function configuration audit; invalid/missing JWT rejected.
+- [ ] Production disposable-account end-to-end tests (authorisation required).
+- [ ] Deployed verification of the two P1 cloud fixes.
+- [ ] Final candidate CI and fresh Actions soak (pending; use actual run evidence).
+
+The checked supporting evidence does not complete all items below.
 
 ## Beta
 
