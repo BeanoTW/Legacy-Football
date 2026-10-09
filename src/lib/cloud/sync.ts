@@ -1,13 +1,25 @@
 import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
 import type { GameState } from "@/lib/game/types";
-import { loadGame, migrateSave, saveGame, SAVE_VERSION, SAVE_SLOT_IDS, type SaveSlotId } from "@/lib/game/engine";
-import { planCareerSync, type CareerSyncAction } from "./syncPlan";
+import {
+  loadGame,
+  migrateSave,
+  saveGame,
+  SAVE_VERSION,
+  SAVE_SLOT_IDS,
+  type SaveSlotId,
+} from "@/lib/game/engine";
+import { canAutomaticallyReplaceCloud, planCareerSync, type CareerSyncAction } from "./syncPlan";
 
-const URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? "https://uctylgwwqeqrycjekeor.supabase.co";
-const KEY = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY) as string | undefined
-  ?? "sb_publishable_LaJwXU-Q1yLUT0wwCUhlaQ_Lko8HA1q";
+const URL =
+  (import.meta.env.VITE_SUPABASE_URL as string | undefined) ??
+  "https://uctylgwwqeqrycjekeor.supabase.co";
+const KEY =
+  ((import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY) as
+    | string
+    | undefined) ?? "sb_publishable_LaJwXU-Q1yLUT0wwCUhlaQ_Lko8HA1q";
 const MODIFIED_PREFIX = "chairman.save-modified.";
 const CLOUD_OWNER_KEY = "chairman.cloud-owner";
+const ACKNOWLEDGED_PREFIX = "chairman.cloud-acknowledged.";
 const pendingUploads = new Map<SaveSlotId, Promise<void>>();
 
 export const cloudConfigured = Boolean(URL && KEY);
@@ -22,14 +34,18 @@ export function cloudClient(): SupabaseClient | null {
 }
 
 export function markLocalSaveModified(slot: SaveSlotId, at = new Date()): void {
-  if (typeof localStorage !== "undefined") localStorage.setItem(`${MODIFIED_PREFIX}${slot}`, at.toISOString());
+  if (typeof localStorage !== "undefined")
+    localStorage.setItem(`${MODIFIED_PREFIX}${slot}`, at.toISOString());
 }
 
 function clearCloudLinkMetadata(): void {
   if (typeof localStorage === "undefined") return;
   localStorage.removeItem(CLOUD_OWNER_KEY);
   localStorage.removeItem("chairman.cloud-last-sync");
-  for (const slot of SAVE_SLOT_IDS) localStorage.removeItem(`${MODIFIED_PREFIX}${slot}`);
+  for (const slot of SAVE_SLOT_IDS) {
+    localStorage.removeItem(`${MODIFIED_PREFIX}${slot}`);
+    localStorage.removeItem(`${ACKNOWLEDGED_PREFIX}${slot}`);
+  }
 }
 
 function localModifiedAt(slot: SaveSlotId): string | null {
@@ -39,13 +55,17 @@ function localModifiedAt(slot: SaveSlotId): string | null {
 function assertAccountOwnership(userId: string): void {
   const owner = localStorage.getItem(CLOUD_OWNER_KEY);
   if (owner && owner !== userId) {
-    throw new Error("These local careers are linked to another account. Sign in to that account before synchronising or deleting them.");
+    throw new Error(
+      "These local careers are linked to another account. Sign in to that account before synchronising or deleting them.",
+    );
   }
 }
 
 export class CareerSyncConflict extends Error {
   constructor(readonly slots: SaveSlotId[]) {
-    super(`Different device and cloud careers exist in ${slots.join(", ")}. Choose which copy to keep; neither has been overwritten.`);
+    super(
+      `Different device and cloud careers exist in ${slots.join(", ")}. Choose which copy to keep; neither has been overwritten.`,
+    );
     this.name = "CareerSyncConflict";
   }
 }
@@ -82,7 +102,8 @@ async function writeCloudCareer(
   expectedCloudAt: string | null,
 ): Promise<void> {
   if (expectedCloudAt) {
-    const { data, error } = await client.from("career_saves")
+    const { data, error } = await client
+      .from("career_saves")
       .update({ state, state_updated_at: updatedAt })
       .eq("user_id", userId)
       .eq("slot_id", slot)
@@ -90,7 +111,9 @@ async function writeCloudCareer(
       .select("slot_id");
     if (error) throw error;
     if (!data?.length) {
-      throw new Error(`Cloud career ${slot} changed during sync. Retry Sync now; neither copy was overwritten by this request.`);
+      throw new Error(
+        `Cloud career ${slot} changed during sync. Retry Sync now; neither copy was overwritten by this request.`,
+      );
     }
     return;
   }
@@ -100,10 +123,15 @@ async function writeCloudCareer(
     state,
     state_updated_at: updatedAt,
   });
-  if (error) throw new Error(`Could not create cloud career ${slot}: ${error.message}. The slot may have changed on another device; retry Sync now.`);
+  if (error)
+    throw new Error(
+      `Could not create cloud career ${slot}: ${error.message}. The slot may have changed on another device; retry Sync now.`,
+    );
 }
 
-export async function syncAllCareers(resolution: SyncConflictResolution = "auto"): Promise<SyncResult> {
+export async function syncAllCareers(
+  resolution: SyncConflictResolution = "auto",
+): Promise<SyncResult> {
   const client = cloudClient();
   if (!client) throw new Error("Cloud sync has not been connected to a backend yet.");
   const session = await requireSession(client);
@@ -146,17 +174,27 @@ export async function syncAllCareers(resolution: SyncConflictResolution = "auto"
   // Validate and migrate every incoming cloud career before any write begins.
   const preparedDownloads = new Map<SaveSlotId, GameState>();
   for (const { slot, cloud, action } of plan) {
-    const effective = action === "conflict"
-      ? resolution === "keep-cloud" ? "download" : "upload"
-      : action;
+    const effective =
+      action === "conflict" ? (resolution === "keep-cloud" ? "download" : "upload") : action;
     if (effective !== "download" || !cloud) continue;
-    if (!cloud.state || typeof cloud.state.version !== "number" || cloud.state.version > SAVE_VERSION) {
-      throw new Error(`Cloud career ${slot} requires a newer or valid game version. No careers were overwritten.`);
+    if (
+      !cloud.state ||
+      typeof cloud.state.version !== "number" ||
+      cloud.state.version > SAVE_VERSION
+    ) {
+      throw new Error(
+        `Cloud career ${slot} requires a newer or valid game version. No careers were overwritten.`,
+      );
     }
     try {
-      preparedDownloads.set(slot, migrateSave(structuredClone(cloud.state) as unknown as Record<string, unknown>));
+      preparedDownloads.set(
+        slot,
+        migrateSave(structuredClone(cloud.state) as unknown as Record<string, unknown>),
+      );
     } catch (error) {
-      throw new Error(`Cloud career ${slot} failed validation: ${(error as Error).message}. No careers were overwritten.`);
+      throw new Error(
+        `Cloud career ${slot} failed validation: ${(error as Error).message}. No careers were overwritten.`,
+      );
     }
   }
 
@@ -165,11 +203,13 @@ export async function syncAllCareers(resolution: SyncConflictResolution = "auto"
   let uploaded = 0;
   let downloaded = 0;
   for (const { slot, local, cloud, action } of plan) {
-    const effective = action === "conflict"
-      ? resolution === "keep-cloud" ? "download" : "upload"
-      : action;
+    const effective =
+      action === "conflict" ? (resolution === "keep-cloud" ? "download" : "upload") : action;
     if (effective === "none") {
-      if (cloud) localStorage.setItem(`${MODIFIED_PREFIX}${slot}`, cloud.state_updated_at);
+      if (cloud) {
+        localStorage.setItem(`${MODIFIED_PREFIX}${slot}`, cloud.state_updated_at);
+        localStorage.setItem(`${ACKNOWLEDGED_PREFIX}${slot}`, cloud.state_updated_at);
+      }
       continue;
     }
     if (effective === "download" && cloud) {
@@ -177,13 +217,22 @@ export async function syncAllCareers(resolution: SyncConflictResolution = "auto"
       if (!migrated) throw new Error(`Cloud career ${slot} has not passed validation.`);
       await saveGame(migrated, slot);
       localStorage.setItem(`${MODIFIED_PREFIX}${slot}`, cloud.state_updated_at);
+      localStorage.setItem(`${ACKNOWLEDGED_PREFIX}${slot}`, cloud.state_updated_at);
       downloaded++;
       continue;
     }
     if (effective === "upload" && local) {
       const stateUpdatedAt = localModifiedAt(slot) ?? new Date().toISOString();
-      await writeCloudCareer(client, session.user.id, slot, local, stateUpdatedAt, cloud?.state_updated_at ?? null);
+      await writeCloudCareer(
+        client,
+        session.user.id,
+        slot,
+        local,
+        stateUpdatedAt,
+        cloud?.state_updated_at ?? null,
+      );
       localStorage.setItem(`${MODIFIED_PREFIX}${slot}`, stateUpdatedAt);
+      localStorage.setItem(`${ACKNOWLEDGED_PREFIX}${slot}`, stateUpdatedAt);
       uploaded++;
     }
   }
@@ -197,38 +246,63 @@ export function uploadCareer(slot: SaveSlotId, state: GameState): Promise<void> 
   // uploads complete and more gameplay can change the local modified date.
   const capturedModifiedAt = localModifiedAt(slot) ?? new Date().toISOString();
   const previous = pendingUploads.get(slot) ?? Promise.resolve();
-  const next = previous.catch(() => undefined).then(async () => {
-    const client = cloudClient();
-    if (!client) return;
-    const { data, error: sessionError } = await client.auth.getSession();
-    if (sessionError) throw sessionError;
-    if (!data.session) return;
-    assertAccountOwnership(data.session.user.id);
-    const { data: existing, error: readError } = await client.from("career_saves")
-      .select("state,state_updated_at")
-      .eq("user_id", data.session.user.id)
-      .eq("slot_id", slot)
-      .maybeSingle();
-    if (readError) throw readError;
-    if (existing && JSON.stringify(existing.state) === JSON.stringify(state)) {
+  const next = previous
+    .catch(() => undefined)
+    .then(async () => {
+      const client = cloudClient();
+      if (!client) return;
+      const { data, error: sessionError } = await client.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!data.session) return;
+      assertAccountOwnership(data.session.user.id);
+      const { data: existing, error: readError } = await client
+        .from("career_saves")
+        .select("state,state_updated_at")
+        .eq("user_id", data.session.user.id)
+        .eq("slot_id", slot)
+        .maybeSingle();
+      if (readError) throw readError;
+      if (existing && JSON.stringify(existing.state) === JSON.stringify(state)) {
+        localStorage.setItem(`${ACKNOWLEDGED_PREFIX}${slot}`, existing.state_updated_at);
+        localStorage.setItem(CLOUD_OWNER_KEY, data.session.user.id);
+        localStorage.setItem("chairman.cloud-last-sync", new Date().toISOString());
+        return;
+      }
+      if (existing && !localStorage.getItem(CLOUD_OWNER_KEY)) {
+        throw new Error(
+          "Connect existing careers with Sync now in Settings before automatic uploads can overwrite a different cloud career.",
+        );
+      }
+      if (
+        existing &&
+        !canAutomaticallyReplaceCloud({
+          cloudModifiedAt: existing.state_updated_at,
+          acknowledgedCloudAt: localStorage.getItem(`${ACKNOWLEDGED_PREFIX}${slot}`),
+          localModifiedAt: capturedModifiedAt,
+        })
+      ) {
+        throw new Error(
+          `Cloud career ${slot} has different or unacknowledged progress. Use Sync now in Settings to choose which copy to keep.`,
+        );
+      }
+      await writeCloudCareer(
+        client,
+        data.session.user.id,
+        slot,
+        state,
+        capturedModifiedAt,
+        existing?.state_updated_at ?? null,
+      );
+      localStorage.setItem(`${ACKNOWLEDGED_PREFIX}${slot}`, capturedModifiedAt);
       localStorage.setItem(CLOUD_OWNER_KEY, data.session.user.id);
       localStorage.setItem("chairman.cloud-last-sync", new Date().toISOString());
-      return;
-    }
-    if (existing && !localStorage.getItem(CLOUD_OWNER_KEY)) {
-      throw new Error("Connect existing careers with Sync now in Settings before automatic uploads can overwrite a different cloud career.");
-    }
-    if (existing && (!Number.isFinite(Date.parse(existing.state_updated_at)) || !Number.isFinite(Date.parse(capturedModifiedAt)) || Date.parse(existing.state_updated_at) >= Date.parse(capturedModifiedAt))) {
-      throw new Error(`Cloud career ${slot} has different progress at least as new as this device. Use Sync now in Settings to resolve it.`);
-    }
-    await writeCloudCareer(client, data.session.user.id, slot, state, capturedModifiedAt, existing?.state_updated_at ?? null);
-    localStorage.setItem(CLOUD_OWNER_KEY, data.session.user.id);
-    localStorage.setItem("chairman.cloud-last-sync", new Date().toISOString());
-  });
+    });
   pendingUploads.set(slot, next);
-  void next.finally(() => {
-    if (pendingUploads.get(slot) === next) pendingUploads.delete(slot);
-  }).catch(() => undefined);
+  void next
+    .finally(() => {
+      if (pendingUploads.get(slot) === next) pendingUploads.delete(slot);
+    })
+    .catch(() => undefined);
   return next;
 }
 
@@ -242,7 +316,9 @@ export async function deleteCloudCareer(slot: SaveSlotId): Promise<void> {
   if (sessionError) throw sessionError;
   if (!data.session) {
     if (localStorage.getItem(CLOUD_OWNER_KEY)) {
-      throw new Error("Sign in to the linked account before deleting this career so the cloud copy cannot reappear.");
+      throw new Error(
+        "Sign in to the linked account before deleting this career so the cloud copy cannot reappear.",
+      );
     }
     localStorage.removeItem(`${MODIFIED_PREFIX}${slot}`);
     return;
@@ -256,8 +332,8 @@ export async function deleteCloudCareer(slot: SaveSlotId): Promise<void> {
     .eq("slot_id", slot);
   if (error) throw error;
   localStorage.removeItem(`${MODIFIED_PREFIX}${slot}`);
+  localStorage.removeItem(`${ACKNOWLEDGED_PREFIX}${slot}`);
 }
-
 
 /**
  * Permanently deletes the signed-in Supabase account and every cloud career
