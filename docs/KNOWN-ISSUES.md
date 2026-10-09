@@ -15,6 +15,7 @@ Development backlog items do not belong here unless they affect a shipped build.
 | Severity | Area | Issue | Workaround | First affected build | Target |
 | --- | --- | --- | --- | --- | --- |
 | P1 | Manual save status | Signed-out Save now reports Cloud synced despite no authenticated cloud upload. | Treat this confirmation as device-only; verify cloud backup separately after signing in. | Public build timestamp 2026-10-09T10:54:40.155Z | PR #304; deployed retest required |
+| P1 | Cloud slot deletion | In-flight manual Sync now can finish after slot deletion and recreate the cloud save. Reproduced against a network-prohibited mock API, not production accounts. | Wait for Sync now to finish before deleting a cloud-linked slot. | Executable source at b1d12d79; public deployed SHA unverified | PR #306; production/deployed retest required |
 | P3 | Home briefings | Preseason match recap preview can show a raw club ID, although the Inbox title resolves the club name. | Open Inbox for the readable title. | Public build observed 9 October 2026 | Beta follow-up |
 | P2 | Desktop UI | PC layout is not yet considered release-ready/coherent at common laptop/desktop sizes. At 1363×936, Settings cards overlap the save manager and obscure slot buttons. Keyboard Enter can activate the obscured slot control. | Mobile/tablet layouts remain the preferred polished experience while the desktop layout is redesigned. | Current beta development | Before stable 1.0 |
 
