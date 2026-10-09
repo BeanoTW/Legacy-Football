@@ -110,7 +110,8 @@ const deletion = cloud.deleteCloudCareer("slot-1");
 await Promise.resolve();
 assert(!operations.includes("delete"), "deletion must wait for the pending upload");
 release();
-await Promise.all([upload, deletion]);
+const [uploaded] = await Promise.all([upload, deletion]);
+assert.equal(uploaded, true, "successful cloud writes report confirmation");
 assert.deepEqual(operations, ["insert", "delete"]);
 assert.equal(records.size, 0, "queued upload cannot resurrect a deleted cloud slot");
 assert.equal(
@@ -124,10 +125,21 @@ onInsert = null;
 rejectInsert = true;
 await assert.rejects(cloud.uploadCareer("slot-2", state), /injected write failure/);
 rejectInsert = false;
-await cloud.uploadCareer("slot-2", state);
+assert.equal(await cloud.uploadCareer("slot-2", state), true);
 assert(records.has("mock-account-A|slot-2"), "a failed upload must not poison later queued work");
 
+const writesBeforeMatchingCopy = operations.length;
+assert.equal(await cloud.uploadCareer("slot-2", state), true, "matching cloud copy is confirmed");
+assert.equal(operations.length, writesBeforeMatchingCopy, "matching copy needs no extra write");
 signedIn = false;
+const recordsBeforeUnsignedUpload = structuredClone([...records]);
+assert.equal(
+  await cloud.uploadCareer("slot-3", state),
+  false,
+  "unsigned upload cannot report cloud success",
+);
+assert.deepEqual([...records], recordsBeforeUnsignedUpload);
+assert.equal(operations.length, writesBeforeMatchingCopy);
 await assert.rejects(cloud.deleteCloudCareer("slot-2"), /Sign in to the linked account/);
 assert(records.has("mock-account-A|slot-2"));
 assert.equal(
