@@ -1095,3 +1095,33 @@ console.log("\n[U40] Release crash reporting");
     root.includes("Your saved career is not cleared by this screen."),
   );
 }
+
+console.log("\n[U41] Account deletion release safety");
+{
+  const settings = read("src/components/game/SettingsTab.tsx");
+  const cloud = read("src/lib/cloud/sync.ts");
+  const edge = read("supabase/functions/delete-account/index.ts");
+  const supabaseConfig = read("supabase/config.toml");
+
+  check(
+    "Settings exposes destructive account deletion with explicit typed confirmation",
+    settings.includes("Delete account") &&
+      settings.includes("Type DELETE") &&
+      settings.includes('typed !== "DELETE"'),
+  );
+  check(
+    "account deletion removes cloud identity while preserving local career slots",
+    cloud.includes('client.functions.invoke("delete-account"') &&
+      cloud.includes("clearCloudLinkMetadata()") &&
+      settings.includes("Careers stored on this device stay here"),
+  );
+  check(
+    "delete-account authenticates the caller before admin deletion",
+    edge.includes("userClient.auth.getUser()") &&
+      edge.includes("admin.auth.admin.deleteUser(userData.user.id)"),
+  );
+  check(
+    "repo Supabase config targets the production project",
+    supabaseConfig.includes('project_id = "uctylgwwqeqrycjekeor"'),
+  );
+}
