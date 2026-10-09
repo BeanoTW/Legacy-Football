@@ -85,8 +85,9 @@ Sans. **[Verify exact family licences and preserve required notices before
 redistributing fonts.]**
 
 **[Supply creator/source, permission basis and attribution for the approved
-crest/splash, stadium art, badge elements, portraits and match visuals. Resolve
-31 packages whose top-level notice file was not located. Check hosting/service
+crest/splash, stadium art, badge elements, portraits and match visuals. See NOTICE-FOLLOWUP.md for preserved version-pinned/embedded notices and the
+six remaining full root-package notice gaps. react-remove-scroll-bar@2.3.8 is
+observed in the local browser JavaScript build and remains unresolved. Check hosting/service
 and Lovable attribution obligations against the actual agreements.]**
 
 ## Publication checklist

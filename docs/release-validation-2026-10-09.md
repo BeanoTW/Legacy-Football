@@ -10,6 +10,10 @@ were independently confirmed merged using GitHub metadata.
 creation/deletion was performed. Gameplay feature expansion remains frozen.
 Desktop remains the documented P2 issue and a stable-1.0 blocker.
 
+Evidence snapshot: 9 October 2026, 15:57 UTC. Latest merged gameplay fix: #300,
+`40aa5745f799896d657ee19e5be12a752b92ddf7`, after all eight CI jobs passed.
+Later PR publication/CI status is recorded in GitHub rather than inferred here.
+
 ## Pass / fail / blocked ledger
 
 | Gate | Status | Evidence and limits |
@@ -46,17 +50,20 @@ Desktop remains the documented P2 issue and a stable-1.0 blocker.
 | Client credential exposure | PASS narrow local scan | Two locally generated public JS files contain zero sb_secret_ key literals and zero decoded service_role JWT literals. Does not cover deployed bundles, repository history or secrets supplied later. |
 | Version / save compatibility | PARTIAL | Current save schema is 24. Deployment metadata defaults to Development without release environment values. No public beta/RC version or rollback build asserted. |
 
-## Open fixes
+## Merged fixes
 
-- #299: MERGED after all eight CI jobs passed, including release-guard (run 37935317952). Merge commit 125504005227f1bb33584d862b68683a3ff297c9. Requires explicit manual choice for differing device/cloud saves and protect
-  automatic uploads from progress written by another device.
-- #300: use canonical squad bounds in the soak and apply existing emergency cover
-  after retirement/intake at season rollover, restoring the full 22-player floor
-  rather than only two replacements per pass. Focused regression restores 13 to 22
-  with paid, registered signings and does not duplicate them on repeat.
-
-CI is required before #300 is merged. Its dd07d0c candidate failed the season-3 snapshot fingerprint: emergency cover intentionally changes transfers and subsequent finances/gameplay. Do not simply accept the old fingerprint. The local 15-season run failed at season 10: Focus clubs c_0tkle141mcjnrr and c_1epeh2p01vazg8 had 19 and 18 seniors. A follow-up extends paid cover to underfilled Focus rivals; regression passes. Candidate 21faf2cabf1feda7878066c71ce6d31af3509ba1 includes the generated season-3 fingerprint update; first-season fingerprints are unchanged and independent seeded runs agree. The rerun passed season 5 before the execution connection was lost; completion remains unverified. Repeat the soak on the final merged
-candidate; a pass from an earlier or isolated branch is not final sign-off.
+- #299: merged after all eight CI jobs passed, including release-guard (run
+  37935317952). Merge 125504005227f1bb33584d862b68683a3ff297c9. Differing
+  manual device/cloud saves require a choice; automatic uploads extend only the
+  acknowledged remote revision. Deployed two-account validation remains blocked.
+- #300: merged after all eight CI jobs passed, including all four game shards and
+  release-guard (run 37950945246, head ec13051944022fcc3efaf81562bc48824d2c2e06).
+  Merge 40aa5745f799896d657ee19e5be12a752b92ddf7. Uses canonical 22–36 soak
+  bounds and existing paid emergency cover after rollover and for underfilled
+  Focus rivals. The completed local 15-season pass is supporting evidence. All
+  four evidence source files have zero diff against this merged main. The earlier
+  failed and inconclusive runs above are historical; the required latest-main
+  Actions run is still blocked and has not passed.
 
 ## Remaining authorisations / participation
 
@@ -81,8 +88,8 @@ bun src/lib/game/__checks__/rollover-squad-cover.check.ts
 bun src/lib/game/__checks__/save-queue.check.ts
 ```
 
-The last two files are proposed checks on their respective PRs. Do not assume they
-exist on the baseline main until merged.
+Both queue/rollover checks now exist on merged main; they did not exist on the
+initial f70e7bf baseline.
 
 ## Additional prepared documents
 
@@ -90,7 +97,7 @@ BETA-CANDIDATE-NOTES.md proposes a beta label and records schema/rollback limits
 
 ## Execution limitation
 
-The local execution service reported `exec-server transport disconnected; failed to resume exec-server session: recovery timed out after 25s`. This is an infrastructure observation, not evidence that the game crashed. Do not turn missing final results into a pass. GitHub CI and the authorised manual Actions soak remain independent evidence sources.
+During the earlier inconclusive run, the local execution service reported `exec-server transport disconnected; failed to resume exec-server session: recovery timed out after 25s`. This is an infrastructure observation, not evidence that the game crashed. Do not turn missing final results into a pass. GitHub CI and the authorised manual Actions soak remain independent evidence sources.
 
 ## Completed follow-up
 
@@ -99,12 +106,26 @@ The local execution service reported `exec-server transport disconnected; failed
   as d6e9ac71ad5960c21507720ba68dbabc9d14b27f.
 - PR #300 candidate 21faf2c passed six jobs, but shard 0 was cancelled after
   approximately 35 minutes, matching the configured timeout. The retrieved log
-  contains no failed assertion; release-guard correctly failed. ec130519 raises
-  the bounded game-shard timeout to 60 minutes; new full CI run 37950945246 is
-  still pending completion. The local 15-season pass does not replace full CI.
+  contains no failed assertion; release-guard correctly failed. ec130519 raised
+  the bounded game-shard timeout to 60 minutes. Full CI run 37950945246 then
+  passed all eight jobs; #300 merged as 40aa5745f799896d657ee19e5be12a752b92ddf7.
 - The recovered local 15-season run completed successfully. Raw evidence and
   matching source blob IDs are preserved in release-evidence. The failed and
   inconclusive earlier runs remain recorded above.
 - The manual latest-main Actions soak remains blocked by browser authentication.
   Production test accounts, deployed/device gates, legal/business fields and
   stable-1.0 desktop work remain outstanding. No public release is authorised.
+
+## Local browser build provenance
+
+A production-mode `bun run build --sourcemap` of merged main 40aa5745 completed
+with exit 0. The two browser JavaScript sourcemaps identify 89 installed package
+names: 76 declare MIT, 11 ISC, one Apache-2.0 and one 0BSD. This is local JavaScript
+source provenance, not deployed-artifact verification, a full CSS/server inventory
+or licence clearance. See release-evidence/browser-build-module-inventory.json.
+
+Eleven of these packages lack a packaged top-level notice. Ten are covered by the
+version-pinned Radix notices already preserved; react-remove-scroll-bar@2.3.8
+remains unresolved and is observed in this browser build. All six full root-package
+notice gaps remain recorded conservatively in NOTICE-FOLLOWUP.md. No generated
+sourcemaps or build were deployed.
