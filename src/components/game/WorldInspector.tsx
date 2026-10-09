@@ -23,6 +23,7 @@ import {
 import { openPlayerProfile } from "./shared/PlayerProfileSheet";
 import { scoutingReportById } from "@/lib/game/scouting";
 import { scoutedOverallPresentation } from "@/lib/game/scoutingPresentation";
+import { aiClubStrategy } from "@/lib/game/aiClubStrategy";
 
 const POSITION_ORDER: Record<Position, number> = { GK: 0, DEF: 1, MID: 2, FWD: 3 };
 
@@ -265,6 +266,8 @@ function ClubSquadPanel({
   const detailedSquad = sortedSquad(state, canonical);
   const fringeSquad = detailedSquad.length === 0 ? sortedFringeSquad(state, canonical) : [];
   const isMe = isUserClubReference(state, canonical);
+  const direction = isMe ? null : aiClubStrategy(state, canonical);
+  const directionLabel = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
   const openFringePlayer = (player: BrowsableFringePlayer) => {
     update((s) => preserveFringePlayerForProfile(s, player));
@@ -301,6 +304,15 @@ function ClubSquadPanel({
           </button>
         </div>
       </div>
+
+      {direction && (
+        <div className="flex flex-wrap items-center gap-1.5 border-b bg-muted/20 px-3 py-2 text-[10px] sm:px-4">
+          <span className="mr-1 font-bold uppercase tracking-[0.14em] text-muted-foreground">Club direction</span>
+          <span className="rounded-full border bg-background px-2 py-0.5 font-semibold">{directionLabel(direction.ambition)}</span>
+          <span className="rounded-full border bg-background px-2 py-0.5 font-semibold">{directionLabel(direction.financialPosture)}</span>
+          <span className="rounded-full border bg-background px-2 py-0.5 font-semibold">{directionLabel(direction.squadCycle)}</span>
+        </div>
+      )}
 
       {detailedSquad.length === 0 && fringeSquad.length === 0 ? (
         <div className="px-4 py-6 text-sm text-muted-foreground">
