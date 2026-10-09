@@ -1,0 +1,29 @@
+{
+  "candidate": "ec13051944022fcc3efaf81562bc48824d2c2e06",
+  "sourceFiles": [
+    {
+      "path": "src/lib/game/recruitmentLegacy.ts",
+      "gitBlob": "2d8871a700b5927a1744ee8cb3816e5e55ea4a9b",
+      "matchesCandidate": true
+    },
+    {
+      "path": "src/lib/game/__release__/release-soak.ts",
+      "gitBlob": "e481a5a26d34e7344e20fe07eb1d3b85bf608e73",
+      "matchesCandidate": true
+    },
+    {
+      "path": "src/lib/game/__checks__/snapshot.baseline.ts",
+      "gitBlob": "9a9d95b8508478b40c0d273b65668b8680605f18",
+      "matchesCandidate": true
+    },
+    {
+      "path": "src/lib/game/__checks__/rollover-squad-cover.check.ts",
+      "gitBlob": "e85ef7a1f253bad64212f1f9c947483a3e50159a",
+      "matchesCandidate": true
+    }
+  ],
+  "bun": "1.4.2",
+  "seed": "RELEASE|SOAK|FIXED",
+  "seasons": 15,
+  "checkpointInterval": 5
+}
