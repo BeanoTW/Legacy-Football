@@ -64,6 +64,8 @@ function defaultBackend(): LocalStoreDeps["backend"] | null {
 export function createLocalSaveStore(deps: LocalStoreDeps): SaveStore {
   const backend = deps.backend ?? defaultBackend();
   const storageKey = deps.storageKey ?? STORAGE_KEY;
+  const backupKey = storageKey === STORAGE_KEY ? BACKUP_KEY : `${storageKey}.unreadable`;
+  const metadataKey = `${storageKey}.meta`;
   /* Set when a stored save could not be read (parse, migration or future
    * version). While set, writes are refused so a new game can never silently
    * destroy the original save. Cleared only by an explicit clear(). */
@@ -73,11 +75,11 @@ export function createLocalSaveStore(deps: LocalStoreDeps): SaveStore {
   function preserve(raw: string, reason: string): Diagnostic {
     unreadable = true;
     try {
-      backend?.setItem(BACKUP_KEY, raw);
+      backend?.setItem(backupKey, raw);
       return {
         level: "warn",
         code: "save/preserved",
-        detail: `${reason}; original kept at ${BACKUP_KEY}`,
+        detail: `${reason}; original kept at ${backupKey}`,
       };
     } catch (e) {
       return { level: "warn", code: "save/preserve-failed", detail: (e as Error).message };
@@ -86,6 +88,17 @@ export function createLocalSaveStore(deps: LocalStoreDeps): SaveStore {
 
   return {
     kind: "localStorage",
+
+    async readMetadata() {
+      if (!backend) return { updatedAt: null };
+      const raw = backend.getItem(metadataKey);
+      const updatedAt = raw ? Number(raw) : NaN;
+      return { updatedAt: Number.isFinite(updatedAt) ? updatedAt : null };
+    },
+
+    async readProtectedRaw() {
+      return backend?.getItem(backupKey) ?? null;
+    },
 
     async load(): Promise<LoadResult> {
       if (!backend) return { state: null, diagnostics: [] };
@@ -160,6 +173,11 @@ export function createLocalSaveStore(deps: LocalStoreDeps): SaveStore {
       }
       try {
         backend.setItem(storageKey, raw);
+        try {
+          backend.setItem(metadataKey, String(Date.now()));
+        } catch {
+          /* metadata is useful but never makes a successful career write fail */
+        }
       } catch (e) {
         // Quota exceeded used to be swallowed silently; surface it instead.
         out.push({ level: "error", code: "save/write-failed", detail: (e as Error).message });
@@ -170,6 +188,8 @@ export function createLocalSaveStore(deps: LocalStoreDeps): SaveStore {
     async clear(): Promise<void> {
       unreadable = false;
       backend?.removeItem(storageKey);
+      backend?.removeItem(backupKey);
+      backend?.removeItem(metadataKey);
     },
   };
 }

@@ -22,12 +22,21 @@ export interface LoadResult {
   diagnostics: Diagnostic[];
 }
 
+export interface SaveStoreMetadata {
+  /** Unix epoch milliseconds of the last successful local commit, when known. */
+  updatedAt: number | null;
+}
+
 export interface SaveStore {
   /** Storage backend name, for diagnostics only. */
   readonly kind: string;
   /** Read path for compacted historical detail (Phase 1b). Absent on
    *  backends that cannot chunk (legacy localStorage fallback). */
   readonly history?: HistoryRepository;
+  /** Lightweight slot metadata for UI/status surfaces. */
+  readMetadata?(): Promise<SaveStoreMetadata>;
+  /** Verbatim protected payload when this build refused to load a career. */
+  readProtectedRaw?(): Promise<string | null>;
   load(): Promise<LoadResult>;
   save(state: GameState): Promise<Diagnostic[]>;
   clear(): Promise<void>;

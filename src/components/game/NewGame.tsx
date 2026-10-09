@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { Pencil, Play, Shield, Shirt } from "lucide-react";
+import { Download, Pencil, Play, Shield, Shirt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TopBar } from "./shared/primitives";
-import type { SaveSlotId, SaveSlotSummary } from "@/lib/game/engine";
+import { protectedSaveCopy, type SaveSlotId, type SaveSlotSummary } from "@/lib/game/engine";
 import { cn } from "@/lib/utils";
 import { STARTING_REGIONAL_DIVISIONS } from "@/lib/game/worldPyramid";
 import { leaguePresentationName } from "@/lib/game/clubPresentation";
@@ -25,6 +25,7 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
   const [clubIdentityTouched, setClubIdentityTouched] = useState(false);
   const [manager, setManager] = useState(profile.name);
   const [studioOpen, setStudioOpen] = useState(false);
+  const [recoveryMessage, setRecoveryMessage] = useState<string | null>(null);
   const activeSlotUnreadable = slots.some((slot) => slot.id === activeSlot && slot.status === "unreadable");
   const [startingDivisionId, setStartingDivisionId] = useState(
     STARTING_REGIONAL_DIVISIONS[0]?.id ?? "regional-premier-central",
@@ -35,6 +36,30 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
   useEffect(() => {
     setManager(profile.name);
   }, [profile.name]);
+
+  const downloadActiveRecovery = async () => {
+    setRecoveryMessage(null);
+    try {
+      const raw = await protectedSaveCopy(activeSlot);
+      if (!raw) {
+        setRecoveryMessage("No protected recovery copy is available on this device.");
+        return;
+      }
+      const index = Math.max(0, slots.findIndex((slot) => slot.id === activeSlot));
+      const blob = new Blob([raw], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `legacy-football-career-${index + 1}-recovery.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      setRecoveryMessage("Protected recovery copy downloaded. Keep it until this career loads again in an updated build.");
+    } catch (error) {
+      setRecoveryMessage(`Could not download the protected copy: ${(error as Error).message}`);
+    }
+  };
 
   const start = () => {
     if (activeSlotUnreadable) return;
@@ -164,7 +189,15 @@ export function NewGame({ onStart, activeSlot, slots, onSelectSlot }: { onStart:
                 ))}
               </div>
             </div>
-            {activeSlotUnreadable && <p role="alert" className="rounded-lg border border-amber-500 bg-amber-500/10 p-3 text-xs">This career could not be read. Its original save is protected. Select a different slot; do not clear this slot or browser data.</p>}
+            {activeSlotUnreadable && (
+              <div role="alert" className="rounded-lg border border-amber-500 bg-amber-500/10 p-3 text-xs">
+                <p>This career could not be read. Its original save is protected. Select a different slot; do not clear this slot or browser data.</p>
+                <Button type="button" size="sm" variant="outline" className="mt-2" onClick={() => void downloadActiveRecovery()}>
+                  <Download className="size-4" /> Download protected copy
+                </Button>
+                {recoveryMessage && <p className="mt-2 text-muted-foreground">{recoveryMessage}</p>}
+              </div>
+            )}
 
           </div>
         </div>

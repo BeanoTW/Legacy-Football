@@ -410,6 +410,7 @@ export interface SaveSlotSummary {
   id: SaveSlotId;
   state: GameState | null;
   status: "empty" | "ready" | "unreadable";
+  updatedAt: number | null;
 }
 
 const slotStores = new Map<SaveSlotId, SaveStore>();
@@ -477,6 +478,11 @@ export function clearGame(slot: SaveSlotId = "slot-1"): Promise<void> {
   return enqueueSlotOperation(slot, () => storeFor(slot).clear());
 }
 
+export async function protectedSaveCopy(slot: SaveSlotId): Promise<string | null> {
+  await pendingSaveWrites.get(slot)?.catch(() => undefined);
+  return storeFor(slot).readProtectedRaw?.() ?? null;
+}
+
 export async function listSaveSlots(): Promise<SaveSlotSummary[]> {
   return Promise.all(
     SAVE_SLOT_IDS.map(async (id) => {
@@ -484,7 +490,13 @@ export async function listSaveSlots(): Promise<SaveSlotSummary[]> {
       const { state, diagnostics } = await storeFor(id).load();
       reportDiagnostics(diagnostics);
       const unreadable = !state && diagnostics.some((d) => d.level === "error" || d.code === "save/preserved");
-      return { id, state, status: unreadable ? "unreadable" as const : state ? "ready" as const : "empty" as const };
+      const metadata = await storeFor(id).readMetadata?.().catch(() => ({ updatedAt: null }));
+      return {
+        id,
+        state,
+        status: unreadable ? "unreadable" as const : state ? "ready" as const : "empty" as const,
+        updatedAt: metadata?.updatedAt ?? null,
+      };
     }),
   );
 }

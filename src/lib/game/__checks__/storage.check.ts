@@ -142,6 +142,7 @@ console.log("\n[T3b] An unreadable save is preserved, never overwritten");
   const res = await st.load();
   check("original raw save is kept verbatim", backend.map.get(STORAGE_KEY) === "{not json");
   check("a backup copy is written", backend.map.get(BACKUP_KEY) === "{not json");
+  check("protected raw copy is available for recovery export", (await st.readProtectedRaw?.()) === "{not json");
   check(
     "preservation is reported",
     res.diagnostics.some((d) => d.code === "save/preserved"),
@@ -158,6 +159,7 @@ console.log("\n[T3b] An unreadable save is preserved, never overwritten");
   );
 
   await st.clear();
+  check("clear removes the protected recovery copy", (await st.readProtectedRaw?.()) === null);
   const after = await st.save(newGame("Store City", "Persis Tence", SEED));
   check(
     "an explicit clear unblocks writing",
@@ -184,6 +186,32 @@ console.log("\n[T3b] An unreadable save is preserved, never overwritten");
   check(
     "a future-version save is never overwritten",
     diags.some((d) => d.code === "save/write-blocked") && backend.map.get(STORAGE_KEY) === raw,
+  );
+}
+
+console.log("\n[T3c] Fallback protected copies are isolated per save slot");
+{
+  const backend = memoryBackend();
+  const slot2Key = "chairman.save.slot-2";
+  const slot3Key = "chairman.save.slot-3";
+  backend.map.set(slot2Key, "{broken slot 2");
+  backend.map.set(slot3Key, "{broken slot 3");
+  const slot2 = createLocalSaveStore({ migrate: migrateSave, currentVersion: SAVE_VERSION, backend, storageKey: slot2Key });
+  const slot3 = createLocalSaveStore({ migrate: migrateSave, currentVersion: SAVE_VERSION, backend, storageKey: slot3Key });
+  await slot2.load();
+  await slot3.load();
+  check(
+    "slot 2 keeps its own protected copy",
+    backend.map.get(`${slot2Key}.unreadable`) === "{broken slot 2",
+  );
+  check(
+    "slot 3 keeps its own protected copy",
+    backend.map.get(`${slot3Key}.unreadable`) === "{broken slot 3",
+  );
+  check(
+    "one damaged fallback slot cannot overwrite another slot's recovery copy",
+    (await slot2.readProtectedRaw?.()) === "{broken slot 2" &&
+      (await slot3.readProtectedRaw?.()) === "{broken slot 3",
   );
 }
 

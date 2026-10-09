@@ -331,6 +331,16 @@ export function createIdbSaveStore(deps: IdbStoreDeps): IdbSaveStore {
     metrics,
     history,
 
+    async readMetadata() {
+      const manifest = await this.readManifest();
+      return { updatedAt: manifest?.updatedAt ?? null };
+    },
+
+    async readProtectedRaw() {
+      const rec = await deps.records.get([K.unreadable]);
+      return rec[K.unreadable] ?? null;
+    },
+
     async readManifest() {
       const rec = await deps.records.get([K.manifest]);
       if (!rec[K.manifest]) return null;

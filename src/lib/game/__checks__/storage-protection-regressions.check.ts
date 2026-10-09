@@ -33,6 +33,12 @@ console.log("\n[SPR1] Invalid manifest is preserved and blocks overwrite");
 {
   const { records, store } = makeStore();
   await store.save(fresh());
+  assert(
+    (await store.readMetadata?.())?.updatedAt === 1_700_000_000_000,
+    "successful IDB commit must expose its last-saved timestamp",
+  );
+  const beforeCorruption = await records.get([K.core]);
+  const protectedRaw = beforeCorruption[K.core];
   await records.putAll([
     { key: K.manifest, value: JSON.stringify({ saveId: SAVE_ID, broken: true }) },
   ]);
@@ -45,6 +51,10 @@ console.log("\n[SPR1] Invalid manifest is preserved and blocks overwrite");
   assert(
     (await store.save(fresh())).some((d) => d.code === "save/write-blocked"),
     "invalid manifest must block overwrite until reset",
+  );
+  assert(
+    (await store.readProtectedRaw?.()) === protectedRaw,
+    "invalid manifest must expose the verbatim protected core for recovery export",
   );
 }
 
@@ -81,8 +91,13 @@ console.log("\n[SPR2] Reset clears future-version protection and re-enables savi
     (await store.save(fresh())).some((d) => d.code === "save/write-blocked"),
     "future-version protection must block overwrite before reset",
   );
+  assert(
+    (await store.readProtectedRaw?.()) === core,
+    "future-version protection must expose the original core verbatim",
+  );
 
   await store.clear();
+  assert((await store.readProtectedRaw?.()) === null, "reset must remove the protected recovery copy");
   assert((await records.keys()).length === 0, "reset must remove the protected save slot");
   assert((await store.save(fresh())).length === 0, "reset must re-enable normal saving");
 }
