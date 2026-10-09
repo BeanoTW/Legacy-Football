@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BookOpen, Check, Cloud, Download, HardDrive, LogOut, Mail, Palette, RefreshCw, RotateCcw, Save, Trash2 } from "lucide-react";
+import { BookOpen, Bug, Check, Cloud, Copy, Download, HardDrive, LogOut, Mail, Palette, RefreshCw, RotateCcw, Save, Trash2 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import { protectedSaveCopy, type SaveSlotId, type SaveSlotSummary } from "@/lib/game/engine";
 import type { GameState } from "@/lib/game/types";
@@ -12,6 +12,7 @@ import { CareerSyncConflict, cloudClient, cloudConfigured, syncAllCareers, type 
 import { DeveloperModePanel } from "./DeveloperModePanel";
 import { developerModeEnabled, setDeveloperModeEnabled } from "@/lib/game/developerMode";
 import { ONBOARDING_CHAPTERS, type OnboardingChapterId } from "@/lib/game/onboarding";
+import { buildBetaDiagnosticBundle, formatBetaDiagnosticBundle } from "@/lib/betaDiagnostics";
 
 type Theme = "club" | "heritage" | "floodlights";
 type Appearance = "light" | "dark" | "system";
@@ -66,6 +67,7 @@ export function SettingsTab({
   const [saveBusy, setSaveBusy] = useState(false);
   const [updateMessage, setUpdateMessage] = useState<string | null>(null);
   const [recoveryMessage, setRecoveryMessage] = useState<string | null>(null);
+  const [diagnosticMessage, setDiagnosticMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem(THEME_KEY) as Theme | null;
@@ -171,6 +173,45 @@ export function SettingsTab({
       setRecoveryMessage(`Career ${index + 1}: protected recovery copy downloaded. Keep it until the career loads again in an updated build.`);
     } catch (error) {
       setRecoveryMessage(`Could not download the protected copy: ${(error as Error).message}`);
+    }
+  }
+
+  function diagnosticText() {
+    return formatBetaDiagnosticBundle(
+      buildBetaDiagnosticBundle({
+        state,
+        activeSlot,
+        slots,
+        buildId: __LEGACY_FOOTBALL_BUILD_ID__,
+      }),
+    );
+  }
+
+  async function copyDiagnostics() {
+    setDiagnosticMessage(null);
+    try {
+      await navigator.clipboard.writeText(diagnosticText());
+      setDiagnosticMessage("Diagnostics copied. Paste them into your bug report with what you were doing and what you expected to happen.");
+    } catch (error) {
+      setDiagnosticMessage(`Could not copy diagnostics: ${(error as Error).message}`);
+    }
+  }
+
+  function downloadDiagnostics() {
+    setDiagnosticMessage(null);
+    try {
+      const blob = new Blob([diagnosticText()], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `legacy-football-diagnostics-${__LEGACY_FOOTBALL_BUILD_ID__.slice(0, 8)}.txt`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      setDiagnosticMessage("Diagnostics downloaded. Attach that file to the bug report.");
+    } catch (error) {
+      setDiagnosticMessage(`Could not download diagnostics: ${(error as Error).message}`);
     }
   }
 
@@ -310,6 +351,32 @@ export function SettingsTab({
             <p className="mt-1 text-xs text-muted-foreground">Checks the deployed game for a newer build. Your career is saved before any update reload.</p>
             <Button className="mt-3" size="sm" variant="outline" onClick={() => void checkForUpdates()}><RefreshCw className="size-4" /> Check for updates</Button>
             {updateMessage && <p className="mt-2 text-xs">{updateMessage}</p>}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-xl border bg-card p-4 shadow-sm">
+        <div className="flex items-start gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+            <Bug className="size-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="font-display text-lg">Beta diagnostics</div>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              Creates a small technical report with the build, career position, save timestamp and device details. It does not include your account email or full save contents.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={() => void copyDiagnostics()}>
+                <Copy className="size-4" /> Copy diagnostics
+              </Button>
+              <Button type="button" size="sm" variant="outline" onClick={downloadDiagnostics}>
+                <Download className="size-4" /> Download report
+              </Button>
+            </div>
+            <p className="mt-2 text-[10px] text-muted-foreground">
+              Build {__LEGACY_FOOTBALL_BUILD_ID__.slice(0, 8)} · schema v{state.version}
+            </p>
+            {diagnosticMessage && <p className="mt-2 rounded-lg bg-muted px-3 py-2 text-xs">{diagnosticMessage}</p>}
           </div>
         </div>
       </section>
