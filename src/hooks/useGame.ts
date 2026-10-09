@@ -213,8 +213,8 @@ export function useGame() {
     markLocalSaveModified(activeSlot);
     setSaveSlots(await listSaveSlots());
     try {
-      await uploadCareer(activeSlot, state);
-      return { local: true, cloud: true };
+      const cloud = await uploadCareer(activeSlot, state);
+      return { local: true, cloud };
     } catch (error) {
       setCloudError(`Cloud sync failed: ${(error as Error).message}`);
       return { local: true, cloud: false };

@@ -20,7 +20,7 @@ const KEY =
 const MODIFIED_PREFIX = "chairman.save-modified.";
 const CLOUD_OWNER_KEY = "chairman.cloud-owner";
 const ACKNOWLEDGED_PREFIX = "chairman.cloud-acknowledged.";
-const pendingUploads = new Map<SaveSlotId, Promise<void>>();
+const pendingUploads = new Map<SaveSlotId, Promise<boolean>>();
 
 export const cloudConfigured = Boolean(URL && KEY);
 
@@ -241,7 +241,8 @@ export async function syncAllCareers(
   return { uploaded, downloaded };
 }
 
-export function uploadCareer(slot: SaveSlotId, state: GameState): Promise<void> {
+/** True only after a successful write or confirmation of an identical cloud copy. */
+export function uploadCareer(slot: SaveSlotId, state: GameState): Promise<boolean> {
   // Capture the version timestamp alongside this snapshot, before earlier
   // uploads complete and more gameplay can change the local modified date.
   const capturedModifiedAt = localModifiedAt(slot) ?? new Date().toISOString();
@@ -250,10 +251,10 @@ export function uploadCareer(slot: SaveSlotId, state: GameState): Promise<void> 
     .catch(() => undefined)
     .then(async () => {
       const client = cloudClient();
-      if (!client) return;
+      if (!client) return false;
       const { data, error: sessionError } = await client.auth.getSession();
       if (sessionError) throw sessionError;
-      if (!data.session) return;
+      if (!data.session) return false;
       assertAccountOwnership(data.session.user.id);
       const { data: existing, error: readError } = await client
         .from("career_saves")
@@ -266,7 +267,7 @@ export function uploadCareer(slot: SaveSlotId, state: GameState): Promise<void> 
         localStorage.setItem(`${ACKNOWLEDGED_PREFIX}${slot}`, existing.state_updated_at);
         localStorage.setItem(CLOUD_OWNER_KEY, data.session.user.id);
         localStorage.setItem("chairman.cloud-last-sync", new Date().toISOString());
-        return;
+        return true;
       }
       if (existing && !localStorage.getItem(CLOUD_OWNER_KEY)) {
         throw new Error(
@@ -296,6 +297,7 @@ export function uploadCareer(slot: SaveSlotId, state: GameState): Promise<void> 
       localStorage.setItem(`${ACKNOWLEDGED_PREFIX}${slot}`, capturedModifiedAt);
       localStorage.setItem(CLOUD_OWNER_KEY, data.session.user.id);
       localStorage.setItem("chairman.cloud-last-sync", new Date().toISOString());
+      return true;
     });
   pendingUploads.set(slot, next);
   void next
