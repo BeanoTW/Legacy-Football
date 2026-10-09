@@ -1,0 +1,37 @@
+[
+  {
+    "family": "barlowcondensed",
+    "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/barlowcondensed/OFL.txt",
+    "sha256": "186d750eb496a4c17a76385f82be6aea2ac1cf2de074a811d63786cf374ea73f",
+    "license": "OFL-1.1",
+    "checked": "2026-10-09"
+  },
+  {
+    "family": "instrumentserif",
+    "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/instrumentserif/OFL.txt",
+    "sha256": "129ed7618959716959f2941fdd5b49e0ad6e6c1d78726761786a00253d865521",
+    "license": "OFL-1.1",
+    "checked": "2026-10-09"
+  },
+  {
+    "family": "inter",
+    "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/inter/OFL.txt",
+    "sha256": "5b9321a4298cfeb6b34354164a1c3afc3db114569984c502b9b35d988fd58c57",
+    "license": "OFL-1.1",
+    "checked": "2026-10-09"
+  },
+  {
+    "family": "jetbrainsmono",
+    "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/jetbrainsmono/OFL.txt",
+    "sha256": "b2fe5e8987594e9ffd1d2ca52a2f5d73eb8335243893c5d6254b5ad69269591d",
+    "license": "OFL-1.1",
+    "checked": "2026-10-09"
+  },
+  {
+    "family": "worksans",
+    "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/worksans/OFL.txt",
+    "sha256": "749aca05078664ce682dce1b1b10096ac397cb088c1a6df4e1bb56f0092a9272",
+    "license": "OFL-1.1",
+    "checked": "2026-10-09"
+  }
+]
