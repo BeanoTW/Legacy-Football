@@ -1080,3 +1080,18 @@ console.log("\n[U39] First PC layout refinement");
       desktop.includes('"league league"'),
   );
 }
+
+console.log("\n[U40] Release crash reporting");
+{
+  const root = read("src/routes/__root.tsx");
+  check(
+    "root crash screen exposes build-aware copyable diagnostics",
+    root.includes("Copy crash details") &&
+      root.includes("__LEGACY_FOOTBALL_BUILD_ID__") &&
+      root.includes("Crash details copied."),
+  );
+  check(
+    "root crash screen reassures without mutating save state",
+    root.includes("Your saved career is not cleared by this screen."),
+  );
+}
