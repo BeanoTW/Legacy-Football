@@ -3,7 +3,7 @@ import { strict as assert } from "node:assert";
 import { advanceWeek, migrateSave, newGame } from "../engine";
 import { pyramidIntegrity } from "../pyramid";
 import { buildWorldSimulationPlan } from "../world";
-import { ageOf, SQUAD_SIZE } from "../recruitment";
+import { ageOf, MIN_SQUAD_SIZE, MAX_SQUAD_SIZE } from "../recruitment";
 import { playerRegisteredClubId } from "../playerRegistration";
 import { serializeSave, parseSave } from "../storage/serialize";
 import { saveBytes, formatBytes } from "../diagnostics/saveSize";
@@ -74,16 +74,17 @@ function audit(state: GameState, label: string): void {
   assert(ages.every((age) => age < 40), `${label}: player survived beyond retirement hard stop`);
   assert(abilities.every((ability) => ability >= 1 && ability <= 99), `${label}: player ability left valid bounds`);
 
-  const focusSquadSizes = plan.focusClubIds.map((clubId) =>
-    state.football.players.filter((player) => playerRegisteredClubId(player) === clubId).length,
+  const focusSquads = plan.focusClubIds.map((clubId) => ({
+    clubId,
+    size: state.football.players.filter((player) => playerRegisteredClubId(player) === clubId).length,
+  }));
+  assert(
+    focusSquads.every(({ size }) => size <= MAX_SQUAD_SIZE),
+    `${label}: Focus squad exceeded registration capacity ${MAX_SQUAD_SIZE}: ${JSON.stringify(focusSquads.filter(({ size }) => size > MAX_SQUAD_SIZE))}`,
   );
   assert(
-    focusSquadSizes.every((size) => size <= SQUAD_SIZE),
-    `${label}: Focus squad exceeded canonical capacity`,
-  );
-  assert(
-    focusSquadSizes.every((size) => size >= Math.max(1, SQUAD_SIZE - 4)),
-    `${label}: Focus squad fell below viable senior depth`,
+    focusSquads.every(({ size }) => size >= MIN_SQUAD_SIZE),
+    `${label}: Focus squad fell below senior safety floor ${MIN_SQUAD_SIZE}: ${JSON.stringify(focusSquads.filter(({ size }) => size < MIN_SQUAD_SIZE))}`,
   );
 
   assertFiniteNumbers(state, label);
