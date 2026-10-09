@@ -1,0 +1,21 @@
+129 | const manualDeletion = cloud.deleteCloudCareer("slot-1");
+130 | await new Promise((resolve) => setTimeout(resolve, 0));
+131 | const deletedBeforeUploadFinished = operations.slice(beforeManualDelete).includes("delete");
+132 | release();
+133 | await Promise.all([manualSync, manualDeletion]);
+134 | assert.equal(deletedBeforeUploadFinished, false, "manual Sync now upload must finish before slot deletion");
+             ^
+AssertionError: manual Sync now upload must finish before slot deletion
+
+true !== false
+
+ generatedMessage: false,
+     actual: true,
+   expected: false,
+   operator: "strictEqual",
+       diff: "simple",
+       code: "ERR_ASSERTION"
+
+      at /workspace/scratch/772ba7a755e7/release-main-audit/src/lib/game/__checks__/cloud-race-reproduction.check.ts:134:8
+
+Bun v1.4.2 (Linux x64)
