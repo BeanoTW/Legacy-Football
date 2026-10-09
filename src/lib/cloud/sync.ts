@@ -25,6 +25,13 @@ export function markLocalSaveModified(slot: SaveSlotId, at = new Date()): void {
   if (typeof localStorage !== "undefined") localStorage.setItem(`${MODIFIED_PREFIX}${slot}`, at.toISOString());
 }
 
+function clearCloudLinkMetadata(): void {
+  if (typeof localStorage === "undefined") return;
+  localStorage.removeItem(CLOUD_OWNER_KEY);
+  localStorage.removeItem("chairman.cloud-last-sync");
+  for (const slot of SAVE_SLOT_IDS) localStorage.removeItem(`${MODIFIED_PREFIX}${slot}`);
+}
+
 function localModifiedAt(slot: SaveSlotId): string | null {
   return localStorage.getItem(`${MODIFIED_PREFIX}${slot}`);
 }
@@ -249,4 +256,25 @@ export async function deleteCloudCareer(slot: SaveSlotId): Promise<void> {
     .eq("slot_id", slot);
   if (error) throw error;
   localStorage.removeItem(`${MODIFIED_PREFIX}${slot}`);
+}
+
+
+/**
+ * Permanently deletes the signed-in Supabase account and every cloud career
+ * owned by it. Local career slots remain untouched on this device.
+ */
+export async function deleteCloudAccount(): Promise<void> {
+  const client = cloudClient();
+  if (!client) throw new Error("Cloud services are unavailable.");
+  await requireSession(client);
+
+  const { data, error } = await client.functions.invoke("delete-account", {
+    method: "POST",
+    body: {},
+  });
+  if (error) throw new Error(error.message || "Could not delete cloud account.");
+  if (!data?.deleted) throw new Error(data?.error || "Cloud account deletion was not confirmed.");
+
+  await client.auth.signOut({ scope: "local" }).catch(() => undefined);
+  clearCloudLinkMetadata();
 }

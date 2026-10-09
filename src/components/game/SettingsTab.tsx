@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { DetailScreen } from "./shared/layout";
 import { cn } from "@/lib/utils";
 import { SoundSettingsPanel } from "./SoundSettingsPanel";
-import { CareerSyncConflict, cloudClient, cloudConfigured, syncAllCareers, type SyncConflictResolution } from "@/lib/cloud/sync";
+import { CareerSyncConflict, cloudClient, cloudConfigured, deleteCloudAccount, syncAllCareers, type SyncConflictResolution } from "@/lib/cloud/sync";
 import { DeveloperModePanel } from "./DeveloperModePanel";
 import { developerModeEnabled, setDeveloperModeEnabled } from "@/lib/game/developerMode";
 import { ONBOARDING_CHAPTERS, type OnboardingChapterId } from "@/lib/game/onboarding";
@@ -230,6 +230,33 @@ export function SettingsTab({
       }
     } catch (error) {
       setUpdateMessage(`Could not check for updates: ${(error as Error).message}`);
+    }
+  }
+
+  async function deleteAccount() {
+    if (!session) return;
+    const confirmed = window.confirm(
+      "Delete your Legacy Football account and ALL cloud careers?\n\nCareers saved on this device will remain here. This cannot be undone.",
+    );
+    if (!confirmed) return;
+    const typed = window.prompt("Type DELETE to permanently delete your account and cloud careers.");
+    if (typed !== "DELETE") {
+      setCloudMessage("Account deletion cancelled.");
+      return;
+    }
+
+    setCloudBusy(true);
+    setCloudMessage(null);
+    try {
+      await deleteCloudAccount();
+      setSession(null);
+      setLastSync(null);
+      setConflictingSlots([]);
+      setCloudMessage("Account and cloud careers deleted. Careers stored on this device stay here.");
+    } catch (error) {
+      setCloudMessage(`Could not delete account: ${(error as Error).message}`);
+    } finally {
+      setCloudBusy(false);
     }
   }
 
@@ -527,7 +554,13 @@ export function SettingsTab({
                   <Button size="sm" variant="outline" onClick={() => void signOut()} disabled={cloudBusy}>
                     <LogOut className="size-4" /> Sign out
                   </Button>
+                  <Button size="sm" variant="destructive" onClick={() => void deleteAccount()} disabled={cloudBusy}>
+                    <Trash2 className="size-4" /> Delete account
+                  </Button>
                 </div>
+                <p className="text-[10px] leading-4 text-muted-foreground">
+                  Deleting your account permanently removes the account and all cloud careers. Careers stored on this device stay here unless you delete those slots separately.
+                </p>
                 {conflictingSlots.length > 0 && (
                   <div className="rounded-lg border border-amber-500/60 bg-amber-500/10 p-3 text-xs">
                     <p className="mb-2">Conflicting careers: {conflictingSlots.join(", ")}. Choose which copy to keep for these slots. Other slots follow their normal sync plan.</p>
