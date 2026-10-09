@@ -219,7 +219,7 @@ export function SettingsTab({
         </div>
         {deleteError && <p role="alert" className="m-3 rounded-lg border border-rose-500 bg-rose-500/10 p-2 text-xs">{deleteError}</p>}
         <div className="grid gap-2 p-3 lg:grid-cols-3">
-          {slots.map(({ id, state, status }, index) => {
+          {slots.map(({ id, state, status, updatedAt }, index) => {
             const active = id === activeSlot;
             return (
               <article
