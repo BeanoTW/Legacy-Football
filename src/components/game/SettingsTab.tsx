@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { BookOpen, Check, Cloud, Download, HardDrive, LogOut, Mail, Palette, RefreshCw, RotateCcw, Save, Trash2 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
-import type { SaveSlotId, SaveSlotSummary } from "@/lib/game/engine";
+import { protectedSaveCopy, type SaveSlotId, type SaveSlotSummary } from "@/lib/game/engine";
 import type { GameState } from "@/lib/game/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,6 +65,7 @@ export function SettingsTab({
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saveBusy, setSaveBusy] = useState(false);
   const [updateMessage, setUpdateMessage] = useState<string | null>(null);
+  const [recoveryMessage, setRecoveryMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem(THEME_KEY) as Theme | null;
@@ -150,6 +151,29 @@ export function SettingsTab({
     }
   }
 
+  async function downloadProtectedCopy(slot: SaveSlotId, index: number) {
+    setRecoveryMessage(null);
+    try {
+      const raw = await protectedSaveCopy(slot);
+      if (!raw) {
+        setRecoveryMessage(`Career ${index + 1}: no protected recovery copy is available on this device.`);
+        return;
+      }
+      const blob = new Blob([raw], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `legacy-football-career-${index + 1}-recovery.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      setRecoveryMessage(`Career ${index + 1}: protected recovery copy downloaded. Keep it until the career loads again in an updated build.`);
+    } catch (error) {
+      setRecoveryMessage(`Could not download the protected copy: ${(error as Error).message}`);
+    }
+  }
+
   async function checkForUpdates() {
     setUpdateMessage("Checking for updates…");
     try {
@@ -227,10 +251,25 @@ export function SettingsTab({
                 ) : (
                   <p className="mt-2 text-xs text-muted-foreground">{status === "unreadable" ? "An existing save is protected. Do not clear this slot or browser data." : "Start a new director career here."}</p>
                 )}
+                {updatedAt ? (
+                  <p className="mt-2 text-[10px] text-muted-foreground">
+                    Last saved on this device · {new Date(updatedAt).toLocaleString()}
+                  </p>
+                ) : null}
                 <div className="mt-3 flex gap-2">
                   {!active && (
                     <Button size="sm" className="flex-1" onClick={() => onSwitch(id)}>
                       {state ? "Load career" : "Use slot"}
+                    </Button>
+                  )}
+                  {status === "unreadable" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => void downloadProtectedCopy(id, index)}
+                    >
+                      <Download className="size-4" /> Download protected copy
                     </Button>
                   )}
                   {state && (
@@ -255,6 +294,7 @@ export function SettingsTab({
             );
           })}
         </div>
+        {recoveryMessage && <p className="mx-3 mb-3 rounded-lg bg-muted px-3 py-2 text-xs">{recoveryMessage}</p>}
       </section>
 
       <section className="rounded-xl border bg-card p-4 shadow-sm">
