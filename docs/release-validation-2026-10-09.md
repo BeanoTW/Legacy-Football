@@ -19,7 +19,7 @@ Desktop remains the documented P2 issue and a stable-1.0 blocker.
 | Local policy-corrected soak | FAIL | Shared 22–36 limits exposed season-3 user squad of 21. Weekly cover precedes rollover retirement/intake. |
 | Local boundary-only fix | FAIL | Season 4 opened with 13 user players. Emergency cover had a two-signing cap. |
 | Local soak with full user emergency cover | FAIL | Season-5 checkpoint passed: 17.05 MB raw serialized state, 2818 players, 1523 transfers, 948 inbox items; byte-identical reload and next tick passed. Failed at season 10: two Focus rival clubs had 19 and 18 players. |
-| Local soak with Focus-wide emergency cover | RUNNING | Fresh 15-season candidate rerun; checkpoint 5, fixed seed. Await actual completion; not an Actions run. |
+| Local soak with Focus-wide emergency cover | INCONCLUSIVE | Season-5 checkpoint passed (same 17.05 MB / 2818 players / 1523 transfers / 948 inbox metrics). Execution service then lost its connection; no final exit status or season-10/15 result could be retrieved. This is not a pass or an Actions run. |
 | Cloud conflict safety | MERGED / deployed unverified | PR #299. Before fix, 2 regressions fail: newer device/cloud differences silently replace the other copy. After fix, all 17 planning checks pass. Manual differing copies require an explicit choice; autosave only extends the acknowledged remote revision. |
 | Cloud-fix build / TypeScript / lint | PASS locally | Full local build, tsc --noEmit and lint exit 0. All GitHub CI jobs and release-guard passed on c260c883; merged as 125504005227f1bb33584d862b68683a3ff297c9. |
 | LocalStorage protection/recovery | PASS automated | storage.check.ts: corrupt/future copies, fallback recovery/export preservation and slot separation. No physical browser recovery-export interaction was tested. |
@@ -54,7 +54,7 @@ Desktop remains the documented P2 issue and a stable-1.0 blocker.
   rather than only two replacements per pass. Focused regression restores 13 to 22
   with paid, registered signings and does not duplicate them on repeat.
 
-CI is required before #300 is merged. Its dd07d0c candidate failed the season-3 snapshot fingerprint: emergency cover intentionally changes transfers and subsequent finances/gameplay. Do not simply accept the old fingerprint. The local 15-season run failed at season 10: Focus clubs c_0tkle141mcjnrr and c_1epeh2p01vazg8 had 19 and 18 seniors. A follow-up extends paid cover to underfilled Focus rivals; regression passes and a fresh soak is running. Repeat the soak on the final merged
+CI is required before #300 is merged. Its dd07d0c candidate failed the season-3 snapshot fingerprint: emergency cover intentionally changes transfers and subsequent finances/gameplay. Do not simply accept the old fingerprint. The local 15-season run failed at season 10: Focus clubs c_0tkle141mcjnrr and c_1epeh2p01vazg8 had 19 and 18 seniors. A follow-up extends paid cover to underfilled Focus rivals; regression passes. Candidate 21faf2cabf1feda7878066c71ce6d31af3509ba1 includes the generated season-3 fingerprint update; first-season fingerprints are unchanged and independent seeded runs agree. The rerun passed season 5 before the execution connection was lost; completion remains unverified. Repeat the soak on the final merged
 candidate; a pass from an earlier or isolated branch is not final sign-off.
 
 ## Remaining authorisations / participation
@@ -86,3 +86,7 @@ exist on the baseline main until merged.
 ## Additional prepared documents
 
 BETA-CANDIDATE-NOTES.md proposes a beta label and records schema/rollback limits without announcing or deploying it. PUBLIC-RELEASE-COPY-DRAFT.md provides reviewable Privacy/Terms/Credits copy with unresolved business/provider fields. Neither is final legal copy or release sign-off.
+
+## Execution limitation
+
+The local execution service reported `exec-server transport disconnected; failed to resume exec-server session: recovery timed out after 25s`. This is an infrastructure observation, not evidence that the game crashed. Do not turn missing final results into a pass. GitHub CI and the authorised manual Actions soak remain independent evidence sources.

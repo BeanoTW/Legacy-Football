@@ -26,6 +26,7 @@ Other local browser data includes:
 - cloud-sync ownership marker;
 - per-slot local modified timestamps;
 - last cloud-sync timestamp;
+- per-slot acknowledged cloud revision timestamps used to protect progress from another device;
 - Supabase authentication session data managed by the Supabase client.
 
 The game does not need to upload a local career unless the player signs in and
