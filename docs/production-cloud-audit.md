@@ -126,17 +126,28 @@ Then:
   ownership protection;
 - verify an unreadable/future-schema local save cannot be destroyed by sync.
 
-## Account deletion and retention — unresolved
+## Account deletion — implemented; live end-to-end test pending
 
-The current game exposes career deletion and sign-out, but this audit has not
-verified a player-facing full Supabase account deletion flow.
+PR #297 introduced player-facing account deletion in Settings with typed DELETE
+confirmation and explicit warning. The signed-in client invokes the deployed
+`delete-account` Edge Function, which resolves the caller through Supabase Auth
+and deletes that authenticated user. The `career_saves.user_id` foreign key has
+`ON DELETE CASCADE`, so removing the account also removes its cloud career rows.
+Local device career slots are intentionally preserved; successful deletion clears
+local authentication and cloud ownership/sync metadata.
 
-Before publishing Privacy/Terms, decide and implement/document:
-- how a player requests/deletes their account;
-- whether deleting an account cascades career_saves;
-- how long authentication/account records are retained;
-- whether provider backups/logs have separate retention;
-- support/contact route for deletion/privacy requests.
+Verified on 2026-10-09: the function was ACTIVE with JWT verification enabled,
+and deployed executable source matched the merged GitHub implementation.
+
+**Not yet verified:** real end-to-end deletion using a disposable account,
+including cloud row removal, session invalidation and preservation of local saves.
+Do not mark this release gate passed without that test.
+
+Before publishing Privacy/Terms, document and verify:
+- authentication/account data retention and provider backup/log retention;
+- a privacy/deletion support contact route;
+- whether additional data survives account deletion in hosting/auth logs;
+- the exact deployed flow and retention language following the live test.
 
 ## Release sign-off
 

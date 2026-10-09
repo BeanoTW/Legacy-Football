@@ -179,16 +179,25 @@ checked.
 
 ## Retention and deletion
 
-Current product behaviour:
+Current implemented product behaviour (account deletion added in PR #297):
 - local career deletion clears the selected career slot;
 - signed-in cloud career deletion attempts to remove the matching Supabase row;
+- Settings offers signed-in players full account deletion with a typed DELETE confirmation;
+- the JWT-protected `delete-account` Edge Function resolves the authenticated user
+  server-side and deletes that user; the cloud careers are configured to cascade-delete;
+- successful account deletion clears local auth/cloud-link metadata but intentionally
+  preserves career slots stored on the device;
 - sign-out leaves local device careers in place;
 - protected unreadable copies persist until the player explicitly clears the
   affected slot.
 
+The deployed Edge Function's configuration and executable code were inspected on
+2026-10-09. A disposable-account end-to-end deletion test is still required;
+retention of provider backups and logs has not been established.
+
 Public legal copy still needs:
 - cloud/account retention period;
-- account deletion procedure;
+- account deletion procedure (describe the implemented Settings flow after live validation);
 - support/contact route for privacy requests;
 - backup/log retention behaviour of the production providers.
 
@@ -234,4 +243,5 @@ Before public beta/stable release:
 - Intended audience/minimum age decision.
 - Whether Google Fonts remain remote.
 - Whether production telemetry beyond the current code audit is enabled.
-- Account deletion mechanism and retention policy.
+- Account deletion live-test result, including cloud cascade and preserved local slots;
+- Account/provider backup and log retention policy.
