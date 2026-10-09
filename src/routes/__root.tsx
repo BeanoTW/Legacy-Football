@@ -33,32 +33,6 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { applyLatestBuild, cleanUpdateParams, fetchLatestBuildId } from "../lib/appUpdate";
 
 function NotFoundComponent() {
-  const errorMessage =
-    error instanceof Response
-      ? `Response ${error.status}${error.url ? ` at ${error.url}` : ""}`
-      : error instanceof Error
-        ? error.message
-        : String(error);
-
-  const copyCrashDetails = async () => {
-    const details = [
-      "Legacy Football crash report",
-      `Build: ${__LEGACY_FOOTBALL_BUILD_ID__}`,
-      `Route: ${typeof window !== "undefined" ? window.location.pathname : "unknown"}`,
-      `Time: ${new Date().toISOString()}`,
-      `Error: ${errorMessage}`,
-      `Viewport: ${typeof window !== "undefined" ? `${window.innerWidth}x${window.innerHeight}` : "unknown"}`,
-      `User agent: ${typeof navigator !== "undefined" ? navigator.userAgent : "unknown"}`,
-      error instanceof Error && error.stack ? `Stack:\n${error.stack}` : null,
-    ].filter(Boolean).join("\n");
-    try {
-      await navigator.clipboard.writeText(details);
-      setCopyStatus("Crash details copied.");
-    } catch (copyError) {
-      setCopyStatus(`Could not copy details: ${(copyError as Error).message}`);
-    }
-  };
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
@@ -77,9 +51,39 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
   const router = useRouter();
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
+
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
+
+  const errorMessage =
+    error instanceof Response
+      ? `Response ${error.status}${error.url ? ` at ${error.url}` : ""}`
+      : error instanceof Error
+        ? error.message
+        : String(error);
+
+  const copyCrashDetails = async () => {
+    const details = [
+      "Legacy Football crash report",
+      `Build: ${__LEGACY_FOOTBALL_BUILD_ID__}`,
+      `Route: ${typeof window !== "undefined" ? window.location.pathname : "unknown"}`,
+      `Time: ${new Date().toISOString()}`,
+      `Error: ${errorMessage}`,
+      `Viewport: ${typeof window !== "undefined" ? `${window.innerWidth}x${window.innerHeight}` : "unknown"}`,
+      `User agent: ${typeof navigator !== "undefined" ? navigator.userAgent : "unknown"}`,
+      error instanceof Error && error.stack ? `Stack:\n${error.stack}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    try {
+      await navigator.clipboard.writeText(details);
+      setCopyStatus("Crash details copied.");
+    } catch (copyError) {
+      setCopyStatus(`Could not copy details: ${(copyError as Error).message}`);
+    }
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
