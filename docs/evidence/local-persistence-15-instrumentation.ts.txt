@@ -1,0 +1,210 @@
+import "fake-indexeddb/auto";
+import { createIdbRecordStore } from "../storage/idbBackend";
+import { createIdbSaveStore } from "../storage/idbStore";
+import { compactState } from "../storage/compaction";
+import { checksum } from "../storage/manifest";
+import { strict as assert } from "node:assert";
+
+import { advanceWeek, migrateSave, newGame, SAVE_VERSION } from "../engine";
+import { pyramidIntegrity } from "../pyramid";
+import { buildWorldSimulationPlan } from "../world";
+import { ageOf, MIN_SQUAD_SIZE, MAX_SQUAD_SIZE } from "../recruitment";
+import { playerRegisteredClubId } from "../playerRegistration";
+import { serializeSave, parseSave } from "../storage/serialize";
+import { saveBytes, formatBytes } from "../diagnostics/saveSize";
+import type { GameState } from "../types";
+
+const SEASONS = Number(process.env.SOAK_SEASONS ?? "15");
+const CHECKPOINT_EVERY = Number(process.env.SOAK_CHECKPOINT_EVERY ?? "5");
+const MAX_WEEKS_PER_SEASON = 60;
+const SEED = process.env.SOAK_SEED ?? "RELEASE|SOAK|FIXED";
+
+if (!Number.isInteger(SEASONS) || SEASONS < 1 || SEASONS > 30) {
+  throw new Error(`SOAK_SEASONS must be an integer between 1 and 30, got ${SEASONS}`);
+}
+if (!Number.isInteger(CHECKPOINT_EVERY) || CHECKPOINT_EVERY < 1) {
+  throw new Error(`SOAK_CHECKPOINT_EVERY must be a positive integer, got ${CHECKPOINT_EVERY}`);
+}
+
+const mean = (values: readonly number[]) =>
+  values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+
+function reload(state: GameState): GameState {
+  const raw = serializeSave(state);
+  const parsed = parseSave(raw);
+  assert.equal(parsed.diagnostics.length, 0, "serialized save must parse without diagnostics");
+  assert(parsed.parsed, "serialized save must parse to an object");
+  return migrateSave(parsed.parsed);
+}
+
+function assertFiniteNumbers(value: unknown, path = "state"): void {
+  if (typeof value === "number") {
+    assert(Number.isFinite(value), `${path} must remain finite`);
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => assertFiniteNumbers(item, `${path}[${index}]`));
+    return;
+  }
+  for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+    assertFiniteNumbers(nested, `${path}.${key}`);
+  }
+}
+
+function audit(state: GameState, label: string): void {
+  const integrity = pyramidIntegrity(state);
+  assert(integrity.ok, `${label}: ${integrity.problems.join("; ")}`);
+
+  const allClubs = state.leagues.flatMap((league) => league.clubIds);
+  assert.equal(new Set(allClubs).size, allClubs.length, `${label}: club membership must remain unique`);
+
+  const plan = buildWorldSimulationPlan(state);
+  const focus = new Set(plan.focusClubIds);
+  const fringe = new Set(plan.fringeClubIds);
+  assert.equal(focus.size + fringe.size, allClubs.length, `${label}: world plan must cover every club`);
+  assert(plan.focusClubIds.every((id) => !fringe.has(id)), `${label}: Focus and Fringe must stay disjoint`);
+
+  const detailedPlayers = state.football.players.filter((player) => {
+    const club = playerRegisteredClubId(player);
+    return club !== null && focus.has(club);
+  });
+  assert(detailedPlayers.length > 0, `${label}: detailed world must retain players`);
+
+  const ages = detailedPlayers.map((player) => ageOf(player, state.season));
+  const abilities = detailedPlayers.map((player) => player.currentAbility);
+  assert(mean(ages) >= 20.5 && mean(ages) <= 31.5, `${label}: mean age drifted to ${mean(ages).toFixed(2)}`);
+  assert(ages.some((age) => age <= 22), `${label}: young players disappeared`);
+  assert(ages.some((age) => age >= 29), `${label}: experienced players disappeared`);
+  assert(ages.every((age) => age < 40), `${label}: player survived beyond retirement hard stop`);
+  assert(abilities.every((ability) => ability >= 1 && ability <= 99), `${label}: player ability left valid bounds`);
+
+  const focusSquads = plan.focusClubIds.map((clubId) => ({
+    clubId,
+    size: state.football.players.filter((player) => playerRegisteredClubId(player) === clubId).length,
+  }));
+  assert(
+    focusSquads.every(({ size }) => size <= MAX_SQUAD_SIZE),
+    `${label}: Focus squad exceeded registration capacity ${MAX_SQUAD_SIZE}: ${JSON.stringify(focusSquads.filter(({ size }) => size > MAX_SQUAD_SIZE))}`,
+  );
+  assert(
+    focusSquads.every(({ size }) => size >= MIN_SQUAD_SIZE),
+    `${label}: Focus squad fell below senior safety floor ${MIN_SQUAD_SIZE}: ${JSON.stringify(focusSquads.filter(({ size }) => size < MIN_SQUAD_SIZE))}`,
+  );
+
+  assertFiniteNumbers(state, label);
+}
+
+function advanceOneSeason(state: GameState): GameState {
+  const startingSeason = state.season;
+  let next = state;
+  let ticks = 0;
+  while (next.season === startingSeason) {
+    next = advanceWeek(next);
+    ticks += 1;
+    assert(
+      ticks <= MAX_WEEKS_PER_SEASON,
+      `season ${startingSeason}: rollover did not complete within ${MAX_WEEKS_PER_SEASON} weekly ticks`,
+    );
+  }
+  assert.equal(next.season, startingSeason + 1, `season ${startingSeason}: rollover must advance exactly once`);
+  return next;
+}
+
+console.log(`Release soak: ${SEASONS} seasons · seed ${SEED}`);
+
+let state = newGame("Release Soak FC", "Release Auditor", SEED);
+const openingBytes = saveBytes(state);
+const checkpoints: { season: number; bytes: number; transfers: number; inbox: number; players: number }[] = [];
+
+audit(state, "opening");
+
+for (let completed = 1; completed <= SEASONS; completed += 1) {
+  state = advanceOneSeason(state);
+  audit(state, `after season ${completed}`);
+
+  if (completed % CHECKPOINT_EVERY === 0 || completed === SEASONS) {
+    const beforeReload = state;
+    const reloaded = reload(beforeReload);
+
+    assert.equal(
+      serializeSave(reloaded),
+      serializeSave(beforeReload),
+      `season ${completed}: save/load round-trip must be byte-stable`,
+    );
+
+    const liveNext = advanceWeek(beforeReload);
+    const reloadNext = advanceWeek(reloaded);
+    assert.equal(
+      serializeSave(reloadNext),
+      serializeSave(liveNext),
+      `season ${completed}: reload must not alter the next deterministic tick`,
+    );
+
+    const bytes = saveBytes(state);
+    checkpoints.push({
+      season: completed,
+      bytes,
+      transfers: state.football.transferHistory.length,
+      inbox: state.inbox.length,
+      players: state.football.players.length,
+    });
+
+    console.log(
+      `  S${completed}: save ${formatBytes(bytes)} · players ${state.football.players.length} · transfers ${state.football.transferHistory.length} · inbox ${state.inbox.length}`,
+    );
+  }
+}
+
+assert(state.seasonHistory.length >= Math.max(1, SEASONS - 1), "season history must continue accumulating");
+assert(state.football.transferHistory.length > 0, "long career must exercise transfers");
+assert(state.results.length > 0 || (state.matchRecords?.length ?? 0) > 0, "long career must retain match history");
+
+if (checkpoints.length >= 2) {
+  const first = checkpoints[0];
+  const last = checkpoints[checkpoints.length - 1];
+  const seasonsBetween = Math.max(1, last.season - first.season);
+  const growthPerSeason = Math.max(0, last.bytes - first.bytes) / seasonsBetween;
+  const projected20 = openingBytes + growthPerSeason * 20;
+
+  console.log(
+    `  projected raw S20 at recent growth rate: ${formatBytes(projected20)} (diagnostic only; persisted saves compact/chunk history)`,
+  );
+
+  const recentGrowth = checkpoints
+    .slice(1)
+    .map((point, index) => point.bytes - checkpoints[index].bytes);
+  const firstGrowth = Math.max(1, recentGrowth[0] ?? 1);
+  const worstGrowth = Math.max(...recentGrowth, 0);
+
+  assert(
+    worstGrowth <= firstGrowth * 4,
+    `raw save growth accelerated suspiciously: first interval ${formatBytes(firstGrowth)}, worst ${formatBytes(worstGrowth)}`,
+  );
+}
+
+console.log("release-soak.ts: PASS", {
+  seasons: SEASONS,
+  finalSeason: state.season,
+  save: formatBytes(saveBytes(state)),
+  transfers: state.football.transferHistory.length,
+  seasonHistory: state.seasonHistory.length,
+});
+
+const records = createIdbRecordStore();
+const store = createIdbSaveStore({ records, migrate: migrateSave, currentVersion: SAVE_VERSION, saveId: "release-audit-15" });
+const expected = compactState(state).core;
+const started = performance.now();
+assert.deepEqual(await store.save(state), [], "long-career save must succeed without diagnostics");
+const saveMs = performance.now() - started;
+const loadStarted = performance.now();
+const loaded = await store.load();
+const loadMs = performance.now() - loadStarted;
+assert(loaded.state, "long-career stored save must reload");
+assert.equal(serializeSave(loaded.state), serializeSave(expected), "long-career compact core must round-trip exactly");
+assert.equal(serializeSave(advanceWeek(loaded.state)), serializeSave(advanceWeek(expected)), "persisted compact core must preserve next deterministic tick");
+const manifest = await store.readManifest();
+assert(manifest && manifest.chunkManifest.length > 0, "long-career historical chunks must be present");
+const chunks = await records.get(manifest.chunkManifest.map(c => c.key));
+for (const chunk of manifest.chunkManifest) assert.equal(checksum(chunks[chunk.key]!), chunk.checksum, `history chunk ${chunk.key} must match its checksum`);
+console.log("LOCAL-PERSISTENCE-15: PASS (fake-indexeddb, not device quota evidence)", { seasons: SEASONS, rawBytes: saveBytes(state), coreBytes: manifest.coreBytes, totalBytes: manifest.totalBytes, chunks: manifest.chunkManifest.length, saveMs, loadMs });

@@ -1,0 +1,43 @@
+{
+  "base_commit": "b1d12d79d5a9b8342a687312d64cc3bcaa9c1a26",
+  "runtime": "Bun 1.4.2",
+  "backend": "fake-indexeddb 6.2.5",
+  "seed": "RELEASE|SOAK|FIXED",
+  "seasons": 15,
+  "checkpoint_interval": 5,
+  "scope": "Local instrumented soak; not Actions candidate evidence or physical device quota verification",
+  "source_files": {
+    "src/lib/game/__release__/release-soak.ts": {
+      "git_blob": "e481a5a26d34e7344e20fe07eb1d3b85bf608e73",
+      "sha256": "5c32cd29cbf9deaf443552aee4f7dbd8c385310225123c307ee23cbb86da6527"
+    },
+    "src/lib/game/storage/idbStore.ts": {
+      "git_blob": "cd6fde4eef6eee549588576425e1ffd7c1595516",
+      "sha256": "846dd2ce013576bc47abd7686192d986922527f494ac150702cf4ceb3252da9d"
+    },
+    "src/lib/game/storage/idbBackend.ts": {
+      "git_blob": "1a155842df8a19b7162e936eddbcff64f4d85c49",
+      "sha256": "208cc9923bd40a7fca682970152d26748b92b8350692462963581d6b01ac51b4"
+    },
+    "src/lib/game/storage/compaction.ts": {
+      "git_blob": "4275ce29ebece750b07b0e07062913846866fd71",
+      "sha256": "5524057c7cae01c975ab1f19c9aafddf3a807d98dd9a47cd6d77ecf2a4d96630"
+    },
+    "src/lib/game/storage/manifest.ts": {
+      "git_blob": "44b52fbe245cc88f5df927b21407e1f2c99d957b",
+      "sha256": "49f83d84139cb17fdb1f4d5ad3cd4aab7f400a5168f0a55c644a482abdac6688"
+    },
+    "src/lib/game/engine.ts": {
+      "git_blob": "4f64ab9f51c06a37764b82a0163749dc3fc67960",
+      "sha256": "f62ec71fd3147768137aa25a93dd1f769faef2e56b8129eb14f2df8174ce1cbd"
+    }
+  },
+  "result": {
+    "raw_bytes": 44553902,
+    "core_bytes": 4943154,
+    "total_bytes": 43716081,
+    "chunks": 102,
+    "save_ms": 682.361672,
+    "load_ms": 88.441451
+  }
+}

@@ -1,0 +1,21 @@
+Release soak: 15 seasons · seed RELEASE|SOAK|FIXED
+  S5: save 17.05 MB · players 2818 · transfers 1523 · inbox 948
+  S10: save 29.92 MB · players 3316 · transfers 3185 · inbox 1816
+  S15: save 42.49 MB · players 3119 · transfers 4786 · inbox 2624
+  projected raw S20 at recent growth rate: 53.14 MB (diagnostic only; persisted saves compact/chunk history)
+release-soak.ts: PASS {
+  seasons: 15,
+  finalSeason: 16,
+  save: "42.49 MB",
+  transfers: 4786,
+  seasonHistory: 165,
+}
+LOCAL-PERSISTENCE-15: PASS (fake-indexeddb, not device quota evidence) {
+  seasons: 15,
+  rawBytes: 44553902,
+  coreBytes: 4943154,
+  totalBytes: 43716081,
+  chunks: 102,
+  saveMs: 682.3616719999118,
+  loadMs: 88.44145100004971,
+}

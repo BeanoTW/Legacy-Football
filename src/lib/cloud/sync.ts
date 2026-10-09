@@ -20,7 +20,16 @@ const KEY =
 const MODIFIED_PREFIX = "chairman.save-modified.";
 const CLOUD_OWNER_KEY = "chairman.cloud-owner";
 const ACKNOWLEDGED_PREFIX = "chairman.cloud-acknowledged.";
-const pendingUploads = new Map<SaveSlotId, Promise<boolean>>();
+// All cloud mutations share one queue, including explicit all-slot sync.
+// A delete must never overtake an in-flight manual upload.
+let cloudOperations: Promise<unknown> = Promise.resolve();
+const deletionRevisions = new Map<SaveSlotId, number>();
+const deletionRevision = (slot: SaveSlotId) => deletionRevisions.get(slot) ?? 0;
+function queueCloudOperation<T>(operation: () => Promise<T>): Promise<T> {
+  const next = cloudOperations.catch(() => undefined).then(operation);
+  cloudOperations = next.catch(() => undefined);
+  return next;
+}
 
 export const cloudConfigured = Boolean(URL && KEY);
 
@@ -129,15 +138,23 @@ async function writeCloudCareer(
     );
 }
 
-export async function syncAllCareers(
-  resolution: SyncConflictResolution = "auto",
-): Promise<SyncResult> {
+export function syncAllCareers(resolution: SyncConflictResolution = "auto"): Promise<SyncResult> {
+  const revisions = SAVE_SLOT_IDS.map(deletionRevision);
+  return queueCloudOperation(async () => {
+    if (SAVE_SLOT_IDS.some((slot, index) => deletionRevision(slot) !== revisions[index])) {
+      throw new Error(
+        "A career was deleted while sync was queued. Retry Sync now after the local deletion finishes.",
+      );
+    }
+    return performSyncAllCareers(resolution);
+  });
+}
+
+async function performSyncAllCareers(resolution: SyncConflictResolution): Promise<SyncResult> {
   const client = cloudClient();
   if (!client) throw new Error("Cloud sync has not been connected to a backend yet.");
   const session = await requireSession(client);
   assertAccountOwnership(session.user.id);
-  // An automatic upload already in flight must finish before a manual merge.
-  await Promise.all([...pendingUploads.values()]);
 
   const { data, error } = await client
     .from("career_saves")
@@ -246,113 +263,109 @@ export function uploadCareer(slot: SaveSlotId, state: GameState): Promise<boolea
   // Capture the version timestamp alongside this snapshot, before earlier
   // uploads complete and more gameplay can change the local modified date.
   const capturedModifiedAt = localModifiedAt(slot) ?? new Date().toISOString();
-  const previous = pendingUploads.get(slot) ?? Promise.resolve();
-  const next = previous
-    .catch(() => undefined)
-    .then(async () => {
-      const client = cloudClient();
-      if (!client) return false;
-      const { data, error: sessionError } = await client.auth.getSession();
-      if (sessionError) throw sessionError;
-      if (!data.session) return false;
-      assertAccountOwnership(data.session.user.id);
-      const { data: existing, error: readError } = await client
-        .from("career_saves")
-        .select("state,state_updated_at")
-        .eq("user_id", data.session.user.id)
-        .eq("slot_id", slot)
-        .maybeSingle();
-      if (readError) throw readError;
-      if (existing && JSON.stringify(existing.state) === JSON.stringify(state)) {
-        localStorage.setItem(`${ACKNOWLEDGED_PREFIX}${slot}`, existing.state_updated_at);
-        localStorage.setItem(CLOUD_OWNER_KEY, data.session.user.id);
-        localStorage.setItem("chairman.cloud-last-sync", new Date().toISOString());
-        return true;
-      }
-      if (existing && !localStorage.getItem(CLOUD_OWNER_KEY)) {
-        throw new Error(
-          "Connect existing careers with Sync now in Settings before automatic uploads can overwrite a different cloud career.",
-        );
-      }
-      if (
-        existing &&
-        !canAutomaticallyReplaceCloud({
-          cloudModifiedAt: existing.state_updated_at,
-          acknowledgedCloudAt: localStorage.getItem(`${ACKNOWLEDGED_PREFIX}${slot}`),
-          localModifiedAt: capturedModifiedAt,
-        })
-      ) {
-        throw new Error(
-          `Cloud career ${slot} has different or unacknowledged progress. Use Sync now in Settings to choose which copy to keep.`,
-        );
-      }
-      await writeCloudCareer(
-        client,
-        data.session.user.id,
-        slot,
-        state,
-        capturedModifiedAt,
-        existing?.state_updated_at ?? null,
-      );
-      localStorage.setItem(`${ACKNOWLEDGED_PREFIX}${slot}`, capturedModifiedAt);
+  const revision = deletionRevision(slot);
+  return queueCloudOperation(async () => {
+    if (deletionRevision(slot) !== revision) return false;
+    const client = cloudClient();
+    if (!client) return false;
+    const { data, error: sessionError } = await client.auth.getSession();
+    if (sessionError) throw sessionError;
+    if (!data.session) return false;
+    assertAccountOwnership(data.session.user.id);
+    const { data: existing, error: readError } = await client
+      .from("career_saves")
+      .select("state,state_updated_at")
+      .eq("user_id", data.session.user.id)
+      .eq("slot_id", slot)
+      .maybeSingle();
+    if (readError) throw readError;
+    if (existing && JSON.stringify(existing.state) === JSON.stringify(state)) {
+      localStorage.setItem(`${ACKNOWLEDGED_PREFIX}${slot}`, existing.state_updated_at);
       localStorage.setItem(CLOUD_OWNER_KEY, data.session.user.id);
       localStorage.setItem("chairman.cloud-last-sync", new Date().toISOString());
       return true;
-    });
-  pendingUploads.set(slot, next);
-  void next
-    .finally(() => {
-      if (pendingUploads.get(slot) === next) pendingUploads.delete(slot);
-    })
-    .catch(() => undefined);
-  return next;
-}
-
-export async function deleteCloudCareer(slot: SaveSlotId): Promise<void> {
-  const client = cloudClient();
-  if (!client) {
-    localStorage.removeItem(`${MODIFIED_PREFIX}${slot}`);
-    return;
-  }
-  const { data, error: sessionError } = await client.auth.getSession();
-  if (sessionError) throw sessionError;
-  if (!data.session) {
-    if (localStorage.getItem(CLOUD_OWNER_KEY)) {
+    }
+    if (existing && !localStorage.getItem(CLOUD_OWNER_KEY)) {
       throw new Error(
-        "Sign in to the linked account before deleting this career so the cloud copy cannot reappear.",
+        "Connect existing careers with Sync now in Settings before automatic uploads can overwrite a different cloud career.",
       );
     }
+    if (
+      existing &&
+      !canAutomaticallyReplaceCloud({
+        cloudModifiedAt: existing.state_updated_at,
+        acknowledgedCloudAt: localStorage.getItem(`${ACKNOWLEDGED_PREFIX}${slot}`),
+        localModifiedAt: capturedModifiedAt,
+      })
+    ) {
+      throw new Error(
+        `Cloud career ${slot} has different or unacknowledged progress. Use Sync now in Settings to choose which copy to keep.`,
+      );
+    }
+    await writeCloudCareer(
+      client,
+      data.session.user.id,
+      slot,
+      state,
+      capturedModifiedAt,
+      existing?.state_updated_at ?? null,
+    );
+    localStorage.setItem(`${ACKNOWLEDGED_PREFIX}${slot}`, capturedModifiedAt);
+    localStorage.setItem(CLOUD_OWNER_KEY, data.session.user.id);
+    localStorage.setItem("chairman.cloud-last-sync", new Date().toISOString());
+    return true;
+  });
+}
+
+export function deleteCloudCareer(slot: SaveSlotId): Promise<void> {
+  return queueCloudOperation(async () => {
+    const client = cloudClient();
+    if (!client) {
+      localStorage.removeItem(`${MODIFIED_PREFIX}${slot}`);
+      return;
+    }
+    const { data, error: sessionError } = await client.auth.getSession();
+    if (sessionError) throw sessionError;
+    if (!data.session) {
+      if (localStorage.getItem(CLOUD_OWNER_KEY)) {
+        throw new Error(
+          "Sign in to the linked account before deleting this career so the cloud copy cannot reappear.",
+        );
+      }
+      localStorage.removeItem(`${MODIFIED_PREFIX}${slot}`);
+      return;
+    }
+    assertAccountOwnership(data.session.user.id);
+    const { error } = await client
+      .from("career_saves")
+      .delete()
+      .eq("user_id", data.session.user.id)
+      .eq("slot_id", slot);
+    if (error) throw error;
     localStorage.removeItem(`${MODIFIED_PREFIX}${slot}`);
-    return;
-  }
-  assertAccountOwnership(data.session.user.id);
-  await pendingUploads.get(slot)?.catch(() => undefined);
-  const { error } = await client
-    .from("career_saves")
-    .delete()
-    .eq("user_id", data.session.user.id)
-    .eq("slot_id", slot);
-  if (error) throw error;
-  localStorage.removeItem(`${MODIFIED_PREFIX}${slot}`);
-  localStorage.removeItem(`${ACKNOWLEDGED_PREFIX}${slot}`);
+    localStorage.removeItem(`${ACKNOWLEDGED_PREFIX}${slot}`);
+    deletionRevisions.set(slot, deletionRevision(slot) + 1);
+  });
 }
 
 /**
  * Permanently deletes the signed-in Supabase account and every cloud career
  * owned by it. Local career slots remain untouched on this device.
  */
-export async function deleteCloudAccount(): Promise<void> {
-  const client = cloudClient();
-  if (!client) throw new Error("Cloud services are unavailable.");
-  await requireSession(client);
+export function deleteCloudAccount(): Promise<void> {
+  return queueCloudOperation(async () => {
+    const client = cloudClient();
+    if (!client) throw new Error("Cloud services are unavailable.");
+    await requireSession(client);
 
-  const { data, error } = await client.functions.invoke("delete-account", {
-    method: "POST",
-    body: {},
+    const { data, error } = await client.functions.invoke("delete-account", {
+      method: "POST",
+      body: {},
+    });
+    if (error) throw new Error(error.message || "Could not delete cloud account.");
+    if (!data?.deleted) throw new Error(data?.error || "Cloud account deletion was not confirmed.");
+
+    await client.auth.signOut({ scope: "local" }).catch(() => undefined);
+    clearCloudLinkMetadata();
   });
-  if (error) throw new Error(error.message || "Could not delete cloud account.");
-  if (!data?.deleted) throw new Error(data?.error || "Cloud account deletion was not confirmed.");
-
-  await client.auth.signOut({ scope: "local" }).catch(() => undefined);
-  clearCloudLinkMetadata();
 }
