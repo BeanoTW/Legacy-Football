@@ -10,6 +10,10 @@ were independently confirmed merged using GitHub metadata.
 creation/deletion was performed. Gameplay feature expansion remains frozen.
 Desktop remains the documented P2 issue and a stable-1.0 blocker.
 
+Evidence snapshot: 9 October 2026, 15:57 UTC. Latest merged gameplay fix: #300,
+`40aa5745f799896d657ee19e5be12a752b92ddf7`, after all eight CI jobs passed.
+Later PR publication/CI status is recorded in GitHub rather than inferred here.
+
 ## Pass / fail / blocked ledger
 
 | Gate | Status | Evidence and limits |
@@ -19,7 +23,8 @@ Desktop remains the documented P2 issue and a stable-1.0 blocker.
 | Local policy-corrected soak | FAIL | Shared 22–36 limits exposed season-3 user squad of 21. Weekly cover precedes rollover retirement/intake. |
 | Local boundary-only fix | FAIL | Season 4 opened with 13 user players. Emergency cover had a two-signing cap. |
 | Local soak with full user emergency cover | FAIL | Season-5 checkpoint passed: 17.05 MB raw serialized state, 2818 players, 1523 transfers, 948 inbox items; byte-identical reload and next tick passed. Failed at season 10: two Focus rival clubs had 19 and 18 players. |
-| Local soak with Focus-wide emergency cover | INCONCLUSIVE | Season-5 checkpoint passed (same 17.05 MB / 2818 players / 1523 transfers / 948 inbox metrics). Execution service then lost its connection; no final exit status or season-10/15 result could be retrieved. This is not a pass or an Actions run. |
+| Previous Focus-wide cover run (execution outage) | INCONCLUSIVE | Season-5 checkpoint passed (same 17.05 MB / 2818 players / 1523 transfers / 948 inbox metrics). Execution service then lost its connection; no final exit status or season-10/15 result could be retrieved. This is not a pass or an Actions run. |
+| Corrected Focus-wide cover 15-season soak | PASS supplemental local | Bun 1.4.2, fixed seed, checkpoints 5/10/15; exit 0 and release-soak.ts: PASS. S5 17.05 MB / 2818 players / 1523 transfers / 948 inbox; S10 29.92 MB / 3316 / 3185 / 1816; S15 42.49 MB / 3119 / 4786 / 2624. Byte-stable reload, identical next tick and all audits passed. Four relevant file blobs match ec13051944022fcc3efaf81562bc48824d2c2e06. Raw S20 projection 53.14 MB is diagnostic, not a 20-season test. See release-evidence logs/source JSON. Not an Actions run or a final-main sign-off. |
 | Cloud conflict safety | MERGED / deployed unverified | PR #299. Before fix, 2 regressions fail: newer device/cloud differences silently replace the other copy. After fix, all 17 planning checks pass. Manual differing copies require an explicit choice; autosave only extends the acknowledged remote revision. |
 | Cloud-fix build / TypeScript / lint | PASS locally | Full local build, tsc --noEmit and lint exit 0. All GitHub CI jobs and release-guard passed on c260c883; merged as 125504005227f1bb33584d862b68683a3ff297c9. |
 | LocalStorage protection/recovery | PASS automated | storage.check.ts: corrupt/future copies, fallback recovery/export preservation and slot separation. No physical browser recovery-export interaction was tested. |
@@ -41,21 +46,24 @@ Desktop remains the documented P2 issue and a stable-1.0 blocker.
 | Mobile/tablet/desktop focus, zoom, themes | NOT RUN | Checklist exists, not a completed test. Desktop redesign remains parked. |
 | First-hour unfamiliar tester | BLOCKED | Requires a person who has not seen development builds. Use docs/first-hour-cold-beta-protocol.md. |
 | Privacy / Terms | BLOCKED | Operator identity, privacy contact, intended audience, actual deployed host/origin, retention terms and production telemetry remain unresolved. Engineering inventory is not a public legal notice. |
-| Credits / licences / assets | PARTIAL | Installed frozen-lock Linux graph: 451 package versions; no missing licence declarations. Full list in dependency-license-inventory.json. Declarations are not clearance or complete distribution notices. Generated packaged notices are in OPEN-SOURCE-NOTICES.txt; 31 packages have no top-level notice file located. All five font families have OFL-1.1 upstream notices archived in font-notices with source URLs and SHA-256 hashes; remote versus self-hosted delivery remains undecided. Art, branding and service terms still require review. |
+| Credits / licences / assets | PARTIAL | Installed frozen-lock Linux graph: 451 package versions; no missing licence declarations. Full list in dependency-license-inventory.json. Declarations are not clearance or complete distribution notices. Packaged notices are in OPEN-SOURCE-NOTICES.txt. The initial 31 top-level notice gaps now have 23 version-pinned upstream notices, two full packaged embedded licences and 13 vendored notices; six root-package notices remain unresolved. See NOTICE-FOLLOWUP.md. All five font families have OFL-1.1 upstream notices archived in font-notices with source URLs and SHA-256 hashes; remote versus self-hosted delivery remains undecided. Art, branding and service terms still require review. |
 | Client credential exposure | PASS narrow local scan | Two locally generated public JS files contain zero sb_secret_ key literals and zero decoded service_role JWT literals. Does not cover deployed bundles, repository history or secrets supplied later. |
 | Version / save compatibility | PARTIAL | Current save schema is 24. Deployment metadata defaults to Development without release environment values. No public beta/RC version or rollback build asserted. |
 
-## Open fixes
+## Merged fixes
 
-- #299: MERGED after all eight CI jobs passed, including release-guard (run 37935317952). Merge commit 125504005227f1bb33584d862b68683a3ff297c9. Requires explicit manual choice for differing device/cloud saves and protect
-  automatic uploads from progress written by another device.
-- #300: use canonical squad bounds in the soak and apply existing emergency cover
-  after retirement/intake at season rollover, restoring the full 22-player floor
-  rather than only two replacements per pass. Focused regression restores 13 to 22
-  with paid, registered signings and does not duplicate them on repeat.
-
-CI is required before #300 is merged. Its dd07d0c candidate failed the season-3 snapshot fingerprint: emergency cover intentionally changes transfers and subsequent finances/gameplay. Do not simply accept the old fingerprint. The local 15-season run failed at season 10: Focus clubs c_0tkle141mcjnrr and c_1epeh2p01vazg8 had 19 and 18 seniors. A follow-up extends paid cover to underfilled Focus rivals; regression passes. Candidate 21faf2cabf1feda7878066c71ce6d31af3509ba1 includes the generated season-3 fingerprint update; first-season fingerprints are unchanged and independent seeded runs agree. The rerun passed season 5 before the execution connection was lost; completion remains unverified. Repeat the soak on the final merged
-candidate; a pass from an earlier or isolated branch is not final sign-off.
+- #299: merged after all eight CI jobs passed, including release-guard (run
+  37935317952). Merge 125504005227f1bb33584d862b68683a3ff297c9. Differing
+  manual device/cloud saves require a choice; automatic uploads extend only the
+  acknowledged remote revision. Deployed two-account validation remains blocked.
+- #300: merged after all eight CI jobs passed, including all four game shards and
+  release-guard (run 37950945246, head ec13051944022fcc3efaf81562bc48824d2c2e06).
+  Merge 40aa5745f799896d657ee19e5be12a752b92ddf7. Uses canonical 22–36 soak
+  bounds and existing paid emergency cover after rollover and for underfilled
+  Focus rivals. The completed local 15-season pass is supporting evidence. All
+  four evidence source files have zero diff against this merged main. The earlier
+  failed and inconclusive runs above are historical; the required latest-main
+  Actions run is still blocked and has not passed.
 
 ## Remaining authorisations / participation
 
@@ -80,8 +88,8 @@ bun src/lib/game/__checks__/rollover-squad-cover.check.ts
 bun src/lib/game/__checks__/save-queue.check.ts
 ```
 
-The last two files are proposed checks on their respective PRs. Do not assume they
-exist on the baseline main until merged.
+Both queue/rollover checks now exist on merged main; they did not exist on the
+initial f70e7bf baseline.
 
 ## Additional prepared documents
 
@@ -89,4 +97,35 @@ BETA-CANDIDATE-NOTES.md proposes a beta label and records schema/rollback limits
 
 ## Execution limitation
 
-The local execution service reported `exec-server transport disconnected; failed to resume exec-server session: recovery timed out after 25s`. This is an infrastructure observation, not evidence that the game crashed. Do not turn missing final results into a pass. GitHub CI and the authorised manual Actions soak remain independent evidence sources.
+During the earlier inconclusive run, the local execution service reported `exec-server transport disconnected; failed to resume exec-server session: recovery timed out after 25s`. This is an infrastructure observation, not evidence that the game crashed. Do not turn missing final results into a pass. GitHub CI and the authorised manual Actions soak remain independent evidence sources.
+
+## Completed follow-up
+
+- PR #302 passed build, typecheck, lint, all four game shards and release-guard
+  on 7d7e932c5605ff65e36cc842cbebf661475cf89a (CI run 37942956079). Merged
+  as d6e9ac71ad5960c21507720ba68dbabc9d14b27f.
+- PR #300 candidate 21faf2c passed six jobs, but shard 0 was cancelled after
+  approximately 35 minutes, matching the configured timeout. The retrieved log
+  contains no failed assertion; release-guard correctly failed. ec130519 raised
+  the bounded game-shard timeout to 60 minutes. Full CI run 37950945246 then
+  passed all eight jobs; #300 merged as 40aa5745f799896d657ee19e5be12a752b92ddf7.
+- The recovered local 15-season run completed successfully. Raw evidence and
+  matching source blob IDs are preserved in release-evidence. The failed and
+  inconclusive earlier runs remain recorded above.
+- The manual latest-main Actions soak remains blocked by browser authentication.
+  Production test accounts, deployed/device gates, legal/business fields and
+  stable-1.0 desktop work remain outstanding. No public release is authorised.
+
+## Local browser build provenance
+
+A production-mode `bun run build --sourcemap` of merged main 40aa5745 completed
+with exit 0. The two browser JavaScript sourcemaps identify 89 installed package
+names: 76 declare MIT, 11 ISC, one Apache-2.0 and one 0BSD. This is local JavaScript
+source provenance, not deployed-artifact verification, a full CSS/server inventory
+or licence clearance. See release-evidence/browser-build-module-inventory.json.
+
+Eleven of these packages lack a packaged top-level notice. Ten are covered by the
+version-pinned Radix notices already preserved; react-remove-scroll-bar@2.3.8
+remains unresolved and is observed in this browser build. All six full root-package
+notice gaps remain recorded conservatively in NOTICE-FOLLOWUP.md. No generated
+sourcemaps or build were deployed.
