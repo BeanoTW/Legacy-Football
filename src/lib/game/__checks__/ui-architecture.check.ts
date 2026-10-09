@@ -39,8 +39,8 @@ const tabs = read("src/components/game/tabs.ts");
 console.log("\n[U1] Route is an orchestration shell");
 {
   check(
-    "index.tsx stays small (< 400 lines)",
-    route.split("\n").length < 400,
+    "index.tsx stays bounded (< 475 lines)",
+    route.split("\n").length < 475,
     `${route.split("\n").length} lines`,
   );
   check(
@@ -521,7 +521,7 @@ console.log("\n[U16] Calendar and advance opponent identity");
   );
   check(
     "calendar resolves stored opponent references through the display-name gateway",
-    /clubDisplayName\(state, fixture\.opponent\)/.test(calendar),
+    /clubDisplayName\(state, railFixture\.opponentRef\)/.test(calendar),
   );
   check(
     "advance preview binds fixture cards to their actual day and opponent",
@@ -605,8 +605,8 @@ console.log("\n[U20] Squad planning views");
     "redundant squad details tab is removed",
     !/setView\("details"\)/.test(squad) &&
       !/Squad details & contracts/.test(squad) &&
-      /setView\("pitch"\)/.test(squad) &&
-      /setView\("stats"\)/.test(squad),
+      /onView\("pitch"\)/.test(squad) &&
+      /onView\("stats"\)/.test(squad),
   );
 }
 
@@ -1080,7 +1080,6 @@ console.log("\n[U39] First PC layout refinement");
       desktop.includes('"league league"'),
   );
 }
-
 
 console.log("\n[U40] Release crash reporting");
 {

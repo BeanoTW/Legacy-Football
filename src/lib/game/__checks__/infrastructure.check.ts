@@ -638,9 +638,9 @@ console.log("\n[H] Cross-system modifiers");
     b.level = 1;
     b.qualityRating = 10;
   }
-  const player = recGood.football.players.find(
-    (p) => p.currentClubId !== null && !isUserClubReference(recGood, p.currentClubId),
-  )!;
+  const player = recGood.football.players
+    .filter((p) => p.currentClubId !== null && !isUserClubReference(recGood, p.currentClubId))
+    .sort((a, b) => b.wageExpectation - a.wageExpectation || a.id.localeCompare(b.id))[0]!;
   const dGood = wageDemand(recGood, player);
   const dBad = wageDemand(recBad, recBad.football.players.find((p) => p.id === player.id)!);
   check(
