@@ -3050,7 +3050,9 @@ function coverSquadShortfall(s: GameState): void {
   const userClubId = userClubReference(s);
   const rep = clubReputation(s, userClubId);
   const level = recruitmentLevelOfUser(s);
-  const needed = Math.min(2, MIN_SQUAD_SIZE - squad.length);
+  // A batch of expiries/retirements must not leave the club unable to field
+  // its senior squad for several weeks while a two-signing cap catches up.
+  const needed = MIN_SQUAD_SIZE - squad.length;
 
   for (let k = 0; k < needed; k++) {
     // Emergency cover is bought within the club's means, not on ambition:
