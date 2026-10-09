@@ -3171,6 +3171,9 @@ export function rollRecruitmentToNewSeason(s: GameState): void {
       ? recruitmentWageForClub(s, economicClubId, p.currentAbility, age, p.potentialAbility)
       : recruitmentWageForLevel(level, p.currentAbility, 45, age, p.potentialAbility);
   }
+  // Retirement and academy intake settle after the final weekly recruitment
+  // pass. Apply the same emergency cover before exposing the new season.
+  coverSquadShortfall(s);
   syncLegacySquad(s);
 }
 
