@@ -69,7 +69,12 @@ client.from = (() => {
       operations.push("delete");
       return { data: null, error: null };
     }
-    return { data: records.get(key) ?? null, error: null };
+    return {
+      data: filters.has("slot_id")
+        ? (records.get(key) ?? null)
+        : [...records.values()].filter((r) => r.user_id === filters.get("user_id")),
+      error: null,
+    };
   };
   const query = {
     select: () => query,
@@ -120,6 +125,38 @@ assert.equal(
   "cloud slot deletion preserves local career",
 );
 
+// A manual all-slot sync must participate in deletion ordering too.
+insertFence = new Promise<void>((resolve) => {
+  release = resolve;
+});
+const manualStarted = new Promise<void>((resolve) => {
+  onInsert = resolve;
+});
+const manualSync = cloud.syncAllCareers("keep-device");
+await manualStarted;
+const beforeManualDelete = operations.length;
+const manualDeletion = cloud.deleteCloudCareer("slot-1");
+const staleUpload = cloud.uploadCareer("slot-1", state);
+const staleManualSync = assert.rejects(
+  cloud.syncAllCareers("keep-device"),
+  /deleted while sync was queued/,
+);
+await new Promise((resolve) => setTimeout(resolve, 0));
+const deletedBeforeUploadFinished = operations.slice(beforeManualDelete).includes("delete");
+release();
+const [, , staleUploaded] = await Promise.all([
+  manualSync,
+  manualDeletion,
+  staleUpload,
+  staleManualSync,
+]);
+assert.equal(staleUploaded, false, "upload queued during deletion must not recreate the old slot");
+assert.equal(
+  deletedBeforeUploadFinished,
+  false,
+  "manual Sync now upload must finish before slot deletion",
+);
+assert.equal(records.size, 0, "manual sync must not resurrect a deleted slot");
 insertFence = null;
 onInsert = null;
 rejectInsert = true;
@@ -148,7 +185,32 @@ assert.equal(
   "sign-out preserves local career",
 );
 signedIn = true;
-await cloud.deleteCloudAccount();
+insertFence = new Promise<void>((resolve) => {
+  release = resolve;
+});
+const accountUploadStarted = new Promise<void>((resolve) => {
+  onInsert = resolve;
+});
+const accountUpload = cloud.uploadCareer("slot-3", state);
+await accountUploadStarted;
+const accountDeletion = cloud.deleteCloudAccount();
+const afterAccountDeletionUpload = cloud.uploadCareer("slot-1", state);
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.equal(accountCalls, 0, "account deletion must wait for the cloud upload");
+release();
+const [accountUploaded, , uploadedAfterDeletion] = await Promise.all([
+  accountUpload,
+  accountDeletion,
+  afterAccountDeletionUpload,
+]);
+assert.equal(accountUploaded, true);
+assert.equal(
+  uploadedAfterDeletion,
+  false,
+  "queued upload after account deletion must recheck authentication",
+);
+insertFence = null;
+onInsert = null;
 assert.equal(accountCalls, 1);
 assert.equal(records.size, 0);
 assert.equal(
