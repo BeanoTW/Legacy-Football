@@ -329,13 +329,21 @@
     {
       "name": "natural-compare",
       "version": "1.4.0",
-      "status": "unresolved",
+      "status": "upstream notice preserved",
       "metadataSource": "https://registry.npmjs.org/natural-compare/1.4.0",
       "metadataSha256": "8b910f6ec433d27eb98fa7d846e586b7ce571ed92e0da5685d6e77c1689cc9d4",
       "declaredLicense": "MIT",
       "gitHead": "eec83eee67cfac84d6db30cdd65363f155673770",
       "repository": "litejs/natural-compare-lite",
-      "reason": "No root licence retrieved at the registry gitHead; discovery failures are not proof that no licence exists"
+      "source": "http://lauri.rooden.ee/mit-license.txt",
+      "noticeSha256": "353fe762ba595bf1ffe786acf0f5984bb164205901d74f258af195fc8228c67d",
+      "noticePath": "docs/notice-followup/353fe762ba595bf1ffe786acf0f5984bb164205901d74f258af195fc8228c67d.txt",
+      "readmeSource": "https://github.com/litejs/natural-compare-lite/blob/eec83eee67cfac84d6db30cdd65363f155673770/README.md",
+      "readmeSha256": "9a97891a8e69da238853b1a512ae6ea8797072e9aad5bb25449b798deaab986e",
+      "readmePath": "docs/notice-followup/natural-compare-1.4.0-README.txt",
+      "retrievedAt": "2026-10-10",
+      "noticeSourceIsVersionPinned": false,
+      "provenance": "The version-pinned README attributes copyright (c) 2012-2015 Lauri Rooden and links directly to this author-hosted full MIT licence. The linked licence is a live document, not an immutable Git blob. Preserve both sources; this is notice collection, not distribution clearance."
     },
     {
       "name": "@rolldown/binding-linux-x64-musl",
