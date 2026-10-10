@@ -1,71 +1,97 @@
-# Beta candidate notes — pending validation
+# Beta candidate notes — updated 10 October 2026
 
-This is a candidate preparation document, not an announced release. The proposed
-next beta label is `0.9.0-beta.1`; do not deploy or stamp it until authorised and
-validated. The exact candidate commit, public build ID, release date and rollback
-build remain to be recorded from the deployment. No stable 1.0 claim is made.
+This is candidate preparation, not an RC/stable sign-off. Proposed next label:
+`0.9.0-beta.1`, channel `beta`; it has not been published or stamped.
+The current public update was explicitly approved for source
+`ee7da98e25bf436a09921c7bd878bf84ab6407c5`. Its observed runtime build ID is
+`2026-10-09T21:04:32.464Z`, a timestamp rather than an independently exposed Git SHA.
+Any subsequent public update needs approval of the concrete tested candidate.
+
+The current pass/fail/blocked evidence is maintained in
+[release ledger #315](https://github.com/BeanoTW/Legacy-Football/issues/315).
+Historical reports remain evidence only for their stated commits.
 
 ## Player-facing changes prepared
 
-- Safer handling of unreadable/corrupt and newer-version saves, with protected
-  recovery copies and visible save diagnostics.
-- Copyable build-aware crash details and beta diagnostic reports.
-- Optional cloud account deletion designed to remove that account's cloud careers
-  while preserving careers on the current device; deployed positive-path testing
-  is still required.
-- Deployment-specific version/channel/build identity.
-- Merged fix #299: differing device/cloud careers require a choice; automatic
-  uploads refuse to replace an unacknowledged cloud revision.
-- Proposed fix #300: emergency squad cover restores the senior floor after batch
-  departures and season rollover, using normal paid contracts and registration.
+- Protected unreadable/corrupt and future-version saves, recovery copies and diagnostics.
+- Build-aware crash reports and beta diagnostic downloads.
+- Optional account deletion designed to remove the authenticated account/cloud
+  careers while retaining careers on this device; real positive-path E2E is unverified.
+- Merged #299: differing cloud/device copies require a decision; automatic upload
+  refuses an unacknowledged cloud revision.
+- Merged #300: emergency paid/registered squad cover after departures and rollover.
+- Merged #304: signed-out Save now reports device-only success; the original
+  signed-out reproduction passed on the approved public update.
+- Merged #306: sync/upload/deletion ordering prevents the mocked resurrection race.
+  Authenticated deployed deletion remains unverified.
+- Merged #310: Inbox briefing focus returns to its opener or the selected visible
+  filter; preview Escape/Close and unread-row fallback passed. Other affected
+  paths and public verification are tracked in #315.
+- Merged #311: live header labels Featured chances / Featured xG and explains
+  that match summaries include every shot. Updated wording was observed in preview.
+- #313: opening ownership questions/answers aligned, including existing saved
+  conference display. Full CI and corrected browser checks are tracked in #315;
+  this document does not claim that PR is merged or deployed.
+- Merged #309: approved public operator/contact recorded as Ben Wilson,
+  beanotarren@gmail.com.
+- Merged #314: natural-compare notice evidence preserved; five root-package
+  notice gaps remain. This is not distribution/legal clearance.
 
-The cloud conflict fix is merged but deployment is unverified. The squad fix remains under validation and must pass CI and the soak before merge.
+Gameplay feature development remains frozen. No desktop redesign is included.
 
 ## Save compatibility
 
-- Current game save schema: **24**. Storage manifest format: **2**.
-- Older supported saves are upgraded by the migration registry when loaded.
-  The registry's automated compatibility suite reports 337 passes.
-- Device testing with a save from the previous public deployment and a weekly tick/
-  season rollover remains outstanding. Do not advertise that deployment path as
-  tested yet.
-- An older client may refuse a save created by a newer schema. Do not assume that
-  a migrated save can be reopened by the previous release.
-- A refused save is protected against replacement until an explicit reset. Keep
-  its recovery copy and avoid clearing browser storage while investigating.
-- Local careers are stored in this browser/device. Optional cloud sync adds an
-  account-linked copy; sign-out is designed to preserve the local copy.
+- Game save schema **24**; storage manifest format **2**.
+- Supported older saves migrate through the registry. The automated suite
+  previously passed 337 assertions; current-candidate reruns are recorded in #315.
+- A previous-public-build save followed by a weekly tick and season rollover
+  still needs deployed/device validation.
+- Reverse migration is not promised; older clients can refuse newer-schema saves.
+- A refused save is protected against replacement until explicit reset. Preserve
+  its recovery copy and avoid clearing browser storage.
+- Local careers belong to this browser/device. Cloud sync adds an account copy.
+  Sign-out/account deletion are designed to retain local careers; authenticated
+  positive-path preservation is not independently verified.
+- Protected-record recovery export is separate from playable-career import/export.
+  Do not advertise general portable export/import as tested.
 
-## Known issues and release holds
+## Completed supporting evidence and holds
 
-- Desktop layout is a known P2 issue and remains parked during beta hardening.
-  Stable 1.0 requires desktop usability to be addressed.
-- The 15-season Actions soak has not been dispatched because GitHub browser
-  authentication is blocked. Local candidate soak evidence is tracked separately.
-- Two-account cloud isolation, real account deletion, conflicts across independent
-  devices and update-from-previous-build checks are not completed.
-- Physical Android PWA, accessibility/zoom/theme matrix and an unfamiliar tester's
-  first hour remain required.
-- Privacy/Terms/Credits cannot be declared final while operator/contact/audience,
-  deployment provider details and asset/notice obligations remain unresolved.
+Actions run **38044020978** passed 15 normal weekly seasons on exact source
+**ee7da98e25bf436a09921c7bd878bf84ab6407c5**, checkpoint interval 5, seed
+RELEASE|SOAK|FIXED. Checkpoints 5/10/15 were 17.05 / 29.92 / 42.49 MiB raw.
+This is not a pass for later commits; a fresh final-main soak is pending in #315.
+GitHub workflow authentication now works.
 
-Refer to release-validation-2026-10-09.md for evidence and status. Final RC requires
-all release validation and a successful 15-season soak on its final commit. Stable
-1.0 additionally requires a separate successful 20-season soak on the intended
-release commit and all remaining gates.
+Automated save/migration/queue results, limited preview local slot/reload smoke,
+public signed-out acknowledgement and production RLS/FK/function configuration
+are recorded separately in #315 and the historical reports.
+The user waived disposable-account setup/E2E for this pass. It is **not passed**:
+A/B isolation, same slots, two-device sync/conflicts, deletion/local preservation
+and expired auth remain unverified. No further game-auth handoff unless reopened.
 
-## Deployment metadata (after sign-off)
+Installed Android PWA/offline/reconnect/prior-build update, small phone/tablet,
+full keyboard/contrast/text scaling and an unfamiliar tester's first hour remain
+open. Desktop Settings overlap is known P2 and parked for beta; it blocks stable.
+Operator/contact are approved; audience/eligibility, retention/provider details,
+final Privacy/Terms approval, asset/notice rights and player-facing legal surfaces
+remain unresolved. No legal identity or policy is inferred.
+
+## Deployment metadata and rollback
+
+After validation and explicit approval, configure:
 
 ```text
 LEGACY_FOOTBALL_RELEASE_VERSION=0.9.0-beta.1
 LEGACY_FOOTBALL_RELEASE_CHANNEL=beta
 ```
 
-Record the generated build ID from the actual deployment; do not substitute a
-branch name or local timestamp for an intended commit-derived production build.
+Record the actual deployed build identity and its source relationship. A branch
+name is not a build ID. The current approved public source above is a comparison
+reference, not a tested rollback artifact for a later candidate. Preserve saves
+and verify rollback compatibility/artifact availability before a future rollout.
 
-## Rollback
-
-Previous public version/build: **not yet identified**. Preserve the known-good
-artifact and existing player saves before any authorised deployment. Do not roll
-back to a client that cannot read saves already migrated by a newer build.
+RC requires full release validation and a successful 15-season soak on its final
+commit. Stable 1.0 additionally requires desktop usability and a separate actual
+successful 20-season soak on the intended release commit. Projected metrics are
+not a 20-season pass.
