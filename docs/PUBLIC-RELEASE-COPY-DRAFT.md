@@ -7,8 +7,8 @@ Live account deletion and cross-device isolation tests remain outstanding.
 
 ## Privacy Notice draft
 
-Operator/controller: **[business decision required: legal name]**.
-Privacy enquiries: **[business decision required: public contact]**.
+Operator/controller: **Ben Wilson**.
+Privacy enquiries: **beanotarren@gmail.com**.
 Effective date: **[set when approved and published]**.
 
 Legacy Football stores careers and preferences in your browser. Local careers
@@ -34,7 +34,7 @@ handling; do not promise immediate deletion from backups.]**
 Diagnostics and crash details can be copied or downloaded at your request. They
 include technical information such as build, browser and viewport, and limited
 career summaries; beta diagnostics exclude account email and full career data.
-Review a report before sharing it through **[approved support route]**.
+Review a report before sharing it with **beanotarren@gmail.com**.
 
 The application currently requests fonts from Google font services, causing your
 browser to connect to those services. **[Decide whether to retain remote fonts or
@@ -48,8 +48,8 @@ appropriate to the operator and jurisdictions. These are not supplied by code.]*
 
 ## Terms draft
 
-These terms are between you and **[legal operator]**. Contact:
-**[public support contact]**. Effective date: **[approval/publication date]**.
+These terms are between you and **Ben Wilson**. Contact:
+**beanotarren@gmail.com**. Effective date: **[approval/publication date]**.
 
 Legacy Football is a football management simulation. Your career decisions,
 clubs and outcomes are part of the game. **[Confirm intellectual property and
@@ -92,7 +92,8 @@ and Lovable attribution obligations against the actual agreements.]**
 
 ## Publication checklist
 
-- [ ] Supply legal operator and support/privacy contact.
+- [x] Supply legal operator and support/privacy contact: Ben Wilson,
+      beanotarren@gmail.com (explicitly supplied for public use, 10 October 2026).
 - [ ] Approve audience/account eligibility and Terms provisions.
 - [ ] Identify host/CDN, telemetry and provider retention. Public game origin confirmed: https://legacy-football.lovable.app/.
 - [ ] Verify live isolation, account deletion, sign-out and local preservation.
