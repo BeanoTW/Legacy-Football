@@ -19,7 +19,7 @@ Development backlog items do not belong here unless they affect a shipped build.
 | P2 | Desktop UI | PC layout is not yet considered release-ready/coherent at common laptop/desktop sizes. At 1363×936, Settings cards overlap the save manager and obscure slot buttons. Keyboard Enter can activate the obscured slot control. | Mobile/tablet layouts remain the preferred polished experience while the desktop layout is redesigned. | Current beta development | Before stable 1.0 |
 | P2 | Inbox keyboard focus | Closing a briefing on the previous build leaves focus on BODY. | Use Tab to return to controls. | Preview reproduction, 10 October 2026 | #308 / merged #310; preview Escape/Close and unread fallback pass, public pending |
 | P2 | Match xG scope | Live featured-chance xG can differ from full match-summary xG without explaining scope. | Use the full match summary for aggregate xG. | Preview reproduction, 10 October 2026 | #307 / merged #311; preview wording observed, public pending |
-| P2 | Opening press dialogue | Ownership questions and financial-journalist follow-up can offer answers for the wrong topic. Choices remain completable. | Select a tone and finish the conference; no progression block observed. | Preview reproduction, 10 October 2026 | #312 / #313; final CI/browser/public validation tracked in #315 |
+| P2 | Opening press dialogue | Ownership questions and financial-journalist follow-up can offer answers for the wrong topic. Choices remain completable. | Select a tone and finish the conference; no progression block observed. | Preview reproduction, 10 October 2026 | #312 / merged #313; new/existing preview pass, financial variant automated, public pending in #315 |
 
 ## Resolved issues
 
@@ -28,7 +28,6 @@ verified against the original reproduction steps.
 
 | Severity | Area | Issue | Fixed in version | Fixed in build |
 | --- | --- | --- | --- | --- |
-
 | P1 | Manual save status | Signed-out Save now falsely claimed Cloud synced; corrected device-only acknowledgement reproduced publicly. | Version label unstamped; #304 | Approved source ee7da98; observed runtime 2026-10-09T21:04:32.464Z |
 
 ## Rules for this ledger
