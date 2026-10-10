@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ComponentType } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import {
   Archive,
   BadgePoundSterling,
@@ -334,6 +334,8 @@ export function InboxTab({
   const [category, setCategory] = useState<InboxCategory | "any">("any");
   const [department, setDepartment] = useState<InboxDepartment | "any">("any");
   const [openId, setOpenId] = useState<string | null>(null);
+  const briefingOpener = useRef<HTMLButtonElement | null>(null);
+  const inboxHeading = useRef<HTMLHeadingElement | null>(null);
 
   const awaiting = useMemo(
     () =>
@@ -385,10 +387,21 @@ export function InboxTab({
   ).length;
   const decisionItems = items.filter(requiresInboxDecision);
 
-  const openItem = (item: InboxItem) => {
+  const openItem = (item: InboxItem, opener: HTMLButtonElement) => {
+    briefingOpener.current = opener;
     setOpenId(item.id);
     if (item.status === "unread" || (item.status === "awaitingDecision" && !requiresInboxDecision(item))) {
       update((current) => markInboxRead(current, item.id));
+    }
+  };
+
+  const restoreBriefingFocus = () => {
+    const opener = briefingOpener.current;
+    if (opener?.isConnected && !opener.disabled && opener.getClientRects().length > 0) {
+      opener.focus({ preventScroll: true });
+    } else if (inboxHeading.current?.isConnected) {
+      // Reading or resolving a message can remove it from the current filter.
+      inboxHeading.current.focus({ preventScroll: true });
     }
   };
 
@@ -397,7 +410,7 @@ export function InboxTab({
       <header className="lf-inbox-header">
         <div className="min-w-0">
           <p className="lf-inbox-kicker">Club communications</p>
-          <h1>Inbox</h1>
+          <h1 ref={inboxHeading} tabIndex={-1}>Inbox</h1>
           <p>Decisions, reports and opportunities from across the club.</p>
         </div>
         {decisionQueue && awaiting.length > 0 && <span className="lf-inbox-blocking">{awaiting.length} blocking</span>}
@@ -490,6 +503,7 @@ export function InboxTab({
           <InboxDetail
             item={open}
             state={state}
+            onRestoreFocus={restoreBriefingFocus}
             onClose={() => !decisionQueue && setOpenId(null)}
             onChoose={(choiceId) => { update((current) => handleInboxChoice(current, open.id, choiceId)); setOpenId(null); }}
             onDismiss={() => { update((current) => dismissInboxItem(current, open.id)); setOpenId(null); }}
@@ -511,14 +525,14 @@ function InboxLane({ title, count, urgent = false, children }: { title: string; 
   );
 }
 
-function InboxRow({ item, state, onOpen, conversationCount }: { item: InboxItem; state: GameState; onOpen: (item: InboxItem) => void; conversationCount: number }) {
+function InboxRow({ item, state, onOpen, conversationCount }: { item: InboxItem; state: GameState; onOpen: (item: InboxItem, opener: HTMLButtonElement) => void; conversationCount: number }) {
   const decision = requiresInboxDecision(item);
   const department = departmentPresentation(item.department);
   const status = itemStatus(item, decision);
   const deadline = deadlineCopy(item, state);
   const Icon = department.icon;
   return (
-    <Button variant="ghost" className={cn("lf-message-row", `tone-${department.tone}`, `status-${status.tone}`)} onClick={() => onOpen(item)}>
+    <Button variant="ghost" className={cn("lf-message-row", `tone-${department.tone}`, `status-${status.tone}`)} onClick={(event) => onOpen(item, event.currentTarget)}>
       <span className="lf-message-source"><Icon /></span>
       <span className="lf-message-main">
         <span className="lf-message-meta">
@@ -543,7 +557,7 @@ function InboxRow({ item, state, onOpen, conversationCount }: { item: InboxItem;
   );
 }
 
-export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelete, onNavigate }: { item: InboxItem; state: GameState; onClose: () => void; onChoose: (choiceId: string) => void; onDismiss: () => void; onDelete: () => void; onNavigate?: (destination: InboxDestination) => void }) {
+export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelete, onNavigate, onRestoreFocus }: { item: InboxItem; state: GameState; onClose: () => void; onChoose: (choiceId: string) => void; onDismiss: () => void; onDelete: () => void; onNavigate?: (destination: InboxDestination) => void; onRestoreFocus: () => void }) {
   const [showObjectiveNegotiation, setShowObjectiveNegotiation] = useState(false);
   const [showManagerAdvice, setShowManagerAdvice] = useState(false);
   const decision = requiresInboxDecision(item);
@@ -573,7 +587,7 @@ export function InboxDetail({ item, state, onClose, onChoose, onDismiss, onDelet
 
   return (
     <Sheet open onOpenChange={(value) => !value && onClose()}>
-      <SheetContent side="bottom" hideClose className={cn("lf-briefing-sheet", `tone-${department.tone}`)}>
+      <SheetContent side="bottom" hideClose className={cn("lf-briefing-sheet", `tone-${department.tone}`)} onCloseAutoFocus={(event) => { event.preventDefault(); onRestoreFocus(); }}>
         <div className="lf-briefing-handle" aria-hidden="true" />
         <header className="lf-briefing-header">
           <DepartmentIcon className="lf-briefing-watermark" aria-hidden="true" />
