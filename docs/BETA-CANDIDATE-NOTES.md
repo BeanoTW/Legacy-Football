@@ -25,13 +25,14 @@ Historical reports remain evidence only for their stated commits.
 - Merged #306: sync/upload/deletion ordering prevents the mocked resurrection race.
   Authenticated deployed deletion remains unverified.
 - Merged #310: Inbox briefing focus returns to its opener or the selected visible
-  filter; preview Escape/Close and unread-row fallback passed. Other affected
-  paths and public verification are tracked in #315.
+  filter; preview Escape/Close, unread-row and resolved-decision fallback passed.
+  Boardroom navigation completed; public verification remains pending in #315.
 - Merged #311: live header labels Featured chances / Featured xG and explains
   that match summaries include every shot. Updated wording was observed in preview.
-- #313: opening ownership questions/answers aligned, including existing saved
-  conference display. Full CI and corrected browser checks are tracked in #315;
-  this document does not claim that PR is merged or deployed.
+- Merged #313: opening ownership questions/answers aligned, including existing
+  saved conference display. All eight CI jobs passed; new/existing preview
+  conferences completed successfully. Financial-journalist variant is automated
+  coverage; public retests remain pending in #315.
 - Merged #309: approved public operator/contact recorded as Ben Wilson,
   beanotarren@gmail.com.
 - Merged #314: natural-compare notice evidence preserved; five root-package
