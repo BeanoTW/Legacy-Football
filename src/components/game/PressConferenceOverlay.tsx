@@ -6,6 +6,7 @@ import { randomIncidentById } from "@/lib/game/randomIncidents";
 import { journalistForConversation, mediaRelationship, type JournalistStyle } from "@/lib/game/mediaRelations";
 import {
   calendarPressRound,
+  openingOwnershipChoice,
   pressOutcomeLabel,
   pressRoundThree,
   pressRoundTwo,
@@ -123,12 +124,12 @@ export function PressConferenceOverlay({
         return {
           id: choice.id,
           tone,
-          label: choice.label,
+          label: openingOwnershipChoice(choice, item.season, calendarContext).label,
           hint: choice.hint ?? "",
           effects: choice.effects,
         };
       }),
-    [item.choices],
+    [item.choices, item.season, calendarContext],
   );
 
   const [round, setRound] = useState<1 | 2 | 3 | "complete">(1);
