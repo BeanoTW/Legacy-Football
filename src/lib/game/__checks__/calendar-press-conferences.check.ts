@@ -3,7 +3,8 @@
 */
 import { newGame } from "../engine";
 import { resolvePressConference, runWeeklyGenerators } from "../inbox";
-import { calendarPressRound, pressOutcomeLabel } from "../pressConference";
+import { calendarPressRound, openingOwnershipChoice, pressOutcomeLabel } from "../pressConference";
+import { JOURNALISTS } from "../mediaRelations";
 import type { GameState } from "../types";
 
 let passed = 0;
@@ -181,6 +182,20 @@ console.log("\n[CP4] New-save onboarding only");
     (openingPress?.choices?.length ?? 0) >= 3,
   );
   check(
+    "opening answers address ownership rather than transfer targets",
+    !!openingPress?.choices?.length && openingPress.choices.every((choice) => /club/.test(choice.label) && !/transfer plans|making signings|squad we have/.test(choice.label)),
+  );
+  const storedChoice = { id: "transparent", label: "Old transfer response", effects: [{ kind: "reputation" as const, delta: 1 }] };
+  const displayedChoice = openingOwnershipChoice(storedChoice, 1, "summer-window-open");
+  check("saved opening choices receive ownership copy", displayedChoice.label !== storedChoice.label && /bought this club/.test(displayedChoice.label));
+  check("copy repair preserves saved IDs and effect objects", displayedChoice.id === storedChoice.id && displayedChoice.effects === storedChoice.effects);
+  check("copy repair does not mutate the stored choice", storedChoice.label === "Old transfer response");
+  check("later-season choices remain untouched", openingOwnershipChoice(storedChoice, 2, "summer-window-open") === storedChoice);
+  check("other conferences remain untouched", openingOwnershipChoice(storedChoice, 1, "winter-window-preview") === storedChoice);
+  const financialJournalist = JOURNALISTS.find((journalist) => journalist.style === "financial")!;
+  const ownershipRound = calendarPressRound(state, "summer-window-open", 2, ["transparent"], financialJournalist);
+  check("financial journalist retains ownership follow-up with ownership answers", /hands-on/.test(ownershipRound.question) && /bought the club/.test(ownershipRound.answers[0].label));
+  check(
     "welcome is informational rather than a fake decision",
     state.inbox.find((item) => item.generatorId === "board-welcome")?.status === "unread",
   );
@@ -189,6 +204,8 @@ console.log("\n[CP4] New-save onboarding only");
   veteran.season = 2;
   veteran.week = 1;
   veteran = runWeeklyGenerators(veteran);
+  const veteranRound = calendarPressRound(veteran, "summer-window-open", 2, ["transparent"], financialJournalist);
+  check("later-season financial window question remains available", /financially/.test(veteranRound.question));
   check(
     "onboarding never repeats in later seasons",
     !veteran.inbox.some((item) => item.generatorId === "new-save-onboarding" || item.generatorId === "board-welcome"),

@@ -37,6 +37,7 @@ import type {
   TransferNegotiation,
 } from "./types";
 import { isUserClubReference } from "./clubReference";
+import { openingOwnershipChoice } from "./pressConference";
 import { transferTargetPlayer } from "./recruitmentTargetBridge";
 
 import {
@@ -2465,7 +2466,7 @@ function calendarPressChoices(s: GameState, context: CalendarPressContext): Inbo
   };
 
   const [transparent, reassure, dismiss] = copy[context];
-  return [
+  const choices: InboxChoice[] = [
     {
       id: "transparent",
       label: transparent,
@@ -2482,6 +2483,7 @@ function calendarPressChoices(s: GameState, context: CalendarPressContext): Inbo
       effects: [{ kind: "reputation", delta: -1 }],
     },
   ];
+  return choices.map((choice) => openingOwnershipChoice(choice, s.season, context));
 }
 
 const CALENDAR_PRESS_EVENTS: {
