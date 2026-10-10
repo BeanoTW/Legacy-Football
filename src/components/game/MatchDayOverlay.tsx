@@ -241,9 +241,10 @@ export function MatchDayOverlay({
               <MatchTimeline events={visible} minute={finishedReplay ? (lm.status === "fullTime" ? 90 : 45) : minute} ourKit={ourKit} theirKit={theirKit} />
               <div className="mt-1 flex items-center justify-center gap-4 text-center text-[10px] text-white/70">
                 <PulseStat label="Possession" value={`${possession}%`} />
-                <PulseStat label="Chances" value={`${liveChances("us").length}–${liveChances("them").length}`} />
-                <PulseStat label="xG" value={`${liveXg("us").toFixed(1)}–${liveXg("them").toFixed(1)}`} />
+                <PulseStat label="Featured chances" value={`${liveChances("us").length}–${liveChances("them").length}`} />
+                <PulseStat label="Featured xG" value={`${liveXg("us").toFixed(1)}–${liveXg("them").toFixed(1)}`} />
               </div>
+              <p className="mt-1 text-center text-[10px] text-white/70">Featured xG covers the chances shown so far. Match summaries include every shot.</p>
             </section>
           ) : null}
 
