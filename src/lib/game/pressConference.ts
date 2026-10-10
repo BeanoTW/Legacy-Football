@@ -1,4 +1,4 @@
-import type { GameState, InboxEffect } from "./types";
+import type { GameState, InboxChoice, InboxEffect } from "./types";
 import type { RandomIncidentDefinition } from "./randomIncidents";
 import { journalistQuestionPressure, type JournalistProfile } from "./mediaRelations";
 import { primaryInfrastructureIssue } from "./infrastructureNarrative";
@@ -13,6 +13,18 @@ export type CalendarPressContext =
   | "winter-window-preview"
   | "winter-window-review"
   | "season-review";
+
+/** Repair opening-conference copy without changing saved answer IDs or effects. */
+export function openingOwnershipChoice(choice: InboxChoice, season: number, context?: CalendarPressContext): InboxChoice {
+  if (season !== 1 || context !== "summer-window-open") return choice;
+  const labels: Record<PressTone, string> = {
+    transparent: "I bought this club to build something lasting. Good people, sound decisions and a stronger club are the foundations of that plan.",
+    reassure: "I want to give this club a stable platform to grow. We will build at its pace and keep the supporters at the heart of it.",
+    dismiss: "Judge me by what this club becomes. I would rather prove the plan through our work than make promises on day one.",
+  };
+  if (choice.id !== "transparent" && choice.id !== "reassure" && choice.id !== "dismiss") return choice;
+  return { ...choice, label: labels[choice.id] };
+}
 
 
 export interface PressAnswer {
@@ -466,7 +478,7 @@ export function calendarPressRound(
 
   let question = round === 2 ? roundTwoQuestions[context] : roundThreeQuestions[context];
 
-  if (journalist?.style === "financial" && context.includes("window")) {
+  if (journalist?.style === "financial" && context.includes("window") && !(state.season === 1 && context === "summer-window-open")) {
     question =
       round === 2
         ? "How much room does the club genuinely have to manoeuvre financially, and will value matter more than volume?"
