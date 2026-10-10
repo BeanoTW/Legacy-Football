@@ -335,7 +335,7 @@ export function InboxTab({
   const [department, setDepartment] = useState<InboxDepartment | "any">("any");
   const [openId, setOpenId] = useState<string | null>(null);
   const briefingOpener = useRef<HTMLButtonElement | null>(null);
-  const inboxHeading = useRef<HTMLHeadingElement | null>(null);
+  const activeFilterButton = useRef<HTMLButtonElement | null>(null);
 
   const awaiting = useMemo(
     () =>
@@ -399,9 +399,9 @@ export function InboxTab({
     const opener = briefingOpener.current;
     if (opener?.isConnected && !opener.disabled && opener.getClientRects().length > 0) {
       opener.focus({ preventScroll: true });
-    } else if (inboxHeading.current?.isConnected) {
+    } else if (activeFilterButton.current?.isConnected) {
       // Reading or resolving a message can remove it from the current filter.
-      inboxHeading.current.focus({ preventScroll: true });
+      activeFilterButton.current.focus({ preventScroll: true });
     }
   };
 
@@ -410,7 +410,7 @@ export function InboxTab({
       <header className="lf-inbox-header">
         <div className="min-w-0">
           <p className="lf-inbox-kicker">Club communications</p>
-          <h1 ref={inboxHeading} tabIndex={-1}>Inbox</h1>
+          <h1>Inbox</h1>
           <p>Decisions, reports and opportunities from across the club.</p>
         </div>
         {decisionQueue && awaiting.length > 0 && <span className="lf-inbox-blocking">{awaiting.length} blocking</span>}
@@ -434,7 +434,7 @@ export function InboxTab({
       <div className="lf-inbox-tools">
         <div className="lf-filter-tabs" role="group" aria-label="Message view">
           {(["all", "decisions", "unread", "archive"] as InboxFilter[]).map((value) => (
-            <Button key={value} size="sm" variant="ghost" className={cn("lf-filter-tab", filter === value && "is-active")} onClick={() => setFilter(value)}>
+            <Button key={value} ref={filter === value ? activeFilterButton : undefined} size="sm" variant="ghost" className={cn("lf-filter-tab", filter === value && "is-active")} onClick={() => setFilter(value)}>
               {value === "all" ? "All" : value === "decisions" ? "Actions" : value === "unread" ? "New" : "Archive"}
             </Button>
           ))}
