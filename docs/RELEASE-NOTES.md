@@ -17,8 +17,10 @@ resurrection in mocks; authenticated deployed reproduction remains unverified.
 Merged #310 restores Inbox briefing keyboard focus to the opener or visible
 selected filter, with preview Escape/Close and unread-row fallback observed.
 Merged #311 clarifies Featured chances / Featured xG and explains that summaries
-include all shots; updated preview wording is observed. Opening ownership
-dialogue correction #313 is under final CI/browser validation; see the
+include all shots; updated preview wording is observed. Merged opening ownership
+dialogue correction #313 passed CI and new/existing preview conference checks;
+its financial-journalist variant has automated coverage. Public retests remain
+pending; see the
 [current release ledger #315](https://github.com/BeanoTW/Legacy-Football/issues/315)
 for its actual merge and test status. No gameplay expansion or desktop redesign.
 
