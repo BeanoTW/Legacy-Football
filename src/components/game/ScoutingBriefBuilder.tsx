@@ -113,6 +113,12 @@ export function ScoutingBriefBuilder({
         if (activePosition === next) setActivePosition(reduced[0]);
         return reduced;
       }
+      // At one-slot clubs, choosing another position REPLACES the previous pick.
+      // This is a per-assignment breadth limit, not a permanent positional lock.
+      if (plan.positionCapacity === 1) {
+        setActivePosition(next);
+        return [next];
+      }
       if (current.length >= plan.positionCapacity) return current;
       setActivePosition(next);
       return [...current, next];
@@ -194,7 +200,7 @@ export function ScoutingBriefBuilder({
             <div className="grid grid-cols-4 gap-1.5">
               {POSITIONS.map((item) => {
                 const selected = positions.includes(item.value);
-                const full = !selected && positions.length >= plan.positionCapacity;
+                const full = !selected && plan.positionCapacity > 1 && positions.length >= plan.positionCapacity;
                 return (
                   <button
                     key={item.value}
@@ -210,7 +216,7 @@ export function ScoutingBriefBuilder({
               })}
             </div>
             <p className="font-normal text-[10px] text-muted-foreground">
-              You can search {plan.positionCapacity} {plan.positionCapacity === 1 ? "position" : "positions"} per assignment at scout quality {plan.quality}. Once the report arrives, start another search for any position, including the same one.
+              You can search {plan.positionCapacity} {plan.positionCapacity === 1 ? "position" : "positions"} per assignment at scout quality {plan.quality}. {plan.positionCapacity === 1 ? "Tap any position above to change your choice." : "Select your positions above."} Once the report arrives, start another search for any position, including the same one.
             </p>
           </div>
 
