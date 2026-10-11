@@ -370,6 +370,9 @@ export function createScoutingBrief(state: GameState, input: ScoutingBriefInput)
   if (!next.football) return next;
   next.football.scoutingDiscovery ??= { briefs: [] };
   if (next.football.scoutingDiscovery.briefs.some((brief) => brief.id === input.id)) return next;
+  // A recruitment department can take on a fresh assignment once its current
+  // shortlist has returned. Completed briefs never consume future capacity.
+  if (next.football.scoutingDiscovery.briefs.some((brief) => brief.status === "active")) return next;
   const plan = scoutingSearchPlan(next);
   const nowDay = absoluteDay(next);
   const tailored = input.positionBriefs?.length
