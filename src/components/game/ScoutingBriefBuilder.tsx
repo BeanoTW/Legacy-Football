@@ -78,6 +78,7 @@ export function ScoutingBriefBuilder({
     FWD: defaultDraft(),
   });
   const plan = scoutingSearchPlan(state);
+  const activeSearch = state.football?.scoutingDiscovery?.briefs.find((brief) => brief.status === "active");
   const activeDraft = drafts[activePosition];
   const selectedLevel = SCOUTING_PLAYER_LEVELS.find((item) => item.value === activeDraft.playerLevel)!;
   const manager = state.hiredStaff.find((staff) => staff.role === "Manager");
@@ -119,7 +120,7 @@ export function ScoutingBriefBuilder({
   };
 
   const dispatch = () => {
-    if (sending || invalidBrief || positions.length === 0) return;
+    if (sending || activeSearch || invalidBrief || positions.length === 0) return;
     setSending(true);
     update((s) => {
       const sequence = s.football?.scoutingDiscovery?.briefs.length ?? 0;
@@ -146,7 +147,7 @@ export function ScoutingBriefBuilder({
   return (
     <DetailScreen
       title="New scouting assignment"
-      subtitle="Create one scouting assignment with up to several position briefs. The number of positions is not the number of scouts sent."
+      subtitle="Choose up to your team’s position capacity for this assignment. After the report returns, you can search again—even for the same position."
       actions={
         <Button variant="ghost" size="sm" onClick={onBack}>
           <ArrowLeft className="mr-1.5 size-4" /> Back
@@ -209,7 +210,7 @@ export function ScoutingBriefBuilder({
               })}
             </div>
             <p className="font-normal text-[10px] text-muted-foreground">
-              This is one assignment, not {positions.length} separate scout deployments. Scouting quality {plan.quality} allows up to {plan.positionCapacity} position {plan.positionCapacity === 1 ? "brief" : "briefs"} in this search.
+              You can search {plan.positionCapacity} {plan.positionCapacity === 1 ? "position" : "positions"} per assignment at scout quality {plan.quality}. Once the report arrives, start another search for any position, including the same one.
             </p>
           </div>
 
@@ -291,7 +292,8 @@ export function ScoutingBriefBuilder({
             </span>
             <span className="shrink-0 text-muted-foreground tnum">Scouts {plan.quality} · ~{plan.searchDays}d · up to {plan.candidateLimit} total</span>
           </div>
-          <Button className="w-full" disabled={sending || invalidBrief || positions.length === 0} onClick={dispatch}><Binoculars className="mr-2 size-4" /> {sending ? "Starting assignment…" : "Start this scouting assignment"}</Button>
+          {activeSearch && <p className="mb-2 text-xs text-muted-foreground">Your scouts are already working. Wait for their report before starting the next assignment.</p>}
+          <Button className="w-full" disabled={sending || Boolean(activeSearch) || invalidBrief || positions.length === 0} onClick={dispatch}><Binoculars className="mr-2 size-4" /> {sending ? "Starting assignment…" : "Start this scouting assignment"}</Button>
         </div>
       </section>
     </DetailScreen>
