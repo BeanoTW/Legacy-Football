@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { newGame } from "../engine";
-import { createScoutingBrief, scoutingSearchPlan } from "../scoutingDiscovery";
+import { createScoutingBrief, progressScoutingDiscoveryDayInPlace, scoutingSearchPlan } from "../scoutingDiscovery";
 import { makeStaff } from "../staff";
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -57,8 +57,21 @@ const ui = readFileSync("src/components/game/ScoutingBriefBuilder.tsx", "utf8");
 assert(
   ui.includes("current.length >= plan.positionCapacity") &&
     ui.includes("disabled={full}") &&
-    ui.includes("allows up to {plan.positionCapacity} position"),
+    ui.includes("You can search {plan.positionCapacity}"),
   "brief builder visibly limits multi-position selection by scouting capacity",
 );
 
-console.log("\n7 passed, 0 failed");
+console.log("\n[REPEATABLE-SCOUTING] One active search, repeat once reported");
+const blockedSearch = createScoutingBrief(limited, { id: "blocked-by-active", position: "FWD" });
+assert(blockedSearch.football.scoutingDiscovery?.briefs.length === 1, "a second search cannot start before the first report returns");
+const returned = structuredClone(lowBrief ? limited : low);
+const dueDay = returned.football.scoutingDiscovery?.briefs[0]?.dueAtDay;
+assert(typeof dueDay === "number", "first search has a delivery day");
+progressScoutingDiscoveryDayInPlace(returned, dueDay);
+assert(returned.football.scoutingDiscovery?.briefs[0]?.status === "complete", "first report completes");
+const next = createScoutingBrief(returned, { id: "repeat-same-position", position: "GK" });
+assert(next.football.scoutingDiscovery?.briefs.length === 2, "the same position may be scouted again after report");
+assert(next.football.scoutingDiscovery?.briefs[1]?.status === "active", "new assignment starts normally");
+const blockedThird = createScoutingBrief(next, { id: "third-while-active", position: "FWD" });
+assert(blockedThird.football.scoutingDiscovery?.briefs.length === 2, "the new search must return before further searches");
+console.log("\n13 passed, 0 failed");

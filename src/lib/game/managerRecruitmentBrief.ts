@@ -145,7 +145,7 @@ export function recruitmentDelegationAvailability(state: GameState): Recruitment
 }
 
 export function managerRecruitmentAssignmentId(state: GameState, manager: Staff): string {
-  return `manager-delegated:${manager.id}:s${state.season}:w${state.week}`;
+  return `manager-delegated:${manager.id}:s${state.season}:w${state.week}:r${(state.football?.scoutingDiscovery?.briefs.length ?? 0) + 1}`;
 }
 
 export function activeManagerRecruitmentAssignment(state: GameState, manager: Staff) {
@@ -162,7 +162,7 @@ export function activeManagerRecruitmentAssignment(state: GameState, manager: St
 export function delegateManagerRecruitmentPriorities(state: GameState, manager: Staff): GameState {
   const availability = recruitmentDelegationAvailability(state);
   const priorities = managerRecruitmentBrief(state, manager).priorities;
-  if (!availability.available || !priorities.length || activeManagerRecruitmentAssignment(state, manager)) return state;
+  if (!availability.available || !priorities.length || (state.football?.scoutingDiscovery?.briefs ?? []).some((brief) => brief.status === "active")) return state;
   const capacity = Math.max(1, Math.min(4, state.hiredStaff.filter((staff) => staff.role === "Scout" || staff.role === "Chief Scout").length || 1));
   return createChairmanMultiScoutingBrief(state, {
     id: managerRecruitmentAssignmentId(state, manager),
