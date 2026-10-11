@@ -57,6 +57,9 @@ const ui = readFileSync("src/components/game/ScoutingBriefBuilder.tsx", "utf8");
 assert(
   ui.includes("current.length >= plan.positionCapacity") &&
     ui.includes("disabled={full}") &&
+    ui.includes("plan.positionCapacity === 1") &&
+    ui.includes("return [next]") &&
+    ui.includes("plan.positionCapacity > 1 && positions.length >= plan.positionCapacity") &&
     ui.includes("You can search {plan.positionCapacity}"),
   "brief builder visibly limits multi-position selection by scouting capacity",
 );
