@@ -90,6 +90,7 @@ export function TransferMarket({
   const briefs = state.football?.scoutingDiscovery?.briefs ?? [];
   const activeBriefs = briefs.filter((candidate) => candidate.status === "active");
   const activeBrief = activeBriefs[0] ?? null;
+  const searchBusy = activeBriefs.length > 0;
   const delegationRoles = brief?.priorities.slice(0, Math.max(1, Math.min(4, state.hiredStaff.filter((staff) => staff.role === "Scout" || staff.role === "Chief Scout").length || 1))) ?? [];
   const completeBriefs = briefs.filter((candidate) => candidate.status === "complete");
   const latestCompleteBrief = [...completeBriefs].sort(
@@ -162,7 +163,7 @@ export function TransferMarket({
                 size="sm"
                 variant="outline"
                 className="h-7 px-2 text-[11px]"
-                disabled={!delegation.available}
+                disabled={!delegation.available || searchBusy}
                 title={delegation.reason}
                 onClick={() => setConfirmDelegation((current) => !current)}
               >
@@ -180,7 +181,7 @@ export function TransferMarket({
                 Recruitment staff choose the search criteria. You still approve any signing.
               </p>
               <div className="mt-2 flex gap-2">
-                <Button size="sm" disabled={!delegation.available} onClick={() => {
+                <Button size="sm" disabled={!delegation.available || searchBusy} onClick={() => {
                   if (manager) update((s) => delegateManagerRecruitmentPriorities(s, manager));
                   setConfirmDelegation(false);
                 }}>Start manager search</Button>
@@ -227,7 +228,7 @@ export function TransferMarket({
         <div className="min-w-0 flex-1 truncate text-xs">
           {activeBrief ? (
             <>
-              <strong>{activeBriefs.length} active {activeBriefs.length === 1 ? "assignment" : "assignments"}</strong>
+              <strong>Scouting in progress</strong>
               {" "}· {activeBrief.delegatedBy ? "Manager-led" : "Custom"} search
               {" "}· {(activeBrief.positionBriefs?.map((item) => item.tacticalPosition ?? item.position)
                 ?? activeBrief.positions ?? (activeBrief.position ? [activeBrief.position] : [])).join(", ") || "players"}
@@ -239,7 +240,7 @@ export function TransferMarket({
             </>
           ) : latestCompleteBrief ? (
             <>
-              <strong>Latest assignment returned</strong> · {latestCompleteBrief.candidateIds.length} option{latestCompleteBrief.candidateIds.length === 1 ? "" : "s"}
+              <strong>Ready for another search</strong> · last report: {latestCompleteBrief.candidateIds.length} option{latestCompleteBrief.candidateIds.length === 1 ? "" : "s"}
             </>
           ) : (
             <>
@@ -250,6 +251,8 @@ export function TransferMarket({
         <Button
           size="sm"
           className="h-7 px-1.5 text-[11px] sm:h-8 sm:px-2 sm:text-xs"
+          disabled={searchBusy}
+          title={searchBusy ? "Available when your current scouting report returns" : "Start a new search for any position"}
           onClick={() => onSurface({ kind: "brief" })}
         >
           <Plus className="mr-1 size-3.5" />
@@ -278,7 +281,7 @@ export function TransferMarket({
       </section>
 
       <p className="shrink-0 px-1 text-[10px] leading-snug text-muted-foreground">
-        Quick assign = one staff-led search based on manager needs. Custom search = you choose positions and limits. Scout on a player = investigate that specific player.
+        One recruitment search at a time. After its report returns, you can scout any position again. Quick assign uses manager needs; custom search uses your own brief; individual player scouting is separate.
       </p>
 
       <div className="flex shrink-0 flex-col gap-1">
