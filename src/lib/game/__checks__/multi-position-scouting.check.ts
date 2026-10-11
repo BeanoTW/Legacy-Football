@@ -57,7 +57,7 @@ const ui = readFileSync("src/components/game/ScoutingBriefBuilder.tsx", "utf8");
 assert(
   ui.includes("current.length >= plan.positionCapacity") &&
     ui.includes("disabled={full}") &&
-    ui.includes("your team can run up to"),
+    ui.includes("allows up to {plan.positionCapacity} position"),
   "brief builder visibly limits multi-position selection by scouting capacity",
 );
 

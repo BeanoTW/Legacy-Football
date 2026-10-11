@@ -79,6 +79,7 @@ export function TransferMarket({
   onNegotiationStarted: (negotiationId: string) => void;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const [confirmDelegation, setConfirmDelegation] = useState(false);
   const rows = useMemo(() => transferMarketRows(state), [state]);
   const manager = userManager(state);
   const brief = useMemo(
@@ -87,7 +88,9 @@ export function TransferMarket({
   );
   const delegation = deskDelegation(state);
   const briefs = state.football?.scoutingDiscovery?.briefs ?? [];
-  const activeBrief = briefs.find((candidate) => candidate.status === "active") ?? null;
+  const activeBriefs = briefs.filter((candidate) => candidate.status === "active");
+  const activeBrief = activeBriefs[0] ?? null;
+  const delegationRoles = brief?.priorities.slice(0, Math.max(1, Math.min(4, state.hiredStaff.filter((staff) => staff.role === "Scout" || staff.role === "Chief Scout").length || 1))) ?? [];
   const completeBriefs = briefs.filter((candidate) => candidate.status === "complete");
   const latestCompleteBrief = [...completeBriefs].sort(
     (a, b) =>
@@ -161,15 +164,30 @@ export function TransferMarket({
                 className="h-7 px-2 text-[11px]"
                 disabled={!delegation.available}
                 title={delegation.reason}
-                onClick={() =>
-                  manager && update((s) => delegateManagerRecruitmentPriorities(s, manager))
-                }
+                onClick={() => setConfirmDelegation((current) => !current)}
               >
                 <Send className="mr-1 size-3" />
-                Delegate to scouts
+                Quick assign manager needs
               </Button>
             )}
           </div>
+          {confirmDelegation && !delegation.alreadyActive && (
+            <div className="mb-2 rounded-lg border border-primary/30 bg-background p-2.5 text-xs">
+              <strong>Confirm manager-led search</strong>
+              <p className="mt-1 text-muted-foreground">
+                This starts ONE scouting assignment covering {delegationRoles.length} position {delegationRoles.length === 1 ? "need" : "needs"}:
+                {" "}{delegationRoles.map((priority) => priority.tacticalPosition ?? priority.position).join(", ")}.
+                Recruitment staff choose the search criteria. You still approve any signing.
+              </p>
+              <div className="mt-2 flex gap-2">
+                <Button size="sm" disabled={!delegation.available} onClick={() => {
+                  if (manager) update((s) => delegateManagerRecruitmentPriorities(s, manager));
+                  setConfirmDelegation(false);
+                }}>Start manager search</Button>
+                <Button size="sm" variant="outline" onClick={() => setConfirmDelegation(false)}>Cancel</Button>
+              </div>
+            </div>
+          )}
           <div className="flex gap-1 overflow-x-auto pb-0.5">
             {brief.priorities.map((priority, index) => (
               <button
@@ -209,10 +227,14 @@ export function TransferMarket({
         <div className="min-w-0 flex-1 truncate text-xs">
           {activeBrief ? (
             <>
-              <strong>{activeBrief.delegatedLabel ?? "Scouts are searching"}</strong> · returns{" "}
+              <strong>{activeBriefs.length} active {activeBriefs.length === 1 ? "assignment" : "assignments"}</strong>
+              {" "}· {activeBrief.delegatedBy ? "Manager-led" : "Custom"} search
+              {" "}· {(activeBrief.positionBriefs?.map((item) => item.tacticalPosition ?? item.position)
+                ?? activeBrief.positions ?? (activeBrief.position ? [activeBrief.position] : [])).join(", ") || "players"}
+              {" "}· next return{" "}
               {(() => {
-                const d = scoutingBriefDaysRemaining(state, activeBrief.id);
-                return d <= 0 ? "today" : d === 1 ? "tomorrow" : `in ${d} days`;
+                const days = Math.min(...activeBriefs.map((item) => scoutingBriefDaysRemaining(state, item.id)));
+                return days <= 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`;
               })()}
             </>
           ) : latestCompleteBrief ? (
@@ -221,7 +243,7 @@ export function TransferMarket({
             </>
           ) : (
             <>
-              <strong>No search yet</strong> · brief the scouts
+              <strong>No assignments yet</strong> · create a tailored search or delegate manager needs
             </>
           )}
         </div>
@@ -231,8 +253,8 @@ export function TransferMarket({
           onClick={() => onSurface({ kind: "brief" })}
         >
           <Plus className="mr-1 size-3.5" />
-          <span className="sm:hidden">New assignment</span>
-          <span className="hidden sm:inline">New scouting assignment</span>
+          <span className="sm:hidden">Custom search</span>
+          <span className="hidden sm:inline">Create custom scouting search</span>
         </Button>
         {(activeBrief || completeBriefs.length > 0) && (
           <Button
@@ -254,6 +276,10 @@ export function TransferMarket({
           Reports
         </Button>
       </section>
+
+      <p className="shrink-0 px-1 text-[10px] leading-snug text-muted-foreground">
+        Quick assign = one staff-led search based on manager needs. Custom search = you choose positions and limits. Scout on a player = investigate that specific player.
+      </p>
 
       <div className="flex shrink-0 flex-col gap-1">
         <div className="flex gap-1 overflow-x-auto pb-0.5" role="group" aria-label="Market filter">
