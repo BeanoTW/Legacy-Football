@@ -146,7 +146,7 @@ export function ScoutingBriefBuilder({
   return (
     <DetailScreen
       title="New scouting assignment"
-      subtitle="Tell your scouts what kind of player you need. They will return with a small, realistic shortlist."
+      subtitle="Create one scouting assignment with up to several position briefs. The number of positions is not the number of scouts sent."
       actions={
         <Button variant="ghost" size="sm" onClick={onBack}>
           <ArrowLeft className="mr-1.5 size-4" /> Back
@@ -187,7 +187,7 @@ export function ScoutingBriefBuilder({
             <div className="flex items-center justify-between gap-2">
               <span>Positions</span>
               <span className="font-normal text-muted-foreground">
-                {positions.length}/{plan.positionCapacity} slots
+                {positions.length}/{plan.positionCapacity} position briefs
               </span>
             </div>
             <div className="grid grid-cols-4 gap-1.5">
@@ -209,7 +209,7 @@ export function ScoutingBriefBuilder({
               })}
             </div>
             <p className="font-normal text-[10px] text-muted-foreground">
-              Scout quality {plan.quality}: your team can run up to {plan.positionCapacity} tailored position {plan.positionCapacity === 1 ? "brief" : "briefs"} at once.
+              This is one assignment, not {positions.length} separate scout deployments. Scouting quality {plan.quality} allows up to {plan.positionCapacity} position {plan.positionCapacity === 1 ? "brief" : "briefs"} in this search.
             </p>
           </div>
 
@@ -283,7 +283,7 @@ export function ScoutingBriefBuilder({
         <div className="lf-brief-footer sticky bottom-0 -mx-3 mt-3 border-t bg-card px-3 pb-1 pt-2 md:-mx-4 md:px-4">
           <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
             <span className="min-w-0 flex-1 truncate">
-              <span className="font-semibold">{positions.length} {positions.length === 1 ? "search" : "searches"}:</span>{" "}
+              <span className="font-semibold">One assignment · {positions.length} {positions.length === 1 ? "position" : "positions"}:</span>{" "}
               {positions.map((position) => {
                 const level = SCOUTING_PLAYER_LEVELS.find((item) => item.value === drafts[position].playerLevel)?.label ?? drafts[position].playerLevel;
                 return `${position} ${level}`;
@@ -291,7 +291,7 @@ export function ScoutingBriefBuilder({
             </span>
             <span className="shrink-0 text-muted-foreground tnum">Scouts {plan.quality} · ~{plan.searchDays}d · up to {plan.candidateLimit} total</span>
           </div>
-          <Button className="w-full" disabled={sending || invalidBrief || positions.length === 0} onClick={dispatch}><Binoculars className="mr-2 size-4" /> {sending ? "Sending scouts…" : "Send scouts"}</Button>
+          <Button className="w-full" disabled={sending || invalidBrief || positions.length === 0} onClick={dispatch}><Binoculars className="mr-2 size-4" /> {sending ? "Starting assignment…" : "Start this scouting assignment"}</Button>
         </div>
       </section>
     </DetailScreen>
