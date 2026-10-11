@@ -1170,9 +1170,12 @@ export function deskDelegation(state: GameState): {
   const availability = recruitmentDelegationAvailability(state);
   const hasNeeds = managerRecruitmentBrief(state, manager).priorities.length > 0;
   const alreadyActive = Boolean(activeManagerRecruitmentAssignment(state, manager));
+  const anotherSearchActive = (state.football.scoutingDiscovery?.briefs ?? []).some((brief) => brief.status === "active");
   return {
-    available: availability.available && hasNeeds && !alreadyActive,
-    reason: availability.reason,
+    available: availability.available && hasNeeds && !anotherSearchActive,
+    reason: anotherSearchActive && !alreadyActive
+      ? "Wait for the current scouting assignment to return before starting another."
+      : availability.reason,
     alreadyActive,
     hasNeeds,
   };
