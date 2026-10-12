@@ -3,6 +3,8 @@ import {
   Binoculars,
   Clock3,
   Info,
+  Maximize2,
+  Minimize2,
   ChevronDown,
   FileText,
   Handshake,
@@ -82,6 +84,7 @@ export function TransferMarket({
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [confirmDelegation, setConfirmDelegation] = useState(false);
+  const [listExpanded, setListExpanded] = useState(false);
   const rows = useMemo(() => transferMarketRows(state), [state]);
   const manager = userManager(state);
   const brief = useMemo(
@@ -158,8 +161,8 @@ export function TransferMarket({
     );
 
   return (
-    <div className="lf-market-workspace flex h-full min-h-0 flex-col gap-3">
-      {brief && brief.priorities.length > 0 && (
+    <div className={cn("lf-market-workspace flex h-full min-h-0 flex-col gap-3", listExpanded && "is-list-expanded")}>
+      {!listExpanded && brief && brief.priorities.length > 0 && (
         <section className="lf-desk-priorities shrink-0">
           <div className="lf-desk-priorities-head">
             <span className="min-w-0 truncate">
@@ -234,7 +237,8 @@ export function TransferMarket({
         </section>
       )}
 
-      <section className="lf-market-search-panel shrink-0" aria-label="Scouting overview">
+      {!listExpanded && <section className={cn("lf-market-search-panel shrink-0", !activeBrief && "is-idle")} aria-label="Scouting overview">
+        {activeBrief && <>
         <div className="lf-market-section-heading"><span>SCOUTING HQ</span></div>
         <div className="lf-market-status">
           <span className="lf-market-status-icon"><Binoculars className="size-5" /></span>
@@ -258,6 +262,7 @@ export function TransferMarket({
             <div><span>RETURNS</span><strong><Clock3 className="size-3.5" /> {returnLabel}</strong></div>
           </div>
         )}
+        </>}
         <div className="lf-market-section-heading lf-market-actions-label"><span>YOUR NEXT MOVE</span></div>
         <div className="lf-market-action-grid">
           <Button size="sm" className="lf-market-action lf-market-action-primary"
@@ -275,17 +280,28 @@ export function TransferMarket({
             <FileText className="size-4" /><span>Reports</span>
           </Button>
         </div>
-        <p className="lf-market-help"><Info className="size-3.5 shrink-0" />
-          {searchBusy
-            ? "One recruitment search runs at a time. Your next search is available after this report returns."
-            : "Custom search: choose a position. Quick assign: follow manager needs. Individual player scouting is separate."}
-        </p>
-      </section>
+        {activeBrief && (
+          <p className="lf-market-help"><Info className="size-3.5 shrink-0" />
+            One recruitment search runs at a time. The next search opens after the report returns.
+          </p>
+        )}
+      </section>}
 
       <section className="lf-market-results min-h-0 flex flex-1 flex-col" aria-label="Transfer market results">
-        <div className="lf-market-section-heading">
+        <div className="lf-market-section-heading lf-market-results-heading">
           <span>TRANSFER TARGETS</span>
-          <span>{visible.length} {visible.length === 1 ? "player" : "players"}</span>
+          <div className="lf-market-results-tools">
+            <span>{visible.length} {visible.length === 1 ? "player" : "players"}</span>
+            <button type="button"
+              className="lf-market-expand-toggle"
+              onClick={() => setListExpanded((expanded) => !expanded)}
+              aria-label={listExpanded ? "Exit full screen player list" : "Full screen player list"}
+              aria-pressed={listExpanded}
+              title={listExpanded ? "Return to transfer desk" : "Expand player list to fill the screen"}>
+              {listExpanded ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+              <span>{listExpanded ? "Exit full screen" : "Full screen"}</span>
+            </button>
+          </div>
         </div>
         <div className="lf-market-filter-bar" role="group" aria-label="Market filters">
           {FILTERS.map((value) => {
