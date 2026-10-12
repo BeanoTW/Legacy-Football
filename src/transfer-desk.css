@@ -139,3 +139,20 @@
   .lf-market-status-facts{gap:0.22rem;}
   .lf-market-status-facts>div{padding:0.5rem 0.35rem;}
 }
+
+
+/* Give target browsing priority: collapse idle scouting and expand the list on demand. */
+.lf-market-search-panel.is-idle{padding:0.65rem 0.7rem 0.7rem;}
+.lf-market-search-panel.is-idle .lf-market-actions-label{display:none;}
+.lf-market-search-panel.is-idle .lf-market-action-grid{margin-top:0.3rem;}
+.lf-market-results-heading{min-height:2.3rem;}
+.lf-market-results-tools{display:flex;align-items:center;gap:0.55rem;min-width:0;}
+.lf-market-results-tools>span{font-size:0.7rem;white-space:nowrap;}
+.lf-market-expand-toggle{display:inline-flex;align-items:center;justify-content:center;gap:0.35rem;min-height:2.25rem;padding:0.2rem 0.55rem;border:1px solid color-mix(in oklab,var(--color-primary) 48%,var(--desk-line));border-radius:0.5rem;background:color-mix(in oklab,var(--color-primary) 13%,var(--color-card));color:var(--color-foreground);font-size:0.72rem;font-weight:800;letter-spacing:0;text-transform:none;cursor:pointer;}
+.lf-market-expand-toggle:focus-visible{outline:2px solid var(--color-primary);outline-offset:2px;}
+.lf-market-expand-toggle:hover{background:color-mix(in oklab,var(--color-primary) 23%,var(--color-card));}
+.lf-market-workspace.is-list-expanded{position:fixed;inset:0;z-index:40;width:100vw;height:100dvh;max-width:none;min-height:0;padding:max(0.65rem,env(safe-area-inset-top)) 0.65rem max(0.65rem,env(safe-area-inset-bottom));overflow:hidden;background:var(--color-background);}
+.lf-market-workspace.is-list-expanded .lf-market-results{width:100%;height:100%;min-height:0;flex:1;box-shadow:none;}
+.lf-market-workspace.is-list-expanded .lf-market-results-heading{padding-bottom:0.45rem;border-bottom:1px solid var(--desk-line);}
+.lf-market-workspace.is-list-expanded .contained-scroll{min-height:0;flex:1;overscroll-behavior:contain;}
+@media(max-width:420px){.lf-market-expand-toggle{padding:0.2rem 0.4rem;}.lf-market-results-tools{gap:0.3rem;}.lf-market-workspace.is-list-expanded{padding-left:0.35rem;padding-right:0.35rem;}}
