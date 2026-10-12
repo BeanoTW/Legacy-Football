@@ -235,7 +235,7 @@ export function TransferMarket({
       )}
 
       <section className="lf-market-search-panel shrink-0" aria-label="Scouting overview">
-        <div className="lf-market-section-heading"><span>01 / SCOUTING STATUS</span></div>
+        <div className="lf-market-section-heading"><span>SCOUTING HQ</span></div>
         <div className="lf-market-status">
           <span className="lf-market-status-icon"><Binoculars className="size-5" /></span>
           <div className="min-w-0 flex-1">
@@ -253,12 +253,12 @@ export function TransferMarket({
         </div>
         {activeBrief && (
           <div className="lf-market-status-facts">
-            <div><span>SEARCH</span><strong>{activeBrief.delegatedBy ? "Manager-led" : "Custom"}</strong></div>
-            <div><span>POSITION</span><strong>{activeRoles.join(", ") || "Any player"}</strong></div>
+            <div><span>TYPE</span><strong>{activeBrief.delegatedBy ? "Manager-led" : "Custom"}</strong></div>
+            <div><span>TARGET</span><strong>{activeRoles.join(", ") || "Any player"}</strong></div>
             <div><span>RETURNS</span><strong><Clock3 className="size-3.5" /> {returnLabel}</strong></div>
           </div>
         )}
-        <div className="lf-market-section-heading lf-market-actions-label"><span>02 / ACTIONS</span></div>
+        <div className="lf-market-section-heading lf-market-actions-label"><span>YOUR NEXT MOVE</span></div>
         <div className="lf-market-action-grid">
           <Button size="sm" className="lf-market-action lf-market-action-primary"
             disabled={searchBusy}
@@ -284,7 +284,7 @@ export function TransferMarket({
 
       <section className="lf-market-results min-h-0 flex flex-1 flex-col" aria-label="Transfer market results">
         <div className="lf-market-section-heading">
-          <span>03 / PLAYER MARKET</span>
+          <span>TRANSFER TARGETS</span>
           <span>{visible.length} {visible.length === 1 ? "player" : "players"}</span>
         </div>
         <div className="lf-market-filter-bar" role="group" aria-label="Market filters">
