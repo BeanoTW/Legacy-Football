@@ -336,7 +336,7 @@ export function TransferMarket({
               <Button size="sm" onClick={() => onSurface({ kind: "brief" })}>
                 <Plus className="mr-1.5 size-4" /> Start scouting
               </Button>
-            )
+            )}
           </div>
         ) : (
           <div className="overflow-hidden rounded-xl border bg-card">
