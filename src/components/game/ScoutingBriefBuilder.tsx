@@ -161,7 +161,6 @@ export function ScoutingBriefBuilder({
       }
     >
       <section className="lf-brief max-w-2xl rounded-xl border bg-card p-3 shadow-sm md:p-4">
-        <p className="text-xs text-muted-foreground">Set the assignment. Staff judge what "first-team" or "star" means for your squad and prioritise players who are realistic moves.</p>
         {manager && managerFit && recruitmentBrief && (
           <div className="mt-2.5 rounded-lg border border-primary/20 bg-primary/[0.04] px-2.5 py-2">
             <div className="flex items-center gap-2">
@@ -215,9 +214,6 @@ export function ScoutingBriefBuilder({
                 );
               })}
             </div>
-            <p className="font-normal text-[10px] text-muted-foreground">
-              You can search {plan.positionCapacity} {plan.positionCapacity === 1 ? "position" : "positions"} per assignment at scout quality {plan.quality}. {plan.positionCapacity === 1 ? "Tap any position above to change your choice." : "Select your positions above."} Once the report arrives, start another search for any position, including the same one.
-            </p>
           </div>
 
           <div className="flex gap-1.5 overflow-x-auto pb-1">
