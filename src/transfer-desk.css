@@ -33,3 +33,109 @@
 .lf-market-results .lf-desk-empty button{min-height:2.5rem;padding:0 1rem;font-weight:750;}
 .lf-market-results .lf-desk-market-row+.lf-desk-market-row{border-top-color:color-mix(in oklab,var(--color-foreground) 17%,var(--desk-line));}
 @media(max-width:420px){.lf-market-search-panel,.lf-market-results{padding-left:0.55rem;padding-right:0.55rem;}.lf-market-action-grid .lf-market-action{flex-direction:column;gap:0.23rem;font-size:0.7rem;}.lf-market-status-facts>div{padding:0.5rem 0.3rem;}.lf-market-status-facts strong{font-size:0.72rem;}}
+
+
+/* Football desk personality: cool scouting blue, warm contract gold and richer team teal.
+   Theme-aware mixes preserve legibility in light and dark modes. */
+.lf-transfer-desk .lf-desk-briefing .lf-desk-brief.is-info{
+  border-left-color:oklch(0.66 0.13 215);
+  background:linear-gradient(125deg,color-mix(in oklab,oklch(0.66 0.13 215) 13%,var(--color-card)),var(--color-card) 78%);
+}
+.lf-transfer-desk .lf-desk-briefing .lf-desk-brief.is-attention{
+  border-left-color:oklch(0.74 0.15 83);
+  background:linear-gradient(125deg,color-mix(in oklab,oklch(0.74 0.15 83) 14%,var(--color-card)),var(--color-card) 78%);
+}
+.lf-market-workspace{--market-blue:oklch(0.65 0.135 228);--market-gold:oklch(0.76 0.14 82);--market-purple:oklch(0.64 0.15 302);}
+.lf-market-search-panel{
+  position:relative;
+  border:1px solid color-mix(in oklab,var(--market-blue) 44%,var(--desk-line));
+  border-top:0;
+  background:linear-gradient(135deg,color-mix(in oklab,var(--market-blue) 14%,var(--color-card)),var(--color-card) 58%);
+  box-shadow:0 5px 18px rgb(0 0 0 / 10%);
+}
+.lf-market-search-panel:before{
+  content:"";position:absolute;top:0;left:0;right:0;height:4px;border-radius:0.9rem 0.9rem 0 0;
+  background:linear-gradient(90deg,var(--color-primary),var(--market-blue),var(--market-purple));
+}
+.lf-market-search-panel>.lf-market-section-heading:first-child{margin-top:0.2rem;color:color-mix(in oklab,var(--market-blue) 58%,var(--color-foreground));}
+.lf-market-section-heading{font-size:0.68rem;letter-spacing:0.055em;}
+.lf-market-status{padding-top:0.72rem;padding-bottom:0.65rem;}
+.lf-market-status-icon{
+  width:2.6rem;height:2.6rem;border-color:color-mix(in oklab,var(--market-blue) 45%,var(--desk-line));
+  background:color-mix(in oklab,var(--market-blue) 18%,var(--color-card));
+  color:color-mix(in oklab,var(--market-blue) 65%,var(--color-foreground));
+}
+.lf-market-status-title{font-size:1.04rem;letter-spacing:-0.015em;}
+.lf-market-status-description{font-size:0.76rem;}
+.lf-market-status-facts{
+  gap:0.3rem;border:0;background:transparent;border-radius:0;overflow:visible;
+}
+.lf-market-status-facts>div{
+  min-height:3.4rem;border:1px solid color-mix(in oklab,var(--market-blue) 35%,var(--desk-line));
+  border-radius:0.55rem;
+  background:color-mix(in oklab,var(--market-blue) 11%,var(--color-card));
+}
+.lf-market-status-facts>div+div{border-left:1px solid color-mix(in oklab,var(--market-blue) 35%,var(--desk-line));}
+.lf-market-status-facts>div:nth-child(2){
+  border-color:color-mix(in oklab,var(--market-purple) 36%,var(--desk-line));
+  background:color-mix(in oklab,var(--market-purple) 11%,var(--color-card));
+}
+.lf-market-status-facts>div:nth-child(3){
+  border-color:color-mix(in oklab,var(--market-gold) 44%,var(--desk-line));
+  background:color-mix(in oklab,var(--market-gold) 15%,var(--color-card));
+}
+.lf-market-status-facts span{font-size:0.58rem;}
+.lf-market-status-facts strong{font-size:0.8rem;}
+.lf-market-actions-label{margin-top:0.8rem;border-top-color:color-mix(in oklab,var(--market-blue) 28%,var(--desk-line));}
+.lf-market-action-grid .lf-market-action{
+  border-radius:0.65rem;min-height:2.75rem;font-weight:800;
+  transition:background 120ms,border-color 120ms,transform 120ms;
+}
+.lf-market-action-grid .lf-market-action:nth-child(2):not(:disabled){
+  border-color:color-mix(in oklab,var(--market-blue) 48%,var(--desk-line));
+  background:color-mix(in oklab,var(--market-blue) 14%,var(--color-card));
+}
+.lf-market-action-grid .lf-market-action:nth-child(3):not(:disabled){
+  border-color:color-mix(in oklab,var(--market-purple) 43%,var(--desk-line));
+  background:color-mix(in oklab,var(--market-purple) 13%,var(--color-card));
+}
+.lf-market-action-grid .lf-market-action:active:not(:disabled){transform:scale(0.98);}
+.lf-market-help{margin-top:0.75rem;border-color:color-mix(in oklab,var(--market-blue) 18%,var(--desk-line));background:color-mix(in oklab,var(--market-blue) 6%,var(--color-card));}
+.lf-market-results{
+  border-color:color-mix(in oklab,var(--color-primary) 29%,var(--desk-line));
+  background:linear-gradient(180deg,color-mix(in oklab,var(--color-primary) 7%,var(--color-card)),var(--color-card) 34%);
+  box-shadow:0 4px 15px rgb(0 0 0 / 8%);
+}
+.lf-market-results>.lf-market-section-heading{color:color-mix(in oklab,var(--color-primary) 65%,var(--color-foreground));}
+.lf-market-filter-bar .lf-chip{background:color-mix(in oklab,var(--color-card) 86%,var(--color-muted));}
+.lf-market-filter-bar .lf-chip.is-active{
+  box-shadow:0 2px 9px color-mix(in oklab,var(--color-primary) 18%,transparent);
+}
+.lf-market-results .lf-desk-empty{
+  position:relative;overflow:hidden;
+  border:1px dashed color-mix(in oklab,var(--color-primary) 38%,var(--desk-line));
+  background:radial-gradient(ellipse at 50% 10%,color-mix(in oklab,var(--color-primary) 15%,transparent),transparent 65%),var(--color-card);
+}
+.lf-market-results .lf-desk-empty>svg{
+  width:2.4rem;height:2.4rem;padding:0.35rem;border-radius:0.75rem;
+  background:color-mix(in oklab,var(--color-primary) 16%,var(--color-card));
+  color:color-mix(in oklab,var(--color-primary) 65%,var(--color-foreground));
+}
+.lf-market-results .lf-desk-empty h2{font-size:1.13rem;}
+.lf-market-results .lf-desk-empty button:not(:disabled){
+  background:var(--color-primary);color:var(--color-primary-foreground);
+  box-shadow:0 3px 11px color-mix(in oklab,var(--color-primary) 22%,transparent);
+}
+/* Manager needs are prompts, not another spreadsheet: soft amber urgency. */
+.lf-market-workspace .lf-desk-priorities{
+  border-color:color-mix(in oklab,var(--market-gold) 55%,var(--desk-line));
+  background:linear-gradient(110deg,color-mix(in oklab,var(--market-gold) 14%,var(--color-card)),var(--color-card) 75%);
+}
+.lf-market-workspace .lf-desk-need.is-top{
+  border-color:color-mix(in oklab,var(--market-gold) 65%,var(--desk-line));
+  background:color-mix(in oklab,var(--market-gold) 12%,var(--color-card));
+}
+@media(max-width:420px){
+  .lf-market-status-facts{gap:0.22rem;}
+  .lf-market-status-facts>div{padding:0.5rem 0.35rem;}
+}
