@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import {
   Binoculars,
+  Clock3,
+  Info,
   ChevronDown,
   FileText,
   Handshake,
@@ -91,6 +93,15 @@ export function TransferMarket({
   const activeBriefs = briefs.filter((candidate) => candidate.status === "active");
   const activeBrief = activeBriefs[0] ?? null;
   const searchBusy = activeBriefs.length > 0;
+  const activeRoles = activeBrief
+    ? (activeBrief.positionBriefs?.map((item) => item.tacticalPosition ?? item.position)
+      ?? activeBrief.positions ?? (activeBrief.position ? [activeBrief.position] : []))
+    : [];
+  const nextReturnDays = activeBrief
+    ? Math.min(...activeBriefs.map((item) => scoutingBriefDaysRemaining(state, item.id)))
+    : null;
+  const returnLabel = nextReturnDays === null ? "" :
+    nextReturnDays <= 0 ? "Today" : nextReturnDays === 1 ? "Tomorrow" : `In ${nextReturnDays} days`;
   const delegationRoles = brief?.priorities.slice(0, Math.max(1, Math.min(4, state.hiredStaff.filter((staff) => staff.role === "Scout" || staff.role === "Chief Scout").length || 1))) ?? [];
   const completeBriefs = briefs.filter((candidate) => candidate.status === "complete");
   const latestCompleteBrief = [...completeBriefs].sort(
@@ -147,7 +158,7 @@ export function TransferMarket({
     );
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-1.5">
+    <div className="lf-market-workspace flex h-full min-h-0 flex-col gap-3">
       {brief && brief.priorities.length > 0 && (
         <section className="lf-desk-priorities shrink-0">
           <div className="lf-desk-priorities-head">
@@ -223,99 +234,82 @@ export function TransferMarket({
         </section>
       )}
 
-      <section className="lf-desk-search shrink-0">
-        <Binoculars className="size-4 shrink-0 text-primary" />
-        <div className="min-w-0 flex-1 truncate text-xs">
-          {activeBrief ? (
-            <>
-              <strong>Scouting in progress</strong>
-              {" "}· {activeBrief.delegatedBy ? "Manager-led" : "Custom"} search
-              {" "}· {(activeBrief.positionBriefs?.map((item) => item.tacticalPosition ?? item.position)
-                ?? activeBrief.positions ?? (activeBrief.position ? [activeBrief.position] : [])).join(", ") || "players"}
-              {" "}· next return{" "}
-              {(() => {
-                const days = Math.min(...activeBriefs.map((item) => scoutingBriefDaysRemaining(state, item.id)));
-                return days <= 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`;
-              })()}
-            </>
-          ) : latestCompleteBrief ? (
-            <>
-              <strong>Ready for another search</strong> · last report: {latestCompleteBrief.candidateIds.length} option{latestCompleteBrief.candidateIds.length === 1 ? "" : "s"}
-            </>
-          ) : (
-            <>
-              <strong>No assignments yet</strong> · create a tailored search or delegate manager needs
-            </>
-          )}
+      <section className="lf-market-search-panel shrink-0" aria-label="Scouting overview">
+        <div className="lf-market-section-heading"><span>SCOUTING HQ</span></div>
+        <div className="lf-market-status">
+          <span className="lf-market-status-icon"><Binoculars className="size-5" /></span>
+          <div className="min-w-0 flex-1">
+            <div className="lf-market-status-title">
+              {activeBrief ? "Scouting in progress" : latestCompleteBrief ? "Ready for another search" : "No active search"}
+            </div>
+            <div className="lf-market-status-description">
+              {activeBrief
+                ? "Your scouts are searching. The next assignment unlocks when the report arrives."
+                : latestCompleteBrief
+                  ? `Last report returned ${latestCompleteBrief.candidateIds.length} ${latestCompleteBrief.candidateIds.length === 1 ? "player" : "players"}.`
+                  : "Choose a position to find realistic transfer targets."}
+            </div>
+          </div>
         </div>
-        <Button
-          size="sm"
-          className="h-7 px-1.5 text-[11px] sm:h-8 sm:px-2 sm:text-xs"
-          disabled={searchBusy}
-          title={searchBusy ? "Available when your current scouting report returns" : "Start a new search for any position"}
-          onClick={() => onSurface({ kind: "brief" })}
-        >
-          <Plus className="mr-1 size-3.5" />
-          <span className="sm:hidden">Custom search</span>
-          <span className="hidden sm:inline">Create custom scouting search</span>
-        </Button>
-        {(activeBrief || completeBriefs.length > 0) && (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 px-1.5 text-[11px] sm:h-8 sm:px-2 sm:text-xs"
-            onClick={() => onSurface({ kind: "recommended" })}
-          >
-            Recommended
-          </Button>
+        {activeBrief && (
+          <div className="lf-market-status-facts">
+            <div><span>TYPE</span><strong>{activeBrief.delegatedBy ? "Manager-led" : "Custom"}</strong></div>
+            <div><span>TARGET</span><strong>{activeRoles.join(", ") || "Any player"}</strong></div>
+            <div><span>RETURNS</span><strong><Clock3 className="size-3.5" /> {returnLabel}</strong></div>
+          </div>
         )}
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 px-1.5 text-[11px] sm:h-8 sm:px-2 sm:text-xs"
-          onClick={() => onSurface({ kind: "reports" })}
-        >
-          <FileText className="mr-1 size-3.5" />
-          Reports
-        </Button>
+        <div className="lf-market-section-heading lf-market-actions-label"><span>YOUR NEXT MOVE</span></div>
+        <div className="lf-market-action-grid">
+          <Button size="sm" className="lf-market-action lf-market-action-primary"
+            disabled={searchBusy}
+            title={searchBusy ? "Wait until the active scouting report arrives" : "Choose the next position to scout"}
+            onClick={() => onSurface({ kind: "brief" })}>
+            <Plus className="size-4" /><span>New search</span>
+          </Button>
+          <Button size="sm" variant="outline" className="lf-market-action"
+            onClick={() => onSurface({ kind: "recommended" })} disabled={briefs.length === 0}>
+            <Binoculars className="size-4" /><span>Scouting list</span>
+          </Button>
+          <Button size="sm" variant="outline" className="lf-market-action"
+            onClick={() => onSurface({ kind: "reports" })}>
+            <FileText className="size-4" /><span>Reports</span>
+          </Button>
+        </div>
+        <p className="lf-market-help"><Info className="size-3.5 shrink-0" />
+          {searchBusy
+            ? "One recruitment search runs at a time. Your next search is available after this report returns."
+            : "Custom search: choose a position. Quick assign: follow manager needs. Individual player scouting is separate."}
+        </p>
       </section>
 
-      <p className="shrink-0 px-1 text-[10px] leading-snug text-muted-foreground">
-        One recruitment search at a time. After its report returns, you can scout any position again. Quick assign uses manager needs; custom search uses your own brief; individual player scouting is separate.
-      </p>
-
-      <div className="flex shrink-0 flex-col gap-1">
-        <div className="flex gap-1 overflow-x-auto pb-0.5" role="group" aria-label="Market filter">
+      <section className="lf-market-results min-h-0 flex flex-1 flex-col" aria-label="Transfer market results">
+        <div className="lf-market-section-heading">
+          <span>TRANSFER TARGETS</span>
+          <span>{visible.length} {visible.length === 1 ? "player" : "players"}</span>
+        </div>
+        <div className="lf-market-filter-bar" role="group" aria-label="Market filters">
           {FILTERS.map((value) => {
             const count = rows.filter(
               (row) => marketRowMatches(row, value) && (!position || row.position === position),
             ).length;
             return (
-              <button
-                key={value}
-                type="button"
+              <button key={value} type="button" aria-pressed={filter === value}
                 className={cn("lf-chip shrink-0", filter === value && "is-active")}
-                onClick={() => onFilter(value)}
-              >
+                onClick={() => onFilter(value)}>
                 {MARKET_FILTER_LABEL[value]}
                 <span className="ml-1 tabular-nums opacity-70">{count}</span>
               </button>
             );
           })}
-          <span className="mx-0.5 w-px shrink-0 bg-border" />
+          <span className="lf-market-filter-separator" aria-hidden="true" />
           {POSITIONS.map((value) => (
-            <button
-              key={value}
-              type="button"
+            <button key={value} type="button" aria-pressed={position === value}
               className={cn("lf-chip shrink-0", position === value && "is-active")}
-              onClick={() => onPosition(position === value ? null : value)}
-            >
+              onClick={() => onPosition(position === value ? null : value)}>
               {value}
             </button>
           ))}
         </div>
-      </div>
-
       <div className="contained-scroll min-h-0 flex-1 pr-0.5">
         {visible.length === 0 ? (
           <div className="lf-desk-empty">
@@ -324,13 +318,25 @@ export function TransferMarket({
               {rows.length ? "No staff recommendations match" : "No players on your desk"}
             </h2>
             <p>
-              Recruitment only puts realistic options on your desk. Send the scouts a new assignment
-              to bring back a small shortlist that fits your club and the manager's needs.
+              {searchBusy
+                ? "Your scouts are working. Players will appear here when the report returns."
+                : rows.length
+                  ? "Try another filter or clear the position filter to see more players."
+                  : "Start a scouting search to get realistic transfer targets."}
             </p>
-            <Button size="sm" onClick={() => onSurface({ kind: "brief" })}>
-              <Plus className="mr-1.5 size-4" />
-              New scouting assignment
-            </Button>
+            {searchBusy ? (
+              <Button size="sm" variant="outline" onClick={() => onSurface({ kind: "recommended" })}>
+                <Clock3 className="mr-1.5 size-4" /> View active search
+              </Button>
+            ) : rows.length ? (
+              <Button size="sm" variant="outline" onClick={() => { onFilter("all"); onPosition(null); }}>
+                Clear filters
+              </Button>
+            ) : (
+              <Button size="sm" onClick={() => onSurface({ kind: "brief" })}>
+                <Plus className="mr-1.5 size-4" /> Start scouting
+              </Button>
+            )}
           </div>
         ) : (
           <div className="overflow-hidden rounded-xl border bg-card">
@@ -353,6 +359,7 @@ export function TransferMarket({
           </div>
         )}
       </div>
+      </section>
     </div>
   );
 }
