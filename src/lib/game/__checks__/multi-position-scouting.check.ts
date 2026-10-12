@@ -60,7 +60,7 @@ assert(
     ui.includes("plan.positionCapacity === 1") &&
     ui.includes("return [next]") &&
     ui.includes("plan.positionCapacity > 1 && positions.length >= plan.positionCapacity") &&
-    ui.includes("You can search {plan.positionCapacity}"),
+    ui.includes("{positions.length}/{plan.positionCapacity} position briefs"),
   "brief builder visibly limits multi-position selection by scouting capacity",
 );
 
