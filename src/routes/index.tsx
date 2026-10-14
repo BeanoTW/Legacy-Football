@@ -425,7 +425,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
       />
 
       {/* Tablet and desktop retain the full Continue bar. */}
-      <div className="hidden md:block">
+      <div className="hidden md:block lf-tablet-continue">
         <MobileContinueBar
           isContinuing={isContinuing}
           startContinue={() => requestContinue()}
