@@ -372,7 +372,7 @@ function MarketRowView({
         row.priorityRank === 0 && "is-priority",
       )}
     >
-      <button type="button" className="lf-desk-market-main" onClick={onToggle} aria-expanded={open}>
+      <button type="button" className="lf-desk-market-main" onClick={onToggle} aria-expanded={open} aria-label={`Show actions for ${row.name}`}>
         <span className="lf-desk-pos">{row.tacticalPosition}</span>
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 items-center gap-1">
@@ -397,14 +397,21 @@ function MarketRowView({
                 {row.priorityRank === 0 ? "Top priority" : "Squad need"}
               </span>
             )}
-            {row.recommended && <span className="is-scout-report" title="Player returned in a position search with an initial scouting assessment">Scout report</span>}
-            {row.scouting === "active" && <span className="is-scouting">Further scouting</span>}
-            {row.scouting === "complete" && <span className="is-report-ready">Detailed report ready</span>}
-            <span title={row.interestReason}>{row.interestLabel}</span>
-            {row.freeAgent && <span>Free</span>}
-            {row.listed && <span>Listed</span>}
-            {row.loanAvailable && <span>Loan</span>}
+            {row.scouting === "complete" ? (
+              <span className="is-report-ready" title="Individual scouting finished; detailed report available">Detailed report ready</span>
+            ) : row.scouting === "active" ? (
+              <span className="is-scouting" title="Your scout is preparing a more detailed assessment">Further scouting</span>
+            ) : row.recommended ? (
+              <span className="is-scout-report" title="Initial report from a staff scouting search">Scout report</span>
+            ) : null}
           </span>
+          <span className="lf-market-player-details" title={row.interestReason}>
+            {row.interestLabel}
+            {row.freeAgent && " · Free agent"}
+            {row.listed && !row.freeAgent && " · Listed"}
+            {row.loanAvailable && !row.freeAgent && " · Loan option"}
+          </span>
+
         </span>
         <span className="lf-desk-ovr">
           <span className="block font-display text-base leading-none">{row.overallLabel}</span>
@@ -438,7 +445,7 @@ function MarketRowView({
           ) : (
             <Button size="sm" variant="outline" className="h-8 px-2 text-xs" onClick={onReport}>
               <FileText className="mr-1 size-3.5" />
-              {row.reportComplete ? "Detailed report" : "Further scouting underway"}
+              {row.reportComplete ? "Report" : "Scouting progress"}
             </Button>
           )}
           {row.negotiationId ? (
@@ -455,7 +462,7 @@ function MarketRowView({
               onClick={onApproach}
             >
               <Handshake className="mr-1 size-3.5" />
-              {row.freeAgent ? "Approach player" : "Approach club"}
+              {row.negotiationId ? "Open talks" : "Approach"}
             </Button>
           )}
           <Button
@@ -465,7 +472,7 @@ function MarketRowView({
             onClick={() => openPlayerProfile(row.player.id)}
           >
             <UserRound className="mr-1 size-3.5" />
-            Profile{row.loanAvailable ? " · loan" : ""}
+            Profile
           </Button>
         </div>
       )}
