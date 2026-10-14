@@ -337,3 +337,23 @@
 .lf-transfer-desk .lf-desk-tags .is-report-ready{
   border:1px solid color-mix(in oklab,oklch(0.72 0.13 160) 34%,var(--desk-line));
 }
+
+
+/* The selected manager-need chip is a position filter, not a white-on-white button.
+   Use readable ink over the gold highlight in both colour themes. */
+.lf-transfer-desk .lf-market-workspace .lf-desk-priorities .lf-desk-need.is-active,
+.lf-transfer-desk .lf-market-workspace .lf-desk-priorities .lf-desk-need.is-active:hover,
+.lf-transfer-desk .lf-market-workspace .lf-desk-priorities .lf-desk-need.is-active:focus-visible{
+  color:var(--color-foreground);
+  background:color-mix(in oklab,var(--market-gold) 24%,var(--color-card));
+  border-color:color-mix(in oklab,var(--market-gold) 65%,var(--desk-line));
+  box-shadow:inset 0 0 0 1px color-mix(in oklab,var(--market-gold) 27%,transparent);
+}
+.lf-transfer-desk .lf-market-workspace .lf-desk-priorities .lf-desk-need.is-active .lf-desk-need-role{
+  color:var(--color-foreground);
+  background:color-mix(in oklab,var(--market-gold) 28%,var(--color-card));
+}
+.lf-transfer-desk .lf-market-workspace .lf-desk-priorities .lf-desk-need.is-active .lf-desk-need-level{
+  color:var(--color-foreground);
+  opacity:0.8;
+}
