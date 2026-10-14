@@ -234,7 +234,7 @@ export function TransferMarket({
           </Button>
           <Button size="sm" variant="outline" className="lf-market-action"
             onClick={() => { onFilter("shortlist"); onPosition(null); }} aria-pressed={filter === "shortlist"}>
-            <Star className="size-4" /><span>Watchlist</span>
+            <Star className="size-4" /><span>Shortlist</span>
           </Button>
         </div>
       </section>}
@@ -283,13 +283,13 @@ export function TransferMarket({
           <div className="lf-desk-empty">
             <Binoculars className="size-7 text-muted-foreground" />
             <h2 className="font-display text-lg">
-              {filter === "shortlist" ? "Your watchlist is empty" : rows.length ? "No players match these filters" : "No players discovered yet"}
+              {filter === "shortlist" ? "Your shortlist is empty" : rows.length ? "No players match these filters" : "No players discovered yet"}
             </h2>
             <p>
               {searchBusy
                 ? "Your scouts are working. Players will appear here when the report returns."
                 : rows.length
-                  ? filter === "shortlist" ? "Star an interesting player to keep them on your watchlist." : "Try another filter or clear the position filter to see more players."
+                  ? filter === "shortlist" ? "Star players you want to keep on your shortlist." : "Try another filter or clear the position filter to see more players."
                   : "Start a scouting search to get realistic transfer targets."}
             </p>
             {searchBusy ? (
@@ -369,7 +369,7 @@ function MarketRowView({
             {row.shortlisted && (
               <Star
                 className="size-3 shrink-0 fill-amber-400 text-amber-400"
-                aria-label="On watchlist"
+                aria-label="Shortlisted"
               />
             )}
           </span>
@@ -386,9 +386,9 @@ function MarketRowView({
                 {row.priorityRank === 0 ? "Top priority" : "Squad need"}
               </span>
             )}
-            {row.recommended && <span>Recommended</span>}
-            {row.scouting === "active" && <span className="is-scouting">Scouting</span>}
-            {row.scouting === "complete" && <span className="is-report-ready">Report ready</span>}
+            {row.recommended && <span className="is-scout-report" title="Player returned in a position search with an initial scouting assessment">Scout report</span>}
+            {row.scouting === "active" && <span className="is-scouting">Further scouting</span>}
+            {row.scouting === "complete" && <span className="is-report-ready">Detailed report ready</span>}
             <span title={row.interestReason}>{row.interestLabel}</span>
             {row.freeAgent && <span>Free</span>}
             {row.listed && <span>Listed</span>}
@@ -417,17 +417,17 @@ function MarketRowView({
             onClick={onShortlist}
           >
             <Star className={cn("mr-1 size-3.5", row.shortlisted && "fill-current")} />
-            {row.shortlisted ? "Remove from watchlist" : "Add to watchlist"}
+            {row.shortlisted ? "Remove from shortlist" : "Add to shortlist"}
           </Button>
           {row.scouting === "none" ? (
             <Button size="sm" variant="outline" className="h-8 px-2 text-xs" onClick={onScout}>
               <Binoculars className="mr-1 size-3.5" />
-              {row.knowledgePct > 0 ? "Scout further" : "Scout"}
+              {row.knowledgePct > 0 ? "Scout further" : "Scout player"}
             </Button>
           ) : (
             <Button size="sm" variant="outline" className="h-8 px-2 text-xs" onClick={onReport}>
               <FileText className="mr-1 size-3.5" />
-              {row.reportComplete ? "Read report" : "Scouting progress"}
+              {row.reportComplete ? "Detailed report" : "Further scouting underway"}
             </Button>
           )}
           {row.negotiationId ? (

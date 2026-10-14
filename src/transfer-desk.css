@@ -323,3 +323,17 @@
   background:color-mix(in oklab,oklch(0.72 0.13 160) 19%,var(--color-card));
   color:color-mix(in oklab,oklch(0.72 0.13 160) 65%,var(--color-foreground));
 }
+
+
+/* Recruitment report hierarchy: first-look scout reports vs detailed follow-up reports. */
+.lf-transfer-desk .lf-desk-tags .is-scout-report{
+  background:color-mix(in oklab,oklch(0.71 0.12 220) 19%,var(--color-card));
+  color:color-mix(in oklab,oklch(0.71 0.12 220) 72%,var(--color-foreground));
+  border:1px solid color-mix(in oklab,oklch(0.71 0.12 220) 35%,var(--desk-line));
+}
+.lf-transfer-desk .lf-desk-tags .is-scouting{
+  border:1px solid color-mix(in oklab,oklch(0.68 0.12 250) 34%,var(--desk-line));
+}
+.lf-transfer-desk .lf-desk-tags .is-report-ready{
+  border:1px solid color-mix(in oklab,oklch(0.72 0.13 160) 34%,var(--desk-line));
+}

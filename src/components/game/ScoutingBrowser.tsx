@@ -173,7 +173,7 @@ export function ScoutingBrowser({
   if (!brief) {
     return (
       <DetailScreen
-        title="Recruitment options"
+        title="Scout reports"
         subtitle="No scouting search has been commissioned"
         actions={<Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="mr-2 size-4" /> Back</Button>}
         toolbar={toolbar}
@@ -189,7 +189,7 @@ export function ScoutingBrowser({
   if (brief.status === "active") {
     return (
       <DetailScreen
-        title="Recruitment options"
+        title="Scout reports"
         subtitle={`Scouts are working on ${searchLabel.toLowerCase()} · ${daysRemaining} day${daysRemaining === 1 ? "" : "s"} remaining`}
         actions={<Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="mr-2 size-4" /> Back</Button>}
         toolbar={toolbar}
@@ -212,7 +212,7 @@ export function ScoutingBrowser({
 
   return (
     <DetailScreen
-      title="Recruitment options"
+      title="Scout reports"
       subtitle={tailoredCount > 1 ? `${rows.length} options across ${tailoredCount} tailored position briefs` : `${rows.length} ${searchLabel.toLowerCase()} options brought to your attention by the football staff`}
       actions={<Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="mr-2 size-4" /> Back</Button>}
       toolbar={toolbar}

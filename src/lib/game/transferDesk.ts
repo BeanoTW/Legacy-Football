@@ -794,8 +794,8 @@ export function clubEmploymentLabel(state: GameState): string {
 export type MarketFilter = "all" | "shortlist" | "scouted" | "free" | "listed" | "loans";
 export const MARKET_FILTER_LABEL: Record<MarketFilter, string> = {
   all: "All players",
-  shortlist: "Watchlist",
-  scouted: "Individually scouted",
+  shortlist: "Shortlist",
+  scouted: "Further scouted",
   free: "Free",
   listed: "Listed",
   loans: "Loans",
