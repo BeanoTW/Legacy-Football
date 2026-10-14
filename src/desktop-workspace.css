@@ -797,7 +797,7 @@
 @media(min-width:1280px){
   .game-shell{height:100dvh;max-height:100dvh;overflow:hidden;display:flex;flex-direction:column;min-height:0;}
   .game-shell>.lf-masthead,.game-shell>.lf-kpi-ribbon,.game-shell>.lf-primary-nav{display:none!important;}
-  .game-shell>.hidden.md\\:block{display:none!important;}
+  .game-shell>.lf-tablet-continue{display:none!important;}
   .lf-executive-header{
     display:flex;align-items:center;gap:0.6rem;flex:none;
     height:3.75rem;min-height:3.75rem;padding:0.35rem 0.7rem;
