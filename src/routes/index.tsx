@@ -270,8 +270,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
       <PlayerProfileSheet state={state} update={update} />
       <ChairmanStudio open={chairmanStudioOpen} onOpenChange={setChairmanStudioOpen} showName={false} />
       <ClubIdentitySheet open={clubIdentityOpen} onOpenChange={setClubIdentityOpen} state={state} update={update} />
-      {tab !== "recruitment" && (
-        <div className="lf-masthead shrink-0">
+      <div className="lf-masthead shrink-0">
           <TopBar
             title={state.clubName}
             subtitle={clubNickname(state)}
@@ -303,8 +302,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
               </div>
             }
           />
-        </div>
-      )}
+      </div>
 
       <div className="lf-kpi-ribbon shrink-0 border-b bg-panel text-panel-foreground hidden xl:block">
         <div className="mx-auto max-w-[1600px] px-5 py-1.5 grid grid-cols-4 gap-2 tnum">
