@@ -88,6 +88,15 @@ export function TransferSquadContracts({
   const final24 = owned.filter((row) => row.risk === "final24").length;
   const final52 = owned.filter((row) => row.risk === "final52").length;
   const wageBill = userWageBill(state);
+  const contractRiskCount = owned.filter((row) => row.risk === "final24" || row.risk === "final52").length;
+  const listedCount = rows.filter((row) => row.listed || Boolean(row.liveDeal)).length;
+  const loansCount = rows.filter((row) => Boolean(row.loan)).length;
+  const viewCounts: Record<SquadView, number> = {
+    all: rows.length,
+    contracts: contractRiskCount,
+    listed: listedCount,
+    loans: loansCount,
+  };
 
   const visible = rows
     .filter((row) =>
@@ -142,7 +151,7 @@ export function TransferSquadContracts({
                 if (item.id === "contracts") setSort("contract");
               }}
             >
-              {item.label}
+              {item.label} <span className="lf-squad-filter-count">{viewCounts[item.id]}</span>
             </button>
           ))}
         </div>
@@ -254,13 +263,15 @@ function SquadRow({
           {managerUseLabel(row)}
         </span>
         <span className="lf-desk-squad-num">
+          <small className="lf-squad-field-label">Wage</small>
           {row.weeklyWage === null ? "—" : `${fmtMoney(row.weeklyWage)}`}
           <small>/wk</small>
         </span>
         <span className={cn("lf-desk-squad-num lf-desk-runway", `is-${row.risk}`)}>
+          <small className="lf-squad-field-label">Contract</small>
           {loanedIn ? `${row.loan!.weeksLeft}w loan` : runway(row.weeksLeft)}
         </span>
-        <span className="lf-desk-squad-num">{fmtMoney(row.marketValue)}</span>
+        <span className="lf-desk-squad-num"><small className="lf-squad-field-label">Value</small>{fmtMoney(row.marketValue)}</span>
         <span className="lf-desk-squad-ovr font-display">{row.overall}</span>
         <ChevronDown
           className={cn(
