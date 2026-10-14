@@ -392,3 +392,37 @@
   .lf-market-workspace .lf-market-results-heading{padding-block:0.3rem;}
   .lf-market-workspace .lf-market-filter-bar{padding-block:0.35rem;margin-bottom:0.2rem;}
 }
+
+
+/* Information hierarchy: one visible scouting stage, quieter supporting facts. */
+.lf-market-player-details{
+  display:block;margin-top:0.16rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:0.62rem;line-height:1.35;color:var(--color-muted-foreground);
+}
+.lf-transfer-desk .lf-desk-market-row .lf-desk-tags>span.is-scouting,
+.lf-transfer-desk .lf-desk-market-row .lf-desk-tags>span.is-report-ready,
+.lf-transfer-desk .lf-desk-market-row .lf-desk-tags>span.is-scout-report{
+  font-weight:800;letter-spacing:0.025em;
+}
+.lf-squad-field-label{display:none;}
+.lf-squad-filter-count{
+  display:inline-block;margin-left:0.15rem;font-size:0.7rem;
+  font-weight:800;font-variant-numeric:tabular-nums;opacity:0.8;
+}
+@media(max-width:767px){
+  /* Keep the shared finances above; focus this strip on squad-specific facts. */
+  .lf-transfer-desk .lf-desk-squad-summary .lf-desk-summary:nth-child(2){display:none;}
+  .lf-transfer-desk .lf-desk-squad-summary{grid-template-columns:repeat(4,minmax(0,1fr));}
+  .lf-transfer-desk .lf-desk-squad-summary .lf-desk-summary:nth-child(3){border-left:1px solid var(--desk-line);}
+  .lf-transfer-desk .lf-desk-squad-main{row-gap:0.4rem;}
+  .lf-transfer-desk .lf-desk-squad-main>.lf-desk-squad-num{
+    line-height:1.15;font-variant-numeric:tabular-nums;
+  }
+  .lf-transfer-desk .lf-desk-squad-main>.lf-desk-squad-num .lf-squad-field-label{
+    display:block;margin-bottom:0.16rem;font-size:0.52rem;letter-spacing:0.055em;
+    font-weight:750;text-transform:uppercase;color:var(--color-muted-foreground);
+  }
+  .lf-transfer-desk .lf-desk-squad-main>.lf-desk-squad-num.lf-desk-runway .lf-squad-field-label{
+    color:var(--color-muted-foreground);
+  }
+}
