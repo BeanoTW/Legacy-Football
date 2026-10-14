@@ -32,7 +32,6 @@ import {
   MARKET_FILTER_LABEL,
   deskDelegation,
   marketRowMatches,
-  priorityLevelLabel,
   transferMarketRows,
   userManager,
   type MarketFilter,
