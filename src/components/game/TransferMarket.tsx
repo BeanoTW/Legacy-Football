@@ -83,6 +83,7 @@ export function TransferMarket({
   onNegotiationStarted: (negotiationId: string) => void;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
+  const [desktopSelection, setDesktopSelection] = useState<string | null>(null);
   const [confirmDelegation, setConfirmDelegation] = useState(false);
   const [listExpanded, setListExpanded] = useState(false);
   const rows = useMemo(() => transferMarketRows(state), [state]);
@@ -130,6 +131,8 @@ export function TransferMarket({
   const visible = rows.filter(
     (row) => marketRowMatches(row, filter) && (!position || row.position === position),
   );
+
+  const desktopCandidate = visible.find((row) => row.player.id === desktopSelection) ?? visible[0] ?? null;
 
   const approach = (row: MarketRow) =>
     run(
@@ -281,7 +284,8 @@ export function TransferMarket({
       )}
 
 
-      <div className="contained-scroll min-h-0 flex-1 pr-0.5">
+      <div className="lf-market-desktop-workspace min-h-0 flex-1">
+      <div className="contained-scroll lf-market-target-scroll min-h-0 flex-1 pr-0.5">
         {visible.length === 0 ? (
           <div className="lf-desk-empty">
             <Binoculars className="size-7 text-muted-foreground" />
@@ -312,25 +316,107 @@ export function TransferMarket({
         ) : (
           <div className="overflow-hidden rounded-xl border bg-card">
             {visible.map((row) => (
-              <MarketRowView
-                key={row.player.id}
-                row={row}
-                open={openId === row.player.id}
-                onToggle={() =>
-                  setOpenId((current) => (current === row.player.id ? null : row.player.id))
-                }
-                onShortlist={() => update((s) => toggleChairmanShortlist(s, row.player.id))}
-                onScout={() => update((s) => startScouting(s, row.player.id))}
-                onApproach={() => approach(row)}
-                onOpenTalks={() => row.negotiationId && onNegotiationStarted(row.negotiationId)}
-                onReport={() => onSurface({ kind: "reports", focusPlayerId: row.player.id })}
-                estimate={chairmanRecruitmentEstimate(state, row.player.id)}
-                wageRoom={finance.wageHeadroomWeekly}
-                cashAvailable={finance.cash}
-              />
+              <div key={row.player.id}>
+                <div className="lf-market-mobile-row">
+                  <MarketRowView
+                    row={row}
+                    open={openId === row.player.id}
+                    onToggle={() => setOpenId((current) => current === row.player.id ? null : row.player.id)}
+                    onShortlist={() => update((s) => toggleChairmanShortlist(s, row.player.id))}
+                    onScout={() => update((s) => startScouting(s, row.player.id))}
+                    onApproach={() => approach(row)}
+                    onOpenTalks={() => row.negotiationId && onNegotiationStarted(row.negotiationId)}
+                    onReport={() => onSurface({ kind: "reports", focusPlayerId: row.player.id })}
+                    estimate={chairmanRecruitmentEstimate(state, row.player.id)}
+                    wageRoom={finance.wageHeadroomWeekly}
+                    cashAvailable={finance.cash}
+                  />
+                </div>
+                <button type="button"
+                  className={cn("lf-market-desktop-target", desktopCandidate?.player.id === row.player.id && "is-selected")}
+                  aria-pressed={desktopCandidate?.player.id === row.player.id}
+                  onClick={() => setDesktopSelection(row.player.id)}>
+                  <CharacterPortrait identity={{ id: row.player.id, subject: "player" }} size={46} title={`${row.name} portrait`} />
+                  <span className="lf-market-desktop-target-info">
+                    <strong>{row.name}</strong>
+                    <small>{row.tacticalPosition} · {row.age} · {row.clubName}</small>
+                    <span className="lf-market-desktop-target-meta">
+                      {row.freeAgent ? "Free agent" : row.valueRange ? `${fmtMoney(row.valueRange[0])}–${fmtMoney(row.valueRange[1])}` : "Fee unknown"}
+                      {row.shortlisted && <Star className="size-3 fill-current" aria-label="Shortlisted" />}
+                    </span>
+                  </span>
+                  <span className="lf-market-desktop-target-ability">{row.overallLabel}<small>{row.knowledgePct}% intel</small></span>
+                </button>
+              </div>
             ))}
           </div>
         )}
+      </div>
+      <aside className="lf-market-desktop-dossier" aria-label="Selected candidate dossier">
+        {desktopCandidate ? (() => {
+          const row = desktopCandidate;
+          const estimate = chairmanRecruitmentEstimate(state,row.player.id);
+          const canApproach = Boolean(estimate);
+          return (
+            <>
+              <header className="lf-market-desktop-dossier-heading">
+                <span>SCOUTING DOSSIER</span>
+                <span>{row.knowledgePct}% knowledge</span>
+              </header>
+              <div className="lf-market-desktop-candidate">
+                <CharacterPortrait identity={{ id: row.player.id, subject: "player" }} size={108} title={`${row.name} portrait`} />
+                <div className="min-w-0 flex-1">
+                  <h2 className="font-display text-2xl leading-tight">{row.name}</h2>
+                  <p className="text-sm text-muted-foreground">{row.age} years · {row.tacticalPosition} · {row.clubName}</p>
+                  <div className="lf-desk-tags mt-2">
+                    {row.priorityRank !== null && <span className="is-priority">{row.priorityRank === 0 ? "Top manager priority" : "Squad need"}</span>}
+                    {row.shortlisted && <span>Shortlisted</span>}
+                    {row.negotiationId && <span className="is-live">Talks underway</span>}
+                  </div>
+                  <div className="lf-market-desktop-rating">
+                    <strong>{row.overallLabel}</strong>
+                    <span>{row.knowledgePct >= 85 ? "Strong scouting knowledge" : row.knowledgePct >= 40 ? "Estimated ability" : "Limited scouting knowledge"}</span>
+                  </div>
+                </div>
+              </div>
+              <section className="lf-market-desktop-section">
+                <h3>Scout assessment</h3>
+                <p>{row.scouting === "complete" ? "Detailed report ready" : row.scouting === "active" ? "Further scouting underway" : row.recommended ? "Initial scouting report received" : "No individual scouting report yet"}</p>
+                <p className="mt-1">{row.interestReason}</p>
+                <p className="mt-1 text-muted-foreground">Attribute strengths and weaknesses are available through the player report when your scouts have established them.</p>
+              </section>
+              <section className="lf-market-desktop-section">
+                <h3>Financial assessment</h3>
+                <div className="lf-market-financial-preview">
+                  <div><small>Estimated fee</small><strong>{row.freeAgent ? "Free" : row.valueRange ? `${fmtMoney(row.valueRange[0])}–${fmtMoney(row.valueRange[1])}` : "Not known"}</strong></div>
+                  <div><small>Available club cash</small><strong>{fmtMoney(finance.cash)}</strong></div>
+                  <div><small>Expected weekly wage</small><strong>{estimate?.wageRange ? `${fmtMoney(estimate.wageRange[0])}–${fmtMoney(estimate.wageRange[1])}` : "Not known"}</strong></div>
+                  <div><small>Wage headroom</small><strong>{finance.wageHeadroomWeekly === null ? "No cap" : `${fmtMoney(finance.wageHeadroomWeekly)}/wk`}</strong></div>
+                </div>
+              </section>
+              <section className="lf-market-desktop-section">
+                <h3>Director actions</h3>
+                <div className="lf-market-desktop-actions">
+                  {row.negotiationId ? (
+                    <Button onClick={() => onNegotiationStarted(row.negotiationId!)}><Handshake className="mr-1.5 size-4" />Open talks</Button>
+                  ) : (
+                    <Button disabled={!canApproach} title={canApproach ? undefined : "Further scouting is required before approaching"} onClick={() => approach(row)}><Handshake className="mr-1.5 size-4" />{row.freeAgent ? "Approach player" : "Approach club"}</Button>
+                  )}
+                  {row.scouting === "none" ? (
+                    <Button variant="outline" onClick={() => update((s) => startScouting(s,row.player.id))}><Binoculars className="mr-1.5 size-4" />Scout further</Button>
+                  ) : (
+                    <Button variant="outline" onClick={() => onSurface({kind:"reports",focusPlayerId:row.player.id})}><FileText className="mr-1.5 size-4" />{row.reportComplete ? "Detailed report" : "Scouting progress"}</Button>
+                  )}
+                  <Button variant="outline" onClick={() => update((s) => toggleChairmanShortlist(s,row.player.id))}><Star className="mr-1.5 size-4" />{row.shortlisted ? "Remove shortlist" : "Shortlist"}</Button>
+                  <Button variant="ghost" onClick={() => openPlayerProfile(row.player.id)}><UserRound className="mr-1.5 size-4" />Player profile</Button>
+                </div>
+              </section>
+            </>
+          );
+        })() : (
+          <div className="lf-desk-empty"><Binoculars className="size-6" /><p>No visible targets. Adjust your filters or commission a new scout search.</p></div>
+        )}
+      </aside>
       </div>
       </section>
     </div>
