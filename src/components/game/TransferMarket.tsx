@@ -241,7 +241,7 @@ export function TransferMarket({
 
       <section className="lf-market-results min-h-0 flex flex-1 flex-col" aria-label="Transfer market results">
         <div className="lf-market-section-heading lf-market-results-heading">
-          <span>TRANSFER TARGETS</span>
+          <span>PLAYERS</span>
           <div className="lf-market-results-tools">
             <span>{visible.length} {visible.length === 1 ? "player" : "players"}</span>
             <button type="button"
@@ -397,7 +397,7 @@ function MarketRowView({
         </span>
         <span className="lf-desk-ovr">
           <span className="block font-display text-base leading-none">{row.overallLabel}</span>
-          <span className="lf-desk-knowledge" aria-label={`${row.knowledgePct}% scouted`}>
+          <span className="lf-desk-knowledge" aria-label={`${row.knowledgePct}% player knowledge`}>
             <span style={{ width: `${row.knowledgePct}%` }} />
           </span>
         </span>
