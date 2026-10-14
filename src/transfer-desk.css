@@ -555,3 +555,6 @@
   .lf-market-desktop-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0.5rem;}
   .lf-market-desktop-actions button{min-width:0;height:auto;min-height:2.5rem;white-space:normal;font-size:0.76rem;}
 }
+
+/* Preserve original row separators through the desktop/mobile view wrappers. */
+@media(max-width:1279px){.lf-market-target-scroll>.overflow-hidden>div+div .lf-desk-market-row{border-top:1px solid var(--desk-line);}}
