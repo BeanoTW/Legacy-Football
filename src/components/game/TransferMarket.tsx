@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import {
   Binoculars,
   Clock3,
-  Info,
   Maximize2,
   Minimize2,
   ChevronDown,
@@ -27,7 +26,6 @@ import {
   managerRecruitmentBrief,
   delegateManagerRecruitmentPriorities,
 } from "@/lib/game/managerRecruitmentBrief";
-import { scoutingBriefDaysRemaining } from "@/lib/game/scoutingDiscovery";
 import {
   MARKET_FILTER_LABEL,
   deskDelegation,
@@ -94,24 +92,9 @@ export function TransferMarket({
   const delegation = deskDelegation(state);
   const briefs = state.football?.scoutingDiscovery?.briefs ?? [];
   const activeBriefs = briefs.filter((candidate) => candidate.status === "active");
-  const activeBrief = activeBriefs[0] ?? null;
   const searchBusy = activeBriefs.length > 0;
-  const activeRoles = activeBrief
-    ? (activeBrief.positionBriefs?.map((item) => item.tacticalPosition ?? item.position)
-      ?? activeBrief.positions ?? (activeBrief.position ? [activeBrief.position] : []))
-    : [];
-  const nextReturnDays = activeBrief
-    ? Math.min(...activeBriefs.map((item) => scoutingBriefDaysRemaining(state, item.id)))
-    : null;
-  const returnLabel = nextReturnDays === null ? "" :
-    nextReturnDays <= 0 ? "Today" : nextReturnDays === 1 ? "Tomorrow" : `In ${nextReturnDays} days`;
   const delegationRoles = brief?.priorities.slice(0, Math.max(1, Math.min(4, state.hiredStaff.filter((staff) => staff.role === "Scout" || staff.role === "Chief Scout").length || 1))) ?? [];
-  const completeBriefs = briefs.filter((candidate) => candidate.status === "complete");
-  const latestCompleteBrief = [...completeBriefs].sort(
-    (a, b) =>
-      (b.createdAtDay ?? b.createdAtAbsoluteWeek * 7) -
-      (a.createdAtDay ?? a.createdAtAbsoluteWeek * 7),
-  )[0] ?? null;
+
 
   if (surface) {
     const back = () => onSurface(null);
@@ -237,33 +220,7 @@ export function TransferMarket({
         </section>
       )}
 
-      {!listExpanded && <section className={cn("lf-market-search-panel shrink-0", !activeBrief && "is-idle")} aria-label="Scouting overview">
-        {activeBrief && <>
-        <div className="lf-market-section-heading"><span>SCOUTING HQ</span></div>
-        <div className="lf-market-status">
-          <span className="lf-market-status-icon"><Binoculars className="size-5" /></span>
-          <div className="min-w-0 flex-1">
-            <div className="lf-market-status-title">
-              {activeBrief ? "Scouting in progress" : latestCompleteBrief ? "Ready for another search" : "No active search"}
-            </div>
-            <div className="lf-market-status-description">
-              {activeBrief
-                ? "Your scouts are searching. The next assignment unlocks when the report arrives."
-                : latestCompleteBrief
-                  ? `Last report returned ${latestCompleteBrief.candidateIds.length} ${latestCompleteBrief.candidateIds.length === 1 ? "player" : "players"}.`
-                  : "Choose a position to find realistic transfer targets."}
-            </div>
-          </div>
-        </div>
-        {activeBrief && (
-          <div className="lf-market-status-facts">
-            <div><span>TYPE</span><strong>{activeBrief.delegatedBy ? "Manager-led" : "Custom"}</strong></div>
-            <div><span>TARGET</span><strong>{activeRoles.join(", ") || "Any player"}</strong></div>
-            <div><span>RETURNS</span><strong><Clock3 className="size-3.5" /> {returnLabel}</strong></div>
-          </div>
-        )}
-        </>}
-        <div className="lf-market-section-heading lf-market-actions-label"><span>YOUR NEXT MOVE</span></div>
+      {!listExpanded && <section className="lf-market-search-panel is-idle shrink-0" aria-label="Scouting overview">
         <div className="lf-market-action-grid">
           <Button size="sm" className="lf-market-action lf-market-action-primary"
             disabled={searchBusy}
@@ -280,11 +237,6 @@ export function TransferMarket({
             <FileText className="size-4" /><span>Reports</span>
           </Button>
         </div>
-        {activeBrief && (
-          <p className="lf-market-help"><Info className="size-3.5 shrink-0" />
-            One recruitment search runs at a time. The next search opens after the report returns.
-          </p>
-        )}
       </section>}
 
       <section className="lf-market-results min-h-0 flex flex-1 flex-col" aria-label="Transfer market results">
