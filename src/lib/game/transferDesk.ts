@@ -793,9 +793,9 @@ export function clubEmploymentLabel(state: GameState): string {
 
 export type MarketFilter = "all" | "shortlist" | "scouted" | "free" | "listed" | "loans";
 export const MARKET_FILTER_LABEL: Record<MarketFilter, string> = {
-  all: "Staff picks",
-  shortlist: "Shortlist",
-  scouted: "Scouted",
+  all: "All players",
+  shortlist: "Watchlist",
+  scouted: "Individually scouted",
   free: "Free",
   listed: "Listed",
   loans: "Loans",
@@ -936,7 +936,9 @@ export function marketRowMatches(row: MarketRow, filter: MarketFilter): boolean 
     case "shortlist":
       return row.shortlisted;
     case "scouted":
-      return row.scouting !== "none" || row.knowledgePct > 0;
+      // Only a deliberate individual-player scouting assignment qualifies.
+      // Partial knowledge from staff discovery must not appear as individual scouting.
+      return row.scouting !== "none";
     case "free":
       return row.freeAgent;
     case "listed":

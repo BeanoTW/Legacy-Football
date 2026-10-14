@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { newGame, advanceDay } from "../engine";
 import { createChairmanScoutingBrief } from "../chairmanScoutingBrief";
 import { scoutingBrief, scoutingSearchPlan } from "../scoutingDiscovery";
-import { transferMarketRows } from "../transferDesk";
+import { transferMarketRows, marketRowMatches } from "../transferDesk";
 
 console.log("\n[STAFF-LED-RECRUITMENT-MARKET]");
 
@@ -33,10 +33,20 @@ assert.ok(
   "returned staff recommendations appear on the Director's Market desk",
 );
 assert.ok(market.length < 50, "Market stays a small working set after scouts return");
+const discoveredWithoutPersonalScout = market.filter((row) => returned.has(row.player.id) && row.scouting === "none");
+assert.ok(discoveredWithoutPersonalScout.length > 0, "staff discoveries do not automatically create individual scout jobs");
+assert.ok(
+  discoveredWithoutPersonalScout.every((row) => !marketRowMatches(row, "scouted")),
+  "players with only staff discovery knowledge are not classified as individually scouted",
+);
+assert.ok(
+  market.every((row) => marketRowMatches(row, "shortlist") === row.shortlisted),
+  "watchlist filters only the player's personally saved targets",
+);
 
 const marketUi = readFileSync("src/components/game/TransferMarket.tsx", "utf8");
 const delegation = readFileSync("src/lib/game/managerRecruitmentBrief.ts", "utf8");
-assert.ok(marketUi.includes("New search") && marketUi.includes("Scouting list") && marketUi.includes("Reports"), "Market makes the send-scouts action explicit");
+assert.ok(marketUi.includes("<span>Search</span>") && marketUi.includes("<span>Players</span>") && marketUi.includes("<span>Watchlist</span>"), "Market makes the send-scouts action explicit");
 assert.equal(marketUi.includes("Search known players or clubs"), false, "Market no longer exposes a generic player-database search box");
 assert.equal(
   delegation.includes("professional department status"),
