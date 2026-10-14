@@ -357,3 +357,38 @@
   color:var(--color-foreground);
   opacity:0.8;
 }
+
+
+/* Compact Transfers: mobile dock selects a workspace; put the player list first. */
+.lf-recruitment-briefing{padding:0.35rem 0.65rem;}
+.lf-recruitment-briefing-summary{
+  display:flex;align-items:center;gap:0.5rem;min-height:2.15rem;
+  cursor:pointer;list-style:none;color:var(--color-foreground);font-size:0.78rem;
+}
+.lf-recruitment-briefing-summary::-webkit-details-marker{display:none;}
+.lf-recruitment-briefing-summary>span:first-child{flex:1;overflow:hidden;}
+.lf-recruitment-briefing-count{font-size:0.65rem;color:var(--color-muted-foreground);white-space:nowrap;}
+.lf-recruitment-briefing-status{font-size:0.66rem;color:var(--color-primary);font-weight:700;white-space:nowrap;}
+.lf-recruitment-briefing[open] .lf-recruitment-briefing-summary>svg:last-child{transform:rotate(180deg);}
+.lf-recruitment-briefing-summary:focus-visible{outline:2px solid var(--color-primary);outline-offset:2px;border-radius:0.35rem;}
+.lf-recruitment-briefing-body{padding-top:0.5rem;border-top:1px solid var(--desk-line);}
+@media(max-width:767px){
+  /* Workspace switching is handled by the Transfers dock menu on phones. */
+  .lf-transfer-desk .lf-desk-lenses{display:none;}
+  /* Non-urgent department briefing remains accessible in the other workspaces. */
+  .lf-transfer-desk .lf-transfer-department-updates.is-market{display:none;}
+  .lf-transfer-desk{gap:0.4rem;}
+  .lf-transfer-desk .lf-desk-header-grid{grid-template-columns:repeat(3,minmax(0,1fr));}
+  .lf-transfer-desk .lf-desk-header-grid>.lf-desk-cell.is-priority{display:none;}
+  .lf-transfer-desk .lf-desk-header .lf-desk-cell{padding:0.24rem 0.42rem;}
+  .lf-transfer-desk .lf-desk-header .lf-desk-cell-label{font-size:0.5rem;}
+  .lf-transfer-desk .lf-desk-header .lf-desk-cell-value{font-size:0.83rem;}
+  .lf-market-workspace{gap:0.4rem;}
+  .lf-market-workspace .lf-market-search-panel.is-idle{padding:0.25rem 0.35rem;}
+  .lf-market-workspace .lf-market-search-panel.is-idle .lf-market-action-grid{margin:0;}
+  .lf-market-workspace .lf-market-action{min-height:2.15rem;flex-direction:row;gap:0.35rem;padding:0.25rem;}
+  .lf-market-workspace .lf-market-action svg{width:0.9rem;height:0.9rem;}
+  .lf-market-workspace .lf-market-action span{font-size:0.73rem;}
+  .lf-market-workspace .lf-market-results-heading{padding-block:0.3rem;}
+  .lf-market-workspace .lf-market-filter-bar{padding-block:0.35rem;margin-bottom:0.2rem;}
+}
