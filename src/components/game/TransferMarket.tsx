@@ -54,7 +54,7 @@ export type MarketSurface = {
   briefId?: string;
 };
 
-const FILTERS: MarketFilter[] = ["all", "shortlist", "scouted", "free", "listed", "loans"];
+const FILTERS: MarketFilter[] = ["all", "scouted", "free", "listed", "loans"];
 const POSITIONS: Position[] = ["GK", "DEF", "MID", "FWD"];
 
 export function TransferMarket({
@@ -226,15 +226,15 @@ export function TransferMarket({
             disabled={searchBusy}
             title={searchBusy ? "Wait until the active scouting report arrives" : "Choose the next position to scout"}
             onClick={() => onSurface({ kind: "brief" })}>
-            <Plus className="size-4" /><span>New search</span>
+            <Plus className="size-4" /><span>Search</span>
           </Button>
           <Button size="sm" variant="outline" className="lf-market-action"
-            onClick={() => onSurface({ kind: "recommended" })} disabled={briefs.length === 0}>
-            <Binoculars className="size-4" /><span>Scouting list</span>
+            onClick={() => { onFilter("all"); onPosition(null); }} aria-pressed={filter === "all"}>
+            <Binoculars className="size-4" /><span>Players</span>
           </Button>
           <Button size="sm" variant="outline" className="lf-market-action"
-            onClick={() => onSurface({ kind: "reports" })}>
-            <FileText className="size-4" /><span>Reports</span>
+            onClick={() => { onFilter("shortlist"); onPosition(null); }} aria-pressed={filter === "shortlist"}>
+            <Star className="size-4" /><span>Watchlist</span>
           </Button>
         </div>
       </section>}
@@ -283,13 +283,13 @@ export function TransferMarket({
           <div className="lf-desk-empty">
             <Binoculars className="size-7 text-muted-foreground" />
             <h2 className="font-display text-lg">
-              {rows.length ? "No staff recommendations match" : "No players on your desk"}
+              {filter === "shortlist" ? "Your watchlist is empty" : rows.length ? "No players match these filters" : "No players discovered yet"}
             </h2>
             <p>
               {searchBusy
                 ? "Your scouts are working. Players will appear here when the report returns."
                 : rows.length
-                  ? "Try another filter or clear the position filter to see more players."
+                  ? filter === "shortlist" ? "Star an interesting player to keep them on your watchlist." : "Try another filter or clear the position filter to see more players."
                   : "Start a scouting search to get realistic transfer targets."}
             </p>
             {searchBusy ? (
@@ -369,7 +369,7 @@ function MarketRowView({
             {row.shortlisted && (
               <Star
                 className="size-3 shrink-0 fill-amber-400 text-amber-400"
-                aria-label="Shortlisted"
+                aria-label="On watchlist"
               />
             )}
           </span>
@@ -387,6 +387,8 @@ function MarketRowView({
               </span>
             )}
             {row.recommended && <span>Recommended</span>}
+            {row.scouting === "active" && <span className="is-scouting">Scouting</span>}
+            {row.scouting === "complete" && <span className="is-report-ready">Report ready</span>}
             <span title={row.interestReason}>{row.interestLabel}</span>
             {row.freeAgent && <span>Free</span>}
             {row.listed && <span>Listed</span>}
@@ -415,7 +417,7 @@ function MarketRowView({
             onClick={onShortlist}
           >
             <Star className={cn("mr-1 size-3.5", row.shortlisted && "fill-current")} />
-            {row.shortlisted ? "Shortlisted" : "Shortlist"}
+            {row.shortlisted ? "Remove from watchlist" : "Add to watchlist"}
           </Button>
           {row.scouting === "none" ? (
             <Button size="sm" variant="outline" className="h-8 px-2 text-xs" onClick={onScout}>
@@ -425,7 +427,7 @@ function MarketRowView({
           ) : (
             <Button size="sm" variant="outline" className="h-8 px-2 text-xs" onClick={onReport}>
               <FileText className="mr-1 size-3.5" />
-              {row.reportComplete ? "Full report" : `Report · ${row.knowledgePct}%`}
+              {row.reportComplete ? "Read report" : "Scouting progress"}
             </Button>
           )}
           {row.negotiationId ? (
@@ -438,7 +440,7 @@ function MarketRowView({
               size="sm"
               className="h-8 px-2 text-xs"
               disabled={!canApproach}
-              title={canApproach ? undefined : "Scout him first so the staff can value him"}
+              title={canApproach ? undefined : "Ask your scouts to assess him before approaching"}
               onClick={onApproach}
             >
               <Handshake className="mr-1 size-3.5" />
