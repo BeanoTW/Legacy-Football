@@ -156,3 +156,153 @@
 .lf-market-workspace.is-list-expanded .lf-market-results-heading{padding-bottom:0.45rem;border-bottom:1px solid var(--desk-line);}
 .lf-market-workspace.is-list-expanded .contained-scroll{min-height:0;flex:1;overscroll-behavior:contain;}
 @media(max-width:420px){.lf-market-expand-toggle{padding:0.2rem 0.4rem;}.lf-market-results-tools{gap:0.3rem;}.lf-market-workspace.is-list-expanded{padding-left:0.35rem;padding-right:0.35rem;}}
+
+
+/* Transfers surface-depth polish — shared across light and dark themes.
+   Keep sections distinct without changing layout dimensions or game behavior. */
+.lf-transfer-desk{
+  --lf-depth-edge:color-mix(in oklab,var(--color-foreground) 16%,var(--desk-line));
+  --lf-depth-shadow:0 3px 10px rgb(0 0 0 / 10%),0 1px 2px rgb(0 0 0 / 6%);
+  --lf-depth-raised:0 6px 17px rgb(0 0 0 / 13%),0 1px 3px rgb(0 0 0 / 8%);
+  --lf-scout-tint:oklch(0.64 0.13 220);
+  --lf-contract-tint:oklch(0.73 0.135 79);
+  --lf-live-tint:oklch(0.66 0.13 164);
+}
+/* Shared navigation and summary widgets */
+.lf-transfer-desk .lf-desk-header{
+  border-color:var(--lf-depth-edge);
+  box-shadow:var(--lf-depth-shadow);
+}
+.lf-transfer-desk .lf-desk-cell+.lf-desk-cell{
+  border-left-color:var(--lf-depth-edge);
+}
+.lf-transfer-desk .lf-desk-brief{
+  border-color:var(--lf-depth-edge);
+  box-shadow:0 2px 7px rgb(0 0 0 / 8%);
+}
+.lf-transfer-desk .lf-desk-lenses{
+  border:1px solid var(--lf-depth-edge);
+  border-radius:0.85rem;
+  background:color-mix(in oklab,var(--color-card) 80%,var(--color-background));
+  box-shadow:0 2px 9px rgb(0 0 0 / 7%);
+}
+.lf-transfer-desk .lf-desk-lenses>button.is-active{
+  box-shadow:0 4px 12px color-mix(in oklab,var(--color-primary) 22%,transparent);
+  font-weight:800;
+}
+/* Market: stronger target-list separation and tactile browsing chips */
+.lf-transfer-desk .lf-market-search-panel{
+  box-shadow:var(--lf-depth-raised);
+}
+.lf-transfer-desk .lf-market-results{
+  border-color:color-mix(in oklab,var(--lf-scout-tint) 42%,var(--lf-depth-edge));
+  box-shadow:var(--lf-depth-raised);
+}
+.lf-transfer-desk .lf-market-results-heading{
+  border-bottom:1px solid color-mix(in oklab,var(--lf-scout-tint) 26%,var(--desk-line));
+}
+.lf-transfer-desk .lf-market-filter-bar{
+  margin:0 -0.25rem 0.35rem;
+  padding:0.6rem 0.25rem 0.7rem;
+  background:color-mix(in oklab,var(--lf-scout-tint) 6%,var(--color-card));
+  border-bottom:1px solid color-mix(in oklab,var(--lf-scout-tint) 24%,var(--desk-line));
+  border-radius:0.35rem;
+}
+.lf-transfer-desk .lf-market-filter-bar .lf-chip:not(.is-active){
+  border-color:var(--lf-depth-edge);
+  box-shadow:0 1px 3px rgb(0 0 0 / 6%);
+}
+.lf-transfer-desk .lf-market-filter-bar .lf-chip.is-active{
+  box-shadow:0 3px 9px color-mix(in oklab,var(--color-primary) 28%,transparent);
+}
+.lf-transfer-desk .lf-desk-market-row{
+  border-left:3px solid transparent;
+  transition:background 120ms,border-color 120ms;
+}
+.lf-transfer-desk .lf-desk-market-row:nth-child(even){
+  background:color-mix(in oklab,var(--lf-scout-tint) 4%,var(--color-card));
+}
+.lf-transfer-desk .lf-desk-market-row+.lf-desk-market-row{
+  border-top:1px solid var(--lf-depth-edge);
+}
+.lf-transfer-desk .lf-desk-market-row.is-open{
+  border-left-color:var(--lf-scout-tint);
+  background:color-mix(in oklab,var(--lf-scout-tint) 12%,var(--color-card));
+  box-shadow:inset 0 0 0 1px color-mix(in oklab,var(--lf-scout-tint) 20%,transparent);
+}
+.lf-transfer-desk .lf-desk-market-row.is-priority{border-left-color:var(--color-primary);}
+.lf-transfer-desk .lf-market-results .lf-desk-empty{
+  box-shadow:inset 0 0 18px color-mix(in oklab,var(--lf-scout-tint) 7%,transparent);
+}
+/* Live Business: richer but contained elevation and green negotiation identity */
+.lf-transfer-desk .lf-desk-split .lf-desk-deal{
+  border-color:color-mix(in oklab,var(--lf-live-tint) 22%,var(--lf-depth-edge));
+  box-shadow:var(--lf-depth-shadow);
+  background:linear-gradient(115deg,color-mix(in oklab,var(--lf-live-tint) 7%,var(--color-card)),var(--color-card) 80%);
+}
+.lf-transfer-desk .lf-desk-split .lf-desk-deal.is-active{
+  border-color:color-mix(in oklab,var(--lf-live-tint) 60%,var(--lf-depth-edge));
+  box-shadow:var(--lf-depth-raised);
+}
+.lf-transfer-desk .lf-desk-split .lf-desk-deal:focus-visible{
+  outline:2px solid var(--color-primary);outline-offset:2px;
+}
+.lf-transfer-desk .lf-desk-empty:has(> svg){
+  border-color:color-mix(in oklab,var(--lf-live-tint) 28%,var(--lf-depth-edge));
+  background:radial-gradient(ellipse at 50% 0%,color-mix(in oklab,var(--lf-live-tint) 10%,transparent),transparent 65%),var(--color-card);
+  box-shadow:var(--lf-depth-shadow);
+}
+.lf-transfer-desk .lf-desk-empty:has(> svg)>svg{
+  color:color-mix(in oklab,var(--lf-live-tint) 65%,var(--color-foreground));
+}
+.lf-transfer-desk .lf-desk-empty .flex>button:first-child:not(:disabled){
+  box-shadow:0 3px 9px color-mix(in oklab,var(--color-primary) 24%,transparent);
+}
+/* Squad & Contracts: stronger row boundaries, gentle alternating tint and warm risk accent */
+.lf-transfer-desk .lf-desk-squad-summary{
+  border-color:var(--lf-depth-edge);
+  box-shadow:var(--lf-depth-shadow);
+  background:linear-gradient(90deg,color-mix(in oklab,var(--lf-contract-tint) 8%,var(--color-card)),var(--color-card));
+}
+.lf-transfer-desk .lf-desk-squad-summary .lf-desk-summary+.lf-desk-summary{
+  border-left-color:var(--lf-depth-edge);
+}
+.lf-transfer-desk .lf-desk-squad-row{border-left-width:4px;transition:background 120ms;}
+.lf-transfer-desk .lf-desk-squad-row:nth-child(even){
+  background:color-mix(in oklab,var(--lf-contract-tint) 5%,var(--color-card));
+}
+.lf-transfer-desk .lf-desk-squad-row+.lf-desk-squad-row{
+  border-top:1px solid var(--lf-depth-edge);
+}
+.lf-transfer-desk .lf-desk-squad-row.is-final52{
+  border-left-color:var(--lf-contract-tint);
+  background:color-mix(in oklab,var(--lf-contract-tint) 10%,var(--color-card));
+}
+.lf-transfer-desk .lf-desk-squad-row.is-final24{
+  background:color-mix(in oklab,var(--desk-action) 9%,var(--color-card));
+}
+.lf-transfer-desk .lf-desk-squad-row.is-open{
+  background:color-mix(in oklab,var(--color-primary) 12%,var(--color-card));
+  box-shadow:inset 0 0 0 1px color-mix(in oklab,var(--color-primary) 30%,transparent);
+}
+.lf-transfer-desk .lf-desk-squad-row .lf-desk-squad-main:focus-visible{
+  outline:2px solid var(--color-primary);outline-offset:-2px;
+}
+.lf-transfer-desk .lf-desk-squad-row .lf-desk-pos{
+  border:1px solid color-mix(in oklab,var(--color-primary) 22%,var(--desk-line));
+}
+.lf-transfer-desk .lf-desk-squad-actions{
+  border-top:1px solid var(--lf-depth-edge);
+  padding-top:0.5rem;
+}
+.lf-transfer-desk .lf-desk-squad-row.is-final52 .lf-desk-runway{font-weight:800;}
+.lf-transfer-desk .lf-chip:not(.is-active){
+  border-color:var(--lf-depth-edge);
+  box-shadow:0 1px 3px rgb(0 0 0 / 5%);
+}
+.lf-transfer-desk .lf-chip.is-active{
+  box-shadow:0 3px 9px color-mix(in oklab,var(--color-primary) 24%,transparent);
+}
+@media(prefers-reduced-motion:reduce){
+  .lf-transfer-desk .lf-desk-market-row,.lf-transfer-desk .lf-desk-squad-row{transition:none;}
+}
