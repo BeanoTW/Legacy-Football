@@ -450,3 +450,13 @@
 .lf-transfer-desk .lf-market-dossier .lf-desk-market-actions{padding:0;gap:0.4rem;}
 .lf-transfer-desk .lf-market-dossier .lf-desk-market-actions>button{min-height:2.2rem;}
 @media(max-width:420px){.lf-market-player-identity{width:2.6rem}.lf-market-money-chips>span{font-size:0.58rem}.lf-transfer-desk .lf-market-confidence{width:3.3rem}.lf-market-confidence-label{font-size:0.45rem}.lf-desk-market-main{gap:0.4rem;}}
+
+
+/* Compact mobile Market navigation has no space for the old decorative top ribbon.
+   Keep the three destination buttons inside one clean, consistently bordered panel. */
+@media(max-width:767px){
+  .lf-transfer-desk .lf-market-search-panel.is-idle::before{content:none;}
+  .lf-transfer-desk .lf-market-search-panel.is-idle{
+    border-top:1px solid color-mix(in oklab,var(--market-blue) 44%,var(--desk-line));
+  }
+}
