@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronUp, Menu, Pause, Play } from "lucide-react";
+import { ArrowLeftRight, ChevronUp, Handshake, Menu, Pause, Play, Search, Users } from "lucide-react";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
   DropdownMenu,
@@ -24,6 +24,7 @@ const SHORT_LABEL: Partial<Record<Tab, string>> = { hub: "Home", stadium: "Club"
 export function MobileDock({
   tab,
   setTab,
+  onTransfersArea,
   unread,
   blocking,
   isContinuing,
@@ -34,6 +35,7 @@ export function MobileDock({
 }: {
   tab: Tab;
   setTab: (tab: Tab) => void;
+  onTransfersArea?: (area: "live" | "market" | "squad") => void;
   unread: number;
   blocking: number;
   isContinuing: boolean;
@@ -43,6 +45,7 @@ export function MobileDock({
   onAdvanceTo?: (target: AdvanceTarget) => void;
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const [transfersOpen, setTransfersOpen] = useState(false);
   const byId = new Map(ALL_TABS.map((entry) => [entry[0], entry]));
   const secondary = ALL_TABS.filter(([id]) => ![...LEFT, ...RIGHT].includes(id));
   const nextMatch = targets.find((target) => target.id === "matchday");
@@ -141,7 +144,34 @@ export function MobileDock({
           <span className="lf-dock-caption">{caption}</span>
         </div>
 
-        {RIGHT.map((id) => <TabButton key={id} id={id} />)}
+        {RIGHT.map((id) => id === "recruitment" && onTransfersArea ? (
+          <DropdownMenu key={id} open={transfersOpen} onOpenChange={setTransfersOpen}>
+            <DropdownMenuTrigger asChild>
+              <button type="button" className={cn("lf-dock-item", tab === id && "is-active")}
+                aria-label="Transfers: choose an area" aria-expanded={transfersOpen}>
+                <ArrowLeftRight className="lf-dock-icon" />
+                <span className="lf-dock-label">Transfers</span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="top" align="center" sideOffset={12} className="w-[min(21rem,calc(100vw-1.5rem))] p-2">
+              <DropdownMenuLabel>Transfers</DropdownMenuLabel>
+              {([
+                ["live", "Live Business", "Offers and negotiations", Handshake],
+                ["market", "Market", "Search, players and shortlist", Search],
+                ["squad", "Squad & Contracts", "Renewals, loans and departures", Users],
+              ] as const).map(([area, label, description, Icon]) => (
+                <DropdownMenuItem key={area} onSelect={() => onTransfersArea(area)}
+                  className="flex items-center gap-3 rounded-lg p-3">
+                  <Icon className="size-5 shrink-0 text-primary" />
+                  <span className="flex flex-col">
+                    <span className="font-semibold">{label}</span>
+                    <span className="text-xs text-muted-foreground">{description}</span>
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : <TabButton key={id} id={id} />)}
 
         <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
           <SheetTrigger asChild>
