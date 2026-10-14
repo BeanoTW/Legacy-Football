@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import {
   Binoculars,
   Clock3,
-  Info,
+  Maximize2,
+  Minimize2,
   ChevronDown,
   FileText,
   Handshake,
@@ -25,7 +26,6 @@ import {
   managerRecruitmentBrief,
   delegateManagerRecruitmentPriorities,
 } from "@/lib/game/managerRecruitmentBrief";
-import { scoutingBriefDaysRemaining } from "@/lib/game/scoutingDiscovery";
 import {
   MARKET_FILTER_LABEL,
   deskDelegation,
@@ -82,6 +82,7 @@ export function TransferMarket({
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [confirmDelegation, setConfirmDelegation] = useState(false);
+  const [listExpanded, setListExpanded] = useState(false);
   const rows = useMemo(() => transferMarketRows(state), [state]);
   const manager = userManager(state);
   const brief = useMemo(
@@ -91,24 +92,9 @@ export function TransferMarket({
   const delegation = deskDelegation(state);
   const briefs = state.football?.scoutingDiscovery?.briefs ?? [];
   const activeBriefs = briefs.filter((candidate) => candidate.status === "active");
-  const activeBrief = activeBriefs[0] ?? null;
   const searchBusy = activeBriefs.length > 0;
-  const activeRoles = activeBrief
-    ? (activeBrief.positionBriefs?.map((item) => item.tacticalPosition ?? item.position)
-      ?? activeBrief.positions ?? (activeBrief.position ? [activeBrief.position] : []))
-    : [];
-  const nextReturnDays = activeBrief
-    ? Math.min(...activeBriefs.map((item) => scoutingBriefDaysRemaining(state, item.id)))
-    : null;
-  const returnLabel = nextReturnDays === null ? "" :
-    nextReturnDays <= 0 ? "Today" : nextReturnDays === 1 ? "Tomorrow" : `In ${nextReturnDays} days`;
   const delegationRoles = brief?.priorities.slice(0, Math.max(1, Math.min(4, state.hiredStaff.filter((staff) => staff.role === "Scout" || staff.role === "Chief Scout").length || 1))) ?? [];
-  const completeBriefs = briefs.filter((candidate) => candidate.status === "complete");
-  const latestCompleteBrief = [...completeBriefs].sort(
-    (a, b) =>
-      (b.createdAtDay ?? b.createdAtAbsoluteWeek * 7) -
-      (a.createdAtDay ?? a.createdAtAbsoluteWeek * 7),
-  )[0] ?? null;
+
 
   if (surface) {
     const back = () => onSurface(null);
@@ -158,8 +144,8 @@ export function TransferMarket({
     );
 
   return (
-    <div className="lf-market-workspace flex h-full min-h-0 flex-col gap-3">
-      {brief && brief.priorities.length > 0 && (
+    <div className={cn("lf-market-workspace flex h-full min-h-0 flex-col gap-3", listExpanded && "is-list-expanded")}>
+      {!listExpanded && brief && brief.priorities.length > 0 && (
         <section className="lf-desk-priorities shrink-0">
           <div className="lf-desk-priorities-head">
             <span className="min-w-0 truncate">
@@ -234,31 +220,7 @@ export function TransferMarket({
         </section>
       )}
 
-      <section className="lf-market-search-panel shrink-0" aria-label="Scouting overview">
-        <div className="lf-market-section-heading"><span>SCOUTING HQ</span></div>
-        <div className="lf-market-status">
-          <span className="lf-market-status-icon"><Binoculars className="size-5" /></span>
-          <div className="min-w-0 flex-1">
-            <div className="lf-market-status-title">
-              {activeBrief ? "Scouting in progress" : latestCompleteBrief ? "Ready for another search" : "No active search"}
-            </div>
-            <div className="lf-market-status-description">
-              {activeBrief
-                ? "Your scouts are searching. The next assignment unlocks when the report arrives."
-                : latestCompleteBrief
-                  ? `Last report returned ${latestCompleteBrief.candidateIds.length} ${latestCompleteBrief.candidateIds.length === 1 ? "player" : "players"}.`
-                  : "Choose a position to find realistic transfer targets."}
-            </div>
-          </div>
-        </div>
-        {activeBrief && (
-          <div className="lf-market-status-facts">
-            <div><span>TYPE</span><strong>{activeBrief.delegatedBy ? "Manager-led" : "Custom"}</strong></div>
-            <div><span>TARGET</span><strong>{activeRoles.join(", ") || "Any player"}</strong></div>
-            <div><span>RETURNS</span><strong><Clock3 className="size-3.5" /> {returnLabel}</strong></div>
-          </div>
-        )}
-        <div className="lf-market-section-heading lf-market-actions-label"><span>YOUR NEXT MOVE</span></div>
+      {!listExpanded && <section className="lf-market-search-panel is-idle shrink-0" aria-label="Scouting overview">
         <div className="lf-market-action-grid">
           <Button size="sm" className="lf-market-action lf-market-action-primary"
             disabled={searchBusy}
@@ -275,17 +237,23 @@ export function TransferMarket({
             <FileText className="size-4" /><span>Reports</span>
           </Button>
         </div>
-        <p className="lf-market-help"><Info className="size-3.5 shrink-0" />
-          {searchBusy
-            ? "One recruitment search runs at a time. Your next search is available after this report returns."
-            : "Custom search: choose a position. Quick assign: follow manager needs. Individual player scouting is separate."}
-        </p>
-      </section>
+      </section>}
 
       <section className="lf-market-results min-h-0 flex flex-1 flex-col" aria-label="Transfer market results">
-        <div className="lf-market-section-heading">
+        <div className="lf-market-section-heading lf-market-results-heading">
           <span>TRANSFER TARGETS</span>
-          <span>{visible.length} {visible.length === 1 ? "player" : "players"}</span>
+          <div className="lf-market-results-tools">
+            <span>{visible.length} {visible.length === 1 ? "player" : "players"}</span>
+            <button type="button"
+              className="lf-market-expand-toggle"
+              onClick={() => setListExpanded((expanded) => !expanded)}
+              aria-label={listExpanded ? "Exit full screen player list" : "Full screen player list"}
+              aria-pressed={listExpanded}
+              title={listExpanded ? "Return to transfer desk" : "Expand player list to fill the screen"}>
+              {listExpanded ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+              <span>{listExpanded ? "Exit full screen" : "Full screen"}</span>
+            </button>
+          </div>
         </div>
         <div className="lf-market-filter-bar" role="group" aria-label="Market filters">
           {FILTERS.map((value) => {

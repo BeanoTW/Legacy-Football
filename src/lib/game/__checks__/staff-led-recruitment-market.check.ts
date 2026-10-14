@@ -36,7 +36,7 @@ assert.ok(market.length < 50, "Market stays a small working set after scouts ret
 
 const marketUi = readFileSync("src/components/game/TransferMarket.tsx", "utf8");
 const delegation = readFileSync("src/lib/game/managerRecruitmentBrief.ts", "utf8");
-assert.ok(marketUi.includes("New scouting assignment"), "Market makes the send-scouts action explicit");
+assert.ok(marketUi.includes("New search") && marketUi.includes("Scouting list") && marketUi.includes("Reports"), "Market makes the send-scouts action explicit");
 assert.equal(marketUi.includes("Search known players or clubs"), false, "Market no longer exposes a generic player-database search box");
 assert.equal(
   delegation.includes("professional department status"),
