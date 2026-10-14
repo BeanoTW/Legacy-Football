@@ -428,15 +428,6 @@ function MarketRowView({
       </button>
       {open && (
         <div className="lf-desk-market-actions">
-          <Button
-            size="sm"
-            variant={row.shortlisted ? "secondary" : "outline"}
-            className="h-8 px-2 text-xs"
-            onClick={onShortlist}
-          >
-            <Star className={cn("mr-1 size-3.5", row.shortlisted && "fill-current")} />
-            {row.shortlisted ? "Remove from shortlist" : "Add to shortlist"}
-          </Button>
           {row.scouting === "none" ? (
             <Button size="sm" variant="outline" className="h-8 px-2 text-xs" onClick={onScout}>
               <Binoculars className="mr-1 size-3.5" />
@@ -448,6 +439,15 @@ function MarketRowView({
               {row.reportComplete ? "Report" : "Scouting progress"}
             </Button>
           )}
+          <Button
+            size="sm"
+            variant={row.shortlisted ? "secondary" : "outline"}
+            className="h-8 px-2 text-xs"
+            onClick={onShortlist}
+          >
+            <Star className={cn("mr-1 size-3.5", row.shortlisted && "fill-current")} />
+            {row.shortlisted ? "Remove from shortlist" : "Add to shortlist"}
+          </Button>
           {row.negotiationId ? (
             <Button size="sm" className="h-8 px-2 text-xs" onClick={onOpenTalks}>
               <Handshake className="mr-1 size-3.5" />
@@ -462,7 +462,7 @@ function MarketRowView({
               onClick={onApproach}
             >
               <Handshake className="mr-1 size-3.5" />
-              {row.negotiationId ? "Open talks" : "Approach"}
+              Approach
             </Button>
           )}
           <Button
