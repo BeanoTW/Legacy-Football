@@ -232,3 +232,46 @@
     animation: none;
   }
 }
+
+
+/* Transfers area chooser: game-themed bottom sheet, not a generic popover. */
+.lf-transfers-sheet{
+  background:
+    radial-gradient(110% 80% at 50% 0%,color-mix(in oklab,var(--color-primary) 13%,transparent),transparent 76%),
+    var(--color-card);
+  color:var(--color-foreground);
+  border-top:1px solid color-mix(in oklab,var(--color-primary) 35%,var(--color-border));
+  box-shadow:0 -14px 45px rgb(0 0 0 / 22%);
+}
+.lf-transfers-sheet-option{
+  display:flex;align-items:center;gap:0.85rem;min-height:4.65rem;width:100%;
+  padding:0.75rem 0.9rem;border:1px solid var(--color-border);
+  border-radius:1rem;background:color-mix(in oklab,var(--color-card) 85%,var(--color-background));
+  color:var(--color-foreground);box-shadow:0 2px 7px rgb(0 0 0 / 6%);
+  transition:background 150ms,border-color 150ms,box-shadow 150ms;
+}
+.lf-transfers-sheet-option:hover,.lf-transfers-sheet-option:focus-visible{
+  background:color-mix(in oklab,var(--color-primary) 10%,var(--color-card));
+  border-color:color-mix(in oklab,var(--color-primary) 50%,var(--color-border));
+}
+.lf-transfers-sheet-option:focus-visible{outline:2px solid var(--color-primary);outline-offset:2px;}
+.lf-transfers-sheet-option.is-current{
+  background:color-mix(in oklab,var(--color-primary) 16%,var(--color-card));
+  border-color:color-mix(in oklab,var(--color-primary) 65%,var(--color-border));
+  box-shadow:inset 3px 0 0 var(--color-primary),0 4px 14px rgb(0 0 0 / 10%);
+}
+.lf-transfers-sheet-icon{
+  display:grid;place-items:center;flex:none;width:2.65rem;height:2.65rem;
+  border-radius:0.8rem;background:color-mix(in oklab,var(--color-primary) 13%,var(--color-card));
+  color:var(--color-primary);
+}
+.lf-transfers-sheet-option.is-current .lf-transfers-sheet-icon{
+  background:var(--color-primary);color:var(--color-primary-foreground);
+}
+.lf-transfers-sheet-current{
+  display:inline-flex;align-items:center;gap:0.2rem;flex:none;
+  border-radius:999px;padding:0.24rem 0.4rem;
+  background:color-mix(in oklab,var(--color-primary) 18%,var(--color-card));
+  color:var(--color-foreground);font-size:0.65rem;font-weight:800;
+}
+@media(prefers-reduced-motion:reduce){.lf-transfers-sheet-option{transition:none;}}
