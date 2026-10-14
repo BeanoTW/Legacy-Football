@@ -16,6 +16,8 @@ import type { GameState, Position } from "@/lib/game/types";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { fmtMoney } from "@/lib/game/engine";
+import { transferDeskHeader } from "@/lib/game/transferDesk";
+import type { ChairmanRecruitmentEstimate } from "@/lib/game/recruitmentKnowledge";
 import { submitTransferEnquiry, submitTransferOffer } from "@/lib/game/recruitment";
 import { startScouting } from "@/lib/game/scouting";
 import {
@@ -40,6 +42,7 @@ import { ScoutingBrowser } from "./ScoutingBrowser";
 import { ScoutingBriefBuilder } from "./ScoutingBriefBuilder";
 import { ScoutingReports } from "./ScoutingReports";
 import { openPlayerProfile } from "./shared/PlayerProfileSheet";
+import { CharacterPortrait } from "./CharacterPortrait";
 import type { RunAction } from "./TransferDesk";
 
 /* Market — one discovery workspace.
@@ -84,6 +87,7 @@ export function TransferMarket({
   const [confirmDelegation, setConfirmDelegation] = useState(false);
   const [listExpanded, setListExpanded] = useState(false);
   const rows = useMemo(() => transferMarketRows(state), [state]);
+  const finance = useMemo(() => transferDeskHeader(state), [state]);
   const manager = userManager(state);
   const brief = useMemo(
     () => (manager && state.football ? managerRecruitmentBrief(state, manager) : null),
@@ -332,7 +336,9 @@ export function TransferMarket({
                 onApproach={() => approach(row)}
                 onOpenTalks={() => row.negotiationId && onNegotiationStarted(row.negotiationId)}
                 onReport={() => onSurface({ kind: "reports", focusPlayerId: row.player.id })}
-                canApproach={Boolean(chairmanRecruitmentEstimate(state, row.player.id))}
+                estimate={chairmanRecruitmentEstimate(state, row.player.id)}
+                wageRoom={finance.wageHeadroomWeekly}
+                cashAvailable={finance.cash}
               />
             ))}
           </div>
@@ -352,7 +358,9 @@ function MarketRowView({
   onApproach,
   onOpenTalks,
   onReport,
-  canApproach,
+  estimate,
+  wageRoom,
+  cashAvailable,
 }: {
   row: MarketRow;
   open: boolean;
@@ -362,8 +370,14 @@ function MarketRowView({
   onApproach: () => void;
   onOpenTalks: () => void;
   onReport: () => void;
-  canApproach: boolean;
+  estimate: ChairmanRecruitmentEstimate | null;
+  wageRoom: number | null;
+  cashAvailable: number;
 }) {
+  const canApproach = Boolean(estimate);
+  const knownWage = estimate?.wageRange;
+  const wageTight = Boolean(knownWage && wageRoom !== null && knownWage[0] > wageRoom);
+  const wageConcern = Boolean(knownWage && wageRoom !== null && knownWage[1] > wageRoom);
   return (
     <div
       className={cn(
@@ -373,7 +387,10 @@ function MarketRowView({
       )}
     >
       <button type="button" className="lf-desk-market-main" onClick={onToggle} aria-expanded={open} aria-label={`Show actions for ${row.name}`}>
-        <span className="lf-desk-pos">{row.tacticalPosition}</span>
+        <span className="lf-market-player-identity">
+          <CharacterPortrait identity={{ id: row.player.id, subject: "player" }} size={40} title={`${row.name} portrait`} />
+          <span className="lf-desk-pos">{row.tacticalPosition}</span>
+        </span>
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 items-center gap-1">
             <span className="truncate font-display text-[0.95rem] leading-tight">{row.name}</span>
@@ -386,9 +403,7 @@ function MarketRowView({
           </span>
           <span className="block truncate text-[10px] text-muted-foreground">
             {row.age}y · {row.clubName}
-            {row.valueRange
-              ? ` · ${fmtMoney(row.valueRange[0])}–${fmtMoney(row.valueRange[1])}`
-              : ""}
+
           </span>
           <span className="lf-desk-tags">
             {row.negotiationId && <span className="is-live">In talks</span>}
@@ -405,6 +420,10 @@ function MarketRowView({
               <span className="is-scout-report" title="Initial report from a staff scouting search">Scout report</span>
             ) : null}
           </span>
+          <span className="lf-market-money-chips">
+            <span title="Scout-estimated transfer fee">{row.freeAgent ? "Free" : row.valueRange ? `${fmtMoney(row.valueRange[0])}–${fmtMoney(row.valueRange[1])}` : "Fee unknown"}</span>
+            <span className={cn(wageTight ? "is-over-budget" : wageConcern ? "is-tight" : "")} title="Scout-estimated weekly wage">{knownWage ? `~${fmtMoney(estimate!.openingWeeklyWage)}/wk` : "Wage unknown"}</span>
+          </span>
           <span className="lf-market-player-details" title={row.interestReason}>
             {row.interestLabel}
             {row.freeAgent && " · Free agent"}
@@ -413,8 +432,9 @@ function MarketRowView({
           </span>
 
         </span>
-        <span className="lf-desk-ovr">
+        <span className={cn("lf-desk-ovr lf-market-confidence", row.knowledgePct >= 85 ? "is-high" : row.knowledgePct >= 40 ? "is-medium" : "is-low")} title={`${row.knowledgePct}% knowledge — ability shown according to scouting fog of war`}>
           <span className="block font-display text-base leading-none">{row.overallLabel}</span>
+          <span className="lf-market-confidence-label">{row.knowledgePct >= 85 ? "Good intel" : row.knowledgePct >= 40 ? "Estimated" : "Limited"}</span>
           <span className="lf-desk-knowledge" aria-label={`${row.knowledgePct}% player knowledge`}>
             <span style={{ width: `${row.knowledgePct}%` }} />
           </span>
@@ -427,6 +447,14 @@ function MarketRowView({
         />
       </button>
       {open && (
+        <div className="lf-market-dossier">
+          <div className="lf-market-financial-preview">
+            <div><small>Est. weekly wage</small><strong>{knownWage ? `${fmtMoney(knownWage[0])}–${fmtMoney(knownWage[1])}` : "Unknown"}</strong></div>
+            <div><small>Wage headroom</small><strong>{wageRoom === null ? "No cap" : `${fmtMoney(wageRoom)}/wk`}</strong></div>
+            <div><small>Est. fee</small><strong>{row.freeAgent ? "Free" : row.valueRange ? `${fmtMoney(row.valueRange[0])}–${fmtMoney(row.valueRange[1])}` : "Unknown"}</strong></div>
+            <div><small>Club cash</small><strong>{fmtMoney(cashAvailable)}</strong></div>
+          </div>
+          <p className="lf-market-scout-note">{row.scouting === "complete" ? "Detailed scouting report available." : row.scouting === "active" ? "Detailed assessment in progress." : row.recommended ? "Initial scout report received." : "Player known to your recruitment team."} {row.interestReason}</p>
         <div className="lf-desk-market-actions">
           {row.scouting === "none" ? (
             <Button size="sm" variant="outline" className="h-8 px-2 text-xs" onClick={onScout}>
@@ -474,6 +502,7 @@ function MarketRowView({
             <UserRound className="mr-1 size-3.5" />
             Profile
           </Button>
+        </div>
         </div>
       )}
     </div>
