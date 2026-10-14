@@ -89,7 +89,7 @@ export function ScoutingReports({
 
   return (
     <DetailScreen
-      title={shortlistOnly ? "Shortlist" : "Scouting reports"}
+      title={shortlistOnly ? "Shortlist" : "Detailed scouting reports"}
       subtitle={shortlistOnly ? `${assignments.length} watched target${assignments.length === 1 ? "" : "s"}` : `${assignments.filter((a) => a.status === "active").length} active · ${assignments.filter((a) => a.status === "complete").length} complete`}
       actions={
         <Button variant="ghost" size="sm" onClick={onBack}>
@@ -100,7 +100,7 @@ export function ScoutingReports({
     >
       {assignments.length === 0 && (
         <div className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">
-          {shortlistOnly ? "No shortlisted players yet. Star a player from Recommended players or Scouting reports to keep them here." : "No scouting assignments yet. Use Find Players and press Scout on anyone you want the recruitment team to track."}
+          {shortlistOnly ? "No shortlisted players yet. Star a player from Recommended players or Scouting reports to keep them here." : "No detailed reports yet. Open a player from Scout reports or Players and choose Scout further."}
         </div>
       )}
 
