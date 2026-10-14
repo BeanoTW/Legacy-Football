@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeftRight, ChevronUp, Handshake, Menu, Pause, Play, Search, Users } from "lucide-react";
+import { ArrowLeftRight, Check, ChevronRight, ChevronUp, Handshake, Menu, Pause, Play, Search, Users } from "lucide-react";
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
   DropdownMenu,
@@ -25,6 +25,7 @@ export function MobileDock({
   tab,
   setTab,
   onTransfersArea,
+  activeTransfersArea = "market",
   unread,
   blocking,
   isContinuing,
@@ -36,6 +37,7 @@ export function MobileDock({
   tab: Tab;
   setTab: (tab: Tab) => void;
   onTransfersArea?: (area: "live" | "market" | "squad") => void;
+  activeTransfersArea?: "live" | "market" | "squad";
   unread: number;
   blocking: number;
   isContinuing: boolean;
@@ -145,32 +147,47 @@ export function MobileDock({
         </div>
 
         {RIGHT.map((id) => id === "recruitment" && onTransfersArea ? (
-          <DropdownMenu key={id} open={transfersOpen} onOpenChange={setTransfersOpen}>
-            <DropdownMenuTrigger asChild>
+          <Sheet key={id} open={transfersOpen} onOpenChange={setTransfersOpen}>
+            <SheetTrigger asChild>
               <button type="button" className={cn("lf-dock-item", tab === id && "is-active")}
                 aria-label="Transfers: choose an area" aria-expanded={transfersOpen}>
                 <ArrowLeftRight className="lf-dock-icon" />
                 <span className="lf-dock-label">Transfers</span>
               </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent side="top" align="center" sideOffset={12} className="w-[min(21rem,calc(100vw-1.5rem))] p-2">
-              <DropdownMenuLabel>Transfers</DropdownMenuLabel>
-              {([
-                ["live", "Live Business", "Offers and negotiations", Handshake],
-                ["market", "Market", "Search, players and shortlist", Search],
-                ["squad", "Squad & Contracts", "Renewals, loans and departures", Users],
-              ] as const).map(([area, label, description, Icon]) => (
-                <DropdownMenuItem key={area} onSelect={() => onTransfersArea(area)}
-                  className="flex items-center gap-3 rounded-lg p-3">
-                  <Icon className="size-5 shrink-0 text-primary" />
-                  <span className="flex flex-col">
-                    <span className="font-semibold">{label}</span>
-                    <span className="text-xs text-muted-foreground">{description}</span>
-                  </span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+            </SheetTrigger>
+            <SheetContent side="bottom"
+              className="lf-transfers-sheet max-h-[85dvh] overflow-y-auto rounded-t-[26px] border-x-0 border-b-0 px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 sm:mx-auto sm:max-w-lg">
+              <div className="mx-auto mb-4 h-1 w-11 rounded-full bg-primary/25" aria-hidden="true" />
+              <SheetHeader className="mb-4 gap-1 text-left">
+                <SheetTitle className="font-display text-xl">Transfers</SheetTitle>
+                <p className="text-xs text-muted-foreground">Choose where you'd like to work</p>
+              </SheetHeader>
+              <div className="grid gap-2.5">
+                {([
+                  ["live", "Live Business", "Offers and negotiations", Handshake],
+                  ["market", "Market", "Search, players and shortlist", Search],
+                  ["squad", "Squad & Contracts", "Renewals, loans and departures", Users],
+                ] as const).map(([area, label, description, Icon]) => {
+                  const active = tab === "recruitment" && activeTransfersArea === area;
+                  return (
+                    <SheetClose asChild key={area}>
+                      <button type="button" onClick={() => onTransfersArea(area)}
+                        aria-current={active ? "page" : undefined}
+                        className={cn("lf-transfers-sheet-option", active && "is-current")}>
+                        <span className="lf-transfers-sheet-icon"><Icon className="size-5" /></span>
+                        <span className="min-w-0 flex-1 text-left">
+                          <span className="block text-sm font-bold">{label}</span>
+                          <span className="block text-xs text-muted-foreground">{description}</span>
+                        </span>
+                        {active ? <span className="lf-transfers-sheet-current"><Check className="size-3.5" /> Current</span>
+                          : <ChevronRight className="size-4 shrink-0 text-muted-foreground" />}
+                      </button>
+                    </SheetClose>
+                  );
+                })}
+              </div>
+            </SheetContent>
+          </Sheet>
         ) : <TabButton key={id} id={id} />)}
 
         <Sheet open={moreOpen} onOpenChange={setMoreOpen}>

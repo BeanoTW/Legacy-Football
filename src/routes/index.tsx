@@ -367,6 +367,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
       <MobileDock
         tab={tab}
         setTab={(next) => { setDecisionQueue(false); setTab(next); }}
+        activeTransfersArea={transferArea}
         onTransfersArea={(area) => {
           setDecisionQueue(false);
           setTransferArea(area);
