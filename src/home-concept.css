@@ -1379,3 +1379,26 @@
     backdrop-filter: none;
   }
 }
+
+
+/* Home financial-health severity must reflect the actual sustainability rating.
+   The generic home theme otherwise paints every vital meter green. */
+.lf-home-dashboard .lf-vital-card.is-finance.is-critical{
+  border-color:rgb(251 113 133 / 62%);
+  background:linear-gradient(150deg,rgb(104 35 50 / 82%),rgb(34 56 57 / 96%));
+}
+.lf-home-dashboard .lf-vital-card.is-finance.is-critical > strong{color:#fda4af !important;}
+.lf-home-dashboard .lf-vital-card.is-finance.is-critical i b{
+  background:linear-gradient(90deg,#e11d48,#fb7185);
+  box-shadow:0 0 8px rgb(251 113 133 / 30%);
+}
+.lf-home-dashboard .lf-vital-card.is-finance.is-stressed{
+  border-color:rgb(251 146 60 / 52%);
+  background:linear-gradient(150deg,rgb(107 63 36 / 70%),rgb(34 56 57 / 95%));
+}
+.lf-home-dashboard .lf-vital-card.is-finance.is-stressed > strong{color:#fdba74 !important;}
+.lf-home-dashboard .lf-vital-card.is-finance.is-stressed i b{background:linear-gradient(90deg,#ea580c,#fb923c);}
+.lf-home-dashboard .lf-vital-card.is-finance.is-tight > strong{color:#fcd34d !important;}
+.lf-home-dashboard .lf-vital-card.is-finance.is-tight i b{background:linear-gradient(90deg,#d97706,#fbbf24);}
+.lf-home-dashboard .lf-vital-card.is-finance.is-healthy > strong,
+.lf-home-dashboard .lf-vital-card.is-finance.is-secure > strong{color:#4ade80 !important;}
