@@ -47,6 +47,13 @@ assert.ok(
 const marketUi = readFileSync("src/components/game/TransferMarket.tsx", "utf8");
 const delegation = readFileSync("src/lib/game/managerRecruitmentBrief.ts", "utf8");
 assert.ok(marketUi.includes("<span>Search</span>") && marketUi.includes("<span>Players</span>") && marketUi.includes("<span>Shortlist</span>"), "Market makes the send-scouts action explicit");
+assert.ok(
+  marketUi.includes("Scout report") &&
+  marketUi.includes("Further scouting") &&
+  marketUi.includes("Detailed report ready"),
+  "player cards distinguish initial scout reports from follow-up scouting and completed detailed reports",
+);
+assert.equal(marketUi.includes("Watchlist"), false, "personal saved targets use the football term Shortlist");
 assert.equal(marketUi.includes("Search known players or clubs"), false, "Market no longer exposes a generic player-database search box");
 assert.equal(
   delegation.includes("professional department status"),
