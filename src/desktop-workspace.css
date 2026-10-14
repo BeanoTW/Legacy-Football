@@ -859,3 +859,27 @@
   .game-main.lf-home-main .lf-around-grounds{padding-top:9rem;}
   .game-main.lf-home-main .lf-management-grid{max-height:4.5rem;overflow:hidden;}
 }
+
+
+/* Explicit cockpit placement: no overlay, padding shims or duplicate content. */
+@media(min-width:1280px){
+  .game-main.lf-home-main .lf-home-dashboard{
+    grid-template-rows:auto minmax(0,1fr) auto!important;
+    grid-template-areas:
+      "match vitals standing"
+      "calendar desk world"
+      "shortcuts shortcuts shortcuts"!important;
+  }
+  .game-main.lf-home-main .lf-match-card{grid-area:match;align-self:stretch;}
+  .game-main.lf-home-main .lf-vital-grid{grid-area:vitals;align-self:stretch;}
+  .game-main.lf-home-main .lf-club-pulse{grid-area:standing;align-self:stretch;}
+  .game-main.lf-home-main .lf-home-calendar{grid-area:calendar;padding-top:0;min-height:0;overflow-y:auto;}
+  .game-main.lf-home-main .lf-home-desk{grid-area:desk;padding-top:0;align-self:stretch;min-height:0;overflow-y:auto;display:block!important;}
+  .game-main.lf-home-main .lf-home-desk>.lf-home-panel{min-height:0;}
+  .game-main.lf-home-main .lf-around-grounds{grid-area:world;padding-top:0;min-height:0;overflow-y:auto;}
+}
+@media(min-width:1280px) and (max-height:740px){
+  .game-main.lf-home-main .lf-home-calendar,
+  .game-main.lf-home-main .lf-home-desk,
+  .game-main.lf-home-main .lf-around-grounds{padding-top:0;}
+}
