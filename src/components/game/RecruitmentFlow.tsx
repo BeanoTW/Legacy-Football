@@ -5,7 +5,7 @@ import {
   delegateManagerRecruitmentPriorities,
   recruitmentDelegationAvailability,
 } from "@/lib/game/managerRecruitmentBrief";
-import { deskRequestForDestination } from "@/lib/game/transferDesk";
+import { deskRequestForDestination, type DeskLens } from "@/lib/game/transferDesk";
 import { TransferDesk } from "./TransferDesk";
 
 /* Transfers root. The old seven-tile menu is gone: Transfers opens straight
@@ -18,12 +18,14 @@ export function RecruitmentFlow({
   state,
   update,
   destination,
+  initialLens,
 }: {
   state: GameState;
   update: (fn: (s: GameState) => GameState) => void;
   destination?: RecruitmentDestination | null;
+  initialLens?: DeskLens;
 }) {
-  const initial = useMemo(() => deskRequestForDestination(destination), [destination]);
+  const initial = useMemo(() => destination ? deskRequestForDestination(destination) : { lens: initialLens ?? "market" }, [destination, initialLens]);
 
   // A manager memo ("Assign to Recruitment") hands his priorities to the
   // recruitment department once, then lands on the scouting results.

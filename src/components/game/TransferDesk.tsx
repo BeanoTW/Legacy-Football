@@ -62,7 +62,7 @@ export function TransferDesk({
   update: (fn: (s: GameState) => GameState) => void;
   initial?: DeskRequest | null;
 }) {
-  const [lens, setLens] = useState<DeskLens>(initial?.lens ?? "live");
+  const [lens, setLens] = useState<DeskLens>(initial?.lens ?? "market");
   // Live Business
   const [selectedDealId, setSelectedDealId] = useState<string | null>(
     initial?.lens === "live" && initial.negotiationId ? `neg:${initial.negotiationId}` : null,
@@ -174,7 +174,7 @@ export function TransferDesk({
           );
         })}
       </div>
-      <DepartmentBriefing items={briefing} onGo={go} />
+      <div className={cn("lf-transfer-department-updates", lens === "market" && "is-market")}><DepartmentBriefing items={briefing} onGo={go} /></div>
       {note && (
         <div className="flex shrink-0 items-center gap-2 rounded-lg border bg-muted/50 px-2.5 py-1.5 text-[11px]">
           <span className="min-w-0 flex-1 truncate">{note}</span>

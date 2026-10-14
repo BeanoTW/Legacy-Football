@@ -169,6 +169,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
   const [recruitmentDestination, setRecruitmentDestination] = useState<Extract<InboxDestination, { tab: "recruitment" }> | null>(null);
   const [staffConversationId, setStaffConversationId] = useState<string | null>(null);
   const [recruitmentNavigationKey, setRecruitmentNavigationKey] = useState(0);
+  const [transferArea, setTransferArea] = useState<"live" | "market" | "squad">("market");
   const [showAdvancePreview, setShowAdvancePreview] = useState(false);
   const [advanceStart, setAdvanceStart] = useState<GameState | null>(null);
   const [lastTarget, setLastTarget] = useState<AdvanceTarget | null>(null);
@@ -347,7 +348,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
             {tab === "dashboard" && <DashboardTab state={state} />}
             {tab === "cashflow" && <CashFlowTab state={state} />}
             {tab === "tickets" && <TicketsTab state={state} update={update} />}
-            {tab === "recruitment" && <RecruitmentFlow key={recruitmentNavigationKey} state={state} update={update} destination={recruitmentDestination} />}
+            {tab === "recruitment" && <RecruitmentFlow key={recruitmentNavigationKey} state={state} update={update} destination={recruitmentDestination} initialLens={transferArea} />}
             {tab === "staff" && <StaffTab state={state} update={update} initialConversationStaffId={staffConversationId} />}
             {tab === "academy" && <AcademyTab state={state} update={update} />}
             {tab === "stadium" && <FacilitiesFlow state={state} update={update} />}
@@ -366,6 +367,13 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
       <MobileDock
         tab={tab}
         setTab={(next) => { setDecisionQueue(false); setTab(next); }}
+        onTransfersArea={(area) => {
+          setDecisionQueue(false);
+          setTransferArea(area);
+          setRecruitmentDestination(null);
+          setRecruitmentNavigationKey((key) => key + 1);
+          setTab("recruitment");
+        }}
         unread={unreadCount(state)}
         blocking={blockingDecisions.length}
         isContinuing={isContinuing}

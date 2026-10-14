@@ -146,7 +146,17 @@ export function TransferMarket({
   return (
     <div className={cn("lf-market-workspace flex h-full min-h-0 flex-col gap-3", listExpanded && "is-list-expanded")}>
       {!listExpanded && brief && brief.priorities.length > 0 && (
-        <section className="lf-desk-priorities shrink-0">
+        <details className="lf-desk-priorities lf-recruitment-briefing shrink-0">
+          <summary className="lf-recruitment-briefing-summary">
+            <span className="flex min-w-0 items-center gap-2">
+              <Binoculars className="size-4 shrink-0" />
+              <strong>Recruitment briefing</strong>
+              <span className="lf-recruitment-briefing-count">{brief.priorities.length} priorities</span>
+            </span>
+            <span className="lf-recruitment-briefing-status">{searchBusy ? "Search underway" : "View needs"}</span>
+            <ChevronDown className="size-4 shrink-0" />
+          </summary>
+          <div className="lf-recruitment-briefing-body">
           <div className="lf-desk-priorities-head">
             <span className="min-w-0 truncate">
               <strong>{brief.managerName}</strong> · {brief.tacticalShape}
@@ -217,7 +227,8 @@ export function TransferMarket({
               {delegation.reason}
             </p>
           )}
-        </section>
+          </div>
+        </details>
       )}
 
       {!listExpanded && <section className="lf-market-search-panel is-idle shrink-0" aria-label="Scouting overview">
