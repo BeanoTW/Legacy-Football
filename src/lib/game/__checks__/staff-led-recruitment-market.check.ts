@@ -46,7 +46,7 @@ assert.ok(
 
 const marketUi = readFileSync("src/components/game/TransferMarket.tsx", "utf8");
 const delegation = readFileSync("src/lib/game/managerRecruitmentBrief.ts", "utf8");
-assert.ok(marketUi.includes("<span>Search</span>") && marketUi.includes("<span>Players</span>") && marketUi.includes("<span>Shortlist</span>"), "Market makes the send-scouts action explicit");
+assert.ok(marketUi.includes("Scout search") && marketUi.includes("lf-market-shortlist-filter") && marketUi.includes("Market status filters"), "Market offers an explicit scouting search and compact shortlist/status filters");
 assert.ok(
   marketUi.includes("Scout report") &&
   marketUi.includes("Further scouting") &&

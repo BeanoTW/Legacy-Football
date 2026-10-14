@@ -271,6 +271,27 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
       <PlayerProfileSheet state={state} update={update} />
       <ChairmanStudio open={chairmanStudioOpen} onOpenChange={setChairmanStudioOpen} showName={false} />
       <ClubIdentitySheet open={clubIdentityOpen} onOpenChange={setClubIdentityOpen} state={state} update={update} />
+      {/* Dedicated PC control bar: mobile/tablet keep their existing shell. */}
+      <header className="lf-executive-header" aria-label="Desktop executive controls">
+        <button type="button" className="lf-executive-identity" onClick={() => setClubIdentityOpen(true)} title="Club identity"> <ClubBadge design={crestDesign} clubName={state.clubName} size={35} />
+          <span><strong>{state.clubName}</strong><small>Season {state.season} · Week {state.week}/{CALENDAR.seasonEnd}</small></span> </button>
+        <nav className="lf-executive-nav" aria-label="Desktop primary navigation"> {desktopPrimary.map(([id,label,Icon]) => (
+            <button key={id} type="button" className={cn("lf-executive-nav-item",tab === id && "is-active")} aria-current={tab === id ? "page" : undefined}
+              onClick={() => {setDecisionQueue(false);setTab(id);}}> <Icon className="size-4 shrink-0" /><span>{label}</span>
+              {id === "inbox" && unreadCount(state) > 0 && <b>{unreadCount(state)}</b>} </button>
+          ))} <Sheet>
+            <SheetTrigger asChild><button type="button" className="lf-executive-nav-item" aria-label="More club areas"><Menu className="size-4" />More</button></SheetTrigger> <SheetContent side="right" className="w-[360px] sm:w-[420px]">
+              <SheetHeader><SheetTitle>More club areas</SheetTitle></SheetHeader> <div className="mt-6 grid grid-cols-2 gap-3">
+                {desktopMore.map(([id,label,Icon]) => ( <SheetClose asChild key={id}><button type="button" onClick={() => {setDecisionQueue(false);setTab(id);}}
+                    className={cn("flex min-h-20 flex-col items-start justify-between rounded-xl border p-3 text-left font-semibold",tab===id?"bg-primary text-primary-foreground":"bg-card hover:bg-muted")}> <Icon className="size-5" />{label}
+                  </button></SheetClose> ))}
+              </div> </SheetContent>
+          </Sheet> </nav>
+        <div className="lf-executive-finances" title="Club finances"> <span><small>Balance</small><strong>{fmtMoney(kpi.cash)}</strong></span>
+          <span><small>Weekly net</small><strong className={kpi.weeklyNetRecurring < 0 ? "is-negative" : ""}>{fmtMoney(kpi.weeklyNetRecurring)}</strong></span> </div>
+        <button type="button" className="lf-executive-advance" onClick={() => isContinuing ? stopContinue() : openAdvancePreview()} aria-label={isContinuing ? "Stop advancing time" : "Open advance preview"}>
+          <span><strong>{isContinuing ? "Stop" : blockingDecisions.length ? "Decide" : "Advance"}</strong><small>{phaseLabel}</small></span> {isContinuing ? <span aria-hidden="true">■</span> : <span aria-hidden="true">▶</span>}
+        </button> </header>
       <div className="lf-masthead shrink-0">
           <TopBar
             title={state.clubName}
@@ -385,7 +406,7 @@ function Game({ state, update, isContinuing, continueReason, continueTarget, con
       />
 
       {/* Tablet and desktop retain the full Continue bar. */}
-      <div className="hidden md:block">
+      <div className="hidden md:block lf-tablet-continue">
         <MobileContinueBar
           isContinuing={isContinuing}
           startContinue={() => requestContinue()}
