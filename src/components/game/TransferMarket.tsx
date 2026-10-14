@@ -149,12 +149,81 @@ export function TransferMarket({
 
   return (
     <div className={cn("lf-market-workspace flex h-full min-h-0 flex-col gap-3", listExpanded && "is-list-expanded")}>
+      <section className="lf-market-results min-h-0 flex flex-1 flex-col" aria-label="Transfer market results">
+        <div className="lf-market-section-heading lf-market-results-heading">
+          <span>PLAYERS</span>
+          <div className="lf-market-results-tools">
+            <span>{visible.length} {visible.length === 1 ? "player" : "players"}</span>
+            <button type="button"
+              className="lf-market-expand-toggle"
+              onClick={() => setListExpanded((expanded) => !expanded)}
+              aria-label={listExpanded ? "Exit full screen player list" : "Full screen player list"}
+              aria-pressed={listExpanded}
+              title={listExpanded ? "Return to transfer desk" : "Expand player list to fill the screen"}>
+              {listExpanded ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+              <span>{listExpanded ? "Exit full screen" : "Full screen"}</span>
+            </button>
+          </div>
+        </div>
+        <div className="lf-market-compact-tools">
+          <Button size="sm" className="lf-market-scout-cta"
+            disabled={searchBusy}
+            title={searchBusy ? "Your current search is underway" : "Commission a new scouting search"}
+            onClick={() => onSurface({ kind: "brief" })}>
+            <Plus className="size-4" /><span>{searchBusy ? "Search active" : "Scout search"}</span>
+          </Button>
+          <div className="lf-market-filter-bar" role="group" aria-label="Market status filters">
+            <button type="button" aria-pressed={filter === "shortlist"}
+              className={cn("lf-chip shrink-0 lf-market-shortlist-filter", filter === "shortlist" && "is-active")}
+              onClick={() => onFilter(filter === "shortlist" ? "all" : "shortlist")}>
+              <Star className="size-3.5" /> Shortlist
+              <span className="tabular-nums opacity-70">{rows.filter(row => row.shortlisted && (!position || row.position === position)).length}</span>
+            </button>
+          {FILTERS.map((value) => {
+            const count = rows.filter(
+              (row) => marketRowMatches(row, value) && (!position || row.position === position),
+            ).length;
+            return (
+              <button key={value} type="button" aria-pressed={filter === value}
+                className={cn("lf-chip shrink-0", filter === value && "is-active")}
+                onClick={() => onFilter(value)}>
+                {MARKET_FILTER_LABEL[value]}
+                <span className="ml-1 tabular-nums opacity-70">{count}</span>
+              </button>
+            );
+          })}
+          </div>
+        </div>
+        <div className="lf-market-position-rail" role="group" aria-label="Position and manager needs">
+          <span className="lf-market-position-caption">Position</span>
+          <button type="button" aria-pressed={position === null} className={cn("lf-chip shrink-0",position === null && "is-active")} onClick={() => onPosition(null)}>ALL</button>
+          {POSITIONS.map((value) => (
+            <button key={value} type="button" aria-pressed={position === value}
+              className={cn("lf-chip shrink-0", position === value && "is-active")}
+              onClick={() => onPosition(position === value ? null : value)}>
+              {value}
+            </button>
+          ))}
+          {brief && brief.priorities.length > 0 && (
+            <>
+              <span className="lf-market-need-divider" aria-hidden="true" />
+              {brief.priorities.map((priority,index) => (
+                <button key={`${priority.position}-${index}`} type="button"
+                  className={cn("lf-market-need-pill", position === priority.position && "is-active")}
+                  title={priority.rationale} aria-pressed={position === priority.position}
+                  onClick={() => onPosition(position === priority.position ? null : priority.position)}>
+                  Need: {priority.tacticalPosition ?? priority.position}
+                </button>
+              ))}
+            </>
+          )}
+        </div>
       {!listExpanded && brief && brief.priorities.length > 0 && (
-        <details className="lf-desk-priorities lf-recruitment-briefing shrink-0">
+        <details className="lf-desk-priorities lf-recruitment-briefing lf-market-manager-details shrink-0">
           <summary className="lf-recruitment-briefing-summary">
             <span className="flex min-w-0 items-center gap-2">
               <Binoculars className="size-4 shrink-0" />
-              <strong>Recruitment briefing</strong>
+              <strong>Manager search options</strong>
               <span className="lf-recruitment-briefing-count">{brief.priorities.length} priorities</span>
             </span>
             <span className="lf-recruitment-briefing-status">{searchBusy ? "Search underway" : "View needs"}</span>
@@ -200,29 +269,6 @@ export function TransferMarket({
               </div>
             </div>
           )}
-          <div className="flex gap-1 overflow-x-auto pb-0.5">
-            {brief.priorities.map((priority, index) => (
-              <button
-                key={`${priority.position}-${index}`}
-                type="button"
-                className={cn(
-                  "lf-desk-need",
-                  index === 0 && "is-top",
-                  position === priority.position && "is-active",
-                )}
-                onClick={() =>
-                  onPosition(position === priority.position ? null : priority.position)
-                }
-                title={priority.rationale}
-              >
-                <span className="lf-desk-need-role">
-                  {priority.tacticalPosition ?? priority.position}
-                </span>
-                <span>{priority.headline.replace(/ needed$/, "")}</span>
-                <span className="lf-desk-need-level">{priorityLevelLabel(priority)}</span>
-              </button>
-            ))}
-          </div>
           {!delegation.available && !delegation.alreadyActive && delegation.reason && (
             <p
               className="mt-1 truncate text-[10px] text-muted-foreground"
@@ -235,64 +281,7 @@ export function TransferMarket({
         </details>
       )}
 
-      {!listExpanded && <section className="lf-market-search-panel is-idle shrink-0" aria-label="Scouting overview">
-        <div className="lf-market-action-grid">
-          <Button size="sm" className="lf-market-action lf-market-action-primary"
-            disabled={searchBusy}
-            title={searchBusy ? "Wait until the active scouting report arrives" : "Choose the next position to scout"}
-            onClick={() => onSurface({ kind: "brief" })}>
-            <Plus className="size-4" /><span>Search</span>
-          </Button>
-          <Button size="sm" variant="outline" className="lf-market-action"
-            onClick={() => { onFilter("all"); onPosition(null); }} aria-pressed={filter === "all"}>
-            <Binoculars className="size-4" /><span>Players</span>
-          </Button>
-          <Button size="sm" variant="outline" className="lf-market-action"
-            onClick={() => { onFilter("shortlist"); onPosition(null); }} aria-pressed={filter === "shortlist"}>
-            <Star className="size-4" /><span>Shortlist</span>
-          </Button>
-        </div>
-      </section>}
 
-      <section className="lf-market-results min-h-0 flex flex-1 flex-col" aria-label="Transfer market results">
-        <div className="lf-market-section-heading lf-market-results-heading">
-          <span>PLAYERS</span>
-          <div className="lf-market-results-tools">
-            <span>{visible.length} {visible.length === 1 ? "player" : "players"}</span>
-            <button type="button"
-              className="lf-market-expand-toggle"
-              onClick={() => setListExpanded((expanded) => !expanded)}
-              aria-label={listExpanded ? "Exit full screen player list" : "Full screen player list"}
-              aria-pressed={listExpanded}
-              title={listExpanded ? "Return to transfer desk" : "Expand player list to fill the screen"}>
-              {listExpanded ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
-              <span>{listExpanded ? "Exit full screen" : "Full screen"}</span>
-            </button>
-          </div>
-        </div>
-        <div className="lf-market-filter-bar" role="group" aria-label="Market filters">
-          {FILTERS.map((value) => {
-            const count = rows.filter(
-              (row) => marketRowMatches(row, value) && (!position || row.position === position),
-            ).length;
-            return (
-              <button key={value} type="button" aria-pressed={filter === value}
-                className={cn("lf-chip shrink-0", filter === value && "is-active")}
-                onClick={() => onFilter(value)}>
-                {MARKET_FILTER_LABEL[value]}
-                <span className="ml-1 tabular-nums opacity-70">{count}</span>
-              </button>
-            );
-          })}
-          <span className="lf-market-filter-separator" aria-hidden="true" />
-          {POSITIONS.map((value) => (
-            <button key={value} type="button" aria-pressed={position === value}
-              className={cn("lf-chip shrink-0", position === value && "is-active")}
-              onClick={() => onPosition(position === value ? null : value)}>
-              {value}
-            </button>
-          ))}
-        </div>
       <div className="contained-scroll min-h-0 flex-1 pr-0.5">
         {visible.length === 0 ? (
           <div className="lf-desk-empty">
